@@ -6,8 +6,11 @@ import {
   bearerRenewalInterceptor,
   createChattoClient,
   dataGenerationInterceptor,
+  isNetworkError,
   minimumCursorHeaders,
+  networkRetryInterceptor,
   skipAuthenticationRequired,
+  skipNetworkRetry,
   StaleResponseError
 } from './connect.js';
 
@@ -54,6 +57,152 @@ describe('StaleResponseError', () => {
     expect(stale instanceof ConnectError).toBe(true);
     expect(new ConnectError('failed', Code.Internal) instanceof StaleResponseError).toBe(false);
     expect(new Error('failed') instanceof StaleResponseError).toBe(false);
+  });
+});
+
+describe('isNetworkError', () => {
+  it.each([
+    [new TypeError('Failed to fetch'), true],
+    [new ConnectError('down', Code.Unavailable), true],
+    [new ConnectError('timed out', Code.DeadlineExceeded), true],
+    [ConnectError.from(new TypeError('Failed to fetch')), true],
+    [new ConnectError('unknown', Code.Unknown), false],
+    [new ConnectError('broken', Code.Internal), false],
+    [new ConnectError('canceled', Code.Canceled), false],
+    [new Error('failed'), false]
+  ])('classifies %o as %s', (error, expected) => {
+    expect(isNetworkError(error)).toBe(expected);
+  });
+});
+
+describe('networkRetryInterceptor', () => {
+  const unavailable = () => new ConnectError('down', Code.Unavailable);
+  const response = { stream: false };
+
+  /** A unary request as the interceptor reads it. */
+  function unaryRequest(name: string, signal = new AbortController().signal) {
+    return { stream: false, method: { name }, signal, contextValues: createContextValues() };
+  }
+
+  /** Run the interceptor without delays between attempts. */
+  function run(next: Mock, request: object, onRequestOutcome = vi.fn()) {
+    const result = networkRetryInterceptor({ onRequestOutcome }, [0, 0])(next as never)(
+      request as never
+    );
+    return { result, onRequestOutcome };
+  }
+
+  it('repeats a read that failed on the network and reports the final success', async () => {
+    const next = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockRejectedValueOnce(unavailable())
+      .mockResolvedValueOnce(response);
+    const { result, onRequestOutcome } = run(next, unaryRequest('ListRooms'));
+
+    await expect(result).resolves.toBe(response);
+    expect(next).toHaveBeenCalledTimes(3);
+    expect(onRequestOutcome.mock.calls).toEqual([[true]]);
+  });
+
+  it('reports one failure after the last attempt of a read', async () => {
+    const error = unavailable();
+    const next = vi.fn().mockRejectedValue(error);
+    const { result, onRequestOutcome } = run(next, unaryRequest('GetRoom'));
+
+    await expect(result).rejects.toBe(error);
+    expect(next).toHaveBeenCalledTimes(3);
+    expect(onRequestOutcome.mock.calls).toEqual([[false]]);
+  });
+
+  it('repeats a method that the protocol marks as free of side effects', async () => {
+    const next = vi.fn().mockRejectedValueOnce(unavailable()).mockResolvedValueOnce(response);
+    const request = { ...unaryRequest('Viewer'), method: { name: 'Viewer', idempotency: 1 } };
+
+    await expect(run(next, request).result).resolves.toBe(response);
+    expect(next).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not repeat a mutation', async () => {
+    const error = unavailable();
+    const next = vi.fn().mockRejectedValue(error);
+    const { result, onRequestOutcome } = run(next, unaryRequest('CreateMessage'));
+
+    await expect(result).rejects.toBe(error);
+    expect(next).toHaveBeenCalledOnce();
+    expect(onRequestOutcome.mock.calls).toEqual([[false]]);
+  });
+
+  it('does not repeat a read whose caller repeats it', async () => {
+    const next = vi.fn().mockRejectedValue(unavailable());
+    const request = { ...unaryRequest('GetUpload'), ...skipNetworkRetry() };
+    const { result, onRequestOutcome } = run(next, request);
+
+    await expect(result).rejects.toMatchObject({ code: Code.Unavailable });
+    expect(next).toHaveBeenCalledOnce();
+    expect(onRequestOutcome.mock.calls).toEqual([[false]]);
+  });
+
+  it('reports a server error as an answer and does not repeat the request', async () => {
+    const error = new ConnectError('broken', Code.Internal);
+    const next = vi.fn().mockRejectedValue(error);
+    const { result, onRequestOutcome } = run(next, unaryRequest('GetRoom'));
+
+    await expect(result).rejects.toBe(error);
+    expect(next).toHaveBeenCalledOnce();
+    expect(onRequestOutcome.mock.calls).toEqual([[true]]);
+  });
+
+  it('reports a reached deadline as a failure and does not repeat the request', async () => {
+    const deadline = new AbortController();
+    const next = vi.fn(async () => {
+      deadline.abort(new ConnectError('the operation timed out', Code.DeadlineExceeded));
+      throw new DOMException('aborted', 'AbortError');
+    });
+    const { result, onRequestOutcome } = run(next, unaryRequest('GetRoom', deadline.signal));
+
+    await expect(result).rejects.toMatchObject({ name: 'AbortError' });
+    expect(next).toHaveBeenCalledOnce();
+    expect(onRequestOutcome.mock.calls).toEqual([[false]]);
+  });
+
+  it('reports nothing for a request that the caller canceled', async () => {
+    const caller = new AbortController();
+    const next = vi.fn(async () => {
+      caller.abort();
+      throw new DOMException('aborted', 'AbortError');
+    });
+    const { result, onRequestOutcome } = run(next, unaryRequest('GetRoom', caller.signal));
+
+    await expect(result).rejects.toMatchObject({ name: 'AbortError' });
+    expect(onRequestOutcome).not.toHaveBeenCalled();
+  });
+
+  it('stops waiting when the caller cancels between attempts', async () => {
+    const caller = new AbortController();
+    const reason = new Error('navigated away');
+    const next = vi.fn().mockRejectedValue(unavailable());
+    const onRequestOutcome = vi.fn();
+    const result = networkRetryInterceptor({ onRequestOutcome }, [60_000])(next as never)(
+      unaryRequest('GetRoom', caller.signal) as never
+    );
+    const rejected = expect(result).rejects.toBe(reason);
+    await vi.waitFor(() => expect(next).toHaveBeenCalledOnce());
+    caller.abort(reason);
+
+    await rejected;
+    expect(next).toHaveBeenCalledOnce();
+    expect(onRequestOutcome).not.toHaveBeenCalled();
+  });
+
+  it('passes a streaming request through without a repeat or a report', async () => {
+    const error = unavailable();
+    const next = vi.fn().mockRejectedValue(error);
+    const { result, onRequestOutcome } = run(next, { stream: true, method: { name: 'ListRooms' } });
+
+    await expect(result).rejects.toBe(error);
+    expect(next).toHaveBeenCalledOnce();
+    expect(onRequestOutcome).not.toHaveBeenCalled();
   });
 });
 

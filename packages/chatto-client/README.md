@@ -165,8 +165,9 @@ Access and membership changes discard cached matches and fence older reads.
 ### Requests
 
 A server and a stateless `Api` have the same request helpers. Each
-request has a ten-second timeout and is not automatically retried; a failed write can
-still have reached the server.
+request has a ten-second timeout. A read that fails on the network is repeated
+up to two times within this timeout. A write is not automatically retried; a
+failed write can still have reached the server.
 
 | Helper                                             | Does                                                                        |
 | -------------------------------------------------- | --------------------------------------------------------------------------- |

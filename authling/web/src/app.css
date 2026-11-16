@@ -287,6 +287,23 @@
     @apply bg-subtle px-4 py-2.5 font-medium text-muted;
   }
 
+  .table-sort {
+    @apply -mx-1 inline-flex items-center gap-1.5 rounded-sm px-1 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus;
+  }
+
+  /* A fixed box keeps column widths stable: arrow glyphs differ in width. */
+  .table-sort-indicator {
+    @apply inline-flex w-3 justify-center text-xs opacity-50;
+  }
+
+  .data-table th[aria-sort] .table-sort {
+    @apply text-ink;
+  }
+
+  .data-table th[aria-sort] .table-sort-indicator {
+    @apply opacity-100;
+  }
+
   .data-table tbody th,
   .data-table tbody td {
     @apply border-t border-line px-4 py-3 align-middle;
@@ -294,6 +311,16 @@
 
   .data-table tbody tr:hover {
     @apply bg-subtle/50;
+  }
+
+  /* Badges keep their padding without making their row taller than text rows,
+     so rows keep their height when the sort order changes. */
+  .data-table .badge {
+    @apply -my-0.5;
+  }
+
+  .data-table .data-table-more td {
+    @apply py-3 text-center;
   }
 
   .data-table .data-table-empty {

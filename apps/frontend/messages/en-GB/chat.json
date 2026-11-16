@@ -187,6 +187,15 @@
       "back_to_server": "Return to Server",
       "invites": "Invites",
       "registration": "Registration"
+    },
+    "owner_welcome": {
+      "title": "Your server is ready",
+      "intro": "You are the owner of this server. To protect your account, your owner permissions stay off during ordinary use.",
+      "shield_active": "Shield Mode is on for the next 15 minutes, so you can set up your server now. To turn it on again later, use the shield button beside your name.",
+      "shield_inactive": "To set up your server, activate Shield Mode with the shield button beside your name. It stays on for 15 minutes.",
+      "shield_failed": "Shield Mode could not be activated.",
+      "next_steps": "Next steps",
+      "continue_setup": "Continue setup"
     }
   }
 }

@@ -239,6 +239,16 @@
     </g>
     <circle cx="228" cy="41" r="23" fill="currentColor" />
     <path d="M216 41h24m-12-12v24" class="stroke-background" stroke-width="4" />
+  {:else if kind === 'invites'}
+    <g transform="rotate(-6 140 70)">
+      <path
+        d="M52 30h176q8 0 8 8v18a14 14 0 0 0 0 28v18q0 8-8 8H52q-8 0-8-8V84a14 14 0 0 0 0-28V38q0-8 8-8"
+        class="fill-background stroke-border"
+      />
+      <path d="M176 38v64" class="stroke-border" stroke-width="2" stroke-dasharray="4 6" />
+      <path d="M70 58h82M70 76h54" stroke="currentColor" stroke-width="5" opacity=".3" />
+      <path d="M196 60l10 10-10 10m10-10h-20" stroke="currentColor" stroke-width="4" />
+    </g>
   {:else if kind === 'rooms'}
     {#each [{ x: 48, y: 23 }, { x: 150, y: 12 }, { x: 63, y: 81 }, { x: 165, y: 70 }] as room (room.x)}
       <g transform={`translate(${room.x} ${room.y}) rotate(-5)`}>

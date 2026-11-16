@@ -40,6 +40,27 @@ async function main() {
     await image.png().toFile(join(outDir, name));
     console.log(`Generated ${name} (${size}x${size}) from ${source}`);
   }
+
+  // Link previews (og:image) use a 1200x630 card: the install icon centred
+  // on its own background colour. Deployments can replace it at startup.
+  // The maskable source paints an opaque background of this colour.
+  const previewBackground = '#c9a7d8';
+  const preview = { name: 'social-preview.png', width: 1200, height: 630, iconSize: 420 };
+  const icon = await sharp(join(srcDir, 'chatto-icon-maskable.png'))
+    .resize(preview.iconSize, preview.iconSize)
+    .toBuffer();
+  await sharp({
+    create: {
+      width: preview.width,
+      height: preview.height,
+      channels: 3,
+      background: previewBackground
+    }
+  })
+    .composite([{ input: icon, gravity: 'center' }])
+    .png()
+    .toFile(join(outDir, preview.name));
+  console.log(`Generated ${preview.name} (${preview.width}x${preview.height})`);
 }
 
 main().catch(console.error);

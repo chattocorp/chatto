@@ -201,6 +201,47 @@ test.describe('video player @ffmpeg', () => {
         await expect(fullscreen).not.toBeVisible();
         await expect(page.locator('.fullscreen-overlay media-player')).toHaveCount(0);
 
+        // The same inline video in a thread must consume Escape before room navigation.
+        await videoMessage.replyViaToolbar();
+        const thread = page.getByTestId('thread-pane');
+        await expect(thread).toBeVisible();
+        const threadURL = page.url();
+        const threadPlayer = thread.locator('media-player');
+        for (const nativeFullscreen of [true, false]) {
+          if (!nativeFullscreen) {
+            await page.evaluate(() => {
+              HTMLElement.prototype.requestFullscreen = () =>
+                Promise.reject(new Error('Fullscreen unavailable'));
+            });
+          }
+          await threadPlayer.locator('media-provider video').evaluate(async (video) => {
+            video.muted = true;
+            video.loop = true;
+            await video.play();
+          });
+          await threadPlayer.hover();
+          await threadPlayer.getByRole('button', { name: 'Fullscreen', exact: true }).click();
+          await expect(fullscreen).toBeVisible();
+          if (nativeFullscreen) {
+            await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true);
+          }
+          await fullscreen.locator('media-provider video').evaluate(async (video) => {
+            video.muted = true;
+            video.loop = true;
+            await video.play();
+          });
+          await expect(fullscreen.locator('media-provider video')).toHaveJSProperty(
+            'paused',
+            false
+          );
+          await page.keyboard.press('Escape');
+          await expect(fullscreen).not.toBeVisible();
+          await expect(thread).toBeVisible();
+          await expect(page).toHaveURL(threadURL);
+        }
+        await page.keyboard.press('Escape');
+        await expect(thread).not.toBeVisible();
+
         // Filter for critical errors (ignore noise like favicon 404s)
         const criticalErrors = [
           ...consoleErrors.filter(

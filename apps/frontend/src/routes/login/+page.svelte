@@ -4,7 +4,7 @@
   import { onDestroy } from 'svelte';
   import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
-  import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
+  import { signInWithPassword } from '$lib/auth/passwordSignIn';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthProviderButtons from '$lib/components/auth/AuthProviderButtons.svelte';
   import AuthPopupNotice from '$lib/components/auth/AuthPopupNotice.svelte';
@@ -107,22 +107,7 @@
     isLoading = true;
 
     try {
-      const response = await fetch('/auth/browser/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...browserCookieAuthenticationHeaders
-        },
-        body: JSON.stringify({ identifier, password }),
-        credentials: 'include'
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        error = result.error || m('auth.login.failed');
-        return;
-      }
+      await signInWithPassword(identifier, password, m('auth.login.failed'));
 
       // Session completion is only needed after a successful password login.
       const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');

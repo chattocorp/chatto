@@ -187,6 +187,15 @@
       "back_to_server": "Zurück zum Server",
       "invites": "Einladungen",
       "registration": "Registrierung"
+    },
+    "owner_welcome": {
+      "title": "Dein Server ist bereit",
+      "intro": "Du bist der Eigentümer dieses Servers. Zum Schutz deines Kontos bleiben deine Eigentümerberechtigungen im normalen Gebrauch deaktiviert.",
+      "shield_active": "Der privilegierte Modus ist für die nächsten 15 Minuten aktiv. Du kannst deinen Server jetzt einrichten. Später aktivierst du ihn wieder mit der Schild-Schaltfläche neben deinem Namen.",
+      "shield_inactive": "Aktiviere den privilegierten Modus mit der Schild-Schaltfläche neben deinem Namen, um deinen Server einzurichten. Er bleibt 15 Minuten aktiv.",
+      "shield_failed": "Der privilegierte Modus konnte nicht aktiviert werden.",
+      "next_steps": "Nächste Schritte",
+      "continue_setup": "Einrichtung fortsetzen"
     }
   }
 }

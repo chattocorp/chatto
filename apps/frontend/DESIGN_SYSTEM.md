@@ -181,6 +181,10 @@ The 48 px server frame has a corner radius 2 px larger than the 44 px logo's
 | Loading image                               | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                                |
 | Part or its data failed to load             | `LoadRetry` in place of the part                                                       | A hand-built message and Retry button                         |
 
+`LoadRetry` also retries without the user while the tab is visible. Set
+`autoRetry` to false when another attempt cannot repair the failure, such as
+a server error that is not a network error.
+
 `TextInput` and `Select` accept `labelHidden` when the surrounding context
 already names the control, for example a policy column in a table row. The
 label stays available to assistive technology. `TextInput` also supports the

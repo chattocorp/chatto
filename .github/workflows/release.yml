@@ -812,6 +812,11 @@ jobs:
             org.opencontainers.image.version=${{ steps.release_meta.outputs.version }}
             org.opencontainers.image.licenses=Apache-2.0
 
+      - name: Check frontend release image on a read-only file system
+        env:
+          VERSION: ${{ steps.release_meta.outputs.version }}
+        run: sh docker/frontend-image_test.sh "ghcr.io/chattocorp/chatto-client:${VERSION}-amd64"
+
       - name: Build frontend release image (arm64)
         uses: docker/build-push-action@v6
         with:
