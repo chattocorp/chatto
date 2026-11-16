@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Souligné",
+      "strikethrough": "Barré",
       "bold": "Gras",
       "italic": "Italique",
       "inline_code": "Code en ligne",

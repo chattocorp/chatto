@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Подчёркнутый",
+      "strikethrough": "Зачёркнутый",
       "bold": "Жирный",
       "italic": "Курсив",
       "inline_code": "Встроенный код",

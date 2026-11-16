@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "底線",
+      "strikethrough": "刪除線",
       "bold": "粗體",
       "italic": "斜體",
       "inline_code": "行內程式碼",

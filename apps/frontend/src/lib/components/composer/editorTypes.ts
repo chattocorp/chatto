@@ -4,6 +4,7 @@ export type ComposerFormattingCommand =
   | 'bold'
   | 'italic'
   | 'underline'
+  | 'strikethrough'
   | 'inlineCode'
   | 'heading'
   | 'bulletList'

@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Sottolineato",
+      "strikethrough": "Barrato",
       "bold": "Grassetto",
       "italic": "Corsivo",
       "inline_code": "Codice in linea",

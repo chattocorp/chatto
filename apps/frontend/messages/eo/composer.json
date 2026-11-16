@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Substrekita",
+      "strikethrough": "Trastreko",
       "bold": "Grasa",
       "italic": "Kursiva",
       "inline_code": "Enlinia kodo",

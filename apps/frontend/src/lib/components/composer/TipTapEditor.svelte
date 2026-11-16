@@ -51,6 +51,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     bold: false,
     italic: false,
     underline: false,
+    strikethrough: false,
     inlineCode: false,
     heading: false,
     bulletList: false,
@@ -177,6 +178,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       bold: e.isActive('bold'),
       italic: e.isActive('italic'),
       underline: e.isActive('underline'),
+      strikethrough: e.isActive('strike'),
       inlineCode: e.isActive('code'),
       heading: e.isActive('heading', { level: 2 }),
       bulletList: e.isActive('bulletList'),
@@ -430,6 +432,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             break;
           case 'underline':
             chain.toggleUnderline().run();
+            break;
+          case 'strikethrough':
+            chain.toggleStrike().run();
             break;
           case 'inlineCode':
             chain.toggleCode().run();
