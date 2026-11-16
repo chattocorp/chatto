@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync, tick } from 'svelte';
 import { q, testSnippet } from '$lib/test-utils';
+import FullscreenVideoOverlay from '$lib/components/chat/FullscreenVideoOverlay.svelte';
+import { fullscreenVideo } from '$lib/state/globals.svelte';
 import ContextMenu from '$lib/ui/ContextMenu.svelte';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -211,7 +213,8 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'wrong-server'
 }));
 
-vi.mock('$lib/state/globals.svelte', () => ({
+vi.mock('$lib/state/globals.svelte', async (importActual) => ({
+  ...(await importActual<typeof import('$lib/state/globals.svelte')>()),
   appState: mocks.appState
 }));
 
@@ -511,6 +514,7 @@ afterEach(async () => {
   // Default Members can start an import that outlives a membership-only assertion.
   // Finish it before the next test clears and checks the module-load spies.
   await vi.dynamicImportSettled();
+  fullscreenVideo.close();
   vi.restoreAllMocks();
 });
 
@@ -1897,6 +1901,35 @@ describe('Room local message echo', () => {
     }
   });
 
+  it('dismisses fullscreen video before closing the thread with Escape', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
+    // Native fullscreen needs user activation. Exercise the full-window fallback.
+    vi.spyOn(HTMLElement.prototype, 'requestFullscreen').mockRejectedValue(
+      new Error('Unavailable')
+    );
+    render(FullscreenVideoOverlay);
+    fullscreenVideo.open('/test-video.mp4', null, 0);
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Fullscreen video', exact: true }))
+      .toBeVisible();
+    mocks.goto.mockClear();
+
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
+    expect(mocks.goto).not.toHaveBeenCalled();
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Fullscreen video', exact: true }))
+      .not.toBeInTheDocument();
+    expect(fullscreenVideo.isOpen).toBe(false);
+    expect(q(container, '[data-testid="thread-pane-root-id"]')).toHaveTextContent('thread-root');
+
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
+  });
+
   it('dismisses the user menu with Escape before closing the thread', async () => {
     render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
     const onclose = vi.fn();
@@ -1998,6 +2031,10 @@ describe('Room local message echo', () => {
 
     mocks.goto.mockClear();
     roomRegion.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    expect(mocks.goto).not.toHaveBeenCalled();
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
     expect(mocks.goto).not.toHaveBeenCalled();
   });
 
