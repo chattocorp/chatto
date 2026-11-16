@@ -214,7 +214,11 @@ func designSystemPage() templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = ui.DataTable("Example users", []string{"User", "Access", "Registered"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ui.SortableDataTable("Example users", []ui.Column{
+				{Label: "User", SortURL: "/dev/ui#records-heading", Direction: ui.Ascending},
+				{Label: "Access", SortURL: "/dev/ui#records-heading"},
+				{Label: "Registered"},
+			}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

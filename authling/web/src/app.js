@@ -91,7 +91,20 @@ function focusPage() {
   target?.focus({ preventScroll: true });
 }
 
-document.addEventListener('htmx:afterSettle', focusPage);
+// Loaded table rows can repeat a row from an earlier page when the order
+// shifts between requests. Keep the copy that is already on the page.
+document.addEventListener('htmx:load', (event) => {
+  const row = event.target;
+  if (row instanceof HTMLTableRowElement && row.id && document.getElementById(row.id) !== row) {
+    row.remove();
+  }
+});
+
+// Only page navigations move focus. Rows loaded into a table keep focus where
+// the person left it.
+document.addEventListener('htmx:afterSettle', (event) => {
+  if (event.detail.boosted) focusPage();
+});
 document.addEventListener('htmx:historyRestore', focusPage);
 
 document.addEventListener('htmx:beforeRequest', (event) => {

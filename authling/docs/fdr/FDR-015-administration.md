@@ -1,7 +1,7 @@
 # FDR-015: Administration
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-30
+**Last reviewed:** 2026-11-16
 
 ## Overview
 
@@ -14,7 +14,18 @@ email override. There are no roles, groups, or configurable permissions.
 
 - An administrator sees an Administration link in the account-page header.
 - The directory shows verified email, profile names, account ID, registration
-  time, and the source of administrator access. Pages contain at most 50 users.
+  time, and the source of administrator access. The directory loads 50 users
+  at a time. When the end of the table scrolls into view, the next 50 users
+  load below it. Without JavaScript, a link at the end of the table opens the
+  next 50 users.
+- Each column header sorts the directory. The first page shows the newest
+  registrations first. Select a header to sort by that column; select it again
+  to reverse the order. Registration starts with the newest, other columns in
+  ascending order. Email and name sorting ignore case. The name column uses the
+  full name, or the preferred username if there is no full name. Access sorting
+  puts administrators first. Account ID breaks ties.
+- The sort, order, and page number are URL query parameters. The URL contains
+  no personal data. Unknown values return an error.
 - The directory uses one compact line per user. Account IDs are truncated in
   their column; the full value remains selectable and available in its title.
   Registration times and configured-access details appear in cell titles.
@@ -52,6 +63,21 @@ email override. There are no roles, groups, or configurable permissions.
 **Decision:** The configured email list grants access without a stored assignment.
 **Why:** Operators need an access path that browser-managed flags cannot remove.
 **Tradeoff:** Operators must protect the listed mailboxes and maintain the list.
+
+### Page numbers instead of cursors
+
+**Decision:** The directory uses page numbers, not cursors.
+**Why:** A cursor for email or name order would put personal data in the URL.
+**Tradeoff:** Registrations and deletions while an administrator scrolls
+shift later pages. The browser drops loaded rows for users that already show.
+A user can be skipped when an account is deleted until the page reloads.
+
+### Sort encrypted columns on request
+
+**Decision:** Email and name sorting decrypt that field for every account on
+each request. Other sorts decrypt only the selected page.
+**Why:** Authling stores no plaintext or order-revealing index of personal data.
+**Tradeoff:** Email and name sorting cost increases with the number of accounts.
 
 ## Open questions
 

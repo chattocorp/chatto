@@ -132,13 +132,24 @@ test('limits the user directory to administrators and renders it on small screen
   await page.getByRole('link', { name: 'Administration', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Registered users' })).toBeVisible();
   const table = page.getByRole('table', { name: 'Registered users' });
-  await expect(table.getByRole('columnheader')).toHaveText([
-    'Email',
-    'Name',
-    'Access',
-    'Registered',
-    'Account ID'
-  ]);
+  const headers = table.getByRole('columnheader');
+  const labels = ['Email', 'Name', 'Access', 'Registered', 'Account ID'];
+  await expect(headers).toHaveCount(labels.length);
+  for (const [index, label] of labels.entries()) {
+    await expect(headers.nth(index)).toHaveAccessibleName(label);
+  }
+  const emails = table.getByRole('rowheader');
+  // Newest registrations come first by default.
+  await expect(headers.nth(3)).toHaveAttribute('aria-sort', 'descending');
+  await expect(emails).toHaveText(['administrator@example.invalid', 'ordinary@example.invalid']);
+  await table.getByRole('link', { name: 'Email', exact: true }).click();
+  await expect(page).toHaveURL(`${stack.baseURL}/admin?sort=email`);
+  await expect(headers.nth(0)).toHaveAttribute('aria-sort', 'ascending');
+  await expect(headers.nth(3)).not.toHaveAttribute('aria-sort');
+  await expect(emails).toHaveText(['administrator@example.invalid', 'ordinary@example.invalid']);
+  await table.getByRole('link', { name: 'Email', exact: true }).click();
+  await expect(headers.nth(0)).toHaveAttribute('aria-sort', 'descending');
+  await expect(emails).toHaveText(['ordinary@example.invalid', 'administrator@example.invalid']);
   await expect(table.getByRole('rowheader', { name: /ordinary@example.invalid/ })).toBeVisible();
   await expect(table.getByTitle('Via server configuration', { exact: true })).toBeVisible();
   const row = table.getByRole('row').filter({ hasText: 'ordinary@example.invalid' });
@@ -156,7 +167,9 @@ test('limits the user directory to administrators and renders it on small screen
       true
     );
     await page.getByRole('region', { name: 'Registered users' }).focus();
-    await page.evaluate(() => document.dispatchEvent(new Event('htmx:afterSettle')));
+    await page.evaluate(() =>
+      document.dispatchEvent(new CustomEvent('htmx:afterSettle', { detail: { boosted: true } }))
+    );
     await expect(page.getByRole('region', { name: 'Registered users' })).toBeFocused();
   }
   await page.context().clearCookies();
