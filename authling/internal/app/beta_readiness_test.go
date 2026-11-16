@@ -191,7 +191,7 @@ func TestOIDCSilentAuthorizationNeverShowsInteractivePages(t *testing.T) {
 	silent := betaAuthorizationURL() + "&prompt=none"
 	check(silent, nil, "login_required")
 	check(silent, cookie, "consent_required")
-	grant, err := runtime.Authorizations.Authorize(t.Context(), account.ID, authorizations.Client{ID: "test-client", Name: "Test Client", Host: "configured by this Authling operator"}, []string{"openid"})
+	grant, err := runtime.Authorizations.Authorize(t.Context(), account.ID, authorizations.Client{ID: "test-client", Name: "Test Client", Host: "configured by this Authling operator"}, []string{"openid"}, "")
 	if err != nil {
 		t.Fatal(err)
 	}

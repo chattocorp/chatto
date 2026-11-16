@@ -23,6 +23,8 @@ OIDC state contains redirects, state and nonce values, account identifiers,
 authorization codes, and bearer-token authority. It therefore needs stronger
 storage and network-fetch boundaries than ordinary application data.
 
+[ADR-010](ADR-010-resource-access-and-refresh-tokens.md) extends this profile with resource-bound JWT access tokens and rotating refresh tokens.
+
 ## Decision
 
 One Authling deployment is one immutable OIDC issuer. The canonical

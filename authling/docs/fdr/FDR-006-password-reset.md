@@ -1,7 +1,7 @@
 # FDR-006: Password Reset
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-11-13
 
 ## Overview
 
@@ -50,6 +50,10 @@ email claim, and OpenID Connect `sub` remain unchanged.
 - Previously issued OIDC ID and access tokens are not revoked. They expire
   after five minutes, and relying-party sessions remain under the relying
   party's control.
+
+- All account refresh families are invalidated by the password change.
+  Durable app grants remain active, so applications can authorize again without
+  another consent decision. New tokens use current account claims. See [FDR-010](FDR-010-oidc-authorization-grants.md).
 
 ## Design Decisions
 

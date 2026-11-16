@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { renderInlineMarkdown, renderMarkdown } from './markdown';
 import {
   canHighlightCodeLanguage,
+  CODE_LANGUAGE_OPTIONS,
   ensureCodeLanguageLoaded,
   isCodeLanguageLoaded,
   lowlight
@@ -658,6 +659,33 @@ describe('renderMarkdown', () => {
   });
 
   describe('code blocks', () => {
+    it('loads Odin on demand and highlights its syntax without changing source', async () => {
+      expect(isCodeLanguageLoaded('odin')).toBe(false);
+      expect(CODE_LANGUAGE_OPTIONS).toContainEqual({ value: 'odin', label: 'ODIN' });
+      const source = [
+        'package main',
+        'import "core:fmt"',
+        '// Compose an audio graph',
+        'voice :: proc(freq: f32) -> f32 {',
+        '    return lowpass(sine(freq), 440.0)',
+        '}'
+      ].join('\n');
+
+      const html = await renderMarkdown('```odin\n' + source + '\n```');
+
+      expect(isCodeLanguageLoaded('odin')).toBe(true);
+      expect(html).toContain('data-language="odin"');
+      expect(html).toContain('language-odin');
+      expect(html).toContain('<span class="hljs-keyword">proc</span>');
+      expect(html).toContain('<span class="hljs-type">f32</span>');
+      expect(html).toContain('<span class="hljs-number">440.0</span>');
+      expect(html).toContain('<span class="hljs-string">&quot;core:fmt&quot;</span>');
+      expect(html).toContain('<span class="hljs-comment">// Compose an audio graph</span>');
+      expect(html).toContain(
+        `data-copy-source="${source.replaceAll('"', '&quot;').replaceAll('>', '&gt;')}\n"`
+      );
+    });
+
     it.each(['```js\nconst x = 1;\n```', '    indented code'])(
       'makes the code scroller keyboard focusable: %s',
       async (source) => {

@@ -39,6 +39,7 @@ arrow aligned with the sidebar nav items below.
     iconSize = 'md',
     disabled = false,
     mirrorInRtl = false,
+    menuExpanded,
     title
   }: {
     /** Iconify utility class (e.g. `'icon-[uil--bell]'`). */
@@ -62,6 +63,11 @@ arrow aligned with the sidebar nav items below.
     disabled?: boolean;
     /** Mirror a directional glyph when the document uses right-to-left layout. */
     mirrorInRtl?: boolean;
+    /**
+     * Set when the button opens a menu: whether that menu is open. The button
+     * then announces itself as a menu button. Only applies to the button variant.
+     */
+    menuExpanded?: boolean;
     /** Override the default hover tooltip (defaults to `label`). */
     title?: string;
   } = $props();
@@ -99,6 +105,8 @@ arrow aligned with the sidebar nav items below.
     {onclick}
     title={title ?? label}
     aria-label={label}
+    aria-haspopup={menuExpanded === undefined ? undefined : 'menu'}
+    aria-expanded={menuExpanded}
   >
     <span class={glyphClass} aria-hidden="true"></span>
   </button>
