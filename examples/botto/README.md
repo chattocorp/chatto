@@ -117,7 +117,7 @@ skills between turns. Means-managed editable skills are not supported.
 | ------------------------------- | ------------------------ | ------------------------------------------------------------------------------ |
 | `chatto.url`                    | Required                 | Chatto server URL                                                              |
 | `chatto.api_key`                | Required                 | API key; use an environment reference such as `${BOTTO_CHATTO_API_KEY}`        |
-| `chatto.mcp`                    | `false`                  | Give Pi the permitted read tools from the Chatto MCP endpoint                        |
+| `chatto.mcp`                    | `false`                  | Give Pi the permitted read tools from the Chatto MCP endpoint                  |
 | `chatto.report_presence`        | `true`                   | Show the bot account as online while Botto runs                                |
 | `chatto.respond_to`             | See below                | Which messages address Botto                                                   |
 | `web.enabled`                   | `false`                  | Give Pi web search and page fetching from Exa's hosted MCP server              |
