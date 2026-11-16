@@ -187,6 +187,15 @@
       "back_to_server": "Retour au serveur",
       "invites": "Invitations",
       "registration": "Inscription"
+    },
+    "owner_welcome": {
+      "title": "Votre serveur est prêt",
+      "intro": "Vous êtes le propriétaire de ce serveur. Pour protéger votre compte, vos autorisations de propriétaire restent désactivées pendant l’utilisation normale.",
+      "shield_active": "Le mode privilégié est actif pendant les 15 prochaines minutes : vous pouvez configurer votre serveur dès maintenant. Pour le réactiver plus tard, utilisez le bouton en forme de bouclier à côté de votre nom.",
+      "shield_inactive": "Pour configurer votre serveur, activez le mode privilégié avec le bouton en forme de bouclier à côté de votre nom. Il reste actif pendant 15 minutes.",
+      "shield_failed": "Le mode privilégié n’a pas pu être activé.",
+      "next_steps": "Prochaines étapes",
+      "continue_setup": "Poursuivre la configuration"
     }
   }
 }

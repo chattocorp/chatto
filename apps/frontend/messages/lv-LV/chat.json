@@ -190,6 +190,15 @@
       "back_to_server": "Atgriezties uz serveri",
       "invites": "Uzaicinājumi",
       "registration": "Reģistrācija"
+    },
+    "owner_welcome": {
+      "title": "Jūsu serveris ir gatavs",
+      "intro": "Jūs esat šī servera īpašnieks. Lai aizsargātu jūsu kontu, īpašnieka atļaujas parastas lietošanas laikā ir izslēgtas.",
+      "shield_active": "Privileģētais režīms ir ieslēgts nākamās 15 minūtes, tāpēc varat iestatīt serveri jau tagad. Lai vēlāk to ieslēgtu vēlreiz, izmantojiet vairoga pogu blakus savam vārdam.",
+      "shield_inactive": "Lai iestatītu serveri, aktivizējiet privileģēto režīmu ar vairoga pogu blakus savam vārdam. Tas paliek ieslēgts 15 minūtes.",
+      "shield_failed": "Privileģēto režīmu neizdevās aktivizēt.",
+      "next_steps": "Nākamās darbības",
+      "continue_setup": "Turpināt iestatīšanu"
     }
   }
 }

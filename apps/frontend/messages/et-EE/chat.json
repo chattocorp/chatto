@@ -187,6 +187,15 @@
       "back_to_server": "Tagasi serverisse",
       "invites": "Kutsed",
       "registration": "Registreerimine"
+    },
+    "owner_welcome": {
+      "title": "Teie server on valmis",
+      "intro": "Olete selle serveri omanik. Teie konto kaitsmiseks on omaniku õigused tavakasutuse ajal välja lülitatud.",
+      "shield_active": "Privilegeeritud režiim on järgmised 15 minutit sees, nii et saate oma serveri kohe seadistada. Hiljem lülitage see uuesti sisse oma nime kõrval oleva kilbinupuga.",
+      "shield_inactive": "Serveri seadistamiseks aktiveerige privilegeeritud režiim oma nime kõrval oleva kilbinupuga. See jääb sisse 15 minutiks.",
+      "shield_failed": "Privilegeeritud režiimi ei õnnestunud aktiveerida.",
+      "next_steps": "Järgmised sammud",
+      "continue_setup": "Jätka seadistamist"
     }
   }
 }
