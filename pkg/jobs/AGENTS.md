@@ -24,8 +24,9 @@ module. Also follow
 - The JSON form of the facts in `fact.go` is a persisted contract of every
   application that uses this module. Add fields only. Do not change the
   meaning of a field or of a fact kind, and do not reuse a name. A reader must
-  ignore fields and kinds that it does not know. `fact_test.go` pins the form;
-  change that test only together with a compatible change.
+  ignore fields and kinds that it does not know. `fact_test.go` holds stored
+  sample facts and pins the form. When the format gains a field, add samples.
+  Never change or remove a sample: running servers hold facts in that form.
 - Do not add a protobuf dependency. The module encodes only its own small
   facts, and the standard library is sufficient for them. Applications encode
   their payloads as they choose; the queue stores a payload as opaque bytes.
