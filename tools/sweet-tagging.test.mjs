@@ -147,7 +147,8 @@ test('all release units preserve migration tags and bump independently configure
   f.tag(migration, after);
   for (const tag of [
     'v0.5.1',
-    'authling/v0.1.1',
+    // Sweet finalizes an unlabeled prerelease instead of bumping it.
+    'authling/v0.1.0',
     'runling/v0.7.1',
     'translatto/v0.2.1',
     ...['appconfig', 'datacrypto', 'jetstreamutil', 'natsruntime'].map((p) => `pkg/${p}/v0.0.1`),
@@ -155,7 +156,7 @@ test('all release units preserve migration tags and bump independently configure
   ]) {
     assert.equal(f.git('rev-parse', `${tag}^{}`), released);
   }
-  assert.match(readFileSync(path.join(repo, 'authling/version.go'), 'utf8'), /"0\.1\.1"/);
+  assert.match(readFileSync(path.join(repo, 'authling/version.go'), 'utf8'), /"0\.1\.0"/);
   assert.equal(
     readFileSync(path.join(repo, 'packages/runling/version.txt'), 'utf8').trim(),
     '0.7.1'
