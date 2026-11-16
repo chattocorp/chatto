@@ -389,6 +389,12 @@ func resolveCIMDAddresses(ctx context.Context, host string, allowLoopback bool, 
 	if err != nil || len(addresses) == 0 {
 		return nil, fmt.Errorf("resolve CIMD destination")
 	}
+	// The resolver returns IPv4 literals in IPv4-mapped IPv6 form. Unmap every
+	// address so the IPv4 classification applies. A mapped private, loopback,
+	// or special-use address is still blocked after unmapping.
+	for index, address := range addresses {
+		addresses[index] = address.Unmap()
+	}
 	_, trustPrivate := trustedPrivateHosts[normalizeCIMDHost(host)]
 	_, trustLoopback := trustedLoopbackHosts[normalizeCIMDHost(host)]
 	loopbackOnly, _ := ctx.Value(cimdLoopbackOnlyContextKey{}).(bool)

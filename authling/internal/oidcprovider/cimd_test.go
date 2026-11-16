@@ -451,3 +451,22 @@ func TestCIMDResolvesPlainHTTPDocumentOnLoopback(t *testing.T) {
 		t.Fatal("non-loopback issuer fetched a loopback plain-HTTP CIMD document")
 	}
 }
+
+func TestCIMDClassifiesIPv4LiteralsAsIPv4(t *testing.T) {
+	addresses, err := resolveCIMDAddresses(t.Context(), "8.8.8.8", false, nil, nil)
+	if err != nil {
+		t.Fatalf("public IPv4 literal was rejected: %v", err)
+	}
+	if len(addresses) != 1 || !addresses[0].Is4() {
+		t.Fatalf("resolved addresses = %v, want one IPv4 address", addresses)
+	}
+	for _, host := range []string{"10.0.0.1", "127.0.0.1", "192.0.2.1", "::ffff:10.0.0.1", "::ffff:127.0.0.1", "::ffff:192.0.2.1"} {
+		if _, err := resolveCIMDAddresses(t.Context(), host, false, nil, nil); err == nil {
+			t.Fatalf("special-use address %s was accepted", host)
+		}
+	}
+	loopbackOnly := context.WithValue(t.Context(), cimdLoopbackOnlyContextKey{}, true)
+	if _, err := resolveCIMDAddresses(loopbackOnly, "8.8.8.8", false, nil, nil); err == nil {
+		t.Fatal("plain-HTTP lookup accepted a public IPv4 address")
+	}
+}
