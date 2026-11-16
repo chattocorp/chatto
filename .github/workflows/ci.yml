@@ -399,6 +399,9 @@ jobs:
       - name: Test repository tooling
         run: mise test-repo-tooling
 
+      - name: Check pending releases
+        run: mise x -- sweet doctor
+
   desktop:
     needs: changes
     if: ${{ needs.changes.outputs.desktop == 'true' }}
