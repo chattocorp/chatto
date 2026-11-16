@@ -5,16 +5,15 @@ import (
 	"cmp"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/chattocorp/chatto/pkg/events"
-	"github.com/chattocorp/chatto/pkg/jobs/internal/jobpb"
 )
 
 // EffectOptions is the queue policy of one effect type.
@@ -98,7 +97,7 @@ func (e *Effect) enqueue(ctx context.Context, d events.DurableDelivery) error {
 		}
 	}
 	digest := sha256.Sum256(d.Data)
-	payload, err := proto.Marshal(&jobpb.EffectSource{Subject: d.Subject, Sequence: d.StreamSequence, DataSha256: digest[:]})
+	payload, err := json.Marshal(effectSource{Subject: d.Subject, Sequence: d.StreamSequence, DataSHA256: digest[:]})
 	if err != nil {
 		return err
 	}
@@ -116,8 +115,8 @@ func (e *Effect) enqueue(ctx context.Context, d events.DurableDelivery) error {
 // automatic retry budget and the backoff of the queue. A delay from
 // events.RetryDeliveryAfter has no effect.
 func (e *Effect) Handle(ctx context.Context, job Job) error {
-	ref := new(jobpb.EffectSource)
-	if err := proto.Unmarshal(job.Payload, ref); err != nil || ref.Subject == "" || ref.Sequence == 0 {
+	ref := new(effectSource)
+	if err := json.Unmarshal(job.Payload, ref); err != nil || ref.Subject == "" || ref.Sequence == 0 {
 		return &Failure{Category: "invalid_payload", Permanent: true}
 	}
 	msg, err := e.stream.GetMsg(ctx, ref.Sequence)
@@ -130,7 +129,7 @@ func (e *Effect) Handle(ctx context.Context, job Job) error {
 	if err != nil {
 		return err
 	}
-	if digest := sha256.Sum256(msg.Data); msg.Subject != ref.Subject || !bytes.Equal(digest[:], ref.DataSha256) {
+	if digest := sha256.Sum256(msg.Data); msg.Subject != ref.Subject || !bytes.Equal(digest[:], ref.DataSHA256) {
 		return &Failure{Category: "source_mismatch", Permanent: true}
 	}
 	err = e.handle(ctx, events.DurableDelivery{

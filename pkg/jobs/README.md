@@ -14,8 +14,8 @@ view.
 
 - **Facts.** One job stream holds the facts of each job on
   `{SubjectPrefix}.{type}.{id}.{fact}`: `queued`, `started`, `attempt_failed`,
-  `succeeded`, `failed`, `retried`, and `deleted`. Facts are protobufs that this module
-  owns. The state of a job is the fold of its facts. The stream must allow
+  `succeeded`, `failed`, `retried`, and `deleted`. Facts are JSON, in a form that this module
+  owns; the module needs no protobuf. The state of a job is the fold of its facts. The stream must allow
   per-message TTLs and must not set a maximum age.
 - **Enqueue.** `Queue.Enqueue` appends `queued` only when the job has no
   facts, so a repeated handoff accepts the job once.

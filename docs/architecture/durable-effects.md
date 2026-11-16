@@ -143,7 +143,7 @@ durable EVT records serving as security audit facts rather than an email queue.
 
 The shared [`pkg/jobs`](../../pkg/jobs/README.md) module owns job facts, the
 worker, capped backoff, manual retry, the job view, and retention. The `JOBS`
-stream is a small event log. Facts are protobuf `jobs.v1.JobFact` values on
+stream is a small event log. Facts are JSON values, in the form that `pkg/jobs` owns, on
 `jobs.{type}.{id}.{fact}`. The fact is `queued`, `started`, `attempt_failed`,
 `succeeded`, `failed`, `retried`, or `deleted`. The state of a job is the fold
 of its facts. There is no job record in `RUNTIME_STATE`. Enqueue appends `queued`

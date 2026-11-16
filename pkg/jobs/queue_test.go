@@ -11,10 +11,8 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/pkg/events"
-	"github.com/chattocorp/chatto/pkg/jobs/internal/jobpb"
 )
 
 func startTestNATS(t *testing.T) jetstream.JetStream {
@@ -711,57 +709,58 @@ func TestQueueFinishesFailedPurgeOnTheNextDelivery(t *testing.T) {
 func TestViewAppliesFactsInOrder(t *testing.T) {
 	v := &view{jobs: map[string]*entry{}}
 	at := time.Now().Truncate(time.Second)
-	fact := func(f *jobpb.JobFact, offset time.Duration) *jobpb.JobFact {
-		f.Id, f.Type = "j", "work"
-		f.OccurredAt, f.CreatedAt = timestamppb.New(at.Add(offset)), timestamppb.New(at)
+	next := at.Add(time.Minute)
+	stamp := func(f *fact, offset time.Duration) *fact {
+		f.ID, f.Type = "j", "work"
+		f.OccurredAt, f.CreatedAt = at.Add(offset), at
 		return f
 	}
 	// Leftover facts of a job without its specification describe no job.
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Started{Started: &jobpb.JobStarted{Attempt: 1}}}, 0), 1))
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Failed{Failed: &jobpb.JobFailed{Attempts: 1}}}, 0), 2))
+	noError(t, v.Apply(stamp(&fact{Kind: factStarted, Attempts: 1}, 0), 1))
+	noError(t, v.Apply(stamp(&fact{Kind: factFailed, Attempts: 1}, 0), 2))
 	if _, ok := v.get("j"); ok {
 		t.Fatal("leftover facts created a job")
 	}
-	spec := &jobpb.JobSpec{MaxAttempts: 2, RetryDelayMillis: 5}
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Queued{Queued: &jobpb.JobQueued{Spec: spec}}}, 0), 3))
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Started{Started: &jobpb.JobStarted{Attempt: 1}}}, time.Second), 4))
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Failed{Failed: &jobpb.JobFailed{Attempts: 1, Failure: "boom"}}}, 2*time.Second), 5))
+	spec := &factSpec{MaxAttempts: 2, RetryDelayMillis: 5}
+	noError(t, v.Apply(stamp(&fact{Kind: factQueued, Spec: spec}, 0), 3))
+	noError(t, v.Apply(stamp(&fact{Kind: factStarted, Attempts: 1}, time.Second), 4))
+	noError(t, v.Apply(stamp(&fact{Kind: factFailed, Attempts: 1, Failure: "boom"}, 2*time.Second), 5))
 	// A late progress fact of a repeated delivery changes only the revision.
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Started{Started: &jobpb.JobStarted{Attempt: 2}}}, 3*time.Second), 6))
+	noError(t, v.Apply(stamp(&fact{Kind: factStarted, Attempts: 2}, 3*time.Second), 6))
 	e, _ := v.get("j")
 	if e.job.Status != Failed || e.job.Attempts != 1 || e.job.Failure != "boom" || e.job.Revision != 6 || e.specSeq != 3 || !e.job.UpdatedAt.Equal(at.Add(2*time.Second)) {
 		t.Fatalf("after failure = %+v", e)
 	}
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Retried{Retried: &jobpb.JobRetried{Spec: spec}}}, 4*time.Second), 7))
+	noError(t, v.Apply(stamp(&fact{Kind: factRetried, Spec: spec}, 4*time.Second), 7))
 	e, _ = v.get("j")
 	if e.job.Status != Queued || e.job.Attempts != 0 || e.job.Failure != "" || e.specSeq != 7 || !e.job.CreatedAt.Equal(at) {
 		t.Fatalf("after retry = %+v", e)
 	}
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_AttemptFailed{AttemptFailed: &jobpb.JobAttemptFailed{Attempt: 1, Failure: "slow", NextAttemptAt: timestamppb.New(at.Add(time.Minute))}}}, 5*time.Second), 8))
+	noError(t, v.Apply(stamp(&fact{Kind: factAttemptFailed, Attempts: 1, Failure: "slow", NextAttemptAt: &next}, 5*time.Second), 8))
 	e, _ = v.get("j")
 	if e.job.Status != Queued || e.job.Failure != "slow" || !e.job.NextAttemptAt.Equal(at.Add(time.Minute)) {
 		t.Fatalf("after failed attempt = %+v", e)
 	}
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Succeeded{Succeeded: &jobpb.JobSucceeded{Attempts: 2, MaxAttempts: 2}}}, 6*time.Second), 9))
+	noError(t, v.Apply(stamp(&fact{Kind: factSucceeded, Attempts: 2, MaxAttempts: 2}, 6*time.Second), 9))
 	// A failure after the success is a leftover of a repeated delivery.
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Failed{Failed: &jobpb.JobFailed{Attempts: 3}}}, 7*time.Second), 10))
+	noError(t, v.Apply(stamp(&fact{Kind: factFailed, Attempts: 3}, 7*time.Second), 10))
 	e, _ = v.get("j")
 	if e.job.Status != Succeeded || e.job.Attempts != 2 || e.job.Failure != "" || !e.job.NextAttemptAt.IsZero() {
 		t.Fatalf("after success = %+v", e)
 	}
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Deleted{Deleted: &jobpb.JobDeleted{}}}, 8*time.Second), 11))
+	noError(t, v.Apply(stamp(&fact{Kind: factDeleted}, 8*time.Second), 11))
 	if _, ok := v.get("j"); ok {
 		t.Fatal("deleted job stays in the view")
 	}
 	// A success or a failure describes a job by itself, after the purge of its
 	// earlier facts.
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Succeeded{Succeeded: &jobpb.JobSucceeded{Attempts: 1, MaxAttempts: 2}}}, 9*time.Second), 12))
+	noError(t, v.Apply(stamp(&fact{Kind: factSucceeded, Attempts: 1, MaxAttempts: 2}, 9*time.Second), 12))
 	e, _ = v.get("j")
 	if e.job.Status != Succeeded || e.job.Type != "work" || !e.job.CreatedAt.Equal(at) || e.job.MaxAttempts != 2 {
 		t.Fatalf("lone success = %+v", e)
 	}
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Deleted{Deleted: &jobpb.JobDeleted{}}}, 10*time.Second), 13))
-	noError(t, v.Apply(fact(&jobpb.JobFact{Fact: &jobpb.JobFact_Failed{Failed: &jobpb.JobFailed{Attempts: 2, Failure: "boom", Spec: spec}}}, 11*time.Second), 14))
+	noError(t, v.Apply(stamp(&fact{Kind: factDeleted}, 10*time.Second), 13))
+	noError(t, v.Apply(stamp(&fact{Kind: factFailed, Attempts: 2, Failure: "boom", Spec: spec}, 11*time.Second), 14))
 	e, _ = v.get("j")
 	if e.job.Status != Failed || e.specSeq != 14 || e.job.MaxAttempts != 2 || e.job.RetryDelay != 5*time.Millisecond {
 		t.Fatalf("lone failure = %+v", e)

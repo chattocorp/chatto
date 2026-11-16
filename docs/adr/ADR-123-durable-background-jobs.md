@@ -19,7 +19,7 @@ worker, backoff, manual retry, the job view, retention, and the effect adapter.
 Chatto and Authling use it; Authling's account erasure is the second consumer
 that validates the shared boundary. Each application owns its resource names,
 consumers, job types, policies, handlers, and user interfaces. The module owns
-its protobuf fact format. This decision applies to the repository. For Chatto,
+the format of its facts, which is JSON. This decision applies to the repository. For Chatto,
 it replaces the execution and queue choices in ADR-066 and ADR-097. Their media
 lifecycle, endpoint security, and source selection rules still apply.
 

@@ -631,7 +631,7 @@ facts identify both participants. They do not appear in room timelines.
 
 ## Background job facts
 
-`jobs.{type}.{jobId}.{fact}` carries protobuf `jobs.v1.JobFact` values in
+`jobs.{type}.{jobId}.{fact}` carries JSON job facts, in the form that `pkg/jobs` owns, in
 `JOBS`. The fact is `queued`, `started`, `attempt_failed`, `succeeded`,
 `failed`, `retried`, or `deleted`. The job types are `webhook`, `media`,
 `notification_alert`, `asset_cleanup`, `call_key_cleanup`,

@@ -21,17 +21,21 @@ module. Also follow
   policies, handlers, payloads, and user interfaces. Do not create, delete, or
   retire application consumers here.
 - Base exported API changes on actual Chatto or Authling use.
-- The protobuf facts in `proto/` are a persisted contract of every
-  application that uses this module. Follow the protobuf compatibility rules in
-  [`proto/AGENTS.md`](../../proto/AGENTS.md). Run `mise codegen-jobs-proto`
-  after a schema change.
+- The JSON form of the facts in `fact.go` is a persisted contract of every
+  application that uses this module. Add fields only. Do not change the
+  meaning of a field or of a fact kind, and do not reuse a name. A reader must
+  ignore fields and kinds that it does not know. `fact_test.go` pins the form;
+  change that test only together with a compatible change.
+- Do not add a protobuf dependency. The module encodes only its own small
+  facts, and the standard library is sufficient for them. Applications encode
+  their payloads as they choose; the queue stores a payload as opaque bytes.
 - Never store or log handler error text from `Queue` handlers; store only safe
   failure categories. The effect adapter logs handler errors, because
   `events.DurableDeliveryHandler` errors must already be free of secrets and
   personal data.
 - Production imports are limited to the Go standard library,
-  `github.com/nats-io/nats.go`, `google.golang.org/protobuf`,
-  `golang.org/x/sync/errgroup`, and `pkg/events`. Tests
+  `github.com/nats-io/nats.go`, `golang.org/x/sync/errgroup`, and
+  `pkg/events`. Tests
   may also use `github.com/nats-io/nats-server/v2`.
 - Do not import Chatto or Authling packages.
 - Constructors panic when a required argument is missing. They return an error

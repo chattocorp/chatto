@@ -3,15 +3,14 @@ package jobs
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/chattocorp/chatto/pkg/events"
-	"github.com/chattocorp/chatto/pkg/jobs/internal/jobpb"
 )
 
 // testEffect returns a queue, its job consumer, and a source stream with an
@@ -79,7 +78,7 @@ func TestEffectHandleClassifiesSourceAndHandlerOutcomes(t *testing.T) {
 	ack := must(testJS.Publish(ctx, "source.one", []byte("payload")))
 	digest := sha256.Sum256([]byte("payload"))
 	job := func(subject string, sequence uint64, digest []byte) Job {
-		payload := must(proto.Marshal(&jobpb.EffectSource{Subject: subject, Sequence: sequence, DataSha256: digest}))
+		payload := must(json.Marshal(effectSource{Subject: subject, Sequence: sequence, DataSHA256: digest}))
 		return Job{ID: "j", Payload: payload, Attempts: 2}
 	}
 	valid := job("source.one", ack.Sequence, digest[:])

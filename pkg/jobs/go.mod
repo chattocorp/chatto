@@ -7,7 +7,6 @@ require (
 	github.com/nats-io/nats-server/v2 v2.14.7
 	github.com/nats-io/nats.go v1.54.0
 	golang.org/x/sync v0.23.0
-	google.golang.org/protobuf v1.36.12
 )
 
 require (
@@ -24,6 +23,4 @@ require (
 	golang.org/x/time v0.16.0 // indirect
 )
 
-replace (
-	github.com/chattocorp/chatto/pkg/events => ../events
-)
+replace github.com/chattocorp/chatto/pkg/events => ../events

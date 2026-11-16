@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/chattocorp/chatto/pkg/events"
-	"github.com/chattocorp/chatto/pkg/jobs/internal/jobpb"
 )
 
 // entry is the view state of one job.
@@ -31,66 +30,69 @@ type view struct {
 func (v *view) Subjects() []string { return v.subjects }
 
 // Apply folds one fact into its job. Facts arrive in stream order.
-func (v *view) Apply(fact *jobpb.JobFact, seq uint64) error {
-	if fact.GetId() == "" || fact.GetFact() == nil {
+func (v *view) Apply(f *fact, seq uint64) error {
+	if f.ID == "" || f.Kind == "" {
 		return nil
 	}
-	at := fact.GetOccurredAt().AsTime()
 	v.Lock()
 	defer v.Unlock()
-	if fact.GetDeleted() != nil {
-		delete(v.jobs, fact.Id)
+	if f.Kind == factDeleted {
+		delete(v.jobs, f.ID)
 		return nil
 	}
-	e := v.jobs[fact.Id]
+	spec := specOf(f)
+	e := v.jobs[f.ID]
 	if e == nil {
 		// Only a fact with the specification or a success describes a job by
 		// itself. Other facts without their job are leftovers.
-		if specOf(fact) == nil && fact.GetSucceeded() == nil {
+		if spec == nil && f.Kind != factSucceeded {
 			return nil
 		}
-		e = &entry{job: Job{ID: fact.Id, Type: fact.Type, CreatedAt: fact.GetCreatedAt().AsTime()}}
-		v.jobs[fact.Id] = e
+		e = &entry{job: Job{ID: f.ID, Type: f.Type, CreatedAt: f.CreatedAt}}
+		v.jobs[f.ID] = e
 	}
 	e.job.Revision = seq
 	finished := e.job.Status == Succeeded || e.job.Status == Failed
-	if spec := specOf(fact); spec != nil && (fact.GetFailed() == nil || e.job.Status != Succeeded) {
+	if spec != nil && (f.Kind != factFailed || e.job.Status != Succeeded) {
 		e.specSeq = seq
-		e.job.MaxAttempts = spec.GetMaxAttempts()
-		e.job.RetryDelay = time.Duration(spec.GetRetryDelayMillis()) * time.Millisecond
+		e.job.MaxAttempts = spec.MaxAttempts
+		e.job.RetryDelay = time.Duration(spec.RetryDelayMillis) * time.Millisecond
 		e.job.ExpiresAt = time.Time{}
-		if spec.GetExpiresAt() != nil {
-			e.job.ExpiresAt = spec.ExpiresAt.AsTime()
+		if spec.ExpiresAt != nil {
+			e.job.ExpiresAt = *spec.ExpiresAt
 		}
 	}
-	switch f := fact.Fact.(type) {
-	case *jobpb.JobFact_Queued, *jobpb.JobFact_Retried:
+	switch f.Kind {
+	case factQueued, factRetried:
 		e.job.Status, e.job.Attempts, e.job.Failure, e.job.NextAttemptAt = Queued, 0, "", time.Time{}
-	case *jobpb.JobFact_Succeeded:
-		e.job.Status, e.job.Attempts, e.job.Failure, e.job.NextAttemptAt = Succeeded, f.Succeeded.Attempts, "", time.Time{}
-		e.job.MaxAttempts = f.Succeeded.MaxAttempts
-	case *jobpb.JobFact_Failed:
+	case factSucceeded:
+		e.job.Status, e.job.Attempts, e.job.Failure, e.job.NextAttemptAt = Succeeded, f.Attempts, "", time.Time{}
+		e.job.MaxAttempts = f.MaxAttempts
+	case factFailed:
 		if e.job.Status == Succeeded {
 			return nil
 		}
-		e.job.Status, e.job.Attempts, e.job.Failure, e.job.NextAttemptAt = Failed, f.Failed.Attempts, f.Failed.Failure, time.Time{}
-	case *jobpb.JobFact_Started:
+		e.job.Status, e.job.Attempts, e.job.Failure, e.job.NextAttemptAt = Failed, f.Attempts, f.Failure, time.Time{}
+	case factStarted:
 		// A late progress fact of a repeated delivery must not reopen a
 		// finished job.
 		if finished {
 			return nil
 		}
-		e.job.Status, e.job.Attempts, e.job.NextAttemptAt = Running, f.Started.Attempt, time.Time{}
-	case *jobpb.JobFact_AttemptFailed:
+		e.job.Status, e.job.Attempts, e.job.NextAttemptAt = Running, f.Attempts, time.Time{}
+	case factAttemptFailed:
 		if finished {
 			return nil
 		}
-		e.job.Status, e.job.Attempts, e.job.Failure = Queued, f.AttemptFailed.Attempt, f.AttemptFailed.Failure
-		e.job.NextAttemptAt = f.AttemptFailed.GetNextAttemptAt().AsTime()
+		e.job.Status, e.job.Attempts, e.job.Failure, e.job.NextAttemptAt = Queued, f.Attempts, f.Failure, time.Time{}
+		if f.NextAttemptAt != nil {
+			e.job.NextAttemptAt = *f.NextAttemptAt
+		}
 	default:
+		// A kind that this version does not know.
 		return nil
 	}
-	e.job.UpdatedAt = at
+	e.job.UpdatedAt = f.OccurredAt
 	return nil
 }
 

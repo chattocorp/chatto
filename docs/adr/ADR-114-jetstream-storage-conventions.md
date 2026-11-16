@@ -108,6 +108,13 @@ contracts:
   [runtime state inventory](../architecture/runtime-state.md).
 - Raw binary read markers and notification boundaries in `RUNTIME_STATE`.
 - JSON worker leases and call reconciliation state in `MEMORY_CACHE`.
+- JSON job facts in `JOBS` and `AUTHLING_JOBS`. The shared `pkg/jobs` module
+  owns this format and the complete stream, so the rule against mixed
+  encodings in one resource does not apply. The module encodes only its own
+  small facts and, like `pkg/events`, has no protobuf dependency. A test in
+  the module pins the format. Application payloads inside a fact follow
+  rule 4: Chatto's are protobuf from `job_payload/v1`
+  ([ADR-123](ADR-123-durable-background-jobs.md)).
 - `runtime_state.v1.PresencePreference` uses the public
   `chatto.api.v1.PresenceStatus` enum.
 - LiveKit call E2EE keys use the `key_material.v1.UserKeyEncryptionKey`

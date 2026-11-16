@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -17,11 +18,8 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/pkg/events"
-	"github.com/chattocorp/chatto/pkg/jobs/internal/jobpb"
 )
 
 const (
@@ -171,29 +169,30 @@ func (q *Queue) jobFilter(kind, id string) string {
 	return q.opts.SubjectPrefix + "." + kind + "." + id + ".>"
 }
 
-func (q *Queue) decodeForView(data []byte) (events.DecodedEvent[*jobpb.JobFact], error) {
-	fact := new(jobpb.JobFact)
-	if err := proto.Unmarshal(data, fact); err != nil {
+func (q *Queue) decodeForView(data []byte) (events.DecodedEvent[*fact], error) {
+	f := new(fact)
+	if err := json.Unmarshal(data, f); err != nil {
 		// One unreadable fact must not stop the view of all other jobs. The
 		// view ignores a fact without an ID.
 		q.logger.Warn("Job view ignored an unreadable fact")
-		return events.DecodedEvent[*jobpb.JobFact]{Event: new(jobpb.JobFact)}, nil
+		return events.DecodedEvent[*fact]{Event: new(fact)}, nil
 	}
-	return events.DecodedEvent[*jobpb.JobFact]{Event: fact, ID: fact.Id}, nil
+	return events.DecodedEvent[*fact]{Event: f, ID: f.ID}, nil
 }
 
-// append stores one fact of a job. messageID must be stable across retries of
-// the same write. A zero expectation appends without a guard.
-func (q *Queue) append(ctx context.Context, fact *jobpb.JobFact, name, messageID string, ttl time.Duration, expect *events.Expectation) (uint64, error) {
-	data, err := proto.Marshal(fact)
+// append stores one fact of a job on the subject of its kind. messageID must
+// be stable across retries of the same write. A nil expectation appends
+// without a guard.
+func (q *Queue) append(ctx context.Context, f *fact, messageID string, ttl time.Duration, expect *events.Expectation) (uint64, error) {
+	data, err := json.Marshal(f)
 	if err != nil {
 		return 0, err
 	}
-	record := events.EncodedRecord{ID: fact.Type + "." + fact.Id + "." + messageID, Data: data, TTL: ttl}
+	record := events.EncodedRecord{ID: f.Type + "." + f.ID + "." + messageID, Data: data, TTL: ttl}
 	if expect != nil {
-		return q.log.AppendAt(ctx, q.subject(fact.Type, fact.Id, name), record, *expect)
+		return q.log.AppendAt(ctx, q.subject(f.Type, f.ID, f.Kind), record, *expect)
 	}
-	return q.log.AppendEventually(ctx, q.subject(fact.Type, fact.Id, name), record)
+	return q.log.AppendEventually(ctx, q.subject(f.Type, f.ID, f.Kind), record)
 }
 
 // Enqueue accepts a job once: it appends the queued fact only when the job has
@@ -205,17 +204,17 @@ func (q *Queue) Enqueue(ctx context.Context, spec Spec) error {
 	if !safeToken.MatchString(spec.ID) || !safeToken.MatchString(spec.Type) || spec.MaxAttempts == 0 || spec.RetryDelay < time.Millisecond {
 		return errors.New("jobs: invalid job specification")
 	}
-	now := timestamppb.New(q.now())
-	stored := &jobpb.JobSpec{Payload: spec.Payload, MaxAttempts: spec.MaxAttempts, RetryDelayMillis: spec.RetryDelay.Milliseconds()}
+	now := q.now()
+	stored := &factSpec{Payload: spec.Payload, MaxAttempts: spec.MaxAttempts, RetryDelayMillis: spec.RetryDelay.Milliseconds()}
 	if !spec.ExpiresAt.IsZero() {
-		stored.ExpiresAt = timestamppb.New(spec.ExpiresAt)
+		stored.ExpiresAt = &spec.ExpiresAt
 	}
-	fact := &jobpb.JobFact{Id: spec.ID, Type: spec.Type, OccurredAt: now, CreatedAt: now, Fact: &jobpb.JobFact_Queued{Queued: &jobpb.JobQueued{Spec: stored}}}
+	queued := &fact{ID: spec.ID, Type: spec.Type, Kind: factQueued, OccurredAt: now, CreatedAt: now, Spec: stored}
 	expect := events.ExpectFilterSeq(q.jobFilter(spec.Type, spec.ID), 0)
 	// The guard makes a repeated handoff safe. The message ID must not: the
 	// stream would acknowledge a repeated ID in its duplicate window without
 	// storing a fact, also when the facts of the job are gone.
-	_, err := q.append(ctx, fact, factQueued, fmt.Sprintf("%s.%d", factQueued, now.AsTime().UnixNano()), 0, &expect)
+	_, err := q.append(ctx, queued, fmt.Sprintf("%s.%d", factQueued, now.UnixNano()), 0, &expect)
 	if !errors.Is(err, events.ErrConflict) {
 		return err
 	}
@@ -273,17 +272,14 @@ func (q *Queue) Retry(ctx context.Context, id, expectedVersion string) (Job, err
 	if err != nil {
 		return Job{}, err
 	}
-	source := new(jobpb.JobFact)
-	if err = proto.Unmarshal(msg.Data, source); err != nil || specOf(source) == nil || source.Id != id {
+	source := new(fact)
+	if err = json.Unmarshal(msg.Data, source); err != nil || specOf(source) == nil || source.ID != id {
 		return Job{}, ErrNotRetryable
 	}
-	fact := &jobpb.JobFact{
-		Id: id, Type: e.job.Type, OccurredAt: timestamppb.New(now), CreatedAt: timestamppb.New(e.job.CreatedAt),
-		Fact: &jobpb.JobFact_Retried{Retried: &jobpb.JobRetried{Spec: specOf(source)}},
-	}
+	retried := &fact{ID: id, Type: e.job.Type, Kind: factRetried, OccurredAt: now, CreatedAt: e.job.CreatedAt, Spec: specOf(source)}
 	filter := q.jobFilter(e.job.Type, id)
 	expect := events.ExpectFilterSeq(filter, e.job.Revision)
-	seq, err := q.append(ctx, fact, factRetried, fmt.Sprintf("%s.%d", factRetried, e.job.Revision), 0, &expect)
+	seq, err := q.append(ctx, retried, fmt.Sprintf("%s.%d", factRetried, e.job.Revision), 0, &expect)
 	if errors.Is(err, events.ErrConflict) {
 		return Job{}, ErrNotRetryable
 	}
@@ -314,13 +310,10 @@ func (q *Queue) Delete(ctx context.Context, id, expectedVersion string) error {
 	if e.job.Status != Failed || Version(e.job) != expectedVersion {
 		return ErrNotDeletable
 	}
-	fact := &jobpb.JobFact{
-		Id: id, Type: e.job.Type, OccurredAt: timestamppb.New(q.now()), CreatedAt: timestamppb.New(e.job.CreatedAt),
-		Fact: &jobpb.JobFact_Deleted{Deleted: &jobpb.JobDeleted{}},
-	}
+	deleted := &fact{ID: id, Type: e.job.Type, Kind: factDeleted, OccurredAt: q.now(), CreatedAt: e.job.CreatedAt}
 	filter := q.jobFilter(e.job.Type, id)
 	expect := events.ExpectFilterSeq(filter, e.job.Revision)
-	seq, err := q.append(ctx, fact, factDeleted, fmt.Sprintf("%s.%d", factDeleted, e.job.Revision), deletedRetention, &expect)
+	seq, err := q.append(ctx, deleted, fmt.Sprintf("%s.%d", factDeleted, e.job.Revision), deletedRetention, &expect)
 	if errors.Is(err, events.ErrConflict) {
 		return ErrNotDeletable
 	}
@@ -489,20 +482,6 @@ func (q *Queue) Work(ctx context.Context, consumer jetstream.Consumer, handler H
 	return worker.Run(ctx)
 }
 
-// specOf returns the specification that a queued, retried, or failed fact
-// carries, or nil.
-func specOf(fact *jobpb.JobFact) *jobpb.JobSpec {
-	switch f := fact.GetFact().(type) {
-	case *jobpb.JobFact_Queued:
-		return f.Queued.GetSpec()
-	case *jobpb.JobFact_Retried:
-		return f.Retried.GetSpec()
-	case *jobpb.JobFact_Failed:
-		return f.Failed.GetSpec()
-	}
-	return nil
-}
-
 // process performs one attempt. The delivery is a queued or retried fact; its
 // delivery count is the attempt number. The consumer's acknowledgement wait is
 // the claim, and the durable worker's progress heartbeat renews it.
@@ -513,25 +492,25 @@ func specOf(fact *jobpb.JobFact) *jobpb.JobSpec {
 // runs the handler again, also beyond the attempt budget, because the result
 // of those deliveries is unknown.
 func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handler Handler) error {
-	fact := new(jobpb.JobFact)
-	spec := (*jobpb.JobSpec)(nil)
+	delivered := new(fact)
+	var spec *factSpec
 	// Workers consume only queued and retried facts.
-	if err := proto.Unmarshal(d.Data, fact); err == nil && fact.GetFailed() == nil {
-		spec = specOf(fact)
+	if err := json.Unmarshal(d.Data, delivered); err == nil && delivered.Kind != factFailed {
+		spec = specOf(delivered)
 	}
-	if spec == nil || !safeToken.MatchString(fact.Id) || !safeToken.MatchString(fact.Type) || spec.MaxAttempts == 0 {
+	if spec == nil || !safeToken.MatchString(delivered.ID) || !safeToken.MatchString(delivered.Type) || spec.MaxAttempts == 0 {
 		return events.TerminateDelivery("invalid job fact", errors.New("invalid job fact"))
 	}
 	job := Job{
-		ID: fact.Id, Type: fact.Type, Status: Running, MaxAttempts: spec.MaxAttempts,
+		ID: delivered.ID, Type: delivered.Type, Status: Running, MaxAttempts: spec.MaxAttempts,
 		Attempts:   uint32(min(d.NumDelivered, math.MaxUint32)),
-		CreatedAt:  fact.GetCreatedAt().AsTime(),
+		CreatedAt:  delivered.CreatedAt,
 		Payload:    spec.Payload,
 		RetryDelay: time.Duration(spec.RetryDelayMillis) * time.Millisecond,
 		Revision:   d.StreamSequence,
 	}
 	if spec.ExpiresAt != nil {
-		job.ExpiresAt = spec.ExpiresAt.AsTime()
+		job.ExpiresAt = *spec.ExpiresAt
 	}
 	// The job already has an outcome, or an operator started a new attempt
 	// budget after this fact. Remove what the outcome or the retry replaced.
@@ -548,7 +527,7 @@ func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handler H
 	}
 	// The started and attempt-failed facts only feed the view. A failed write
 	// must not stop or repeat the attempt.
-	q.note(ctx, job, d, factStarted, &jobpb.JobFact{Fact: &jobpb.JobFact_Started{Started: &jobpb.JobStarted{Attempt: job.Attempts}}})
+	q.note(ctx, d, q.newFact(job, factStarted))
 
 	err = handler(ctx, job)
 	if ctx.Err() != nil {
@@ -585,25 +564,23 @@ func (q *Queue) process(ctx context.Context, d events.DurableDelivery, handler H
 	if !job.ExpiresAt.IsZero() {
 		delay = min(delay, job.ExpiresAt.Sub(now))
 	}
-	q.note(ctx, job, d, factAttemptFailed, &jobpb.JobFact{Fact: &jobpb.JobFact_AttemptFailed{AttemptFailed: &jobpb.JobAttemptFailed{
-		Attempt: job.Attempts, Failure: category, NextAttemptAt: timestamppb.New(now.Add(delay)),
-	}}})
+	next := now.Add(delay)
+	attemptFailed := q.newFact(job, factAttemptFailed)
+	attemptFailed.Failure, attemptFailed.NextAttemptAt = category, &next
+	q.note(ctx, d, attemptFailed)
 	return events.RetryDeliveryAfter(errors.New(category), delay)
 }
 
-// fill completes a fact of the job that delivery d runs.
-func (q *Queue) fill(fact *jobpb.JobFact, job Job) *jobpb.JobFact {
-	fact.Id, fact.Type = job.ID, job.Type
-	fact.OccurredAt = timestamppb.New(q.now())
-	fact.CreatedAt = timestamppb.New(job.CreatedAt)
-	return fact
+// newFact returns a fact of the given kind about the current attempt of job.
+func (q *Queue) newFact(job Job, kind string) *fact {
+	return &fact{ID: job.ID, Type: job.Type, Kind: kind, OccurredAt: q.now(), CreatedAt: job.CreatedAt, Attempts: job.Attempts}
 }
 
 // note appends a fact that only the view needs.
-func (q *Queue) note(ctx context.Context, job Job, d events.DurableDelivery, name string, fact *jobpb.JobFact) {
-	messageID := fmt.Sprintf("%s.%d.%d", name, d.StreamSequence, job.Attempts)
-	if _, err := q.append(ctx, q.fill(fact, job), name, messageID, 0, nil); err != nil && ctx.Err() == nil {
-		q.logger.Warn("Job progress was not recorded", "job_id", job.ID, "fact", name)
+func (q *Queue) note(ctx context.Context, d events.DurableDelivery, f *fact) {
+	messageID := fmt.Sprintf("%s.%d.%d", f.Kind, d.StreamSequence, f.Attempts)
+	if _, err := q.append(ctx, f, messageID, 0, nil); err != nil && ctx.Err() == nil {
+		q.logger.Warn("Job progress was not recorded", "job_id", f.ID, "fact", f.Kind)
 	}
 }
 
@@ -612,8 +589,9 @@ func (q *Queue) note(ctx context.Context, job Job, d events.DurableDelivery, nam
 // small fact for a short time. When a step fails, the delivery returns: the
 // next delivery runs the job again, or finishes the purge.
 func (q *Queue) succeed(ctx context.Context, job Job, d events.DurableDelivery) error {
-	fact := q.fill(&jobpb.JobFact{Fact: &jobpb.JobFact_Succeeded{Succeeded: &jobpb.JobSucceeded{Attempts: job.Attempts, MaxAttempts: job.MaxAttempts}}}, job)
-	seq, err := q.append(ctx, fact, factSucceeded, fmt.Sprintf("%s.%d", factSucceeded, d.StreamSequence), q.opts.SucceededRetention, nil)
+	succeeded := q.newFact(job, factSucceeded)
+	succeeded.MaxAttempts = job.MaxAttempts
+	seq, err := q.append(ctx, succeeded, fmt.Sprintf("%s.%d", factSucceeded, d.StreamSequence), q.opts.SucceededRetention, nil)
 	if err != nil {
 		return err
 	}
@@ -625,10 +603,11 @@ func (q *Queue) succeed(ctx context.Context, job Job, d events.DurableDelivery) 
 // specification, so a failed job is one fact that a manual retry can read.
 // When the write fails, the delivery returns and the job runs again. When the
 // purge fails, the next delivery finishes it.
-func (q *Queue) fail(ctx context.Context, job Job, spec *jobpb.JobSpec, d events.DurableDelivery, category string) error {
+func (q *Queue) fail(ctx context.Context, job Job, spec *factSpec, d events.DurableDelivery, category string) error {
 	job.Status, job.Failure = Failed, category
-	fact := q.fill(&jobpb.JobFact{Fact: &jobpb.JobFact_Failed{Failed: &jobpb.JobFailed{Attempts: job.Attempts, Failure: category, Spec: spec}}}, job)
-	seq, err := q.append(ctx, fact, factFailed, fmt.Sprintf("%s.%d", factFailed, d.StreamSequence), q.opts.FailedRetention, nil)
+	failed := q.newFact(job, factFailed)
+	failed.Failure, failed.Spec = category, spec
+	seq, err := q.append(ctx, failed, fmt.Sprintf("%s.%d", factFailed, d.StreamSequence), q.opts.FailedRetention, nil)
 	if err != nil {
 		return err
 	}
