@@ -535,7 +535,7 @@ func TestServeSPAFallback(t *testing.T) {
 	t.Run("returns 200 with content when 200.html exists", func(t *testing.T) {
 		mockFS := fstest.MapFS{
 			"200.html": &fstest.MapFile{
-				Data: []byte("<!DOCTYPE html><html><head><!-- OG_META_PLACEHOLDER --></head><body>SPA</body></html>"),
+				Data: []byte("<!DOCTYPE html><html><head><!-- OG_META_START --><title>Default</title><!-- OG_META_END --></head><body>SPA</body></html>"),
 			},
 		}
 
@@ -557,7 +557,7 @@ func TestServeSPAFallback(t *testing.T) {
 	t.Run("injects OpenGraph tags", func(t *testing.T) {
 		mockFS := fstest.MapFS{
 			"200.html": &fstest.MapFile{
-				Data: []byte("<!DOCTYPE html><html><head><!-- OG_META_PLACEHOLDER --></head><body>SPA</body></html>"),
+				Data: []byte("<!DOCTYPE html><html><head><!-- OG_META_START --><title>Default</title><!-- OG_META_END --></head><body>SPA</body></html>"),
 			},
 		}
 
@@ -576,8 +576,9 @@ func TestServeSPAFallback(t *testing.T) {
 		assert.Contains(t, w.Body.String(), `og:title`)
 		assert.Contains(t, w.Body.String(), `og:description`)
 		assert.Contains(t, w.Body.String(), `twitter:card`)
-		// Placeholder should be replaced
-		assert.NotContains(t, w.Body.String(), "OG_META_PLACEHOLDER")
+		// The default block should be replaced
+		assert.NotContains(t, w.Body.String(), "OG_META_")
+		assert.NotContains(t, w.Body.String(), "<title>Default</title>")
 	})
 
 	t.Run("injects the gutter frontend setting", func(t *testing.T) {
