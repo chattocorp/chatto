@@ -11,6 +11,7 @@
   import ServerHeader from './ServerHeader.svelte';
   import ServerBanner from './ServerBanner.svelte';
   import ServerSubscriptionMarker from './ServerSubscriptionMarker.svelte';
+  import OwnerWelcomeDialog from './OwnerWelcomeDialog.svelte';
   import SettingsSidebar from '$lib/components/settings/SettingsSidebar.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { getSettingsNavGroups } from '$lib/navigation/settingsNav';
@@ -129,6 +130,7 @@
 </script>
 
 <ServerSubscriptionMarker />
+<OwnerWelcomeDialog />
 <!-- Sidebar -->
 <ServerSidebar>
   {#if isServerSettingsMode}

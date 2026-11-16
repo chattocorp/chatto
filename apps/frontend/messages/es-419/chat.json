@@ -187,6 +187,15 @@
       "back_to_server": "Regresar al Servidor",
       "invites": "Invitaciones",
       "registration": "Registro"
+    },
+    "owner_welcome": {
+      "title": "Tu servidor está listo",
+      "intro": "Eres el propietario de este servidor. Para proteger tu cuenta, tus permisos de propietario permanecen desactivados durante el uso habitual.",
+      "shield_active": "El modo privilegiado está activo durante los próximos 15 minutos, así que puedes configurar tu servidor ahora. Para volver a activarlo más tarde, usa el botón del escudo junto a tu nombre.",
+      "shield_inactive": "Para configurar tu servidor, activa el modo privilegiado con el botón del escudo junto a tu nombre. Permanece activo durante 15 minutos.",
+      "shield_failed": "No se pudo activar el modo privilegiado.",
+      "next_steps": "Próximos pasos",
+      "start": "Empezar a chatear"
     }
   }
 }

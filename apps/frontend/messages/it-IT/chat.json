@@ -187,6 +187,15 @@
       "back_to_server": "Ritorna al server",
       "invites": "Inviti",
       "registration": "Registrazione"
+    },
+    "owner_welcome": {
+      "title": "Il tuo server è pronto",
+      "intro": "Sei il proprietario di questo server. Per proteggere il tuo account, i permessi di proprietario restano disattivati durante l’uso normale.",
+      "shield_active": "La modalità privilegiata è attiva per i prossimi 15 minuti, quindi puoi configurare subito il tuo server. Per riattivarla in seguito, usa il pulsante dello scudo accanto al tuo nome.",
+      "shield_inactive": "Per configurare il tuo server, attiva la modalità privilegiata con il pulsante dello scudo accanto al tuo nome. Resta attiva per 15 minuti.",
+      "shield_failed": "Impossibile attivare la modalità privilegiata.",
+      "next_steps": "Prossimi passi",
+      "start": "Inizia a chattare"
     }
   }
 }

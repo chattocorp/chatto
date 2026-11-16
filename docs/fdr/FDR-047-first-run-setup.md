@@ -1,14 +1,15 @@
 # FDR-047: First-Run Setup
 
 **Status:** Active
-**Last reviewed:** 2026-10-10
+**Last reviewed:** 2026-11-13
 
 ## Summary
 
 A new server opens a web setup wizard before normal registration. The installer
 chooses a server name, an optional description, and a local owner account with
 a username, display name, and password. Email delivery is not required. Existing
-default rooms remain in place. After setup, the installer signs in normally.
+default rooms remain in place. After setup, the client signs the owner in,
+activates privileged mode, and shows a welcome dialog with the next steps.
 
 ## Decisions
 
@@ -117,6 +118,25 @@ center their content within the available pane. The form keeps its navigation
 header at the top. On small screens, tall content scrolls from its beginning.
 Users can still add other servers and use their accounts on those servers. Setup does not block
 client-wide navigation or require an account on the origin server.
+
+### The owner starts in privileged mode
+
+After a successful setup, the wizard signs in with the new credentials through
+the normal password login. Setup itself does not create a session. If this
+sign-in fails, the wizard opens the sign-in page.
+
+The origin server's chat shell then shows a welcome dialog once. Before it
+opens, the client activates privileged mode (Shield Mode) without the usual
+confirmation, because the owner has just created the server and must
+configure it. The dialog explains that owner permissions stay off during
+ordinary use and how to activate them again. It links to General,
+Rooms, Registration, and Invites. If the activation fails, the dialog
+tells the owner to use the shield button.
+
+The hand-off from setup to the chat shell is in memory only. A page reload
+before the shell loads drops it; the owner can still use the normal
+controls. Automated installations with `core.skip_setup_wizard` do not show
+the dialog.
 
 ### Keep the wizard small
 

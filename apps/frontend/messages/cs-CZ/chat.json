@@ -187,6 +187,15 @@
       "back_to_server": "Návrat na server",
       "invites": "Pozvánky",
       "registration": "Registrace"
+    },
+    "owner_welcome": {
+      "title": "Váš server je připraven",
+      "intro": "Jste vlastníkem tohoto serveru. Kvůli ochraně vašeho účtu zůstávají oprávnění vlastníka při běžném používání vypnutá.",
+      "shield_active": "Privilegovaný režim je zapnutý na příštích 15 minut, takže můžete server nastavit hned teď. Později jej znovu zapnete tlačítkem štítu vedle svého jména.",
+      "shield_inactive": "Chcete-li nastavit server, aktivujte privilegovaný režim tlačítkem štítu vedle svého jména. Zůstane zapnutý 15 minut.",
+      "shield_failed": "Privilegovaný režim se nepodařilo aktivovat.",
+      "next_steps": "Další kroky",
+      "start": "Začít chatovat"
     }
   }
 }
