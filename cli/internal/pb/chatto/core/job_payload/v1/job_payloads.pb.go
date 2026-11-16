@@ -23,8 +23,8 @@ const (
 )
 
 // Payload of a webhook job in JOBS: delivery references and immutable
-// source-time policy. Credentials and
-// message content are loaded through current authorization on every attempt.
+// source-time policy. Credentials and message content are loaded through
+// current authorization on every attempt.
 type WebhookJobPayload struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	BotUserId             string                 `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
