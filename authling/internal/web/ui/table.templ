@@ -7,13 +7,62 @@ import "strconv"
 // DataTable renders column headers and caller-supplied body rows. Its labeled,
 // keyboard-focusable scroll region contains wide tables on small screens.
 templ DataTable(label string, columns []string) {
+	@SortableDataTable(label, plainColumns(columns)) {
+		{ children... }
+	}
+}
+
+// SortDirection describes the current order of a sortable column.
+type SortDirection string
+
+const (
+	// Unsorted marks a column that does not order the table.
+	Unsorted SortDirection = ""
+	// Ascending marks the column that orders the table in ascending order.
+	Ascending SortDirection = "ascending"
+	// Descending marks the column that orders the table in descending order.
+	Descending SortDirection = "descending"
+)
+
+// Column is one header cell. A column with SortURL renders as a link to a
+// server-side sort. Direction is set only on the column that orders the table.
+// SortURL must come from a trusted server handler.
+type Column struct {
+	Label     string
+	SortURL   string
+	Direction SortDirection
+}
+
+// SortableDataTable is DataTable with header links that change a server-side
+// sort. The current sort column has aria-sort and a direction indicator.
+templ SortableDataTable(label string, columns []Column) {
 	<div class="data-table-scroll" role="region" aria-label={ label } tabindex="0">
 		<table class="data-table">
 			<caption class="sr-only">{ label }</caption>
 			<thead>
 				<tr>
 					for _, column := range columns {
-						<th scope="col">{ column }</th>
+						<th scope="col" if column.Direction != Unsorted {
+							aria-sort={ string(column.Direction) }
+						}>
+							if column.SortURL != "" {
+								<a class="table-sort" href={ templ.SafeURL(column.SortURL) }>
+									{ column.Label }
+									<span class="table-sort-indicator" aria-hidden="true">
+										switch column.Direction {
+											case Ascending:
+												↑
+											case Descending:
+												↓
+											default:
+												↕
+										}
+									</span>
+								</a>
+							} else {
+								{ column.Label }
+							}
+						</th>
 					}
 				</tr>
 			</thead>
@@ -23,9 +72,32 @@ templ DataTable(label string, columns []string) {
 	</div>
 }
 
+func plainColumns(labels []string) []Column {
+	columns := make([]Column, 0, len(labels))
+	for _, label := range labels {
+		columns = append(columns, Column{Label: label})
+	}
+	return columns
+}
+
 // TableEmpty keeps the empty state inside the table's accessible structure.
 templ TableEmpty(columns int, message string) {
 	<tr><td colspan={ strconv.Itoa(columns) } class="data-table-empty">{ message }</td></tr>
+}
+
+// TableLoadMore is the last body row of a table with more rows on the server.
+// Without JavaScript, it is a link to the next page. With JavaScript, it loads
+// the next page when it scrolls into view and replaces itself with that page's
+// body rows, including the next TableLoadMore row. The next page must render
+// one data-table. A loaded row with the same id as a row already in the
+// document is dropped, so give rows stable ids to prevent duplicates when the
+// order shifts between requests. url must come from a trusted server handler.
+templ TableLoadMore(columns int, url, label string) {
+	<tr class="data-table-more" hx-get={ url } hx-trigger="intersect once" hx-swap="outerHTML" hx-select=".data-table tbody > tr" hx-disinherit="*">
+		<td colspan={ strconv.Itoa(columns) }>
+			<a class="button button-secondary button-compact" href={ templ.SafeURL(url) }>{ label }</a>
+		</td>
+	</tr>
 }
 
 // Badge gives short, non-interactive statuses a consistent visual treatment.

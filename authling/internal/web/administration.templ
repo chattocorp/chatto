@@ -5,19 +5,25 @@ import (
 	"github.com/chattocorp/chatto/authling/internal/web/ui"
 )
 
-templ administrationPage(signedInAs string, rows []accounts.RegisteredAccount, configured, laterPage bool, nextURL string) {
+templ administrationPage(signedInAs string, rows []accounts.RegisteredAccount, configured bool, view directoryView, more bool) {
 	@administrationWorkspace(signedInAs, "users") {
 		<div class="panel">
 			@ui.SectionHeading("Registered users") {
 				<p>Accounts registered with { siteFromContext(ctx).Name }.</p>
 			}
 			<div class="mt-6">
-				@ui.DataTable("Registered users", []string{"Email", "Name", "Access", "Registered", "Account ID"}) {
+				@ui.SortableDataTable("Registered users", []ui.Column{
+					view.column("Email", accounts.SortByEmail),
+					view.column("Name", accounts.SortByName),
+					view.column("Access", accounts.SortByAccess),
+					view.column("Registered", accounts.SortByRegistered),
+					view.column("Account ID", accounts.SortByID),
+				}) {
 					if len(rows) == 0 {
 						@ui.TableEmpty(5, "No accounts on this page.")
 					}
 					for _, row := range rows {
-						<tr class="whitespace-nowrap">
+						<tr id={ "account-" + row.ID } class="whitespace-nowrap">
 							<th scope="row" class="font-medium">{ row.Email }</th>
 							<td title={ row.Profile.PreferredUsername }>
 								if row.Profile.FullName != "" {
@@ -46,19 +52,15 @@ templ administrationPage(signedInAs string, rows []accounts.RegisteredAccount, c
 							<td><code class="block max-w-28 truncate text-muted" title={ row.ID }>{ row.ID }</code></td>
 						</tr>
 					}
+					if next := view.nextPageURL(more); next != "" {
+						@ui.TableLoadMore(5, next, "Load more users")
+					}
 				}
 			</div>
-			@ui.Pagination(adminFirstPageURL(laterPage), nextURL)
+			@ui.Pagination(view.firstPageURL(), "")
 			if configured {
 				<p class="mt-5 text-muted">Your administrator access is set in server configuration.</p>
 			}
 		</div>
 	}
-}
-
-func adminFirstPageURL(laterPage bool) string {
-	if laterPage {
-		return "/admin"
-	}
-	return ""
 }

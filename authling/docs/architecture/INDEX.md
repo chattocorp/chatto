@@ -50,7 +50,7 @@ the repository workspace.
 
 The shared `internal/web/ui` templ package supplies headings, labeled fields,
 verification-code inputs, notices, native data tables, empty rows, status badges,
-and cursor navigation. Feature templates own data and validation. Semantic color
+sortable column headers, and page navigation. Feature templates own data and validation. Semantic color
 tokens and shared styles live in the Tailwind component layer; these
 primitives add no browser scripts or external assets. The home route checks a
 present session cookie and redirects active sessions to `/account`. Missing or
@@ -66,8 +66,13 @@ matching `administration.admin_emails`. `AUTHLING_ADMIN_EMAILS` overrides that
 list. The check does not use privileges cached in a session. Missing storage
 state denies access. Staged email changes cannot grant the email override.
 
-The directory sorts opaque account IDs and decrypts only the selected page,
-with a maximum of 50 rows. Each protected read checks the account's durable
+The `sort`, `order`, and `page` query parameters select the directory order
+and a page of at most 50 rows. Access, registration, and account ID orders use
+projected state and decrypt only the selected page. Email and name orders
+decrypt that field for every projected account on each request, then decrypt
+the rows of the selected page. The last row of a page that has more rows
+links to the next page. The browser script loads that page when the row
+scrolls into view and appends its rows in place of the link. Each protected read checks the account's durable
 boundary. Erased accounts are omitted; other read errors fail the page. The
 handler checks administrator access again before rendering. This page does not
 add external connections. Existing NATS connections supply account state; the

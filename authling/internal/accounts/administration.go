@@ -36,18 +36,29 @@ func (s *Service) Administrator(ctx context.Context, id string, adminEmails []st
 	if !ok {
 		return AdministratorAccess{}, ErrInvalidCredentials
 	}
-	access := AdministratorAccess{Stored: account.IsAdministrator}
+	return AdministratorAccess{Stored: account.IsAdministrator, Configured: p.configuredAdministrator(id, p.adminEmailDigests(adminEmails))}, nil
+}
+
+// adminEmailDigests converts the configured override list to email-index
+// digests. The caller must hold the projection lock.
+func (p *Projection) adminEmailDigests(adminEmails []string) [][32]byte {
+	digests := make([][32]byte, 0, len(adminEmails))
+	for _, email := range adminEmails {
+		digests = append(digests, digest(p.indexKey, NormalizeEmail(email)))
+	}
+	return digests
+}
+
+// configuredAdministrator reports whether the account's active, verified email
+// matches one of the configured override digests. A staged email change denies
+// the override. The caller must hold the projection lock.
+func (p *Projection) configuredAdministrator(id string, adminDigests [][32]byte) bool {
 	credential, exists := p.credentials[id]
 	_, staged := p.pendingEmails[id]
-	if exists && !staged && p.emails[credential.emailDigest] == id {
-		for _, email := range adminEmails {
-			if credential.emailDigest == digest(p.indexKey, NormalizeEmail(email)) {
-				access.Configured = true
-				break
-			}
-		}
+	if !exists || staged || p.emails[credential.emailDigest] != id {
+		return false
 	}
-	return access, nil
+	return slices.Contains(adminDigests, credential.emailDigest)
 }
 
 // SetAdministrator is a trusted internal command, not a public self-service API.
@@ -93,56 +104,172 @@ type RegisteredAccount struct {
 	Access  AdministratorAccess
 }
 
-// RegisteredAccounts returns at most limit active accounts ordered by opaque ID.
-// Callers must authorize administrator access first. Only the selected page is
-// decrypted. Accounts erased during the read are omitted; storage failures fail
-// the whole page. The cursor is an exclusive account ID, with no personal data.
-func (s *Service) RegisteredAccounts(ctx context.Context, after string, limit int, adminEmails []string) ([]RegisteredAccount, string, error) {
-	if limit < 1 || limit > 100 {
-		return nil, "", fmt.Errorf("invalid account page size")
+// DirectorySort selects the column that orders the account directory.
+type DirectorySort string
+
+const (
+	// SortByEmail orders by case-folded verified email.
+	SortByEmail DirectorySort = "email"
+	// SortByName orders by case-folded full name, or preferred username when
+	// the account has no full name. This is the name the directory displays.
+	SortByName DirectorySort = "name"
+	// SortByAccess puts administrators before users in ascending order.
+	SortByAccess DirectorySort = "access"
+	// SortByRegistered orders by account creation time.
+	SortByRegistered DirectorySort = "registered"
+	// SortByID orders by opaque account ID.
+	SortByID DirectorySort = "id"
+)
+
+// Valid reports whether the sort is a known directory column.
+func (s DirectorySort) Valid() bool {
+	switch s {
+	case SortByEmail, SortByName, SortByAccess, SortByRegistered, SortByID:
+		return true
+	}
+	return false
+}
+
+// DirectoryQuery selects one page of the account directory. Account ID breaks
+// ties in every order, so pages are deterministic while the directory is
+// unchanged. Offsets shift when accounts register or are erased between pages.
+type DirectoryQuery struct {
+	Sort       DirectorySort
+	Descending bool
+	Offset     int
+	Limit      int
+}
+
+// RegisteredAccounts returns at most query.Limit active accounts and reports
+// whether more accounts follow. Callers must authorize administrator access
+// first. Access, registration, and ID orders decrypt only the selected page.
+// Email and name orders must decrypt that field for every account on each
+// request. Accounts erased during the read are omitted; storage failures fail
+// the whole page.
+func (s *Service) RegisteredAccounts(ctx context.Context, query DirectoryQuery, adminEmails []string) ([]RegisteredAccount, bool, error) {
+	if query.Limit < 1 || query.Limit > 100 {
+		return nil, false, fmt.Errorf("invalid account page size")
+	}
+	if query.Offset < 0 {
+		return nil, false, fmt.Errorf("invalid account page offset")
+	}
+	if !query.Sort.Valid() {
+		return nil, false, fmt.Errorf("invalid account sort")
+	}
+	type entry struct {
+		account Account
+		admin   bool
+		key     string
 	}
 	p := s.handle.Projection()
 	p.RLock()
-	ids := make([]string, 0, len(p.accounts))
-	for id := range p.accounts {
-		if id > after {
-			ids = append(ids, id)
-		}
+	digests := p.adminEmailDigests(adminEmails)
+	entries := make([]entry, 0, len(p.accounts))
+	for id, account := range p.accounts {
+		entries = append(entries, entry{account: account, admin: account.IsAdministrator || p.configuredAdministrator(id, digests)})
 	}
 	p.RUnlock()
-	slices.SortFunc(ids, strings.Compare)
-	next := ""
-	if len(ids) > limit {
-		ids = ids[:limit]
-		next = ids[len(ids)-1]
+	if query.Sort == SortByEmail || query.Sort == SortByName {
+		kept := entries[:0]
+		for _, e := range entries {
+			key, err := s.directorySortKey(ctx, query.Sort, e.account.ID)
+			if errors.Is(err, ErrInvalidCredentials) {
+				continue
+			}
+			if err != nil {
+				return nil, false, err
+			}
+			e.key = key
+			kept = append(kept, e)
+		}
+		entries = kept
 	}
-	rows := make([]RegisteredAccount, 0, len(ids))
-	for _, id := range ids {
-		email, err := s.EmailAddress(ctx, id)
-		if errors.Is(err, ErrInvalidCredentials) {
-			continue
+	slices.SortFunc(entries, func(a, b entry) int {
+		c := 0
+		switch query.Sort {
+		case SortByEmail, SortByName:
+			c = strings.Compare(a.key, b.key)
+		case SortByAccess:
+			c = compareBool(b.admin, a.admin)
+		case SortByRegistered:
+			c = a.account.CreatedAt.Compare(b.account.CreatedAt)
 		}
-		if err != nil {
-			return nil, "", err
+		if c == 0 {
+			c = strings.Compare(a.account.ID, b.account.ID)
 		}
-		profile, err := s.Profile(ctx, id)
-		if errors.Is(err, ErrInvalidCredentials) {
-			continue
+		if query.Descending {
+			return -c
 		}
-		if err != nil {
-			return nil, "", err
-		}
-		access, err := s.Administrator(ctx, id, adminEmails)
-		if errors.Is(err, ErrInvalidCredentials) {
-			continue
-		}
-		if err != nil {
-			return nil, "", err
-		}
-		account, ok := s.Get(id)
-		if ok {
-			rows = append(rows, RegisteredAccount{Account: account, Email: email, Profile: profile, Access: access})
-		}
+		return c
+	})
+	if query.Offset >= len(entries) {
+		return []RegisteredAccount{}, false, nil
 	}
-	return rows, next, nil
+	end := min(query.Offset+query.Limit, len(entries))
+	more := end < len(entries)
+	rows := make([]RegisteredAccount, 0, end-query.Offset)
+	for _, e := range entries[query.Offset:end] {
+		row, err := s.registeredAccount(ctx, e.account.ID, adminEmails)
+		if errors.Is(err, ErrInvalidCredentials) {
+			continue
+		}
+		if err != nil {
+			return nil, false, err
+		}
+		rows = append(rows, row)
+	}
+	return rows, more, nil
+}
+
+// directorySortKey decrypts the case-folded email or display name that orders
+// one directory entry. It returns ErrInvalidCredentials for an erased account.
+func (s *Service) directorySortKey(ctx context.Context, sort DirectorySort, id string) (string, error) {
+	if sort == SortByEmail {
+		credential, ok := s.handle.Projection().credentialForAccount(id)
+		if !ok {
+			return "", ErrInvalidCredentials
+		}
+		email, err := s.decryptCredentialEmail(ctx, credential)
+		return strings.ToLower(email), err
+	}
+	profile, err := s.decryptProfile(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if profile.FullName != "" {
+		return strings.ToLower(profile.FullName), nil
+	}
+	return strings.ToLower(profile.PreferredUsername), nil
+}
+
+// registeredAccount loads and decrypts one directory row.
+func (s *Service) registeredAccount(ctx context.Context, id string, adminEmails []string) (RegisteredAccount, error) {
+	email, err := s.EmailAddress(ctx, id)
+	if err != nil {
+		return RegisteredAccount{}, err
+	}
+	profile, err := s.Profile(ctx, id)
+	if err != nil {
+		return RegisteredAccount{}, err
+	}
+	access, err := s.Administrator(ctx, id, adminEmails)
+	if err != nil {
+		return RegisteredAccount{}, err
+	}
+	account, ok := s.Get(id)
+	if !ok {
+		return RegisteredAccount{}, ErrInvalidCredentials
+	}
+	return RegisteredAccount{Account: account, Email: email, Profile: profile, Access: access}, nil
+}
+
+// compareBool orders false before true.
+func compareBool(a, b bool) int {
+	switch {
+	case a == b:
+		return 0
+	case a:
+		return 1
+	}
+	return -1
 }
