@@ -596,6 +596,7 @@
       "push_subscription_cleanup": "プッシュ購読のクリーンアップ",
       "user_key_shredding": "アカウントキーの削除",
       "notification_alert": "通知アラート",
+      "email": "メール",
       "queued": "待機中",
       "running": "実行中",
       "succeeded": "成功",

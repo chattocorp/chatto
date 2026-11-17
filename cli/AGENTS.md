@@ -44,6 +44,8 @@ authorization, live events, backup and restore, and backend tests.
 - `proto/chatto/api/v1` holds public ConnectRPC API protobufs.
 - The relevant `docs/architecture/` inventories, FDRs, and ADRs should move
   with architectural changes.
+- Use the `chatto-jobs-implementation` skill before you add, change, or
+  remove a background job type.
 
 ## Public APIs
 

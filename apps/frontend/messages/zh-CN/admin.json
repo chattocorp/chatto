@@ -596,6 +596,7 @@
       "push_subscription_cleanup": "清理推送订阅",
       "user_key_shredding": "删除账户密钥",
       "notification_alert": "通知提醒",
+      "email": "邮箱",
       "queued": "排队中",
       "running": "运行中",
       "succeeded": "成功",

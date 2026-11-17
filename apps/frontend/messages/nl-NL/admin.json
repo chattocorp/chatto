@@ -607,6 +607,7 @@
       "push_subscription_cleanup": "Pushabonnementen opruimen",
       "user_key_shredding": "Accountsleutels verwijderen",
       "notification_alert": "Meldingswaarschuwing",
+      "email": "E-mail",
       "queued": "In wachtrij",
       "running": "Actief",
       "succeeded": "Geslaagd",

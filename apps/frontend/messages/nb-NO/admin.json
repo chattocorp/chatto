@@ -607,6 +607,7 @@
       "push_subscription_cleanup": "Opprydding av push-abonnementer",
       "user_key_shredding": "Sletting av kontonøkler",
       "notification_alert": "Varselvarsling",
+      "email": "E-post",
       "queued": "I kø",
       "running": "Kjører",
       "succeeded": "Fullført",

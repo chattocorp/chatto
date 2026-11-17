@@ -629,6 +629,7 @@
       "push_subscription_cleanup": "Очищення push-підписок",
       "user_key_shredding": "Видалення ключів облікового запису",
       "notification_alert": "Сповіщення",
+      "email": "Електронна пошта",
       "queued": "У черзі",
       "running": "Виконується",
       "succeeded": "Успішно",

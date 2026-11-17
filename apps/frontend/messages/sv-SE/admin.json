@@ -607,6 +607,7 @@
       "push_subscription_cleanup": "Rensning av push-prenumerationer",
       "user_key_shredding": "Radering av kontonycklar",
       "notification_alert": "Aviseringsvarning",
+      "email": "E-post",
       "queued": "Köat",
       "running": "Körs",
       "succeeded": "Slutfört",

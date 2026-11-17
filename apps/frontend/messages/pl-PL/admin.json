@@ -629,6 +629,7 @@
       "push_subscription_cleanup": "Czyszczenie subskrypcji push",
       "user_key_shredding": "Usuwanie kluczy konta",
       "notification_alert": "Alert powiadomienia",
+      "email": "E-mail",
       "queued": "W kolejce",
       "running": "W toku",
       "succeeded": "Ukończone",

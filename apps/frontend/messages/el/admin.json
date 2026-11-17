@@ -607,6 +607,7 @@
       "push_subscription_cleanup": "Εκκαθάριση συνδρομών push",
       "user_key_shredding": "Διαγραφή κλειδιών λογαριασμού",
       "notification_alert": "Ειδοποίηση",
+      "email": "Email",
       "queued": "Στην ουρά",
       "running": "Σε εκτέλεση",
       "succeeded": "Επιτυχής",
