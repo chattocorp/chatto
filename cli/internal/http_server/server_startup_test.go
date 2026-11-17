@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/email"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -105,4 +107,28 @@ func TestHTTPServerBindFailureDoesNotLogReady(t *testing.T) {
 			require.NoError(t, rebound.Close())
 		})
 	}
+}
+
+// Mail workers share HTTP cancellation and must not turn normal shutdown into
+// a runtime failure. This uses a real queue and the same binding as production.
+func TestHTTPServerRunsAndStopsMailJobs(t *testing.T) {
+	_, _, core := setupTestHTTPServer(t)
+	transport := email.NewMockSender(true)
+	sender := core.NewEmailJobs(transport)
+	require.NoError(t, sender.SendContext(t.Context(), email.Message{To: "queued@example.invalid", Subject: "verification", Body: "123456", ExpiresAt: time.Now().Add(time.Minute)}))
+	require.Empty(t, transport.Messages())
+	s := &HTTPServer{addr: "127.0.0.1:0", router: gin.New(), logger: log.New(io.Discard), mailJobs: sender}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() { done <- s.Run(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case err := <-done:
+			require.NoError(t, err)
+		case <-time.After(5 * time.Second):
+			t.Error("HTTP mail worker did not stop")
+		}
+	})
+	require.Eventually(t, func() bool { return len(transport.Messages()) == 1 }, 5*time.Second, 10*time.Millisecond)
 }

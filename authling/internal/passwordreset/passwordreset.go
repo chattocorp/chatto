@@ -130,8 +130,8 @@ func (s *Service) Start(ctx context.Context, rawEmail string) (string, error) {
 	if _, err := s.kv.Create(ctx, key, data, jetstream.KeyTTL(FlowTTL)); err != nil {
 		return "", fmt.Errorf("store password reset flow: %w", err)
 	}
-	body := fmt.Sprintf("Your %s password reset code is %s.\n\nIt expires in 15 minutes. If you did not request this, you can ignore this message.\n", siteName, code)
-	if err := s.send(ctx, email.Message{To: normalized, Subject: "Your " + siteName + " password reset code", Body: body}); err != nil {
+	body := fmt.Sprintf("Your %s password reset code is %s.\n\nIt expires 15 minutes after the request. If you did not request this, you can ignore this message.\n", siteName, code)
+	if err := s.send(ctx, email.Message{ExpiresAt: state.ExpiresAt, To: normalized, Subject: "Your " + siteName + " password reset code", Body: body}); err != nil {
 		_ = s.kv.Delete(ctx, key)
 		return "", fmt.Errorf("deliver password reset code: %w", err)
 	}

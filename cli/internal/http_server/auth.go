@@ -586,6 +586,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create registration code
+		expiresAt := time.Now().Add(s.config.Auth.EmailOTP.TTLOrDefault())
 		code, err := s.core.CreateRegistrationCodeForInvitation(ctx, req.Email, invitationID)
 		if err != nil {
 			if errors.Is(err, core.ErrRegistrationCodeLimitExceeded) ||
@@ -604,10 +605,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Send registration email
 		serverName := s.authEmailServerName()
 		expirationText := s.emailOTPExpirationText()
-		err = s.mailer.Send(email.Message{
-			To:      req.Email,
-			Subject: fmt.Sprintf("Complete your registration for %s", serverName),
-			Body:    fmt.Sprintf("Welcome to %s!\n\nUse this verification code to finish creating your account on %s:\n\n%s\n\nThis code will expire in %s.\n\nIf you didn't request this, you can ignore this email.", serverName, serverName, code, expirationText),
+		err = s.mailer.SendContext(c.Request.Context(), email.Message{
+			ExpiresAt: expiresAt,
+			To:        req.Email,
+			Subject:   fmt.Sprintf("Complete your registration for %s", serverName),
+			Body:      fmt.Sprintf("Welcome to %s!\n\nUse this verification code to finish creating your account on %s:\n\n%s\n\nThis code expires %s after the request.\n\nIf you didn't request this, you can ignore this email.", serverName, serverName, code, expirationText),
 		})
 		if err != nil {
 			log.Error("Failed to send registration email", "error", err)
@@ -618,7 +620,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 
-		log.Info("Sent registration email")
+		log.Info("Queued registration email")
 		c.JSON(http.StatusOK, gin.H{
 			"message": "If this email is available, you will receive a registration code.",
 		})
@@ -836,6 +838,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 		body.Email = strings.ToLower(strings.TrimSpace(body.Email))
 
+		expiresAt := time.Now().Add(s.config.Auth.EmailOTP.TTLOrDefault())
 		code, err := s.core.CreateEmailVerificationCode(req.Context(), user.Id, body.Email)
 		if err != nil {
 			if errors.Is(err, core.ErrEmailVerificationCodeLimitExceeded) ||
@@ -849,10 +852,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 		serverName := s.authEmailServerName()
 		expirationText := s.emailOTPExpirationText()
-		if err := s.mailer.Send(email.Message{
-			To:      body.Email,
-			Subject: fmt.Sprintf("Verify your email for %s", serverName),
-			Body:    fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code will expire in %s.\n\nIf you didn't request this, you can ignore this email.", serverName, code, expirationText),
+		if err := s.mailer.SendContext(c.Request.Context(), email.Message{
+			ExpiresAt: expiresAt,
+			To:        body.Email,
+			Subject:   fmt.Sprintf("Verify your email for %s", serverName),
+			Body:      fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code expires %s after the request.\n\nIf you didn't request this, you can ignore this email.", serverName, code, expirationText),
 		}); err != nil {
 			log.Error("Failed to send email verification code", "userId", user.Id, "error", err)
 			if cancelErr := s.core.CancelEmailVerificationCode(req.Context(), user.Id, body.Email, code); cancelErr != nil {
@@ -929,6 +933,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
 
 		// Create token (returns empty string if email not found - no error)
+		expiresAt := time.Now().Add(core.PasswordResetTokenTTL)
 		token, err := s.core.CreatePasswordResetToken(ctx, normalizedEmail)
 		if errors.Is(err, core.ErrPasswordResetRequestThrottled) {
 			log.Info("Password reset request throttled")
@@ -941,10 +946,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 		if token != "" && s.mailer != nil {
 			serverName := s.authEmailServerName()
 			resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.config.Webserver.URL, token)
-			err = s.mailer.Send(email.Message{
-				To:      normalizedEmail,
-				Subject: fmt.Sprintf("Reset your %s password", serverName),
-				Body:    fmt.Sprintf("Hi,\n\nWe received a request to reset the password for your %s account.\n\nClick the link below to set a new password:\n\n%s\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, you can safely ignore this email.", serverName, resetURL),
+			err = s.mailer.SendContext(c.Request.Context(), email.Message{
+				ExpiresAt: expiresAt,
+				To:        normalizedEmail,
+				Subject:   fmt.Sprintf("Reset your %s password", serverName),
+				Body:      fmt.Sprintf("Hi,\n\nWe received a request to reset the password for your %s account.\n\nClick the link below to set a new password:\n\n%s\n\nThis link expires 1 hour after the request.\n\nIf you didn't request this, you can safely ignore this email.", serverName, resetURL),
 			})
 			if err != nil {
 				log.Error("Failed to send password reset email", "error", err)
@@ -952,7 +958,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 					log.Error("Failed to cancel undelivered password reset token", "error", cancelErr)
 				}
 			} else {
-				log.Info("Sent password reset email")
+				log.Info("Queued password reset email")
 			}
 		} else if token != "" {
 			if cancelErr := s.core.CancelPasswordResetToken(ctx, token); cancelErr != nil {

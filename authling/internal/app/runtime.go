@@ -45,6 +45,9 @@ type Runtime struct {
 	erasureProjector *events.Projector
 	jobs             *jobs.Queue
 	jobsConsumer     jetstream.Consumer
+	mailConsumer     jetstream.Consumer
+	mailSender       *email.QueueSender
+	mailQueue        *jobs.Queue
 	// Erasure resumes durable account key destruction.
 	Erasure *erasure.Service
 
@@ -138,11 +141,27 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 	if err != nil {
 		return closeOnError(fmt.Errorf("ensure job consumer: %w", err))
 	}
+	mailConsumer, err := jobStream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
+		Name: storage.MailJobsConsumerName, Durable: storage.MailJobsConsumerName, Description: "Authling email jobs",
+		FilterSubjects: jobQueue.FilterSubjects(email.JobType), AckPolicy: jetstream.AckExplicitPolicy,
+		AckWait: time.Minute, MaxAckPending: -1, MaxDeliver: -1, DeliverPolicy: jetstream.DeliverAllPolicy,
+	})
+	if err != nil {
+		return closeOnError(fmt.Errorf("ensure email job consumer: %w", err))
+	}
 	vault := keyvault.New(stores.Keys)
 	workflowKey, err := vault.WorkflowKey(ctx)
 	if err != nil {
 		return closeOnError(fmt.Errorf("open workflow key: %w", err))
 	}
+	// Mail has an expiry and no operator retry UI. Bound its failure history;
+	// account erasure keeps its existing indefinite retention on the same stream.
+	mailQueue, err := jobs.New(js, jobStream, jobs.Options{SubjectPrefix: storage.JobSubjectPrefix, SucceededRetention: storage.JobSucceededRetention, FailedRetention: storage.JobSucceededRetention, Logger: logger})
+	if err != nil {
+		return closeOnError(fmt.Errorf("open mail queue: %w", err))
+	}
+	mailSender := email.NewQueueSender(stores.RuntimeState, workflowKey, mailQueue, sender)
+	sender = mailSender
 	publisher := evtstream.NewPublisher(eventLog)
 	projectorOptions := events.ProjectorOptions{Logger: logger}
 	erasureHandle, err := events.NewDecodedProjectionHandle(js, stream, erasure.NewProjection(), evtstream.Decode, projectorOptions)
@@ -229,6 +248,9 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 		erasureProjector: erasureHandle.Projector(),
 		jobs:             jobQueue,
 		jobsConsumer:     jobsConsumer,
+		mailConsumer:     mailConsumer,
+		mailSender:       mailSender,
+		mailQueue:        mailQueue,
 		Erasure:          erasureService,
 		projectors:       []*events.Projector{handle.Projector(), issuerHandle.Projector(), authorizationHandle.Projector(), siteHandle.Projector()},
 		issuer:           issuerService,
@@ -249,6 +271,7 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 func (r *Runtime) Run(ctx context.Context) error {
 	group, groupContext := errgroup.WithContext(ctx)
 	group.Go(func() error { return r.erasureProjector.Run(groupContext) })
+	group.Go(func() error { return r.mailQueue.Work(groupContext, r.mailConsumer, r.mailSender.Deliver, 8) })
 	group.Go(func() error { return r.Erasure.Run(groupContext) })
 	group.Go(func() error {
 		// Erasure jobs ran one at a time before the queue existed; keep that.

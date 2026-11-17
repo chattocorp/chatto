@@ -103,7 +103,8 @@ function postedEventId(
 
 /**
  * Starts a second Chatto server for multi-instance tests.
- * Uses parallelIndex + 5 to avoid port collisions with the primary server.
+ * Adds five to the port index by default to avoid primary-server port collisions.
+ * E2E_SECOND_SERVER_PORT_OFFSET can reduce this for a single-worker workspace run.
  *
  * The server advertises `127.0.0.1`, the address that the tests add it with.
  * This keeps its cookies separate from the primary server on `localhost`.
@@ -111,7 +112,9 @@ function postedEventId(
  * selected server, so the configured public URL must be this address.
  */
 export async function startSecondServer(testInfo: TestInfo): Promise<ServerInfo> {
-  return startServer(testInfo, { instanceId: 'secondary', portOffset: 5, hostname: '127.0.0.1' });
+  // Focused single-worker runs can fit both servers inside a workspace port block.
+  const portOffset = Number(process.env.E2E_SECOND_SERVER_PORT_OFFSET ?? 5);
+  return startServer(testInfo, { instanceId: 'secondary', portOffset, hostname: '127.0.0.1' });
 }
 
 /**

@@ -149,6 +149,7 @@ hyphen. The filter is `jobs.{type}.*.queued` and `jobs.{type}.*.retried`.
 
 | Job type                    | Consumer                                   | Shared by                                                         |
 | --------------------------- | ------------------------------------------ | ----------------------------------------------------------------- |
+| `email`                     | `chatto-jobs-email-v1`                     | HTTP server replicas                                              |
 | `webhook`                   | `chatto-jobs-webhook-v1`                   | Server replicas                                                   |
 | `media`                     | `chatto-jobs-media-v1`                     | Server replicas with media processing, standalone media processes |
 | `notification_alert`        | `chatto-jobs-notification-alert-v1`        | Server replicas                                                   |

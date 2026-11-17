@@ -208,11 +208,14 @@ actions, or separate dead-letter stream. Job state has no realtime event; the Jo
   unfinished jobs in the stream; their sources are already acknowledged. Roll
   forward again to run them.
 - Notification occurrence projection, link-preview work, and periodic
-  reconciliation passes remain outside the queue. The current server has no
-  separate email worker: account emails send on the request path.
+  reconciliation passes remain outside the queue. Transactional email uses a
+  separate job consumer and encrypted, expiring runtime content. Its job holds
+  only an opaque content ID and the original delivery deadline.
 
 Authling keeps job facts in a dedicated `AUTHLING_JOBS` stream with the same
-retention rules. Only unfinished and failed erasure jobs stay.
+retention rules for erasure. Email uses its own consumer and pool; failed mail
+facts expire after three days. Code jobs expire with their workflow; old-address
+security notices expire after 24 hours. SMTP failures retry within that deadline.
 Its erasure source acknowledges unrelated account events without a job through
 the effect `Accept` filter. Erasure jobs use the unlimited attempt budget,
 because Authling has no manual retry. Authling shows no jobs and does not run
