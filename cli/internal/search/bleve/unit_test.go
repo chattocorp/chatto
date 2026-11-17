@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -251,6 +252,33 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond)
 	require.Equal(t, []string{"M1"}, hitIDs(response))
 	require.Contains(t, unitLogs.String(), "Search index format changed; rebuilding from EVT")
+
+	// An explicit recovery keeps the index, replays EVT into a new index, and
+	// serves only after the validation query succeeded.
+	stopActiveUnit()
+	recovery, err := RecoverIndex(indexDirectory)
+	require.NoError(t, err)
+	require.False(t, recovery.InProgress)
+	logsBeforeRecovery := len(unitLogs.String())
+	startUnit()
+	require.Eventually(t, func() bool {
+		response, err = client.Query(ctx, &searchv1.QueryRequest{
+			RequiredTerms: []string{"integration"}, Order: searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE, PageSize: 10,
+		})
+		return err == nil && len(response.Hits) == 1
+	}, 5*time.Second, 10*time.Millisecond)
+	require.Equal(t, []string{"M1"}, hitIDs(response))
+	require.Eventually(t, func() bool {
+		return strings.Contains(unitLogs.String()[logsBeforeRecovery:], `"stage":"service_ready"`)
+	}, time.Second, 10*time.Millisecond)
+	recoveryLogs := unitLogs.String()[logsBeforeRecovery:]
+	require.Contains(t, recoveryLogs, `"stage":"index_recovery"`)
+	require.Contains(t, recoveryLogs, `"stage":"previous_index_kept"`)
+	completeAt := strings.Index(recoveryLogs, `"stage":"index_recovery_complete"`)
+	require.GreaterOrEqual(t, completeAt, 0)
+	require.Less(t, completeAt, strings.Index(recoveryLogs, `"stage":"service_ready"`))
+	require.NoFileExists(t, filepath.Join(indexDirectory, recoveryMarkerName))
+	require.FileExists(t, filepath.Join(indexDirectory, previousIndexName, "index_meta.json"))
 }
 
 func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {
@@ -358,7 +386,7 @@ func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {
 	unitErr := <-done
 	finished = true
 	require.ErrorContains(t, unitErr, "behind retained stream start")
-	require.ErrorContains(t, unitErr, "move or delete")
+	require.ErrorContains(t, unitErr, "chatto search-provider recover")
 	require.NotContains(t, unitLogs.String(), `"stage":"service_ready"`)
 	afterContext, cancelAfter := context.WithTimeout(context.Background(), time.Second)
 	defer cancelAfter()

@@ -44,46 +44,64 @@ func knownIndexContract(id string) bool {
 // lockDirectory holds an OS-backed lock through close/delete/create. The lock
 // file stays inside the configured directory so dedicated volume mounts work.
 func (p *Projection) lockDirectory() error {
-	if err := os.MkdirAll(p.directory, 0o755); err != nil {
-		return err
-	}
-	path := filepath.Join(p.directory, directoryLockName)
-	if info, err := os.Lstat(path); err == nil && !info.Mode().IsRegular() {
-		return fmt.Errorf("search provider lock is not a regular file")
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	lock, err := bolt.Open(path, 0o600, &bolt.Options{Timeout: time.Second})
+	lock, err := lockSearchDirectory(p.directory)
 	if err != nil {
-		return fmt.Errorf("lock search index directory: %w; stop any other provider using this directory", err)
+		return err
 	}
 	p.directoryLock = lock
 	return nil
 }
 
+// lockSearchDirectory takes the exclusive lock on a search index directory.
+// The provider and the offline recovery commands use the same lock, so a
+// recovery command cannot change a directory that a running provider uses.
+func lockSearchDirectory(directory string) (*bolt.DB, error) {
+	if err := os.MkdirAll(directory, 0o755); err != nil {
+		return nil, err
+	}
+	path := filepath.Join(directory, directoryLockName)
+	if info, err := os.Lstat(path); err == nil && !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("search provider lock is not a regular file")
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	lock, err := bolt.Open(path, 0o600, &bolt.Options{Timeout: time.Second})
+	if err != nil {
+		return nil, fmt.Errorf("lock search index directory: %w; stop any other provider using this directory", err)
+	}
+	return lock, nil
+}
+
 // validateRebuildDirectory limits deletion to a dedicated Bleve directory.
 // Unrelated entries and links require an operator, even with a valid checkpoint.
 func (p *Projection) validateRebuildDirectory() error {
-	info, err := os.Lstat(p.directory)
+	return validateIndexDirectory(p.directory)
+}
+
+// validateIndexDirectory accepts only the entries that Chatto writes: the
+// root Bleve index, the lock, the rebuild and recovery markers, and the
+// previous index that a recovery keeps.
+func validateIndexDirectory(directory string) error {
+	info, err := os.Lstat(directory)
 	if err != nil {
 		return err
 	}
 	if !info.IsDir() {
-		return fmt.Errorf("automatic search rebuild requires a real directory")
+		return fmt.Errorf("search index maintenance requires a real directory")
 	}
-	entries, err := os.ReadDir(p.directory)
+	entries, err := os.ReadDir(directory)
 	if err != nil {
 		return err
 	}
 	for _, entry := range entries {
 		switch entry.Name() {
-		case "index_meta.json", directoryLockName, rebuildMarkerName:
+		case "index_meta.json", directoryLockName, rebuildMarkerName, recoveryMarkerName:
 			if !entry.Type().IsRegular() {
-				return fmt.Errorf("automatic search rebuild requires regular metadata files")
+				return fmt.Errorf("search index maintenance requires regular metadata files")
 			}
-		case "store":
+		case "store", previousIndexName:
 			if !entry.IsDir() {
-				return fmt.Errorf("automatic search rebuild requires a real store directory")
+				return fmt.Errorf("search index maintenance requires real index directories")
 			}
 		default:
 			return fmt.Errorf("search index directory contains unrelated entries; follow https://docs.chatto.run/guides/operations/search/#rebuild-the-search-index")
@@ -177,6 +195,11 @@ func (p *Projection) syncPath(path string) error {
 	if p.syncPathOverride != nil {
 		return p.syncPathOverride(path)
 	}
+	return syncPath(path)
+}
+
+// syncPath makes a file's data or a directory's entries durable.
+func syncPath(path string) error {
 	entry, err := os.Open(path)
 	if err != nil {
 		return err

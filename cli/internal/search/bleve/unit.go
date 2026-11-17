@@ -23,6 +23,10 @@ const (
 	runtimeUnitName                = "search.BleveProvider"
 	searchIndexingProgressInterval = 10 * time.Second
 	searchStartupPollInterval      = 10 * time.Millisecond
+	// startupValidationTimeout bounds the validation query after startup
+	// replay. It is longer than the query probe timeout, because the
+	// validation reads one stored document from the full index.
+	startupValidationTimeout = time.Minute
 	// searchShutdownTimeout bounds the wait for the projector and the index
 	// to stop. Together with the NATS drain, it fits within the default
 	// Kubernetes termination grace period of 30 seconds.
@@ -156,9 +160,11 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 }
 
 // serve keeps the provider's query and ready status subscriptions aligned
-// with its query probe. It joins the shared queues only after a probe
-// succeeds, and leaves them while the latest probe failed or a probe is
-// blocked, so that healthy replicas answer instead. It returns when ctx ends
+// with its query probe. It joins the shared queues only after the startup
+// validation (completeStartup) and a probe succeed, and leaves them while the
+// latest probe failed or a probe is blocked, so that healthy replicas answer
+// instead. A failed validation is tried again at each interval; it never
+// deletes the index. It returns when ctx ends
 // or the projector stops; the bool reports that the projector stopped, and
 // the error is then the projector's error.
 func (u Unit) serve(ctx context.Context, env runtimeunit.Env, provider *Provider, options search.ServiceOptions, projectorDone <-chan error) (bool, error) {
@@ -176,6 +182,23 @@ func (u Unit) serve(ctx context.Context, env runtimeunit.Env, provider *Provider
 	}
 	defer stopServing()
 
+	// validation runs completeStartup in its own goroutine, so that a blocked
+	// index cannot block shutdown. At most one validation runs at a time.
+	validated := false
+	var validationDone chan error
+	startValidation := func() {
+		validationDone = make(chan error, 1)
+		go func(done chan<- error) {
+			validationContext, cancel := context.WithTimeout(ctx, startupValidationTimeout)
+			defer cancel()
+			recovered, err := provider.projection.Projection().completeStartup(validationContext)
+			if err == nil && recovered {
+				env.Logger.Info("Search index recovery complete; a validation query succeeded", "stage", "index_recovery_complete")
+			}
+			done <- err
+		}(validationDone)
+	}
+
 	readyLogged := false
 	reconcile := func() error {
 		// NATS micro stops a service by itself after some subscription
@@ -187,7 +210,7 @@ func (u Unit) serve(ctx context.Context, env runtimeunit.Env, provider *Provider
 			env.Logger.Warn("Search provider query service stopped unexpectedly", "stage", "query_service_stopped")
 		}
 		snapshot, _ := provider.probe.Snapshot()
-		healthy := snapshot.Healthy(time.Now())
+		healthy := validated && snapshot.Healthy(time.Now())
 		switch {
 		case healthy && serving == nil:
 			service, err := search.AddService(ctx, env.NC, provider, options)
@@ -222,12 +245,23 @@ func (u Unit) serve(ctx context.Context, env runtimeunit.Env, provider *Provider
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	probeDone := provider.probe.Start(ctx)
+	startValidation()
 	for {
 		select {
 		case <-ctx.Done():
 			return false, nil
 		case err := <-projectorDone:
 			return true, err
+		case err := <-validationDone:
+			validationDone = nil
+			if err != nil {
+				env.Logger.Warn("Search index validation failed; the provider does not serve queries", "stage", "startup_validation_failed", "error", err)
+				break
+			}
+			validated = true
+			if err := reconcile(); err != nil {
+				return false, err
+			}
 		case <-probeDone:
 			probeDone = nil
 			if err := reconcile(); err != nil {
@@ -239,6 +273,9 @@ func (u Unit) serve(ctx context.Context, env runtimeunit.Env, provider *Provider
 			}
 			if probeDone == nil {
 				probeDone = provider.probe.Start(ctx)
+			}
+			if !validated && validationDone == nil {
+				startValidation()
 			}
 		}
 	}

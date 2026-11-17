@@ -16,7 +16,8 @@ the replacement index is current and a real query on it succeeds. Results
 tell the client when they can be stale. Search must never show an empty
 result from an incomplete index as "no matches".
 
-This record is a design. It does not describe shipped behavior. Each claim
+This record is a design. It does not describe shipped behavior, except where
+the section "Shipped by explicit recovery" says so. Each claim
 about current code has a marker: **[verified]** means that the author read
 the code at `aaafb82e10`; **[inferred]** means that the claim comes from
 library documentation or reasoning and the implementation must confirm it
@@ -308,8 +309,10 @@ volumes.
 ### 8. Remove the old generation after a successful switch
 
 **Decision:** After an automatic rebuild, the provider deletes the old
-generation when the switch is durable. After an explicit recovery, [#3663](https://github.com/chattocorp/chatto/issues/3663)
-decides how long the provider keeps the previous index.
+generation when the switch is durable. After an explicit recovery, the
+provider keeps one previous index until the next recovery replaces it or the
+operator deletes it with `chatto search-provider discard-previous` (FDR-033,
+decision 5).
 **Why:** The old generation contains plaintext-derived data. Physical removal
 completes crypto-shredding and retractions on disk sooner (FDR-033, decision
 5). The epic rule "do not delete an index automatically after a failed probe"
@@ -388,6 +391,32 @@ documentation must tell provider authors to obey the flag and set the field.
   and `docs/architecture/runtime-components.md` for the second projector,
   the generation layout, and the lock change.
 
+## Shipped by explicit recovery
+
+[#3663](https://github.com/chattocorp/chatto/issues/3663) shipped these parts of this design. FDR-033, decision 5, describes the
+operator behavior.
+
+- **Completion marker:** After the startup replay completes, the provider runs
+  a validation query through the real read path. When the index has
+  documents, the query must return a stored document. Only then does the
+  provider write the completion marker (Bleve internal key
+  `chatto/search/complete`, with the checkpoint record) and join the query
+  queue. This occurs at each start, so existing indexes get the marker
+  (decision 1). The provider writes the marker after the checkpoint, not in
+  the same batch: a completed startup replay already proves that the
+  checkpoint is complete.
+- **Previous index:** `chatto search-provider recover` moves the root index
+  into `previous/` below the configured directory. The new index is again at
+  the root, as the legacy generation of decision 2. Thus, a kept previous
+  index is not a generation, and the pointer file does not exist yet.
+- **Disk check:** The command refuses when the free space plus the size of an
+  earlier previous index is less than 1.5 times the current index (decision 7).
+- **Directory lock:** The recovery commands and the provider take the same
+  directory lock. The lock still belongs to `Projection`; decision 2 moves it
+  to the provider.
+- **No deletion after a failure:** A failed validation query keeps the
+  provider out of the query queue and is tried again. It deletes nothing.
+
 ## Related
 
 - **Issues:** [#3665](https://github.com/chattocorp/chatto/issues/3665) (this design), epic [#3666](https://github.com/chattocorp/chatto/issues/3666), incident [#3659](https://github.com/chattocorp/chatto/issues/3659), [#3660](https://github.com/chattocorp/chatto/issues/3660) (stall
@@ -419,5 +448,9 @@ documentation must tell provider authors to obey the flag and set the field.
 7. **Blocked old writer.** When the old writer does not stop after a
    switch, is a retired generation until the next restart acceptable, or must
    the provider request its own restart?
-8. **Retention after recovery.** How long does [#3663](https://github.com/chattocorp/chatto/issues/3663) keep the previous index,
-   and how does that interact with the two-index disk need?
+8. **Retention after recovery.** Resolved by [#3663](https://github.com/chattocorp/chatto/issues/3663): one previous index,
+   kept until the next recovery or an explicit delete. Its space counts in
+   the 2.5-index volume size. With side-by-side serving, the serving
+   generation, a kept previous index, and a replacement generation can exist
+   at the same time. Then the disk check must count the previous index too,
+   or the side-by-side build must refuse until the operator deletes it.

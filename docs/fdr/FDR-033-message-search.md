@@ -1,7 +1,7 @@
 # FDR-033: Message Search
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-26
+**Last reviewed:** 2026-11-17
 
 ## Overview
 
@@ -144,6 +144,23 @@ Known search-index format and language changes automatically discard the old
 index and rebuild it. Search reports indexing until replay completes. Unknown
 or unreadable indexes require operator recovery, with instructions linked from
 the startup error.
+An operator starts an explicit **index recovery** with
+`chatto search-provider recover` while no provider uses the directory. The
+command keeps the current index as the **previous index** in a `previous`
+subdirectory and refuses when the volume does not have free space for 1.5 times
+the current index. At the next start, the provider builds a new index from
+`EVT`. A restart during the replay continues from the new index's checkpoint.
+The provider serves queries only after the replay completes and a validation
+query on the new index succeeds. A failed validation keeps the provider out of
+the query queue and is tried again. Chatto never deletes an index because of
+a failed probe or health check. Chatto keeps one previous index. The next
+recovery replaces it only when the current index completed a validated
+startup; otherwise the command refuses, because the previous index can be the
+last complete one. A completed recovery keeps it, and `chatto search-provider discard-previous` deletes
+it. Nothing deletes it automatically, because it serves diagnosis after an
+incident ([#3659](https://github.com/chattocorp/chatto/issues/3659)). Later
+retractions and key shredding do not change the previous index, so the
+provider logs a warning at each start while it exists.
 **Why:** Useful server-side full-text search requires a plaintext-derived
 representation even though durable message bodies remain encrypted. Bleve
 logically removes retracted and crypto-shredded documents immediately and

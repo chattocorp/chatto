@@ -865,7 +865,7 @@ func TestProjectionDoesNotResetIncompatibleCheckpoint(t *testing.T) {
 	require.NoError(t, os.WriteFile(sentinelPath, []byte("operator data"), 0o600))
 
 	err = projection.ResetCheckpoint(context.Background(), events.ProjectionCheckpointRequest{ProjectionKey: "message_search"})
-	require.ErrorContains(t, err, "move or delete that directory")
+	require.ErrorContains(t, err, "chatto search-provider recover")
 	require.ErrorContains(t, err, directory)
 	require.ErrorContains(t, err, "a full reindex is required")
 	require.ErrorContains(t, err, "#rebuild-the-search-index")

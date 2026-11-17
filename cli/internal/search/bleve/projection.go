@@ -121,10 +121,9 @@ type Projection struct {
 }
 
 func NewProjection(directory string, languageCodes []string, keyWrapper kms.KeyWrapper, legacyKeys kms.LegacyKeyProvider, dekStore dekstore.Reader, logger *log.Logger) (*Projection, error) {
-	directory = strings.TrimSpace(directory)
-	cleanDirectory := filepath.Clean(directory)
-	if directory == "" || cleanDirectory == "." || cleanDirectory == filepath.VolumeName(cleanDirectory)+string(filepath.Separator) {
-		return nil, fmt.Errorf("search index requires a dedicated directory")
+	cleanDirectory, err := cleanIndexDirectory(directory)
+	if err != nil {
+		return nil, err
 	}
 	if logger == nil {
 		logger = log.WithPrefix(runtimeUnitName)
@@ -144,6 +143,10 @@ func NewProjection(directory string, languageCodes []string, keyWrapper kms.KeyW
 		contractID: languageCheckpointContractID(languages),
 	}
 	if err := p.lockDirectory(); err != nil {
+		return nil, err
+	}
+	if err := p.resumeIndexRecovery(); err != nil {
+		_ = p.Close()
 		return nil, err
 	}
 	if err := p.resumeIndexRebuild(); err != nil {
@@ -453,7 +456,7 @@ func (p *Projection) ResetCheckpoint(ctx context.Context, request events.Project
 		return p.rebuildIndex(request)
 	}
 	return fmt.Errorf(
-		"search index %q is incompatible with projection %q; a full reindex is required: stop every process using this index (chatto run for a bundled provider), move or delete that directory only, then restart; do not remove the NATS data directory; instructions: https://docs.chatto.run/guides/operations/search/#rebuild-the-search-index",
+		"search index %q is incompatible with projection %q; a full reindex is required: stop every process using this index (chatto run for a bundled provider), run chatto search-provider recover, then restart; do not remove the NATS data directory; instructions: https://docs.chatto.run/guides/operations/search/#rebuild-the-search-index",
 		p.directory,
 		request.ProjectionKey,
 	)
@@ -493,11 +496,20 @@ func (p *Projection) open() error {
 		if readErr != nil {
 			return fmt.Errorf("inspect search index directory %q: %w", p.directory, readErr)
 		}
-		create = len(entries) == 1 && entries[0].Name() == directoryLockName
+		// Create an index only in a directory without index data. A kept
+		// previous index and the recovery marker do not count as index data.
+		create = true
+		for _, entry := range entries {
+			switch entry.Name() {
+			case directoryLockName, recoveryMarkerName, previousIndexName:
+			default:
+				create = false
+			}
+		}
 	}
 	if !create {
 		return fmt.Errorf(
-			"open search index %q: %w; Chatto will not modify an unreadable index; stop every process using this index, then follow https://docs.chatto.run/guides/operations/search/#rebuild-the-search-index to move or delete that directory and rebuild",
+			"open search index %q: %w; Chatto will not modify an unreadable index; stop every process using this index, run chatto search-provider recover, then restart; instructions: https://docs.chatto.run/guides/operations/search/#rebuild-the-search-index",
 			p.directory,
 			err,
 		)

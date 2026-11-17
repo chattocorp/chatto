@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"github.com/spf13/cobra"
 	"os"
 	"strings"
 	"testing"
@@ -57,6 +58,24 @@ func TestRootRegistersSearchProviderCommand(t *testing.T) {
 	}
 	if command != searchProviderCmd {
 		t.Fatalf("found command %q, want search-provider", command.Name())
+	}
+}
+
+func TestRootRegistersSearchIndexMaintenanceCommands(t *testing.T) {
+	for args, want := range map[string]*cobra.Command{
+		"recover":          searchProviderRecoverCmd,
+		"discard-previous": searchProviderDiscardPreviousCmd,
+	} {
+		command, _, err := rootCmd.Find([]string{"search-provider", args})
+		if err != nil {
+			t.Fatalf("find search-provider %s command: %v", args, err)
+		}
+		if command != want {
+			t.Fatalf("found command %q, want %s", command.Name(), args)
+		}
+		if command.Flag("config") == nil {
+			t.Fatalf("search-provider %s has no --config flag", args)
+		}
 	}
 }
 

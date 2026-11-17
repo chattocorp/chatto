@@ -274,6 +274,15 @@ It syncs a `.chatto-search-rebuild` intent marker before deleting only Bleve's
 replacement before opening the index. The configured directory and mount stay
 in place. Unreadable indexes without a rebuild marker are never deleted.
 
+The offline `chatto search-provider recover` command takes the same lock,
+syncs a `.chatto-search-recovery` marker, and moves `store` and then
+`index_meta.json` into `previous/`. Provider startup completes an interrupted
+move before it opens the index, then builds a new root index from `EVT`. After
+the startup replay, the unit runs a validation query, stores the
+`chatto/search/complete` internal key, and removes the recovery marker before
+it joins the query queue. `previous/` stays until the next recovery or
+`chatto search-provider discard-previous`.
+
 ## Snapshot support
 
 Room, notice, membership, user, role, and room-layout read results use

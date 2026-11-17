@@ -171,29 +171,63 @@ sees search terms and message text, so run it as a trusted server component.
 ## Rebuild the search index
 
 The provider rebuilds the index automatically after an upgrade or a language
-change. It stops with an error when the index is unreadable or the directory
-contains unknown files. To rebuild the index manually:
+change. Rebuild it yourself when Search does not find messages that it must
+find, when a separate provider stays not ready because its test query fails,
+or when startup asks for index recovery. A restart alone often does not
+correct a damaged index.
+
+The recovery keeps the current index for diagnosis and builds a new index from
+your message history. It does not change messages or accounts, and it does
+not need NATS.
 
 <Steps>
 
 1. Stop the process that runs the provider: `chatto run` for the bundled
-   provider, or `chatto search-provider`. Prevent automatic restarts.
-2. Move the index directory aside:
+   provider, or `chatto search-provider`. Prevent automatic restarts. In
+   Kubernetes, stop the search pods, and do step 2 in a temporary pod that
+   mounts the search volume and the configuration.
+2. Start the recovery with the same configuration:
 
    ```sh
-   mv ./data/search ./data/search.before-rebuild
+   chatto search-provider recover --config chatto.toml
    ```
 
-   Use your `search_provider.directory` path. Do not remove the parent
-   directory or the NATS data directory.
-3. Start the process again. Search shows **Indexing** until the rebuild is
-   complete.
-4. Make sure that Search finds an expected message. Then delete the old
-   directory.
+   The command moves the current index to `previous` in your
+   `search_provider.directory`. If the volume does not have free space for
+   1.5 times the current index, the command stops with an error and changes
+   nothing. Add space and run it again.
+3. Start the process again. Search shows **Indexing** while the provider reads
+   your message history. If the process restarts during this time, the
+   provider continues from its last checkpoint. Do not run `recover` again;
+   it does not restart a recovery that is in progress.
+4. The provider tests a real query on the new index before it answers
+   searches. Then it logs `stage=index_recovery_complete` and
+   `stage=service_ready`. Make sure that Search finds an expected message.
 
 </Steps>
 
-A rebuild does not change messages or accounts.
+Plan the volume size for about 2.5 times one index: the previous index, the
+new index, and space for index maintenance.
+
+### Delete the previous index
+
+The previous index contains message text. Later retractions, room deletions,
+and key shredding do not remove text from it. The provider logs
+`stage=previous_index_kept` at each start while it exists. When you no longer
+need it, stop the provider and delete it:
+
+```sh
+chatto search-provider discard-previous --config chatto.toml
+```
+
+The next recovery also replaces it. Chatto does not delete an index
+automatically when a health check or a test query fails.
+
+<Aside type="caution">
+  Do not move or delete files in the index directory while a provider uses
+  it. The commands refuse to run while a provider holds the directory lock.
+  Never remove the NATS data directory.
+</Aside>
 
 ## Troubleshooting
 
@@ -206,6 +240,10 @@ A rebuild does not change messages or accounts.
 | Word forms do not match | Add the language to `search_provider.languages`. |
 | Startup rejects the index directory | Use a dedicated directory that does not contain the NATS data directory. |
 | Startup requires index recovery | [Rebuild the search index](#rebuild-the-search-index). |
+| Search does not find messages that it must find | [Rebuild the search index](#rebuild-the-search-index). |
+| `recover` reports insufficient free disk space | Make the volume larger, or delete the previous index with `discard-previous`, then run `recover` again. |
+| `recover` reports that the current index never completed a validated startup | Start the provider and wait until Search is ready. Or, if you do not need the previous index, delete it with `discard-previous`. Then run `recover` again. |
+| `recover` cannot lock the index directory | A provider still runs. Stop `chatto run` or `chatto search-provider` first. |
 
 See [Environment Variables](/reference/environment-variables/#message-search)
 for all settings.

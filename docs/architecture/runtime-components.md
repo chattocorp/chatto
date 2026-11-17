@@ -124,8 +124,12 @@ operations do not duplicate these outcomes.
   `search.BleveProvider`, started by `[search_provider].enabled` under
   `chatto run` or as `chatto search-provider`; opens existing EVT and encryption
   resources without starting `ChattoCore`, exposes status during startup replay,
-  and joins the shared query queue only after replay is current and its query
-  probe succeeds. The [query probe](../../cli/internal/search/bleve/probe.go)
+  and joins the shared query queue only after replay is current, a startup
+  validation query succeeds, and its query probe succeeds. The validation
+  query runs once per start with a 1-minute timeout in its own goroutine; a
+  failure logs `stage=startup_validation_failed` and is tried again at the
+  next probe interval. When it ends an explicit index recovery, the unit logs
+  `stage=index_recovery_complete`. The [query probe](../../cli/internal/search/bleve/probe.go)
   runs a fixed query that matches no room through the real index read path
   every 10 seconds. At most one probe runs at a time; a probe that runs longer
   than 5 seconds counts as blocked. While the latest probe failed or a probe is
