@@ -253,6 +253,8 @@ not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
 **Projection** — Derived read model rebuilt from `EVT` and owned independently by each consuming process. Persistence is optional: a projection may cold-replay every time, use an encrypted snapshot, or checkpoint a disposable local index and EVT cutoff for tail replay. `EVT` remains the source of truth. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) and [ADR-054](adr/ADR-054-optional-projection-persistence.md).
 
+**Search index generation** — One complete Bleve index directory of the bundled search provider, with its own checkpoint. The **serving index** is the generation that answers queries. A **replacement index** is a generation that the provider builds from `EVT` while the serving index continues to answer, then switches to atomically after validation. See [FDR-057](fdr/FDR-057-search-during-index-rebuild.md).
+
 **Projector** — Runtime engine that consumes events and owns replay, readiness, failure, one apply barrier, and the applied sequence frontier for one projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
 
 **Componentized projection** — Projection that combines related projection components behind one projector, apply barrier, and sequence frontier. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
