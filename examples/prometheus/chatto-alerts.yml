@@ -2,7 +2,8 @@
 #
 # Load this file with `rule_files` in prometheus.yml. Scrape the metrics
 # listener of each Chatto server process, and the health listener of each
-# standalone search provider. The docs website explains each alert:
+# standalone search provider. The metrics listener of `chatto run` also
+# serves the metrics of its bundled search provider. The docs website explains each alert:
 # https://docs.chatto.run/guides/operations/server-operations#alert-rules
 #
 # Labels come from the scraped series (`job`, `instance`, and `projection`)
@@ -52,8 +53,10 @@ groups:
             requests from {{ $labels.instance }} for more than 2 minutes.
             Members cannot search messages.
 
-      # One standalone search provider fails its test query and has left the
-      # query queue. Other providers can still answer queries.
+      # One search provider process, standalone or bundled in `chatto run`,
+      # fails its test query and has left the query queue. Other providers
+      # can still answer queries. These metrics come from the process itself,
+      # so they also show a provider that no longer answers status requests.
       - alert: ChattoSearchProviderProbeFailing
         expr: |
           max without () (
@@ -68,16 +71,18 @@ groups:
           runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
           summary: Search provider {{ $labels.instance }} fails its test query
           description: >-
-            The standalone search provider {{ $labels.instance }} has failed
-            its test query for more than 2 minutes and does not answer
-            queries.
+            The search provider of {{ $labels.instance }} has failed its test
+            query for more than 2 minutes and does not answer queries.
 
       # The search index has events to index, but commits no progress. The
       # provider sets the stalled flag after 5 minutes without a commit, so
       # this rule has no additional `for` delay. A slow rebuild that still
       # commits, and an idle index that is current, do not fire it.
       # `max_over_time` keeps the alert steady when more than one provider
-      # answers the status requests.
+      # answers the status requests. The index write age comes from the
+      # provider process itself. It shows a blocked commit also when the
+      # provider has left the query queue and no longer answers status
+      # requests.
       - alert: ChattoSearchIndexStalled
         expr: |
           max without () (

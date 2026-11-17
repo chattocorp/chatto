@@ -84,6 +84,7 @@ func (s *HTTPServer) newMetricsServer() (*http.Server, error) {
 	if s.config.Search.Enabled && s.nc != nil {
 		registry.MustRegister(newSearchProviderCollector(search.NewClient(s.nc)))
 	}
+	registry.MustRegister(s.metricsExtra...)
 
 	mux := http.NewServeMux()
 	mux.Handle(s.config.Metrics.PathOrDefault(), promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))

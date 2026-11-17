@@ -132,7 +132,7 @@ tests:
               summary: No search provider answers chatto-0
               description: Search is enabled, but no search provider has answered status requests from chatto-0 for more than 2 minutes. Members cannot search messages.
 
-  # A standalone provider that fails its probe fires the warning alert.
+  # A provider process that fails its probe fires the warning alert.
   - interval: 15s
     input_series:
       - series: 'chatto_search_query_probe_consecutive_failures{job="chatto-search",instance="search-1"}'
@@ -150,7 +150,7 @@ tests:
             exp_annotations:
               runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
               summary: Search provider search-1 fails its test query
-              description: The standalone search provider search-1 has failed its test query for more than 2 minutes and does not answer queries.
+              description: The search provider of search-1 has failed its test query for more than 2 minutes and does not answer queries.
 
   # A blocked commit after a successful startup. The provider sets the
   # stalled flag after 5 minutes without a commit, and the alert fires at
@@ -196,8 +196,8 @@ tests:
               summary: Search index stalled on chatto-0
               description: The search index reported by chatto-0 has events to index but has committed no progress for more than 5 minutes. Search results do not include new messages.
 
-  # A standalone provider whose index write runs longer than 5 minutes
-  # fires the stall alert.
+  # A provider process whose index write runs longer than 5 minutes fires
+  # the stall alert, also when it no longer answers status requests.
   - interval: 15s
     input_series:
       - series: 'chatto_search_index_write_age_seconds{job="chatto-search",instance="search-0"}'

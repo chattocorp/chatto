@@ -72,7 +72,7 @@ func TestRootRegistersAssetProcessingCommand(t *testing.T) {
 
 // Embedded media runs as jobs of the server; the standalone command remains.
 func TestMediaDoesNotStartASecondEmbeddedPool(t *testing.T) {
-	for _, registration := range runtimeUnitRegistrations() {
+	for _, registration := range runtimeUnitRegistrations(nil) {
 		if registration.Unit.Name() == "asset-processing" {
 			t.Fatal("embedded media must run as server jobs, not as a runtime unit")
 		}

@@ -33,7 +33,7 @@ type Health struct {
 	projection *Projection
 }
 
-// NewHealth returns empty health state for one standalone provider process.
+// NewHealth returns empty health state for one provider process.
 func NewHealth() *Health { return &Health{} }
 
 func (h *Health) setNATS(nc *nats.Conn) {
@@ -163,7 +163,7 @@ func (h *Health) Handler(diagnostics bool) http.Handler {
 	registry.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
-		newHealthCollector(h),
+		h.Collector(),
 	)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /livez", func(w http.ResponseWriter, _ *http.Request) {
@@ -253,6 +253,13 @@ func (s *HealthServer) Close() error {
 	}
 	return errors.Join(err, <-s.done)
 }
+
+// Collector returns the query probe, serving, and index write metrics of
+// this process. The health listener serves them for a standalone provider.
+// `chatto run` registers them on its metrics listener, because a provider
+// that left the query queue does not answer status requests from its own
+// server process when another provider serves the queue.
+func (h *Health) Collector() prometheus.Collector { return newHealthCollector(h) }
 
 // healthCollector exports query probe and serving metrics. Labels have
 // fixed values only.
