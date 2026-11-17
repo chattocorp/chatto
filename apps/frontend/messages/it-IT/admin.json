@@ -427,6 +427,10 @@
           "one": "{count} proiezione fallita",
           "other": "{count} proiezioni fallite"
         },
+        "projections_stalled_count": {
+          "one": "{count} proiezione bloccata",
+          "other": "{count} proiezioni bloccate"
+        },
         "projections_catching_up_count": {
           "one": "{count} proiezione in fase di recupero",
           "other": "{count} proiezioni in fase di recupero"

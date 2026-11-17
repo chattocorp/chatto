@@ -272,23 +272,35 @@ func adminProjectionState(state core.ProjectionAdminState) *adminv1.AdminProject
 	if state.StartupComplete {
 		startupDurationSeconds = &state.StartupDuration
 	}
+	var pendingSeconds, operationSeconds *float64
+	if state.PendingFor > 0 {
+		pendingSeconds = new(state.PendingFor.Seconds())
+	}
+	if state.CurrentOperation != "" {
+		operationSeconds = new(state.CurrentOperationDuration.Seconds())
+	}
 
 	return &adminv1.AdminProjectionState{
-		Key:                    state.Key,
-		Name:                   state.Name,
-		Subjects:               append([]string(nil), state.Subjects...),
-		Started:                state.Started,
-		StartupDurationSeconds: startupDurationSeconds,
-		LastAppliedSequence:    strconv.FormatUint(state.LastAppliedSeq, 10),
-		MatchingStreamSequence: strconv.FormatUint(state.MatchingStreamSeq, 10),
-		StreamLastSequence:     strconv.FormatUint(state.StreamLastSeq, 10),
-		Lag:                    int64(state.Lag),
-		Failed:                 state.Failed,
-		FailedSequence:         strconv.FormatUint(state.FailedSeq, 10),
-		Failure:                state.Failure,
-		EntryCount:             state.EntryCount,
-		EstimatedBytes:         state.EstimatedBytes,
-		AverageEntryBytes:      state.AverageEntryBytes,
-		Metrics:                metrics,
+		Key:                     state.Key,
+		Name:                    state.Name,
+		Subjects:                append([]string(nil), state.Subjects...),
+		Started:                 state.Started,
+		StartupDurationSeconds:  startupDurationSeconds,
+		LastAppliedSequence:     strconv.FormatUint(state.LastAppliedSeq, 10),
+		MatchingStreamSequence:  strconv.FormatUint(state.MatchingStreamSeq, 10),
+		StreamLastSequence:      strconv.FormatUint(state.StreamLastSeq, 10),
+		Lag:                     int64(state.Lag),
+		Failed:                  state.Failed,
+		FailedSequence:          strconv.FormatUint(state.FailedSeq, 10),
+		Failure:                 state.Failure,
+		EntryCount:              state.EntryCount,
+		EstimatedBytes:          state.EstimatedBytes,
+		AverageEntryBytes:       state.AverageEntryBytes,
+		Stalled:                 state.Stalled,
+		PendingSeconds:          pendingSeconds,
+		CurrentOperation:        state.CurrentOperation,
+		CurrentOperationSeconds: operationSeconds,
+		LastCommitTime:          optionalTimestamp(state.LastCommitAt),
+		Metrics:                 metrics,
 	}
 }

@@ -429,6 +429,12 @@
           "many": "{count} projekce selhalo",
           "other": "{count} projekcí selhalo"
         },
+        "projections_stalled_count": {
+          "one": "{count} projekce se zastavila",
+          "few": "{count} projekce se zastavily",
+          "many": "{count} projekce se zastavilo",
+          "other": "{count} projekcí se zastavilo"
+        },
         "projections_catching_up_count": {
           "one": "{count} projekce dohání zpoždění",
           "few": "{count} projekce dohánějí zpoždění",

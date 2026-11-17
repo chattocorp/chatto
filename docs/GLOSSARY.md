@@ -265,6 +265,8 @@ not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
 **Projection snapshot cohort** — Complete persisted snapshot generation whose manifest binds separately stored projection-component payloads to the same event-log identity and cutoff. Chatto restores all required components or cold-replays the complete componentized projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
 
+**Stalled projection** — Projection that has matching events to apply but has committed no progress for its stall threshold (five minutes by default). An idle projection that has applied every matching event is not stalled, and each commit restarts the interval. A stalled search index makes its provider report `DEGRADED`. See [`docs/architecture/projections.md`](architecture/projections.md).
+
 **Outcome** — Loom term for reliable asynchronous work caused by a committed event and performed by a durable worker, such as sending an email or updating another system. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 
 **Notification Occurrence** — Projected current state of one exact recipient-specific notification signal. It is Unread or Read until deletion or expiry removes it; minimal lifecycle facts prevent dismissed activity from being recreated. Identity is deterministic per recipient, source event, and signal kind. See [ADR-076](adr/ADR-076-deterministic-notification-occurrences.md).

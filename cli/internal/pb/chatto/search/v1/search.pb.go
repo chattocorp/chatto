@@ -141,6 +141,66 @@ func (ProviderState) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_search_v1_search_proto_rawDescGZIP(), []int{1}
 }
 
+// IndexFreshness describes whether a provider's index follows the event log.
+// It is separate from ProviderState: a provider can answer queries from a
+// stalled index, and a current index can still be unable to answer queries.
+type IndexFreshness int32
+
+const (
+	// The provider did not report index freshness.
+	IndexFreshness_INDEX_FRESHNESS_UNSPECIFIED IndexFreshness = 0
+	// The index contains every matching event that the provider knows of.
+	IndexFreshness_INDEX_FRESHNESS_CURRENT IndexFreshness = 1
+	// Events wait for indexing, and the index committed progress recently.
+	IndexFreshness_INDEX_FRESHNESS_BEHIND IndexFreshness = 2
+	// Events wait for indexing, but the index committed no progress for the
+	// provider's stall threshold.
+	IndexFreshness_INDEX_FRESHNESS_STALLED IndexFreshness = 3
+)
+
+// Enum value maps for IndexFreshness.
+var (
+	IndexFreshness_name = map[int32]string{
+		0: "INDEX_FRESHNESS_UNSPECIFIED",
+		1: "INDEX_FRESHNESS_CURRENT",
+		2: "INDEX_FRESHNESS_BEHIND",
+		3: "INDEX_FRESHNESS_STALLED",
+	}
+	IndexFreshness_value = map[string]int32{
+		"INDEX_FRESHNESS_UNSPECIFIED": 0,
+		"INDEX_FRESHNESS_CURRENT":     1,
+		"INDEX_FRESHNESS_BEHIND":      2,
+		"INDEX_FRESHNESS_STALLED":     3,
+	}
+)
+
+func (x IndexFreshness) Enum() *IndexFreshness {
+	p := new(IndexFreshness)
+	*p = x
+	return p
+}
+
+func (x IndexFreshness) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (IndexFreshness) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_search_v1_search_proto_enumTypes[2].Descriptor()
+}
+
+func (IndexFreshness) Type() protoreflect.EnumType {
+	return &file_chatto_search_v1_search_proto_enumTypes[2]
+}
+
+func (x IndexFreshness) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use IndexFreshness.Descriptor instead.
+func (IndexFreshness) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_search_v1_search_proto_rawDescGZIP(), []int{2}
+}
+
 // QueryRequest is a parsed, provider-neutral message search. Every supplied
 // term and phrase is required; providers must not reinterpret these fields as
 // an OR. Terms and phrases may both be empty when another filter is present.
@@ -488,6 +548,12 @@ func (*GetStatusRequest) Descriptor() ([]byte, []int) {
 // GetStatusResponse reports readiness independently from NATS service
 // availability. Event counts are optional because some providers cannot
 // calculate progress cheaply.
+//
+// The freshness fields describe index progress. A provider that has
+// completed startup but has a stalled index reports PROVIDER_STATE_DEGRADED
+// and INDEX_FRESHNESS_STALLED. A provider that stalls during startup keeps
+// PROVIDER_STATE_INDEXING and reports INDEX_FRESHNESS_STALLED. Providers that
+// do not track progress leave the freshness fields unset.
 type GetStatusResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current provider state.
@@ -497,7 +563,24 @@ type GetStatusResponse struct {
 	// EVT records targeted by the current build, when known.
 	TargetEventCount *uint64 `protobuf:"varint,3,opt,name=target_event_count,json=targetEventCount,proto3,oneof" json:"target_event_count,omitempty"`
 	// Suggested delay before polling again while the provider is not ready.
-	RetryAfter    *durationpb.Duration `protobuf:"bytes,4,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
+	RetryAfter *durationpb.Duration `protobuf:"bytes,4,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
+	// Whether the index follows the event log.
+	Freshness IndexFreshness `protobuf:"varint,5,opt,name=freshness,proto3,enum=chatto.search.v1.IndexFreshness" json:"freshness,omitempty"`
+	// Last EVT sequence that the index committed, when known.
+	CommittedSequence *uint64 `protobuf:"varint,6,opt,name=committed_sequence,json=committedSequence,proto3,oneof" json:"committed_sequence,omitempty"`
+	// Highest matching EVT sequence that the provider knows of, when known.
+	ObservedSequence *uint64 `protobuf:"varint,7,opt,name=observed_sequence,json=observedSequence,proto3,oneof" json:"observed_sequence,omitempty"`
+	// When the index last committed progress in this provider process.
+	LastCommitTime *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_commit_time,json=lastCommitTime,proto3" json:"last_commit_time,omitempty"`
+	// How long waiting events have had no committed progress. Unset when the
+	// index is current.
+	PendingDuration *durationpb.Duration `protobuf:"bytes,9,opt,name=pending_duration,json=pendingDuration,proto3" json:"pending_duration,omitempty"`
+	// Low-cardinality name of the index work that runs now. Empty when idle.
+	CurrentOperation string `protobuf:"bytes,10,opt,name=current_operation,json=currentOperation,proto3" json:"current_operation,omitempty"`
+	// How long current_operation has run.
+	CurrentOperationDuration *durationpb.Duration `protobuf:"bytes,11,opt,name=current_operation_duration,json=currentOperationDuration,proto3" json:"current_operation_duration,omitempty"`
+	// When the provider collected this status.
+	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -560,6 +643,62 @@ func (x *GetStatusResponse) GetRetryAfter() *durationpb.Duration {
 	return nil
 }
 
+func (x *GetStatusResponse) GetFreshness() IndexFreshness {
+	if x != nil {
+		return x.Freshness
+	}
+	return IndexFreshness_INDEX_FRESHNESS_UNSPECIFIED
+}
+
+func (x *GetStatusResponse) GetCommittedSequence() uint64 {
+	if x != nil && x.CommittedSequence != nil {
+		return *x.CommittedSequence
+	}
+	return 0
+}
+
+func (x *GetStatusResponse) GetObservedSequence() uint64 {
+	if x != nil && x.ObservedSequence != nil {
+		return *x.ObservedSequence
+	}
+	return 0
+}
+
+func (x *GetStatusResponse) GetLastCommitTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastCommitTime
+	}
+	return nil
+}
+
+func (x *GetStatusResponse) GetPendingDuration() *durationpb.Duration {
+	if x != nil {
+		return x.PendingDuration
+	}
+	return nil
+}
+
+func (x *GetStatusResponse) GetCurrentOperation() string {
+	if x != nil {
+		return x.CurrentOperation
+	}
+	return ""
+}
+
+func (x *GetStatusResponse) GetCurrentOperationDuration() *durationpb.Duration {
+	if x != nil {
+		return x.CurrentOperationDuration
+	}
+	return nil
+}
+
+func (x *GetStatusResponse) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
 var File_chatto_search_v1_search_proto protoreflect.FileDescriptor
 
 const file_chatto_search_v1_search_proto_rawDesc = "" +
@@ -592,15 +731,27 @@ const file_chatto_search_v1_search_proto_rawDesc = "" +
 	"nextCursor\x120\n" +
 	"\x14thread_scope_applied\x18\x03 \x01(\bR\x12threadScopeApplied\x12:\n" +
 	"\x19thread_exclusions_applied\x18\x04 \x01(\bR\x17threadExclusionsApplied\"\x12\n" +
-	"\x10GetStatusRequest\"\x9d\x02\n" +
+	"\x10GetStatusRequest\"\xbf\x06\n" +
 	"\x11GetStatusResponse\x125\n" +
 	"\x05state\x18\x01 \x01(\x0e2\x1f.chatto.search.v1.ProviderStateR\x05state\x123\n" +
 	"\x13indexed_event_count\x18\x02 \x01(\x04H\x00R\x11indexedEventCount\x88\x01\x01\x121\n" +
 	"\x12target_event_count\x18\x03 \x01(\x04H\x01R\x10targetEventCount\x88\x01\x01\x12:\n" +
 	"\vretry_after\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\n" +
-	"retryAfterB\x16\n" +
+	"retryAfter\x12>\n" +
+	"\tfreshness\x18\x05 \x01(\x0e2 .chatto.search.v1.IndexFreshnessR\tfreshness\x122\n" +
+	"\x12committed_sequence\x18\x06 \x01(\x04H\x02R\x11committedSequence\x88\x01\x01\x120\n" +
+	"\x11observed_sequence\x18\a \x01(\x04H\x03R\x10observedSequence\x88\x01\x01\x12D\n" +
+	"\x10last_commit_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x0elastCommitTime\x12D\n" +
+	"\x10pending_duration\x18\t \x01(\v2\x19.google.protobuf.DurationR\x0fpendingDuration\x12+\n" +
+	"\x11current_operation\x18\n" +
+	" \x01(\tR\x10currentOperation\x12W\n" +
+	"\x1acurrent_operation_duration\x18\v \x01(\v2\x19.google.protobuf.DurationR\x18currentOperationDuration\x12;\n" +
+	"\vobserved_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAtB\x16\n" +
 	"\x14_indexed_event_countB\x15\n" +
-	"\x13_target_event_count*`\n" +
+	"\x13_target_event_countB\x15\n" +
+	"\x13_committed_sequenceB\x14\n" +
+	"\x12_observed_sequence*`\n" +
 	"\vSearchOrder\x12\x1c\n" +
 	"\x18SEARCH_ORDER_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16SEARCH_ORDER_RELEVANCE\x10\x01\x12\x17\n" +
@@ -611,7 +762,12 @@ const file_chatto_search_v1_search_proto_rawDesc = "" +
 	"\x17PROVIDER_STATE_INDEXING\x10\x02\x12\x18\n" +
 	"\x14PROVIDER_STATE_READY\x10\x03\x12\x1b\n" +
 	"\x17PROVIDER_STATE_DEGRADED\x10\x04\x12\x1e\n" +
-	"\x1aPROVIDER_STATE_UNAVAILABLE\x10\x05B\xcd\x01\n" +
+	"\x1aPROVIDER_STATE_UNAVAILABLE\x10\x05*\x87\x01\n" +
+	"\x0eIndexFreshness\x12\x1f\n" +
+	"\x1bINDEX_FRESHNESS_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17INDEX_FRESHNESS_CURRENT\x10\x01\x12\x1a\n" +
+	"\x16INDEX_FRESHNESS_BEHIND\x10\x02\x12\x1b\n" +
+	"\x17INDEX_FRESHNESS_STALLED\x10\x03B\xcd\x01\n" +
 	"\x14com.chatto.search.v1B\vSearchProtoP\x01ZFgithub.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1;searchv1\xa2\x02\x03CSX\xaa\x02\x10Chatto.Search.V1\xca\x02\x10Chatto\\Search\\V1\xe2\x02\x1cChatto\\Search\\V1\\GPBMetadata\xea\x02\x12Chatto::Search::V1b\x06proto3"
 
 var (
@@ -626,31 +782,37 @@ func file_chatto_search_v1_search_proto_rawDescGZIP() []byte {
 	return file_chatto_search_v1_search_proto_rawDescData
 }
 
-var file_chatto_search_v1_search_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_chatto_search_v1_search_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_chatto_search_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_chatto_search_v1_search_proto_goTypes = []any{
 	(SearchOrder)(0),              // 0: chatto.search.v1.SearchOrder
 	(ProviderState)(0),            // 1: chatto.search.v1.ProviderState
-	(*QueryRequest)(nil),          // 2: chatto.search.v1.QueryRequest
-	(*QueryHit)(nil),              // 3: chatto.search.v1.QueryHit
-	(*QueryResponse)(nil),         // 4: chatto.search.v1.QueryResponse
-	(*GetStatusRequest)(nil),      // 5: chatto.search.v1.GetStatusRequest
-	(*GetStatusResponse)(nil),     // 6: chatto.search.v1.GetStatusResponse
-	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),   // 8: google.protobuf.Duration
+	(IndexFreshness)(0),           // 2: chatto.search.v1.IndexFreshness
+	(*QueryRequest)(nil),          // 3: chatto.search.v1.QueryRequest
+	(*QueryHit)(nil),              // 4: chatto.search.v1.QueryHit
+	(*QueryResponse)(nil),         // 5: chatto.search.v1.QueryResponse
+	(*GetStatusRequest)(nil),      // 6: chatto.search.v1.GetStatusRequest
+	(*GetStatusResponse)(nil),     // 7: chatto.search.v1.GetStatusResponse
+	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 9: google.protobuf.Duration
 }
 var file_chatto_search_v1_search_proto_depIdxs = []int32{
-	7, // 0: chatto.search.v1.QueryRequest.created_after:type_name -> google.protobuf.Timestamp
-	7, // 1: chatto.search.v1.QueryRequest.created_before:type_name -> google.protobuf.Timestamp
-	0, // 2: chatto.search.v1.QueryRequest.order:type_name -> chatto.search.v1.SearchOrder
-	3, // 3: chatto.search.v1.QueryResponse.hits:type_name -> chatto.search.v1.QueryHit
-	1, // 4: chatto.search.v1.GetStatusResponse.state:type_name -> chatto.search.v1.ProviderState
-	8, // 5: chatto.search.v1.GetStatusResponse.retry_after:type_name -> google.protobuf.Duration
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	8,  // 0: chatto.search.v1.QueryRequest.created_after:type_name -> google.protobuf.Timestamp
+	8,  // 1: chatto.search.v1.QueryRequest.created_before:type_name -> google.protobuf.Timestamp
+	0,  // 2: chatto.search.v1.QueryRequest.order:type_name -> chatto.search.v1.SearchOrder
+	4,  // 3: chatto.search.v1.QueryResponse.hits:type_name -> chatto.search.v1.QueryHit
+	1,  // 4: chatto.search.v1.GetStatusResponse.state:type_name -> chatto.search.v1.ProviderState
+	9,  // 5: chatto.search.v1.GetStatusResponse.retry_after:type_name -> google.protobuf.Duration
+	2,  // 6: chatto.search.v1.GetStatusResponse.freshness:type_name -> chatto.search.v1.IndexFreshness
+	8,  // 7: chatto.search.v1.GetStatusResponse.last_commit_time:type_name -> google.protobuf.Timestamp
+	9,  // 8: chatto.search.v1.GetStatusResponse.pending_duration:type_name -> google.protobuf.Duration
+	9,  // 9: chatto.search.v1.GetStatusResponse.current_operation_duration:type_name -> google.protobuf.Duration
+	8,  // 10: chatto.search.v1.GetStatusResponse.observed_at:type_name -> google.protobuf.Timestamp
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_chatto_search_v1_search_proto_init() }
@@ -664,7 +826,7 @@ func file_chatto_search_v1_search_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_search_v1_search_proto_rawDesc), len(file_chatto_search_v1_search_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,

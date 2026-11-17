@@ -429,6 +429,12 @@
           "many": "{count} projekcji nie powiodło się",
           "other": "{count} projekcji nie powiodło się"
         },
+        "projections_stalled_count": {
+          "one": "{count} projekcja utknęła",
+          "few": "{count} projekcje utknęły",
+          "many": "{count} projekcji utknęło",
+          "other": "{count} projekcji utknęło"
+        },
         "projections_catching_up_count": {
           "one": "{count} projekcja nadrabia zaległości",
           "few": "{count} projekcje nadrabiają zaległości",

@@ -427,6 +427,10 @@
           "one": "{count} projektion misslyckades",
           "other": "{count} projektioner misslyckades"
         },
+        "projections_stalled_count": {
+          "one": "{count} projektion har fastnat",
+          "other": "{count} projektioner har fastnat"
+        },
         "projections_catching_up_count": {
           "one": "{count} projektion hinner ikapp",
           "other": "{count} projektioner hinner ikapp"

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
 	"github.com/chattocorp/chatto/cli/internal/search"
@@ -44,18 +45,44 @@ func (p *Provider) GetStatus(context.Context, *searchv1.GetStatusRequest) (*sear
 }
 
 func providerStatus(projector *events.Projector) *searchv1.GetStatusResponse {
-	state := searchv1.ProviderState_PROVIDER_STATE_STARTING
-	response := &searchv1.GetStatusResponse{State: state}
 	if projector == nil {
-		return response
+		return &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_STARTING}
 	}
-	status := projector.Status()
+	return providerStatusFrom(projector.Status(), time.Now())
+}
+
+// providerStatusFrom maps projector status to provider status. Query
+// availability comes from startup and failure state; freshness comes from
+// projector progress. A stalled index after startup is DEGRADED: it still
+// answers queries, but results can miss recent messages.
+func providerStatusFrom(status events.ProjectorStatus, now time.Time) *searchv1.GetStatusResponse {
 	indexed := status.StartupMessages
-	response.IndexedEventCount = &indexed
+	committed := status.LastSeq
+	observed := status.ObservedSeq
+	response := &searchv1.GetStatusResponse{
+		State:             searchv1.ProviderState_PROVIDER_STATE_STARTING,
+		IndexedEventCount: &indexed,
+		Freshness:         indexFreshness(status),
+		CommittedSequence: &committed,
+		ObservedSequence:  &observed,
+		CurrentOperation:  string(status.CurrentOperation),
+		ObservedAt:        timestamppb.New(now),
+	}
+	if !status.LastCommitAt.IsZero() {
+		response.LastCommitTime = timestamppb.New(status.LastCommitAt)
+	}
+	if status.PendingFor > 0 {
+		response.PendingDuration = durationpb.New(status.PendingFor)
+	}
+	if status.CurrentOperation != events.ProjectorIdle {
+		response.CurrentOperationDuration = durationpb.New(status.CurrentOperationDuration)
+	}
 	switch {
 	case status.Err != nil && !status.StartupComplete:
 		response.State = searchv1.ProviderState_PROVIDER_STATE_UNAVAILABLE
 	case status.Err != nil:
+		response.State = searchv1.ProviderState_PROVIDER_STATE_DEGRADED
+	case status.StartupComplete && status.Stalled:
 		response.State = searchv1.ProviderState_PROVIDER_STATE_DEGRADED
 	case status.StartupComplete:
 		response.State = searchv1.ProviderState_PROVIDER_STATE_READY
@@ -64,4 +91,17 @@ func providerStatus(projector *events.Projector) *searchv1.GetStatusResponse {
 		response.RetryAfter = durationpb.New(time.Second)
 	}
 	return response
+}
+
+func indexFreshness(status events.ProjectorStatus) searchv1.IndexFreshness {
+	switch {
+	case !status.Started:
+		return searchv1.IndexFreshness_INDEX_FRESHNESS_UNSPECIFIED
+	case status.Stalled:
+		return searchv1.IndexFreshness_INDEX_FRESHNESS_STALLED
+	case status.ObservedSeq > status.LastSeq:
+		return searchv1.IndexFreshness_INDEX_FRESHNESS_BEHIND
+	default:
+		return searchv1.IndexFreshness_INDEX_FRESHNESS_CURRENT
+	}
 }

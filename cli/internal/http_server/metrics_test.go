@@ -160,6 +160,15 @@ func TestMetricsServerUsesProjectionAndModelKeys(t *testing.T) {
 	if !strings.Contains(text, `chatto_projection_lag_events{projection="server_content_view"}`) {
 		t.Fatalf("metrics body missing server_content_view projection label\n%s", text)
 	}
+	for _, want := range []string{
+		`chatto_projection_stalled{projection="server_content_view"} 0`,
+		`chatto_projection_pending_seconds{projection="server_content_view"}`,
+		`chatto_projection_last_commit_duration_seconds{projection="server_content_view"}`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("metrics body missing %q\n%s", want, text)
+		}
+	}
 	if !strings.Contains(text, `chatto_projection_startup_duration_seconds{projection="server_content_view"}`) {
 		t.Fatalf("metrics body missing server_content_view startup duration metric\n%s", text)
 	}
