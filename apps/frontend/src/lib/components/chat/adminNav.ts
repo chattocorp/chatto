@@ -1,5 +1,6 @@
 import { resolve } from '$app/paths';
 import { m } from '$lib/i18n/messages';
+import type { ServerFeature } from '@chatto/client/server/compatibility';
 import type { ServerPermissions } from '@chatto/client/server/permissions';
 
 /** The server permissions that decide which management pages the navigation lists. */
@@ -119,10 +120,13 @@ export function adminNavItem(destination: AdminDestination, serverSegment: strin
 
 export function getAdminNavItems({
   serverSegment,
-  permissions
+  permissions,
+  limitedFeatures = []
 }: {
   serverSegment: string;
   permissions: AdminNavPermissions;
+  /** Features that the server version does not support. Their pages are not listed. */
+  limitedFeatures?: readonly ServerFeature[];
 }): AdminNavItem[] {
   if (!permissions.loaded) return [];
 
@@ -175,6 +179,15 @@ export function getAdminNavItems({
 
   if (permissions.canAdminViewAudit) {
     items.push(adminNavItem('event_log', serverSegment));
+  }
+
+  if (permissions.canManageServer && !limitedFeatures.includes('backgroundJobs')) {
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/jobs', { serverId: serverSegment }),
+      label: m('chat.management_nav.jobs'),
+      description: m('settings.overview.descriptions.jobs'),
+      icon: 'iconify icon-[uil--process]'
+    });
   }
 
   if (permissions.canAdminViewSystem) {

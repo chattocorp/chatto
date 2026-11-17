@@ -47,7 +47,7 @@ func NewService(chattoCore *core.ChattoCore, cfg config.AssetProcessingConfig, l
 }
 
 // ProcessAsset processes one durable queue delivery synchronously. Queue
-// acknowledgement remains the runtime unit's responsibility.
+// acknowledgement remains the job queue's responsibility.
 func (s *Service) ProcessAsset(ctx context.Context, assetID, messageEventID string) error {
 	return s.processAsset(ctx, assetID, messageEventID)
 }
@@ -69,8 +69,8 @@ func (s *Service) resolveTools() error {
 // processAsset resolves the asset from the projection and runs ffmpeg.
 //
 // The room comes from the upload-time AssetCreatedEvent. The durable queue fact
-// is committed atomically with the owning message, and the unit waits for its
-// AssetProjection through the delivery sequence before calling this method.
+// is committed atomically with the owning message. The job handler waits for
+// current asset projection state before calling this method.
 //
 // messageEventID is carried on the request (it's the owning message, known to
 // the scheduler) and stamped onto the terminal event so subscribers resolve

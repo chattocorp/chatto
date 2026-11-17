@@ -15,6 +15,10 @@ Search uses NATS request/reply because callers need an immediate query result.
 Asset processing is different: accepting a message creates an asynchronous
 obligation that must survive absent workers, process crashes, and handover.
 
+The queue and execution choices below are superseded by
+[ADR-123](ADR-123-durable-background-jobs.md). Domain lifecycle and security
+rules remain applicable.
+
 ## Decision
 
 Run video derivative generation in the `asset-processing` Chatto runtime unit.

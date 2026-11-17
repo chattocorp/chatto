@@ -193,14 +193,18 @@ function buildStore(
       get permissions() {
         return t.permissions;
       },
-      serverInfo: withMembers(withMembers({ directLoginEnabled: true }, serverInfo), {
-        get canConnect() {
-          return t.canConnect;
-        },
-        get isSupportedVersion() {
-          return t.isSupportedVersion;
+      // No known feature limitations unless a spec supplies `limitedFeatures`.
+      serverInfo: withMembers(
+        withMembers({ directLoginEnabled: true, limitedFeatures: [] }, serverInfo),
+        {
+          get canConnect() {
+            return t.canConnect;
+          },
+          get isSupportedVersion() {
+            return t.isSupportedVersion;
+          }
         }
-      })
+      )
     },
     extra
   );

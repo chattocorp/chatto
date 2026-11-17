@@ -17,10 +17,10 @@ under development:
   uses the root pnpm workspace and has its own version, CI job, and npm release.
   Keep its public APIs and runtime independent of Chatto and Authling.
 - **Shared framework code** is application-neutral event-sourcing, JetStream
-  client, embedded NATS, data-cryptography, and configuration-loading
-  machinery intended for consumption by both products. The independently
-  versioned but unstable modules live under `pkg/events/`,
-  `pkg/jetstreamutil/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
+  client, background job, embedded NATS, data-cryptography, and
+  configuration-loading machinery intended for consumption by both products.
+  The independently versioned but unstable modules live under `pkg/events/`,
+  `pkg/jetstreamutil/`, `pkg/jobs/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
   `pkg/appconfig/`.
 
 Authling is in this repository temporarily. It provides the second application
@@ -107,6 +107,9 @@ frontends use it. See ADR-111.
 - [pkg/jetstreamutil/AGENTS.md](pkg/jetstreamutil/AGENTS.md) — shared
   JetStream client helpers: key-value leader reads, retried provisioning, and
   conflict classification.
+- [pkg/jobs/AGENTS.md](pkg/jobs/AGENTS.md) — shared durable job queue and
+  effect adapter: job facts, worker, retries, job view, retention, and module
+  boundary.
 - [pkg/natsruntime/AGENTS.md](pkg/natsruntime/AGENTS.md) — shared embedded-NATS
   lifecycle module boundary and verification rules.
 - [pkg/datacrypto/AGENTS.md](pkg/datacrypto/AGENTS.md) — shared authenticated
@@ -237,7 +240,7 @@ Never leave a dev stack running in a detached or yielded terminal session.
 - Runling under `packages/runling/` keeps its MIT license. `@chatto/client`
   under `packages/` uses Apache-2.0.
 - Apache-2.0 applies to the independently versioned shared framework modules
-  under `pkg/events/`, `pkg/jetstreamutil/`, `pkg/natsruntime/`,
+  under `pkg/events/`, `pkg/jetstreamutil/`, `pkg/jobs/`, `pkg/natsruntime/`,
   `pkg/datacrypto/`, and `pkg/appconfig/`, the framework-neutral
   `packages/translatto` runtime, plus explicit integration and documentation
   surfaces such as the standalone frontend source and image, public
@@ -267,6 +270,9 @@ Never leave a dev stack running in a detached or yielded terminal session.
   and each list item on one source line. Use line breaks only for Markdown
   structure, such as separate paragraphs, list items, headings, and code blocks.
 
+- Use [chatto-code-review](.agents/skills/chatto-code-review/SKILL.md) for
+  every review of a Chatto change, including self-review and branch and PR
+  review.
 - Every review that includes `apps/frontend/` must use
   [chatto-frontend-review](.agents/skills/chatto-frontend-review/SKILL.md).
   This includes self-review, branch and PR review, and architecture review.

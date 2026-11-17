@@ -20,6 +20,31 @@ describe('getAdminNavItems', () => {
     );
   });
 
+  it('shows Jobs only with server.manage', () => {
+    const hidden = getAdminNavItems({
+      serverSegment: 'local',
+      permissions: permissions({ canManageRooms: true })
+    });
+    const visible = getAdminNavItems({
+      serverSegment: 'local',
+      permissions: permissions({ canManageServer: true })
+    });
+    expect(hidden.some((item) => item.label === 'Jobs')).toBe(false);
+    expect(visible.find((item) => item.label === 'Jobs')?.href).toBe(
+      '/chat/local/manage/server/jobs'
+    );
+  });
+
+  it('hides Jobs when the server version has no job queue', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      permissions: permissions({ canManageServer: true }),
+      limitedFeatures: ['backgroundJobs']
+    });
+    expect(items.some((item) => item.label === 'Jobs')).toBe(false);
+    expect(items.some((item) => item.label === 'General')).toBe(true);
+  });
+
   it('lists nothing until the viewer permissions load', () => {
     expect(
       getAdminNavItems({ serverSegment: 'local', permissions: NO_SERVER_PERMISSIONS })

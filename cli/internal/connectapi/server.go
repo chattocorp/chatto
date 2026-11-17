@@ -93,6 +93,12 @@ func serverFeatureCatalog(locale string) []*discoveryv1.ServerFeature {
 			Description:       "Use separate cooldowns for channel messages and thread replies.",
 			IntroducedVersion: "0.5.0-beta.18",
 		},
+		{
+			Id:                "backgroundJobs",
+			Name:              "Background jobs",
+			Description:       "Inspect background jobs and retry failed jobs in server settings.",
+			IntroducedVersion: "0.6.0-beta.0",
+		},
 	}
 	for _, feature := range features {
 		if text, ok := featureTranslation(locale, feature.Id); ok {

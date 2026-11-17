@@ -2,8 +2,15 @@
   import type { AdminDurableWorkerStatus } from '$lib/api/adminDiagnostics';
   import { DataTable, Panel, Pill } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
+  import { knownJobTypeLabel } from '../jobs/jobPresentation';
 
   let { workers }: { workers: AdminDurableWorkerStatus[] } = $props();
+
+  // The worker pool of each job type has the key "{type}_jobs". Name it with
+  // the label of its job type, and keep the key visible for support.
+  function workerLabel(key: string): string | null {
+    return key.endsWith('_jobs') ? knownJobTypeLabel(key.slice(0, -'_jobs'.length)) : null;
+  }
 
   function healthLabel(health: AdminDurableWorkerStatus['health']): string {
     switch (health) {
@@ -59,7 +66,9 @@
       <th class="table-header-cell">{m('admin.system.acked_through')}</th>
     {/snippet}
     {#snippet row(worker)}
+      {@const label = workerLabel(worker.key)}
       <td class="px-4 py-3">
+        {#if label}<div class="font-medium">{label}</div>{/if}
         <div class="font-mono text-sm">{worker.key}</div>
       </td>
       <td class="px-4 py-3">

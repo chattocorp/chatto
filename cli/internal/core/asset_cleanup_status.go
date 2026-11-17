@@ -33,12 +33,18 @@ type AssetCleanupAdminStatus struct {
 }
 
 // AdminCleanupStatus derives shared queue health directly from JetStream.
-// Pass-oriented fields are retained for API compatibility but remain unknown
-// for continuously delivered durable work.
+// Pending work is the deletions that the source consumer has not handed to the
+// job queue, plus the cleanup jobs that have not finished, including jobs that
+// wait for a retry. Pass-oriented fields are retained for API compatibility
+// but remain unknown for continuously delivered durable work.
 func (s *AssetModel) AdminCleanupStatus(ctx context.Context) (AssetCleanupAdminStatus, error) {
 	status := AssetCleanupAdminStatus{Health: AssetCleanupHealthUnavailable}
 	if s == nil || s.EventPublisher == nil || s.cleanupConsumer == nil {
 		return status, fmt.Errorf("asset cleanup consumer is not configured")
+	}
+	jobsConsumer := s.jobConsumers[jobTypeAssetCleanup]
+	if jobsConsumer == nil {
+		return status, fmt.Errorf("asset cleanup job consumer is not configured")
 	}
 	latestSeq, err := s.EventPublisher.LastSubjectSeq(ctx, evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted))
 	if err != nil {
@@ -50,14 +56,18 @@ func (s *AssetModel) AdminCleanupStatus(ctx context.Context) (AssetCleanupAdminS
 		return status, fmt.Errorf("read asset cleanup consumer: %w", err)
 	}
 	status.LastInspectedSeq = info.Delivered.Stream
-	pending := info.NumPending + uint64(info.NumAckPending)
+	jobs, err := jobsConsumer.Info(ctx)
+	if err != nil {
+		return status, fmt.Errorf("read asset cleanup job consumer: %w", err)
+	}
+	pending := info.NumPending + uint64(info.NumAckPending) + jobs.NumPending + uint64(jobs.NumAckPending)
 	if pending > uint64(^uint(0)>>1) {
 		status.PendingCount = int(^uint(0) >> 1)
 	} else {
 		status.PendingCount = int(pending)
 	}
 	switch {
-	case status.PendingCount > 0 || info.NumRedelivered > 0:
+	case status.PendingCount > 0 || info.NumRedelivered > 0 || jobs.NumRedelivered > 0:
 		status.Health = AssetCleanupHealthRetrying
 	case status.LastInspectedSeq < status.LatestDeletionSeq:
 		status.Health = AssetCleanupHealthInitializing

@@ -50,7 +50,8 @@
         "composer": "Wähle deinen Nachrichteneditor und wie du Nachrichten sendest.",
         "voice": "Richte Mikrofon, Lautsprecher und Anrufeinstellungen ein.",
         "system": "Prüfe Serverzustand, Speicher und Hintergrundaufgaben.",
-        "event_log": "Sieh dir Serverereignisse an und untersuche Änderungen."
+        "event_log": "Sieh dir Serverereignisse an und untersuche Änderungen.",
+        "jobs": "Sieh dir Hintergrundaufträge an und wiederhole fehlgeschlagene Aufträge."
       },
       "title": "Übersicht",
       "shield_notice": "Aktiviere den privilegierten Modus mit der Schild-Schaltfläche neben deinem Namen, um deine zusätzlichen Berechtigungen auf diesem Server zu nutzen."

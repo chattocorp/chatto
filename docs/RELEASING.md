@@ -16,6 +16,7 @@ version and supply its changelog. Commits do not select releases. See
 | `pkg/appconfig`       | `pkg/appconfig/v`     | Package manifest                         |
 | `pkg/datacrypto`      | `pkg/datacrypto/v`    | Package manifest                         |
 | `pkg/jetstreamutil`   | `pkg/jetstreamutil/v` | Package manifest                         |
+| `pkg/jobs`            | `pkg/jobs/v`          | Package manifest                         |
 | `pkg/natsruntime`     | `pkg/natsruntime/v`   | Package manifest                         |
 
 Each unit owns `.sweet.yml`, `.sweet/` notes, and `CHANGELOG.md`. The client,

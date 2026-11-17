@@ -50,7 +50,8 @@
         "composer": "Wybierz edytor i sposób wysyłania wiadomości.",
         "voice": "Skonfiguruj mikrofon, głośniki i ustawienia połączeń.",
         "system": "Sprawdź stan serwera, pamięć i zadania w tle.",
-        "event_log": "Przeglądaj zdarzenia serwera i analizuj zmiany."
+        "event_log": "Przeglądaj zdarzenia serwera i analizuj zmiany.",
+        "jobs": "Przeglądaj zadania w tle i ponawiaj nieudane zadania."
       },
       "title": "Przegląd",
       "shield_notice": "Aby użyć dodatkowych uprawnień na tym serwerze, włącz tryb uprzywilejowany przyciskiem tarczy obok swojego imienia."

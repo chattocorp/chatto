@@ -211,6 +211,20 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
 
 ## Core
 
+<EnvVar name="CHATTO_CORE_JOB_CONCURRENCY" toml="core.job_concurrency" default="8">
+  Maximum simultaneous jobs of each webhook, file cleanup, and key-deletion
+  job type in each server replica. Each of these job types has its own limit.
+  Notification alerts and media processing do not use this setting. Media
+  processing uses `asset_processing.max_concurrent_jobs` instead.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_JOB_FAILED_RETENTION" toml="core.job_failed_retention" default="not set">
+  How long failed background jobs stay before Chatto removes them, for example
+  `30d`. When not set, a failed job stays until someone retries or deletes it
+  in Server Administration → **Jobs**. Use the same value in standalone
+  `chatto asset-processing` workers.
+</EnvVar>
+
 <EnvVar name="CHATTO_CORE_SKIP_SETUP_WIZARD" toml="core.skip_setup_wizard" default="false">
   Disable the first-run web setup wizard. Use this for installations where you
   create accounts through the local operator API. The flag does not change or

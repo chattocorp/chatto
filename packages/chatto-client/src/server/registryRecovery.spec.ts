@@ -20,7 +20,7 @@ const registry = createAppClient().registry;
 
 const profile = {
   name: 'Recovered server',
-  version: '0.5.0',
+  version: '0.6.0',
   welcomeMessage: null,
   description: null,
   iconUrl: null,

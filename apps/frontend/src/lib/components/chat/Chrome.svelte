@@ -82,7 +82,11 @@
 
   // Admin navigation items - filtered based on permissions
   const adminNavItems = $derived(
-    getAdminNavItems({ serverSegment, permissions: activeStore.permissions })
+    getAdminNavItems({
+      serverSegment,
+      permissions: activeStore.permissions,
+      limitedFeatures: activeStore.serverInfo.limitedFeatures
+    })
   );
   const managedRoom = $derived(
     page.params.roomId

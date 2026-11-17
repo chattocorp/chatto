@@ -13,7 +13,7 @@ describe('FeatureCompatibilityNotice', () => {
 
   it('links to the affected section without repeating the details', async () => {
     const screen = render(FeatureCompatibilityNotice, {
-      features: limitedServerFeatures('0.5.0-beta.17'),
+      features: ['independentSlowMode'],
       serverSegment: 'chat.example.test'
     });
     await expect
@@ -22,7 +22,7 @@ describe('FeatureCompatibilityNotice', () => {
     expect(screen.container.textContent).not.toContain('upgrade');
   });
 
-  it.each(['0.5.0-beta.18', 'dev'])('does not invent limitations for %s', (version) => {
+  it.each(['0.6.0', 'dev'])('does not invent limitations for %s', (version) => {
     const { container } = render(FeatureCompatibilityNotice, {
       features: limitedServerFeatures(version),
       serverSegment: 'chat.example.test'
