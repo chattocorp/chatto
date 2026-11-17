@@ -52,8 +52,8 @@ with a test.
 - If the replacement build or its validation fails, the serving index
   continues to answer queries. The provider reports the failure to operators.
   It does not delete the serving index.
-- If no usable serving index exists, for example on first start or with an
-  unreadable index, the behavior does not change: the provider reports
+- If no usable serving index exists, for example on first start, after an
+  interrupted first replay, or with an unreadable index, the behavior does not change: the provider reports
   indexing and does not answer queries. The first implementation does not
   serve partial results from a fresh index (decision 5).
 - Pagination continues to read the live index (FDR-033). A switch between two
@@ -85,9 +85,24 @@ completes [verified: `unit.go`, `waitForSearchProjectionStartup`], and
   `search.proto` and `message_search.proto`]. Answers during that state would
   contradict the contract.
 
-A **usable serving index** has a valid checkpoint for the current EVT
-incarnation, uses the current or a known previous index contract, and passes
-the [#3662](https://github.com/chattocorp/chatto/issues/3662) query probe. An empty index without a checkpoint is never usable.
+A **usable serving index** has all these properties:
+
+- It has a **completion marker**. The provider writes this marker in the same
+  Bleve batch as a checkpoint, after the initial replay completed and the
+  validation query (decision 3) succeeded. A checkpoint alone is not
+  sufficient. Every replay batch writes a checkpoint [verified: `applyBatch`],
+  so an interrupted first replay also has one.
+- It has a valid checkpoint for the current EVT incarnation.
+- Its contract is one that the provider can serve and write live (decision 4).
+
+An index from an earlier release has no completion marker, so the provider
+cannot prove that its replay completed. The provider uses today's gate one
+time for such an index. It answers only after the startup replay completes
+under the current contract. Replay starts at the first sequence and advances
+in order, so a completed startup replay proves a complete index. Then the
+provider writes the marker. Ship the marker in a release before the first
+contract change that uses a side-by-side rebuild. Otherwise, that upgrade
+must rebuild in place.
 
 **Tradeoff:** The design needs a second index directory, a second projector,
 and a switch step. This is more work than a one-line change.
@@ -96,17 +111,43 @@ and a switch step. This is more work than a one-line change.
 
 **Decision:** Put each index in its own **index generation** directory below
 the configured `search_provider.directory`. A small pointer file names the
-active generation. To switch, the provider writes the new pointer to a
-temporary file, syncs it, renames it over the old pointer, and syncs the
-directory. Then it publishes the new index to queries in process with an
-atomic reference. It stops the old projector, waits until the old index has no
-queries in progress, and closes it.
+active generation. The switch has these steps:
+
+1. The replacement completes its replay and the validation query (decision 3).
+2. The provider pauses the serving writer at a batch boundary. The last
+   sequence that the serving writer committed is the **handoff sequence**. If
+   the serving writer is stalled, its last committed sequence is the handoff
+   sequence, and no pause is necessary.
+3. The provider waits until the replacement commits the handoff sequence or a
+   later sequence. Thus, the switch never removes an edit or a deletion that
+   the serving index already applied. If the replacement does not reach the
+   handoff sequence in a bounded time, the provider resumes the serving writer
+   and tries again later.
+4. The provider writes the new pointer to a temporary file, syncs it, renames
+   it over the old pointer, and syncs the directory.
+5. The provider publishes the new index to queries with an atomic reference.
+   Queries in progress complete on the old index.
+6. The provider cancels the old projector and waits a bounded time for its
+   writer to stop. When the writer stopped and no queries use the old index,
+   the provider closes it.
+
+If the old writer does not stop in that time, for example in a blocked commit,
+the provider does not close or delete the old generation. It reports the
+blocked writer to operators. The next process start deletes the retired
+generation. Today, Bleve commits and DEK decryption do not stop on
+cancellation [verified: `applyBatch` decrypts with `context.Background()` and
+calls `Batch` without a context].
+
+The provider holds one **directory lock** on the configured directory for its
+full lifetime. Today, each `Projection` owns this lock, and `Close` releases it
+[verified: `lockDirectory` and `Projection.Close`]. The implementation must
+move the lock to the provider. Closing or deleting a generation must never
+release the lock.
+
 **Why:** The configured directory is usually a dedicated volume mount. A
 sibling directory outside the mount can be on a different filesystem, so a
 rename there is not atomic. A pointer file in the same directory gives one
-atomic, durable switch. The existing directory lock already covers the full
-configured directory, so it covers all generations [verified: `rebuild.go`,
-`lockDirectory`].
+atomic, durable switch.
 
 Each generation keeps its checkpoint inside its own Bleve index, as today
 [verified: `projection.go`, internal key `chatto/search/checkpoint`]. The
@@ -155,22 +196,36 @@ when the serving index has not completed its tail replay after a restart, or
 when [#3660](https://github.com/chattocorp/chatto/issues/3660) reports that its projector is stalled. Normal live lag of some
 milliseconds does not count as stale. Chatto copies the worst freshness value
 of the provider pages that it used into the public response.
-**Why:** A live serving index keeps retractions and crypto-shredding effective
-in the provider index during a long rebuild. A frozen index would keep that
-plaintext searchable by the provider for the full rebuild. Chatto already
-removes such hits before delivery [verified: `HydrateHits` drops hits whose
-body revision is not current, retracted, or not readable; its comment states
-that it also drops crypto-shredded candidates], but a live index is the better
-privacy default (FDR-033, decision 5). A stalled serving index is the
-incident case: it must continue to answer, but it must say that it is stale.
+**Why:** A live serving index continues to remove retracted and
+crypto-shredded messages during a long rebuild. A frozen index keeps this
+plaintext in the provider index for the full rebuild. Chatto also removes
+invalid hits before delivery. `HydrateHits` checks the current body revision,
+retraction, and read access [verified]. Its code comment states that it also
+removes crypto-shredded candidates [verified comment, not traced]. A live index
+is the better privacy default (FDR-033, decision 5). A stalled serving index is
+the incident case. It must continue to answer, and it must report that it is
+stale.
 
-For a known format change, the serving index has an older contract. Bleve
-stores the index mapping in the index, so new documents use the old mapping
-[inferred]. The provider then reports `DEGRADED`, because recall can differ
-from the new format. The implementation must test live writes with the
-current code into an index of the previous contract. If a future contract
-cannot accept these writes, that contract change must use the rebuild in
-place that exists today.
+For a known format change, the serving index has an older contract. Today,
+startup with an older contract starts the destructive rebuild in place
+[verified: `RestoreCheckpoint` rejects a different contract, and
+`ResetCheckpoint` calls `rebuildIndex`]. The provider also selects the
+contract and the language analyzers from the current configuration
+[verified: `NewProjection`]. The implementation must change these points:
+
+- Each generation stores its contract and its analyzer set. The provider opens
+  the serving generation with these stored values, not with the current
+  configuration. Queries on that generation use its stored analyzer set.
+- Restore of the serving generation must never start the rebuild in place.
+- The code keeps two lists of contracts. The first list has the contracts
+  that the provider can replace with a rebuild. The second list has the
+  contracts that the provider can serve and write live. Only the second list
+  allows side-by-side serving.
+
+Bleve stores the index mapping in the index, so new documents use the old
+mapping [inferred]. Tests must prove live writes for each contract in the
+second list. While the provider serves an older contract, it reports
+`DEGRADED`, because recall can differ from the new format.
 
 **Tradeoff:** The provider runs two projectors during a rebuild. This doubles
 indexing CPU, EVT reads, and DEK unwrap calls for that time.
@@ -200,9 +255,9 @@ questions). An empty incomplete page must not show "no matches".
   through one apply barrier (ADR-088). The DEK map and the checkpoint record
   belong to the writer. They do not need a lock that queries share.
 
-Bleve indexes are safe for concurrent use, and the Scorch engine gives each
-search a consistent snapshot while a batch commits [inferred from Bleve
-documentation]. The implementation must prove this with a test that blocks a
+Bleve indexes are safe for concurrent use [inferred from Bleve
+documentation]. The Scorch engine gives each search a consistent snapshot
+while a batch commits [inferred]. A test must prove this. The test blocks a
 commit and runs queries at the same time.
 **Why:** Today `applyBatch` holds the exclusive lock across event preparation,
 DEK reads from `RUNTIME_STATE`, KMS key unwrap, and the Bleve commit
@@ -222,24 +277,33 @@ provider must report it.
 
 ### 7. Check disk space before a side-by-side rebuild
 
-**Decision:** Before the provider starts a replacement build, it compares the
-free space on the index volume with the size of the serving generation plus a
-margin. The initial margin is the same size again. If there is not sufficient
-space, the provider does not start the side-by-side build:
+**Decision:** Before the provider starts a replacement build, it checks the
+free space on the index volume. The free space must be at least the size of
+the serving generation plus a reserve. The initial reserve is half the size of
+the serving generation. Thus, the volume needs a total capacity of about 2.5
+times the size of one index. If there is not sufficient space, the provider
+does not start the side-by-side build:
 
 - For an explicit operator recovery, the provider refuses and reports the
   required space.
 - For an automatic format-change rebuild, the provider uses the rebuild in
   place that exists today, logs a warning, and reports `INDEXING`.
 
-If the volume becomes full during the build, the provider stops the build,
-deletes only the replacement generation, and continues to serve.
-**Why:** Two indexes need about two times the disk space during the build,
-plus space for Bleve segment merges [inferred]. The fallback keeps upgrades
-automatic and keeps today's behavior on volumes that are too small.
-**Tradeoff:** Operators must size the search volume for two indexes to get
-search during rebuilds. Free-space checks are platform-specific. The fallback
-to a rebuild in place still makes Search unavailable on small volumes.
+During the build, the provider monitors the free space. If the free space
+becomes less than the reserve, the provider stops the build and deletes only
+the replacement generation. This keeps space for the serving writer. If the
+serving writer fails, for example because the disk is full, its projector
+stops [verified: a commit error stops the projector]. The serving index then
+continues to answer as stale while its read path passes the probe. The
+operator must make free space available and restart the provider.
+**Why:** Two indexes need about two times the disk space of one index. Bleve
+segment merges need more space for a short time [inferred]. The reserve
+protects the serving index. The fallback keeps upgrades automatic and keeps
+today's behavior on volumes that are too small.
+**Tradeoff:** Operators must size the search volume for about 2.5 indexes to
+get search during rebuilds. Free-space checks are platform-specific. The
+fallback to a rebuild in place still makes Search unavailable on small
+volumes.
 
 ### 8. Remove the old generation after a successful switch
 
@@ -268,25 +332,40 @@ different generations. FDR-033 already allows this.
 
 ### 10. Protocol changes are additive
 
-**Decision:** Add one freshness field to the provider `QueryResponse` and one
-matching field to the public `SearchMessagesResponse`. Use enums with these
-values: unspecified, current, and stale. Add no other wire changes.
-**Why:** ADR-045 and `proto/AGENTS.md` allow additive fields. The
-unspecified value has a defined meaning: the response came from a provider or
-server that does not report freshness. Such providers answer only from a
-completed replay [verified: `Provider.Query`], so clients treat unspecified
-as current. Old clients ignore the new field and show results without the
-notice. Old servers never send the field. New clients connected to an old
-server therefore show no notice, which is correct for those servers. The
-minimum connectable server version does not change. The existing status
-states keep their meaning: a provider that serves during a rebuild reports
-`READY` (current serving index, same contract) or `DEGRADED` (stale serving
-index or older contract), and joins the ready status queue. Rebuild progress
-is operator telemetry from [#3660](https://github.com/chattocorp/chatto/issues/3660) and [#3661](https://github.com/chattocorp/chatto/issues/3661), not a public field.
-**Tradeoff:** The value "unspecified means current" depends on the old
-provider contract. A third-party provider that answers during its own
-catch-up and does not set the field looks current. The provider contract
-documentation must tell provider authors to set the field.
+**Decision:** Add these additive fields:
+
+- In the provider `QueryRequest`: a Boolean that tells the provider that the
+  caller can report stale results. New Chatto servers set it.
+- In the provider `QueryResponse` and in the public `SearchMessagesResponse`:
+  a freshness enum with the values unspecified, current, and stale.
+
+A provider answers from a stale serving index only when the request allows
+stale results. Otherwise, it returns the retryable unavailable error, as it
+does today during indexing.
+**Why:** ADR-045 and `proto/AGENTS.md` allow additive fields. Mixed versions
+are normal, because a standalone provider can be newer than the Chatto server
+(ADR-055). An old server does not copy a new provider field to clients
+[verified: `message_search.go` builds the public response only from hits and
+the cursor]. Without the request flag, an old server would show stale results
+as normal results. With the flag, an old server gets the same behavior as
+today.
+
+The unspecified value means "freshness not reported". It does not mean
+"current". Clients show no notice for the unspecified value, because old
+servers and old providers do not report freshness. Old providers answer only
+after a completed startup replay [verified: `Provider.Query`]. Old clients
+ignore the new fields. The minimum connectable server version does not change.
+Tests must cover a new provider with an old server and a new client.
+
+A provider that serves during a rebuild joins the ready status queue. It
+reports `READY` when its serving index is current and uses the current
+contract. It reports `DEGRADED` when its serving index is stale or uses an
+older contract. Rebuild progress is operator telemetry from [#3660](https://github.com/chattocorp/chatto/issues/3660) and
+[#3661](https://github.com/chattocorp/chatto/issues/3661). It is not a public field.
+**Tradeoff:** Each new server version must set the request flag. A
+third-party provider that answers during its own catch-up and does not report
+freshness looks the same as an old provider. The provider contract
+documentation must tell provider authors to obey the flag and set the field.
 
 ## Operations And Deployment
 
@@ -301,7 +380,7 @@ documentation must tell provider authors to set the field.
   generation both resume from their own checkpoints. A configuration rollout
   during a rebuild, as seen in the incident, does not lose replay progress.
 - **Operator volume size:** The operator should document or check that the
-  search volume can hold two indexes. The explicit rebuild trigger belongs to
+  search volume can hold about 2.5 indexes. The explicit rebuild trigger belongs to
   [#3663](https://github.com/chattocorp/chatto/issues/3663) and [chattocorp/chatto-operator#89](https://github.com/chattocorp/chatto-operator/issues/89).
 - **Documentation:** When this feature ships, update the search operations
   page on the docs website with the volume-size need, the new directory
@@ -327,7 +406,7 @@ documentation must tell provider authors to set the field.
    the rebuild in place? (Decision 4.)
 2. **Stale threshold.** Which [#3660](https://github.com/chattocorp/chatto/issues/3660) signal starts the stale value, and after
    which delay? A short delay prevents flapping; a long delay hides real lag.
-3. **Disk margin.** Is "two times the serving index" a sufficient margin for
+3. **Disk reserve.** Is a reserve of half the serving index sufficient for
    Bleve merges on real data? Measure on a restored production-size history.
 4. **Fallback for automatic rebuilds.** When disk space is not sufficient,
    should the provider fall back to a rebuild in place (recommended), or
@@ -337,7 +416,8 @@ documentation must tell provider authors to set the field.
 6. **Partial results.** Do we ever want partial results from a fresh index?
    If yes, add a separate "incomplete" freshness value. Clients must then show
    "Search is still indexing" instead of "no matches" for an empty page.
-7. **Third-party providers.** Must the provider contract require the
-   freshness field from a provider that answers during catch-up?
+7. **Blocked old writer.** When the old writer does not stop after a
+   switch, is a retired generation until the next restart acceptable, or must
+   the provider request its own restart?
 8. **Retention after recovery.** How long does [#3663](https://github.com/chattocorp/chatto/issues/3663) keep the previous index,
    and how does that interact with the two-index disk need?
