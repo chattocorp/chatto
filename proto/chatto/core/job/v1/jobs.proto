@@ -1,14 +1,14 @@
 syntax = "proto3";
-package chatto.core.job_payload.v1;
+package chatto.core.job.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/job_payload/v1;jobpayloadv1";
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/job/v1;jobv1";
 
 // Payload of a webhook job in JOBS: delivery references and immutable
 // source-time policy. Credentials and message content are loaded through
 // current authorization on every attempt.
-message WebhookJobPayload {
+message WebhookJob {
   string bot_user_id = 1;
   string webhook_id = 2;
   string source_event_id = 3;
@@ -20,7 +20,7 @@ message WebhookJobPayload {
 
 // Payload of a media job in JOBS: processing references. The asset projection
 // owns the terminal outcome.
-message MediaJobPayload {
+message MediaJob {
   string asset_id = 1;
   string message_event_id = 2;
 }

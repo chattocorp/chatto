@@ -580,7 +580,7 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
 
 Configuration uses `evt.user.{botId}.bot_outbound_webhook_configured` with
 user-aggregate OCC and encrypted credentials. Durable delivery jobs store a
-`chatto.core.job_payload.v1.WebhookJobPayload` inside the `queued` job fact on
+`chatto.core.job.v1.WebhookJob` payload inside the `queued` job fact on
 `jobs.webhook.{jobId}.queued` in `JOBS`. The payload does not store message
 content or endpoint credentials.
 The delivery ID hashes the bot, endpoint, and source event IDs.

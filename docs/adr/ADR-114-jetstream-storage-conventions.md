@@ -113,7 +113,7 @@ contracts:
   encodings in one resource does not apply. The module encodes only its own
   small facts and, like `pkg/events`, has no protobuf dependency. A test in
   the module pins the format. Application payloads inside a fact follow
-  rule 4: Chatto's are protobuf from `job_payload/v1`
+  rule 4: Chatto's are protobuf from `job/v1`
   ([ADR-123](ADR-123-durable-background-jobs.md)).
 - `runtime_state.v1.PresencePreference` uses the public
   `chatto.api.v1.PresenceStatus` enum.
