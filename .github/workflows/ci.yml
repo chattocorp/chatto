@@ -1245,7 +1245,14 @@ jobs:
           retention-days: 30
 
   publish-main-image:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.chatto == 'true'
+    # Toolchain checks can be skipped. Require image contexts and block any
+    # failed or cancelled dependency before publishing either image.
+    if: >-
+      ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+          && needs.changes.outputs.chatto == 'true'
+          && needs.build-main-image-contexts.result == 'success'
+          && !contains(needs.*.result, 'failure')
+          && !contains(needs.*.result, 'cancelled') }}
     needs:
       - changes
       - build-main-image-contexts
