@@ -49,7 +49,7 @@ func JobsConsumerName(kind string) string {
 
 // jobTypes lists every job type. Each has a JOBS consumer.
 func jobTypes() []string {
-	return append([]string{jobTypeWebhook, JobTypeMedia, jobTypeNotificationAlertDelivery}, effectJobTypes()...)
+	return append([]string{jobTypeEmail, jobTypeWebhook, JobTypeMedia, jobTypeNotificationAlertDelivery}, effectJobTypes()...)
 }
 
 // NewJobQueue binds Chatto's job queue contract to the JOBS stream.

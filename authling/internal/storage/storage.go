@@ -24,8 +24,10 @@ const (
 	JobStreamName = "AUTHLING_JOBS"
 	// JobSubjectPrefix prefixes job fact subjects.
 	JobSubjectPrefix = "authling.jobs"
-	// JobsConsumerName is the shared job consumer of all Authling processes.
+	// JobsConsumerName is the erasure job consumer shared by Authling processes.
 	JobsConsumerName = "authling-jobs"
+	// MailJobsConsumerName isolates mail from account erasure jobs.
+	MailJobsConsumerName = "authling-jobs-email-v1"
 	// JobSucceededRetention is how long the fact of a succeeded job stays.
 	JobSucceededRetention = 3 * 24 * time.Hour
 )

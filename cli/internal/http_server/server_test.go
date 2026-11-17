@@ -2070,7 +2070,7 @@ func TestAuthRoutes_Register_SendsRegistrationEmail(t *testing.T) {
 	if regexp.MustCompile(`\b\d{6}\b`).FindString(email.Body) == "" {
 		t.Errorf("Expected email body to contain six-digit registration code, got: %s", email.Body)
 	}
-	if !strings.Contains(email.Body, "This code will expire in 30 minutes.") {
+	if !strings.Contains(email.Body, "This code expires 30 minutes after the request.") {
 		t.Errorf("Expected email body to mention 30-minute expiration, got: %s", email.Body)
 	}
 	if strings.Contains(email.Body, "/register/complete") {
@@ -2097,7 +2097,7 @@ func TestAuthRoutes_Register_EmailUsesConfiguredOTPExpiration(t *testing.T) {
 	if msg == nil {
 		t.Fatal("Expected registration email to be sent")
 	}
-	if !strings.Contains(msg.Body, "This code will expire in 45 minutes.") {
+	if !strings.Contains(msg.Body, "This code expires 45 minutes after the request.") {
 		t.Fatalf("Expected email body to mention configured 45-minute expiration, got: %s", msg.Body)
 	}
 	if strings.Contains(msg.Body, "30 minutes") {
@@ -2840,7 +2840,7 @@ func TestAuthRoutes_EmailVerification_EmailUsesConfiguredOTPExpiration(t *testin
 	if msg == nil {
 		t.Fatal("Expected verification email to be sent")
 	}
-	if !strings.Contains(msg.Body, "This code will expire in 2 hours.") {
+	if !strings.Contains(msg.Body, "This code expires 2 hours after the request.") {
 		t.Fatalf("Expected email body to mention configured 2-hour expiration, got: %s", msg.Body)
 	}
 	if strings.Contains(msg.Body, "30 minutes") {

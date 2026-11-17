@@ -139,6 +139,25 @@ through projected reads. Auth email delivery is also outside this inventory:
 registration, verification, and reset credentials live in `RUNTIME_STATE`, with
 durable EVT records serving as security audit facts rather than an email queue.
 
+## Transactional email
+
+[`EmailJobs`](../../cli/internal/core/email_jobs.go) accepts registration,
+address-verification, and password-reset mail into `JOBS`. The request stores
+expiring encrypted content before it publishes the job. A failed handoff can
+leave an encrypted record until its TTL ends. The HTTP runtime runs the
+`chatto-jobs-email-v1` consumer with eight workers. Each attempt has a thirty-second
+timeout and cannot continue past the original mail deadline. Transport errors
+retry from five seconds with the queue's capped backoff. The queue rejects
+expired jobs, including manual retries.
+
+Accepted work survives restart and can run on another replica. Content is
+removed after transport acceptance. A replay after removal completes without
+sending again; a crash before removal can cause a duplicate. This is not a
+transaction with SMTP or JMAP. No domain event or retired consumer is involved.
+Older replicas keep their inline sends during a rolling upgrade; they do not
+consume this new job type. A full rollback leaves accepted mail waiting until
+a capable replica returns, subject to the original deadline.
+
 ## Durable background jobs
 
 The shared [`pkg/jobs`](../../pkg/jobs/README.md) module owns job facts, the

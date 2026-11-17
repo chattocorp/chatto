@@ -483,13 +483,18 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 [`jobs.Queue`](../../pkg/jobs/queue.go) from the shared `pkg/jobs` module
 appends job facts to `JOBS` and runs attempts from the durable consumers of
 that stream. It has no claims, leases, or repair pass of its own; JetStream
-consumer semantics do this work. The core starts one worker pool for each job
-type, each on its own consumer. The webhook pool and the pool of each cleanup
+consumer semantics do this work. The core starts the webhook and effect worker
+pools. Each job type has its own consumer. The webhook pool and the pool of each cleanup
 and key-deletion type have `core.job_concurrency` capacity (default eight).
 The notification alert pool has capacity sixteen. With embedded media
 processing, the media pool has `asset_processing.max_concurrent_jobs`
 capacity. Standalone media processes use the media consumer with their own
 capacity.
+
+The HTTP runtime owns the eight-worker email pool and its SMTP or JMAP
+transport through [`EmailJobs`](../../cli/internal/core/email_jobs.go). Its
+request handlers persist encrypted content and accept a job before returning.
+The pool stops with the HTTP runtime.
 
 The core also runs the job view ([`view.go`](../../pkg/jobs/view.go)), an
 in-memory projection of `JOBS` with one payload-free summary for each job.

@@ -28,6 +28,16 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 [ADR-081](../adr/ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) and
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
+## Queued email content
+
+`email_delivery.{opaqueId}` in `RUNTIME_STATE` holds a `SealedEmailDelivery`
+protobuf. Its encrypted `EmailDelivery` contains the address, subject, and
+body. XChaCha20-Poly1305 binds each record to its key. A purpose-specific HMAC
+of the server secret supplies the encryption key. The record expires no later
+than the code or reset-link lifetime and is deleted after transport acceptance.
+It follows the existing runtime-state backup policy. Job facts hold only the
+opaque ID and delivery policy. See [`email_jobs.go`](../../cli/internal/core/email_jobs.go).
+
 ## KV buckets
 
 Pending external identity creation records include the verified provider username

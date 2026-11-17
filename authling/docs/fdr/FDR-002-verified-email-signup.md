@@ -1,7 +1,7 @@
 # FDR-002: Verified Email Signup
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-11-17
 
 ## Overview
 
@@ -52,13 +52,18 @@ Requests for an already claimed address follow the same throttling, SMTP, and
 verification path as available addresses so status and timing do not disclose
 the claim. The final account command still rejects the duplicate. Invalid,
 expired, exhausted, and duplicate flows use non-enumerating browser errors.
-SMTP delivery failure removes the new flow and rolls back its delivery
-reservation.
+Queue acceptance failure removes the new flow and rolls back its delivery
+reservation. After acceptance, SMTP failures retry in the background until the
+original flow expiry. They do not remove the flow or refund its delivery budget.
+Accepted mail survives process restart. A crash after SMTP acceptance can cause
+a duplicate.
 
 ## Security and storage
 
-- Raw OTP codes are never persisted. Lookup and comparison values use HMAC with
-  a deployment workflow key.
+- Lookup and comparison values use HMAC with a deployment workflow key. The
+  mail queue retains the code only in encrypted, expiring message content. It
+  removes content after SMTP acceptance or expiry. Job history contains no
+  address, code, or message content.
 - Pending addresses and OTP state are authenticated-encrypted in the
   `AUTHLING_RUNTIME_STATE` KV bucket and expire with the flow.
 - Durable normalized email and password verifier values are encrypted as
