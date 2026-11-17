@@ -121,6 +121,7 @@ func (p *Projection) rebuildIndex(request events.ProjectionCheckpointRequest) er
 	}
 	p.deks = make(map[string]*evtv1.UserDEKGeneratedEvent)
 	p.checkpoint = checkpointFromRequest(request)
+	p.diagnostics.setCheckpoint(0)
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
@@ -44,8 +45,9 @@ func AddService(ctx context.Context, nc *nats.Conn, provider Provider, options S
 }
 
 // AddStartupStatusService reports startup progress without joining the ready
-// status or query queues. After startup, call AddQueryEndpoint and then
-// AddStatusEndpoint to advertise that the provider can answer queries.
+// status or query queues. A provider that can answer queries also registers a
+// separate service with AddService, and stops that service when it can no
+// longer answer queries. The startup status service stays registered.
 func AddStartupStatusService(ctx context.Context, nc *nats.Conn, provider Provider, options ServiceOptions) (micro.Service, error) {
 	service, err := addProviderService(ctx, nc, provider, options)
 	if err != nil {
@@ -99,14 +101,41 @@ func AddStatusEndpoint(ctx context.Context, service micro.Service, provider Prov
 	}), micro.WithEndpointSubject(StatusSubject))
 }
 
+const (
+	// maxConcurrentQueries bounds the query handlers that one query endpoint
+	// runs at a time. When all handlers are busy, for example because index
+	// work blocks them, the endpoint rejects new queries at once with a
+	// retryable error. Blocked work thus cannot accumulate without bound.
+	maxConcurrentQueries = 16
+	// queryHandlerTimeout bounds one query. It is shorter than the client's
+	// request timeout, so the client receives a provider error, not a timeout,
+	// when the provider honors cancellation.
+	queryHandlerTimeout = 8 * time.Second
+)
+
 // AddQueryEndpoint joins an existing provider service to the shared query
 // queue. Callers must not register it until the provider can answer queries.
+//
+// Queries run concurrently, at most maxConcurrentQueries at a time, and each
+// query context expires after queryHandlerTimeout.
 func AddQueryEndpoint(ctx context.Context, service micro.Service, provider Provider) error {
 	if err := validateServiceEndpoint(ctx, service, provider); err != nil {
 		return err
 	}
+	slots := make(chan struct{}, maxConcurrentQueries)
 	return service.AddEndpoint("query", micro.ContextHandler(ctx, func(ctx context.Context, request micro.Request) {
-		handleQuery(ctx, provider, request)
+		select {
+		case slots <- struct{}{}:
+		default:
+			respondError(request, ErrorCodeUnavailable, "search provider is busy")
+			return
+		}
+		go func() {
+			defer func() { <-slots }()
+			queryContext, cancel := context.WithTimeout(ctx, queryHandlerTimeout)
+			defer cancel()
+			handleQuery(queryContext, provider, request)
+		}()
 	}), micro.WithEndpointSubject(QuerySubject))
 }
 

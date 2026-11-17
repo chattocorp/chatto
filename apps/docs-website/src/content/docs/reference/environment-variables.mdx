@@ -193,6 +193,22 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
   Comma-separated Bleve analyzer codes to use when indexing messages and analyzing queries. Supported values are `ar`, `cjk`, `ckb`, `da`, `de`, `en`, `es`, `fa`, `fi`, `fr`, `hi`, `hr`, `hu`, `it`, `nl`, `no`, `pl`, `pt`, `ro`, `ru`, `sv`, and `tr`. Changing the set automatically rebuilds a recognized Chatto index on restart. See [index recovery](/guides/operations/search/#rebuild-the-search-index) if startup reports an error. Use `none` for language-neutral literal and typo-tolerant matching only; the TOML equivalent is `languages = []`.
 </EnvVar>
 
+<EnvVar name="CHATTO_SEARCH_PROVIDER_HEALTH_ENABLED" toml="search_provider.health.enabled" default="false">
+  Serve `/livez`, `/readyz`, and `/metrics` on a separate HTTP listener from `chatto search-provider`. `chatto run` ignores the `[search_provider.health]` settings. See [Monitor a separate provider](/guides/operations/search/#monitor-a-separate-provider).
+</EnvVar>
+
+<EnvVar name="CHATTO_SEARCH_PROVIDER_HEALTH_BIND_ADDRESS" toml="search_provider.health.bind_address" default="127.0.0.1">
+  Address of the search provider health listener. Use `0.0.0.0` when Kubernetes probes or Prometheus must connect to it.
+</EnvVar>
+
+<EnvVar name="CHATTO_SEARCH_PROVIDER_HEALTH_PORT" toml="search_provider.health.port" default="9091">
+  Port of the search provider health listener.
+</EnvVar>
+
+<EnvVar name="CHATTO_SEARCH_PROVIDER_HEALTH_DIAGNOSTICS" toml="search_provider.health.diagnostics" default="false">
+  Serve Go pprof under `/debug/pprof/` and index diagnostics under `/debug/search` on the health listener. These routes answer only connections from the same host, for example through `kubectl port-forward`, also when the listener binds a public address.
+</EnvVar>
+
 ## Diagnostics
 
 <EnvVar name="CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" toml="diagnostics.startup_cpu_profile">

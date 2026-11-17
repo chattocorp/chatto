@@ -63,6 +63,10 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	t.Setenv("CHATTO_SEARCH_PROVIDER_ENABLED", "true")
 	t.Setenv("CHATTO_SEARCH_PROVIDER_DIRECTORY", "./custom-search")
 	t.Setenv("CHATTO_SEARCH_PROVIDER_LANGUAGES", "de,en,cjk")
+	t.Setenv("CHATTO_SEARCH_PROVIDER_HEALTH_ENABLED", "true")
+	t.Setenv("CHATTO_SEARCH_PROVIDER_HEALTH_BIND_ADDRESS", "0.0.0.0")
+	t.Setenv("CHATTO_SEARCH_PROVIDER_HEALTH_PORT", "9191")
+	t.Setenv("CHATTO_SEARCH_PROVIDER_HEALTH_DIAGNOSTICS", "true")
 
 	// ReadConfig should succeed even without chatto.toml
 	cfg, err := ReadConfig("")
@@ -100,6 +104,10 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	}
 	if got := cfg.SearchProvider.LanguagesOrDefault(); !slices.Equal(got, []string{"cjk", "de", "en"}) {
 		t.Errorf("search provider languages = %v", got)
+	}
+	health := cfg.SearchProvider.Health
+	if !health.Enabled || !health.Diagnostics || health.BindAddressOrDefault() != "0.0.0.0" || health.PortOrDefault() != 9191 {
+		t.Errorf("search provider health = %+v", health)
 	}
 }
 

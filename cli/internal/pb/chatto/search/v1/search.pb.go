@@ -141,6 +141,63 @@ func (ProviderState) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_search_v1_search_proto_rawDescGZIP(), []int{1}
 }
 
+// QueryProbeResult is the outcome of one synthetic query probe.
+type QueryProbeResult int32
+
+const (
+	// No probe has completed.
+	QueryProbeResult_QUERY_PROBE_RESULT_UNSPECIFIED QueryProbeResult = 0
+	// The probe query completed through the index read path.
+	QueryProbeResult_QUERY_PROBE_RESULT_SUCCEEDED QueryProbeResult = 1
+	// The probe query returned an error.
+	QueryProbeResult_QUERY_PROBE_RESULT_FAILED QueryProbeResult = 2
+	// The probe query did not complete before the probe timeout.
+	QueryProbeResult_QUERY_PROBE_RESULT_TIMED_OUT QueryProbeResult = 3
+)
+
+// Enum value maps for QueryProbeResult.
+var (
+	QueryProbeResult_name = map[int32]string{
+		0: "QUERY_PROBE_RESULT_UNSPECIFIED",
+		1: "QUERY_PROBE_RESULT_SUCCEEDED",
+		2: "QUERY_PROBE_RESULT_FAILED",
+		3: "QUERY_PROBE_RESULT_TIMED_OUT",
+	}
+	QueryProbeResult_value = map[string]int32{
+		"QUERY_PROBE_RESULT_UNSPECIFIED": 0,
+		"QUERY_PROBE_RESULT_SUCCEEDED":   1,
+		"QUERY_PROBE_RESULT_FAILED":      2,
+		"QUERY_PROBE_RESULT_TIMED_OUT":   3,
+	}
+)
+
+func (x QueryProbeResult) Enum() *QueryProbeResult {
+	p := new(QueryProbeResult)
+	*p = x
+	return p
+}
+
+func (x QueryProbeResult) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (QueryProbeResult) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_search_v1_search_proto_enumTypes[2].Descriptor()
+}
+
+func (QueryProbeResult) Type() protoreflect.EnumType {
+	return &file_chatto_search_v1_search_proto_enumTypes[2]
+}
+
+func (x QueryProbeResult) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use QueryProbeResult.Descriptor instead.
+func (QueryProbeResult) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_search_v1_search_proto_rawDescGZIP(), []int{2}
+}
+
 // QueryRequest is a parsed, provider-neutral message search. Every supplied
 // term and phrase is required; providers must not reinterpret these fields as
 // an OR. Terms and phrases may both be empty when another filter is present.
@@ -497,7 +554,10 @@ type GetStatusResponse struct {
 	// EVT records targeted by the current build, when known.
 	TargetEventCount *uint64 `protobuf:"varint,3,opt,name=target_event_count,json=targetEventCount,proto3,oneof" json:"target_event_count,omitempty"`
 	// Suggested delay before polling again while the provider is not ready.
-	RetryAfter    *durationpb.Duration `protobuf:"bytes,4,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
+	RetryAfter *durationpb.Duration `protobuf:"bytes,4,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
+	// Query probe results (fields 10-19). Absent when the provider does not
+	// run a query probe or has not served queries yet.
+	QueryProbe    *QueryProbeStatus `protobuf:"bytes,10,opt,name=query_probe,json=queryProbe,proto3" json:"query_probe,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -560,6 +620,108 @@ func (x *GetStatusResponse) GetRetryAfter() *durationpb.Duration {
 	return nil
 }
 
+func (x *GetStatusResponse) GetQueryProbe() *QueryProbeStatus {
+	if x != nil {
+		return x.QueryProbe
+	}
+	return nil
+}
+
+// QueryProbeStatus reports a provider's own synthetic query through its local
+// index read path. The probe query contains no user data, and the provider
+// runs at most one probe at a time. Only this provider replica reports these
+// values; another replica in the queue group does not answer for it.
+type QueryProbeStatus struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Result of the most recent completed probe.
+	LastResult QueryProbeResult `protobuf:"varint,1,opt,name=last_result,json=lastResult,proto3,enum=chatto.search.v1.QueryProbeResult" json:"last_result,omitempty"`
+	// Completion time of the most recent probe.
+	LastCompletedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=last_completed_at,json=lastCompletedAt,proto3" json:"last_completed_at,omitempty"`
+	// Completion time of the most recent successful probe.
+	LastSucceededAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=last_succeeded_at,json=lastSucceededAt,proto3" json:"last_succeeded_at,omitempty"`
+	// Duration of the most recent completed probe.
+	LastDuration *durationpb.Duration `protobuf:"bytes,4,opt,name=last_duration,json=lastDuration,proto3" json:"last_duration,omitempty"`
+	// Completed probes that failed or timed out since the last success.
+	ConsecutiveFailures uint32 `protobuf:"varint,5,opt,name=consecutive_failures,json=consecutiveFailures,proto3" json:"consecutive_failures,omitempty"`
+	// Start time of a probe that has not completed. A value older than the
+	// probe timeout means that the index read path is blocked.
+	InFlightSince *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=in_flight_since,json=inFlightSince,proto3" json:"in_flight_since,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueryProbeStatus) Reset() {
+	*x = QueryProbeStatus{}
+	mi := &file_chatto_search_v1_search_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueryProbeStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryProbeStatus) ProtoMessage() {}
+
+func (x *QueryProbeStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_search_v1_search_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryProbeStatus.ProtoReflect.Descriptor instead.
+func (*QueryProbeStatus) Descriptor() ([]byte, []int) {
+	return file_chatto_search_v1_search_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *QueryProbeStatus) GetLastResult() QueryProbeResult {
+	if x != nil {
+		return x.LastResult
+	}
+	return QueryProbeResult_QUERY_PROBE_RESULT_UNSPECIFIED
+}
+
+func (x *QueryProbeStatus) GetLastCompletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastCompletedAt
+	}
+	return nil
+}
+
+func (x *QueryProbeStatus) GetLastSucceededAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSucceededAt
+	}
+	return nil
+}
+
+func (x *QueryProbeStatus) GetLastDuration() *durationpb.Duration {
+	if x != nil {
+		return x.LastDuration
+	}
+	return nil
+}
+
+func (x *QueryProbeStatus) GetConsecutiveFailures() uint32 {
+	if x != nil {
+		return x.ConsecutiveFailures
+	}
+	return 0
+}
+
+func (x *QueryProbeStatus) GetInFlightSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.InFlightSince
+	}
+	return nil
+}
+
 var File_chatto_search_v1_search_proto protoreflect.FileDescriptor
 
 const file_chatto_search_v1_search_proto_rawDesc = "" +
@@ -592,15 +754,26 @@ const file_chatto_search_v1_search_proto_rawDesc = "" +
 	"nextCursor\x120\n" +
 	"\x14thread_scope_applied\x18\x03 \x01(\bR\x12threadScopeApplied\x12:\n" +
 	"\x19thread_exclusions_applied\x18\x04 \x01(\bR\x17threadExclusionsApplied\"\x12\n" +
-	"\x10GetStatusRequest\"\x9d\x02\n" +
+	"\x10GetStatusRequest\"\xe2\x02\n" +
 	"\x11GetStatusResponse\x125\n" +
 	"\x05state\x18\x01 \x01(\x0e2\x1f.chatto.search.v1.ProviderStateR\x05state\x123\n" +
 	"\x13indexed_event_count\x18\x02 \x01(\x04H\x00R\x11indexedEventCount\x88\x01\x01\x121\n" +
 	"\x12target_event_count\x18\x03 \x01(\x04H\x01R\x10targetEventCount\x88\x01\x01\x12:\n" +
 	"\vretry_after\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\n" +
-	"retryAfterB\x16\n" +
+	"retryAfter\x12C\n" +
+	"\vquery_probe\x18\n" +
+	" \x01(\v2\".chatto.search.v1.QueryProbeStatusR\n" +
+	"queryProbeB\x16\n" +
 	"\x14_indexed_event_countB\x15\n" +
-	"\x13_target_event_count*`\n" +
+	"\x13_target_event_count\"\x9e\x03\n" +
+	"\x10QueryProbeStatus\x12C\n" +
+	"\vlast_result\x18\x01 \x01(\x0e2\".chatto.search.v1.QueryProbeResultR\n" +
+	"lastResult\x12F\n" +
+	"\x11last_completed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x0flastCompletedAt\x12F\n" +
+	"\x11last_succeeded_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x0flastSucceededAt\x12>\n" +
+	"\rlast_duration\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\flastDuration\x121\n" +
+	"\x14consecutive_failures\x18\x05 \x01(\rR\x13consecutiveFailures\x12B\n" +
+	"\x0fin_flight_since\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\rinFlightSince*`\n" +
 	"\vSearchOrder\x12\x1c\n" +
 	"\x18SEARCH_ORDER_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16SEARCH_ORDER_RELEVANCE\x10\x01\x12\x17\n" +
@@ -611,7 +784,12 @@ const file_chatto_search_v1_search_proto_rawDesc = "" +
 	"\x17PROVIDER_STATE_INDEXING\x10\x02\x12\x18\n" +
 	"\x14PROVIDER_STATE_READY\x10\x03\x12\x1b\n" +
 	"\x17PROVIDER_STATE_DEGRADED\x10\x04\x12\x1e\n" +
-	"\x1aPROVIDER_STATE_UNAVAILABLE\x10\x05B\xcd\x01\n" +
+	"\x1aPROVIDER_STATE_UNAVAILABLE\x10\x05*\x99\x01\n" +
+	"\x10QueryProbeResult\x12\"\n" +
+	"\x1eQUERY_PROBE_RESULT_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cQUERY_PROBE_RESULT_SUCCEEDED\x10\x01\x12\x1d\n" +
+	"\x19QUERY_PROBE_RESULT_FAILED\x10\x02\x12 \n" +
+	"\x1cQUERY_PROBE_RESULT_TIMED_OUT\x10\x03B\xcd\x01\n" +
 	"\x14com.chatto.search.v1B\vSearchProtoP\x01ZFgithub.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1;searchv1\xa2\x02\x03CSX\xaa\x02\x10Chatto.Search.V1\xca\x02\x10Chatto\\Search\\V1\xe2\x02\x1cChatto\\Search\\V1\\GPBMetadata\xea\x02\x12Chatto::Search::V1b\x06proto3"
 
 var (
@@ -626,31 +804,39 @@ func file_chatto_search_v1_search_proto_rawDescGZIP() []byte {
 	return file_chatto_search_v1_search_proto_rawDescData
 }
 
-var file_chatto_search_v1_search_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_search_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_chatto_search_v1_search_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_chatto_search_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_search_v1_search_proto_goTypes = []any{
 	(SearchOrder)(0),              // 0: chatto.search.v1.SearchOrder
 	(ProviderState)(0),            // 1: chatto.search.v1.ProviderState
-	(*QueryRequest)(nil),          // 2: chatto.search.v1.QueryRequest
-	(*QueryHit)(nil),              // 3: chatto.search.v1.QueryHit
-	(*QueryResponse)(nil),         // 4: chatto.search.v1.QueryResponse
-	(*GetStatusRequest)(nil),      // 5: chatto.search.v1.GetStatusRequest
-	(*GetStatusResponse)(nil),     // 6: chatto.search.v1.GetStatusResponse
-	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),   // 8: google.protobuf.Duration
+	(QueryProbeResult)(0),         // 2: chatto.search.v1.QueryProbeResult
+	(*QueryRequest)(nil),          // 3: chatto.search.v1.QueryRequest
+	(*QueryHit)(nil),              // 4: chatto.search.v1.QueryHit
+	(*QueryResponse)(nil),         // 5: chatto.search.v1.QueryResponse
+	(*GetStatusRequest)(nil),      // 6: chatto.search.v1.GetStatusRequest
+	(*GetStatusResponse)(nil),     // 7: chatto.search.v1.GetStatusResponse
+	(*QueryProbeStatus)(nil),      // 8: chatto.search.v1.QueryProbeStatus
+	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 10: google.protobuf.Duration
 }
 var file_chatto_search_v1_search_proto_depIdxs = []int32{
-	7, // 0: chatto.search.v1.QueryRequest.created_after:type_name -> google.protobuf.Timestamp
-	7, // 1: chatto.search.v1.QueryRequest.created_before:type_name -> google.protobuf.Timestamp
-	0, // 2: chatto.search.v1.QueryRequest.order:type_name -> chatto.search.v1.SearchOrder
-	3, // 3: chatto.search.v1.QueryResponse.hits:type_name -> chatto.search.v1.QueryHit
-	1, // 4: chatto.search.v1.GetStatusResponse.state:type_name -> chatto.search.v1.ProviderState
-	8, // 5: chatto.search.v1.GetStatusResponse.retry_after:type_name -> google.protobuf.Duration
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	9,  // 0: chatto.search.v1.QueryRequest.created_after:type_name -> google.protobuf.Timestamp
+	9,  // 1: chatto.search.v1.QueryRequest.created_before:type_name -> google.protobuf.Timestamp
+	0,  // 2: chatto.search.v1.QueryRequest.order:type_name -> chatto.search.v1.SearchOrder
+	4,  // 3: chatto.search.v1.QueryResponse.hits:type_name -> chatto.search.v1.QueryHit
+	1,  // 4: chatto.search.v1.GetStatusResponse.state:type_name -> chatto.search.v1.ProviderState
+	10, // 5: chatto.search.v1.GetStatusResponse.retry_after:type_name -> google.protobuf.Duration
+	8,  // 6: chatto.search.v1.GetStatusResponse.query_probe:type_name -> chatto.search.v1.QueryProbeStatus
+	2,  // 7: chatto.search.v1.QueryProbeStatus.last_result:type_name -> chatto.search.v1.QueryProbeResult
+	9,  // 8: chatto.search.v1.QueryProbeStatus.last_completed_at:type_name -> google.protobuf.Timestamp
+	9,  // 9: chatto.search.v1.QueryProbeStatus.last_succeeded_at:type_name -> google.protobuf.Timestamp
+	10, // 10: chatto.search.v1.QueryProbeStatus.last_duration:type_name -> google.protobuf.Duration
+	9,  // 11: chatto.search.v1.QueryProbeStatus.in_flight_since:type_name -> google.protobuf.Timestamp
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_chatto_search_v1_search_proto_init() }
@@ -664,8 +850,8 @@ func file_chatto_search_v1_search_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_search_v1_search_proto_rawDesc), len(file_chatto_search_v1_search_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   5,
+			NumEnums:      3,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

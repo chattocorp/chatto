@@ -16,19 +16,37 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/search"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/chattocorp/chatto/pkg/jetstreamutil"
+	"github.com/nats-io/nats.go/micro"
 )
 
 const (
 	runtimeUnitName                = "search.BleveProvider"
 	searchIndexingProgressInterval = 10 * time.Second
 	searchStartupPollInterval      = 10 * time.Millisecond
+	// searchShutdownTimeout bounds the wait for the projector and the index
+	// to stop. Together with the NATS drain, it fits within the default
+	// Kubernetes termination grace period of 30 seconds.
+	searchShutdownTimeout = 15 * time.Second
 )
+
+// errSearchShutdownTimeout reports index work that did not stop in time.
+var errSearchShutdownTimeout = errors.New("search index work did not stop before the shutdown timeout")
 
 // Unit runs the bundled Bleve provider either under chatto run or standalone.
 type Unit struct {
+	// Health receives process-local health state. The standalone
+	// search-provider command sets it; chatto run leaves it nil.
+	Health *Health
+
 	// startupResultHook is a test seam for observing the NATS boundary after
 	// projection startup resolves but before failure cleanup removes it.
 	startupResultHook func(error)
+	// newProjection, probeInterval, probeTimeout, and shutdownTimeout are
+	// test seams. Zero values select production behavior.
+	newProjection   func(*Projection)
+	probeInterval   time.Duration
+	probeTimeout    time.Duration
+	shutdownTimeout time.Duration
 }
 
 func (Unit) Name() string { return runtimeUnitName }
@@ -36,6 +54,7 @@ func (Unit) Name() string { return runtimeUnitName }
 func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	languages := env.Config.SearchProvider.LanguagesOrDefault()
 	defer env.Logger.Info("Bundled search provider stopped", "stage", "shutdown")
+	u.Health.setNATS(env.NC)
 
 	evt, err := env.JS.Stream(ctx, natsresources.EVT)
 	if err != nil {
@@ -69,7 +88,9 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	if err != nil {
 		return err
 	}
-	defer projection.Close()
+	if u.newProjection != nil {
+		u.newProjection(projection)
+	}
 
 	projectionHandle, err := evtstream.NewProjectionHandle(env.JS, evt, projection, events.ProjectorOptions{
 		Logger:              logbridge.Slog(env.Logger),
@@ -78,13 +99,18 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		Checkpoint:          &events.CheckpointOptions{Key: "message_search", ResolveStreamIdentity: evtstream.IdentityFromInfo},
 	})
 	if err != nil {
-		return err
+		return errors.Join(err, projection.Close())
 	}
 	projector := projectionHandle.Projector()
 	provider := newProvider(projectionHandle)
-	service, err := search.AddStartupStatusService(ctx, env.NC, provider, search.ServiceOptions{ImplementationVersion: env.Version})
+	if u.probeTimeout > 0 {
+		provider.probe.timeout = u.probeTimeout
+	}
+	u.Health.setProvider(provider, projection)
+	serviceOptions := search.ServiceOptions{ImplementationVersion: env.Version}
+	service, err := search.AddStartupStatusService(ctx, env.NC, provider, serviceOptions)
 	if err != nil {
-		return fmt.Errorf("register search provider status service: %w", err)
+		return errors.Join(fmt.Errorf("register search provider status service: %w", err), projection.Close())
 	}
 	defer service.Stop()
 
@@ -93,44 +119,157 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	go logSearchIndexingProgress(monitorContext, projector, env.Logger, searchIndexingProgressInterval)
 
 	projectorContext, stopProjector := context.WithCancel(ctx)
+	defer stopProjector()
 	projectorDone := make(chan error, 1)
 	go func() {
 		projectorDone <- projector.Run(projectorContext)
 	}()
+	shutdown := func(projectorDone <-chan error) error {
+		stopProjector()
+		return u.stopIndex(env.Logger, projectorDone, projection)
+	}
 	projectorStopped, err := waitForSearchProjectionStartup(ctx, projector, projectorDone, searchStartupPollInterval)
 	if err != nil {
 		if u.startupResultHook != nil {
 			u.startupResultHook(err)
 		}
-		stopProjector()
-		if !projectorStopped {
-			<-projectorDone
+		if projectorStopped {
+			projectorDone = nil
 		}
+		shutdownErr := shutdown(projectorDone)
 		if errors.Is(err, context.Canceled) {
-			return nil
+			return shutdownErr
 		}
-		return err
+		return errors.Join(err, shutdownErr)
 	}
-	if err := search.AddQueryEndpoint(ctx, service, provider); err != nil {
-		stopProjector()
-		<-projectorDone
-		return fmt.Errorf("register search provider query endpoint: %w", err)
-	}
-	if err := search.AddStatusEndpoint(ctx, service, provider); err != nil {
-		stopProjector()
-		<-projectorDone
-		return fmt.Errorf("register search provider ready status endpoint: %w", err)
-	}
-	// The operator's standalone search readiness probe consumes this stage field.
-	// Emit it only after replay and both query/status endpoint registrations succeed.
-	env.Logger.Info("Search provider ready", "stage", "service_ready")
 
-	err = <-projectorDone
-	stopProjector()
-	if errors.Is(err, context.Canceled) {
+	projectorStopped, projectorErr := u.serve(ctx, env, provider, serviceOptions, projectorDone)
+	if projectorStopped {
+		projectorDone = nil
+	}
+	shutdownErr := shutdown(projectorDone)
+	if errors.Is(projectorErr, context.Canceled) {
+		projectorErr = nil
+	}
+	return errors.Join(projectorErr, shutdownErr)
+}
+
+// serve keeps the provider's query and ready status subscriptions aligned
+// with its query probe. It joins the shared queues only after a probe
+// succeeds, and leaves them while the latest probe failed or a probe is
+// blocked, so that healthy replicas answer instead. It returns when ctx ends
+// or the projector stops; the bool reports that the projector stopped, and
+// the error is then the projector's error.
+func (u Unit) serve(ctx context.Context, env runtimeunit.Env, provider *Provider, options search.ServiceOptions, projectorDone <-chan error) (bool, error) {
+	interval := u.probeInterval
+	if interval <= 0 {
+		interval = queryProbeInterval
+	}
+	var serving micro.Service
+	stopServing := func() {
+		if serving != nil {
+			_ = serving.Stop()
+			serving = nil
+			provider.serving.Store(false)
+		}
+	}
+	defer stopServing()
+
+	readyLogged := false
+	reconcile := func() error {
+		snapshot, _ := provider.probe.Snapshot()
+		healthy := snapshot.Healthy(time.Now())
+		switch {
+		case healthy && serving == nil:
+			service, err := search.AddService(ctx, env.NC, provider, options)
+			if err != nil {
+				return fmt.Errorf("register search provider query endpoint: %w", err)
+			}
+			serving = service
+			provider.serving.Store(true)
+			if !readyLogged {
+				// The operator's standalone search readiness probe consumes
+				// this stage field. Emit it once, after replay, a successful
+				// query probe, and query/status endpoint registration.
+				env.Logger.Info("Search provider ready", "stage", "service_ready")
+				readyLogged = true
+			} else {
+				env.Logger.Info("Search provider resumed serving queries", "stage", "query_probe_recovered")
+			}
+		case !healthy && serving != nil:
+			stopServing()
+			env.Logger.Warn("Search provider stopped serving queries",
+				"stage", "query_probe_failed",
+				"probe_result", snapshot.LastResult.String(),
+				"consecutive_failures", snapshot.ConsecutiveFailures,
+				"probe_in_flight", !snapshot.InFlightSince.IsZero())
+		}
 		return nil
 	}
-	return err
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	probeDone := provider.probe.Start(ctx)
+	for {
+		select {
+		case <-ctx.Done():
+			return false, nil
+		case err := <-projectorDone:
+			return true, err
+		case <-probeDone:
+			probeDone = nil
+			if err := reconcile(); err != nil {
+				return false, err
+			}
+		case <-ticker.C:
+			if err := reconcile(); err != nil {
+				return false, err
+			}
+			if probeDone == nil {
+				probeDone = provider.probe.Start(ctx)
+			}
+		}
+	}
+}
+
+// stopIndex waits for the cancelled projector, then closes the projection.
+// projectorDone is nil when the projector already stopped. A commit that
+// does not return holds the projection lock, so both waits run in one
+// goroutine bounded by the shutdown timeout. On timeout, stopIndex leaves the
+// projection open; the process is expected to exit.
+func (u Unit) stopIndex(logger *log.Logger, projectorDone <-chan error, projection *Projection) error {
+	timeout := u.shutdownTimeout
+	if timeout <= 0 {
+		timeout = searchShutdownTimeout
+	}
+	stopped := make(chan error, 1)
+	go func() {
+		var err error
+		if projectorDone != nil {
+			if err = <-projectorDone; errors.Is(err, context.Canceled) {
+				err = nil
+			}
+		}
+		stopped <- errors.Join(err, projection.Close())
+	}()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case err := <-stopped:
+		return err
+	case <-timer.C:
+		diagnostics := projection.diagnostics.Snapshot(time.Now())
+		logger.Error("Search index work did not stop before the shutdown timeout",
+			"stage", "shutdown_timeout",
+			"timeout", timeout,
+			"write_stage", diagnostics.WriteStage,
+			"write_elapsed_seconds", diagnostics.WriteElapsedSeconds,
+			"write_first_seq", diagnostics.WriteFirstSeq,
+			"write_last_seq", diagnostics.WriteLastSeq,
+			"queries_waiting", diagnostics.QueriesWaiting,
+			"queries_active", diagnostics.QueriesActive)
+		return errSearchShutdownTimeout
+	}
 }
 
 func waitForSearchProjectionStartup(ctx context.Context, projector *events.Projector, done <-chan error, pollInterval time.Duration) (bool, error) {
