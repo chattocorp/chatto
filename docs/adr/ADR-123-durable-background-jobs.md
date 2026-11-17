@@ -151,6 +151,7 @@ reconciliation owns the outcome.
 | ------------------------------------------------------------------------------ | --------------------------- | ------------- | -------------------------------------- |
 | Webhook                                                                        | Configured (`bot_webhooks`) | Configured    | `core.job_concurrency` (default 8)     |
 | Notification alert                                                             | 5                           | 15 seconds    | 16                                     |
+| Email                                                                          | Unlimited until expiry      | 5 seconds     | 8 (HTTP server replicas)               |
 | Media                                                                          | Unlimited                   | 30 seconds    | `asset_processing.max_concurrent_jobs` |
 | Asset cleanup, call-key cleanup, push-subscription cleanup, user-key shredding | Unlimited                   | 30 seconds    | `core.job_concurrency` for each type   |
 

@@ -108,5 +108,5 @@ the job list repeatedly.
 
 ## Open Questions
 
-- Add email and delayed deletion when those features need durable jobs.
+- Add delayed deletion when it needs durable jobs.
 - Add a bulk delete for failed jobs when operators need it.
