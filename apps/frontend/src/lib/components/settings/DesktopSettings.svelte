@@ -6,7 +6,7 @@
     PaneContent,
     PaneHeader,
     Hint,
-    LoadingFog,
+    LoadingDots,
     ProgressBar
   } from '$lib/ui';
   import { Button, Checkbox, Select } from '$lib/ui/form';
@@ -31,7 +31,7 @@
     <div class="flex flex-col gap-6">
       <Panel title={m('settings.desktop.updates')} icon="iconify icon-[uil--download-alt]">
         {#if updates.loading}
-          <LoadingFog class="h-24" />
+          <LoadingDots class="h-24" />
         {:else if !state}
           <Hint>{m('settings.desktop.unavailable')}</Hint>
         {:else}

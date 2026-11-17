@@ -158,7 +158,7 @@ describe('RoomSidebarProfile', () => {
 
     const { container } = renderProfile();
 
-    expect(q(container, '[data-loading-fog][aria-busy="true"]')).toBeTruthy();
+    expect(q(container, '[data-loading-dots][aria-busy="true"]')).toBeTruthy();
     expect(container.textContent).not.toContain('Loading');
   });
 

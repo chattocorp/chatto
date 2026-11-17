@@ -31,7 +31,7 @@ single directory surface for every host and the standalone start page. See FDR-0
   import { knownServers, serverRegistry } from '$lib/client';
   import { addSignedOutServer, findServerByUrl } from '$lib/serverCatalogue';
   import { serverDisplayName } from '@chatto/client/server/state';
-  import { Dialog, EmptyState, Hint, LoadingFog } from '$lib/ui';
+  import { Dialog, EmptyState, Hint, LoadingDots } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
@@ -348,7 +348,7 @@ single directory surface for every host and the standalone start page. See FDR-0
   {/if}
 
   {#if !directory}
-    <LoadingFog class="h-64 w-full rounded-lg" />
+    <LoadingDots class="h-64 w-full" />
   {:else if allSourcesFailed}
     <EmptyState
       icon="icon-[uil--exclamation-triangle]"

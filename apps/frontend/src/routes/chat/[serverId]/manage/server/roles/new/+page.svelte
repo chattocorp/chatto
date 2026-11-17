@@ -7,7 +7,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createRoleAPI, type CreateRoleInput } from '@chatto/client/api/roles';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
-  import { Panel, Hint, PaneContent, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
+  import { Panel, Hint, PaneContent, LoadingDots, PaneHeader, PageTitle } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { RoleForm } from '$lib/components/rbac';
   import { invalidatePermissionTiers } from '$lib/query/adminInvalidation';
@@ -103,7 +103,7 @@
   <PaneContent>
     <div class="flex flex-col gap-6">
       {#if loading}
-        <LoadingFog class="h-32 w-full" />
+        <LoadingDots class="h-32 w-full" />
       {:else if !canManageRoles}
         <Hint tone="danger">{m('admin.permissions.need_manage_create')}</Hint>
       {:else}

@@ -17,7 +17,7 @@
     type ExternalIdentityProviderInfo,
     type LinkedExternalIdentityInfo
   } from '$lib/api/externalIdentities';
-  import { Panel, LoadingFog, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
+  import { Panel, LoadingDots, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { providerIcon } from '$lib/auth/providerIcon';
   import { createQuery } from '$lib/query/client';
@@ -479,7 +479,7 @@
 <Panel title={m('settings.account.sso.title')} icon="iconify icon-[uil--link]">
   <div class="flex max-w-md flex-col gap-4">
     {#if loading}
-      <LoadingFog class="h-32 w-full" label={m('settings.account.sso.loading')} />
+      <LoadingDots class="h-32 w-full" label={m('settings.account.sso.loading')} />
     {:else}
       {#if error}
         <Hint tone="danger">{error}</Hint>

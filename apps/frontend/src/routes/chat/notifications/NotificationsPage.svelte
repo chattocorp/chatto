@@ -9,7 +9,7 @@
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import {
     EmptyState,
-    LoadingFog,
+    LoadingDots,
     PageTitle,
     SegmentedControl,
     PaneHeader,
@@ -626,7 +626,7 @@
             {/if}
           </div>
         {:else if loading || hasMore}
-          <LoadingFog class="m-3 min-h-32 flex-1" />
+          <LoadingDots class="m-3 min-h-32 flex-1" />
         {:else}
           <EmptyState
             icon="icon-[uil--bell-slash]"

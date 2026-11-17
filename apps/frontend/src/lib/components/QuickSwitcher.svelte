@@ -5,7 +5,7 @@
   import { untrack } from 'svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
-  import { LoadingFog, MenuSection, PaletteSearch, PaletteDialog } from '$lib/ui';
+  import { LoadingDots, MenuSection, PaletteSearch, PaletteDialog } from '$lib/ui';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import { getGradientForName } from '$lib/utils/gradients';
   import { QuickSwitcherModel, type QuickSwitcherAvatarUser } from './quickSwitcherModel.svelte';
@@ -76,7 +76,7 @@
   >
     <nav {@attach activateResults} class="sidebar-nav">
       {#if model.loading && model.filtered.length === 0}
-        <LoadingFog class="m-2 h-24" />
+        <LoadingDots class="m-2 h-24" />
       {/if}
       {#if model.filtered.length === 0 && !model.loading}
         <p class="px-3 py-6 text-center text-muted">

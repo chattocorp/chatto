@@ -31,7 +31,7 @@ when the virtualizer unmounts the row of its message. `EventList` renders it onl
 
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { ContextMenu, LoadingFog, LoadRetry } from '$lib/ui';
+  import { ContextMenu, LoadingDots, LoadRetry } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import type { MessagesStore } from '$lib/state/room';
@@ -113,7 +113,7 @@ when the virtualizer unmounts the row of its message. `EventList` renders it onl
 
 {#snippet actionMenu(presentation: 'menu' | 'sheet')}
   {#await loadMessageActionMenu(messageActionMenuLoadAttempt)}
-    <LoadingFog class="m-2 h-28 w-64 max-w-full" />
+    <LoadingDots class="m-2 h-28 w-64 max-w-full" />
   {:then { default: MessageActionMenu }}
     <MessageActionMenu
       presentation={presentation === 'sheet' ? 'sheet' : undefined}
@@ -154,7 +154,7 @@ when the virtualizer unmounts the row of its message. `EventList` renders it onl
     onclose={() => close('emoji')}
   >
     {#await loadEmojiPicker(emojiPickerLoadAttempt)}
-      <LoadingFog class="m-2 h-28 w-64 max-w-full" />
+      <LoadingDots class="m-2 h-28 w-64 max-w-full" />
     {:then { default: EmojiPicker }}
       <EmojiPicker
         serverId={action.serverId}
@@ -167,7 +167,7 @@ when the virtualizer unmounts the row of its message. `EventList` renders it onl
   </ContextMenu>
 {:else if overlay?.kind === 'reactions' && reactions.length > 0}
   {#await import('./MessageReactionDetails.svelte')}
-    <LoadingFog class="m-2 h-28 w-64 max-w-full" />
+    <LoadingDots class="m-2 h-28 w-64 max-w-full" />
   {:then { default: MessageReactionDetails }}
     <MessageReactionDetails
       {roomId}

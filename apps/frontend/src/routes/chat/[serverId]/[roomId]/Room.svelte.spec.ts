@@ -304,7 +304,7 @@ vi.mock('$lib/ui', async () => {
     PaneHeader: (await import('$lib/ui/PaneHeader.svelte')).default,
     PageTitle: (await import('$lib/ui/PageTitle.svelte')).default,
     HeaderIconButton: (await import('$lib/ui/HeaderIconButton.svelte')).default,
-    LoadingFog: (await import('$lib/ui/LoadingFog.svelte')).default,
+    LoadingDots: (await import('$lib/ui/LoadingDots.svelte')).default,
     Pill: (await import('$lib/ui/Pill.svelte')).default,
     EmptyState,
     Hint
@@ -1871,7 +1871,7 @@ describe('Room local message echo', () => {
 
       const pane = container.querySelector(selector);
       expect(pane).not.toBeNull();
-      expect(pane?.querySelector('[data-loading-fog]')).toBeNull();
+      expect(pane?.querySelector('[data-loading-dots]')).toBeNull();
       expect(pane?.querySelector('[data-testid="close-room-sidebar"]')).not.toBeNull();
     }
   );

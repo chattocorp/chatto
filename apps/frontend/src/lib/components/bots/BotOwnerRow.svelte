@@ -9,7 +9,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { mapOptionalUserSummary } from '@chatto/client/api/userSummary';
   import { getLiveDisplayName, getLiveAvatarUrl } from '$lib/state/userProfiles.svelte';
-  import { LoadingFog } from '$lib/ui';
+  import { LoadingDots } from '$lib/ui';
 
   let {
     ownerId,
@@ -60,7 +60,7 @@
       />
     {/key}
   {:else if query.isPending}
-    <LoadingFog class="h-5 w-28" />
+    <LoadingDots class="h-5 w-28" />
   {:else}
     <span class="text-muted">
       {users.isDeleted(ownerId) ? m('common.deleted_user') : m('common.unknown_user')}

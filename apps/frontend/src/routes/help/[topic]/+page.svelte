@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { m } from '$lib/i18n/messages';
   import { sidebarNav } from '$lib/state/globals.svelte';
-  import { PageTitle, PaneContent, PaneHeader, Panel, LoadingFog, Hint } from '$lib/ui';
+  import { PageTitle, PaneContent, PaneHeader, Panel, LoadingDots, Hint } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import { loadHelpArticle } from '$lib/help/articles';
@@ -34,7 +34,7 @@
       class="@container/help-page mx-auto flex max-w-6xl flex-col gap-6 [&>[data-panel]]:overflow-clip"
     >
       {#await article}
-        <LoadingFog class="h-80" />
+        <LoadingDots class="h-80" />
       {:then { default: Article, locale, metadata }}
         <Panel {title}>
           <div

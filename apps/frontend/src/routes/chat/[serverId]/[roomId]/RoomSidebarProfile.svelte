@@ -32,7 +32,7 @@ fields as realtime changes arrive.
     getLiveTimezone
   } from '$lib/state/userProfiles.svelte';
   import { formatAccountName } from '@chatto/client/timeline/accountName';
-  import { Hint, LoadingFog, UserCard } from '$lib/ui';
+  import { Hint, LoadingDots, UserCard } from '$lib/ui';
   import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 
   let {
@@ -104,7 +104,7 @@ fields as realtime changes arrive.
 
 <div class="flex min-h-0 flex-1 flex-col overflow-y-auto p-4" data-testid="room-sidebar-profile">
   {#if loading}
-    <LoadingFog class="h-40 w-full" />
+    <LoadingDots class="h-40 w-full" />
   {:else if notFound || !baseUser || !menuUser}
     <Hint tone="danger">{m('chat.profile.not_found')}</Hint>
   {:else}

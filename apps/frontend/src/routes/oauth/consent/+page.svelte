@@ -6,7 +6,7 @@
   import { LOOPBACK_OAUTH_CLIENT_ID } from '$lib/auth/loopbackClient';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
-  import { Hint, LoadingFog, PageTitle } from '$lib/ui';
+  import { Hint, LoadingDots, PageTitle } from '$lib/ui';
   import { Button, FormError } from '$lib/ui/form';
   import { onMount } from 'svelte';
 
@@ -173,7 +173,7 @@
 <AuthLayout compact title={m('auth.oauth.heading')}>
   <div class="flex flex-col gap-5">
     {#if loading}
-      <LoadingFog class="h-48 w-full" />
+      <LoadingDots class="h-48 w-full" />
     {:else if request}
       <div class="flex flex-col gap-4">
         <div class="text-center">

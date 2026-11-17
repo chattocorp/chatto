@@ -58,7 +58,7 @@ vi.mock('$lib/ui/Panel.svelte', async () => ({
 vi.mock('$lib/ui', async () => ({
   PaneHeader: (await import('$lib/ui/PaneHeader.svelte')).default,
   PageTitle: (await import('$lib/ui/PageTitle.svelte')).default,
-  LoadingFog: (await import('$lib/ui/LoadingFog.svelte')).default,
+  LoadingDots: (await import('$lib/ui/LoadingDots.svelte')).default,
   Panel: (await import('$lib/ui/Panel.svelte')).default,
   Hint: (await import('./RolePageSnippetMock.svelte')).default,
   TabNav: (await import('$lib/ui/TabNav.svelte')).default,
