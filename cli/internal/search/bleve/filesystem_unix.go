@@ -2,7 +2,11 @@
 
 package bleve
 
-import "syscall"
+import (
+	"errors"
+	"os"
+	"syscall"
+)
 
 // availableDiskSpace returns the bytes that an unprivileged process can still
 // write on the filesystem of path.
@@ -13,4 +17,13 @@ func availableDiskSpace(path string) (uint64, error) {
 	}
 	// The field types differ between operating systems.
 	return uint64(stat.Bavail) * uint64(stat.Bsize), nil
+}
+
+// syncDirectoryEntries makes the entries of a directory durable.
+func syncDirectoryEntries(path string) error {
+	entry, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	return errors.Join(entry.Sync(), entry.Close())
 }

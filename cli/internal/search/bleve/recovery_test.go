@@ -251,3 +251,24 @@ func TestRecoverIndexKeepsPreviousWhenTheCurrentIndexNeverCompleted(t *testing.T
 	requirePreviousIndexHas(t, f.directory, "M1")
 	require.NoFileExists(t, filepath.Join(f.directory, recoveryMarkerName))
 }
+
+func TestRecoverIndexRefusesAnIncompleteIndexBeforeAnyChange(t *testing.T) {
+	f := newRecoveryFixture(t)
+	require.NoError(t, os.RemoveAll(filepath.Join(f.directory, "store")))
+	_, err := recoverIndex(f.directory, plentyOfSpace)
+	require.ErrorContains(t, err, "is incomplete")
+	require.NoFileExists(t, filepath.Join(f.directory, recoveryMarkerName))
+	require.NoDirExists(t, filepath.Join(f.directory, previousIndexName))
+	require.FileExists(t, filepath.Join(f.directory, "index_meta.json"))
+}
+
+func TestRecoveryMoveFailsClosedWithoutAPreviousStore(t *testing.T) {
+	f := newRecoveryFixture(t)
+	require.NoError(t, writeMarker(f.directory, recoveryMarkerName, recoveryMarker))
+	require.NoError(t, os.MkdirAll(filepath.Join(f.directory, previousIndexName), 0o700))
+	require.NoError(t, os.Rename(filepath.Join(f.directory, "index_meta.json"), filepath.Join(f.directory, previousIndexName, "index_meta.json")))
+
+	_, err := NewProjection(f.directory, []string{}, nil, staticLegacyKeys{key: f.key}, nil, log.New(nil))
+	require.ErrorContains(t, err, "has no store directory")
+	require.DirExists(t, filepath.Join(f.directory, "store"))
+}

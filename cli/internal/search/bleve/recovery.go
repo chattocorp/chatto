@@ -94,13 +94,16 @@ func recoverIndex(directory string, freeSpace func(string) (uint64, error)) (Rec
 		}
 		return RecoveryResult{InProgress: true}, nil
 	}
-	if !exists(filepath.Join(directory, "index_meta.json")) {
-		if exists(filepath.Join(directory, "store")) {
-			// Without index_meta.json, a later start cannot tell a moved
-			// index from a new one. Leave this rare case to the operator.
-			return RecoveryResult{}, fmt.Errorf("the search index in %q has no index_meta.json; stop the provider, move the directory %q aside, and start the provider to build a new index", directory, filepath.Join(directory, "store"))
-		}
+	hasMetadata := exists(filepath.Join(directory, "index_meta.json"))
+	hasStore := exists(filepath.Join(directory, "store"))
+	if !hasMetadata && !hasStore {
 		return RecoveryResult{}, fmt.Errorf("no search index at %q; start the provider to build one", directory)
+	}
+	if !hasMetadata || !hasStore {
+		// The move needs both entries: without them, a later start cannot
+		// tell a moved index from a new one. Leave this rare case to the
+		// operator, before anything changes.
+		return RecoveryResult{}, fmt.Errorf("the search index in %q is incomplete (it needs index_meta.json and store); stop the provider, move the directory aside, and start the provider to build a new index", directory)
 	}
 
 	previous := filepath.Join(directory, previousIndexName)
@@ -204,11 +207,22 @@ func DiscardPreviousIndex(directory string) (uint64, error) {
 func finishRecoveryMove(directory string) error {
 	previous := filepath.Join(directory, previousIndexName)
 	if exists(filepath.Join(previous, "index_meta.json")) {
+		// The store moves first and is durable before the metadata moves,
+		// so a moved metadata file without a moved store is not a state
+		// that recovery writes. Fail closed instead of guessing.
+		if !exists(filepath.Join(previous, "store")) {
+			return fmt.Errorf("the previous search index in %q has no store directory; stop the provider and repair or remove that directory manually", previous)
+		}
 		return nil
 	}
 	if err := os.MkdirAll(previous, 0o700); err != nil {
 		return err
 	}
+	if err := syncPath(directory); err != nil {
+		return err
+	}
+	// Each rename is durable before the next one: the moved metadata file
+	// proves a complete move only if the store move is durable first.
 	for _, name := range indexEntries {
 		target := filepath.Join(previous, name)
 		if exists(target) {
@@ -217,8 +231,11 @@ func finishRecoveryMove(directory string) error {
 		if err := os.Rename(filepath.Join(directory, name), target); err != nil {
 			return fmt.Errorf("keep previous search index: %w", err)
 		}
+		if err := errors.Join(syncPath(previous), syncPath(directory)); err != nil {
+			return err
+		}
 	}
-	return errors.Join(syncPath(previous), syncPath(directory))
+	return nil
 }
 
 // resumeIndexRecovery runs under the directory lock, before Bleve opens the

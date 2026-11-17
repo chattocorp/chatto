@@ -519,6 +519,17 @@ func (p *Projection) open() error {
 		return fmt.Errorf("create search index: %w", err)
 	}
 	p.index = index
+	// Bleve writes index_meta.json without a sync. Make the new index
+	// durable before replay commits checkpoints into it, so that a power
+	// failure cannot leave checkpointed data without readable metadata.
+	for _, name := range []string{"index_meta.json", "store"} {
+		if err := p.syncPath(filepath.Join(p.directory, name)); err != nil {
+			return fmt.Errorf("sync new search index: %w", err)
+		}
+	}
+	if err := p.syncDirectory(); err != nil {
+		return fmt.Errorf("sync new search index: %w", err)
+	}
 	return nil
 }
 

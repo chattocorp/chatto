@@ -17,3 +17,7 @@ func availableDiskSpace(path string) (uint64, error) {
 	}
 	return free, nil
 }
+
+// syncDirectoryEntries is a no-op: Windows cannot flush a directory handle,
+// and NTFS journals directory changes.
+func syncDirectoryEntries(string) error { return nil }

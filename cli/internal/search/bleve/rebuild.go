@@ -198,8 +198,18 @@ func (p *Projection) syncPath(path string) error {
 	return syncPath(path)
 }
 
-// syncPath makes a file's data or a directory's entries durable.
+// syncPath makes a file's data or a directory's entries durable. Windows
+// cannot flush a directory handle (FlushFileBuffers needs write access), and
+// NTFS journals its directory changes, so syncDirectoryEntries is a no-op
+// there.
 func syncPath(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return syncDirectoryEntries(path)
+	}
 	entry, err := os.Open(path)
 	if err != nil {
 		return err
