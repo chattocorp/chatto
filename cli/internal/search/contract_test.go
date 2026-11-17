@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -491,5 +492,51 @@ func TestClassifyStatus(t *testing.T) {
 				t.Fatalf("ClassifyStatus = %s/%s, want %s/%s", report.Health, report.Index, tc.wantHealth, tc.wantIndex)
 			}
 		})
+	}
+}
+
+// A provider with broken diagnostics stays visible as unknown next to a
+// healthy one.
+func TestProviderReportsKeepInvalidRepliesAsUnknown(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	for _, provider := range []struct {
+		options ServiceOptions
+		status  *searchv1.GetStatusResponse
+		err     error
+	}{
+		{ServiceOptions{InstanceID: "a", Host: "search-0"}, &searchv1.GetStatusResponse{
+			State:     searchv1.ProviderState_PROVIDER_STATE_READY,
+			Freshness: searchv1.IndexFreshness_INDEX_FRESHNESS_CURRENT,
+		}, nil},
+		{ServiceOptions{InstanceID: "b", Host: "search-1"}, nil, errors.New("status failed")},
+	} {
+		service, err := AddStartupStatusService(testContext(t), nc, &testProvider{status: provider.status, statusErr: provider.err}, provider.options)
+		if err != nil {
+			t.Fatalf("AddStartupStatusService: %v", err)
+		}
+		t.Cleanup(func() { _ = service.Stop() })
+	}
+
+	reports, err := NewClient(nc).ProviderReports(testContext(t))
+	if err != nil {
+		t.Fatalf("ProviderReports: %v", err)
+	}
+	healths := map[ProviderHealth]int{}
+	for _, report := range reports {
+		healths[report.Health]++
+	}
+	if len(reports) != 2 || healths[ProviderHealthReady] != 1 || healths[ProviderHealthUnknown] != 1 {
+		t.Fatalf("ProviderReports = %+v, want one ready and one unknown provider", reports)
+	}
+}
+
+func TestStatusFromReplyKeepsIdentityOfInvalidStatus(t *testing.T) {
+	data, err := proto.Marshal(&searchv1.GetStatusResponse{InstanceId: "a", Host: "search-0", CurrentOperation: strings.Repeat("x", maxStatusOperationBytes+1), State: searchv1.ProviderState_PROVIDER_STATE_READY})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status := statusFromReply(&nats.Msg{Data: data})
+	if status.GetState() != searchv1.ProviderState_PROVIDER_STATE_UNSPECIFIED || status.GetInstanceId() != "a" || status.GetHost() != "search-0" {
+		t.Fatalf("statusFromReply = %+v, want identity without state", status)
 	}
 }

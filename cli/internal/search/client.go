@@ -74,10 +74,13 @@ const (
 )
 
 // ListStatuses requests the status of every provider process on
-// AllStatusSubject. It returns the valid replies that arrive within
+// AllStatusSubject. It returns the replies that arrive within
 // allStatusTimeout, and stops waiting allStatusQuietPeriod after the latest
-// reply. It skips error replies and invalid statuses. Providers that do not
-// answer AllStatusSubject, such as older versions, are not included.
+// reply. An error reply or an invalid status becomes a status without a
+// state, which health classification reports as unknown, so that a provider
+// with broken diagnostics stays visible. The status keeps the provider
+// identity when the reply contains it. Providers that do not answer
+// AllStatusSubject, such as older versions, are not included.
 func (c *Client) ListStatuses(ctx context.Context) ([]*searchv1.GetStatusResponse, error) {
 	if c == nil || c.nc == nil {
 		return nil, fmt.Errorf("%w: NATS connection is required", ErrUnavailable)
@@ -111,15 +114,29 @@ func (c *Client) ListStatuses(ctx context.Context) ([]*searchv1.GetStatusRespons
 			// The deadline or the quiet period ended the collection.
 			return statuses, nil
 		}
-		if message.Header.Get(micro.ErrorHeader) != "" {
-			continue
-		}
-		status := &searchv1.GetStatusResponse{}
-		if proto.Unmarshal(message.Data, status) != nil || validateStatusResponse(status) != nil {
-			continue
-		}
-		statuses = append(statuses, status)
+		statuses = append(statuses, statusFromReply(message))
 	}
+}
+
+// statusFromReply decodes one reply on AllStatusSubject. It returns a status
+// without a state, keeping only the provider identity, when the reply is an
+// error or its status is not valid.
+func statusFromReply(message *nats.Msg) *searchv1.GetStatusResponse {
+	status := &searchv1.GetStatusResponse{}
+	if message.Header.Get(micro.ErrorHeader) != "" {
+		return status
+	}
+	if err := proto.Unmarshal(message.Data, status); err != nil {
+		return &searchv1.GetStatusResponse{}
+	}
+	if validateStatusResponse(status) != nil {
+		return &searchv1.GetStatusResponse{
+			InstanceId:            status.GetInstanceId(),
+			Host:                  status.GetHost(),
+			ImplementationVersion: status.GetImplementationVersion(),
+		}
+	}
+	return status
 }
 
 func (c *Client) request(ctx context.Context, subject string, request, response proto.Message) error {

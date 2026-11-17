@@ -507,7 +507,8 @@ Every provider process also answers `.status.all` without a queue group, from
 startup until it stops. Its replies carry `instance_id`, `host`, and
 `implementation_version`. `search.Client.ProviderReports` publishes one request
 there and collects replies for at most one second, or until 100 ms pass without
-a reply. It classifies each status with `search.ClassifyStatus`: a status older
+a reply. An error reply or an invalid status counts as a provider without a
+state. It classifies each status with `search.ClassifyStatus`: a status older
 than 30 seconds, or without a state or freshness, is `unknown`. When no
 provider replies there, for example when all providers are older versions, it
 uses the queue-grouped status as one provider. Admin diagnostics

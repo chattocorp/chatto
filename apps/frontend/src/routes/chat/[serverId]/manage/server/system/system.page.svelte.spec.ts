@@ -559,6 +559,23 @@ describe('server admin system diagnostics', () => {
     expect(screen.container.textContent).toContain('The status is missing or out of date.');
   });
 
+  it('lists providers that report no identity', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      search: {
+        available: true,
+        providers: [
+          searchProvider({ instanceId: '', host: '' }),
+          searchProvider({ instanceId: '', host: '', state: 'unknown', freshness: 'unknown' })
+        ]
+      }
+    });
+    const screen = renderSection('search');
+    await settle();
+    expect(screen.container.querySelectorAll('[data-search-provider]')).toHaveLength(2);
+    expect(screen.container.textContent).toContain('Unnamed provider');
+  });
+
   it('hides the Search tab when the server does not report search status', async () => {
     const screen = renderSection();
     await settle();

@@ -124,7 +124,7 @@ problem gets a short hint about what to check.
           <Pill tone={checkTone[check.status]}>{healthDetailLabel(check.detail)}</Pill>
         {/each}
       </div>
-      <DataTable items={providers} columns={4} getKey={(provider) => provider.instanceId}>
+      <DataTable items={providers} columns={4}>
         {#snippet header()}
           <th class="table-header-cell">{m('admin.system.search.provider')}</th>
           <th class="table-header-cell">{m('admin.system.state')}</th>
