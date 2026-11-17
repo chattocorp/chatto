@@ -74,7 +74,9 @@
       "thread_views_description": "Takip ettiğiniz ve başlattığınız konular bu sunucuda ayrı ayrı listelenmeyebilir.",
       "independent_slow_mode_title": "Bağımsız yavaş mod kullanılamıyor",
       "independent_slow_mode_description": "Bu sunucu, kanal mesajları ve konu yanıtları için ortak bir bekleme süresi kullanır.",
-      "upgrade": "Tam destek için sunucu yöneticisinden {version} veya daha yeni bir sürüme yükseltmesini isteyin."
+      "upgrade": "Tam destek için sunucu yöneticisinden {version} veya daha yeni bir sürüme yükseltmesini isteyin.",
+      "background_jobs_title": "Arka plan işleri kullanılamıyor",
+      "background_jobs_description": "Bu sunucu, sunucu ayarlarında arka plan işlerini gösteremez veya yeniden deneyemez."
     },
     "server_gutter": {
       "move_up": "Yukarı taşıyın",
@@ -186,7 +188,17 @@
       "system": "Sistem",
       "back_to_server": "Sunucuya Geri Dön",
       "invites": "Davetler",
-      "registration": "Kayıt"
+      "registration": "Kayıt",
+      "jobs": "İşler"
+    },
+    "owner_welcome": {
+      "title": "Sunucunuz hazır",
+      "intro": "Bu sunucunun sahibisiniz. Hesabınızı korumak için sahip izinleriniz normal kullanım sırasında kapalı kalır.",
+      "shield_active": "Ayrıcalıklı mod sonraki 15 dakika boyunca açık, bu nedenle sunucunuzu şimdi kurabilirsiniz. Daha sonra yeniden açmak için adınızın yanındaki kalkan düğmesini kullanın.",
+      "shield_inactive": "Sunucunuzu kurmak için adınızın yanındaki kalkan düğmesiyle ayrıcalıklı modu etkinleştirin. 15 dakika boyunca açık kalır.",
+      "shield_failed": "Ayrıcalıklı mod etkinleştirilemedi.",
+      "next_steps": "Sonraki adımlar",
+      "continue_setup": "Kuruluma devam edin"
     }
   }
 }

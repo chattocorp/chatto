@@ -17,7 +17,7 @@ const (
 	AuthProviderTypeGoogle        = "google"
 	AuthProviderTypeDiscord       = "discord"
 	// AuthProviderTypeATProto signs users in with their AT Protocol identity,
-	// for example a Bluesky account. It needs no client registration (FDR-056).
+	// for example a Bluesky account. It needs no client registration (FDR-058).
 	AuthProviderTypeATProto = "atproto"
 )
 

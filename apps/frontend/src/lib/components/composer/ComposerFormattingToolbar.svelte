@@ -43,6 +43,7 @@ block in the DOM until it finishes.
       { command: 'bold', icon: 'icon-[mdi--format-bold]' },
       { command: 'italic', icon: 'icon-[mdi--format-italic]' },
       { command: 'underline', icon: 'icon-[mdi--format-underline]' },
+      { command: 'strikethrough', icon: 'icon-[mdi--format-strikethrough]' },
       { command: 'inlineCode', icon: 'icon-[mdi--code-tags]' },
       { command: 'footnote', icon: 'icon-[mdi--format-superscript]' }
     ],
@@ -65,6 +66,8 @@ block in the DOM until it finishes.
         return m('composer.format.italic');
       case 'underline':
         return m('composer.format.underline');
+      case 'strikethrough':
+        return m('composer.format.strikethrough');
       case 'inlineCode':
         return m('composer.format.inline_code');
       case 'heading':

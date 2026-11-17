@@ -4,7 +4,12 @@ Header, gallery controls and download stay outside the preview on all screens.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { provideImageControls } from './imageControlsContext';
+  import {
+    provideImageControls,
+    provideImageZoomControls,
+    type ImageZoomController
+  } from './imageControlsContext';
+  import ImageZoomControls from './ImageZoomControls.svelte';
   import { toInlineEndDelta } from '$lib/i18n/direction';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
@@ -58,6 +63,14 @@ Header, gallery controls and download stay outside the preview on all screens.
   let detailsOpen = $state(false);
   let imageControls: HTMLDivElement | undefined = $state();
   provideImageControls(() => imageControls);
+  let zoomControls = $state.raw<ImageZoomController>();
+  provideImageZoomControls((controls) => {
+    zoomControls = controls;
+    return () => {
+      // A departing stage must not unregister a newer stage.
+      if (zoomControls === controls) zoomControls = undefined;
+    };
+  });
 
   function handleKeydown(event: KeyboardEvent) {
     if (count < 2 || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey)
@@ -178,7 +191,9 @@ Header, gallery controls and download stay outside the preview on all screens.
             </button>
           </nav>
         {/if}
-        <div bind:this={imageControls} class="flex items-center" data-image-controls></div>
+        <div bind:this={imageControls} class="flex items-center" data-image-controls>
+          <ImageZoomControls controls={zoomControls} />
+        </div>
         <div class="ms-auto flex items-center gap-3">
           <button
             type="button"

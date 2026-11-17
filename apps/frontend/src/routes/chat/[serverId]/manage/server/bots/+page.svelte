@@ -1,5 +1,6 @@
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { flattenUniquePages, nextOffset } from '$lib/query/pagination';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -43,33 +44,27 @@
   });
 
   const botsQuery = createInfiniteQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const search = activeSearch;
     return {
-      queryKey: settingsQueryKeys.bots(serverId, connection, search),
+      queryKey: settingsQueryKeys.bots(serverScope, search),
       queryFn: ({ pageParam, signal }) =>
         connection
           .getAPI(createBotAPI)
           .listBots({ search: search || null, limit: PAGE_SIZE, offset: pageParam }, { signal }),
       initialPageParam: 0,
-      getNextPageParam: (lastPage, _pages, lastPageParam) =>
-        lastPage.hasMore && lastPage.bots.length > 0
-          ? lastPageParam + lastPage.bots.length
-          : undefined
+      getNextPageParam: (lastPage, _pages, offset) =>
+        nextOffset(lastPage.hasMore, lastPage.bots.length, offset)
     };
   });
 
-  const bots = $derived.by(() => {
-    const seen = new SvelteSet<string>();
-    return (botsQuery.data?.pages ?? []).flatMap((page) =>
-      page.bots.filter((bot) => {
-        if (seen.has(bot.id)) return false;
-        seen.add(bot.id);
-        return true;
-      })
-    );
-  });
+  const bots = $derived(
+    flattenUniquePages(
+      botsQuery.data,
+      (page) => page.bots,
+      (bot) => bot.id
+    )
+  );
   const totalCount = $derived(botsQuery.data?.pages.at(-1)?.totalCount ?? bots.length);
   const ownerUserIds = $derived.by(() => {
     const ids = new SvelteSet<string>();
@@ -77,11 +72,10 @@
     return [...ids];
   });
   const ownersQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const userIds = ownerUserIds;
     return {
-      queryKey: [...settingsQueryKeys.botsRoot(serverId, connection), 'owners', userIds],
+      queryKey: [...settingsQueryKeys.botsRoot(serverScope), 'owners', userIds],
       queryFn: async () => {
         const api = connection.getAPI(createUserAPI);
         const batches = [];
@@ -139,7 +133,6 @@
 
   async function createBot() {
     if (!canCreateBots || !normalizedCreateLogin || createLoginError) return;
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     createLoading = true;
     createError = null;
@@ -155,7 +148,7 @@
       apiKeyVisible = true;
       toast.success(m('settings.bots.created'));
       void queryClient.invalidateQueries({
-        queryKey: settingsQueryKeys.botsRoot(serverId, connection)
+        queryKey: settingsQueryKeys.botsRoot(serverScope)
       });
     } catch (error) {
       if (!componentActive) return;

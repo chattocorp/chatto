@@ -92,6 +92,7 @@ func (s *accountService) RequestEmailVerification(ctx context.Context, req *conn
 			return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("email address is already verified"))
 		}
 	}
+	expiresAt := time.Now().Add(s.api.config.Auth.EmailOTP.TTLOrDefault())
 	code, err := s.api.core.CreateEmailVerificationCode(ctx, caller.UserID, address)
 	if err != nil {
 		if errors.Is(err, core.ErrEmailVerificationCodeLimitExceeded) || errors.Is(err, core.ErrEmailVerificationCodeExhausted) {
@@ -107,9 +108,10 @@ func (s *accountService) RequestEmailVerification(ctx context.Context, req *conn
 	}
 	expiration := emailOTPExpirationText(s.api.config.Auth.EmailOTP.TTLOrDefault())
 	err = s.api.emailSender.SendContext(ctx, email.Message{
-		To:      address,
-		Subject: fmt.Sprintf("Verify your email for %s", serverName),
-		Body:    fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code will expire in %s.\n\nIf you didn't request this, you can ignore this email.", serverName, code, expiration),
+		ExpiresAt: expiresAt,
+		To:        address,
+		Subject:   fmt.Sprintf("Verify your email for %s", serverName),
+		Body:      fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code expires %s after the request.\n\nIf you didn't request this, you can ignore this email.", serverName, code, expiration),
 	})
 	if err != nil {
 		_ = s.api.core.CancelEmailVerificationCode(ctx, caller.UserID, address, code)

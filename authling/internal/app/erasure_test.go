@@ -92,7 +92,7 @@ func TestAccountErasureDeniesAccessReleasesEmailAndReplaysWithoutKeys(t *testing
 	if _, err := first.Accounts.ChangePassword(t.Context(), change); !errors.Is(err, accounts.ErrCredentialChanged) {
 		t.Fatalf("password change: %v", err)
 	}
-	if _, err := first.Authorizations.Authorize(t.Context(), account.ID, authorizations.Client{ID: "test-client", Name: "Test", Host: "localhost"}, []string{"openid"}); !errors.Is(err, authorizations.ErrNotFound) {
+	if _, err := first.Authorizations.Authorize(t.Context(), account.ID, authorizations.Client{ID: "test-client", Name: "Test", Host: "localhost"}, []string{"openid"}, ""); !errors.Is(err, authorizations.ErrNotFound) {
 		t.Fatalf("authorize deleted: %v", err)
 	}
 	req := httptest.NewRequest(http.MethodGet, "http://localhost:8080/oauth/userinfo", nil)

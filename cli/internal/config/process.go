@@ -47,7 +47,7 @@ func (c *TLSConfig) HTTPPortOrDefault() int {
 }
 
 type WebserverConfig struct {
-	URL                    string        `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Public URL where the webserver is accessible. Used for generating absolute URLs."`
+	URL                    string        `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Required public HTTP or HTTPS URL where the webserver is accessible. Used for generating absolute URLs."`
 	AllowedOrigins         []string      `toml:"allowed_origins,commented" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Additional exact public origins that can use cookie authentication, publish the bundled frontend OAuth identity, and serve MCP through a reverse proxy. API responses to a request on such an origin use that origin in absolute URLs. Do not include paths or configure both HTTP and HTTPS for the same request host. Wildcards apply only to CORS and authorize none of these behaviors."`
 	Port                   int           `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
 	BindAddress            string        `toml:"bind_address,commented" env:"CHATTO_WEBSERVER_BIND_ADDRESS" comment:"Address to bind the webserver and its optional ACME HTTP listener, without a port. Empty binds all interfaces. Use 127.0.0.1 for a reverse proxy on the same machine."`
@@ -196,9 +196,36 @@ type SearchConfig struct {
 
 // SearchProviderConfig controls the bundled Bleve search provider.
 type SearchProviderConfig struct {
-	Enabled   bool     `toml:"enabled" env:"CHATTO_SEARCH_PROVIDER_ENABLED" comment:"Start the bundled Bleve search provider from chatto run. Default: false."`
-	Directory string   `toml:"directory,commented" env:"CHATTO_SEARCH_PROVIDER_DIRECTORY" comment:"Directory for the disposable local Bleve index. Default: ./data/search."`
-	Languages []string `toml:"languages,commented" env:"CHATTO_SEARCH_PROVIDER_LANGUAGES" comment:"Bleve language analyzers used for message indexing and queries. Omit to enable all bundled analyzers; use an empty list for literal matching only."`
+	Enabled   bool                       `toml:"enabled" env:"CHATTO_SEARCH_PROVIDER_ENABLED" comment:"Start the bundled Bleve search provider from chatto run. Default: false."`
+	Directory string                     `toml:"directory,commented" env:"CHATTO_SEARCH_PROVIDER_DIRECTORY" comment:"Directory for the disposable local Bleve index. Default: ./data/search."`
+	Languages []string                   `toml:"languages,commented" env:"CHATTO_SEARCH_PROVIDER_LANGUAGES" comment:"Bleve language analyzers used for message indexing and queries. Omit to enable all bundled analyzers; use an empty list for literal matching only."`
+	Health    SearchProviderHealthConfig `toml:"health,commented" comment:"Process-local health listener of chatto search-provider. chatto run ignores this section."`
+}
+
+// SearchProviderHealthConfig controls the health listener of a standalone
+// search provider. The listener serves /livez, /readyz, and /metrics, and
+// optionally loopback-only diagnostics under /debug/.
+type SearchProviderHealthConfig struct {
+	Enabled     bool   `toml:"enabled" env:"CHATTO_SEARCH_PROVIDER_HEALTH_ENABLED" comment:"Serve /livez, /readyz, and /metrics on a separate HTTP listener from chatto search-provider. Default: false."`
+	BindAddress string `toml:"bind_address,commented" env:"CHATTO_SEARCH_PROVIDER_HEALTH_BIND_ADDRESS" comment:"Address to bind the health listener. Default: 127.0.0.1 (localhost only)."`
+	Port        int    `toml:"port,commented" env:"CHATTO_SEARCH_PROVIDER_HEALTH_PORT" comment:"Port for the health listener. Default: 9091."`
+	Diagnostics bool   `toml:"diagnostics,commented" env:"CHATTO_SEARCH_PROVIDER_HEALTH_DIAGNOSTICS" comment:"Expose Go pprof under /debug/pprof/ and index diagnostics under /debug/search. These routes answer only loopback clients, for example through kubectl port-forward. Default: false."`
+}
+
+// BindAddressOrDefault returns the health bind address, defaulting to localhost.
+func (c SearchProviderHealthConfig) BindAddressOrDefault() string {
+	if strings.TrimSpace(c.BindAddress) == "" {
+		return "127.0.0.1"
+	}
+	return strings.TrimSpace(c.BindAddress)
+}
+
+// PortOrDefault returns the health listener port, defaulting to 9091.
+func (c SearchProviderHealthConfig) PortOrDefault() int {
+	if c.Port == 0 {
+		return 9091
+	}
+	return c.Port
 }
 
 var searchProviderLanguageCodes = []string{

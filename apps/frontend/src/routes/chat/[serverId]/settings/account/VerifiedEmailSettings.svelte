@@ -80,7 +80,7 @@
     const connection = serverScope.connection;
     const userId = viewerUserId;
     return {
-      queryKey: settingsQueryKeys.verifiedEmails(serverScope.serverId, connection, userId),
+      queryKey: settingsQueryKeys.verifiedEmails(serverScope, userId),
       queryFn: () => connection.getAPI(createAccountAPI).listVerifiedEmails(userId),
       enabled: userId !== '',
       // A different tab can replace the origin cookie while this SPA still
@@ -109,10 +109,7 @@
   );
 
   function setEmails(scope: EmailActionScope, value: VerifiedEmail[]) {
-    queryClient.setQueryData(
-      settingsQueryKeys.verifiedEmails(scope.serverId, scope.connection, scope.userId),
-      value
-    );
+    queryClient.setQueryData(settingsQueryKeys.verifiedEmails(scope, scope.userId), value);
   }
 
   function openAddEmail() {
@@ -176,13 +173,13 @@
       if (!isCurrentEmailScope(scope)) return;
       setEmails(scope, next);
       const memberLists = {
-        queryKey: adminQueryKeys.membersRoot(scope.serverId, scope.connection)
+        queryKey: adminQueryKeys.membersRoot(scope)
       };
       void queryClient
         .cancelQueries(memberLists)
         .then(() => queryClient.invalidateQueries(memberLists));
       void queryClient.invalidateQueries({
-        queryKey: adminQueryKeys.member(scope.serverId, scope.connection, scope.userId),
+        queryKey: adminQueryKeys.member(scope, scope.userId),
         exact: true
       });
       if (!isCurrentEmailAction(scope)) return;

@@ -43,10 +43,9 @@ its section explains reports a warning or a problem.
   const serverSegment = serverIdToSegment(serverScope.serverId);
 
   const systemInfoQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     return {
-      queryKey: adminQueryKeys.systemInfo(serverId, activeConnection),
+      queryKey: adminQueryKeys.systemInfo(serverScope),
       queryFn: ({ signal }) => getAdminSystemInfo(activeConnection.apiConfig, { signal })
     };
   });

@@ -1,7 +1,7 @@
 # FDR-007: Verified Email Change
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-11-17
 
 ## Overview
 
@@ -18,7 +18,8 @@ mailbox. The account ID and OpenID Connect `sub` remain unchanged.
 - Authling records a PII-free `EmailChangeRequestedEvent` after successful
   reauthentication and before it creates the flow or sends email. The event
   identifies only the account and credential version that was reauthenticated.
-- Authling sends a six-digit code to the requested address. The encrypted flow
+- Authling queues a six-digit code to the requested address. SMTP failures
+  retry until the original flow expiry, including after process restart. The encrypted flow
   and code expire after 15 minutes, five incorrect attempts exhaust the code,
   and delivery and completion work are bounded.
 - Multiple flows may coexist for one credential. The first committed identity
@@ -35,11 +36,16 @@ mailbox. The account ID and OpenID Connect `sub` remain unchanged.
 - Completion advances the account authentication version, invalidating every
   older Authling browser session across replicas and restarts. The completing
   browser receives a fresh session.
-- Authling attempts a security notification to the old address after commit.
-  Notification failure does not roll back the identity change and is shown to
-  the completing browser.
+- Authling queues a security notification to the old address after commit.
+  Queue acceptance failure does not roll back the identity change and is shown
+  to the completing browser. Accepted notices retry SMTP failures for up to
+  24 hours.
 - Already issued OIDC ID and access tokens are not revoked. They expire after
   five minutes, and relying-party sessions remain under relying-party control.
+
+- Durable app grants and their refresh families remain active. Revoke an app
+  under **Connected apps** to stop renewal. New tokens use current account
+  claims. See [FDR-010](FDR-010-oidc-authorization-grants.md).
 
 ## Design Decisions
 
@@ -120,19 +126,19 @@ this initial flow.
 
 ### 6. Notify the previous address after commit
 
-**Decision:** Authling attempts a plain security notification to the old
-address only after the new claim commits. Delivery failure is reported to the
-completing browser but does not undo the committed change.
+**Decision:** Authling queues a plain security notification to the old address
+only after the new claim commits. Queue acceptance failure is reported to the
+completing browser but does not undo the committed change. Accepted notices
+survive restart and retry SMTP failures for up to 24 hours.
 
 **Why:** The previous mailbox owner should receive a takeover signal, while an
 SMTP failure cannot safely reverse a durable identity mutation after its new
 claim may already be observed.
 
-**Tradeoff:** Notifications are not yet durable effects. Completion recovery
-may retry a notification after an ambiguous crash, so the old mailbox can
-receive a duplicate. Recovery is browser-driven, so a crash can still lose the
-best-effort effect when no completion retry reaches the restarted process.
-Durable retries for these security notifications remain future work.
+**Tradeoff:** A crash after SMTP acceptance can cause a duplicate. There is
+still a gap between identity commit and queue acceptance. A completion retry
+can recover that gap, but a crash before acceptance can lose the notice if no
+completion retry reaches the restarted process.
 
 ## Security and Failure Behavior
 
@@ -170,8 +176,8 @@ event rollout.
 
 - Authling does not yet provide selective session preservation, MFA recovery,
   administrator recovery, or a user-visible authentication history.
-- The security notice to the old address is best-effort and has no durable
-  retry worker.
+- A crash between identity commit and mail queue acceptance still needs a
+  completion retry to recover the old-address notice.
 - Existing OIDC tokens and relying-party sessions are not revoked.
 
 ## Related
@@ -181,3 +187,7 @@ event rollout.
 - [FDR-006: Password Reset](FDR-006-password-reset.md)
 - [FDR-008: Signed-in Password Change](FDR-008-signed-in-password-change.md)
 - [Runtime architecture inventory](../architecture/INDEX.md)
+
+Email change deliberately preserves refresh families and consent grants. New
+tokens use the current verified email address. Password changes instead revoke
+all account refresh families.

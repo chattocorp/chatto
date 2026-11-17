@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "下划线",
+      "strikethrough": "删除线",
       "bold": "粗体",
       "italic": "斜体",
       "inline_code": "行内代码",

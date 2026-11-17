@@ -1,0 +1,135 @@
+syntax = "proto3";
+package chatto.admin.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+// Execution state of a background job. External effects can occur more than once.
+enum JobStatus {
+  // Unknown state; clients must not enable actions.
+  JOB_STATUS_UNSPECIFIED = 0;
+  // Waiting for a worker or a scheduled retry.
+  JOB_STATUS_QUEUED = 1;
+  // An attempt is in progress, or awaits recovery after an interrupted worker.
+  JOB_STATUS_RUNNING = 2;
+  // The handler completed its work or found that no work remained necessary.
+  JOB_STATUS_SUCCEEDED = 3;
+  // Automatic attempts stopped. The job stays until it is retried or deleted,
+  // or until the retention for failed jobs that the server operator set.
+  JOB_STATUS_FAILED = 4;
+}
+
+// Whether the current viewer can retry this job now.
+enum JobRetryAvailability {
+  // Unknown availability; clients must disable retry.
+  JOB_RETRY_AVAILABILITY_UNSPECIFIED = 0;
+  // Retry is available. It may repeat an external effect.
+  JOB_RETRY_AVAILABILITY_ALLOWED = 1;
+  // The job has not failed.
+  JOB_RETRY_AVAILABILITY_NOT_FAILED = 2;
+  // The job failed, and its original delivery deadline has passed and cannot
+  // be renewed.
+  JOB_RETRY_AVAILABILITY_EXPIRED = 3;
+}
+
+// Safe administrative job summary. Content, credentials, and internal payloads
+// are never returned. Requires server.manage, including privileged mode.
+message Job {
+  // Stable opaque job ID, preserved across manual retries.
+  string id = 1;
+  // Registered work type: webhook, media, asset_cleanup, call_key_cleanup,
+  // push_subscription_cleanup, user_key_shredding, notification_alert, or email.
+  // Clients can encounter future types.
+  string type = 2;
+  // Current execution state.
+  JobStatus status = 3;
+  // Attempts since the job was accepted or last retried, including interrupted
+  // attempts. It can exceed max_attempts after interrupted attempts.
+  uint32 attempts = 4;
+  // Maximum automatic attempts in each generation. Absent when the job
+  // retries until it succeeds or fails permanently.
+  optional uint32 max_attempts = 5;
+  // Initial durable acceptance time.
+  google.protobuf.Timestamp created_at = 6;
+  // Most recent state change.
+  google.protobuf.Timestamp updated_at = 7;
+  // Earliest next automatic attempt, when queued.
+  google.protobuf.Timestamp next_attempt_at = 8;
+  // Safe failure category, without exception text or external response content.
+  string failure = 9;
+  // Current retry availability. Absence means the server did not report it.
+  optional JobRetryAvailability retry = 10;
+  // Opaque version of this job state. Send it unchanged when you retry or
+  // delete the job. Each state change gives a new version; a failed job keeps
+  // its version until it is retried or deleted.
+  string version = 11;
+}
+
+// Request for a bounded page. Jobs are ordered by last update, newest first.
+message ListJobsRequest {
+  // Page size: zero selects 50; the maximum is 200.
+  uint32 page_size = 1 [(buf.validate.field).uint32.lte = 200];
+  // Opaque cursor returned by the previous page, bound to this viewer and
+  // status filter. Empty starts at the newest job.
+  string cursor = 2 [(buf.validate.field).string.max_bytes = 4096];
+  // Returns only jobs in this state. Unspecified returns every job.
+  JobStatus status = 3 [(buf.validate.field).enum.defined_only = true];
+}
+// A live page, not an atomic snapshot. Refresh to see state changes and new work.
+message ListJobsResponse {
+  // Current summaries.
+  repeated Job jobs = 1;
+  // Cursor for the next page. Empty when there are no more jobs in this
+  // traversal.
+  string next_cursor = 2;
+}
+// Request for one job.
+message GetJobRequest {
+  // Required stable job ID.
+  string id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+}
+// Current job summary.
+message GetJobResponse {
+  // Requested job.
+  Job job = 1;
+}
+// Request to start a new attempt budget for a failed, unexpired job.
+message RetryJobRequest {
+  // Required stable job ID. Concurrent requests cannot queue two generations.
+  string id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  // Version from the failed Job. Rejects stale actions even if a newer budget
+  // has already failed. It is not a request ID or a storage coordinate.
+  string version = 2 [(buf.validate.field).string.len = 64];
+}
+// Accepted retry. The worker can have started before this response arrives.
+message RetryJobResponse {
+  // Job after durable retry acceptance.
+  Job job = 1;
+}
+// Request to delete a failed job, for example one that can never succeed.
+message DeleteJobRequest {
+  // Required stable job ID.
+  string id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  // Version from the failed Job. Rejects the request when the job changed
+  // after the caller read it, for example through a retry.
+  string version = 2 [(buf.validate.field).string.len = 64];
+}
+// The job is deleted.
+message DeleteJobResponse {}
+// Administrative background-job inspection and recovery.
+service AdminJobService {
+  // Lists jobs. Requires server.manage, including privileged mode.
+  // This call does not subscribe or poll; callers refresh explicitly.
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+  // Gets a job. Requires server.manage, including privileged mode.
+  rpc GetJob(GetJobRequest) returns (GetJobResponse);
+  // Retries a failed job. Requires server.manage, including privileged mode.
+  // Returns FAILED_PRECONDITION for active, successful, or expired jobs.
+  // A lost response does not cancel an accepted retry. Read the job before retrying.
+  rpc RetryJob(RetryJobRequest) returns (RetryJobResponse);
+  // Deletes a failed job. Requires server.manage, including privileged mode.
+  // The work of the job is abandoned and cannot be retried later. Returns
+  // FAILED_PRECONDITION when the job is not failed or changed after the caller
+  // read it, and NOT_FOUND when it is already deleted.
+  rpc DeleteJob(DeleteJobRequest) returns (DeleteJobResponse);
+}

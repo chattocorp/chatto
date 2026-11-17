@@ -54,7 +54,7 @@ fields as realtime changes arrive.
   const userQuery = createQuery(() => {
     const connection = serverScope.connection;
     return {
-      queryKey: [...serverSessionQueryRoot(serverScope.serverId, connection), 'user', userId],
+      queryKey: [...serverSessionQueryRoot(serverScope), 'user', userId],
       queryFn: async () => {
         const users = await connection.getAPI(createUserAPI).batchGetUsers([userId]);
         return users[0] ?? null;

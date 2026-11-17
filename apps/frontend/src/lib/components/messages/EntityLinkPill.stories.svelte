@@ -152,3 +152,17 @@
     </p>
   </div>
 </Story>
+
+<Story name="Preserved spaces" asChild>
+  <div class="prose max-w-xl bg-background p-4">
+    <p class="whitespace-pre-wrap">
+      Discuss it in <EntityLinkPill
+        target={{ kind: 'room', serverId: 'demo', id: room.id }}
+        path={resolve('/chat/[serverId]/[roomId]', { serverId: '-', roomId: room.id })}
+        href="https://chat.example.test/chat/-/R123456789abcde"
+        name="chatto-development"
+        {room}
+      /> and continue.
+    </p>
+  </div>
+</Story>

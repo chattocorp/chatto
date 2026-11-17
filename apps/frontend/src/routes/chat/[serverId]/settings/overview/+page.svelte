@@ -11,7 +11,11 @@
     getSettingsNavGroups({
       serverId: scope.serverId,
       serverSegment,
-      managementNavItems: getAdminNavItems({ serverSegment, permissions: scope.store.permissions })
+      managementNavItems: getAdminNavItems({
+        serverSegment,
+        permissions: scope.store.permissions,
+        limitedFeatures: scope.store.serverInfo.limitedFeatures
+      })
     })
   );
   const privilegedMode = $derived(scope.store.projection.viewer?.privilegedMode);

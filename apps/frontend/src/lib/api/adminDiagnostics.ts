@@ -149,6 +149,16 @@ export type AdminProjectionState = {
   failed: boolean;
   failedSequence: string;
   failure: string;
+  /** Pending events have had no committed progress for the stall threshold. */
+  stalled: boolean;
+  /** Seconds without committed progress while events wait, or null when caught up. */
+  pendingSeconds: number | null;
+  /** Low-cardinality name of the running work, or empty when idle. */
+  currentOperation: string;
+  /** Seconds that the current operation has run, or null when idle. */
+  currentOperationSeconds: number | null;
+  /** Last committed progress in the replica that answered, or null before one. */
+  lastCommitAt: Date | null;
   entryCount: number;
   estimatedBytes: number;
   averageEntryBytes: number;
@@ -349,6 +359,11 @@ export async function getAdminSystemInfo(
       failed: projection.failed,
       failedSequence: projection.failedSequence,
       failure: projection.failure,
+      stalled: projection.stalled,
+      pendingSeconds: projection.pendingSeconds ?? null,
+      currentOperation: projection.currentOperation,
+      currentOperationSeconds: projection.currentOperationSeconds ?? null,
+      lastCommitAt: projection.lastCommitTime?.toDate() ?? null,
       entryCount: Number(projection.entryCount),
       estimatedBytes: Number(projection.estimatedBytes),
       averageEntryBytes: Number(projection.averageEntryBytes),

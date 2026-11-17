@@ -31,9 +31,15 @@ on:
       - '!**/CHANGELOG.md'
       - '!**/.sweet/**'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing Authling release tag to build (for example authling/v0.1.0-alpha.3); empty builds the selected ref'
+        required: false
+        type: string
 
 concurrency:
-  group: authling-image-${{ github.ref }}
+  # Release builds share a group because they all update the latest tag.
+  group: authling-image-${{ (inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/authling/v')) && 'latest' || github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -47,10 +53,15 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
       - name: Resolve image metadata
         id: metadata
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
         shell: python
         run: |
+          import json
           import os
           import pathlib
           import re
@@ -59,24 +70,32 @@ jobs:
           sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
           source = pathlib.Path("authling/version.go").read_text()
           version = re.search(r'const Version = "([^"]+)"', source).group(1)
-          ref = os.environ["GITHUB_REF"]
+          release_tag = os.environ.get("RELEASE_TAG", "")
+          ref = f"refs/tags/{release_tag}" if release_tag else os.environ["GITHUB_REF"]
           tag = sha
+          stream_tag = "dev" if ref == "refs/heads/main" else ""
           if ref.startswith("refs/tags/"):
               prefix = "refs/tags/authling/v"
               if not ref.startswith(prefix):
                   raise SystemExit("Only authling/v release tags are supported")
               tag = ref[len(prefix):]
+              stream_tag = "latest"
               # Docker tags cannot contain SemVer build metadata (+suffix).
               number = r"(?:0|[1-9][0-9]*)"
               identifier = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
               semver = rf"{number}\.{number}\.{number}(?:-{identifier}(?:\.{identifier})*)?"
               if not re.fullmatch(semver, tag) or len(tag) > 128:
                   raise SystemExit("Release version is not a supported SemVer image tag")
-              manifest = re.search(r"(?m)^version: ([^\r\n]+)$", pathlib.Path("authling/.sweet.yml").read_text()).group(1)
+              manifest_path = pathlib.Path("authling/.sweet.yml")
+              if manifest_path.exists():
+                  manifest = re.search(r"(?m)^version: ([^\r\n]+)$", manifest_path.read_text()).group(1)
+              else:
+                  # Existing release tags can predate the Sweet Release migration.
+                  manifest = json.loads(pathlib.Path(".release-please-manifest.json").read_text())["authling"]
               if tag != version or tag != manifest:
                   raise SystemExit("Release tag, version.go and release manifest must agree")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              output.write(f"sha={sha}\nversion={version}\ntag={tag}\n")
+              output.write(f"sha={sha}\nversion={version}\ntag={tag}\nstream_tag={stream_tag}\n")
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -119,13 +138,22 @@ jobs:
         if: github.event_name != 'pull_request'
         env:
           IMAGE: ghcr.io/chattocorp/authling:${{ steps.metadata.outputs.tag }}
+          STREAM_TAG: ${{ steps.metadata.outputs.stream_tag }}
         run: |
           docker tag authling:check "$IMAGE"
           docker push "$IMAGE"
+          if [ -n "$STREAM_TAG" ]; then
+            stream_image="ghcr.io/chattocorp/authling:${STREAM_TAG}"
+            docker tag authling:check "$stream_image"
+            docker push "$stream_image"
+          fi
           digest_ref="$(docker image inspect "$IMAGE" --format '{{range .RepoDigests}}{{println .}}{{end}}' | awk '/^ghcr.io\/chattocorp\/authling@sha256:/ {print; exit}')"
           test -n "$digest_ref"
           {
             echo "Published ${IMAGE} (linux/amd64)."
             echo
-            echo "Deploy ${digest_ref} to staging, verify it, then promote that same digest to production."
+            echo "Digest: ${digest_ref}"
+            if [ -n "$STREAM_TAG" ]; then
+              echo "Published stream image ${stream_image}; Flux tracks its digest."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

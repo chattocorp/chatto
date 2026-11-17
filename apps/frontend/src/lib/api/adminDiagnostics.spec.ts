@@ -104,6 +104,11 @@ describe('getAdminSystemInfo', () => {
           failed: false,
           failedSequence: '0',
           failure: '',
+          stalled: true,
+          pendingSeconds: 400,
+          currentOperation: 'apply',
+          currentOperationSeconds: 401,
+          lastCommitTime: Timestamp.fromDate(new Date('2026-07-10T09:00:00Z')),
           entryCount: protoInt64.parse(3),
           estimatedBytes: protoInt64.parse(768),
           averageEntryBytes: protoInt64.parse(256),
@@ -186,6 +191,20 @@ describe('getAdminSystemInfo', () => {
     expect(info.projectionsAvailable).toBe(true);
     expect(info.projections[0].metrics[0].bytes).toBe(768);
     expect(info.projections[1].startupDurationSeconds).toBeNull();
+    expect(info.projections[0]).toMatchObject({
+      stalled: true,
+      pendingSeconds: 400,
+      currentOperation: 'apply',
+      currentOperationSeconds: 401,
+      lastCommitAt: new Date('2026-07-10T09:00:00Z')
+    });
+    expect(info.projections[1]).toMatchObject({
+      stalled: false,
+      pendingSeconds: null,
+      currentOperation: '',
+      currentOperationSeconds: null,
+      lastCommitAt: null
+    });
     expect(info.assetCleanup).toEqual({
       available: true,
       health: 'retrying',

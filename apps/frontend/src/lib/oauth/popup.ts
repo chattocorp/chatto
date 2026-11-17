@@ -22,6 +22,8 @@ export type OAuthPopupResponse = {
   code?: string;
   error?: string;
   errorDescription?: string;
+  /** The `iss` parameter of the callback: the server that sent the response. */
+  iss?: string;
 };
 
 /** Return the same-origin channel used by one popup authorization transaction. */
@@ -39,7 +41,8 @@ export function isOAuthPopupResponse(value: unknown): value is OAuthPopupRespons
 /** Build the response envelope from an OAuth callback URL. */
 export function oauthPopupResponseFromURL(url: URL): OAuthPopupResponse | null {
   const state = url.searchParams.get('state');
-  if (!state) return null;
+  // More than one issuer makes the source of the response ambiguous.
+  if (!state || url.searchParams.getAll('iss').length > 1) return null;
 
   if (url.searchParams.get('mode') === 'provider' && !url.searchParams.has('error')) {
     const externalIdentityToken = url.searchParams.get('external_identity');
@@ -57,25 +60,38 @@ export function oauthPopupResponseFromURL(url: URL): OAuthPopupResponse | null {
     state,
     code,
     error,
-    errorDescription: url.searchParams.get('error_description') ?? undefined
+    errorDescription: url.searchParams.get('error_description') ?? undefined,
+    iss: url.searchParams.get('iss') ?? undefined
   };
 }
 
 export { OAuthPopupError } from './popupError';
 
 export type OAuthPopup = {
+  /**
+   * The callback response of this transaction. Rejects with `OAuthPopupError`
+   * when the person closes the window (`cancelled`) or the attempt times out.
+   */
   response: Promise<OAuthPopupResponse>;
-  navigate(url: string): void;
+  /** Send the window to the authorization URL. */
+  navigate(url: string): Promise<void>;
+  /** Close the window. A pending `response` then rejects as `cancelled`. */
   close(): void;
   /** Stop waiting and reject `response` as cancelled. */
   cancel(): void;
 };
 
-/** Open an OAuth popup while a user gesture is active. */
-export function openOAuthPopup(state: string): OAuthPopup {
+/**
+ * Open an OAuth popup while a user gesture is active, and wait for the
+ * callback response of the transaction `state`. Call it before any `await`,
+ * or the browser can block the window. `features` sets the window size.
+ *
+ * @throws OAuthPopupError with reason `blocked` when the browser blocks the window.
+ */
+export function openOAuthPopup(state: string, features = popupFeatures(window)): OAuthPopup {
   const authorizationWindow = openAuthorizationWindow(
     `chatto-oauth-${state.slice(0, 12)}`,
-    popupFeatures(window)
+    features
   );
   if (!authorizationWindow)
     throw new OAuthPopupError('The sign-in window could not be opened.', 'blocked');
@@ -84,17 +100,17 @@ export function openOAuthPopup(state: string): OAuthPopup {
     typeof BroadcastChannel === 'undefined'
       ? null
       : new BroadcastChannel(oauthPopupChannelName(state));
+  // The callback returns through BroadcastChannel, so the untrusted remote
+  // page does not need a reference capable of navigating the main client.
   if (channel) authorizationWindow.detachOpener();
 
   const wait = waitForPopupResponse(authorizationWindow, state, channel);
   return {
     response: wait.response,
     cancel: wait.cancel,
-    navigate: (url) => {
-      void authorizationWindow.navigate(url);
-    },
+    navigate: (url) => authorizationWindow.navigate(url),
     close: () => {
-      void authorizationWindow.close();
+      void closeAuthorizationWindow(authorizationWindow);
     }
   };
 }
@@ -125,7 +141,7 @@ function waitForPopupResponse(
       if (settled || response.state !== state) return;
       settled = true;
       cleanup();
-      void authorizationWindow.close();
+      void closeAuthorizationWindow(authorizationWindow);
       resolve(response);
     };
 
@@ -133,13 +149,14 @@ function waitForPopupResponse(
       if (settled) return;
       settled = true;
       cleanup();
-      void authorizationWindow.close();
+      void closeAuthorizationWindow(authorizationWindow);
       reject(new OAuthPopupError(message, reason));
     };
 
     const handleWindowMessage = (event: MessageEvent) => {
       if (
         event.origin !== window.location.origin ||
+        !authorizationWindow.messageSource ||
         event.source !== authorizationWindow.messageSource
       )
         return;
@@ -155,17 +172,26 @@ function waitForPopupResponse(
 
     cancel = () => fail('The sign-in attempt was cancelled.', 'cancelled');
 
+    let polling = false;
     const closePoll = window.setInterval(async () => {
-      if (!(await authorizationWindow.isClosed())) return;
-      if (channel) {
-        // A provider page with `Cross-Origin-Opener-Policy: same-origin`, such as
-        // Bluesky's, cuts the link to this window. The window handle then reports
-        // `closed` although the user is still signing in. With a channel, keep
-        // waiting for the result; the user can cancel the wait instead.
-        window.clearInterval(closePoll);
-        return;
+      if (polling || settled) return;
+      polling = true;
+      try {
+        if (!(await authorizationWindow.isClosed())) return;
+        if (channel) {
+          // A provider page with `Cross-Origin-Opener-Policy: same-origin`, such as
+          // Bluesky's, cuts the link to this window. The window handle then reports
+          // `closed` although the user is still signing in. With a channel, keep
+          // waiting for the result; the user can cancel the wait instead.
+          window.clearInterval(closePoll);
+          return;
+        }
+        fail('The sign-in window was closed before authorization completed.', 'cancelled');
+      } catch {
+        fail('The sign-in window could not be inspected.');
+      } finally {
+        polling = false;
       }
-      fail('The sign-in window was closed before authorization completed.', 'cancelled');
     }, POPUP_POLL_INTERVAL_MS);
     const timeout = window.setTimeout(
       () => fail('The sign-in attempt timed out.'),
@@ -173,4 +199,12 @@ function waitForPopupResponse(
     );
   });
   return { response, cancel };
+}
+
+async function closeAuthorizationWindow(authorizationWindow: AuthorizationWindow): Promise<void> {
+  try {
+    await authorizationWindow.close();
+  } catch {
+    // Closing is best-effort after the flow has already completed or failed.
+  }
 }

@@ -74,7 +74,9 @@
       "thread_views_description": "此服务器可能无法分别列出你关注的话题和你发起的话题。",
       "independent_slow_mode_title": "独立慢速模式不可用",
       "independent_slow_mode_description": "此服务器对频道消息和话题回复使用共用的冷却时间。",
-      "upgrade": "如需完整支持，请要求服务器管理员升级到 {version} 或更新版本。"
+      "upgrade": "如需完整支持，请要求服务器管理员升级到 {version} 或更新版本。",
+      "background_jobs_title": "后台任务不可用",
+      "background_jobs_description": "此服务器无法在服务器设置中显示或重试后台任务。"
     },
     "server_gutter": {
       "move_up": "向上移动",
@@ -186,7 +188,17 @@
       "system": "系统",
       "back_to_server": "返回服务器",
       "invites": "邀请",
-      "registration": "注册"
+      "registration": "注册",
+      "jobs": "任务"
+    },
+    "owner_welcome": {
+      "title": "你的服务器已准备就绪",
+      "intro": "你是此服务器的所有者。为保护你的账户，日常使用时所有者权限保持关闭。",
+      "shield_active": "特权模式将在接下来的 15 分钟内保持开启，你现在就可以设置服务器。之后要再次开启，请使用名称旁的盾牌按钮。",
+      "shield_inactive": "要设置服务器，请使用名称旁的盾牌按钮启用特权模式。它会保持开启 15 分钟。",
+      "shield_failed": "无法启用特权模式。",
+      "next_steps": "后续步骤",
+      "continue_setup": "继续设置"
     }
   }
 }

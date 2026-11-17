@@ -144,7 +144,7 @@
     try {
       providerPopup = openProviderSignIn(providerLoginHref(provider, loginHint));
       const result = await verifyProviderSignIn(providerPopup);
-      // Only AT Protocol providers take a handle hint (FDR-056).
+      // Only AT Protocol providers take a handle hint (FDR-058).
       if (loginHint) rememberAtprotoHandle(loginHint);
       if (!active) return;
       if (result.kind === 'confirm-account') {

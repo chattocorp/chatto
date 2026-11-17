@@ -30,23 +30,32 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+    # tools/ci-select-jobs.mjs combines the path filters into these outputs.
     outputs:
-      chatto: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.chatto == 'true' }}
-      desktop: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.desktop == 'true' }}
-      authling: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.authling == 'true' }}
-      translatto: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.translatto == 'true' }}
-      runling: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.runling == 'true' }}
-      chattobot: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.chattobot == 'true' }}
-      botto: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.botto == 'true' }}
-      docs: ${{ steps.select.outputs.common == 'true' || steps.select.outputs.docs == 'true' }}
+      chatto: ${{ steps.select.outputs.chatto }}
+      go: ${{ steps.select.outputs.go }}
+      web: ${{ steps.select.outputs.web }}
+      desktop: ${{ steps.select.outputs.desktop }}
+      desktop-full: ${{ steps.select.outputs.desktop-full }}
+      desktop-matrix: ${{ steps.select.outputs.desktop-matrix }}
+      authling: ${{ steps.select.outputs.authling }}
+      translatto: ${{ steps.select.outputs.translatto }}
+      runling: ${{ steps.select.outputs.runling }}
+      chattobot: ${{ steps.select.outputs.chattobot }}
+      botto: ${{ steps.select.outputs.botto }}
+      docs: ${{ steps.select.outputs.docs }}
+      knip: ${{ steps.select.outputs.knip }}
     steps:
-      # Push filters use git; pull request filters use the GitHub API.
-      - name: Checkout for push change detection
-        if: github.event_name == 'push'
+      # Push filters use git and need the history. Pull request filters use
+      # the GitHub API, so pull requests check out only the selection script.
+      - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          sparse-checkout: ${{ github.event_name == 'pull_request' && 'tools/ci-select-jobs.mjs' || '' }}
+          sparse-checkout-cone-mode: false
 
-      - name: Select affected products
-        id: select
+      - name: Match changed paths
+        id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
           # Compare the exact push endpoints, including multi-commit pushes.
@@ -57,17 +66,31 @@ jobs:
           # Sweet notes and changelogs do not select product jobs.
           # Release preparation still reads notes on main. Package-local
           # manifests select their own product checks.
-          # Version files in release pull requests still select their product.
+          # Version files select their product, except in a release pull
+          # request that changes only release files.
+          # tools/ci-selection.test.mjs tests these filters.
           filters: |
-            chatto:
-              - 'ci/**'
+            # Go checks: Chatto server tests and lint.
+            go:
               # Authling changes must also verify login and profile transfer into Chatto.
               - 'authling/**'
               - 'cli/**'
               - 'pkg/**'
+              - 'proto/**'
+              - 'docker/**'
+              # The server tests build the frontend and test its build tooling.
+              - 'apps/frontend/{package.json,vite.config.*,svelte.config.*,tsconfig.json}'
+              - 'apps/frontend/scripts/**'
+              - '!**/CHANGELOG.md'
+              - '!**/.sweet/**'
+            # Workspace checks: TypeScript type checks, lint, and unit tests.
+            web:
+              - 'ci/**'
               - 'apps/frontend/**'
               - 'packages/**'
+              # Protobuf changes generate the TypeScript API types again.
               - 'proto/**'
+              # The ci package tests the Docker files.
               - 'docker/**'
               - '!**/CHANGELOG.md'
               - '!**/.sweet/**'
@@ -111,19 +134,27 @@ jobs:
               - 'apps/docs-website/**'
               - '!**/CHANGELOG.md'
               - '!**/.sweet/**'
+            # Desktop sources select the full platform matrix.
             desktop:
               - 'apps/desktop/**'
-              # Ordinary frontend changes use the browser build and tests.
-              # Native integration and build inputs still verify every package.
               - 'apps/frontend/src/lib/desktop/**'
+              - 'tools/test-desktop-*'
+              - '!**/CHANGELOG.md'
+              - '!**/.sweet/**'
+            # Inputs that the desktop app shares with the browser frontend
+            # select one build for each operating system.
+            # Ordinary frontend changes use the browser build and tests.
+            desktop-shared:
               - 'apps/frontend/{package.json,vite.config.*,svelte.config.*,tsconfig.json}'
               - 'apps/frontend/scripts/**'
               - 'apps/frontend/static/**'
               - 'packages/{api-types,chatto-client,translatto}/**'
               - 'proto/**'
-              - 'tools/test-desktop-*'
               - '!**/CHANGELOG.md'
               - '!**/.sweet/**'
+            # The unused-code check has no product of its own.
+            knip:
+              - 'knip.ts'
             # Files outside product roots and repository documentation run all products.
             common:
               - '**'
@@ -139,6 +170,34 @@ jobs:
               - '!experimental/**'
               - '!*.md'
               - '!**/.sweet/**'
+              # The unconditional license-check job checks license metadata.
+              - '!NOTICE'
+              - '!LICENSES/**'
+              - '!knip.ts'
+              # The unconditional workflow-lint job checks the release
+              # configuration and the workflows that do not run product jobs.
+              - '!.sweet.yml'
+              - '!.sweet.config.yml'
+              - '!.github/workflows/{release,release-components,bump-releases,mobile-testflight,experimental-go}.yml'
+              - '!.github/workflows/{publish-*,build-*-image}.yml'
+            # A change that has no file here is a release-only change. Keep
+            # the version files current with the `.sweet.yml` manifests.
+            non-release:
+              - '**'
+              - '!**/.sweet/**'
+              - '!**/.sweet.yml'
+              - '!**/CHANGELOG.md'
+              - '!{cli,authling}/version.go'
+              - '!apps/{frontend,desktop}/package.json'
+              - '!packages/{chatto-client,runling,translatto}/package.json'
+              - '!packages/{runling,translatto}/version.txt'
+
+      - name: Select jobs
+        id: select
+        env:
+          FILTER_RESULTS: ${{ toJSON(steps.filter.outputs) }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+        run: node tools/ci-select-jobs.mjs
 
   test-translatto-package:
     needs: changes
@@ -285,6 +344,20 @@ jobs:
             )
           done
 
+      - name: Prepare standalone frontend image context
+        shell: bash
+        run: |
+          set -euo pipefail
+          context=".context/ci/docker/frontend"
+          mkdir -p "$context/apps/frontend" "$context/docker" "$context/LICENSES"
+          cp docker/Dockerfile.frontend.prebuilt "$context/Dockerfile"
+          cp docker/frontend-entrypoint.sh "$context/docker/frontend-entrypoint.sh"
+          cp docker/frontend-image_test.sh "$context/docker/frontend-image_test.sh"
+          cp -a apps/frontend/build "$context/apps/frontend/build"
+          cp apps/frontend/nginx.conf "$context/apps/frontend/nginx.conf"
+          cp LICENSES/Apache-2.0.txt LICENSES/MIT.txt "$context/LICENSES/"
+          cp NOTICE "$context/NOTICE"
+
       - name: Upload production image contexts
         uses: actions/upload-artifact@v7
         with:
@@ -326,6 +399,9 @@ jobs:
       - name: Test repository tooling
         run: mise test-repo-tooling
 
+      - name: Check pending releases
+        run: mise x -- sweet doctor
+
   desktop:
     needs: changes
     if: ${{ needs.changes.outputs.desktop == 'true' }}
@@ -334,19 +410,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: linux
-            os: ubuntu-latest
-            artifact-path: apps/desktop/dist/chatto-desktop
-          - platform: linux-arm64
-            os: ubuntu-24.04-arm
-            artifact-path: apps/desktop/dist/chatto-desktop
-          - platform: macos
-            os: macos-15
-            artifact-path: apps/desktop/dist/Chatto.app
-          - platform: windows
-            os: windows-latest
-            artifact-path: apps/desktop/dist/windows
+        # tools/ci-select-jobs.mjs lists the platforms. Changes to inputs that
+        # the desktop app shares with the browser frontend build one platform
+        # for each operating system. Desktop changes and pushes build all.
+        include: ${{ fromJSON(needs.changes.outputs.desktop-matrix) }}
+    env:
+      CHATTO_DESKTOP_ARCH: ${{ matrix.platform == 'macos-universal' && 'universal' || '' }}
+      # pnpm 11 has no standalone Intel macOS binary; use its Node.js package.
+      MISE_BACKENDS_PNPM: ${{ matrix.platform == 'macos-intel' && 'npm:pnpm' || 'aqua:pnpm/pnpm' }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
@@ -439,6 +510,10 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Verify macOS binary architectures
+        if: runner.os == 'macOS'
+        run: bash tools/test-desktop-macos-architectures.sh
+
       - name: Verify macOS bundle signature
         if: runner.os == 'macOS'
         run: codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto.app"
@@ -462,7 +537,7 @@ jobs:
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v7
         with:
-          name: chatto-desktop-macos-dmg-unsigned
+          name: chatto-desktop-${{ matrix.platform }}-dmg-unsigned
           path: apps/desktop/dist/dmg/*.dmg
           if-no-files-found: error
           retention-days: 7
@@ -477,7 +552,8 @@ jobs:
 
   desktop-macos-capture:
     needs: changes
-    if: ${{ needs.changes.outputs.desktop == 'true' }}
+    # Only desktop sources can change the native helper.
+    if: ${{ needs.changes.outputs.desktop == 'true' && needs.changes.outputs.desktop-full == 'true' }}
     runs-on: macos-15
     timeout-minutes: 15
     steps:
@@ -604,7 +680,7 @@ jobs:
 
   check-workspace:
     needs: changes
-    if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.desktop == 'true' }}
+    if: ${{ needs.changes.outputs.web == 'true' || needs.changes.outputs.desktop == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -629,7 +705,7 @@ jobs:
   check-unused:
     needs: changes
     # Check every root pnpm workspace, including docs-only and example-only changes.
-    if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.desktop == 'true' || needs.changes.outputs.docs == 'true' || needs.changes.outputs.botto == 'true' }}
+    if: ${{ needs.changes.outputs.web == 'true' || needs.changes.outputs.desktop == 'true' || needs.changes.outputs.docs == 'true' || needs.changes.outputs.botto == 'true' || needs.changes.outputs.knip == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -660,7 +736,7 @@ jobs:
 
   test-workspace-packages:
     needs: changes
-    if: ${{ needs.changes.outputs.chatto == 'true' }}
+    if: ${{ needs.changes.outputs.web == 'true' }}
     # The frontend suite is the longest, so it runs on its own runner. The other
     # entry excludes the frontend; both entries exclude local experiments.
     # New product workspace tests run without a matrix change.
@@ -711,7 +787,7 @@ jobs:
 
   test-workspace:
     needs: [changes, test-workspace-packages]
-    if: ${{ always() && needs.changes.outputs.chatto == 'true' }}
+    if: ${{ always() && needs.changes.outputs.web == 'true' }}
     # Keep this job name stable because it can be a required branch check.
     runs-on: ubuntu-latest
     steps:
@@ -722,7 +798,7 @@ jobs:
 
   test-cli-shared:
     needs: changes
-    if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' }}
+    if: ${{ needs.changes.outputs.go == 'true' || needs.changes.outputs.authling == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -748,6 +824,7 @@ jobs:
           mise lint-datacrypto
           mise lint-events
           mise lint-jetstreamutil
+          mise lint-jobs
           mise lint-natsruntime
 
       - name: Run application configuration tests
@@ -762,12 +839,15 @@ jobs:
       - name: Run JetStream utility tests
         run: mise test-jetstreamutil
 
+      - name: Run shared job queue tests
+        run: mise test-jobs
+
       - name: Run embedded NATS runtime tests
         run: mise test-natsruntime
 
   test-cli-chatto:
     needs: changes
-    if: ${{ needs.changes.outputs.chatto == 'true' }}
+    if: ${{ needs.changes.outputs.go == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -796,7 +876,7 @@ jobs:
 
   lint-cli:
     needs: changes
-    if: ${{ needs.changes.outputs.chatto == 'true' }}
+    if: ${{ needs.changes.outputs.go == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -833,7 +913,7 @@ jobs:
 
   test-oidc-conformance:
     needs: changes
-    if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' }}
+    if: ${{ needs.changes.outputs.go == 'true' || needs.changes.outputs.authling == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -876,12 +956,13 @@ jobs:
 
   test-cli:
     needs: [changes, test-cli-shared, test-cli-chatto, lint-cli]
-    if: ${{ always() && (needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true') }}
+    if: ${{ always() && (needs.changes.outputs.go == 'true' || needs.changes.outputs.authling == 'true') }}
+    # Keep this job name stable because it can be a required branch check.
     runs-on: ubuntu-latest
     steps:
       - name: Verify CLI test and lint jobs
         env:
-          CHATTO_CHANGED: ${{ needs.changes.outputs.chatto }}
+          CHATTO_CHANGED: ${{ needs.changes.outputs.go }}
           SHARED_RESULT: ${{ needs.test-cli-shared.result }}
           CHATTO_RESULT: ${{ needs.test-cli-chatto.result }}
           LINT_RESULT: ${{ needs.lint-cli.result }}
@@ -1164,7 +1245,14 @@ jobs:
           retention-days: 30
 
   publish-main-image:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.chatto == 'true'
+    # Toolchain checks can be skipped. Require image contexts and block any
+    # failed or cancelled dependency before publishing either image.
+    if: >-
+      ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+          && needs.changes.outputs.chatto == 'true'
+          && needs.build-main-image-contexts.result == 'success'
+          && !contains(needs.*.result, 'failure')
+          && !contains(needs.*.result, 'cancelled') }}
     needs:
       - changes
       - build-main-image-contexts
@@ -1243,6 +1331,39 @@ jobs:
             org.opencontainers.image.version=${{ needs.build-main-image-contexts.outputs.image-version }}
             org.opencontainers.image.licenses=AGPL-3.0-or-later
 
+      - name: Build standalone frontend image for checks
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-contexts/frontend
+          file: docker-contexts/frontend/Dockerfile
+          load: true
+          platforms: linux/amd64
+          tags: chatto-client:check
+          cache-from: type=gha,scope=chatto-client-main
+
+      - name: Check standalone frontend image on a read-only file system
+        run: sh docker-contexts/frontend/docker/frontend-image_test.sh chatto-client:check
+
+      # Publish the client before exposing the server tag selected by Flux.
+      # Both images must exist when the shared dev stream advances.
+      - name: Build and push standalone frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-contexts/frontend
+          file: docker-contexts/frontend/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/chattocorp/chatto-client:${{ github.sha }}
+            ghcr.io/chattocorp/chatto-client:${{ steps.main-image.outputs.tag }}
+          cache-from: type=gha,scope=chatto-client-main
+          cache-to: type=gha,scope=chatto-client-main,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.build-main-image-contexts.outputs.image-version }}
+            org.opencontainers.image.licenses=Apache-2.0
+
       - name: Publish multi-platform commit image
         shell: bash
         run: |
@@ -1257,6 +1378,8 @@ jobs:
             echo
             echo "\`ghcr.io/chattocorp/chatto:${GITHUB_SHA}\`"
             echo "\`ghcr.io/chattocorp/chatto:${{ steps.main-image.outputs.tag }}\`"
+            echo
+            echo "Frontend: \`ghcr.io/chattocorp/chatto-client:${{ steps.main-image.outputs.tag }}\`"
             echo
             echo "Version: \`${{ needs.build-main-image-contexts.outputs.image-version }}\`"
           } >> "$GITHUB_STEP_SUMMARY"

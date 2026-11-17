@@ -19,10 +19,17 @@ layouts, and verification. Preview components at `/dev/ui` in a `bootstrap` buil
 - `DataTable` supplies the caption, column headers, and a keyboard-accessible
   horizontal scroll region. The caller supplies native table rows and cells.
   Use a row header with `scope="row"` for the row's identifying value.
+- `SortableDataTable` is `DataTable` with `Column` headers. A column with a
+  sort URL links to a server-side sort. Set `Direction` on the current sort
+  column; the table sets `aria-sort` and shows the direction.
+- `TableLoadMore` is the last body row when more rows exist. It links to the
+  next page, and loads it in place when it scrolls into view. The next page
+  must contain one data table. Give rows stable `id` values: a loaded row with
+  the `id` of a row already on the page is dropped.
 - `TableEmpty` supplies a message across all columns when no rows exist.
 - `Badge` displays a short status. It is not an interactive control.
 - `Pagination` displays available first-page and next-page links. The calling
-  handler owns cursor validation and constructs the URLs.
+  handler owns page validation and constructs the URLs.
 
 Keep data loading, access checks, column values, and pagination state in the
 feature handler and template. Do not add a generic column schema or JavaScript

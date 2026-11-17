@@ -10,7 +10,7 @@ import {
   type Transport
 } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import type { ServiceType } from '@bufbuild/protobuf';
+import { MethodIdempotency, type ServiceType } from '@bufbuild/protobuf';
 
 /** Request header for a read that must include an accepted realtime boundary. */
 export const REALTIME_MINIMUM_CURSOR_HEADER = 'Chatto-Realtime-Minimum-Cursor';
@@ -38,6 +38,12 @@ export type ConnectAPIConfig = {
   onAuthenticationRequired?: (source: string) => void;
   /** Current private-data generation for this exact connection. */
   dataGeneration?: () => number;
+  /**
+   * Called with the final network outcome of each unary request: `true` when
+   * the server answered, also with an error, and `false` when the request
+   * failed on the network. A request that the caller canceled reports nothing.
+   */
+  onRequestOutcome?: (reachable: boolean) => void;
   /**
    * Build the transport from Chatto's interceptors instead of using HTTP.
    * Tests pass an in-memory fake server; see `@chatto/client/testing/fakeServer`.
@@ -67,10 +73,120 @@ export function dataGenerationInterceptor(current: () => number): Interceptor {
     const generation = current();
     const response = await next(request);
     if (generation !== current()) {
-      const read = /^(Get|List|BatchGet|Search|Check|Fetch|Resolve|Find)/.test(request.method.name);
-      throw new StaleResponseError(!read);
+      throw new StaleResponseError(!isReadMethod(request.method));
     }
     return response;
+  };
+}
+
+/** Whether a method only reads, so a repeated request cannot change server data. */
+function isReadMethod(method: { name: string; idempotency?: MethodIdempotency }): boolean {
+  return (
+    method.idempotency === MethodIdempotency.NoSideEffects ||
+    /^(Get|List|BatchGet|Search|Check|Fetch|Resolve|Find)/.test(method.name)
+  );
+}
+
+/**
+ * Whether a request failed on the network: the server was not reachable, a
+ * proxy could not reach it, or the request timed out. Another attempt can
+ * succeed without a change by the user.
+ */
+export function isNetworkError(error: unknown): boolean {
+  // `fetch` rejects with a TypeError when the network fails.
+  if (error instanceof TypeError) return true;
+  if (!(error instanceof ConnectError)) return false;
+  return (
+    error.code === Code.Unavailable ||
+    error.code === Code.DeadlineExceeded ||
+    // Connect wraps a fetch network failure as Unknown with a TypeError cause.
+    (error.code === Code.Unknown && error.cause instanceof TypeError)
+  );
+}
+
+/**
+ * Call-context flag for a caller that repeats its own failed requests.
+ * Set it with {@link skipNetworkRetry}.
+ */
+const skipNetworkRetryKey = createContextKey(false, {
+  description: 'skip the repeat of a read that failed on the network'
+});
+
+/**
+ * Call options for a read that {@link networkRetryInterceptor} must not
+ * repeat. Use it only when the caller repeats the request itself, so the two
+ * retry limits do not multiply.
+ */
+export function skipNetworkRetry(): { contextValues: ContextValues } {
+  return { contextValues: createContextValues().set(skipNetworkRetryKey, true) };
+}
+
+/** Delays before the second and third attempt of a read that failed on the network. */
+const NETWORK_RETRY_DELAYS_MS = [500, 1_500];
+
+/** Wait for `ms`, or until `signal` aborts. */
+function delayOrAbort(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const finish = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', finish);
+      resolve();
+    };
+    const timer = setTimeout(finish, ms);
+    signal.addEventListener('abort', finish);
+  });
+}
+
+/**
+ * Repeat a unary read that failed on the network, and report the final
+ * network outcome of each unary request to `onRequestOutcome`.
+ *
+ * - Only reads repeat. A repeated mutation could apply twice, for example as
+ *   a second message. {@link skipNetworkRetry} stops the repeat of a read.
+ * - A request with `timeoutMs` has one deadline for all attempts. A request
+ *   that reached its deadline does not repeat.
+ * - Each delay has jitter, so clients do not repeat in step after an outage.
+ *
+ * Install it as the innermost interceptor, so each attempt is one transport
+ * request and the outer interceptors see only the final result.
+ */
+export function networkRetryInterceptor(
+  config: Pick<ConnectAPIConfig, 'onRequestOutcome'>,
+  retryDelaysMs: readonly number[] = NETWORK_RETRY_DELAYS_MS
+): Interceptor {
+  return (next) => async (request) => {
+    if (request.stream) return next(request);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const response = await next(request);
+        config.onRequestOutcome?.(true);
+        return response;
+      } catch (error) {
+        const { signal } = request;
+        // `fetch` rejects an aborted request with an AbortError. The signal's
+        // reason tells a reached deadline from a cancel by the caller.
+        if (!isNetworkError(signal.aborted ? signal.reason : error)) {
+          // A server error is still an answer. A cancel proves nothing.
+          if (!signal.aborted) config.onRequestOutcome?.(true);
+          throw error;
+        }
+        const delay = retryDelaysMs[attempt];
+        if (
+          signal.aborted ||
+          delay === undefined ||
+          !isReadMethod(request.method) ||
+          request.contextValues.get(skipNetworkRetryKey)
+        ) {
+          config.onRequestOutcome?.(false);
+          throw error;
+        }
+        await delayOrAbort(delay * (0.75 + Math.random() * 0.5), signal);
+        if (signal.aborted) {
+          if (isNetworkError(signal.reason)) config.onRequestOutcome?.(false);
+          throw signal.reason;
+        }
+      }
+    }
   };
 }
 
@@ -140,7 +256,9 @@ export function createChattoTransport(
     // Outermost, so it sees errors from every inner interceptor.
     authenticationRequiredInterceptor(config),
     ...(config.dataGeneration ? [dataGenerationInterceptor(config.dataGeneration)] : []),
-    bearerRenewalInterceptor(config)
+    bearerRenewalInterceptor(config),
+    // Innermost, so each attempt is one transport request.
+    networkRetryInterceptor(config)
   ];
   if (config.transport) return config.transport(interceptors);
   // Connect sends every request with `redirect: 'error'`, so a token and

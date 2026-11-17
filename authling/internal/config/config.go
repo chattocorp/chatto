@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/mail"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -91,9 +92,20 @@ func (c SiteConfig) Validate() error {
 // OIDCConfig controls Authling's OpenID Provider and conventional clients.
 // Registration-less CIMD clients require explicit operator opt-in.
 type OIDCConfig struct {
+	// Resources registers API audiences. CIMD admission is opt-in for each resource.
+	Resources []OIDCResourceConfig `toml:"resources"`
+	// Refresh lifetimes use days; zero selects the documented default.
+	RefreshTokenLifetimeDays int `toml:"refresh_token_lifetime_days" env:"AUTHLING_OIDC_REFRESH_TOKEN_LIFETIME_DAYS"`
+	RefreshTokenIdleDays     int `toml:"refresh_token_idle_days" env:"AUTHLING_OIDC_REFRESH_TOKEN_IDLE_DAYS"`
+	// RefreshTokenReuseGrace is a Go duration from "0s" (disabled) to "60s".
+	// An empty value selects the documented default of 10 seconds.
+	RefreshTokenReuseGrace string `toml:"refresh_token_reuse_grace" env:"AUTHLING_OIDC_REFRESH_TOKEN_REUSE_GRACE"`
 	// AllowUnregisteredClients permits clients not declared in operator configuration.
 	// It defaults to false. Currently, admission uses HTTPS CIMD discovery.
-	AllowUnregisteredClients       bool               `toml:"allow_unregistered_clients" env:"AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS"`
+	AllowUnregisteredClients bool `toml:"allow_unregistered_clients" env:"AUTHLING_OIDC_ALLOW_UNREGISTERED_CLIENTS"`
+	// CIMDAllowEmail permits CIMD clients to request the email scope. It
+	// defaults to false: CIMD clients cannot receive email addresses.
+	CIMDAllowEmail                 bool               `toml:"cimd_allow_email" env:"AUTHLING_OIDC_CIMD_ALLOW_EMAIL"`
 	Clients                        []OIDCClientConfig `toml:"clients"`
 	CIMDTrustedPrivateHosts        []string           `toml:"cimd_trusted_private_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_PRIVATE_HOSTS"`
 	CIMDTrustedLoopbackHosts       []string           `toml:"cimd_trusted_loopback_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_LOOPBACK_HOSTS"`
@@ -114,10 +126,19 @@ func (c OIDCConfig) SigningKeyRotationInterval() time.Duration {
 // secret creates a public client; a non-empty secret enables client_secret_basic
 // and client_secret_post.
 type OIDCClientConfig struct {
-	ID           string   `toml:"id"`
-	Name         string   `toml:"name"`
-	Secret       string   `toml:"secret"`
-	RedirectURIs []string `toml:"redirect_uris"`
+	// AllowRefreshTokens defaults to true for configured clients.
+	AllowRefreshTokens *bool `toml:"allow_refresh_tokens"`
+	// Resources is the exact allowlist of API audiences this client can request.
+	Resources []string `toml:"resources"`
+	// AccessTokenClaims maps a resource in Resources to the identity scopes
+	// ("email", "profile") whose claims its access tokens carry. Claims are
+	// released only when the user also granted that scope. Access tokens for
+	// other resources carry no identity claims.
+	AccessTokenClaims map[string][]string `toml:"access_token_claims"`
+	ID                string              `toml:"id"`
+	Name              string              `toml:"name"`
+	Secret            string              `toml:"secret"`
+	RedirectURIs      []string            `toml:"redirect_uris"`
 	// RequirePKCE defaults to true. Only clients with a secret may set it to false.
 	RequirePKCE *bool `toml:"require_pkce"`
 }
@@ -350,8 +371,58 @@ func (c Config) Validate() error {
 		problems = append(problems, "http.public_url must be an absolute HTTP(S) origin without credentials, paths, queries, or fragments")
 	} else if publicURL.Scheme == "http" {
 		bindHost, _, bindErr := net.SplitHostPort(c.HTTP.BindAddressOrDefault())
-		if bindErr != nil || !isLoopbackHost(bindHost) || !isLoopbackHost(publicURL.Hostname()) {
+		if bindErr != nil || !IsLoopbackHost(bindHost) || !IsLoopbackHost(publicURL.Hostname()) {
 			problems = append(problems, "http.public_url may use plain HTTP only when both the public URL and listener are loopback")
+		}
+	}
+	if c.OIDC.RefreshTokenLifetimeDays < 0 || c.OIDC.RefreshTokenLifetimeDays > 365 || c.OIDC.RefreshTokenIdleDays < 0 || c.OIDC.RefreshTokenIdleDays > 365 || c.OIDC.RefreshIdleLifetime() > c.OIDC.RefreshLifetime() {
+		problems = append(problems, "oidc refresh lifetimes must be 1 to 365 days with idle lifetime no greater than total lifetime")
+	}
+	if _, err := c.OIDC.parseRefreshReuseGrace(); err != nil {
+		problems = append(problems, "oidc.refresh_token_reuse_grace must be a duration from 0s to 60s")
+	}
+	// A resource must not be the issuer or one of its endpoints, such as
+	// UserInfo; a token for it would then pass that endpoint's audience check.
+	resourceCollides := func(resource string) bool {
+		issuer := strings.TrimSuffix(c.HTTP.PublicURLOrDefault(), "/")
+		if trimmed := strings.TrimSuffix(resource, "/"); trimmed == issuer || strings.HasPrefix(trimmed, issuer+"/") {
+			return true
+		}
+		for _, client := range c.OIDC.Clients {
+			if resource == client.ID {
+				return true
+			}
+		}
+		return false
+	}
+	resources := map[string]bool{}
+	for _, resource := range c.OIDC.Resources {
+		if !ValidResource(resource.URI, strings.HasPrefix(c.HTTP.PublicURLOrDefault(), "http://")) || resources[resource.URI] || resourceCollides(resource.URI) {
+			problems = append(problems, "oidc.resources must contain unique valid resource URIs")
+		}
+		resources[resource.URI] = true
+	}
+	for _, client := range c.OIDC.Clients {
+		for resource, scopes := range client.AccessTokenClaims {
+			seen := map[string]bool{}
+			for _, scope := range scopes {
+				if scope != "email" && scope != "profile" || seen[scope] {
+					problems = append(problems, "oidc client access_token_claims must list email or profile once each")
+				}
+				seen[scope] = true
+			}
+			if !slices.Contains(client.Resources, resource) {
+				problems = append(problems, "oidc client access_token_claims must name resources of the same client")
+			}
+		}
+	}
+	for _, client := range c.OIDC.Clients {
+		seen := map[string]bool{}
+		for _, resource := range client.Resources {
+			if !ValidResource(resource, strings.HasPrefix(c.HTTP.PublicURLOrDefault(), "http://")) || seen[resource] || resourceCollides(resource) {
+				problems = append(problems, "oidc client resources must contain unique valid resource URIs")
+			}
+			seen[resource] = true
 		}
 	}
 	seenClients := make(map[string]struct{}, len(c.OIDC.Clients))
@@ -388,8 +459,8 @@ func (c Config) Validate() error {
 				continue
 			}
 			seenRedirects[redirect] = struct{}{}
-			if !validOIDCRedirectURI(redirect, publicURL) {
-				problems = append(problems, field+".redirect_uris must contain absolute HTTPS URIs, or loopback HTTP URIs for loopback development")
+			if !validOIDCRedirectURI(redirect) {
+				problems = append(problems, field+".redirect_uris must contain absolute HTTPS URIs or HTTP URIs on a loopback host")
 			}
 		}
 	}
@@ -465,15 +536,18 @@ func (c Config) Validate() error {
 	return nil
 }
 
-func validOIDCRedirectURI(raw string, issuer *url.URL) bool {
+// validOIDCRedirectURI reports whether a configured client may register raw.
+// HTTPS URIs are valid on any host. Plain-HTTP URIs are valid only on a
+// loopback host, whatever the issuer is: RFC 8252 section 7.3 permits HTTP for
+// loopback redirects because the response never leaves the user's machine.
+// The provider still matches redirect URIs exactly, including the port.
+// CIMD clients have their own, stricter rule in the oidcprovider package.
+func validOIDCRedirectURI(raw string) bool {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" {
 		return false
 	}
-	if parsed.Scheme == "https" {
-		return true
-	}
-	return parsed.Scheme == "http" && issuer != nil && isLoopbackHost(issuer.Hostname()) && isLoopbackHost(parsed.Hostname())
+	return parsed.Scheme == "https" || parsed.Scheme == "http" && IsLoopbackHost(parsed.Hostname())
 }
 
 func validConventionalClientID(value string) bool {
@@ -488,12 +562,12 @@ func validConventionalClientID(value string) bool {
 	return true
 }
 
-// isLoopbackHost reports whether host is a loopback IP address, localhost, or
+// IsLoopbackHost reports whether host is a loopback IP address, localhost, or
 // a well-formed name beneath the special-use .localhost domain. RFC 6761
 // reserves .localhost names for loopback, and browsers resolve them without
 // DNS. Named loopback hosts give concurrent local development stacks separate
 // cookie scopes while keeping plain HTTP restricted to the local machine.
-func isLoopbackHost(host string) bool {
+func IsLoopbackHost(host string) bool {
 	host = strings.ToLower(strings.TrimSuffix(host, "."))
 	if host == "localhost" {
 		return true
@@ -525,4 +599,57 @@ func validNATSScheme(scheme string) bool {
 	default:
 		return false
 	}
+}
+
+// OIDCResourceConfig registers an exact resource identifier without fetching it.
+type OIDCResourceConfig struct {
+	URI       string `toml:"uri"`
+	AllowCIMD bool   `toml:"allow_cimd"`
+}
+
+// RefreshLifetime bounds the complete family, including all rotated credentials.
+func (c OIDCConfig) RefreshLifetime() time.Duration {
+	days := c.RefreshTokenLifetimeDays
+	if days == 0 {
+		days = 30
+	}
+	return time.Duration(days) * 24 * time.Hour
+}
+
+// RefreshIdleLifetime bounds time between successful refreshes.
+func (c OIDCConfig) RefreshIdleLifetime() time.Duration {
+	days := c.RefreshTokenIdleDays
+	if days == 0 {
+		days = 7
+	}
+	return time.Duration(days) * 24 * time.Hour
+}
+
+// RefreshReuseGrace is the time after a rotation in which the previous refresh
+// token can repeat that rotation once. Zero disables the grace period.
+// Validation rejects invalid values; an invalid value here selects zero.
+func (c OIDCConfig) RefreshReuseGrace() time.Duration {
+	grace, err := c.parseRefreshReuseGrace()
+	if err != nil {
+		return 0
+	}
+	return grace
+}
+
+func (c OIDCConfig) parseRefreshReuseGrace() (time.Duration, error) {
+	if strings.TrimSpace(c.RefreshTokenReuseGrace) == "" {
+		return 10 * time.Second, nil
+	}
+	grace, err := time.ParseDuration(strings.TrimSpace(c.RefreshTokenReuseGrace))
+	if err != nil || grace < 0 || grace > time.Minute {
+		return 0, fmt.Errorf("invalid refresh reuse grace")
+	}
+	return grace, nil
+}
+
+// ValidResource permits absolute HTTPS identifiers and loopback development HTTP.
+// Queries and fragments are excluded to keep secrets and personal data out of identifiers.
+func ValidResource(raw string, development bool) bool {
+	u, err := url.Parse(raw)
+	return err == nil && len(raw) <= 2048 && u.Hostname() != "" && u.User == nil && !u.ForceQuery && u.RawQuery == "" && u.Fragment == "" && !strings.Contains(raw, "#") && (u.Scheme == "https" || development && u.Scheme == "http" && IsLoopbackHost(u.Hostname()))
 }

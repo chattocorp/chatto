@@ -579,9 +579,10 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
 ## Outbound bot webhooks
 
 Configuration uses `evt.user.{botId}.bot_outbound_webhook_configured` with
-user-aggregate OCC and encrypted credentials. Process-local delivery work uses
-a Go structure in the [webhook worker](../../cli/internal/core/bot_webhook_worker.go);
-it has no persisted protobuf or NATS subject.
+user-aggregate OCC and encrypted credentials. Durable delivery jobs store a
+`chatto.core.job.v1.WebhookJob` payload inside the `queued` job fact on
+`jobs.webhook.{jobId}.queued` in `JOBS`. The payload does not store message
+content or endpoint credentials.
 The delivery ID hashes the bot, endpoint, and source event IDs.
 
 Terminal failures append
@@ -627,3 +628,17 @@ room-OCC batch.
 `room_invitation_declined` use the room aggregate. The event envelope records
 the actor and time. Created facts store the recipient and expiry; response
 facts identify both participants. They do not appear in room timelines.
+
+## Background job facts
+
+`jobs.{type}.{jobId}.{fact}` carries JSON job facts, in the form that `pkg/jobs` owns, in
+`JOBS`. The fact is `queued`, `started`, `attempt_failed`, `succeeded`,
+`failed`, `retried`, or `deleted`. The job types are `webhook`, `media`,
+`notification_alert`, `asset_cleanup`, `call_key_cleanup`,
+`push_subscription_cleanup`, `user_key_shredding`, and `email`. The state of a
+job is the fold of its facts in stream order. The `queued`, `retried`, and `failed`
+facts carry the private work payload and policy. Job facts are operational facts, not
+domain events. Source events remain in EVT. Enqueue appends `queued` only when
+the job has no facts. A manual retry appends `retried`, and a delete appends
+`deleted`, only when the viewed `failed` fact is still the latest fact of the
+job. See ADR-123.

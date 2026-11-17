@@ -24,6 +24,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Server Sidebar** — The wider sidebar to the right of the Server Gutter. It controls the position, mobile slide, size, and current-user footer of a server pane. Settings uses the same shell without the server footer when no server is authenticated. The sidebar contains the server banner and room list or the unified Settings navigation. Implemented in `apps/frontend/src/lib/components/ServerSidebar.svelte`.
 
+**Server Menu** — Menu of actions on one server, such as Server information, Mark as read, and Sign out. Right-click or long-press a Server Gutter icon, or select the server name in the Server Sidebar header, to open it. Implemented in `apps/frontend/src/lib/components/ServerActionsMenu.svelte`.
+
 **Room invitation** — A request for an existing human server member to join a channel room. It appears in the room list and welcome screen, expires after seven days, and grants membership only after acceptance. It is distinct from a server invite link. See [FDR-051](fdr/FDR-051-room-invitations.md).
 
 **Room View** — The main central area showing the current room: message list plus the composer at the bottom. Not "the chat area" — _Room View_ is the canonical name.
@@ -99,7 +101,7 @@ account-directed email. The first verified email becomes primary, and adding
 another address does not change the selection. See
 [FDR-018](fdr/FDR-018-account-lifecycle.md).
 
-**Internet Handle** — The UI name for an AT Protocol handle, such as `alice.bsky.social`, and for the default label of `atproto` login providers. AT Protocol handles are not limited to Bluesky. Chatto does not show handles as verified. See [FDR-056](fdr/FDR-056-atproto-identity.md) and [ADR-123](adr/ADR-123-atproto-handle-verification-needs-an-issuer.md).
+**Internet Handle** — The UI name for an AT Protocol handle, such as `alice.bsky.social`, and for the default label of `atproto` login providers. AT Protocol handles are not limited to Bluesky. Chatto does not show handles as verified. See [FDR-058](fdr/FDR-058-atproto-sign-in.md) and [ADR-124](adr/ADR-124-atproto-handle-verification-needs-an-issuer.md).
 
 **Invitation Code** — A code that permits one new account on an invite-only server. Administrators issue and revoke codes, with optional expiry. Validation does not consume the code; successful account creation does. See [FDR-036](fdr/FDR-036-invite-links.md).
 
@@ -210,6 +212,8 @@ person's DM. See
 
 ## Backend
 
+**Background job** — Durable asynchronous work with an identity, execution state, and attempt budget. Failed jobs remain available for inspection and eligible manual retry. See [FDR-056](fdr/FDR-056-background-jobs.md).
+
 Infrastructure jargon. If only contributors say the word, it goes here.
 
 **ChattoCore** — Go package (`cli/internal/core`) that owns domain models, projections, and NATS access. Low-level helpers are not public transport entry points and may assume their caller has already authorized the operation; public ConnectRPC paths should delegate to core operation models that own authorization before domain state changes. See [ADR-044](adr/ADR-044-connectrpc-service-conventions.md).
@@ -251,6 +255,8 @@ not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
 **Projection** — Derived read model rebuilt from `EVT` and owned independently by each consuming process. Persistence is optional: a projection may cold-replay every time, use an encrypted snapshot, or checkpoint a disposable local index and EVT cutoff for tail replay. `EVT` remains the source of truth. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) and [ADR-054](adr/ADR-054-optional-projection-persistence.md).
 
+**Search index generation** — One complete Bleve index directory of the bundled search provider, with its own checkpoint. The **serving index** is the generation that answers queries. A **replacement index** is a generation that the provider builds from `EVT` while the serving index continues to answer, then switches to atomically after validation. See [FDR-057](fdr/FDR-057-search-during-index-rebuild.md).
+
 **Projector** — Runtime engine that consumes events and owns replay, readiness, failure, one apply barrier, and the applied sequence frontier for one projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
 
 **Componentized projection** — Projection that combines related projection components behind one projector, apply barrier, and sequence frontier. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
@@ -260,6 +266,8 @@ not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 **Server Content View** — Chatto's named componentized projection for process-local, sequence-consistent client-readable state derived from `EVT`. It includes focused room, timeline, call, asset, thread, reaction, configuration, user-profile, content-key, RBAC, and mentionable components. Authentication, presence, read markers, notifications, invitations, OAuth clients, and search remain outside the view. See [ADR-089](adr/ADR-089-server-content-view.md).
 
 **Projection snapshot cohort** — Complete persisted snapshot generation whose manifest binds separately stored projection-component payloads to the same event-log identity and cutoff. Chatto restores all required components or cold-replays the complete componentized projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
+
+**Stalled projection** — Projection that has matching events to apply but has committed no progress for its stall threshold (five minutes by default). An idle projection that has applied every matching event is not stalled, and each commit restarts the interval. A stalled search index makes its provider report `DEGRADED`. See [`docs/architecture/projections.md`](architecture/projections.md).
 
 **Outcome** — Loom term for reliable asynchronous work caused by a committed event and performed by a durable worker, such as sending an email or updating another system. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 

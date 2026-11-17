@@ -516,7 +516,7 @@
       return;
     }
 
-    if (e.key === 'Escape' && threadId && !e.defaultPrevented) {
+    if (e.key === 'Escape' && threadId && !splitThreadLayout && !e.defaultPrevented) {
       e.preventDefault();
       closeThread();
     }

@@ -50,7 +50,8 @@
         "composer": "Choisissez votre éditeur et le mode d’envoi des messages.",
         "voice": "Configurez votre microphone, vos haut-parleurs et vos préférences d’appel.",
         "system": "Vérifiez l’état du serveur, le stockage et les tâches en arrière-plan.",
-        "event_log": "Explorez les événements du serveur et examinez les changements."
+        "event_log": "Explorez les événements du serveur et examinez les changements.",
+        "jobs": "Consultez les tâches en arrière-plan et relancez celles qui ont échoué."
       },
       "title": "Vue d’ensemble",
       "shield_notice": "Pour utiliser vos autorisations supplémentaires sur ce serveur, activez le mode privilégié avec le bouton en forme de bouclier à côté de votre nom."

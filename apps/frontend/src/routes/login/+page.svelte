@@ -11,7 +11,7 @@
     verifyProviderSignIn
   } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
-  import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
+  import { signInWithPassword } from '$lib/auth/passwordSignIn';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthProviderButtons from '$lib/components/auth/AuthProviderButtons.svelte';
   import AuthPopupNotice from '$lib/components/auth/AuthPopupNotice.svelte';
@@ -43,10 +43,6 @@
 
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
-  const registrationAvailable = $derived(
-    directRegistrationEnabled ||
-      (data.serverInfo?.authProviders ?? []).some((provider) => provider.autoProvision !== false)
-  );
   const directLoginEnabled = $derived(data.serverInfo?.directLoginEnabled ?? true);
   const isAuthenticating = $derived(isLoading || selectedProviderId !== null);
   const pageError = $derived(
@@ -98,7 +94,7 @@
     try {
       providerPopup = openProviderSignIn(providerLoginUrl(provider.loginUrl, loginHint));
       const result = await verifyProviderSignIn(providerPopup);
-      // Only AT Protocol providers take a handle hint (FDR-056).
+      // Only AT Protocol providers take a handle hint (FDR-058).
       if (loginHint) rememberAtprotoHandle(loginHint);
       if (!active) return;
       if (result.kind === 'confirm-account') {
@@ -126,22 +122,7 @@
     isLoading = true;
 
     try {
-      const response = await fetch('/auth/browser/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...browserCookieAuthenticationHeaders
-        },
-        body: JSON.stringify({ identifier, password }),
-        credentials: 'include'
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        error = result.error || m('auth.login.failed');
-        return;
-      }
+      await signInWithPassword(identifier, password, m('auth.login.failed'));
 
       // Session completion is only needed after a successful password login.
       const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');
@@ -207,7 +188,7 @@
     </div>
   {/if}
 
-  {#if registrationAvailable}
+  {#if directRegistrationEnabled}
     <Divider label={m('common.or')} />
 
     <Button

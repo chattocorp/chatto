@@ -30,6 +30,7 @@ import (
 	"github.com/chattocorp/chatto/authling/internal/storage"
 	"github.com/chattocorp/chatto/authling/internal/web"
 	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
@@ -42,6 +43,11 @@ type Runtime struct {
 	projectors       []*events.Projector
 	issuer           *issuer.Service
 	erasureProjector *events.Projector
+	jobs             *jobs.Queue
+	jobsConsumer     jetstream.Consumer
+	mailConsumer     jetstream.Consumer
+	mailSender       *email.QueueSender
+	mailQueue        *jobs.Queue
 	// Erasure resumes durable account key destruction.
 	Erasure *erasure.Service
 
@@ -117,11 +123,45 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 	if err != nil {
 		return closeOnError(err)
 	}
+	jobStream, err := storage.OpenJobs(ctx, js, cfg.NATS.ReplicasOrDefault())
+	if err != nil {
+		return closeOnError(err)
+	}
+	jobQueue, err := jobs.New(js, jobStream, jobs.Options{SubjectPrefix: storage.JobSubjectPrefix, SucceededRetention: storage.JobSucceededRetention, Logger: logger})
+	if err != nil {
+		return closeOnError(fmt.Errorf("open job queue: %w", err))
+	}
+	jobsConsumer, err := jobStream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
+		Name: storage.JobsConsumerName, Durable: storage.JobsConsumerName, Description: "Authling background jobs",
+		FilterSubjects: jobQueue.FilterSubjects(erasure.JobType), AckPolicy: jetstream.AckExplicitPolicy,
+		// A job that waits for a retry holds a delivery, so pending
+		// acknowledgements have no limit.
+		AckWait: 2 * time.Minute, MaxAckPending: -1, MaxDeliver: -1, DeliverPolicy: jetstream.DeliverAllPolicy,
+	})
+	if err != nil {
+		return closeOnError(fmt.Errorf("ensure job consumer: %w", err))
+	}
+	mailConsumer, err := jobStream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
+		Name: storage.MailJobsConsumerName, Durable: storage.MailJobsConsumerName, Description: "Authling email jobs",
+		FilterSubjects: jobQueue.FilterSubjects(email.JobType), AckPolicy: jetstream.AckExplicitPolicy,
+		AckWait: time.Minute, MaxAckPending: -1, MaxDeliver: -1, DeliverPolicy: jetstream.DeliverAllPolicy,
+	})
+	if err != nil {
+		return closeOnError(fmt.Errorf("ensure email job consumer: %w", err))
+	}
 	vault := keyvault.New(stores.Keys)
 	workflowKey, err := vault.WorkflowKey(ctx)
 	if err != nil {
 		return closeOnError(fmt.Errorf("open workflow key: %w", err))
 	}
+	// Mail has an expiry and no operator retry UI. Bound its failure history;
+	// account erasure keeps its existing indefinite retention on the same stream.
+	mailQueue, err := jobs.New(js, jobStream, jobs.Options{SubjectPrefix: storage.JobSubjectPrefix, SucceededRetention: storage.JobSucceededRetention, FailedRetention: storage.JobSucceededRetention, Logger: logger})
+	if err != nil {
+		return closeOnError(fmt.Errorf("open mail queue: %w", err))
+	}
+	mailSender := email.NewQueueSender(stores.RuntimeState, workflowKey, mailQueue, sender)
+	sender = mailSender
 	publisher := evtstream.NewPublisher(eventLog)
 	projectorOptions := events.ProjectorOptions{Logger: logger}
 	erasureHandle, err := events.NewDecodedProjectionHandle(js, stream, erasure.NewProjection(), evtstream.Decode, projectorOptions)
@@ -155,7 +195,7 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 	if err != nil {
 		return closeOnError(fmt.Errorf("open authorization grant service: %w", err))
 	}
-	if err := erasureService.ConfigureWorker(ctx, stream, logger, func(ctx context.Context, state erasure.State) error {
+	if err := erasureService.ConfigureWorker(ctx, stream, jobQueue, logger, func(ctx context.Context, state erasure.State) error {
 		if err := handle.Projector().WaitFor(ctx, events.SubjectPosition(evtstream.AccountRegistrySubject(), state.ReleaseSequence)); err != nil {
 			return err
 		}
@@ -178,6 +218,9 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 		if err != nil {
 			return closeOnError(fmt.Errorf("construct CIMD resolver: %w", err))
 		}
+	}
+	if err := oidcprovider.CheckGrantCapacity(cfg); err != nil {
+		return closeOnError(err)
 	}
 	clients := oidcprovider.NewResolver(cfg, cimd)
 	oidcStorage := oidcprovider.NewStorage(stores.RuntimeState, workflowKey, clients, issuerService, func(ctx context.Context, accountID string) (string, string, error) {
@@ -203,6 +246,11 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 	return &Runtime{
 		connection:       connection,
 		erasureProjector: erasureHandle.Projector(),
+		jobs:             jobQueue,
+		jobsConsumer:     jobsConsumer,
+		mailConsumer:     mailConsumer,
+		mailSender:       mailSender,
+		mailQueue:        mailQueue,
 		Erasure:          erasureService,
 		projectors:       []*events.Projector{handle.Projector(), issuerHandle.Projector(), authorizationHandle.Projector(), siteHandle.Projector()},
 		issuer:           issuerService,
@@ -223,7 +271,13 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger *slog.
 func (r *Runtime) Run(ctx context.Context) error {
 	group, groupContext := errgroup.WithContext(ctx)
 	group.Go(func() error { return r.erasureProjector.Run(groupContext) })
+	group.Go(func() error { return r.mailQueue.Work(groupContext, r.mailConsumer, r.mailSender.Deliver, 8) })
 	group.Go(func() error { return r.Erasure.Run(groupContext) })
+	group.Go(func() error {
+		// Erasure jobs ran one at a time before the queue existed; keep that.
+		// Authling shows no jobs, so it does not run the job view.
+		return r.jobs.Work(groupContext, r.jobsConsumer, r.Erasure.Effect().Handle, 1)
+	})
 	for _, projector := range r.projectors {
 		projector := projector
 		group.Go(func() error {

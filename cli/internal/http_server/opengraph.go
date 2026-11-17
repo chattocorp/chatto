@@ -9,7 +9,12 @@ import (
 	"strings"
 )
 
-const ogPlaceholder = "<!-- OG_META_PLACEHOLDER -->"
+// app.html marks a block of default title and description tags. The server
+// replaces the whole block, including the markers, with generated tags.
+const (
+	ogBlockStart = "<!-- OG_META_START -->"
+	ogBlockEnd   = "<!-- OG_META_END -->"
+)
 
 // OpenGraphMeta holds metadata for OpenGraph tags.
 type OpenGraphMeta struct {
@@ -30,6 +35,12 @@ var (
 // generateTags returns the HTML string for OpenGraph meta tags.
 func (meta *OpenGraphMeta) generateTags() string {
 	var sb strings.Builder
+
+	// These replace the defaults in the app.html block.
+	sb.WriteString(fmt.Sprintf(`<title>%s</title>`, html.EscapeString(meta.Title)))
+	sb.WriteString("\n\t\t")
+	sb.WriteString(fmt.Sprintf(`<meta name="description" content="%s" />`, html.EscapeString(meta.Description)))
+	sb.WriteString("\n\t\t")
 
 	// Core OpenGraph tags
 	sb.WriteString(fmt.Sprintf(`<meta property="og:title" content="%s" />`, html.EscapeString(meta.Title)))
@@ -149,9 +160,20 @@ func isSpecialRoute(segment string) bool {
 	return specialRoutes[segment]
 }
 
-// injectOpenGraphTags replaces the OG placeholder in HTML content with actual meta tags.
+// injectOpenGraphTags replaces the marked block of default tags in HTML content
+// with generated tags. Content without a complete block is returned unchanged.
 func (s *HTTPServer) injectOpenGraphTags(ctx context.Context, content []byte, urlPath string) []byte {
-	ogMeta := s.getOpenGraphMeta(ctx, urlPath)
-	ogTags := ogMeta.generateTags()
-	return bytes.Replace(content, []byte(ogPlaceholder), []byte(ogTags), 1)
+	before, rest, found := bytes.Cut(content, []byte(ogBlockStart))
+	if !found {
+		return content
+	}
+	_, after, found := bytes.Cut(rest, []byte(ogBlockEnd))
+	if !found {
+		return content
+	}
+	ogTags := s.getOpenGraphMeta(ctx, urlPath).generateTags()
+	result := make([]byte, 0, len(before)+len(ogTags)+len(after))
+	result = append(result, before...)
+	result = append(result, ogTags...)
+	return append(result, after...)
 }

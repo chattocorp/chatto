@@ -693,6 +693,45 @@ describe('shared attachment previews', () => {
     await expect.element(view.getByAltText('second.gif')).toBeVisible();
   });
 
+  it('keeps the same zoom controls through loading, rapid navigation, and retry', async () => {
+    const view = mount(gallery());
+    await expect.element(view.getByAltText('first.gif')).toBeVisible();
+    const increase = view.getByRole('button', { name: 'Zoom in' });
+    const button = increase.element();
+    const toolbar = button.parentElement!;
+    await increase.click();
+    await expect.element(view.getByText('125%')).toBeVisible();
+
+    let resolve!: (value: Map<string, RefreshedAttachmentUrls>) => void;
+    mocks.refreshUrls.mockImplementationOnce(() => new Promise((done) => (resolve = done)));
+    await view.getByRole('button', { name: 'Next image' }).click();
+    expect(button.isConnected).toBe(true);
+    expect(increase.element()).toBe(button);
+    await expect.element(increase).toBeDisabled();
+    await expect.element(view.getByText('100%')).toBeVisible();
+    expect(toolbar.closest('[data-image-controls]')).not.toBeNull();
+
+    // A newer selection must own the controls even when an old request finishes late.
+    await view.getByRole('button', { name: 'Next image' }).click();
+    await expect.element(view.getByAltText('first.gif')).toBeVisible();
+    resolve(imageUrls('second'));
+    await tick();
+    expect(increase.element()).toBe(button);
+    await increase.click();
+    await expect.element(view.getByText('125%')).toBeVisible();
+
+    mocks.refreshUrls.mockRejectedValueOnce(new Error('Unavailable'));
+    await view.getByRole('button', { name: 'Next image' }).click();
+    await expect.element(view.getByRole('alert')).toBeVisible();
+    expect(increase.element()).toBe(button);
+    await expect.element(increase).toBeDisabled();
+    await view.getByRole('button', { name: 'Try Again', exact: true }).click();
+    await expect.element(view.getByAltText('second.gif')).toBeVisible();
+    expect(increase.element()).toBe(button);
+    await increase.click();
+    await expect.element(view.getByText('125%')).toBeVisible();
+  });
+
   it('supports zoom keys without changing gallery navigation', async () => {
     const view = mount(gallery());
     await expect.element(view.getByAltText('first.gif')).toBeVisible();

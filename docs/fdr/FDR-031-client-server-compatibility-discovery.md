@@ -25,7 +25,7 @@ Chatto's pre-1.0 API remains experimental.
   one server is registered. Retry, sign-in/out, and removal form the final group.
   The menu header shows the name and hostname; the version is on the information page.
 - Remote servers have two version thresholds. Full feature support requires
-  `0.5.0-beta.18`. The minimum connectable release is `0.5.0-beta.9`.
+  `0.6.0-beta.0`. The minimum connectable release is `0.5.0-beta.9`.
   Between these thresholds, the client attempts the normal UI and realtime
   connection. The server menu shows a short summary and a Server information
   action. The Compatibility section of that page lists known feature limitations,
@@ -37,7 +37,9 @@ Chatto's pre-1.0 API remains experimental.
   started by the viewer. Older servers can show thread results, with a notice
   that the lists may not be separated correctly. Independent channel and
   thread Slow Mode requires beta.18. Older servers keep a shared cooldown
-  and a single setting; room field presence still controls the runtime fallback. Below the
+  and a single setting; room field presence still controls the runtime fallback.
+  Background jobs require `0.6.0-beta.0`, the first 0.6.0 prerelease. On older servers, server settings omit the
+  Jobs page ([FDR-056](FDR-056-background-jobs.md)). Below the
   connection threshold, it blocks chat routes and the realtime connection.
 - A connected server's version stays current without a reload. The client
   reads the server profile again at each full realtime catch-up. A full
@@ -91,6 +93,19 @@ Chatto's pre-1.0 API remains experimental.
   immediate retry after a dropped connection, or a credential renewal does not
   change the state. Tab wake and network recovery start again from the normal
   state, because results from before the wake are out of date.
+- A realtime connection attempt and an API request are both attempts. An API
+  request fails when the network or a proxy cannot reach the server, or when
+  the request reaches its timeout. An answer from the server, also an error,
+  is a success. Each type of attempt removes only its own failure.
+- The client repeats a read that failed on the network up to two times before
+  the read counts as failed. It does not repeat a write, because the server
+  can have applied the write.
+- The application header shows the connection warning of the active server.
+  The warning becomes urgent after six failed realtime attempts or three
+  failed API requests in sequence.
+- A part of the interface that failed to load on the network tries again
+  without the user: at an interval, when the browser goes online, and when
+  the tab becomes visible. The Retry button stays available.
 - The server context menu and touch sheet explain the problem. When more than
   one problem applies, they show the first problem in the order above.
 - When discovery finds a remote version below the connection threshold, or cannot
@@ -104,7 +119,8 @@ Chatto's pre-1.0 API remains experimental.
   gutter menu. The origin server cannot be removed.
 - The Server Directory allows users to add limited and unknown versions when
   sign-in is available. Versions below the connection threshold still link to
-  their own client.
+  their own client. Chatto 0.4 servers are the exception. They do not accept
+  the GET discovery request, so the directory reports a connection failure.
 - Third-party clients own and test their own minimum supported server release.
 - The `chatto.realtime.v1` protobuf namespace uses behavioral protocol version
   4 for the public event stream. The alpha server rejects older and unknown
@@ -180,5 +196,6 @@ breaks without prematurely freezing the API.
 
 ## Related
 
+- **Verification:** [Network recovery checks](../development/network-recovery.md)
 - **ADRs:** ADR-025 (multi-instance client architecture), ADR-042 (protobuf-first public API), ADR-045 (public API stability tiers), ADR-067 (Electron desktop packaging), ADR-091 (semantic realtime events)
 - **FDRs:** FDR-017 (Room Groups & Sidebar Layout), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-034 (Chatto Desktop), FDR-045 (Realtime Event Stream)

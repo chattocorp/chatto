@@ -532,7 +532,7 @@ type authProviderRuntime struct {
 	httpClient *http.Client
 	oidc       *oidcProvider
 	goth       goth.Provider
-	// atproto is set for AT Protocol providers (FDR-056).
+	// atproto is set for AT Protocol providers (FDR-058).
 	atproto *atprotoProvider
 	// discordOAuth2 exchanges Discord codes. Goth's Discord session ignores
 	// the provider client and would use http.DefaultClient without a timeout.

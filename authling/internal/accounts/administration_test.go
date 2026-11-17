@@ -71,3 +71,25 @@ func TestAdministratorProjectionRejectsAbsentAccount(t *testing.T) {
 		t.Fatal("invalid event changed accounts")
 	}
 }
+
+func TestDirectoryMasks(t *testing.T) {
+	for input, want := range map[string]string{
+		"alice@example.com": "a•••@e•••.com",
+		"a@b.co.uk":         "a•••@b•••.uk",
+		"jörg@münchen.de":   "j•••@m•••.de",
+		"local@localhost":   "l•••@l•••",
+		"":                  "",
+		"no-at-sign":        "n•••",
+		"x@.com":            "x•••@.•••",
+	} {
+		if got := maskEmail(input); got != want {
+			t.Errorf("maskEmail(%q) = %q, want %q", input, got, want)
+		}
+	}
+	if got := maskText("Émile Zola"); got != "É•••" {
+		t.Errorf("maskText = %q", got)
+	}
+	if got := maskText(""); got != "" {
+		t.Errorf("maskText(empty) = %q", got)
+	}
+}

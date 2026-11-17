@@ -19,6 +19,7 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/livekit/protocol/livekit"
 	"github.com/twitchtv/twirp"
@@ -1625,10 +1626,7 @@ func TestCallState_RoomLeaveQueuesCommittedKeyCleanupAfterImmediateFailure(t *te
 	}
 
 	core.callModel.callKeys = workingKeys
-	waitForCallKeyCleanupWork(t, ctx, core)
-	if exists, err := workingKeys.CallKeyExists(ctx, session.E2EEKeyRef); err != nil || !exists {
-		t.Fatalf("CallKeyExists before durable retry = %v, %v; want true, nil", exists, err)
-	}
+	waitForDurableCallKeyCleanup(t, ctx, core, workingKeys, session.E2EEKeyRef)
 }
 
 // waitForCallKeyCleanupWork waits until the durable call-key cleanup consumer
@@ -1648,6 +1646,25 @@ func waitForCallKeyCleanupWork(t *testing.T, ctx context.Context, core *ChattoCo
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+}
+
+// waitForDurableCallKeyCleanup waits until the job queue owns call-key cleanup
+// after the immediate cleanup on the command path failed. The job either
+// succeeded and removed the key, or remains queued for a later attempt.
+func waitForDurableCallKeyCleanup(t *testing.T, ctx context.Context, core *ChattoCore, keys kms.CallKeyStore, keyRef string) {
+	t.Helper()
+	waitForRecoveryTest(t, 5*time.Second, func() bool {
+		for _, job := range jobsOfType(t, ctx, core, jobTypeCallKeyCleanup) {
+			switch job.Status {
+			case jobqueue.Queued, jobqueue.Running:
+				return true
+			case jobqueue.Succeeded:
+				exists, err := keys.CallKeyExists(ctx, keyRef)
+				return err == nil && !exists
+			}
+		}
+		return false
+	}, "durable call-key cleanup job")
 }
 
 func TestCallState_DurableWorkerDiscoversLaterReplicaKeyCleanup(t *testing.T) {
@@ -1679,7 +1696,7 @@ func TestCallState_DurableWorkerDiscoversLaterReplicaKeyCleanup(t *testing.T) {
 
 	workerCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
-	go func() { done <- core.callModel.Run(workerCtx) }()
+	go func() { done <- runWithEffectJobs(workerCtx, core, core.callModel.Run) }()
 	waitForRecoveryTest(t, 5*time.Second, func() bool {
 		exists, err := workingKeys.CallKeyExists(ctx, keyRef)
 		return err == nil && !exists
@@ -1754,7 +1771,7 @@ func TestCallState_ReconciliationCleansHistoricalMembershipOnlyLeave(t *testing.
 	}
 
 	core.callModel.callKeys = workingKeys
-	waitForCallKeyCleanupWork(t, ctx, core)
+	waitForDurableCallKeyCleanup(t, ctx, core, workingKeys, session.E2EEKeyRef)
 }
 
 func TestCallState_ReconciliationCorrectsProjection(t *testing.T) {

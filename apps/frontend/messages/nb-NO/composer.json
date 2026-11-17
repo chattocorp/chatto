@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Understreking",
+      "strikethrough": "Gjennomstreking",
       "bold": "Fet",
       "italic": "Kursiv",
       "inline_code": "Innebygd kode",

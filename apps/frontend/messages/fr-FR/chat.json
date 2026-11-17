@@ -74,7 +74,9 @@
       "thread_views_description": "Les fils suivis et ceux que vous avez démarrés peuvent ne pas être affichés séparément sur ce serveur.",
       "independent_slow_mode_title": "Le mode lent indépendant est indisponible",
       "independent_slow_mode_description": "Ce serveur utilise un délai commun pour les messages du canal et les réponses dans les fils.",
-      "upgrade": "Pour une prise en charge complète, demandez à l’administrateur du serveur de passer à la version {version} ou ultérieure."
+      "upgrade": "Pour une prise en charge complète, demandez à l’administrateur du serveur de passer à la version {version} ou ultérieure.",
+      "background_jobs_title": "Les tâches en arrière-plan sont indisponibles",
+      "background_jobs_description": "Ce serveur ne peut pas afficher ni relancer les tâches en arrière-plan dans les paramètres du serveur."
     },
     "server_gutter": {
       "move_up": "Déplacer vers le haut",
@@ -186,7 +188,17 @@
       "system": "Système",
       "back_to_server": "Retour au serveur",
       "invites": "Invitations",
-      "registration": "Inscription"
+      "registration": "Inscription",
+      "jobs": "Tâches"
+    },
+    "owner_welcome": {
+      "title": "Votre serveur est prêt",
+      "intro": "Vous êtes le propriétaire de ce serveur. Pour protéger votre compte, vos autorisations de propriétaire restent désactivées pendant l’utilisation normale.",
+      "shield_active": "Le mode privilégié est actif pendant les 15 prochaines minutes : vous pouvez configurer votre serveur dès maintenant. Pour le réactiver plus tard, utilisez le bouton en forme de bouclier à côté de votre nom.",
+      "shield_inactive": "Pour configurer votre serveur, activez le mode privilégié avec le bouton en forme de bouclier à côté de votre nom. Il reste actif pendant 15 minutes.",
+      "shield_failed": "Le mode privilégié n’a pas pu être activé.",
+      "next_steps": "Prochaines étapes",
+      "continue_setup": "Poursuivre la configuration"
     }
   }
 }

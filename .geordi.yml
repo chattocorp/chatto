@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+setup: mise setup
+run: CHATTO_DEV_CHATTO_URL_OVERRIDE=http://localhost:$PORT mise dev
+# Reserve the complete development port block, also for manual mise dev-full runs.
+ports: 10
+urls:
+  chatto:
+    url: http://localhost:{run}/

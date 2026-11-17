@@ -7,6 +7,10 @@
     "independentSlowMode": {
       "name": "Unabhängiger langsamer Modus",
       "description": "Verwende getrennte Wartezeiten für Kanalnachrichten und Thread-Antworten."
+    },
+    "backgroundJobs": {
+      "name": "Hintergrundaufträge",
+      "description": "Hintergrundaufträge in den Servereinstellungen ansehen und fehlgeschlagene Aufträge wiederholen."
     }
   },
   "fr": {
@@ -17,6 +21,10 @@
     "independentSlowMode": {
       "name": "Mode lent indépendant",
       "description": "Utilisez des délais distincts pour les messages du canal et les réponses dans les fils."
+    },
+    "backgroundJobs": {
+      "name": "Tâches en arrière-plan",
+      "description": "Consultez les tâches en arrière-plan et relancez les tâches échouées dans les paramètres du serveur."
     }
   },
   "es": {
@@ -27,6 +35,10 @@
     "independentSlowMode": {
       "name": "Modo lento independiente",
       "description": "Usa tiempos de espera separados para los mensajes del canal y las respuestas en hilos."
+    },
+    "backgroundJobs": {
+      "name": "Tareas en segundo plano",
+      "description": "Consulta las tareas en segundo plano y reintenta las fallidas en la configuración del servidor."
     }
   },
   "nl": {
@@ -37,6 +49,10 @@
     "independentSlowMode": {
       "name": "Onafhankelijke langzame modus",
       "description": "Gebruik afzonderlijke wachttijden voor kanaalberichten en threadantwoorden."
+    },
+    "backgroundJobs": {
+      "name": "Achtergrondtaken",
+      "description": "Bekijk achtergrondtaken en probeer mislukte taken opnieuw in de serverinstellingen."
     }
   },
   "sv": {
@@ -47,6 +63,10 @@
     "independentSlowMode": {
       "name": "Oberoende långsamt läge",
       "description": "Använd separata väntetider för kanalmeddelanden och trådsvar."
+    },
+    "backgroundJobs": {
+      "name": "Bakgrundsjobb",
+      "description": "Visa bakgrundsjobb och försök igen med misslyckade jobb i serverinställningarna."
     }
   },
   "pt": {
@@ -57,6 +77,10 @@
     "independentSlowMode": {
       "name": "Modo lento independente",
       "description": "Use intervalos separados para mensagens do canal e respostas em tópicos."
+    },
+    "backgroundJobs": {
+      "name": "Tarefas em segundo plano",
+      "description": "Consulte as tarefas em segundo plano e repita as tarefas falhadas nas definições do servidor."
     }
   },
   "pt-BR": {
@@ -67,6 +91,10 @@
     "independentSlowMode": {
       "name": "Modo lento independente",
       "description": "Use intervalos separados para mensagens do canal e respostas em tópicos."
+    },
+    "backgroundJobs": {
+      "name": "Tarefas em segundo plano",
+      "description": "Veja as tarefas em segundo plano e tente novamente as que falharam nas configurações do servidor."
     }
   },
   "nb": {
@@ -77,6 +105,10 @@
     "independentSlowMode": {
       "name": "Uavhengig langsom modus",
       "description": "Bruk separate ventetider for kanalmeldinger og trådsvar."
+    },
+    "backgroundJobs": {
+      "name": "Bakgrunnsjobber",
+      "description": "Se bakgrunnsjobber og prøv mislykkede jobber på nytt i serverinnstillingene."
     }
   },
   "pl": {
@@ -87,6 +119,10 @@
     "independentSlowMode": {
       "name": "Niezależny tryb powolny",
       "description": "Używaj oddzielnych czasów oczekiwania dla wiadomości na kanale i odpowiedzi w wątkach."
+    },
+    "backgroundJobs": {
+      "name": "Zadania w tle",
+      "description": "Przeglądaj zadania w tle i ponawiaj nieudane zadania w ustawieniach serwera."
     }
   },
   "uk": {
@@ -97,6 +133,10 @@
     "independentSlowMode": {
       "name": "Незалежний повільний режим",
       "description": "Використовуйте окремі інтервали очікування для повідомлень каналу та відповідей у гілках."
+    },
+    "backgroundJobs": {
+      "name": "Фонові завдання",
+      "description": "Переглядайте фонові завдання та повторюйте невдалі завдання в налаштуваннях сервера."
     }
   },
   "it": {
@@ -107,6 +147,10 @@
     "independentSlowMode": {
       "name": "Modalità lenta indipendente",
       "description": "Usa intervalli separati per i messaggi del canale e le risposte nelle discussioni."
+    },
+    "backgroundJobs": {
+      "name": "Attività in background",
+      "description": "Visualizza le attività in background e riprova quelle non riuscite nelle impostazioni del server."
     }
   },
   "lv": {
@@ -117,6 +161,10 @@
     "independentSlowMode": {
       "name": "Neatkarīgs lēnais režīms",
       "description": "Izmantojiet atsevišķus gaidīšanas intervālus kanāla ziņojumiem un atbildēm pavedienos."
+    },
+    "backgroundJobs": {
+      "name": "Fona darbi",
+      "description": "Skatiet fona darbus un atkārtojiet neizdevušos darbus servera iestatījumos."
     }
   },
   "et": {
@@ -127,6 +175,10 @@
     "independentSlowMode": {
       "name": "Sõltumatu aeglane režiim",
       "description": "Kasutage kanalisõnumite ja lõimevastuste jaoks eraldi ooteaegu."
+    },
+    "backgroundJobs": {
+      "name": "Taustatööd",
+      "description": "Vaata taustatöid ja proovi ebaõnnestunud töid serveri seadetes uuesti."
     }
   },
   "tr": {
@@ -137,6 +189,10 @@
     "independentSlowMode": {
       "name": "Bağımsız yavaş mod",
       "description": "Kanal mesajları ve konu yanıtları için ayrı bekleme süreleri kullanın."
+    },
+    "backgroundJobs": {
+      "name": "Arka plan işleri",
+      "description": "Sunucu ayarlarında arka plan işlerini görüntüleyin ve başarısız işleri yeniden deneyin."
     }
   },
   "cs": {
@@ -147,6 +203,10 @@
     "independentSlowMode": {
       "name": "Nezávislý pomalý režim",
       "description": "Používejte samostatné čekací doby pro zprávy v kanálu a odpovědi ve vláknech."
+    },
+    "backgroundJobs": {
+      "name": "Úlohy na pozadí",
+      "description": "Zobrazte úlohy na pozadí a opakujte neúspěšné úlohy v nastavení serveru."
     }
   },
   "ru": {
@@ -157,6 +217,10 @@
     "independentSlowMode": {
       "name": "Независимый медленный режим",
       "description": "Используйте отдельные интервалы ожидания для сообщений канала и ответов в ветках."
+    },
+    "backgroundJobs": {
+      "name": "Фоновые задания",
+      "description": "Просматривайте фоновые задания и повторяйте неудавшиеся задания в настройках сервера."
     }
   },
   "el": {
@@ -167,6 +231,10 @@
     "independentSlowMode": {
       "name": "Ανεξάρτητη αργή λειτουργία",
       "description": "Χρησιμοποιήστε ξεχωριστούς χρόνους αναμονής για μηνύματα καναλιού και απαντήσεις σε νήματα."
+    },
+    "backgroundJobs": {
+      "name": "Εργασίες παρασκηνίου",
+      "description": "Δείτε τις εργασίες παρασκηνίου και επαναλάβετε όσες απέτυχαν στις ρυθμίσεις του διακομιστή."
     }
   },
   "ar": {
@@ -177,6 +245,10 @@
     "independentSlowMode": {
       "name": "وضع بطيء مستقل",
       "description": "استخدم فترات انتظار منفصلة لرسائل القناة والردود في المواضيع."
+    },
+    "backgroundJobs": {
+      "name": "المهام في الخلفية",
+      "description": "اعرض المهام في الخلفية وأعد محاولة المهام الفاشلة في إعدادات الخادم."
     }
   },
   "he": {
@@ -187,6 +259,10 @@
     "independentSlowMode": {
       "name": "מצב איטי נפרד",
       "description": "השתמש בזמני המתנה נפרדים להודעות בערוץ ולתגובות בשרשורים."
+    },
+    "backgroundJobs": {
+      "name": "משימות רקע",
+      "description": "הצגת משימות רקע וניסיון חוזר של משימות שנכשלו בהגדרות השרת."
     }
   },
   "ja": {
@@ -197,6 +273,10 @@
     "independentSlowMode": {
       "name": "独立した低速モード",
       "description": "チャンネルのメッセージとスレッドの返信に、それぞれ異なる待機時間を設定できます。"
+    },
+    "backgroundJobs": {
+      "name": "バックグラウンドジョブ",
+      "description": "サーバー設定でバックグラウンドジョブを確認し、失敗したジョブを再試行します。"
     }
   },
   "zh": {
@@ -207,6 +287,10 @@
     "independentSlowMode": {
       "name": "独立慢速模式",
       "description": "为频道消息和主题回复使用不同的等待时间。"
+    },
+    "backgroundJobs": {
+      "name": "后台任务",
+      "description": "在服务器设置中查看后台任务并重试失败的任务。"
     }
   },
   "zh-Hant": {
@@ -217,6 +301,10 @@
     "independentSlowMode": {
       "name": "獨立慢速模式",
       "description": "為頻道訊息和討論串回覆使用不同的等待時間。"
+    },
+    "backgroundJobs": {
+      "name": "背景工作",
+      "description": "在伺服器設定中檢視背景工作並重試失敗的工作。"
     }
   },
   "eo": {
@@ -227,6 +315,10 @@
     "independentSlowMode": {
       "name": "Sendependa malrapida reĝimo",
       "description": "Uzu apartajn atendotempojn por kanalaj mesaĝoj kaj fadenaj respondoj."
+    },
+    "backgroundJobs": {
+      "name": "Fonaj taskoj",
+      "description": "Vidu fonajn taskojn kaj reprovu malsukcesintajn taskojn en la servilaj agordoj."
     }
   },
   "zh-TW": {
@@ -237,6 +329,10 @@
     "independentSlowMode": {
       "name": "獨立慢速模式",
       "description": "為頻道訊息和討論串回覆使用不同的等待時間。"
+    },
+    "backgroundJobs": {
+      "name": "背景工作",
+      "description": "在伺服器設定中檢視背景工作並重試失敗的工作。"
     }
   }
 }

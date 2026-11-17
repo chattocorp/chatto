@@ -427,6 +427,10 @@
           "one": "{count} projeção falhou",
           "other": "{count} projeções falharam"
         },
+        "projections_stalled_count": {
+          "one": "{count} projeção bloqueada",
+          "other": "{count} projeções bloqueadas"
+        },
         "projections_catching_up_count": {
           "one": "{count} projeção a recuperar atraso",
           "other": "{count} projeções a recuperar atraso"
@@ -591,6 +595,38 @@
         "revoked": "Revogada",
         "used": "Utilizado"
       }
+    },
+    "jobs": {
+      "title": "Tarefas",
+      "subtitle": "Consulte as tarefas em segundo plano e repita ou apague as que falharam.",
+      "load_failed": "Não foi possível carregar as tarefas.",
+      "retry_failed": "Não foi possível repetir esta tarefa.",
+      "delete_failed": "Não foi possível apagar esta tarefa.",
+      "delete_title": "Apagar esta tarefa?",
+      "delete_message": "O trabalho desta tarefa é abandonado. Não é possível repeti-la mais tarde.",
+      "webhook": "Envio de webhook",
+      "media": "Processamento de multimédia",
+      "asset_cleanup": "Limpeza de ficheiros",
+      "call_key_cleanup": "Eliminação de chaves de chamada",
+      "push_subscription_cleanup": "Limpeza de subscrições push",
+      "user_key_shredding": "Eliminação de chaves da conta",
+      "notification_alert": "Alerta de notificação",
+      "email": "E-mail",
+      "queued": "Em fila",
+      "running": "Em execução",
+      "succeeded": "Concluída",
+      "failed": "Falhou",
+      "empty": "Ainda não existem tarefas",
+      "attempts": "Tentativas",
+      "updated": "Atualizada",
+      "next_attempt": "Próxima tentativa",
+      "expired": "Esta tarefa expirou e não pode ser repetida.",
+      "job": "Tarefa",
+      "created": "Criada",
+      "details": "Detalhes",
+      "detail_subtitle": "Estado, tentativas e último motivo de falha desta tarefa.",
+      "not_found": "Esta tarefa já não existe.",
+      "all": "Todas"
     }
   }
 }

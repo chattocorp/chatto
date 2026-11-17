@@ -26,6 +26,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/video"
 	"github.com/chattocorp/chatto/pkg/natsruntime"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/term"
@@ -59,7 +60,10 @@ var banner = `
 
 var configFile string
 
-func runtimeUnitRegistrations() []runtimeunit.Registration {
+// runtimeUnitRegistrations lists the optional units of `chatto run`. The
+// embedded search provider records its health in searchHealth, which the
+// metrics listener exports.
+func runtimeUnitRegistrations(searchHealth *searchbleve.Health) []runtimeunit.Registration {
 	return []runtimeunit.Registration{
 		{
 			Unit: exporter.Unit{},
@@ -68,15 +72,9 @@ func runtimeUnitRegistrations() []runtimeunit.Registration {
 			},
 		},
 		{
-			Unit: searchbleve.Unit{},
+			Unit: searchbleve.Unit{Health: searchHealth},
 			StartWithRun: func(cfg config.ChattoConfig) bool {
 				return cfg.SearchProvider.Enabled
-			},
-		},
-		{
-			Unit: video.Unit{},
-			StartWithRun: func(cfg config.ChattoConfig) bool {
-				return cfg.AssetProcessing.Enabled
 			},
 		},
 	}
@@ -195,6 +193,27 @@ func runServer(configPath string) {
 		return
 	}
 	chattoCore.VideoUploadsEnabled = cfg.Video.Enabled
+	if cfg.AssetProcessing.Enabled {
+		newProcessor := func() (*video.Service, error) {
+			return video.NewService(chattoCore, cfg.AssetProcessing, log.WithPrefix("MediaJobs"))
+		}
+		startupProcessor, processingErr := newProcessor()
+		if processingErr != nil {
+			log.Warn("Media processing tools unavailable; jobs will remain retryable")
+		}
+		chattoCore.SetMediaJobHandler(func(ctx context.Context, assetID, messageID string) error {
+			processor := startupProcessor
+			if processor == nil {
+				// Startup stays available when a processing tool is absent. Each
+				// attempt then looks the tools up again.
+				var err error
+				if processor, err = newProcessor(); err != nil {
+					return errors.New("media processing tools unavailable")
+				}
+			}
+			return chattoCore.ProcessMediaJob(ctx, assetID, messageID, processor.ProcessAsset)
+		}, cfg.AssetProcessing.MaxConcurrentJobsOrDefault())
+	}
 
 	chattoCore.ConfigureLiveKitDiagnostics(cfg.LiveKit, cfg.Webserver.URL)
 	if err := chattoCore.EnableLiveKitCallReconciliation(cfg.LiveKit); err != nil {
@@ -249,7 +268,8 @@ func runServer(configPath string) {
 		return
 	}
 
-	unitRegistrations := runtimeUnitRegistrations()
+	searchHealth := searchbleve.NewHealth()
+	unitRegistrations := runtimeUnitRegistrations(searchHealth)
 	if err := runtimeunit.ValidateRegistrations(unitRegistrations); err != nil {
 		log.Error("Failed to configure runtime units", "error", err)
 		exitCode = 1
@@ -274,12 +294,13 @@ func runServer(configPath string) {
 	// Create and run HTTP server
 	addr := net.JoinHostPort(cfg.Webserver.BindAddress, fmt.Sprint(cfg.Webserver.EffectivePort()))
 	httpServer, err := http_server.NewHTTPServer(http_server.HTTPServerConfig{
-		Config:           cfg,
-		NC:               nc,
-		Core:             chattoCore,
-		Addr:             addr,
-		Version:          Version,
-		StartupStartedAt: startupStartedAt,
+		Config:            cfg,
+		NC:                nc,
+		Core:              chattoCore,
+		Addr:              addr,
+		Version:           Version,
+		StartupStartedAt:  startupStartedAt,
+		MetricsCollectors: embeddedSearchMetrics(cfg, searchHealth),
 	})
 	if err != nil {
 		log.Error("Failed to create HTTP server", "error", err)
@@ -295,6 +316,15 @@ func runServer(configPath string) {
 		log.Error("Server failed", "error", err)
 		exitCode = 1
 	}
+}
+
+// embeddedSearchMetrics returns the health collector of the embedded search
+// provider when `chatto run` starts one.
+func embeddedSearchMetrics(cfg config.ChattoConfig, searchHealth *searchbleve.Health) []prometheus.Collector {
+	if !cfg.SearchProvider.Enabled {
+		return nil
+	}
+	return []prometheus.Collector{searchHealth.Collector()}
 }
 
 func runOptionalRuntimeUnit(ctx context.Context, env runtimeunit.Env, unit runtimeunit.Unit) error {

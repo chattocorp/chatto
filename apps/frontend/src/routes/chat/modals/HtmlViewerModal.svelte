@@ -28,7 +28,7 @@ URL refresh results cannot start a preview or download after this opening ends.
     const { serverId, roomId, attachmentId } = modal;
     return {
       queryKey: [
-        ...serverSessionQueryRoot(serverId, connection),
+        ...serverSessionQueryRoot({ serverId, connection }),
         'attachment-metadata',
         roomId,
         attachmentId

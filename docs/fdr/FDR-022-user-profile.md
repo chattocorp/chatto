@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-10-30
+**Last reviewed:** 2026-11-17
 
 ## Overview
 
@@ -16,8 +16,8 @@ A user's profile carries the public identity they present to the rest of the ser
   **Try Again**.
 
 An explicit browser-default time zone is stored as an empty optional value.
-An absent value means no choice has been recorded. Automatic device reporting
-must respect the empty value, including after reload or on another device.
+An absent value means no choice has been recorded. Both values use Browser
+default. Startup does not save the browser time zone to the account.
 Existing timezone-clear events rebuild this distinction during replay. The
 config snapshot contract is `v3` so older snapshots cannot erase that choice.
 
@@ -56,7 +56,7 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 - **Custom status templates** — the web client offers preset statuses for lunch, holiday/vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active locale. Custom mode stores the user's literal text.
 - **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
 - **Clear status shortcut** — when a custom status is set, the current-user status menu shows **Clear status** above **Set custom status**. It clears the status without opening the editor or asking for confirmation. Presence stays unchanged. If the request fails, the status stays set and the user can retry.
-- **User Preferences** — human accounts currently support a time zone (IANA name, e.g., `Europe/Berlin`), a time format (browser default / 12-hour / 24-hour), and permission to share the time zone. The server stores these choices and syncs them across devices. The stored time zone is private by default. If a choice is not set, the frontend uses the browser time zone and locale time-format default. A compatible web client reports the device time zone to the server once when no explicit time zone is set. It does not overwrite an explicitly selected zone. The unified Settings sidebar puts these personal choices in the Your account group. Permission-gated Server configuration remains separate.
+- **User Preferences** — human accounts currently support a time zone (IANA name, e.g., `Europe/Berlin`), a time format (browser default / 12-hour / 24-hour), and permission to share the time zone. The server stores these choices and syncs them across devices. The stored time zone is private by default. If a choice is not set, the frontend uses the browser time zone and locale time-format default. The client saves a named time zone only when the user explicitly selects and saves it. Browser default follows the current device without saving its time zone to the account. Time-zone sharing remains a separate opt-in choice. The unified Settings sidebar puts these personal choices in the Your account group. Permission-gated Server configuration remains separate.
 - **About** — human and bot accounts can set public Markdown profile text of up to 1,000 characters through `UserService.UpdateUserProfile`. The text is shown on the Profile Card and in the Profile View. Profiles use the message Markdown renderer and block styles, including headings, lists, quotes, code blocks, tables, links, and timestamp controls. The client disables source HTML and sanitizes rendered output. The About editor uses the app's selected Markdown or visual editor and the message formatting toolbar. Both editors save Markdown source. The 1,000-character limit applies to that source. Switching editors and failed saves preserve the current draft. In the Profile View, non-empty About text appears in a collapsible **About** section. It starts expanded. The browser remembers the choice per server. The content stays mounted while collapsed so Markdown loading does not interrupt the expansion animation. The label applies to human and bot accounts because the text can describe either. The API field remains `bio`.
 - **Public time zone** — a user must explicitly enable time-zone sharing. When sharing is enabled, public user reads include the stored IANA zone and clients show the current local time on profile surfaces. When sharing is disabled, public reads and realtime updates omit both values. The account can still use its stored time zone for private formatting.
 - **Profile View** — “View profile” shows the complete public profile as a temporary subview of Members in the current Room Sidebar. It does not navigate or create a DM, and does not require permission to start DMs. The back arrow returns to the current room's Member List. On desktop, the close button hides the sidebar. Below 1024 px viewport width, overlay headers have only the back arrow: return to Members first, then use the Members back arrow to close the sidebar. This also applies inside DMs. Selecting another profile replaces the current subview. Changing rooms or servers clears it. The Profile View shows the avatar, display name, login, custom status, bio, and local time. Its header is the shared user card. A right-click, a touch long-press, or the menu button of the card opens the user's Profile Card. That card has the same actions as in the Member List, except “View profile” and “Remove from room”. For example, the card of a bot shows **Manage bot** to the viewers that FDR-038 allows. The direct-message header retains its information button, including in a self-DM. Closing a profile opened by that button returns to the prior room-extras panel, or hides the Room Sidebar when no panel was open.
@@ -155,8 +155,8 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 ### 6. Browser timezone fallback when unset
 
-**Decision:** If the user hasn't picked a timezone, the frontend uses the browser's `Intl.DateTimeFormat().resolvedOptions().timeZone`.
-**Why:** Forcing every new user to pick a timezone at signup is friction. The browser usually knows.
+**Decision:** If the user has not selected a time zone, the frontend formats timestamps in the browser time zone without saving it to the account. An explicit Browser default choice has the same behavior. Existing saved time zones remain unchanged; the user can clear one to return to Browser default.
+**Why:** The browser provides a useful display default. A device setting must not silently become a persistent account preference. Existing saved values do not identify whether the user or an older client selected them.
 **Tradeoff:** Travelers see times rendered in their travel timezone if they haven't explicitly set one. Most users either don't notice or prefer this.
 
 ### 7. Cross-user identity edits use target-aware authorization
@@ -193,7 +193,7 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 **Decision:** There is one stored time zone per account and a separate sharing setting. The time zone formats the user's own timestamps and stays private by default. The server populates the public `User.timezone` only when the user enables sharing. Clients then show the IANA name and the derived local time. Historical accounts and new accounts start with sharing disabled. New servers always return the sharing setting in `UserSettings`. Its field presence tells a client that the privacy control is supported.
 **Why:** One stored value prevents drift between formatting and profile data. A separate permission lets a user keep the formatting benefit without disclosing location-related data. The local time stays correct across daylight saving time changes.
-**Tradeoff:** Older servers do not support the permission and can publish a stored time zone. A compatible client does not report the browser time zone to such a server and warns the user. During an upgrade, all replicas must run the new version before the private behavior is reliable.
+**Tradeoff:** Older servers do not support the permission and can publish a stored time zone. The client warns the user before they save a time zone on such a server. During an upgrade, all replicas must run the new version before the private behavior is reliable.
 
 ### 13. Context-menu profiles stay in the current room
 

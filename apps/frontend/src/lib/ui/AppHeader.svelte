@@ -25,10 +25,25 @@
     callControls?: Snippet<[ServerStateStore]>;
   } = $props();
 
-  // MOTD follows the active server; the connection-lost icon below stays
-  // bound to the origin store since it reflects the SPA host's own connection.
+  // The MOTD and the connection warning follow the active server. Without a
+  // server in the URL, the active server is the origin.
   const motd = $derived(serverRegistry.tryGetStore(getActiveServer())?.serverInfo.motd);
-  const originStore = $derived(serverRegistry.tryGetStore(serverRegistry.originServer?.id ?? ''));
+  // A server without a signed-in user has no connection to warn about.
+  const connectionWarning = $derived.by(() => {
+    const serverId = getActiveServer();
+    if (!serverRegistry.getServer(serverId)) return null;
+    if (!serverRegistry.tryGetStore(serverId)?.currentUser.user) return null;
+    const connection = serverConnectionManager.getClient(serverId);
+    if (!connection.showConnectionLostIcon) return null;
+    return {
+      urgent: connection.showConnectionLostBanner,
+      // API requests can fail while the realtime connection is open.
+      label:
+        connection.status === 'connected'
+          ? m('chat.server_gutter.connection_unavailable')
+          : m('ui.realtime_paused')
+    };
+  });
   // Call controls follow their owner, even when navigation selects another server.
   const activeCallStore = $derived.by(() => {
     for (const server of serverRegistry.servers) {
@@ -144,19 +159,17 @@
       <span class="iconify icon-[uil--setting] text-lg" aria-hidden="true"></span>
     </a>
 
-    <!-- Connection lost indicator: only show when an authenticated server has lost connection.
-         Skip the origin server if the user isn't authenticated (no WebSocket expected). -->
-    {#if originStore?.currentUser.user && serverConnectionManager.originClient.showConnectionLostIcon}
+    <!-- Connection warning of the active server: a failed realtime attempt or
+         API requests that fail on the network. -->
+    {#if connectionWarning}
       <span
         class={[
           'iconify icon-[uil--wifi-slash] text-lg',
-          serverConnectionManager.originClient.showConnectionLostBanner
-            ? 'text-warning'
-            : 'animate-pulse'
+          connectionWarning.urgent ? 'text-warning' : 'animate-pulse'
         ]}
         role="img"
-        aria-label={m('ui.realtime_paused')}
-        title={m('ui.realtime_paused')}
+        aria-label={connectionWarning.label}
+        title={connectionWarning.label}
       ></span>
     {/if}
   </div>

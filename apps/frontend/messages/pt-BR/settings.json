@@ -50,7 +50,8 @@
         "composer": "Escolha seu editor e como enviar mensagens.",
         "voice": "Configure seu microfone, alto-falantes e preferências de chamadas.",
         "system": "Verifique a integridade do servidor, o armazenamento e as tarefas em segundo plano.",
-        "event_log": "Explore os eventos do servidor e investigue alterações."
+        "event_log": "Explore os eventos do servidor e investigue alterações.",
+        "jobs": "Veja as tarefas em segundo plano e tente novamente as que falharam."
       },
       "title": "Visão geral",
       "shield_notice": "Para usar suas permissões adicionais neste servidor, ative o modo privilegiado com o botão de escudo ao lado do seu nome."

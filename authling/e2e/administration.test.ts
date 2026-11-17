@@ -132,16 +132,24 @@ test('limits the user directory to administrators and renders it on small screen
   await page.getByRole('link', { name: 'Administration', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Registered users' })).toBeVisible();
   const table = page.getByRole('table', { name: 'Registered users' });
-  await expect(table.getByRole('columnheader')).toHaveText([
-    'Email',
-    'Name',
-    'Access',
-    'Registered',
-    'Account ID'
-  ]);
-  await expect(table.getByRole('rowheader', { name: /ordinary@example.invalid/ })).toBeVisible();
+  const headers = table.getByRole('columnheader');
+  const labels = ['Email', 'Name', 'Access', 'Registered', 'Account ID'];
+  await expect(headers).toHaveCount(labels.length);
+  for (const [index, label] of labels.entries()) {
+    await expect(headers.nth(index)).toHaveAccessibleName(label);
+  }
+  const emails = table.getByRole('rowheader');
+  // Newest registrations come first by default. Emails are masked.
+  await expect(headers.nth(3)).toHaveAttribute('aria-sort', 'descending');
+  await expect(emails).toHaveText(['a•••@e•••.invalid', 'o•••@e•••.invalid']);
+  await expect(table.getByText('ordinary@example.invalid')).toHaveCount(0);
+  await expect(table.getByRole('link', { name: 'Email', exact: true })).toHaveCount(0);
+  await table.getByRole('link', { name: 'Registered', exact: true }).click();
+  await expect(page).toHaveURL(`${stack.baseURL}/admin?order=asc`);
+  await expect(headers.nth(3)).toHaveAttribute('aria-sort', 'ascending');
+  await expect(emails).toHaveText(['o•••@e•••.invalid', 'a•••@e•••.invalid']);
   await expect(table.getByTitle('Via server configuration', { exact: true })).toBeVisible();
-  const row = table.getByRole('row').filter({ hasText: 'ordinary@example.invalid' });
+  const row = table.getByRole('row').filter({ hasText: 'o•••@e•••.invalid' });
   await expect(row.locator('code')).toBeVisible();
   for (const userRow of await table.locator('tbody tr').all()) {
     expect((await userRow.boundingBox())!.height).toBeLessThanOrEqual(56);
@@ -156,7 +164,9 @@ test('limits the user directory to administrators and renders it on small screen
       true
     );
     await page.getByRole('region', { name: 'Registered users' }).focus();
-    await page.evaluate(() => document.dispatchEvent(new Event('htmx:afterSettle')));
+    await page.evaluate(() =>
+      document.dispatchEvent(new CustomEvent('htmx:afterSettle', { detail: { boosted: true } }))
+    );
     await expect(page.getByRole('region', { name: 'Registered users' })).toBeFocused();
   }
   await page.context().clearCookies();

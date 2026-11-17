@@ -102,6 +102,7 @@ test('all release units preserve migration tags and bump independently configure
     'pkg/datacrypto': '0.0.0',
     'pkg/events': '0.1.0',
     'pkg/jetstreamutil': '0.0.0',
+    'pkg/jobs': '0.0.0',
     'pkg/natsruntime': '0.0.0'
   };
   const sourceVersions = {};
@@ -109,9 +110,11 @@ test('all release units preserve migration tags and bump independently configure
     const manifest = readFileSync(path.join(root, unit, '.sweet.yml'), 'utf8');
     sourceVersions[unit] = manifest.match(/^version: (.+)$/m)[1];
     mkdirSync(path.join(repo, unit), { recursive: true });
+    // Remove the prerelease label so the expected tags do not depend on the
+    // current release channel of each unit.
     writeFileSync(
       path.join(repo, unit, '.sweet.yml'),
-      manifest.replace(/^version: .+$/m, `version: ${version}`)
+      manifest.replace(/^version: .+$/m, `version: ${version}`).replace(/^prerelease: .+\n/m, '')
     );
   }
   for (const file of [
@@ -147,15 +150,18 @@ test('all release units preserve migration tags and bump independently configure
   f.tag(migration, after);
   for (const tag of [
     'v0.5.1',
-    'authling/v0.1.1',
+    // Sweet finalizes an unlabeled prerelease instead of bumping it.
+    'authling/v0.1.0',
     'runling/v0.7.1',
     'translatto/v0.2.1',
-    ...['appconfig', 'datacrypto', 'jetstreamutil', 'natsruntime'].map((p) => `pkg/${p}/v0.0.1`),
+    ...['appconfig', 'datacrypto', 'jetstreamutil', 'jobs', 'natsruntime'].map(
+      (p) => `pkg/${p}/v0.0.1`
+    ),
     'pkg/events/v0.1.1'
   ]) {
     assert.equal(f.git('rev-parse', `${tag}^{}`), released);
   }
-  assert.match(readFileSync(path.join(repo, 'authling/version.go'), 'utf8'), /"0\.1\.1"/);
+  assert.match(readFileSync(path.join(repo, 'authling/version.go'), 'utf8'), /"0\.1\.0"/);
   assert.equal(
     readFileSync(path.join(repo, 'packages/runling/version.txt'), 'utf8').trim(),
     '0.7.1'

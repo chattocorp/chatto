@@ -1,7 +1,7 @@
 import { sha256 } from 'js-sha256';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { AssetUploadService } from '@chatto/api-types/api/v1/asset_uploads_connect';
-import { createChattoClient, type ConnectAPIConfig } from './connect.js';
+import { createChattoClient, skipNetworkRetry, type ConnectAPIConfig } from './connect.js';
 
 export type UploadedAsset = {
   assetId: string;
@@ -83,7 +83,11 @@ export function createAssetUploadAPI(config: ConnectAPIConfig) {
             throw err;
           }
           const resumed = await retryUploadRequest(() =>
-            client.getUpload({ uploadId: upload.uploadId }, { timeoutMs: chunkTimeoutMs })
+            client.getUpload(
+              { uploadId: upload.uploadId },
+              // `retryUploadRequest` repeats this read with its own limit.
+              { timeoutMs: chunkTimeoutMs, ...skipNetworkRetry() }
+            )
           );
           const resumedOffset = checkedOffset(
             resumed.upload?.committedOffset,

@@ -20,7 +20,7 @@ import (
 
 // atprotoIdentityScope is the only scope that Chatto's server requests. It
 // proves the account DID and grants no access to the user's repository
-// (FDR-056).
+// (FDR-058).
 const atprotoIdentityScope = "atproto"
 
 // atprotoDefaultAuthServer is used when a sign-in starts without a handle.

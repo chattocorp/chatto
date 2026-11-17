@@ -74,7 +74,9 @@
       "thread_views_description": "Es posible que los hilos que sigues y los que has iniciado no se muestren por separado en este servidor.",
       "independent_slow_mode_title": "El modo lento independiente no está disponible",
       "independent_slow_mode_description": "Este servidor utiliza un tiempo de espera compartido para los mensajes del canal y las respuestas en los hilos.",
-      "upgrade": "Para obtener compatibilidad completa, pide al administrador del servidor que actualice a {version} o posterior."
+      "upgrade": "Para obtener compatibilidad completa, pide al administrador del servidor que actualice a {version} o posterior.",
+      "background_jobs_title": "Las tareas en segundo plano no están disponibles",
+      "background_jobs_description": "Este servidor no puede mostrar ni reintentar tareas en segundo plano en los ajustes del servidor."
     },
     "server_gutter": {
       "move_up": "Mover hacia arriba",
@@ -186,7 +188,17 @@
       "system": "Sistema",
       "back_to_server": "Regresar al Servidor",
       "invites": "Invitaciones",
-      "registration": "Registro"
+      "registration": "Registro",
+      "jobs": "Tareas"
+    },
+    "owner_welcome": {
+      "title": "Tu servidor está listo",
+      "intro": "Eres el propietario de este servidor. Para proteger tu cuenta, tus permisos de propietario permanecen desactivados durante el uso habitual.",
+      "shield_active": "El modo privilegiado está activo durante los próximos 15 minutos, así que puedes configurar tu servidor ahora. Para volver a activarlo más tarde, usa el botón del escudo junto a tu nombre.",
+      "shield_inactive": "Para configurar tu servidor, activa el modo privilegiado con el botón del escudo junto a tu nombre. Permanece activo durante 15 minutos.",
+      "shield_failed": "No se pudo activar el modo privilegiado.",
+      "next_steps": "Próximos pasos",
+      "continue_setup": "Continuar la configuración"
     }
   }
 }

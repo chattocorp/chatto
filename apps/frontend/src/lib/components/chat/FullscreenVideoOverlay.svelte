@@ -76,6 +76,18 @@
   }
 </script>
 
+<!-- Capture Escape before room shortcuts, including while the player loads or
+     when native fullscreen is unavailable. Native fullscreen exit also uses
+     handleFullscreenChange when the browser consumes the key itself. -->
+<svelte:window
+  onkeydowncapture={(event) => {
+    if (event.key !== 'Escape' || !fullscreenVideo.isOpen) return;
+    event.preventDefault();
+    event.stopPropagation();
+    close();
+  }}
+/>
+
 {#if fullscreenVideo.isOpen && fullscreenVideo.source && elementsReady}
   <div
     {@attach enterFullscreen}

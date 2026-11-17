@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Pasvītrojums",
+      "strikethrough": "Pārsvītrojums",
       "bold": "Treknrakstā",
       "italic": "Kursīvs",
       "inline_code": "Iekļauts kods",

@@ -50,7 +50,8 @@
         "composer": "Velg meldingsredigerer og hvordan du sender meldinger.",
         "voice": "Sett opp mikrofon, høyttalere og samtaleinnstillinger.",
         "system": "Kontroller serverstatus, lagring og bakgrunnsoppgaver.",
-        "event_log": "Utforsk serverhendelser og undersøk endringer."
+        "event_log": "Utforsk serverhendelser og undersøk endringer.",
+        "jobs": "Se bakgrunnsjobber og prøv mislykkede jobber på nytt."
       },
       "title": "Oversikt",
       "shield_notice": "Aktiver privilegert modus med skjoldknappen ved siden av navnet ditt for å bruke de ekstra tillatelsene dine på denne serveren."

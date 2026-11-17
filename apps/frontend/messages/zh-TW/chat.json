@@ -74,7 +74,9 @@
       "thread_views_description": "此伺服器可能無法分別列出你追蹤的討論串和你發起的討論串。",
       "independent_slow_mode_title": "無法使用獨立慢速模式",
       "independent_slow_mode_description": "此伺服器對頻道訊息和討論串回覆使用共用的冷卻時間。",
-      "upgrade": "如需完整支援，請要求伺服器管理員升級至 {version} 或更新版本。"
+      "upgrade": "如需完整支援，請要求伺服器管理員升級至 {version} 或更新版本。",
+      "background_jobs_title": "無法使用背景工作",
+      "background_jobs_description": "此伺服器無法在伺服器設定中顯示或重試背景工作。"
     },
     "server_gutter": {
       "move_up": "向上移動",
@@ -186,7 +188,17 @@
       "system": "系統",
       "back_to_server": "返回伺服器",
       "invites": "邀請",
-      "registration": "註冊"
+      "registration": "註冊",
+      "jobs": "工作"
+    },
+    "owner_welcome": {
+      "title": "你的伺服器已準備就緒",
+      "intro": "你是此伺服器的擁有者。為保護你的帳號，日常使用時擁有者權限會保持關閉。",
+      "shield_active": "特權模式將在接下來的 15 分鐘內保持開啟，你現在就可以設定伺服器。之後要再次開啟，請使用名稱旁的盾牌按鈕。",
+      "shield_inactive": "若要設定伺服器，請使用名稱旁的盾牌按鈕啟用特權模式。它會保持開啟 15 分鐘。",
+      "shield_failed": "無法啟用特權模式。",
+      "next_steps": "後續步驟",
+      "continue_setup": "繼續設定"
     }
   }
 }

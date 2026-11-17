@@ -8,7 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/chattocorp/chatto/cli/internal/config"
+	searchbleve "github.com/chattocorp/chatto/cli/internal/search/bleve"
 )
 
 func TestMetricsServerExposesPrometheusMetrics(t *testing.T) {
@@ -160,6 +163,15 @@ func TestMetricsServerUsesProjectionAndModelKeys(t *testing.T) {
 	if !strings.Contains(text, `chatto_projection_lag_events{projection="server_content_view"}`) {
 		t.Fatalf("metrics body missing server_content_view projection label\n%s", text)
 	}
+	for _, want := range []string{
+		`chatto_projection_stalled{projection="server_content_view"} 0`,
+		`chatto_projection_pending_seconds{projection="server_content_view"}`,
+		`chatto_projection_last_commit_duration_seconds{projection="server_content_view"}`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("metrics body missing %q\n%s", want, text)
+		}
+	}
 	if !strings.Contains(text, `chatto_projection_startup_duration_seconds{projection="server_content_view"}`) {
 		t.Fatalf("metrics body missing server_content_view startup duration metric\n%s", text)
 	}
@@ -241,4 +253,33 @@ func scrapeMetricsText(t *testing.T, url string) string {
 		t.Fatalf("read metrics body: %v", err)
 	}
 	return string(body)
+}
+
+// The embedded search provider's health metrics appear on the server
+// metrics listener, so each replica reports its own provider.
+func TestMetricsServerServesEmbeddedSearchHealth(t *testing.T) {
+	s := &HTTPServer{
+		config:       config.ChattoConfig{Metrics: config.MetricsConfig{Enabled: true}},
+		metrics:      newProcessMetrics(),
+		metricsExtra: []prometheus.Collector{searchbleve.NewHealth().Collector()},
+	}
+	metricsServer, err := s.newMetricsServer()
+	if err != nil {
+		t.Fatalf("newMetricsServer() error = %v", err)
+	}
+	ts := httptest.NewServer(metricsServer.Handler)
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + s.config.Metrics.PathOrDefault())
+	if err != nil {
+		t.Fatalf("GET metrics error = %v", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read metrics body: %v", err)
+	}
+	if want := "chatto_search_provider_serving 0\n"; !strings.Contains(string(body), want) {
+		t.Fatalf("metrics body missing %q\n%s", want, body)
+	}
 }

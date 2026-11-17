@@ -1,5 +1,6 @@
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
+  import { flattenUniquePages, nextOffset } from '$lib/query/pagination';
   import { onDestroy } from 'svelte';
   import {
     createRoomCommandAPI,
@@ -14,7 +15,6 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { toast } from '$lib/ui/toast';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { SvelteSet } from 'svelte/reactivity';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createInfiniteQuery, createMutation, queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
@@ -36,32 +36,26 @@
   });
 
   const bansQuery = createInfiniteQuery(() => {
-    const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     return {
-      queryKey: adminQueryKeys.suspensions(serverId, activeConnection),
+      queryKey: adminQueryKeys.suspensions(serverScope),
       queryFn: ({ pageParam, signal }) =>
         activeConnection
           .getAPI(createRoomCommandAPI)
           .listSuspensions({ limit: PAGE_SIZE, offset: pageParam }, { signal }),
       initialPageParam: 0,
-      getNextPageParam: (lastPage, _pages, lastPageParam) =>
-        lastPage.hasMore && lastPage.suspensions.length > 0
-          ? lastPageParam + lastPage.suspensions.length
-          : undefined
+      getNextPageParam: (lastPage, _pages, offset) =>
+        nextOffset(lastPage.hasMore, lastPage.suspensions.length, offset)
     };
   });
 
-  const bans = $derived.by(() => {
-    const seen = new SvelteSet<string>();
-    return (bansQuery.data?.pages ?? []).flatMap((page) =>
-      page.suspensions.filter((ban) => {
-        if (seen.has(ban.id)) return false;
-        seen.add(ban.id);
-        return true;
-      })
-    );
-  });
+  const bans = $derived(
+    flattenUniquePages(
+      bansQuery.data,
+      (page) => page.suspensions,
+      (ban) => ban.id
+    )
+  );
   const hasMore = $derived(bansQuery.hasNextPage);
   const loading = $derived(bansQuery.isPending);
   const loadingMore = $derived(bansQuery.isFetchingNextPage);
@@ -112,13 +106,12 @@
   async function unban(ban: RoomSuspensionSummary, reason: string) {
     if (unbanMutation.isPending) return;
     const request = ++unbanRequest;
-    const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
     unbanError = null;
     try {
       await unbanMutation.mutateAsync({
         api: activeConnection.getAPI(createRoomCommandAPI),
-        queryKey: adminQueryKeys.suspensions(serverId, activeConnection),
+        queryKey: adminQueryKeys.suspensions(serverScope),
         ban,
         reason
       });

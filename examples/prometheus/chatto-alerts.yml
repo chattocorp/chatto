@@ -1,0 +1,118 @@
+# Prometheus alerting rules for Chatto search availability and indexing.
+#
+# Load this file with `rule_files` in prometheus.yml. Scrape the metrics
+# listener of each Chatto server process, and the health listener of each
+# standalone search provider. The metrics listener of `chatto run` also
+# serves the metrics of its bundled search provider. The docs website explains each alert:
+# https://docs.chatto.run/guides/operations/server-operations#alert-rules
+#
+# Labels come from the scraped series (`job`, `instance`, and `projection`)
+# and from `severity`. They contain no user data. Test the rules with
+# `mise test-alert-rules`.
+groups:
+  - name: chatto-search
+    rules:
+      # The search provider that answers this replica's status request cannot
+      # run its test query, or reports that it is unavailable. Members see
+      # failed searches. `max without (state)` drops the `state` label, so that
+      # all conditions give one alert for each scraped target, and a change
+      # between them does not restart the `for` delay. A provider reports no probe result during its
+      # initial replay, so a rebuild does not fire this alert.
+      - alert: ChattoSearchQueriesFailing
+        expr: |
+          max without (state) (
+              chatto_search_provider_query_probe_consecutive_failures > 0
+            or
+              chatto_search_provider_query_probe_in_flight_seconds > 10
+            or
+              chatto_search_provider_state{state="unavailable"} == 1
+          )
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+          summary: Search queries fail on {{ $labels.instance }}
+          description: >-
+            The search provider that answers {{ $labels.instance }} has failed
+            its test query, or reported that it is unavailable, for more than
+            2 minutes. Members cannot search messages.
+
+      # No search provider answers this replica's status request. Search is
+      # enabled, but no provider is connected to NATS.
+      - alert: ChattoSearchProviderAbsent
+        expr: chatto_search_provider_status_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+          summary: No search provider answers {{ $labels.instance }}
+          description: >-
+            Search is enabled, but no search provider has answered status
+            requests from {{ $labels.instance }} for more than 2 minutes.
+            Members cannot search messages.
+
+      # One search provider process, standalone or bundled in `chatto run`,
+      # fails its test query and has left the query queue. Other providers
+      # can still answer queries. These metrics come from the process itself,
+      # so they also show a provider that no longer answers status requests.
+      - alert: ChattoSearchProviderProbeFailing
+        expr: |
+          max without () (
+              chatto_search_query_probe_consecutive_failures > 0
+            or
+              chatto_search_query_probe_in_flight_seconds > 10
+          )
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+          summary: Search provider {{ $labels.instance }} fails its test query
+          description: >-
+            The search provider of {{ $labels.instance }} has failed its test
+            query for more than 2 minutes and does not answer queries.
+
+      # The search index has events to index, but commits no progress. The
+      # provider sets the stalled flag after 5 minutes without a commit, so
+      # this rule has no additional `for` delay. A slow rebuild that still
+      # commits, and an idle index that is current, do not fire it.
+      # `max_over_time` keeps the alert steady when more than one provider
+      # answers the status requests. The index write age comes from the
+      # provider process itself. It shows a blocked commit also when the
+      # provider has left the query queue and no longer answers status
+      # requests.
+      - alert: ChattoSearchIndexStalled
+        expr: |
+          max without () (
+              max_over_time(chatto_search_provider_stalled[2m]) == 1
+            or
+              chatto_search_index_write_age_seconds > 300
+          )
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+          summary: Search index stalled on {{ $labels.instance }}
+          description: >-
+            The search index reported by {{ $labels.instance }} has events to
+            index but has committed no progress for more than 5 minutes. Search
+            results do not include new messages.
+
+  - name: chatto-projections
+    rules:
+      # A projection of one server process has events to apply, but commits
+      # no progress for 5 minutes. The replica serves data that is out of
+      # date. A slow replay that still commits does not fire this alert.
+      - alert: ChattoProjectionStalled
+        expr: chatto_projection_stalled == 1
+        labels:
+          severity: warning
+        annotations:
+          runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+          summary: Projection {{ $labels.projection }} stalled on {{ $labels.instance }}
+          description: >-
+            The projection {{ $labels.projection }} on {{ $labels.instance }}
+            has events to apply but has committed no progress for more than 5
+            minutes.

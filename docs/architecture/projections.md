@@ -129,6 +129,26 @@ or event application moves the projector into its failed state before its run
 loop returns. Readiness and provider status therefore cannot remain
 healthy-looking after an incomplete startup.
 
+Every projector reports freshness without the apply barrier or a projection
+lock: last committed and observed sequences, last commit time and duration, the
+current operation (`restore`, `apply`, `startup_batch`, or `live_batch`) and
+its duration, and how long pending events have waited. The observed sequence is
+the highest of the startup target, the newest delivered matching event, and a
+source check that reads the newest matching sequence every 30 seconds. The
+source check covers a consumer that stops delivering. A projector is stalled
+when the observed sequence is greater than the committed sequence and no commit
+happened for `ProjectorOptions.StallAfter` (default five minutes). Each commit
+restarts the interval, so a slow replay that advances is not stalled. A caught-up
+projector is never stalled. Stall detection only reports; it does not restart or
+reset a projection. Run logs each stall state change. Admin System and the
+`chatto_projection_stalled` metric show core projections. Their memory
+estimates take projection read locks, so diagnostics wait at most 500 ms for
+each estimate and run at most one estimate per projection at a time. A blocked
+projection then reports its status without an estimate. The search provider
+reports its stall in `chatto.search.v1.GetStatusResponse`: freshness `STALLED`,
+and state `DEGRADED` after startup or `INDEXING` during startup. Queries remain
+available from a stalled index.
+
 Projection consumers use a five-minute inactivity cleanup threshold. Because
 event application is synchronous and disk-backed commits can temporarily stop
 the pull loop, a shorter broker threshold could delete a live consumer while
@@ -612,3 +632,14 @@ original search document or create a second result.
 `RoomInvitationProjection` consumes room aggregate facts and cold-replays
 invitation state. It has no snapshot or notification dependency. The registered
 `room_invitations` projector participates in startup readiness and diagnostics.
+
+## Job view
+
+The job view in [`pkg/jobs`](../../pkg/jobs/view.go) is an in-memory projection
+of the `JOBS` stream. It cold-replays the retained job facts on `jobs.>` and
+keeps one summary for each job, without the payload. It has no snapshot. It is
+not a registered projector: `jobs.Queue` owns its ordered consumer, and it does
+not participate in startup readiness or projection diagnostics. Job list,
+detail, retry, and delete requests wait for its replay. After a retry or a
+delete, the queue waits until the view has applied the new fact. A periodic sweep drops jobs that the
+stream no longer retains. Standalone media processes do not run the view.

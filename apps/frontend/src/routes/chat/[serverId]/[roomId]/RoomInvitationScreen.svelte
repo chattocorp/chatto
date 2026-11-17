@@ -38,11 +38,7 @@
   const sender = createQuery(() => {
     const senderId = invitation?.senderId ?? '';
     return {
-      queryKey: [
-        ...serverSessionQueryRoot(scope.serverId, scope.connection),
-        'invitation-sender',
-        senderId
-      ],
+      queryKey: [...serverSessionQueryRoot(scope), 'invitation-sender', senderId],
       queryFn: () => scope.connection.getAPI(createMemberDirectoryAPI).getUser(senderId),
       enabled: !!senderId
     };

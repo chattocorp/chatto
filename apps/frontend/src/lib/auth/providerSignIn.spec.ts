@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('$app/navigation', () => ({ goto: mocks.goto }));
 vi.mock('./returnNavigation', () => ({ saveReturnUrl: mocks.saveReturnUrl }));
 vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
-vi.mock('$lib/oauth/pkce', () => ({ generateState: () => 'transaction-state' }));
+vi.mock('@chatto/client/auth/oauth', () => ({ randomOAuthValue: () => 'transaction-state' }));
 vi.mock('$lib/oauth/popup', () => ({ openOAuthPopup: mocks.open }));
 vi.mock('@chatto/client/api/viewer', () => ({ getCurrentUserViaConnect: mocks.getCurrentUser }));
 

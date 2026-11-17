@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"net"
 	"net/http"
 	"net/url"
@@ -28,6 +29,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/nats-io/nats.go"
 	"golang.org/x/crypto/acme/autocert"
+	"golang.org/x/sync/errgroup"
 )
 
 // HTTPServerConfig holds configuration for creating an HTTPServer.
@@ -40,6 +42,10 @@ type HTTPServerConfig struct {
 	// StartupStartedAt includes core boot in the readiness duration. Zero uses
 	// the time Run starts. Optional runtime units do not gate HTTP readiness.
 	StartupStartedAt time.Time
+	// MetricsCollectors are process-local collectors that the metrics
+	// listener serves in addition to the Chatto metrics, for example the
+	// health metrics of the embedded search provider.
+	MetricsCollectors []prometheus.Collector
 }
 
 // HTTPServer serves the HTTP APIs and static frontend.
@@ -50,12 +56,14 @@ type HTTPServer struct {
 	core                *core.ChattoCore
 	connectAPI          *connectapi.API
 	mailer              email.Sender
+	mailJobs            *core.EmailJobs
 	mockMailer          *email.MockSender // Non-nil when test email endpoint is enabled
 	addr                string
 	version             string
 	startupStartedAt    time.Time
 	logger              *log.Logger
 	metrics             *processMetrics
+	metricsExtra        []prometheus.Collector
 	realtimeCatchUps    *realtimeCatchUpAdmission
 	imageTransforms     imageTransforms
 	trustedProxies      trustedProxySet
@@ -128,7 +136,8 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 	logger := log.WithPrefix("server.HTTP")
 
 	// Create the configured email sender (mock if built with -tags test_endpoints).
-	mockMailer, mailer := createMailer(cfg.Config.Email, cfg.Config.SMTP)
+	mockMailer, transport := createMailer(cfg.Config.Email, cfg.Config.SMTP)
+	mailer := cfg.Core.NewEmailJobs(transport)
 
 	// Warn at startup if test endpoints are enabled (security-bypassing endpoints)
 	if mockMailer != nil {
@@ -161,10 +170,12 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 		core:             cfg.Core,
 		connectAPI:       connectapi.New(cfg.Core, cfg.Config, cfg.Version, connectapi.WithMessageSearchProviderClient(search.NewClient(cfg.NC)), connectapi.WithEmailSender(mailer)),
 		mailer:           mailer,
+		mailJobs:         mailer,
 		mockMailer:       mockMailer,
 		addr:             cfg.Addr,
 		version:          cfg.Version,
 		startupStartedAt: cfg.StartupStartedAt,
+		metricsExtra:     cfg.MetricsCollectors,
 		logger:           logger,
 		metrics:          newProcessMetrics(),
 		realtimeCatchUps: newRealtimeCatchUpAdmission(),
@@ -305,6 +316,21 @@ func (s *HTTPServer) setupRoutes() error {
 
 // Run starts the HTTP server(s) and blocks until ctx is cancelled or an error occurs.
 func (s *HTTPServer) Run(ctx context.Context) error {
+	if s.mailJobs == nil {
+		return s.runHTTP(ctx)
+	}
+	g, groupCtx := errgroup.WithContext(ctx)
+	g.Go(func() error { return s.mailJobs.Run(groupCtx) })
+	g.Go(func() error { return s.runHTTP(groupCtx) })
+	err := g.Wait()
+	// Preserve the HTTP runtime contract: requested shutdown is successful.
+	if ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
+		return nil
+	}
+	return err
+}
+
+func (s *HTTPServer) runHTTP(ctx context.Context) error {
 	started := s.startupStartedAt
 	if started.IsZero() {
 		started = time.Now()

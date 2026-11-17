@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Podtržení",
+      "strikethrough": "Přeškrtnutí",
       "bold": "Tučné",
       "italic": "kurzíva",
       "inline_code": "Vložený kód",

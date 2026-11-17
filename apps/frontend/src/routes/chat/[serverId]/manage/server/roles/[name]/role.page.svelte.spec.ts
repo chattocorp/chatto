@@ -356,9 +356,8 @@ describe('role management page identity', () => {
   });
 
   it('reuses a fresh cached role snapshot after remounting', async () => {
-    const connection = server.scope.connection;
     queryClient.setQueryData(
-      adminQueryKeys.role('origin', connection, 'role-a'),
+      adminQueryKeys.role(server.scope, 'role-a'),
       details('role-a', 'Cached Role', 'Cached description')
     );
 
@@ -379,8 +378,7 @@ describe('role management page identity', () => {
   });
 
   it('invalidates the cached permission tier after role metadata changes', async () => {
-    const connection = server.scope.connection;
-    const tierKey = adminQueryKeys.permissionTiers('origin', connection);
+    const tierKey = adminQueryKeys.permissionTiers(server.scope);
     queryClient.setQueryData(tierKey, { roles: [] });
     mocks.getRole.mockResolvedValue(details('role-a', 'Role A', 'Original description'));
     mocks.updateRole.mockResolvedValue(role('role-a', 'Role A updated', 'Original description'));
@@ -398,8 +396,8 @@ describe('role management page identity', () => {
     await vi.waitFor(() => expect(mocks.updateRole).toHaveBeenCalledOnce());
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
     expect(
-      queryClient.getQueryData<RoleDetails>(adminQueryKeys.role('origin', connection, 'role-a'))
-        ?.role?.displayName
+      queryClient.getQueryData<RoleDetails>(adminQueryKeys.role(server.scope, 'role-a'))?.role
+        ?.displayName
     ).toBe('Role A updated');
   });
 
@@ -443,11 +441,10 @@ describe('role management page identity', () => {
   });
 
   it('removes a deleted role query and invalidates its derived caches', async () => {
-    const connection = server.scope.connection;
-    const tierKey = adminQueryKeys.permissionTiers('origin', connection);
-    const roleKey = adminQueryKeys.rolePermissions('origin', connection, 'role-a');
-    const roleDetailsKey = adminQueryKeys.role('origin', connection, 'role-a');
-    const userKey = adminQueryKeys.userPermissions('origin', connection, 'user-a');
+    const tierKey = adminQueryKeys.permissionTiers(server.scope);
+    const roleKey = adminQueryKeys.rolePermissions(server.scope, 'role-a');
+    const roleDetailsKey = adminQueryKeys.role(server.scope, 'role-a');
+    const userKey = adminQueryKeys.userPermissions(server.scope, 'user-a');
     queryClient.setQueryData(tierKey, { roles: [] });
     queryClient.setQueryData(roleKey, { roleName: 'role-a' });
     queryClient.setQueryData(roleDetailsKey, details('role-a', 'Role A', 'Description'));

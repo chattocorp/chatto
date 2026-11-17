@@ -1,6 +1,7 @@
 <!-- @component Role management frame with routed Role, Members, and Permissions sections. -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { nextOffset } from '$lib/query/pagination';
   import { goto } from '$app/navigation';
   import { captureMutationCompletion, completeMutation } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
@@ -52,11 +53,10 @@
   };
 
   const roleQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const targetRoleName = roleName;
     return {
-      queryKey: adminQueryKeys.role(serverId, connection, targetRoleName),
+      queryKey: adminQueryKeys.role(serverScope, targetRoleName),
       queryFn: ({ signal }) => connection.getAPI(createRoleAPI).getRole(targetRoleName, { signal })
     };
   });
@@ -76,7 +76,7 @@
     const connection = serverScope.connection;
     const name = roleName;
     return {
-      queryKey: adminQueryKeys.roleMembers(serverScope.serverId, connection, name),
+      queryKey: adminQueryKeys.roleMembers(serverScope, name),
       enabled: activeSection === 'members' && canViewMembers && name !== 'everyone',
       queryFn: ({ pageParam, signal }) =>
         connection
@@ -84,7 +84,7 @@
           .listMembers(name, { limit: 20, offset: pageParam }, { signal }),
       initialPageParam: 0,
       getNextPageParam: (lastPage, _pages, offset) =>
-        lastPage.hasMore && lastPage.users.length > 0 ? offset + lastPage.users.length : undefined
+        nextOffset(lastPage.hasMore, lastPage.users.length, offset)
     };
   });
   const roleUsers = $derived.by(() => {
@@ -110,7 +110,7 @@
     queryClient.setQueryData<RoleDetails>(variables.queryKey, (current) =>
       current ? { ...current, role: updatedRole } : current
     );
-    invalidatePermissionTiers(variables.serverId, variables.connection);
+    invalidatePermissionTiers(variables);
   }
 
   const metadataMutation = createMutation(() => ({
@@ -137,7 +137,7 @@
         () => variables.api.deleteRole(variables.roleName),
         variables.canComplete,
         () => {
-          removeDeletedRoleQueries(variables.serverId, variables.connection, variables.roleName);
+          removeDeletedRoleQueries(variables, variables.roleName);
           void goto(
             resolve('/chat/[serverId]/manage/server/roles', {
               serverId: serverIdToSegment(variables.serverId)
@@ -155,7 +155,7 @@
     return {
       ...snapshot,
       roleName: targetRole.name,
-      queryKey: adminQueryKeys.role(snapshot.serverId, snapshot.connection, targetRole.name),
+      queryKey: adminQueryKeys.role(snapshot, targetRole.name),
       api: snapshot.connection.getAPI(createRoleAPI),
       canComplete: captureMutationCompletion(serverScope)
     };

@@ -18,6 +18,11 @@ export interface RealtimeReconnectOptions {
 const HIDDEN_RECONNECT_AFTER_MS = 30_000;
 const MAX_BROWSER_RENEWAL_TIMER_MS = 24 * 60 * 60 * 1000;
 const BROWSER_RENEWAL_RETRY_MS = 60_000;
+/**
+ * Failed API requests in sequence that make the connection warning urgent.
+ * Reads repeat before they fail, so three failures are a continuous problem.
+ */
+const URGENT_FAILED_REQUESTS = 3;
 let nextQueryScope = 0;
 
 export interface ServerConnectionConfig {
@@ -115,6 +120,17 @@ export class ServerConnection {
   set #connectionFailed(value) {
     this.#connectionFailedSignal.set(value);
   }
+  /**
+   * Number of API requests in sequence that failed on the network. A request
+   * that the server answers, or a forced reconnect, sets it back to zero.
+   */
+  readonly #failedRequestsSignal = signal(0);
+  get #failedRequests() {
+    return this.#failedRequestsSignal.get();
+  }
+  set #failedRequests(value) {
+    this.#failedRequestsSignal.set(value);
+  }
   readonly #realtimeUnsupportedSignal = signal(false);
   /**
    * Whether the server closed realtime because it does not support this
@@ -166,14 +182,42 @@ export class ServerConnection {
     return this.status === 'connected';
   }
 
-  /** Show the connection warning after a failed attempt until an attempt succeeds. */
-  get showConnectionLostIcon() {
+  /**
+   * Whether the latest completed realtime attempt failed. API requests do not
+   * change it. The realtime transport reads it to keep a reported failure.
+   */
+  get realtimeConnectionFailed(): boolean {
     return this.#connectionFailed;
   }
 
-  /** Show urgent (orange) disconnection indicator after 6 failed reconnection attempts (~30+ seconds) */
+  /**
+   * Show the connection warning after a failed attempt until an attempt
+   * succeeds. A realtime attempt and an API request each count as an attempt,
+   * and each clears only its own failure.
+   */
+  get showConnectionLostIcon() {
+    return this.#connectionFailed || this.#failedRequests > 0;
+  }
+
+  /**
+   * Show the urgent (orange) warning after 6 failed reconnection attempts
+   * (~30+ seconds) or {@link URGENT_FAILED_REQUESTS} failed API requests in
+   * sequence.
+   */
   get showConnectionLostBanner() {
-    return this.#failedAttempts >= 6;
+    return this.#failedAttempts >= 6 || this.#failedRequests >= URGENT_FAILED_REQUESTS;
+  }
+
+  /**
+   * Record the final network outcome of an API request; see
+   * `ConnectAPIConfig.onRequestOutcome`.
+   */
+  recordRequestOutcome(reachable: boolean): void {
+    if (reachable) {
+      if (this.#failedRequests !== 0) this.#failedRequests = 0;
+    } else {
+      this.#failedRequests++;
+    }
   }
 
   get connectBaseUrl(): string {
@@ -205,6 +249,7 @@ export class ServerConnection {
       baseUrl: this.#connectBaseUrl,
       bearerToken: this.#token,
       dataGeneration: () => this.#dataGeneration,
+      onRequestOutcome: (reachable) => this.recordRequestOutcome(reachable),
       renewBearerToken:
         this.#serverId && this.#token && this.#renewable
           ? (force) => this.#registry.renewServerAuthentication(this.#serverId!, force)
@@ -237,6 +282,7 @@ export class ServerConnection {
   /** Force-terminate and immediately reconnect the WebSocket. */
   forceReconnect(reason: string, options?: RealtimeReconnectOptions) {
     this.#connectionFailed = false;
+    this.#failedRequests = 0;
     if (this.status === 'connecting' && (!options || !this.#realtimeReconnect)) {
       // Coalesce ordinary reconnects. An authoritative privilege response must
       // instead replace the in-flight transport: its reads use older authority.

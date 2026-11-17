@@ -2,7 +2,7 @@
 @component
 Shared provider choices. The caller owns navigation and authentication.
 An AT Protocol provider also asks for the handle and suggests the handle that
-this device last used (FDR-056).
+this device last used (FDR-058).
 -->
 <script lang="ts">
   import type { PublicAuthProvider } from '@chatto/client/api/server';

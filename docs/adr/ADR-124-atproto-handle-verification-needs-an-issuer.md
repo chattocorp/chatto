@@ -1,4 +1,4 @@
-# ADR-123: Verified AT Protocol Handles Need an Independent Issuer
+# ADR-124: Verified AT Protocol Handles Need an Independent Issuer
 
 **Status:** Accepted
 **Date:** 2026-11-12
@@ -6,7 +6,7 @@
 ## Context
 
 Users can sign in with an AT Protocol identity
-([FDR-056](../fdr/FDR-056-atproto-identity.md)). Members would like to see that
+([FDR-058](../fdr/FDR-058-atproto-sign-in.md)). Members would like to see that
 an account belongs to a known AT Protocol handle. Chatto servers are
 self-hosted, and an operator can change a server. Thus a client must not
 trust a server's claim that a user controls an identity.
@@ -66,6 +66,6 @@ Narrower designs do not remove this:
 
 ## Related
 
-- [FDR-056: AT Protocol Sign-In](../fdr/FDR-056-atproto-identity.md)
+- [FDR-058: AT Protocol Sign-In](../fdr/FDR-058-atproto-sign-in.md)
 - [ADR-025: Multi-Server Client Architecture](ADR-025-multi-instance-client-architecture.md)
 - [ADR-071: Identify Open OAuth Clients through CIMD](ADR-071-cimd-identified-open-oauth-clients.md)

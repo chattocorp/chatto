@@ -57,6 +57,7 @@ func TestChattoConfig_Validate_EmbeddedNATS(t *testing.T) {
 	baseConfig := func() ChattoConfig {
 		return ChattoConfig{
 			Webserver: WebserverConfig{
+				URL:                 "http://localhost:4000",
 				Port:                4000,
 				CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			},

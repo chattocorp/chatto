@@ -91,6 +91,12 @@ can remain disabled.
 
 Chatto sends email for registration codes, email verification, and password
 reset. Configure a transport before you invite members. SMTP is the default.
+
+Mail requests return after the background queue accepts the message. If mail
+does not arrive, check email jobs on the Jobs page for retry status and failure
+categories. Temporary transport failures retry until the original code or reset
+link expires. Fix the transport and request a new code or link if it has expired.
+A restart after transport acceptance can cause a duplicate message.
 Use JMAP only when your mail provider supports JMAP submission with a bearer
 token.
 

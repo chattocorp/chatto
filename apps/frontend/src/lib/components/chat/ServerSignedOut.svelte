@@ -40,7 +40,7 @@ window; an optional native host capability enables inline password submission.
   const inlinePasswordLogin = hasPasswordLogin();
   const busy = $derived(submitting || isRemoteSignInPending(registration.id));
   const providers = $derived(store.serverInfo.authProviders ?? []);
-  // One-click sign-in with the handle that this device last used (FDR-056).
+  // One-click sign-in with the handle that this device last used (FDR-058).
   // The server still verifies it through its own provider.
   const atprotoProvider = $derived(providers.find((provider) => provider.type === 'atproto'));
   let rememberedHandle = $state(rememberedAtprotoHandle());

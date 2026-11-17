@@ -4,60 +4,99 @@ import (
 	"github.com/chattocorp/chatto/authling/internal/accounts"
 	"github.com/chattocorp/chatto/authling/internal/authorizations"
 	"github.com/chattocorp/chatto/authling/internal/oidcprovider"
-	"github.com/chattocorp/chatto/authling/internal/web/ui"
 	"slices"
 	"strconv"
 )
 
 templ consentPage(request oidcprovider.ConsentRequest, signedInAs, accountID string, profile accounts.Profile) {
 	@documentLayout("Authorize access", signedInAs, false, true) {
-		@ui.Heading("Authorize " + request.ClientName + "?") {
-			<p>
-				if request.ClientHost == "configured by this site’s operator" {
-					This application is configured by this site’s operator.
-				} else {
-					Application from <strong class="font-medium">{ request.ClientHost }</strong>.
-				}
-			</p>
-		}
-		<section class="mt-4" aria-labelledby="permissions-heading">
-			<h2 id="permissions-heading" class="font-medium">You’ll share with { request.ClientName }</h2>
-			<ul class="mt-2 divide-y divide-line border-y border-line">
-				<li class="py-2">
-					<details class="disclosure">
-						<summary>Your account ID <span class="font-normal text-muted">(view)</span></summary>
-						<code class="mt-2 block break-all text-muted">{ accountID }</code>
-					</details>
-				</li>
+		<header class="consent-client">
+			<span class="consent-client-icon" aria-hidden="true"><span class="iconify uil--apps"></span></span>
+			<div class="min-w-0">
+				<h1 class="page-title">Authorize { request.ClientName }?</h1>
+				<p class="text-muted">
+					if request.ClientHost == "configured by this site’s operator" {
+						This application is configured by this site’s operator.
+					} else {
+						Application from <strong class="font-medium text-ink">{ request.ClientHost }</strong>.
+					}
+				</p>
+			</div>
+		</header>
+		<section class="mt-5" aria-labelledby="permissions-heading">
+			<h2 id="permissions-heading" class="text-muted">This app will receive:</h2>
+			<ul class="consent-scopes">
 				if slices.Contains(request.Scopes, "profile") {
-					<li class="py-2">
-						<p><span class="font-medium">Username:</span> <span class="text-muted">{ profile.PreferredUsername }</span></p>
+					@consentScope("uil--user", "Username") {
+						<span class="consent-scope-value">{ profile.PreferredUsername }</span>
+					}
+					@consentScope("uil--postcard", "Full name") {
 						if profile.FullName != "" {
-							<p class="mt-1"><span class="font-medium">Full name:</span> <span class="text-muted">{ profile.FullName }</span></p>
+							<span class="consent-scope-value">{ profile.FullName }</span>
 						} else {
-							<p class="mt-1 text-muted">Full name, if you add one</p>
+							<span class="consent-scope-value">If you add one</span>
 						}
-					</li>
+					}
 				}
 				if slices.Contains(request.Scopes, "email") {
-					<li class="py-2">
-						<p class="font-medium">Verified email address</p>
-						<p class="mt-0.5 text-muted">{ signedInAs }</p>
+					@consentScope("uil--envelope", "Verified email") {
+						<span class="consent-scope-value">{ signedInAs }</span>
+					}
+				}
+				<li class="consent-scope">
+					<span class="consent-scope-icon iconify uil--key-skeleton" aria-hidden="true"></span>
+					<details class="consent-disclosure">
+						<summary class="consent-scope-row"><span class="font-medium">Your account ID</span> <span class="consent-scope-value">View</span></summary>
+						<code class="mt-1 block break-all text-muted">{ accountID }</code>
+					</details>
+				</li>
+				if request.Resource != "" {
+					<li class="consent-scope">
+						<span class="consent-scope-icon iconify uil--server" aria-hidden="true"></span>
+						<div class="min-w-0">
+							<p class="font-medium">API this app can use for you</p>
+							<p class="break-all text-muted">{ request.Resource }</p>
+							if slices.Contains(request.ResourceClaims, "profile") {
+								<p class="text-muted">This API also receives your username and full name.</p>
+							}
+							if slices.Contains(request.ResourceClaims, "email") {
+								<p class="text-muted">This API also receives your verified email address.</p>
+							}
+						</div>
+					</li>
+				}
+				if slices.Contains(request.Scopes, "offline_access") {
+					<li class="consent-scope">
+						<span class="consent-scope-icon iconify uil--sync" aria-hidden="true"></span>
+						<div class="min-w-0">
+							<p class="font-medium">Access while you are signed out</p>
+							<p class="text-muted">This app can renew access until its authorization expires or you revoke it.</p>
+						</div>
 					</li>
 				}
 			</ul>
 		</section>
-		<div class="mt-4 space-y-1 text-muted">
+		<p class="mt-3 text-muted">
 			if slices.Contains(request.Scopes, "profile") || slices.Contains(request.Scopes, "email") {
-				<p>This access includes future changes to the information listed above.</p>
+				This access includes future changes to the information listed above.
 			}
-			<p>You can revoke this access from your account page.</p>
-		</div>
-		<form class="mt-4 grid grid-cols-2 gap-3" method="post" action="/oidc/consent">
+			You can revoke this access from your account page.
+		</p>
+		<form class="mt-5 grid grid-cols-2 gap-3" method="post" action="/oidc/consent">
 			<input type="hidden" name="consent_version" value={ strconv.FormatUint(uint64(authorizations.ConsentVersion), 10) }/>
 			<input type="hidden" name="id" value={ request.ID }/>
 			<button class="button button-secondary w-full px-3" type="submit" name="decision" value="deny">Deny</button>
 			<button class="button button-primary w-full px-3" type="submit" name="decision" value="allow">Authorize</button>
 		</form>
 	}
+}
+
+// consentScope renders one item of shared account information: an icon, a
+// label, and its value on one line. The value wraps below the label when the
+// line is too narrow.
+templ consentScope(icon, label string) {
+	<li class="consent-scope">
+		<span class={ "consent-scope-icon iconify", icon } aria-hidden="true"></span>
+		<p class="consent-scope-row"><span class="font-medium">{ label }</span> { children... }</p>
+	</li>
 }

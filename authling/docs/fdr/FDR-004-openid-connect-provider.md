@@ -1,7 +1,7 @@
 # FDR-004: OpenID Connect Provider
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-11-16
 
 ## Overview
 
@@ -14,12 +14,22 @@ and returns to the relying party with an Authorization Code.
 
 - Discovery is available at `/.well-known/openid-configuration`; public keys
   are published at the advertised JWKS endpoint.
-- Authling advertises and accepts only Authorization Code. Every request
-  requires `openid` and accepts optional `profile` and `email` scopes. Unknown
+- Authling supports Authorization Code and rotating refresh tokens. Every authorization request
+  requires `openid` and accepts optional `profile`, `email`, and `offline_access` scopes. Unknown
   and duplicate scopes are rejected. S256 PKCE is required by default. Operators may
   set `require_pkce = false` only for configured confidential clients.
-- Redirect URI matching is exact. Authorization errors are sent to a client
-  only after that client and redirect have been validated.
+- Redirect URI matching is exact, including the port. Authling does not use
+  the "any port" loopback matching of RFC 8252. Authorization errors are sent
+  to a client only after that client and redirect have been validated.
+- A configured client may register HTTPS redirect URIs, or plain-HTTP
+  redirect URIs on a loopback host (`localhost`, `*.localhost`, `127.0.0.0/8`,
+  or `::1`), on any issuer. Plain HTTP on any other host is a configuration
+  error. RFC 8252 section 7.3 permits loopback HTTP because the response does
+  not leave the user's computer. This lets a relying party's local development
+  server sign in against a production issuer without local TLS. The operator
+  registers each such URI explicitly. A CIMD client is self-asserted, so its
+  document may use loopback HTTP redirect URIs only when the issuer itself is
+  loopback.
 - A signed-out person is sent through local login and then resumes the pending
   consent decision. When consent is required, the screen identifies the
   signed-in account and client and lists only the requested information. It
@@ -32,7 +42,7 @@ and returns to the relying party with an Authorization Code.
 - The authorization code expires with its ten-minute request, is bound to the
   client, redirect, and PKCE verifier, and succeeds in at most one concurrent
   exchange.
-- Successful exchange returns a five-minute RS256 ID token and opaque bearer
+- Successful exchange returns a five-minute RS256 ID token and RFC 9068 JWT bearer
   access token. The issuer is Authling's immutable public URL, `sub` is the
   Authling account ID. The `profile` scope permits non-empty `preferred_username`
   and `name` hints. The `email` scope permits the current verified `email` and
@@ -47,6 +57,49 @@ and returns to the relying party with an Authorization Code.
   are never logged.
 - Browser-capable discovery, JWKS, token, and UserInfo endpoints allow
   credential-free CORS. Authorization and consent do not.
+
+## Resource Access and Renewal
+
+Access tokens use RS256 and `typ: at+jwt`. They contain `iss`, `sub`, `aud`,
+`client_id`, `exp`, `iat`, `jti`, and `scope`. ID tokens continue to identify
+the client as their audience. An access token for an explicit resource has
+only the selected API as its audience and cannot be used at UserInfo. Without
+a resource, UserInfo is the only audience. Resource servers must check their own audience.
+
+Authorization accepts one optional `resource`. Configured clients may select
+only an exact entry in their `resources` allowlist. CIMD clients may select
+only a registered resource with `allow_cimd = true`. Unknown, empty, disallowed,
+and multiple resource values fail with `invalid_target`. Resource identifiers
+use HTTPS, with loopback HTTP available for local development. Credentials,
+queries, and fragments are not permitted. Authling does not fetch resources.
+
+Access tokens contain no identity claims by default. An operator can set
+`access_token_claims` for a configured client and resource. Its access tokens
+then carry the claims of the listed scopes (`email`, `profile`) that the user
+granted. The consent screen names the selected API and the data it receives.
+Grants do not record the configured claims. Claims that the operator adds later
+apply to existing grants and refresh families without new consent, but only for
+scopes that the user granted to the client.
+CIMD clients never receive identity claims in access tokens. They cannot
+request the `email` scope unless the operator sets `cimd_allow_email = true`;
+otherwise authorization and refresh fail with `invalid_scope`.
+
+Changing the selected API requires new consent.
+A code or refresh exchange may omit `resource` to retain the authorized target,
+or repeat the exact target. It cannot introduce or change a target. Without
+an authorization resource, tokens are for UserInfo only.
+
+`offline_access` requires explicit consent before its first grant. A covering
+grant permits silent consent reuse. Public and
+CIMD clients retain mandatory PKCE. Refresh families rotate on each use and
+expire after 30 days total or seven days without use by default. See
+[FDR-010](FDR-010-oidc-authorization-grants.md) for revocation and reuse behavior.
+
+New exchanges issue only JWT access tokens. UserInfo accepts both new JWTs and
+existing opaque tokens until their original expiry. It rejects ID tokens used
+as access tokens. Clients must continue to treat access tokens as credentials
+and must not depend on their previous opaque format. Existing signed tokens
+are not rewritten. Upgrade all replicas together before using the new flow.
 
 ## Conventional Clients
 
@@ -106,10 +159,10 @@ Existing CIMD deployments must opt in on upgrade. Restart all replicas with
 the same policy; the setting does not migrate or delete accounts or grants.
 It is not a general token or relying-party session revocation mechanism.
 
-When enabled, an unconfigured HTTPS URL client ID is resolved as a Client ID
+When enabled, an unconfigured URL client ID is resolved as a Client ID
 Metadata Document. It must describe that exact client ID, public token authentication,
-one or more safe redirect URIs, and no flow outside Authorization Code. Fetches
-are HTTPS-only, do not follow redirects, reject special-use destinations except
+one or more safe redirect URIs, and Authorization Code with optional refresh-token support. Fetches
+use HTTPS except for loopback development, do not follow redirects, reject special-use destinations except
 for the development cases below, ignore proxy configuration, and have strict
 concurrency, response-size, timeout, and cache bounds. Invalid responses are
 never cached.
@@ -135,8 +188,7 @@ Ingress rate limits remain a separate control for aggregate request traffic.
 Special-use destinations are rejected by default. An issuer with a loopback
 hostname permits loopback CIMD destinations for local development. Other
 issuers require explicit trust for exact loopback hostnames. Operators may also
-trust exact private hostnames in controlled development environments. CIMD
-URLs still require HTTPS. Private-host and loopback-host trust are
+trust exact private hostnames in controlled development environments. A CIMD URL must use HTTPS, or plain HTTP on a loopback host for local development. A plain-HTTP fetch must resolve only to loopback addresses. Private-host and loopback-host trust are
 separate exceptions, and each admits only its named address class. Neither
 permits link-local, multicast, or other special-use destinations.
 
@@ -213,7 +265,7 @@ freshness parameters in [OpenID Connect Core](https://openid.net/specs/openid-co
 
 - Only local password authentication and the `pwd` authentication-method
   reference exist.
-- Refresh tokens, token revocation, RP-initiated logout, further identity
+- Token revocation, RP-initiated logout, further identity
   scopes and claims beyond `preferred_username` and `name`, relying-party
   grouping, and official conformance-suite automation are not implemented.
 - CIMD remains an Internet-Draft. Authling implements the reviewed draft-02
@@ -221,6 +273,7 @@ freshness parameters in [OpenID Connect Core](https://openid.net/specs/openid-co
 
 ## Related
 
+- **Resource and refresh design:** [ADR-010](../adr/ADR-010-resource-access-and-refresh-tokens.md)
 - **ADR:** [ADR-004](../adr/ADR-004-cimd-native-openid-provider.md)
 - **Product boundary:** [ADR-007](../adr/ADR-007-limit-authling-to-identity-provider.md)
 - **Features:** [FDR-003](FDR-003-local-login-and-browser-sessions.md)

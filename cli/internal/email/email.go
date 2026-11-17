@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/wneessen/go-mail"
 
@@ -20,9 +21,11 @@ var ErrSMTPDisabled = ErrEmailDisabled
 
 // Message represents an email message to be sent.
 type Message struct {
-	To      string
-	Subject string
-	Body    string
+	// ExpiresAt is the last time a queued message may be delivered.
+	ExpiresAt time.Time
+	To        string
+	Subject   string
+	Body      string
 }
 
 // Sender is the interface for sending emails. Implemented by Mailer.

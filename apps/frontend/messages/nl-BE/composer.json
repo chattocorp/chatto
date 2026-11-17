@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Onderstrepen",
+      "strikethrough": "Doorhalen",
       "bold": "Vet",
       "italic": "Cursief",
       "inline_code": "Inline-code",

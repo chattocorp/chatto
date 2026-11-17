@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.0
+
+### Breaking changes
+
+- Add five-minute JWT access tokens for independently validated API access, exact resource allowlists, and rotating refresh tokens with explicit offline consent. Configured clients use `resources`; CIMD access requires `allow_cimd` on each registered resource. Refresh families default to 30 days total and seven days idle, and are invalidated by reuse, grant revocation, password reset, or password change. Email change preserves families. CIMD metadata must explicitly declare the `refresh_token` grant; configured clients can disable refresh with `allow_refresh_tokens = false`. An access token for an API has only that API as its audience and cannot be used at UserInfo. Access tokens carry no identity claims by default; configure `access_token_claims` per client and resource to add `email` or `profile` claims. CIMD clients cannot request the `email` scope unless `cimd_allow_email = true`.
+
+  Upgrade all Authling replicas together. All users must consent once after upgrading to consent disclosure version 3; older binaries cannot replay new grants, so rollback is unsupported after the first version-3 grant. New exchanges issue JWT access tokens; existing opaque tokens remain usable at UserInfo until expiry. Clients must store each replacement token. The previous token can repeat a refresh once within a grace period after a rotation (`refresh_token_reuse_grace`, default `10s`, `0s` disables); any other reuse revokes the family. A narrowed refresh `scope` affects only that response; the replacement refresh token keeps the original scope. ([#3618](https://github.com/chattocorp/chatto/pull/3618))
+
+### Features
+
+- Configured OIDC clients can register plain-HTTP redirect URIs on loopback hosts (`localhost`, `*.localhost`, `127.0.0.0/8`, and `[::1]`), such as `http://localhost:5173/auth/callback`, on any issuer. Before, Authling accepted these only when its own public URL was a loopback address. A local development server can now sign in against a production issuer without local TLS. Redirect URI matching stays exact, including the port. CIMD redirect rules do not change. ([#3646](https://github.com/chattocorp/chatto/pull/3646))
+- The administrator user directory shows masked emails and names, such as `a•••@e•••.com`, instead of verbatim personal data. Administrators can sort it by access, registration time, and account ID. It shows the newest registrations first by default and loads more users when you scroll to the end of the table. ([#3637](https://github.com/chattocorp/chatto/pull/3637))
+- Accept plain-HTTP CIMD client IDs on loopback hosts, such as `http://localhost:4000/client.json`, for local development. Authling fetches such a document only when the destination resolves to loopback addresses and loopback CIMD is permitted. ([#3645](https://github.com/chattocorp/chatto/pull/3645))
+
+### Fixes
+
+- Accept CIMD client IDs whose host is a public IPv4 address. Authling rejected these URLs before, because it classified the address in its IPv4-mapped IPv6 form. ([#3645](https://github.com/chattocorp/chatto/pull/3645))
+
 ## [0.1.0-alpha.3](https://github.com/chattocorp/chatto/compare/authling/v0.1.0-alpha.2...authling/v0.1.0-alpha.3) (2026-11-02)
 
 

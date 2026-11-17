@@ -3,6 +3,7 @@ package events_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"slices"
 	"sync"
@@ -484,4 +485,27 @@ func createDurableWorkerTestConsumer(t *testing.T, ctx context.Context, stream j
 		t.Fatalf("create worker consumer: %v", err)
 	}
 	return consumer
+}
+
+func TestTerminationReason(t *testing.T) {
+	tests := []struct {
+		name   string
+		err    error
+		reason string
+		ok     bool
+	}{
+		{name: "nil", err: nil},
+		{name: "plain", err: errors.New("temporary")},
+		{name: "retry", err: events.RetryDeliveryAfter(errors.New("later"), time.Second)},
+		{name: "terminated", err: events.TerminateDelivery("invalid input", errors.New("bad")), reason: "invalid input", ok: true},
+		{name: "wrapped", err: fmt.Errorf("context: %w", events.TerminateDelivery("invalid input", nil)), reason: "invalid input", ok: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reason, ok := events.TerminationReason(tt.err)
+			if reason != tt.reason || ok != tt.ok {
+				t.Fatalf("TerminationReason = %q, %v; want %q, %v", reason, ok, tt.reason, tt.ok)
+			}
+		})
+	}
 }

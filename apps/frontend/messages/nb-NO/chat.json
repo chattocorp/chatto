@@ -74,7 +74,9 @@
       "thread_views_description": "Tråder du følger og tråder du startet, vises kanskje ikke separat på denne serveren.",
       "independent_slow_mode_title": "Uavhengig langsom modus er ikke tilgjengelig",
       "independent_slow_mode_description": "Denne serveren bruker én felles ventetid for kanalmeldinger og trådsvar.",
-      "upgrade": "Be serveradministratoren om å oppgradere til {version} eller nyere for full støtte."
+      "upgrade": "Be serveradministratoren om å oppgradere til {version} eller nyere for full støtte.",
+      "background_jobs_title": "Bakgrunnsjobber er ikke tilgjengelige",
+      "background_jobs_description": "Denne serveren kan ikke vise eller prøve bakgrunnsjobber på nytt i serverinnstillingene."
     },
     "server_gutter": {
       "move_up": "Flytt opp",
@@ -186,7 +188,17 @@
       "system": "System",
       "back_to_server": "Gå tilbake til server",
       "invites": "Invitasjoner",
-      "registration": "Registrering"
+      "registration": "Registrering",
+      "jobs": "Jobber"
+    },
+    "owner_welcome": {
+      "title": "Serveren din er klar",
+      "intro": "Du er eieren av denne serveren. For å beskytte kontoen din er eiertillatelsene dine slått av ved vanlig bruk.",
+      "shield_active": "Privilegert modus er på de neste 15 minuttene, så du kan sette opp serveren din nå. Slå den på igjen senere med skjoldknappen ved siden av navnet ditt.",
+      "shield_inactive": "Aktiver privilegert modus med skjoldknappen ved siden av navnet ditt for å sette opp serveren din. Den er på i 15 minutter.",
+      "shield_failed": "Privilegert modus kunne ikke aktiveres.",
+      "next_steps": "Neste steg",
+      "continue_setup": "Fortsett oppsettet"
     }
   }
 }

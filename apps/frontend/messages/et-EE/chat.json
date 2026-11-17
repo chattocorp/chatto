@@ -74,7 +74,9 @@
       "thread_views_description": "Jälgitavaid lõimi ja Teie alustatud lõimi ei pruugita selles serveris eraldi kuvada.",
       "independent_slow_mode_title": "Sõltumatu aeglane režiim pole saadaval",
       "independent_slow_mode_description": "See server kasutab kanalisõnumite ja lõimevastuste jaoks ühist ooteaega.",
-      "upgrade": "Täieliku toe saamiseks paluge serveri administraatoril uuendada versioonile {version} või uuemale."
+      "upgrade": "Täieliku toe saamiseks paluge serveri administraatoril uuendada versioonile {version} või uuemale.",
+      "background_jobs_title": "Taustatööd pole saadaval",
+      "background_jobs_description": "See server ei saa serveri seadetes taustatöid kuvada ega uuesti proovida."
     },
     "server_gutter": {
       "move_up": "Liigutage üles",
@@ -186,7 +188,17 @@
       "system": "Süsteem",
       "back_to_server": "Tagasi serverisse",
       "invites": "Kutsed",
-      "registration": "Registreerimine"
+      "registration": "Registreerimine",
+      "jobs": "Tööd"
+    },
+    "owner_welcome": {
+      "title": "Teie server on valmis",
+      "intro": "Olete selle serveri omanik. Teie konto kaitsmiseks on omaniku õigused tavakasutuse ajal välja lülitatud.",
+      "shield_active": "Privilegeeritud režiim on järgmised 15 minutit sees, nii et saate oma serveri kohe seadistada. Hiljem lülitage see uuesti sisse oma nime kõrval oleva kilbinupuga.",
+      "shield_inactive": "Serveri seadistamiseks aktiveerige privilegeeritud režiim oma nime kõrval oleva kilbinupuga. See jääb sisse 15 minutiks.",
+      "shield_failed": "Privilegeeritud režiimi ei õnnestunud aktiveerida.",
+      "next_steps": "Järgmised sammud",
+      "continue_setup": "Jätka seadistamist"
     }
   }
 }

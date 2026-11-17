@@ -54,7 +54,11 @@ templ designSystemPage() {
 				<details class="disclosure mt-2"><summary>Session details</summary><p class="mt-2 text-muted">Example details for a native disclosure.</p></details>
 			</div>
 			<div class="mt-4">
-				@ui.DataTable("Example users", []string{"User", "Access", "Registered"}) {
+				@ui.SortableDataTable("Example users", []ui.Column{
+					{Label: "User", SortURL: "/dev/ui#records-heading", Direction: ui.Ascending},
+					{Label: "Access", SortURL: "/dev/ui#records-heading"},
+					{Label: "Registered"},
+				}) {
 					<tr><th scope="row">Alice Example</th><td>@ui.Badge("Administrator")
 </td><td>29 Oct 2026</td></tr>
 					<tr><th scope="row">Bob Example</th><td>User</td><td>29 Oct 2026</td></tr>

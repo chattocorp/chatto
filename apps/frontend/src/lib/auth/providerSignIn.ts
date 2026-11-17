@@ -1,13 +1,13 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { saveReturnUrl } from './returnNavigation';
-import { generateState } from '$lib/oauth/pkce';
+import { randomOAuthValue } from '@chatto/client/auth/oauth';
 import { openOAuthPopup, type OAuthPopup } from '$lib/oauth/popup';
 import { m } from '$lib/i18n/messages';
 
 /**
  * The provider's sign-in URL. `loginHint` is the identity to use, such as an
- * AT Protocol handle; providers without hints ignore it (FDR-056).
+ * AT Protocol handle; providers without hints ignore it (FDR-058).
  */
 export function providerLoginUrl(loginUrl: string, loginHint?: string): string {
   if (!loginHint) return loginUrl;
@@ -21,14 +21,14 @@ export function providerLoginUrl(loginUrl: string, loginHint?: string): string {
  * completion; the opening client must verify the server's cookie session.
  */
 export function openProviderSignIn(loginUrl: string): OAuthPopup {
-  const state = generateState();
+  const state = randomOAuthValue(32);
   const callback = new URL(resolve('/servers/callback'), window.location.origin);
   callback.searchParams.set('mode', 'provider');
   callback.searchParams.set('state', state);
   const providerURL = new URL(loginUrl, window.location.origin);
   providerURL.searchParams.set('redirect', callback.pathname + callback.search);
   const popup = openOAuthPopup(state);
-  popup.navigate(providerURL.href);
+  void popup.navigate(providerURL.href);
   return popup;
 }
 

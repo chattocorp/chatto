@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Sublinhado",
+      "strikethrough": "Tachado",
       "bold": "Negrito",
       "italic": "Itálico",
       "inline_code": "Código em linha",

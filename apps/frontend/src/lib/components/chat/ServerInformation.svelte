@@ -58,6 +58,10 @@
     independentSlowMode: {
       title: m('chat.compatibility.independent_slow_mode_title'),
       description: m('chat.compatibility.independent_slow_mode_description')
+    },
+    backgroundJobs: {
+      title: m('chat.compatibility.background_jobs_title'),
+      description: m('chat.compatibility.background_jobs_description')
     }
   } satisfies Record<ServerFeature, { title: string; description: string }>);
 

@@ -28,7 +28,12 @@ export const SERVER_FEATURE_REQUIREMENTS = {
   /** Root-author filtering for separate followed and own thread lists (#2983). */
   threadViews: '0.5.0-beta.16',
   /** Separate channel and per-thread cooldowns, with legacy field-presence fallback (#3036). */
-  independentSlowMode: '0.5.0-beta.18'
+  independentSlowMode: '0.5.0-beta.18',
+  /**
+   * Admin job list, details, retry, and delete through AdminJobService. Older
+   * servers have no job queue. The first 0.6.0 prerelease has it.
+   */
+  backgroundJobs: '0.6.0-beta.0'
 } as const;
 
 /** A capability whose server requirement the client knows. */

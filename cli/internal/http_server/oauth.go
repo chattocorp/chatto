@@ -192,7 +192,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			query := url.Values{"redirect": {"/oauth/authorize"}}
 			// An AT Protocol client that knows the user's identity sends it
 			// as login_hint, so the provider can skip the handle prompt
-			// (FDR-056). Other providers ignore it.
+			// (FDR-058). Other providers ignore it.
 			if hint := strings.TrimSpace(c.Query("login_hint")); hint != "" && len(hint) <= atprotoMaxIdentifierLength {
 				query.Set("login_hint", hint)
 			}

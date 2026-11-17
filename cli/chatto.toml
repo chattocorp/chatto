@@ -56,7 +56,7 @@ max_upload_size = '25MB'
 
 [auth]
 
-# Sign-in with AT Protocol accounts, such as Bluesky (FDR-056). It needs no
+# Sign-in with AT Protocol accounts, such as Bluesky (FDR-058). It needs no
 # client registration. On this plain-HTTP development URL, Chatto uses the AT
 # Protocol loopback client, whose callbacks return through 127.0.0.1.
 [[auth.providers]]
