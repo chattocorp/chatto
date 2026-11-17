@@ -28,8 +28,11 @@ checklist below for the other parts.
   [`email_jobs.go`](../../../cli/internal/core/email_jobs.go).
 - Handlers must be idempotent. A crash after an external effect and before the
   job succeeds runs the attempt again.
-- Handler errors are stored as safe failure categories. Never put personal data
-  or secrets in the failure text.
+- The queue never stores handler error text. A plain error records the
+  generic `attempt_failed` category and the job retries. Return
+  `*jobs.Failure` to record a specific category, and set `Permanent` to stop
+  automatic retries for work that cannot succeed. A category is a fixed
+  token, never external error text.
 - Keep domain completion rules in the handler, not in the queue.
 - Use `jobs.UnlimitedAttempts` only for work that must finish, such as cleanup
   and key deletion. Set `ExpiresAt` when late work is useless.

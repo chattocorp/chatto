@@ -635,8 +635,8 @@ facts identify both participants. They do not appear in room timelines.
 `JOBS`. The fact is `queued`, `started`, `attempt_failed`, `succeeded`,
 `failed`, `retried`, or `deleted`. The job types are `webhook`, `media`,
 `notification_alert`, `asset_cleanup`, `call_key_cleanup`,
-`push_subscription_cleanup`, `user_key_shredding`, and `email`. The state of a job is
-the fold of its facts in stream order. The `queued`, `retried`, and `failed`
+`push_subscription_cleanup`, `user_key_shredding`, and `email`. The state of a
+job is the fold of its facts in stream order. The `queued`, `retried`, and `failed`
 facts carry the private work payload and policy. Job facts are operational facts, not
 domain events. Source events remain in EVT. Enqueue appends `queued` only when
 the job has no facts. A manual retry appends `retried`, and a delete appends
