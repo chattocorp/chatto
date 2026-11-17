@@ -1,0 +1,252 @@
+# Unit tests for chatto-alerts.yml. Run them with `mise test-alert-rules`.
+# Each test uses a 15-second scrape interval. Annotations are checked
+# in each expected alert.
+rule_files:
+  - chatto-alerts.yml
+
+evaluation_interval: 15s
+
+tests:
+  # A provider whose test query fails for longer than 2 minutes fires the
+  # alert. The alert is pending before 2 minutes.
+  - interval: 15s
+    input_series:
+      - series: 'chatto_search_provider_query_probe_consecutive_failures{job="chatto",instance="chatto-0"}'
+        values: '0x4 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16'
+      - series: 'chatto_search_provider_query_probe_in_flight_seconds{job="chatto",instance="chatto-0"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: ChattoSearchQueriesFailing
+        exp_alerts: []
+      - eval_time: 3m30s
+        alertname: ChattoSearchQueriesFailing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: chatto
+              instance: chatto-0
+            exp_annotations:
+              runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+              summary: Search queries fail on chatto-0
+              description: >-
+                The search provider that answers chatto-0 has failed its test
+                query, or reported that it is unavailable, for more than 2
+                minutes. Members cannot search messages.
+
+  # A probe that blocks on the index lock never completes. Its age grows,
+  # and the alert fires although the failure count stays at 0. The change
+  # from the age condition to the failure count condition after the probe
+  # times out does not restart the `for` interval.
+  - interval: 15s
+    input_series:
+      - series: 'chatto_search_provider_query_probe_consecutive_failures{job="chatto",instance="chatto-0"}'
+        values: '0x8 1x12'
+      - series: 'chatto_search_provider_query_probe_in_flight_seconds{job="chatto",instance="chatto-0"}'
+        values: '0 15 30 45 60 75 90 105 120 0x12'
+    alert_rule_test:
+      - eval_time: 2m30s
+        alertname: ChattoSearchQueriesFailing
+        exp_alerts:
+          - exp_labels: { severity: critical, job: chatto, instance: chatto-0 }
+            exp_annotations:
+              runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+              summary: Search queries fail on chatto-0
+              description: The search provider that answers chatto-0 has failed its test query, or reported that it is unavailable, for more than 2 minutes. Members cannot search messages.
+
+  # A provider that reports UNAVAILABLE fires the alert.
+  - interval: 15s
+    input_series:
+      - series: 'chatto_search_provider_state{job="chatto",instance="chatto-0",state="unavailable"}'
+        values: '1x12'
+    alert_rule_test:
+      - eval_time: 2m30s
+        alertname: ChattoSearchQueriesFailing
+        exp_alerts:
+          - exp_labels: { severity: critical, job: chatto, instance: chatto-0 }
+            exp_annotations:
+              runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+              summary: Search queries fail on chatto-0
+              description: The search provider that answers chatto-0 has failed its test query, or reported that it is unavailable, for more than 2 minutes. Members cannot search messages.
+
+  # Short failures that recover do not fire alerts. A slow probe that
+  # completes within 10 seconds does not count as blocked.
+  - interval: 15s
+    input_series:
+      - series: 'chatto_search_provider_query_probe_consecutive_failures{job="chatto",instance="chatto-0"}'
+        values: '0 1 2 3 0 0 1 2 0x12'
+      - series: 'chatto_search_provider_query_probe_in_flight_seconds{job="chatto",instance="chatto-0"}'
+        values: '0 8 0 9 0x16'
+      - series: 'chatto_search_provider_status_up{job="chatto",instance="chatto-0"}'
+        values: '1 0 0 0 1x16'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ChattoSearchQueriesFailing
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: ChattoSearchProviderAbsent
+        exp_alerts: []
+
+  # A long initial replay reports INDEXING and no probe result. It does not
+  # fire query, absence, or stall alerts while it commits progress.
+  - interval: 15s
+    input_series:
+      - series: 'chatto_search_provider_status_up{job="chatto",instance="chatto-0"}'
+        values: '1x120'
+      - series: 'chatto_search_provider_state{job="chatto",instance="chatto-0",state="indexing"}'
+        values: '1x120'
+      - series: 'chatto_search_provider_stalled{job="chatto",instance="chatto-0"}'
+        values: '0x120'
+      - series: 'chatto_search_provider_pending_seconds{job="chatto",instance="chatto-0"}'
+        values: '0 15 30 45 60 0 15 30 45 60 0 15 30 45 60 0x105'
+      - series: 'chatto_search_index_write_age_seconds{job="chatto-search",instance="search-0"}'
+        values: '0 15 30 45 60 75 90 0 15 30 45 60 75 90 0x106'
+      - series: 'chatto_search_provider_serving{job="chatto-search",instance="search-0"}'
+        values: '0x120'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: ChattoSearchQueriesFailing
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: ChattoSearchProviderAbsent
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: ChattoSearchIndexStalled
+        exp_alerts: []
+
+  # No provider answers the status requests for longer than 2 minutes.
+  - interval: 15s
+    input_series:
+      - series: 'chatto_search_provider_status_up{job="chatto",instance="chatto-0"}'
+        values: '1x4 0x12'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: ChattoSearchProviderAbsent
+        exp_alerts: []
+      - eval_time: 3m30s
+        alertname: ChattoSearchProviderAbsent
+        exp_alerts:
+          - exp_labels: { severity: critical, job: chatto, instance: chatto-0 }
+            exp_annotations:
+              runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+              summary: No search provider answers chatto-0
+              description: Search is enabled, but no search provider has answered status requests from chatto-0 for more than 2 minutes. Members cannot search messages.
+
+  # A standalone provider that fails its probe fires the warning alert.
+  - interval: 15s
+    input_series:
+      - series: 'chatto_search_query_probe_consecutive_failures{job="chatto-search",instance="search-1"}'
+        values: '0x4 1x12'
+      - series: 'chatto_search_query_probe_in_flight_seconds{job="chatto-search",instance="search-1"}'
+        values: '0x16'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: ChattoSearchProviderProbeFailing
+        exp_alerts: []
+      - eval_time: 3m30s
+        alertname: ChattoSearchProviderProbeFailing
+        exp_alerts:
+          - exp_labels: { severity: warning, job: chatto-search, instance: search-1 }
+            exp_annotations:
+              runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+              summary: Search provider search-1 fails its test query
+              description: The standalone search provider search-1 has failed its test query for more than 2 minutes and does not answer queries.
+
+  # A blocked commit after a successful startup. The provider sets the
+  # stalled flag after 5 minutes without a commit, and the alert fires at
+  # the next evaluation.
+  - interval: 15s
+    input_series:
+      - series: 'chatto_search_provider_stalled{job="chatto",instance="chatto-0"}'
+        values: '0x40 1x8'
+    alert_rule_test:
+      - eval_time: 9m45s
+        alertname: ChattoSearchIndexStalled
+        exp_alerts: []
+      - eval_time: 10m15s
+        alertname: ChattoSearchIndexStalled
+        exp_alerts:
+          - exp_labels: { severity: warning, job: chatto, instance: chatto-0 }
+            exp_annotations:
+              runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+              summary: Search index stalled on chatto-0
+              description: The search index reported by chatto-0 has events to index but has committed no progress for more than 5 minutes. Search results do not include new messages.
+
+  # With two providers, the status requests reach the stalled provider only
+  # in some scrapes. The alert stays active.
+  - interval: 15s
+    input_series:
+      - series: 'chatto_search_provider_stalled{job="chatto",instance="chatto-0"}'
+        values: '1 0 0 1 0 1 0 0 1 0 1 0'
+    alert_rule_test:
+      - eval_time: 30s
+        alertname: ChattoSearchIndexStalled
+        exp_alerts:
+          - exp_labels: { severity: warning, job: chatto, instance: chatto-0 }
+            exp_annotations:
+              runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+              summary: Search index stalled on chatto-0
+              description: The search index reported by chatto-0 has events to index but has committed no progress for more than 5 minutes. Search results do not include new messages.
+      - eval_time: 2m30s
+        alertname: ChattoSearchIndexStalled
+        exp_alerts:
+          - exp_labels: { severity: warning, job: chatto, instance: chatto-0 }
+            exp_annotations:
+              runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+              summary: Search index stalled on chatto-0
+              description: The search index reported by chatto-0 has events to index but has committed no progress for more than 5 minutes. Search results do not include new messages.
+
+  # A standalone provider whose index write runs longer than 5 minutes
+  # fires the stall alert.
+  - interval: 15s
+    input_series:
+      - series: 'chatto_search_index_write_age_seconds{job="chatto-search",instance="search-0"}'
+        values: '0+15x30'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ChattoSearchIndexStalled
+        exp_alerts: []
+      - eval_time: 5m15s
+        alertname: ChattoSearchIndexStalled
+        exp_alerts:
+          - exp_labels: { severity: warning, job: chatto-search, instance: search-0 }
+            exp_annotations:
+              runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+              summary: Search index stalled on search-0
+              description: The search index reported by search-0 has events to index but has committed no progress for more than 5 minutes. Search results do not include new messages.
+
+  # An idle, current index and an idle projection do not fire alerts.
+  - interval: 15s
+    input_series:
+      - series: 'chatto_search_provider_stalled{job="chatto",instance="chatto-0"}'
+        values: '0x120'
+      - series: 'chatto_search_index_write_age_seconds{job="chatto-search",instance="search-0"}'
+        values: '0x120'
+      - series: 'chatto_projection_stalled{job="chatto",instance="chatto-0",projection="room_timeline"}'
+        values: '0x120'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: ChattoSearchIndexStalled
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: ChattoProjectionStalled
+        exp_alerts: []
+
+  # A stalled core projection fires an alert with its projection label.
+  - interval: 15s
+    input_series:
+      - series: 'chatto_projection_stalled{job="chatto",instance="chatto-0",projection="room_timeline"}'
+        values: '0x4 1x4'
+    alert_rule_test:
+      - eval_time: 45s
+        alertname: ChattoProjectionStalled
+        exp_alerts: []
+      - eval_time: 1m15s
+        alertname: ChattoProjectionStalled
+        exp_alerts:
+          - exp_labels:
+              { severity: warning, job: chatto, instance: chatto-0, projection: room_timeline }
+            exp_annotations:
+              runbook_url: https://docs.chatto.run/guides/operations/server-operations#alert-rules
+              summary: Projection room_timeline stalled on chatto-0
+              description: The projection room_timeline on chatto-0 has events to apply but has committed no progress for more than 5 minutes.

@@ -151,19 +151,71 @@ warning when a projection stalls and an info message when it recovers.
 | `chatto_search_provider_lag_events` | Gauge | none |
 | `chatto_search_provider_pending_seconds` | Gauge | none |
 | `chatto_search_provider_current_operation_seconds` | Gauge | none |
+| `chatto_search_provider_query_probe_consecutive_failures` | Gauge | none |
+| `chatto_search_provider_query_probe_in_flight_seconds` | Gauge | none |
 
 The `chatto_projection_*` metrics describe the projections of the replica that
 you scrape. The `chatto_search_provider_*` metrics describe the search provider
 that answered the status request of the scrape. When you run more than one
 search provider, each scrape can describe a different provider. A stalled
 search provider reports the `degraded` state. It continues to answer queries,
-but results can miss recent messages.
+but results can miss recent messages. The `query_probe` metrics show the
+provider's regular test query. They are absent until the provider completes
+its initial indexing.
 
 For example, this query selects stalled projections and search indexes:
 
 ```promql
 chatto_projection_stalled == 1 or chatto_search_provider_stalled == 1
 ```
+
+### Alert rules
+
+Chatto supplies Prometheus alerting rules for search and projections in
+[`examples/prometheus/chatto-alerts.yml`](https://github.com/chattocorp/chatto/blob/main/examples/prometheus/chatto-alerts.yml).
+Use the file from the release tag of your server, because older servers do
+not export all metrics. Load it in `prometheus.yml`:
+
+```yaml
+rule_files:
+  - chatto-alerts.yml
+
+scrape_configs:
+  - job_name: chatto
+    static_configs:
+      - targets: ["chatto.internal.example.com:9090"]
+  # Only for a separate search provider with its health listener enabled.
+  - job_name: chatto-search-provider
+    static_configs:
+      - targets: ["search.internal.example.com:9091"]
+```
+
+Scrape every server process. Each process asks the search provider for its
+status during each scrape. To scrape a separate search provider, see
+[Monitor a separate provider](/guides/operations/search/#monitor-a-separate-provider).
+Send the alerts to your notification system with Alertmanager. All server
+processes ask the same search providers, so one search problem can fire an
+alert for each process. Group alerts by `alertname` in Alertmanager to get one
+notification.
+
+| Alert | Severity | Meaning | Action |
+| --- | --- | --- | --- |
+| `ChattoSearchQueriesFailing` | critical | For 2 minutes, the search provider failed its test query or reported that it is unavailable. Members cannot search. | Look for `stage=query_probe_failed` in the provider logs. Collect diagnostics before you restart the provider. If the index is damaged, [recover the search index](/guides/operations/search/#rebuild-the-search-index). |
+| `ChattoSearchProviderAbsent` | critical | For 2 minutes, no search provider answered the status request. Members cannot search. | Make sure that a provider runs and connects to the same NATS server. |
+| `ChattoSearchProviderProbeFailing` | warning | For 2 minutes, one separate provider failed its test query. It does not answer queries. Other providers can answer them. | Do the same steps as for `ChattoSearchQueriesFailing` on this provider. |
+| `ChattoSearchIndexStalled` | warning | For 5 minutes, the search index had events to index but committed no progress. Search results do not include new messages. | Collect the goroutine stacks of the provider. Then restart it. If the stall occurs again, [recover the search index](/guides/operations/search/#rebuild-the-search-index). |
+| `ChattoProjectionStalled` | warning | For 5 minutes, a projection of this server process had events to apply but committed no progress. The process shows data that is out of date. | Look for the stall warning in the logs of the process. Collect goroutine stacks with `metrics.pprof`, then restart the process. |
+
+The rules do not fire while an index rebuild or a projection replay commits
+progress, however slow it is. They also do not fire for an idle index or
+projection that has applied all events. Search is not available during an
+initial index rebuild. The rules do not report this time.
+
+The provider and the projections mark a stall after 5 minutes without
+progress. Thus, the stall alerts have no additional delay. The rules add only
+the `severity` label. The other labels come from the scraped series. They
+contain no user data. You can change the thresholds and severities in your
+copy of the file.
 
 ### Projection snapshots
 
