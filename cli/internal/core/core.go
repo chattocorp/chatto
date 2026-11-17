@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -120,6 +121,9 @@ type ChattoCore struct {
 	// operator-facing diagnostics, so lifecycle and admin surfaces cannot
 	// drift into separate hand-maintained lists.
 	projections []projectionRegistration
+	// projectionEstimates holds the keys of projections whose admin memory
+	// estimate runs now. See boundedProjectionEstimate.
+	projectionEstimates sync.Map
 
 	// bootDone is closed by Run once all projection startup hooks and
 	// boot-time mutations (ensureChannelRoomsAreInAGroup) have

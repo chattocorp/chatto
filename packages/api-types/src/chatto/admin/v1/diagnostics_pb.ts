@@ -1395,7 +1395,8 @@ export class AdminProjectionState extends Message<AdminProjectionState> {
   failure = "";
 
   /**
-   * Estimated number of entries held by the projection.
+   * Estimated number of entries held by the projection. Zero when the
+   * estimate did not finish in time, for example during a blocked commit.
    *
    * @generated from field: int64 entry_count = 13;
    */
@@ -1416,7 +1417,8 @@ export class AdminProjectionState extends Message<AdminProjectionState> {
   averageEntryBytes = protoInt64.zero;
 
   /**
-   * Projection-specific diagnostic metrics.
+   * Projection-specific diagnostic metrics. Empty when the estimate did not
+   * finish in time.
    *
    * @generated from field: repeated chatto.admin.v1.AdminProjectionMetric metrics = 16;
    */

@@ -1516,13 +1516,15 @@ type AdminProjectionState struct {
 	FailedSequence string `protobuf:"bytes,11,opt,name=failed_sequence,json=failedSequence,proto3" json:"failed_sequence,omitempty"`
 	// Failure message, when failed is true.
 	Failure string `protobuf:"bytes,12,opt,name=failure,proto3" json:"failure,omitempty"`
-	// Estimated number of entries held by the projection.
+	// Estimated number of entries held by the projection. Zero when the
+	// estimate did not finish in time, for example during a blocked commit.
 	EntryCount int64 `protobuf:"varint,13,opt,name=entry_count,json=entryCount,proto3" json:"entry_count,omitempty"`
 	// Estimated memory used by the projection in bytes.
 	EstimatedBytes int64 `protobuf:"varint,14,opt,name=estimated_bytes,json=estimatedBytes,proto3" json:"estimated_bytes,omitempty"`
 	// Estimated average memory per entry in bytes.
 	AverageEntryBytes int64 `protobuf:"varint,15,opt,name=average_entry_bytes,json=averageEntryBytes,proto3" json:"average_entry_bytes,omitempty"`
-	// Projection-specific diagnostic metrics.
+	// Projection-specific diagnostic metrics. Empty when the estimate did not
+	// finish in time.
 	Metrics []*AdminProjectionMetric `protobuf:"bytes,16,rep,name=metrics,proto3" json:"metrics,omitempty"`
 	// Whether pending events have had no committed progress for the stall
 	// threshold. An idle, caught-up projection is never stalled.

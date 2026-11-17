@@ -141,7 +141,10 @@ happened for `ProjectorOptions.StallAfter` (default five minutes). Each commit
 restarts the interval, so a slow replay that advances is not stalled. A caught-up
 projector is never stalled. Stall detection only reports; it does not restart or
 reset a projection. Run logs each stall state change. Admin System and the
-`chatto_projection_stalled` metric show core projections. The search provider
+`chatto_projection_stalled` metric show core projections. Their memory
+estimates take projection read locks, so diagnostics wait at most 500 ms for
+each estimate and run at most one estimate per projection at a time. A blocked
+projection then reports its status without an estimate. The search provider
 reports its stall in `chatto.search.v1.GetStatusResponse`: freshness `STALLED`,
 and state `DEGRADED` after startup or `INDEXING` during startup. Queries remain
 available from a stalled index.

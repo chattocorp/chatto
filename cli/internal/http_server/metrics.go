@@ -483,8 +483,6 @@ func (c *chattoCollector) collectCoreMetrics(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(c.projectionLastApplied, prometheus.GaugeValue, float64(projection.LastAppliedSeq), projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionTarget, prometheus.GaugeValue, float64(projection.MatchingStreamSeq), projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionLag, prometheus.GaugeValue, float64(projection.Lag), projection.Key)
-		ch <- prometheus.MustNewConstMetric(c.projectionEntries, prometheus.GaugeValue, float64(projection.EntryCount), projection.Key)
-		ch <- prometheus.MustNewConstMetric(c.projectionBytes, prometheus.GaugeValue, float64(projection.EstimatedBytes), projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionStalled, prometheus.GaugeValue, boolMetric(projection.Stalled), projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionPending, prometheus.GaugeValue, projection.PendingFor.Seconds(), projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionCommitDuration, prometheus.GaugeValue, projection.LastCommitDuration.Seconds(), projection.Key)
@@ -494,6 +492,12 @@ func (c *chattoCollector) collectCoreMetrics(ch chan<- prometheus.Metric) {
 		if !projection.LastCommitAt.IsZero() {
 			ch <- prometheus.MustNewConstMetric(c.projectionLastCommit, prometheus.GaugeValue, float64(projection.LastCommitAt.UnixNano())/1e9, projection.Key)
 		}
+		// Omit estimates that did not finish rather than export misleading zeros.
+		if !projection.EstimateAvailable {
+			continue
+		}
+		ch <- prometheus.MustNewConstMetric(c.projectionEntries, prometheus.GaugeValue, float64(projection.EntryCount), projection.Key)
+		ch <- prometheus.MustNewConstMetric(c.projectionBytes, prometheus.GaugeValue, float64(projection.EstimatedBytes), projection.Key)
 		for _, metric := range projection.Metrics {
 			switch metric.Name {
 			case "component_room_timeline":
