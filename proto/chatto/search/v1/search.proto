@@ -154,4 +154,40 @@ message GetStatusResponse {
   google.protobuf.Duration current_operation_duration = 11;
   // When the provider collected this status.
   google.protobuf.Timestamp observed_at = 12;
+
+  // Query probe result of the answering provider. Absent when the provider
+  // does not run a query probe or has not served queries yet.
+  QueryProbeStatus query_probe = 13;
+}
+
+// QueryProbeResult is the outcome of one synthetic query probe.
+enum QueryProbeResult {
+  // No probe has completed.
+  QUERY_PROBE_RESULT_UNSPECIFIED = 0;
+  // The probe query completed through the index read path.
+  QUERY_PROBE_RESULT_SUCCEEDED = 1;
+  // The probe query returned an error.
+  QUERY_PROBE_RESULT_FAILED = 2;
+  // The probe query did not complete before the probe timeout.
+  QUERY_PROBE_RESULT_TIMED_OUT = 3;
+}
+
+// QueryProbeStatus reports a provider's own synthetic query through its local
+// index read path. The probe query contains no user data, and the provider
+// runs at most one probe at a time. Only this provider replica reports these
+// values; another replica in the queue group does not answer for it.
+message QueryProbeStatus {
+  // Result of the most recent completed probe.
+  QueryProbeResult last_result = 1;
+  // Completion time of the most recent probe.
+  google.protobuf.Timestamp last_completed_at = 2;
+  // Completion time of the most recent successful probe.
+  google.protobuf.Timestamp last_succeeded_at = 3;
+  // Duration of the most recent completed probe.
+  google.protobuf.Duration last_duration = 4;
+  // Completed probes that failed or timed out since the last success.
+  uint32 consecutive_failures = 5;
+  // Start time of a probe that has not completed. A value older than the
+  // probe timeout means that the index read path is blocked.
+  google.protobuf.Timestamp in_flight_since = 6;
 }

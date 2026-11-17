@@ -496,7 +496,12 @@ responders or the bounded provider-call deadline as provider unavailability.
 Compatible providers share a queue group for replica load balancing. Ready
 status and queries use `.status` and `.query`; startup progress uses
 `.status.startup` only as a fallback when no ready status responder exists.
-The bundled provider joins both ready queues only after replay is current.
+The bundled provider joins both ready queues only after replay is current and
+its local query probe succeeds, and leaves them while the probe fails or
+blocks. Each provider runs at most 16 query handlers at a time, each with an
+8-second deadline; when all are busy, it rejects a query at once with a
+retryable `503` error. `GetStatusResponse.query_probe` reports the probe of the
+answering provider.
 
 This is a trusted server-side integration surface, not a public client API.
 Query responses contain thin message and room IDs. The public

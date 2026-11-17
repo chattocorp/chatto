@@ -34,8 +34,13 @@ type cursor struct {
 }
 
 func (p *Projection) query(ctx context.Context, request *searchv1.QueryRequest) (*searchv1.QueryResponse, error) {
+	locked := p.diagnostics.beginRead()
 	p.mu.RLock()
 	defer p.mu.RUnlock()
+	defer locked()()
+	if p.index == nil {
+		return nil, fmt.Errorf("search index is closed")
+	}
 	query, err := buildQuery(request, p.languages)
 	if err != nil {
 		return nil, err

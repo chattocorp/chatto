@@ -98,13 +98,13 @@ func TestProviderStatusTransitionsFromIndexingToReady(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("projection replay did not start")
 	}
-	status := providerStatus(projector)
+	status := providerStatus(projector, nil)
 	require.Equal(t, searchv1.ProviderState_PROVIDER_STATE_INDEXING, status.GetState())
 	require.NotNil(t, status.GetRetryAfter())
 
 	releaseProjection()
 	require.Eventually(t, func() bool {
-		status = providerStatus(projector)
+		status = providerStatus(projector, nil)
 		return status.GetState() == searchv1.ProviderState_PROVIDER_STATE_READY
 	}, 2*time.Second, 10*time.Millisecond)
 	require.Nil(t, status.GetRetryAfter())
@@ -133,7 +133,7 @@ func TestProviderReportsFailedInitialReplayAsUnavailable(t *testing.T) {
 	go func() { _ = projector.Run(ctx) }()
 
 	require.Eventually(t, func() bool { return projector.Status().Err != nil }, 2*time.Second, 10*time.Millisecond)
-	status := providerStatus(projector)
+	status := providerStatus(projector, nil)
 	require.Equal(t, searchv1.ProviderState_PROVIDER_STATE_UNAVAILABLE, status.GetState())
 	require.Nil(t, status.GetRetryAfter())
 }
@@ -162,7 +162,7 @@ func TestProviderReportsFailureAfterStartupAsDegraded(t *testing.T) {
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return projector.Status().Err != nil }, 2*time.Second, 10*time.Millisecond)
 
-	status := providerStatus(projector)
+	status := providerStatus(projector, nil)
 	require.Equal(t, searchv1.ProviderState_PROVIDER_STATE_DEGRADED, status.GetState())
 }
 
@@ -187,7 +187,7 @@ func TestProviderReportsBlockedCommitAfterStartupAsDegraded(t *testing.T) {
 	t.Cleanup(stop)
 	go func() { _ = projector.Run(runCtx) }()
 	require.Eventually(t, func() bool { return projector.Status().StartupComplete }, 2*time.Second, 10*time.Millisecond)
-	require.Equal(t, searchv1.IndexFreshness_INDEX_FRESHNESS_CURRENT, providerStatus(projector).GetFreshness())
+	require.Equal(t, searchv1.IndexFreshness_INDEX_FRESHNESS_CURRENT, providerStatus(projector, nil).GetFreshness())
 
 	publisher := evtstream.NewPublisher(js, stream, log.New(io.Discard))
 	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &evtv1.Event{
@@ -199,7 +199,7 @@ func TestProviderReportsBlockedCommitAfterStartupAsDegraded(t *testing.T) {
 
 	var status *searchv1.GetStatusResponse
 	require.Eventually(t, func() bool {
-		status = providerStatus(projector)
+		status = providerStatus(projector, nil)
 		return status.GetState() == searchv1.ProviderState_PROVIDER_STATE_DEGRADED
 	}, 2*time.Second, 10*time.Millisecond)
 	require.Equal(t, searchv1.IndexFreshness_INDEX_FRESHNESS_STALLED, status.GetFreshness())
@@ -208,7 +208,7 @@ func TestProviderReportsBlockedCommitAfterStartupAsDegraded(t *testing.T) {
 
 	releaseProjection()
 	require.Eventually(t, func() bool {
-		status = providerStatus(projector)
+		status = providerStatus(projector, nil)
 		return status.GetState() == searchv1.ProviderState_PROVIDER_STATE_READY
 	}, 2*time.Second, 10*time.Millisecond)
 	require.Equal(t, searchv1.IndexFreshness_INDEX_FRESHNESS_CURRENT, status.GetFreshness())

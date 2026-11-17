@@ -3,6 +3,7 @@ package bleve
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -16,10 +17,21 @@ import (
 // Provider exposes a projection through the provider-neutral NATS contract.
 type Provider struct {
 	projection events.ProjectionHandle[*Projection]
+	// probe runs the synthetic query through Query. It is nil until the unit
+	// creates it.
+	probe *queryProbe
+	// serving is true while this provider is subscribed to the shared query
+	// and ready status queues.
+	serving atomic.Bool
 }
 
 func newProvider(projection events.ProjectionHandle[*Projection]) *Provider {
-	return &Provider{projection: projection}
+	p := &Provider{projection: projection}
+	p.probe = newQueryProbe(func(ctx context.Context) error {
+		_, err := p.Query(ctx, queryProbeRequest())
+		return err
+	})
+	return p
 }
 
 func (p *Provider) Query(ctx context.Context, request *searchv1.QueryRequest) (*searchv1.QueryResponse, error) {
@@ -39,16 +51,33 @@ func (p *Provider) Query(ctx context.Context, request *searchv1.QueryRequest) (*
 
 func (p *Provider) GetStatus(context.Context, *searchv1.GetStatusRequest) (*searchv1.GetStatusResponse, error) {
 	if p == nil {
-		return providerStatus(nil), nil
+		return providerStatus(nil, nil), nil
 	}
-	return providerStatus(p.projection.Projector()), nil
+	return providerStatus(p.projection.Projector(), p.probe), nil
 }
 
-func providerStatus(projector *events.Projector) *searchv1.GetStatusResponse {
+func providerStatus(projector *events.Projector, probe *queryProbe) *searchv1.GetStatusResponse {
 	if projector == nil {
 		return &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_STARTING}
 	}
-	return providerStatusFrom(projector.Status(), time.Now())
+	now := time.Now()
+	response := providerStatusFrom(projector.Status(), now)
+	applyQueryProbe(response, probe, now)
+	return response
+}
+
+// applyQueryProbe adds the query probe result. A failed or blocked probe
+// means that this provider cannot answer queries now, although its index
+// exists, so a READY provider becomes DEGRADED.
+func applyQueryProbe(response *searchv1.GetStatusResponse, probe *queryProbe, now time.Time) {
+	snapshot, started := probe.Snapshot()
+	if !started {
+		return
+	}
+	response.QueryProbe = snapshot.proto()
+	if response.GetState() == searchv1.ProviderState_PROVIDER_STATE_READY && snapshot.Failing(now) {
+		response.State = searchv1.ProviderState_PROVIDER_STATE_DEGRADED
+	}
 }
 
 // providerStatusFrom maps projector status to provider status. Query

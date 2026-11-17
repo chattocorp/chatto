@@ -174,6 +174,9 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, "exporter.s3_timeout must not be negative")
 		}
 	}
+	if port := c.SearchProvider.Health.Port; port < 0 || port > 65535 {
+		errs = append(errs, "search_provider.health.port must be between 0 and 65535")
+	}
 	if c.SearchProvider.Enabled || strings.TrimSpace(c.SearchProvider.Directory) != "" || c.SearchProvider.Languages != nil {
 		searchDirectory := filepath.Clean(c.SearchProvider.DirectoryOrDefault())
 		if searchDirectory == "." || filepath.IsAbs(searchDirectory) && searchDirectory == filepath.VolumeName(searchDirectory)+string(filepath.Separator) {
