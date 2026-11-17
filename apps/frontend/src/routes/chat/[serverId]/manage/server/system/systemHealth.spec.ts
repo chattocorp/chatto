@@ -4,7 +4,8 @@ import {
   highestLimitUsage,
   liveKitWebhooksRejected,
   overallHealth,
-  systemHealthChecks
+  systemHealthChecks,
+  type HealthCheck
 } from './systemHealth';
 
 function projection(overrides: Partial<AdminSystemInfo['projections'][number]> = {}) {
@@ -220,6 +221,17 @@ describe('systemHealthChecks', () => {
       storage: 'unknown'
     });
     expect(overallHealth(systemHealthChecks(snapshot))).toBe('ok');
+  });
+
+  it('reports the overall status as unknown when no check has data', () => {
+    const unknown = (id: HealthCheck['id']): HealthCheck => ({
+      id,
+      status: 'unknown',
+      detail: { kind: 'unavailable' }
+    });
+
+    expect(overallHealth([unknown('projections'), unknown('storage')])).toBe('unknown');
+    expect(overallHealth([])).toBe('unknown');
   });
 });
 
