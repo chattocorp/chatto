@@ -31,6 +31,14 @@ describe('visibleSystemSections', () => {
     expect(visibleSystemSections(null)).toEqual(['overview', 'streams', 'projections', 'workers']);
   });
 
+  it('shows the Search section only when the server reports search status', () => {
+    const info = (search: AdminSystemInfo['search']) =>
+      ({ livekit: { connectionState: 'unavailable' }, search }) as AdminSystemInfo;
+    expect(visibleSystemSections(info({ available: false, providers: [] }))).toContain('search');
+    expect(visibleSystemSections(info(null))).not.toContain('search');
+    expect(visibleSystemSections(info(null), 'search')).toContain('search');
+  });
+
   it('keeps the LiveKit tab when it is the current section', () => {
     expect(visibleSystemSections(withLiveKit('unavailable'), 'livekit')).toContain('livekit');
   });

@@ -4,7 +4,10 @@ import {
   highestLimitUsage,
   liveKitWebhooksRejected,
   overallHealth,
-  systemHealthChecks
+  searchCheck,
+  searchIndexCheck,
+  systemHealthChecks,
+  type HealthCheck
 } from './systemHealth';
 
 function projection(overrides: Partial<AdminSystemInfo['projections'][number]> = {}) {
@@ -96,8 +99,44 @@ function info(overrides: Partial<AdminSystemInfo> = {}): AdminSystemInfo {
     },
     durableWorkers: [worker('healthy'), worker('inactive')],
     livekit: liveKit(),
+    search: null,
     ...overrides
   };
+}
+
+type SearchProvider = NonNullable<AdminSystemInfo['search']>['providers'][number];
+
+function provider(
+  state: SearchProvider['state'],
+  freshness: SearchProvider['freshness'] = 'current'
+): SearchProvider {
+  return {
+    instanceId: `${state}-${freshness}`,
+    host: 'search-0',
+    implementationVersion: '0.5.0',
+    state,
+    freshness,
+    indexedEventCount: null,
+    targetEventCount: null,
+    committedSequence: '10',
+    observedSequence: '10',
+    lastCommitAt: null,
+    pendingSeconds: null,
+    currentOperation: '',
+    currentOperationSeconds: null,
+    observedAt: null,
+    queryProbe: {
+      result: 'succeeded',
+      completedAt: null,
+      succeededAt: null,
+      consecutiveFailures: 0,
+      inFlightSince: null
+    }
+  };
+}
+
+function search(...providers: SearchProvider[]): NonNullable<AdminSystemInfo['search']> {
+  return { available: providers.length > 0, providers };
 }
 
 function liveKit(overrides: Partial<AdminSystemInfo['livekit']> = {}): AdminSystemInfo['livekit'] {
@@ -220,6 +259,116 @@ describe('systemHealthChecks', () => {
       storage: 'unknown'
     });
     expect(overallHealth(systemHealthChecks(snapshot))).toBe('ok');
+  });
+});
+
+describe('overallHealth', () => {
+  const check = (status: HealthCheck['status']): HealthCheck => ({
+    id: 'broker',
+    status,
+    detail: { kind: 'unavailable' }
+  });
+
+  it('is unknown when every check is unknown', () => {
+    expect(overallHealth([check('unknown'), check('unknown')])).toBe('unknown');
+  });
+
+  it('ignores unknown checks next to known ones', () => {
+    expect(overallHealth([check('unknown'), check('ok')])).toBe('ok');
+    expect(overallHealth([check('unknown'), check('warning')])).toBe('warning');
+    expect(overallHealth([check('critical'), check('unknown'), check('ok')])).toBe('critical');
+  });
+});
+
+describe('search health checks', () => {
+  it('omits the checks when the server reports no search status', () => {
+    const ids = systemHealthChecks(info()).map((check) => check.id);
+    expect(ids).not.toContain('search');
+    expect(ids).not.toContain('search_index');
+  });
+
+  it('reports healthy providers as ok', () => {
+    const status = search(provider('ready'), provider('ready'));
+    expect(searchCheck(status)).toEqual({
+      id: 'search',
+      status: 'ok',
+      detail: { kind: 'search_ready', count: 2, total: 2 }
+    });
+    expect(searchIndexCheck(status)).toEqual({
+      id: 'search_index',
+      status: 'ok',
+      detail: { kind: 'search_index_current', count: 2, total: 2 }
+    });
+    expect(overallHealth(systemHealthChecks(info({ search: status })))).toBe('ok');
+  });
+
+  it('reports a stalled index as a warning, separate from availability', () => {
+    const status = search(provider('degraded', 'stalled'), provider('ready'));
+    expect(searchCheck(status)).toMatchObject({
+      status: 'warning',
+      detail: { kind: 'search_degraded', count: 1, total: 2 }
+    });
+    expect(searchIndexCheck(status)).toMatchObject({
+      status: 'warning',
+      detail: { kind: 'search_index_stalled', count: 1, total: 2 }
+    });
+  });
+
+  it('keeps a failed provider visible next to a healthy one', () => {
+    const status = search(provider('ready'), provider('unavailable', 'unknown'));
+    expect(searchCheck(status)).toEqual({
+      id: 'search',
+      status: 'warning',
+      detail: { kind: 'search_failed', count: 1, total: 2 }
+    });
+    expect(searchIndexCheck(status)).toMatchObject({
+      status: 'warning',
+      detail: { kind: 'search_index_unknown', count: 1, total: 2 }
+    });
+    expect(overallHealth(systemHealthChecks(info({ search: status })))).toBe('warning');
+  });
+
+  it('reports search as critical when no provider can answer', () => {
+    expect(searchCheck(search())).toEqual({
+      id: 'search',
+      status: 'critical',
+      detail: { kind: 'search_none' }
+    });
+    expect(searchIndexCheck(search()).status).toBe('unknown');
+    expect(searchCheck(search(provider('unavailable', 'unknown')))).toMatchObject({
+      status: 'critical',
+      detail: { kind: 'search_failed', count: 1, total: 1 }
+    });
+  });
+
+  it('warns while providers build the index and none is ready', () => {
+    expect(searchCheck(search(provider('indexing', 'behind')))).toMatchObject({
+      status: 'warning',
+      detail: { kind: 'search_indexing', count: 1, total: 1 }
+    });
+    expect(searchIndexCheck(search(provider('indexing', 'behind')))).toMatchObject({
+      status: 'ok',
+      detail: { kind: 'search_index_behind', count: 1, total: 1 }
+    });
+    // An update starts a new provider next to a ready one.
+    expect(searchCheck(search(provider('ready'), provider('starting', 'unknown'))).status).toBe(
+      'ok'
+    );
+  });
+
+  it('never reports missing or outdated provider status as healthy', () => {
+    const unknown = search(provider('unknown', 'unknown'));
+    expect(searchCheck(unknown)).toMatchObject({
+      status: 'unknown',
+      detail: { kind: 'search_unknown', count: 1, total: 1 }
+    });
+    expect(searchIndexCheck(unknown).status).toBe('unknown');
+
+    const mixed = search(provider('ready'), provider('unknown', 'unknown'));
+    expect(searchCheck(mixed)).toMatchObject({
+      status: 'warning',
+      detail: { kind: 'search_unknown', count: 1, total: 2 }
+    });
   });
 });
 

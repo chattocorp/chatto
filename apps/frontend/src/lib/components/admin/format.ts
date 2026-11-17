@@ -35,3 +35,18 @@ export function formatGoDuration(duration: string): string {
   if (roundedMs < 1000) return `${roundedMs} ms`;
   return `${parseFloat((ms / 1000).toFixed(2))} s`;
 }
+
+/**
+ * Formats a duration in seconds with a readable unit, for example `250 ms`,
+ * `4.20 s`, or `6m 40s`.
+ */
+export function formatSeconds(seconds: number): string {
+  if (seconds < 0.001) return '<1 ms';
+  if (seconds < 1) return `${Math.round(seconds * 1000)} ms`;
+  if (seconds < 10) return `${seconds.toFixed(2)} s`;
+  if (seconds < 60) return `${seconds.toFixed(1)} s`;
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}m ${remainingSeconds}s`;
+}

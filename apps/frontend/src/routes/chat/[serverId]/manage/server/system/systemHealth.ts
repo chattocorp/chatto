@@ -1,14 +1,23 @@
-import type { AdminSystemInfo } from '$lib/api/adminDiagnostics';
+import type { AdminSearchProvider, AdminSystemInfo } from '$lib/api/adminDiagnostics';
 
 /**
  * Severity of one health check. `unknown` means the server did not report
- * the data that the check needs; it never raises the overall status.
+ * the data that the check needs. It does not raise the overall status above
+ * the other checks, but when every check is unknown, the overall status is
+ * unknown too.
  */
 export type HealthStatus = 'ok' | 'warning' | 'critical' | 'unknown';
 
 /** Identifies a health check, so the view can choose its label and icon. */
 export type HealthCheckId =
-  'broker' | 'projections' | 'workers' | 'backlog' | 'storage' | 'voice_calls';
+  | 'broker'
+  | 'projections'
+  | 'workers'
+  | 'backlog'
+  | 'storage'
+  | 'voice_calls'
+  | 'search'
+  | 'search_index';
 
 /**
  * A health check result. `detail` is a discriminated value that the view
@@ -40,7 +49,18 @@ export type HealthDetail =
   | { kind: 'livekit_unauthorized' }
   | { kind: 'livekit_error' }
   | { kind: 'livekit_insecure_url' }
-  | { kind: 'livekit_webhooks_rejected' };
+  | { kind: 'livekit_webhooks_rejected' }
+  | { kind: 'search_none' }
+  | { kind: SearchProviderDetail; count: number; total: number }
+  | { kind: SearchIndexDetail; count: number; total: number };
+
+/** Details of the search availability check; see `searchCheck`. */
+type SearchProviderDetail =
+  'search_failed' | 'search_degraded' | 'search_indexing' | 'search_unknown' | 'search_ready';
+
+/** Details of the search index check; see `searchIndexCheck`. */
+type SearchIndexDetail =
+  'search_index_stalled' | 'search_index_behind' | 'search_index_unknown' | 'search_index_current';
 
 /** Usage at or above this share of an account limit is a warning. */
 export const STORAGE_WARNING_RATIO = 0.75;
@@ -62,9 +82,13 @@ const severity: Record<HealthStatus, number> = { unknown: 0, ok: 1, warning: 2, 
  * LiveKit API check is critical. An insecure LiveKit URL, or a rejected
  * webhook more recent than the last accepted one, is a warning.
  *
+ * The search checks appear only when message search is enabled. They show
+ * search availability and index freshness separately; see `searchCheck` and
+ * `searchIndexCheck`.
+ *
  * The broker, projection, and voice calls checks describe the replica that
- * handled the request. The other checks use broker state that every replica
- * shares.
+ * handled the request. The search checks cover every search provider that
+ * answered. The other checks use broker state that every replica shares.
  */
 export function systemHealthChecks(info: AdminSystemInfo): HealthCheck[] {
   const checks = [
@@ -74,18 +98,26 @@ export function systemHealthChecks(info: AdminSystemInfo): HealthCheck[] {
     backlogCheck(info),
     storageCheck(info)
   ];
+  if (info.search) checks.push(searchCheck(info.search), searchIndexCheck(info.search));
   const voiceCalls = voiceCallsCheck(info);
   if (voiceCalls) checks.push(voiceCalls);
   return checks;
 }
 
-/** Returns the most severe status of the checks, or `ok` when all are unknown. */
-export function overallHealth(checks: HealthCheck[]): Exclude<HealthStatus, 'unknown'> {
-  const worst = checks.reduce<HealthStatus>(
-    (current, check) => (severity[check.status] > severity[current] ? check.status : current),
+/**
+ * Returns the most severe status of the checks. Unknown checks do not count,
+ * unless every check is unknown: then the overall status is unknown, because
+ * no data supports `ok`.
+ */
+export function overallHealth(checks: HealthCheck[]): HealthStatus {
+  if (checks.length > 0 && checks.every((check) => check.status === 'unknown')) return 'unknown';
+  return checks.reduce<HealthStatus>(
+    (current, check) =>
+      check.status !== 'unknown' && severity[check.status] > severity[current]
+        ? check.status
+        : current,
     'ok'
   );
-  return worst === 'unknown' ? 'ok' : worst;
 }
 
 /**
@@ -224,6 +256,79 @@ function storageCheck(info: AdminSystemInfo): HealthCheck {
     // 29/100, which multiply to 28.999…, from losing a percent.
     detail: { kind: 'storage_used', percent: Math.floor(usage * 100 + 1e-9) }
   };
+}
+
+type SearchStatus = NonNullable<AdminSystemInfo['search']>;
+
+/**
+ * Search availability across all providers. A failed provider stays visible
+ * when another provider is healthy:
+ *
+ * - No provider answered: critical, because search cannot work.
+ * - No provider can answer queries: critical when one failed, a warning while
+ *   providers start or build the index, unknown when no status is known.
+ * - Some provider can answer queries: a warning for each failed, degraded, or
+ *   unknown provider, in this order; otherwise ok. Providers that start or
+ *   build the index next to a ready one are normal, for example in an update.
+ */
+export function searchCheck(search: SearchStatus): HealthCheck {
+  const total = search.providers.length;
+  if (total === 0) {
+    return { id: 'search', status: 'critical', detail: { kind: 'search_none' } };
+  }
+  const count = (states: AdminSearchProvider['state'][]) =>
+    search.providers.filter((provider) => states.includes(provider.state)).length;
+  const ready = count(['ready']);
+  const degraded = count(['degraded']);
+  const failed = count(['unavailable']);
+  const unknown = count(['unknown']);
+  const check = (
+    status: HealthStatus,
+    kind: SearchProviderDetail,
+    providers: number
+  ): HealthCheck => ({ id: 'search', status, detail: { kind, count: providers, total } });
+
+  if (ready + degraded === 0) {
+    if (failed > 0) return check('critical', 'search_failed', failed);
+    const indexing = count(['starting', 'indexing']);
+    if (indexing > 0) return check('warning', 'search_indexing', indexing);
+    return check('unknown', 'search_unknown', unknown);
+  }
+  if (failed > 0) return check('warning', 'search_failed', failed);
+  if (degraded > 0) return check('warning', 'search_degraded', degraded);
+  if (unknown > 0) return check('warning', 'search_unknown', unknown);
+  return check('ok', 'search_ready', ready);
+}
+
+/**
+ * Search index freshness across all providers. A stalled index is a warning,
+ * like a stalled projection. An index that catches up is ok. When some
+ * providers report freshness and others do not, the unknown ones are a
+ * warning; when none reports it, the check is unknown.
+ */
+export function searchIndexCheck(search: SearchStatus): HealthCheck {
+  const total = search.providers.length;
+  if (total === 0) {
+    return { id: 'search_index', status: 'unknown', detail: { kind: 'unavailable' } };
+  }
+  const count = (freshness: AdminSearchProvider['freshness']) =>
+    search.providers.filter((provider) => provider.freshness === freshness).length;
+  const check = (
+    status: HealthStatus,
+    kind: SearchIndexDetail,
+    providers: number
+  ): HealthCheck => ({
+    id: 'search_index',
+    status,
+    detail: { kind, count: providers, total }
+  });
+
+  const unknown = count('unknown');
+  if (count('stalled') > 0) return check('warning', 'search_index_stalled', count('stalled'));
+  if (unknown === total) return check('unknown', 'search_index_unknown', unknown);
+  if (unknown > 0) return check('warning', 'search_index_unknown', unknown);
+  if (count('behind') > 0) return check('ok', 'search_index_behind', count('behind'));
+  return check('ok', 'search_index_current', count('current'));
 }
 
 function voiceCallsCheck({ livekit }: AdminSystemInfo): HealthCheck | null {

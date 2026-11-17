@@ -12,6 +12,7 @@ import { createTestServerScope, type TestServerScope } from '$lib/test-utils/ser
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import SystemTestHarness from './SystemTestHarness.svelte';
 import type { SystemSection } from './systemSections';
+import type { AdminSearchProvider, AdminSystemInfo } from '$lib/api/adminDiagnostics';
 
 const mocks = vi.hoisted(() => ({
   getAdminSystemInfo: vi.fn()
@@ -113,8 +114,36 @@ const systemInfo = {
     insecureUrl: false,
     lastWebhookAt: null as Date | null,
     lastRejectedWebhookAt: null as Date | null
-  }
+  },
+  search: null as AdminSystemInfo['search']
 };
+
+function searchProvider(overrides: Partial<AdminSearchProvider>): AdminSearchProvider {
+  return {
+    instanceId: 'provider-a',
+    host: 'search-0',
+    implementationVersion: '0.5.0',
+    state: 'ready',
+    freshness: 'current',
+    indexedEventCount: null,
+    targetEventCount: null,
+    committedSequence: '42',
+    observedSequence: '42',
+    lastCommitAt: new Date('2026-07-10T12:00:00Z'),
+    pendingSeconds: null,
+    currentOperation: '',
+    currentOperationSeconds: null,
+    observedAt: new Date('2026-07-10T12:00:01Z'),
+    queryProbe: {
+      result: 'succeeded',
+      completedAt: new Date('2026-07-10T12:00:00Z'),
+      succeededAt: new Date('2026-07-10T12:00:00Z'),
+      consecutiveFailures: 0,
+      inFlightSince: null
+    },
+    ...overrides
+  };
+}
 
 async function settle() {
   await Promise.resolve();
@@ -130,6 +159,7 @@ const routeIds: Record<SystemSection, string> = {
   streams: '/chat/[serverId]/manage/server/system/streams',
   projections: '/chat/[serverId]/manage/server/system/projections',
   workers: '/chat/[serverId]/manage/server/system/workers',
+  search: '/chat/[serverId]/manage/server/system/search',
   livekit: '/chat/[serverId]/manage/server/system/livekit'
 };
 
@@ -443,5 +473,112 @@ describe('server admin system diagnostics', () => {
     const { container } = renderSection('livekit');
     await settle();
     expect(container.textContent).toContain('signature that is not valid');
+  });
+
+  it('shows a failed search provider next to a healthy one', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      search: {
+        available: true,
+        providers: [
+          searchProvider({}),
+          searchProvider({
+            instanceId: 'provider-b',
+            host: 'search-1',
+            state: 'degraded',
+            freshness: 'stalled',
+            committedSequence: '40',
+            pendingSeconds: 400,
+            queryProbe: {
+              ...searchProvider({}).queryProbe,
+              result: 'timed_out',
+              consecutiveFailures: 3
+            }
+          })
+        ]
+      }
+    });
+    const overview = renderSection();
+    await settle();
+
+    expect(overview.container.textContent).toContain('Needs attention');
+    expect(overview.container.textContent).toContain('Degraded providers: 1 of 2');
+    expect(overview.container.textContent).toContain('Stalled indexes: 1 of 2');
+    await expect
+      .element(overview.getByRole('link', { name: 'Search index' }))
+      .toHaveAttribute('href', '/chat/-/manage/server/system/search');
+    overview.unmount();
+
+    const screen = renderSection('search');
+    await settle();
+    const nav = screen.getByRole('navigation', { name: 'System sections' });
+    await expect.element(nav.getByRole('link', { name: 'Search Warning' })).toBeVisible();
+    const rows = screen.container.querySelectorAll('[data-search-provider]');
+    expect([...rows].map((row) => row.getAttribute('data-search-provider'))).toEqual([
+      'degraded',
+      'ready'
+    ]);
+    expect(screen.container.textContent).toContain('search-1');
+    expect(screen.container.textContent).toContain('Timed out');
+    expect(screen.container.textContent).toContain('Failures in a row: 3');
+    expect(screen.container.textContent).toContain('No progress for 6m 40s');
+    expect(screen.container.textContent).toContain('Test queries fail');
+  });
+
+  it('shows search as a problem when no provider answers', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      search: { available: false, providers: [] }
+    });
+    const overview = renderSection();
+    await settle();
+    expect(overview.container.textContent).toContain('Problems found');
+    expect(overview.container.textContent).toContain('No search provider answered');
+    overview.unmount();
+
+    const screen = renderSection('search');
+    await settle();
+    expect(screen.container.textContent).toContain(
+      'No search provider answered the status request.'
+    );
+  });
+
+  it('shows a provider with an outdated status as unknown', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      search: {
+        available: true,
+        providers: [searchProvider({ state: 'unknown', freshness: 'unknown' })]
+      }
+    });
+    const screen = renderSection('search');
+    await settle();
+    expect(
+      screen.container.querySelector('[data-search-provider]')?.getAttribute('data-search-provider')
+    ).toBe('unknown');
+    expect(screen.container.textContent).toContain('The status is missing or out of date.');
+  });
+
+  it('hides the Search tab when the server does not report search status', async () => {
+    const screen = renderSection();
+    await settle();
+    const nav = screen.getByRole('navigation', { name: 'System sections' });
+    await expect.element(nav.getByRole('link', { name: 'Workers', exact: true })).toBeVisible();
+    expect(nav.getByRole('link', { name: 'Search' }).query()).toBeNull();
+  });
+
+  it('does not count unknown search checks as healthy or as a problem', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      search: {
+        available: true,
+        providers: [searchProvider({ state: 'unknown', freshness: 'unknown' })]
+      }
+    });
+    const { container } = renderSection();
+    await settle();
+    // The fixture has no projections or workers, so those checks are unknown too.
+    expect(container.querySelectorAll('[data-health="unknown"]')).toHaveLength(4);
+    expect(container.textContent).toContain('No problems found. Some checks have no data.');
   });
 });

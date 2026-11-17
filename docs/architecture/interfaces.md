@@ -503,6 +503,17 @@ blocks. Each provider runs at most 16 query handlers at a time, each with an
 retryable `503` error. `GetStatusResponse.query_probe` reports the probe of the
 answering provider.
 
+Every provider process also answers `.status.all` without a queue group, from
+startup until it stops. Its replies carry `instance_id`, `host`, and
+`implementation_version`. `search.Client.ProviderReports` publishes one request
+there and collects replies for at most one second, or until 100 ms pass without
+a reply. It classifies each status with `search.ClassifyStatus`: a status older
+than 30 seconds, or without a state or freshness, is `unknown`. When no
+provider replies there, for example when all providers are older versions, it
+uses the queue-grouped status as one provider. Admin diagnostics
+(`AdminSearchStatus`) and the `chatto_search_provider_*` metrics both use these
+reports, so they agree about each provider.
+
 This is a trusted server-side integration surface, not a public client API.
 Query responses contain thin message and room IDs. The public
 `MessageSearchService` prefilters provider queries to the caller's complete

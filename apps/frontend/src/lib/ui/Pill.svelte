@@ -8,6 +8,7 @@ clickable toggleable variants use `<ToggleChip>`.
 
 ```svelte
 <Pill tone="success">Allow from space</Pill>
+<Pill tone="warning">Stalled</Pill>
 <Pill tone="neutral">Space</Pill>
 <Pill tone="muted">System</Pill>
 <Pill tone="danger" dimmed>Inherited Allow (overridden)</Pill>
@@ -16,7 +17,8 @@ clickable toggleable variants use `<ToggleChip>`.
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  type Tone = 'success' | 'danger' | 'action' | 'neutral' | 'muted' | 'server' | 'default';
+  type Tone =
+    'success' | 'warning' | 'danger' | 'action' | 'neutral' | 'muted' | 'server' | 'default';
 
   let {
     children,
@@ -52,6 +54,7 @@ clickable toggleable variants use `<ToggleChip>`.
   const toneClasses: Record<Tone, string> = {
     default: 'bg-surface-emphasized text-text',
     success: 'bg-success/10 text-success',
+    warning: 'bg-warning/10 text-warning',
     danger: 'bg-danger/10 text-danger',
     action: 'bg-action/10 text-action',
     neutral: 'bg-neutral-action/10 text-neutral-action',

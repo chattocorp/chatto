@@ -21,6 +21,114 @@ message GetSystemInfoResponse {
   optional bool projections_available = 5;
   // LiveKit voice and video call setup diagnostics.
   AdminLiveKitStatus livekit = 6;
+  // Message search provider diagnostics. Absent when message search is
+  // disabled.
+  AdminSearchStatus search = 7;
+}
+
+// Message search diagnostics. Every search provider process answers the
+// status request on its own, so a failed provider stays visible when another
+// provider is healthy. The server waits at most about one second for replies.
+// A provider that does not reply is not listed.
+message AdminSearchStatus {
+  // Whether at least one provider answered the status request.
+  bool available = 1;
+  // Status of each provider that answered, sorted by host and instance ID.
+  repeated AdminSearchProvider providers = 2;
+}
+
+// Status of one message search provider process. The values contain no
+// message content, query terms, or user IDs.
+message AdminSearchProvider {
+  // Opaque ID of the provider process. Empty for providers that do not
+  // report an identity.
+  string instance_id = 1;
+  // Host name of the provider process, for example a Kubernetes pod name.
+  string host = 2;
+  // Version of the provider implementation.
+  string implementation_version = 3;
+  // Whether the provider can answer queries.
+  AdminSearchProviderState state = 4;
+  // Whether the provider's index follows the event log.
+  AdminSearchIndexFreshness freshness = 5;
+  // EVT records processed during the current index build, when known.
+  optional string indexed_event_count = 6;
+  // EVT records targeted by the current index build, when known.
+  optional string target_event_count = 7;
+  // Last EVT sequence that the index committed, when known.
+  optional string committed_sequence = 8;
+  // Highest matching EVT sequence that the provider knows of, when known.
+  optional string observed_sequence = 9;
+  // When the index last committed progress.
+  google.protobuf.Timestamp last_commit_time = 10;
+  // Seconds that waiting events have had no committed progress. Unset when
+  // the index is current.
+  optional double pending_seconds = 11;
+  // Low-cardinality name of the index work that runs now. Empty when idle.
+  string current_operation = 12;
+  // Seconds that current_operation has run. Unset when idle.
+  optional double current_operation_seconds = 13;
+  // When the provider collected this status.
+  google.protobuf.Timestamp observed_at = 14;
+  // Result of the provider's most recent query probe.
+  AdminSearchQueryProbeResult query_probe_result = 15;
+  // When the most recent query probe completed.
+  google.protobuf.Timestamp query_probe_completed_at = 16;
+  // When the most recent successful query probe completed.
+  google.protobuf.Timestamp query_probe_succeeded_at = 17;
+  // Query probes that failed or timed out since the last success.
+  uint32 query_probe_consecutive_failures = 18;
+  // Start time of a query probe that has not completed.
+  google.protobuf.Timestamp query_probe_in_flight_since = 19;
+}
+
+// Whether a search provider can answer queries. The server derives this
+// state with the same rules that it uses for its search metrics.
+enum AdminSearchProviderState {
+  // The server did not report a state.
+  ADMIN_SEARCH_PROVIDER_STATE_UNSPECIFIED = 0;
+  // The provider reported no state, or its status is more than 30 seconds
+  // old.
+  ADMIN_SEARCH_PROVIDER_STATE_UNKNOWN = 1;
+  // The provider is starting.
+  ADMIN_SEARCH_PROVIDER_STATE_STARTING = 2;
+  // The provider builds or catches up its index and cannot answer queries yet.
+  ADMIN_SEARCH_PROVIDER_STATE_INDEXING = 3;
+  // The provider answers queries.
+  ADMIN_SEARCH_PROVIDER_STATE_READY = 4;
+  // The provider has a known problem, such as a stalled index or a failed
+  // query probe.
+  ADMIN_SEARCH_PROVIDER_STATE_DEGRADED = 5;
+  // The provider cannot answer queries because startup or indexing failed.
+  ADMIN_SEARCH_PROVIDER_STATE_UNAVAILABLE = 6;
+}
+
+// Whether a search provider's index follows the event log.
+enum AdminSearchIndexFreshness {
+  // The server did not report freshness.
+  ADMIN_SEARCH_INDEX_FRESHNESS_UNSPECIFIED = 0;
+  // The provider did not report freshness, or its status is more than 30
+  // seconds old.
+  ADMIN_SEARCH_INDEX_FRESHNESS_UNKNOWN = 1;
+  // The index contains every matching event that the provider knows of.
+  ADMIN_SEARCH_INDEX_FRESHNESS_CURRENT = 2;
+  // Events wait for indexing, and the index committed progress recently.
+  ADMIN_SEARCH_INDEX_FRESHNESS_BEHIND = 3;
+  // Events wait for indexing, but the index committed no progress for the
+  // provider's stall threshold.
+  ADMIN_SEARCH_INDEX_FRESHNESS_STALLED = 4;
+}
+
+// Outcome of a search provider's most recent query probe.
+enum AdminSearchQueryProbeResult {
+  // No probe has completed, or the provider does not run a query probe.
+  ADMIN_SEARCH_QUERY_PROBE_RESULT_UNSPECIFIED = 0;
+  // The probe query completed.
+  ADMIN_SEARCH_QUERY_PROBE_RESULT_SUCCEEDED = 1;
+  // The probe query returned an error.
+  ADMIN_SEARCH_QUERY_PROBE_RESULT_FAILED = 2;
+  // The probe query did not complete before the probe timeout.
+  ADMIN_SEARCH_QUERY_PROBE_RESULT_TIMED_OUT = 3;
 }
 
 // LiveKit voice and video call setup as seen by the Chatto server that
@@ -344,8 +452,8 @@ message AdminProjectionMetric {
 
 // Provides server diagnostics for the admin system page.
 service AdminDiagnosticsService {
-  // Returns broker, JetStream, projection, and LiveKit diagnostics. Requires
-  // the server owner role. The call checks the LiveKit server API, so it can
-  // take up to five seconds when LiveKit does not reply.
+  // Returns broker, JetStream, projection, LiveKit, and message search
+  // diagnostics. Requires the server owner role. The call checks the LiveKit
+  // server API, so it can take up to five seconds when LiveKit does not reply.
   rpc GetSystemInfo(GetSystemInfoRequest) returns (GetSystemInfoResponse);
 }

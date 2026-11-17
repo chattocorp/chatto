@@ -4,7 +4,12 @@ import {
   AdminAssetCleanupHealth,
   AdminDurableWorkerHealth,
   AdminLiveKitConnectionState,
-  type AdminLiveKitStatus as AdminLiveKitStatusMessage
+  AdminSearchIndexFreshness,
+  AdminSearchProviderState,
+  AdminSearchQueryProbeResult,
+  type AdminLiveKitStatus as AdminLiveKitStatusMessage,
+  type AdminSearchProvider as AdminSearchProviderMessage,
+  type AdminSearchStatus as AdminSearchStatusMessage
 } from '@chatto/api-types/admin/v1/diagnostics_pb';
 
 export type AdminSystemInfo = {
@@ -20,6 +25,53 @@ export type AdminSystemInfo = {
   assetCleanup: AdminAssetCleanupStatus;
   durableWorkers: AdminDurableWorkerStatus[];
   livekit: AdminLiveKitStatus;
+  /** Null when message search is disabled or the server does not report search. */
+  search: AdminSearchStatus | null;
+};
+
+/**
+ * Message search diagnostics. Every search provider process reports its own
+ * status, so a failed provider stays visible next to a healthy one.
+ */
+export type AdminSearchStatus = {
+  /** At least one provider answered the status request. */
+  available: boolean;
+  providers: AdminSearchProvider[];
+};
+
+/**
+ * Status of one search provider process. The server classifies `state` and
+ * `freshness` with the same rules as its search metrics. A missing or
+ * outdated status is `unknown`, never healthy.
+ */
+export type AdminSearchProvider = {
+  /** Opaque process ID, or empty for providers that report no identity. */
+  instanceId: string;
+  host: string;
+  implementationVersion: string;
+  state: 'unknown' | 'starting' | 'indexing' | 'ready' | 'degraded' | 'unavailable';
+  freshness: 'unknown' | 'current' | 'behind' | 'stalled';
+  indexedEventCount: string | null;
+  targetEventCount: string | null;
+  committedSequence: string | null;
+  observedSequence: string | null;
+  /** Last committed index progress, or null before one. */
+  lastCommitAt: Date | null;
+  /** Seconds without committed progress while events wait, or null when current. */
+  pendingSeconds: number | null;
+  /** Low-cardinality name of the running index work, or empty when idle. */
+  currentOperation: string;
+  currentOperationSeconds: number | null;
+  observedAt: Date | null;
+  queryProbe: {
+    /** `none` means that no probe has completed. */
+    result: 'none' | 'succeeded' | 'failed' | 'timed_out';
+    completedAt: Date | null;
+    succeededAt: Date | null;
+    consecutiveFailures: number;
+    /** Start of a probe that has not completed, or null. */
+    inFlightSince: Date | null;
+  };
 };
 
 /**
@@ -246,6 +298,86 @@ function liveKitStatus(status: AdminLiveKitStatusMessage | undefined): AdminLive
   };
 }
 
+function searchProviderState(
+  state: AdminSearchProviderState | undefined
+): AdminSearchProvider['state'] {
+  switch (state) {
+    case AdminSearchProviderState.STARTING:
+      return 'starting';
+    case AdminSearchProviderState.INDEXING:
+      return 'indexing';
+    case AdminSearchProviderState.READY:
+      return 'ready';
+    case AdminSearchProviderState.DEGRADED:
+      return 'degraded';
+    case AdminSearchProviderState.UNAVAILABLE:
+      return 'unavailable';
+    default:
+      return 'unknown';
+  }
+}
+
+function searchIndexFreshness(
+  freshness: AdminSearchIndexFreshness | undefined
+): AdminSearchProvider['freshness'] {
+  switch (freshness) {
+    case AdminSearchIndexFreshness.CURRENT:
+      return 'current';
+    case AdminSearchIndexFreshness.BEHIND:
+      return 'behind';
+    case AdminSearchIndexFreshness.STALLED:
+      return 'stalled';
+    default:
+      return 'unknown';
+  }
+}
+
+function searchQueryProbeResult(
+  result: AdminSearchQueryProbeResult | undefined
+): AdminSearchProvider['queryProbe']['result'] {
+  switch (result) {
+    case AdminSearchQueryProbeResult.SUCCEEDED:
+      return 'succeeded';
+    case AdminSearchQueryProbeResult.FAILED:
+      return 'failed';
+    case AdminSearchQueryProbeResult.TIMED_OUT:
+      return 'timed_out';
+    default:
+      return 'none';
+  }
+}
+
+function searchProvider(provider: AdminSearchProviderMessage): AdminSearchProvider {
+  return {
+    instanceId: provider.instanceId,
+    host: provider.host,
+    implementationVersion: provider.implementationVersion,
+    state: searchProviderState(provider.state),
+    freshness: searchIndexFreshness(provider.freshness),
+    indexedEventCount: provider.indexedEventCount ?? null,
+    targetEventCount: provider.targetEventCount ?? null,
+    committedSequence: provider.committedSequence ?? null,
+    observedSequence: provider.observedSequence ?? null,
+    lastCommitAt: provider.lastCommitTime?.toDate() ?? null,
+    pendingSeconds: provider.pendingSeconds ?? null,
+    currentOperation: provider.currentOperation,
+    currentOperationSeconds: provider.currentOperationSeconds ?? null,
+    observedAt: provider.observedAt?.toDate() ?? null,
+    queryProbe: {
+      result: searchQueryProbeResult(provider.queryProbeResult),
+      completedAt: provider.queryProbeCompletedAt?.toDate() ?? null,
+      succeededAt: provider.queryProbeSucceededAt?.toDate() ?? null,
+      consecutiveFailures: provider.queryProbeConsecutiveFailures,
+      inFlightSince: provider.queryProbeInFlightSince?.toDate() ?? null
+    }
+  };
+}
+
+function searchStatus(status: AdminSearchStatusMessage | undefined): AdminSearchStatus | null {
+  if (!status) return null;
+  return { available: status.available, providers: status.providers.map(searchProvider) };
+}
+
 export async function getAdminSystemInfo(
   config: ConnectAPIConfig,
   options: { signal?: AbortSignal } = {}
@@ -374,6 +506,7 @@ export async function getAdminSystemInfo(
       }))
     })),
     projectionsAvailable: response.projectionsAvailable ?? true,
-    livekit: liveKitStatus(response.livekit)
+    livekit: liveKitStatus(response.livekit),
+    search: searchStatus(response.search)
   };
 }

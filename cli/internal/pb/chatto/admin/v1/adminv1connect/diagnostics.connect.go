@@ -41,9 +41,9 @@ const (
 // AdminDiagnosticsServiceClient is a client for the chatto.admin.v1.AdminDiagnosticsService
 // service.
 type AdminDiagnosticsServiceClient interface {
-	// Returns broker, JetStream, projection, and LiveKit diagnostics. Requires
-	// the server owner role. The call checks the LiveKit server API, so it can
-	// take up to five seconds when LiveKit does not reply.
+	// Returns broker, JetStream, projection, LiveKit, and message search
+	// diagnostics. Requires the server owner role. The call checks the LiveKit
+	// server API, so it can take up to five seconds when LiveKit does not reply.
 	GetSystemInfo(context.Context, *connect.Request[v1.GetSystemInfoRequest]) (*connect.Response[v1.GetSystemInfoResponse], error)
 }
 
@@ -80,9 +80,9 @@ func (c *adminDiagnosticsServiceClient) GetSystemInfo(ctx context.Context, req *
 // AdminDiagnosticsServiceHandler is an implementation of the
 // chatto.admin.v1.AdminDiagnosticsService service.
 type AdminDiagnosticsServiceHandler interface {
-	// Returns broker, JetStream, projection, and LiveKit diagnostics. Requires
-	// the server owner role. The call checks the LiveKit server API, so it can
-	// take up to five seconds when LiveKit does not reply.
+	// Returns broker, JetStream, projection, LiveKit, and message search
+	// diagnostics. Requires the server owner role. The call checks the LiveKit
+	// server API, so it can take up to five seconds when LiveKit does not reply.
 	GetSystemInfo(context.Context, *connect.Request[v1.GetSystemInfoRequest]) (*connect.Response[v1.GetSystemInfoResponse], error)
 }
 

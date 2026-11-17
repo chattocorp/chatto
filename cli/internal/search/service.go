@@ -21,10 +21,23 @@ type Provider interface {
 	GetStatus(context.Context, *searchv1.GetStatusRequest) (*searchv1.GetStatusResponse, error)
 }
 
-// ServiceOptions configures NATS micro monitoring metadata.
+// ServiceOptions configures NATS micro monitoring metadata and the provider
+// identity in status replies.
 type ServiceOptions struct {
 	ImplementationVersion string
-	ErrorHandler          micro.ErrHandler
+	// InstanceID identifies the provider process in status replies and service
+	// metadata. Use the same value for every service of one process.
+	InstanceID string
+	// Host is the host name of the provider process, for example a pod name.
+	Host         string
+	ErrorHandler micro.ErrHandler
+}
+
+// identify adds the provider identity to a status reply.
+func (o ServiceOptions) identify(response *searchv1.GetStatusResponse) {
+	response.InstanceId = o.InstanceID
+	response.Host = o.Host
+	response.ImplementationVersion = o.ImplementationVersion
 }
 
 // AddService registers a queue-grouped search provider on the well-known v1
@@ -38,7 +51,7 @@ func AddService(ctx context.Context, nc *nats.Conn, provider Provider, options S
 		_ = service.Stop()
 		return nil, err
 	}
-	if err := AddStatusEndpoint(ctx, service, provider); err != nil {
+	if err := addStatusEndpoint(ctx, service, provider, options); err != nil {
 		_ = service.Stop()
 		return nil, err
 	}
@@ -46,17 +59,25 @@ func AddService(ctx context.Context, nc *nats.Conn, provider Provider, options S
 }
 
 // AddStartupStatusService reports startup progress without joining the ready
-// status or query queues. A provider that can answer queries also registers a
-// separate service with AddService, and stops that service when it can no
-// longer answer queries. The startup status service stays registered.
+// status or query queues. It also answers AllStatusSubject without a queue
+// group, so a caller can collect the status of every provider process. A
+// provider that can answer queries also registers a separate service with
+// AddService, and stops that service when it can no longer answer queries.
+// The startup status service stays registered.
 func AddStartupStatusService(ctx context.Context, nc *nats.Conn, provider Provider, options ServiceOptions) (micro.Service, error) {
 	service, err := addProviderService(ctx, nc, provider, options)
 	if err != nil {
 		return nil, err
 	}
 	if err := service.AddEndpoint("startup-status", micro.ContextHandler(ctx, func(ctx context.Context, request micro.Request) {
-		handleStatus(ctx, provider, request)
+		handleStatus(ctx, provider, options, request)
 	}), micro.WithEndpointSubject(StartupStatusSubject)); err != nil {
+		_ = service.Stop()
+		return nil, err
+	}
+	if err := service.AddEndpoint("all-status", micro.ContextHandler(ctx, func(ctx context.Context, request micro.Request) {
+		handleStatus(ctx, provider, options, request)
+	}), micro.WithEndpointSubject(AllStatusSubject), micro.WithEndpointQueueGroupDisabled()); err != nil {
 		_ = service.Stop()
 		return nil, err
 	}
@@ -77,6 +98,9 @@ func addProviderService(ctx context.Context, nc *nats.Conn, provider Provider, o
 	if options.ImplementationVersion != "" {
 		metadata["implementation_version"] = options.ImplementationVersion
 	}
+	if options.InstanceID != "" {
+		metadata["instance_id"] = options.InstanceID
+	}
 	service, err := micro.AddService(nc, micro.Config{
 		Name:         ServiceName,
 		Version:      ServiceVersion,
@@ -91,14 +115,14 @@ func addProviderService(ctx context.Context, nc *nats.Conn, provider Provider, o
 	return service, nil
 }
 
-// AddStatusEndpoint joins an existing provider service to the ready status
+// addStatusEndpoint joins an existing provider service to the ready status
 // queue. Callers must register it only when the provider can answer queries.
-func AddStatusEndpoint(ctx context.Context, service micro.Service, provider Provider) error {
+func addStatusEndpoint(ctx context.Context, service micro.Service, provider Provider, options ServiceOptions) error {
 	if err := validateServiceEndpoint(ctx, service, provider); err != nil {
 		return err
 	}
 	return service.AddEndpoint("status", micro.ContextHandler(ctx, func(ctx context.Context, request micro.Request) {
-		handleStatus(ctx, provider, request)
+		handleStatus(ctx, provider, options, request)
 	}), micro.WithEndpointSubject(StatusSubject))
 }
 
@@ -244,7 +268,7 @@ func handleQuery(ctx context.Context, provider Provider, request micro.Request) 
 	respondProto(request, response)
 }
 
-func handleStatus(ctx context.Context, provider Provider, request micro.Request) {
+func handleStatus(ctx context.Context, provider Provider, options ServiceOptions, request micro.Request) {
 	statusRequest := &searchv1.GetStatusRequest{}
 	if err := proto.Unmarshal(request.Data(), statusRequest); err != nil {
 		respondError(request, ErrorCodeInvalidArgument, "invalid search status payload")
@@ -259,6 +283,9 @@ func handleStatus(ctx context.Context, provider Provider, request micro.Request)
 		respondError(request, ErrorCodeInternal, "search provider returned an invalid response")
 		return
 	}
+	// Providers may return a shared status value, so identify a copy.
+	response = proto.Clone(response).(*searchv1.GetStatusResponse)
+	options.identify(response)
 	respondProto(request, response)
 }
 

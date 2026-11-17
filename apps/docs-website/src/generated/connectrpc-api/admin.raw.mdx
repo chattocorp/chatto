@@ -24,9 +24,9 @@ Provides server diagnostics for the admin system page.
 
 ### GetSystemInfo
 
-Returns broker, JetStream, projection, and LiveKit diagnostics. Requires
-the server owner role. The call checks the LiveKit server API, so it can
-take up to five seconds when LiveKit does not reply.
+Returns broker, JetStream, projection, LiveKit, and message search
+diagnostics. Requires the server owner role. The call checks the LiveKit
+server API, so it can take up to five seconds when LiveKit does not reply.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminDiagnosticsService/GetSystemInfo
@@ -53,6 +53,7 @@ Owner-only operational diagnostics for the Chatto server.
 | `durable_workers` | repeated [`AdminDurableWorkerStatus`](#chatto-admin-v1-AdminDurableWorkerStatus) | Known durable worker queues and their current broker-derived health. |
 | `projections_available` | `optional bool` | Whether projection diagnostics were collected successfully. |
 | `livekit` | [`AdminLiveKitStatus`](#chatto-admin-v1-AdminLiveKitStatus) | LiveKit voice and video call setup diagnostics. |
+| `search` | [`AdminSearchStatus`](#chatto-admin-v1-AdminSearchStatus) | Message search provider diagnostics. Absent when message search is disabled. |
 
 
 <a id="chatto-admin-v1-AdminEventLogService"></a>
@@ -2589,6 +2590,53 @@ Event-sourced projection health and memory estimates.
 
 
 
+<a id="chatto-admin-v1-AdminSearchProvider"></a>
+
+### AdminSearchProvider
+
+Status of one message search provider process. The values contain no
+message content, query terms, or user IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `instance_id` | `string` | Opaque ID of the provider process. Empty for providers that do not report an identity. |
+| `host` | `string` | Host name of the provider process, for example a Kubernetes pod name. |
+| `implementation_version` | `string` | Version of the provider implementation. |
+| `state` | [`AdminSearchProviderState`](#chatto-admin-v1-AdminSearchProviderState) | Whether the provider can answer queries. |
+| `freshness` | [`AdminSearchIndexFreshness`](#chatto-admin-v1-AdminSearchIndexFreshness) | Whether the provider's index follows the event log. |
+| `indexed_event_count` | `optional string` | EVT records processed during the current index build, when known. |
+| `target_event_count` | `optional string` | EVT records targeted by the current index build, when known. |
+| `committed_sequence` | `optional string` | Last EVT sequence that the index committed, when known. |
+| `observed_sequence` | `optional string` | Highest matching EVT sequence that the provider knows of, when known. |
+| `last_commit_time` | `google.protobuf.Timestamp` | When the index last committed progress. |
+| `pending_seconds` | `optional double` | Seconds that waiting events have had no committed progress. Unset when the index is current. |
+| `current_operation` | `string` | Low-cardinality name of the index work that runs now. Empty when idle. |
+| `current_operation_seconds` | `optional double` | Seconds that current_operation has run. Unset when idle. |
+| `observed_at` | `google.protobuf.Timestamp` | When the provider collected this status. |
+| `query_probe_result` | [`AdminSearchQueryProbeResult`](#chatto-admin-v1-AdminSearchQueryProbeResult) | Result of the provider's most recent query probe. |
+| `query_probe_completed_at` | `google.protobuf.Timestamp` | When the most recent query probe completed. |
+| `query_probe_succeeded_at` | `google.protobuf.Timestamp` | When the most recent successful query probe completed. |
+| `query_probe_consecutive_failures` | `uint32` | Query probes that failed or timed out since the last success. |
+| `query_probe_in_flight_since` | `google.protobuf.Timestamp` | Start time of a query probe that has not completed. |
+
+
+
+<a id="chatto-admin-v1-AdminSearchStatus"></a>
+
+### AdminSearchStatus
+
+Message search diagnostics. Every search provider process answers the
+status request on its own, so a failed provider stays visible when another
+provider is healthy. The server waits at most about one second for replies.
+A provider that does not reply is not listed.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `available` | `bool` | Whether at least one provider answered the status request. |
+| `providers` | repeated [`AdminSearchProvider`](#chatto-admin-v1-AdminSearchProvider) | Status of each provider that answered, sorted by host and instance ID. |
+
+
+
 <a id="chatto-admin-v1-AdminServerStats"></a>
 
 ### AdminServerStats
@@ -3103,6 +3151,53 @@ Result of the LiveKit server API check.
 | `ADMIN_LIVE_KIT_CONNECTION_STATE_UNREACHABLE` | `3` | Chatto could not connect to the LiveKit server URL. |
 | `ADMIN_LIVE_KIT_CONNECTION_STATE_UNAUTHORIZED` | `4` | LiveKit rejected the configured API key or secret. |
 | `ADMIN_LIVE_KIT_CONNECTION_STATE_ERROR` | `5` | The server at the URL replied with an unexpected error. |
+
+
+<a id="chatto-admin-v1-AdminSearchIndexFreshness"></a>
+
+### AdminSearchIndexFreshness
+
+Whether a search provider's index follows the event log.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ADMIN_SEARCH_INDEX_FRESHNESS_UNSPECIFIED` | `0` | The server did not report freshness. |
+| `ADMIN_SEARCH_INDEX_FRESHNESS_UNKNOWN` | `1` | The provider did not report freshness, or its status is more than 30 seconds old. |
+| `ADMIN_SEARCH_INDEX_FRESHNESS_CURRENT` | `2` | The index contains every matching event that the provider knows of. |
+| `ADMIN_SEARCH_INDEX_FRESHNESS_BEHIND` | `3` | Events wait for indexing, and the index committed progress recently. |
+| `ADMIN_SEARCH_INDEX_FRESHNESS_STALLED` | `4` | Events wait for indexing, but the index committed no progress for the provider's stall threshold. |
+
+
+<a id="chatto-admin-v1-AdminSearchProviderState"></a>
+
+### AdminSearchProviderState
+
+Whether a search provider can answer queries. The server derives this
+state with the same rules that it uses for its search metrics.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ADMIN_SEARCH_PROVIDER_STATE_UNSPECIFIED` | `0` | The server did not report a state. |
+| `ADMIN_SEARCH_PROVIDER_STATE_UNKNOWN` | `1` | The provider reported no state, or its status is more than 30 seconds old. |
+| `ADMIN_SEARCH_PROVIDER_STATE_STARTING` | `2` | The provider is starting. |
+| `ADMIN_SEARCH_PROVIDER_STATE_INDEXING` | `3` | The provider builds or catches up its index and cannot answer queries yet. |
+| `ADMIN_SEARCH_PROVIDER_STATE_READY` | `4` | The provider answers queries. |
+| `ADMIN_SEARCH_PROVIDER_STATE_DEGRADED` | `5` | The provider has a known problem, such as a stalled index or a failed query probe. |
+| `ADMIN_SEARCH_PROVIDER_STATE_UNAVAILABLE` | `6` | The provider cannot answer queries because startup or indexing failed. |
+
+
+<a id="chatto-admin-v1-AdminSearchQueryProbeResult"></a>
+
+### AdminSearchQueryProbeResult
+
+Outcome of a search provider's most recent query probe.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ADMIN_SEARCH_QUERY_PROBE_RESULT_UNSPECIFIED` | `0` | No probe has completed, or the provider does not run a query probe. |
+| `ADMIN_SEARCH_QUERY_PROBE_RESULT_SUCCEEDED` | `1` | The probe query completed. |
+| `ADMIN_SEARCH_QUERY_PROBE_RESULT_FAILED` | `2` | The probe query returned an error. |
+| `ADMIN_SEARCH_QUERY_PROBE_RESULT_TIMED_OUT` | `3` | The probe query did not complete before the probe timeout. |
 
 
 <a id="chatto-admin-v1-InvitationCodeStatus"></a>

@@ -22,6 +22,198 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Whether a search provider can answer queries. The server derives this
+// state with the same rules that it uses for its search metrics.
+type AdminSearchProviderState int32
+
+const (
+	// The server did not report a state.
+	AdminSearchProviderState_ADMIN_SEARCH_PROVIDER_STATE_UNSPECIFIED AdminSearchProviderState = 0
+	// The provider reported no state, or its status is more than 30 seconds
+	// old.
+	AdminSearchProviderState_ADMIN_SEARCH_PROVIDER_STATE_UNKNOWN AdminSearchProviderState = 1
+	// The provider is starting.
+	AdminSearchProviderState_ADMIN_SEARCH_PROVIDER_STATE_STARTING AdminSearchProviderState = 2
+	// The provider builds or catches up its index and cannot answer queries yet.
+	AdminSearchProviderState_ADMIN_SEARCH_PROVIDER_STATE_INDEXING AdminSearchProviderState = 3
+	// The provider answers queries.
+	AdminSearchProviderState_ADMIN_SEARCH_PROVIDER_STATE_READY AdminSearchProviderState = 4
+	// The provider has a known problem, such as a stalled index or a failed
+	// query probe.
+	AdminSearchProviderState_ADMIN_SEARCH_PROVIDER_STATE_DEGRADED AdminSearchProviderState = 5
+	// The provider cannot answer queries because startup or indexing failed.
+	AdminSearchProviderState_ADMIN_SEARCH_PROVIDER_STATE_UNAVAILABLE AdminSearchProviderState = 6
+)
+
+// Enum value maps for AdminSearchProviderState.
+var (
+	AdminSearchProviderState_name = map[int32]string{
+		0: "ADMIN_SEARCH_PROVIDER_STATE_UNSPECIFIED",
+		1: "ADMIN_SEARCH_PROVIDER_STATE_UNKNOWN",
+		2: "ADMIN_SEARCH_PROVIDER_STATE_STARTING",
+		3: "ADMIN_SEARCH_PROVIDER_STATE_INDEXING",
+		4: "ADMIN_SEARCH_PROVIDER_STATE_READY",
+		5: "ADMIN_SEARCH_PROVIDER_STATE_DEGRADED",
+		6: "ADMIN_SEARCH_PROVIDER_STATE_UNAVAILABLE",
+	}
+	AdminSearchProviderState_value = map[string]int32{
+		"ADMIN_SEARCH_PROVIDER_STATE_UNSPECIFIED": 0,
+		"ADMIN_SEARCH_PROVIDER_STATE_UNKNOWN":     1,
+		"ADMIN_SEARCH_PROVIDER_STATE_STARTING":    2,
+		"ADMIN_SEARCH_PROVIDER_STATE_INDEXING":    3,
+		"ADMIN_SEARCH_PROVIDER_STATE_READY":       4,
+		"ADMIN_SEARCH_PROVIDER_STATE_DEGRADED":    5,
+		"ADMIN_SEARCH_PROVIDER_STATE_UNAVAILABLE": 6,
+	}
+)
+
+func (x AdminSearchProviderState) Enum() *AdminSearchProviderState {
+	p := new(AdminSearchProviderState)
+	*p = x
+	return p
+}
+
+func (x AdminSearchProviderState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AdminSearchProviderState) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_admin_v1_diagnostics_proto_enumTypes[0].Descriptor()
+}
+
+func (AdminSearchProviderState) Type() protoreflect.EnumType {
+	return &file_chatto_admin_v1_diagnostics_proto_enumTypes[0]
+}
+
+func (x AdminSearchProviderState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AdminSearchProviderState.Descriptor instead.
+func (AdminSearchProviderState) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{0}
+}
+
+// Whether a search provider's index follows the event log.
+type AdminSearchIndexFreshness int32
+
+const (
+	// The server did not report freshness.
+	AdminSearchIndexFreshness_ADMIN_SEARCH_INDEX_FRESHNESS_UNSPECIFIED AdminSearchIndexFreshness = 0
+	// The provider did not report freshness, or its status is more than 30
+	// seconds old.
+	AdminSearchIndexFreshness_ADMIN_SEARCH_INDEX_FRESHNESS_UNKNOWN AdminSearchIndexFreshness = 1
+	// The index contains every matching event that the provider knows of.
+	AdminSearchIndexFreshness_ADMIN_SEARCH_INDEX_FRESHNESS_CURRENT AdminSearchIndexFreshness = 2
+	// Events wait for indexing, and the index committed progress recently.
+	AdminSearchIndexFreshness_ADMIN_SEARCH_INDEX_FRESHNESS_BEHIND AdminSearchIndexFreshness = 3
+	// Events wait for indexing, but the index committed no progress for the
+	// provider's stall threshold.
+	AdminSearchIndexFreshness_ADMIN_SEARCH_INDEX_FRESHNESS_STALLED AdminSearchIndexFreshness = 4
+)
+
+// Enum value maps for AdminSearchIndexFreshness.
+var (
+	AdminSearchIndexFreshness_name = map[int32]string{
+		0: "ADMIN_SEARCH_INDEX_FRESHNESS_UNSPECIFIED",
+		1: "ADMIN_SEARCH_INDEX_FRESHNESS_UNKNOWN",
+		2: "ADMIN_SEARCH_INDEX_FRESHNESS_CURRENT",
+		3: "ADMIN_SEARCH_INDEX_FRESHNESS_BEHIND",
+		4: "ADMIN_SEARCH_INDEX_FRESHNESS_STALLED",
+	}
+	AdminSearchIndexFreshness_value = map[string]int32{
+		"ADMIN_SEARCH_INDEX_FRESHNESS_UNSPECIFIED": 0,
+		"ADMIN_SEARCH_INDEX_FRESHNESS_UNKNOWN":     1,
+		"ADMIN_SEARCH_INDEX_FRESHNESS_CURRENT":     2,
+		"ADMIN_SEARCH_INDEX_FRESHNESS_BEHIND":      3,
+		"ADMIN_SEARCH_INDEX_FRESHNESS_STALLED":     4,
+	}
+)
+
+func (x AdminSearchIndexFreshness) Enum() *AdminSearchIndexFreshness {
+	p := new(AdminSearchIndexFreshness)
+	*p = x
+	return p
+}
+
+func (x AdminSearchIndexFreshness) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AdminSearchIndexFreshness) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_admin_v1_diagnostics_proto_enumTypes[1].Descriptor()
+}
+
+func (AdminSearchIndexFreshness) Type() protoreflect.EnumType {
+	return &file_chatto_admin_v1_diagnostics_proto_enumTypes[1]
+}
+
+func (x AdminSearchIndexFreshness) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AdminSearchIndexFreshness.Descriptor instead.
+func (AdminSearchIndexFreshness) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{1}
+}
+
+// Outcome of a search provider's most recent query probe.
+type AdminSearchQueryProbeResult int32
+
+const (
+	// No probe has completed, or the provider does not run a query probe.
+	AdminSearchQueryProbeResult_ADMIN_SEARCH_QUERY_PROBE_RESULT_UNSPECIFIED AdminSearchQueryProbeResult = 0
+	// The probe query completed.
+	AdminSearchQueryProbeResult_ADMIN_SEARCH_QUERY_PROBE_RESULT_SUCCEEDED AdminSearchQueryProbeResult = 1
+	// The probe query returned an error.
+	AdminSearchQueryProbeResult_ADMIN_SEARCH_QUERY_PROBE_RESULT_FAILED AdminSearchQueryProbeResult = 2
+	// The probe query did not complete before the probe timeout.
+	AdminSearchQueryProbeResult_ADMIN_SEARCH_QUERY_PROBE_RESULT_TIMED_OUT AdminSearchQueryProbeResult = 3
+)
+
+// Enum value maps for AdminSearchQueryProbeResult.
+var (
+	AdminSearchQueryProbeResult_name = map[int32]string{
+		0: "ADMIN_SEARCH_QUERY_PROBE_RESULT_UNSPECIFIED",
+		1: "ADMIN_SEARCH_QUERY_PROBE_RESULT_SUCCEEDED",
+		2: "ADMIN_SEARCH_QUERY_PROBE_RESULT_FAILED",
+		3: "ADMIN_SEARCH_QUERY_PROBE_RESULT_TIMED_OUT",
+	}
+	AdminSearchQueryProbeResult_value = map[string]int32{
+		"ADMIN_SEARCH_QUERY_PROBE_RESULT_UNSPECIFIED": 0,
+		"ADMIN_SEARCH_QUERY_PROBE_RESULT_SUCCEEDED":   1,
+		"ADMIN_SEARCH_QUERY_PROBE_RESULT_FAILED":      2,
+		"ADMIN_SEARCH_QUERY_PROBE_RESULT_TIMED_OUT":   3,
+	}
+)
+
+func (x AdminSearchQueryProbeResult) Enum() *AdminSearchQueryProbeResult {
+	p := new(AdminSearchQueryProbeResult)
+	*p = x
+	return p
+}
+
+func (x AdminSearchQueryProbeResult) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AdminSearchQueryProbeResult) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_admin_v1_diagnostics_proto_enumTypes[2].Descriptor()
+}
+
+func (AdminSearchQueryProbeResult) Type() protoreflect.EnumType {
+	return &file_chatto_admin_v1_diagnostics_proto_enumTypes[2]
+}
+
+func (x AdminSearchQueryProbeResult) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AdminSearchQueryProbeResult.Descriptor instead.
+func (AdminSearchQueryProbeResult) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{2}
+}
+
 // Result of the LiveKit server API check.
 type AdminLiveKitConnectionState int32
 
@@ -71,11 +263,11 @@ func (x AdminLiveKitConnectionState) String() string {
 }
 
 func (AdminLiveKitConnectionState) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_admin_v1_diagnostics_proto_enumTypes[0].Descriptor()
+	return file_chatto_admin_v1_diagnostics_proto_enumTypes[3].Descriptor()
 }
 
 func (AdminLiveKitConnectionState) Type() protoreflect.EnumType {
-	return &file_chatto_admin_v1_diagnostics_proto_enumTypes[0]
+	return &file_chatto_admin_v1_diagnostics_proto_enumTypes[3]
 }
 
 func (x AdminLiveKitConnectionState) Number() protoreflect.EnumNumber {
@@ -84,7 +276,7 @@ func (x AdminLiveKitConnectionState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use AdminLiveKitConnectionState.Descriptor instead.
 func (AdminLiveKitConnectionState) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{0}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{3}
 }
 
 // Operator-facing state derived from a durable consumer.
@@ -140,11 +332,11 @@ func (x AdminDurableWorkerHealth) String() string {
 }
 
 func (AdminDurableWorkerHealth) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_admin_v1_diagnostics_proto_enumTypes[1].Descriptor()
+	return file_chatto_admin_v1_diagnostics_proto_enumTypes[4].Descriptor()
 }
 
 func (AdminDurableWorkerHealth) Type() protoreflect.EnumType {
-	return &file_chatto_admin_v1_diagnostics_proto_enumTypes[1]
+	return &file_chatto_admin_v1_diagnostics_proto_enumTypes[4]
 }
 
 func (x AdminDurableWorkerHealth) Number() protoreflect.EnumNumber {
@@ -153,7 +345,7 @@ func (x AdminDurableWorkerHealth) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use AdminDurableWorkerHealth.Descriptor instead.
 func (AdminDurableWorkerHealth) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{1}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{4}
 }
 
 // Operator-facing state for the shared durable asset cleanup queue.
@@ -203,11 +395,11 @@ func (x AdminAssetCleanupHealth) String() string {
 }
 
 func (AdminAssetCleanupHealth) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_admin_v1_diagnostics_proto_enumTypes[2].Descriptor()
+	return file_chatto_admin_v1_diagnostics_proto_enumTypes[5].Descriptor()
 }
 
 func (AdminAssetCleanupHealth) Type() protoreflect.EnumType {
-	return &file_chatto_admin_v1_diagnostics_proto_enumTypes[2]
+	return &file_chatto_admin_v1_diagnostics_proto_enumTypes[5]
 }
 
 func (x AdminAssetCleanupHealth) Number() protoreflect.EnumNumber {
@@ -216,7 +408,7 @@ func (x AdminAssetCleanupHealth) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use AdminAssetCleanupHealth.Descriptor instead.
 func (AdminAssetCleanupHealth) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{2}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{5}
 }
 
 // Request to read owner-only server diagnostics.
@@ -270,7 +462,10 @@ type GetSystemInfoResponse struct {
 	// Whether projection diagnostics were collected successfully.
 	ProjectionsAvailable *bool `protobuf:"varint,5,opt,name=projections_available,json=projectionsAvailable,proto3,oneof" json:"projections_available,omitempty"`
 	// LiveKit voice and video call setup diagnostics.
-	Livekit       *AdminLiveKitStatus `protobuf:"bytes,6,opt,name=livekit,proto3" json:"livekit,omitempty"`
+	Livekit *AdminLiveKitStatus `protobuf:"bytes,6,opt,name=livekit,proto3" json:"livekit,omitempty"`
+	// Message search provider diagnostics. Absent when message search is
+	// disabled.
+	Search        *AdminSearchStatus `protobuf:"bytes,7,opt,name=search,proto3" json:"search,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -347,6 +542,282 @@ func (x *GetSystemInfoResponse) GetLivekit() *AdminLiveKitStatus {
 	return nil
 }
 
+func (x *GetSystemInfoResponse) GetSearch() *AdminSearchStatus {
+	if x != nil {
+		return x.Search
+	}
+	return nil
+}
+
+// Message search diagnostics. Every search provider process answers the
+// status request on its own, so a failed provider stays visible when another
+// provider is healthy. The server waits at most about one second for replies.
+// A provider that does not reply is not listed.
+type AdminSearchStatus struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether at least one provider answered the status request.
+	Available bool `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
+	// Status of each provider that answered, sorted by host and instance ID.
+	Providers     []*AdminSearchProvider `protobuf:"bytes,2,rep,name=providers,proto3" json:"providers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminSearchStatus) Reset() {
+	*x = AdminSearchStatus{}
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminSearchStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminSearchStatus) ProtoMessage() {}
+
+func (x *AdminSearchStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminSearchStatus.ProtoReflect.Descriptor instead.
+func (*AdminSearchStatus) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *AdminSearchStatus) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *AdminSearchStatus) GetProviders() []*AdminSearchProvider {
+	if x != nil {
+		return x.Providers
+	}
+	return nil
+}
+
+// Status of one message search provider process. The values contain no
+// message content, query terms, or user IDs.
+type AdminSearchProvider struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Opaque ID of the provider process. Empty for providers that do not
+	// report an identity.
+	InstanceId string `protobuf:"bytes,1,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	// Host name of the provider process, for example a Kubernetes pod name.
+	Host string `protobuf:"bytes,2,opt,name=host,proto3" json:"host,omitempty"`
+	// Version of the provider implementation.
+	ImplementationVersion string `protobuf:"bytes,3,opt,name=implementation_version,json=implementationVersion,proto3" json:"implementation_version,omitempty"`
+	// Whether the provider can answer queries.
+	State AdminSearchProviderState `protobuf:"varint,4,opt,name=state,proto3,enum=chatto.admin.v1.AdminSearchProviderState" json:"state,omitempty"`
+	// Whether the provider's index follows the event log.
+	Freshness AdminSearchIndexFreshness `protobuf:"varint,5,opt,name=freshness,proto3,enum=chatto.admin.v1.AdminSearchIndexFreshness" json:"freshness,omitempty"`
+	// EVT records processed during the current index build, when known.
+	IndexedEventCount *string `protobuf:"bytes,6,opt,name=indexed_event_count,json=indexedEventCount,proto3,oneof" json:"indexed_event_count,omitempty"`
+	// EVT records targeted by the current index build, when known.
+	TargetEventCount *string `protobuf:"bytes,7,opt,name=target_event_count,json=targetEventCount,proto3,oneof" json:"target_event_count,omitempty"`
+	// Last EVT sequence that the index committed, when known.
+	CommittedSequence *string `protobuf:"bytes,8,opt,name=committed_sequence,json=committedSequence,proto3,oneof" json:"committed_sequence,omitempty"`
+	// Highest matching EVT sequence that the provider knows of, when known.
+	ObservedSequence *string `protobuf:"bytes,9,opt,name=observed_sequence,json=observedSequence,proto3,oneof" json:"observed_sequence,omitempty"`
+	// When the index last committed progress.
+	LastCommitTime *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_commit_time,json=lastCommitTime,proto3" json:"last_commit_time,omitempty"`
+	// Seconds that waiting events have had no committed progress. Unset when
+	// the index is current.
+	PendingSeconds *float64 `protobuf:"fixed64,11,opt,name=pending_seconds,json=pendingSeconds,proto3,oneof" json:"pending_seconds,omitempty"`
+	// Low-cardinality name of the index work that runs now. Empty when idle.
+	CurrentOperation string `protobuf:"bytes,12,opt,name=current_operation,json=currentOperation,proto3" json:"current_operation,omitempty"`
+	// Seconds that current_operation has run. Unset when idle.
+	CurrentOperationSeconds *float64 `protobuf:"fixed64,13,opt,name=current_operation_seconds,json=currentOperationSeconds,proto3,oneof" json:"current_operation_seconds,omitempty"`
+	// When the provider collected this status.
+	ObservedAt *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	// Result of the provider's most recent query probe.
+	QueryProbeResult AdminSearchQueryProbeResult `protobuf:"varint,15,opt,name=query_probe_result,json=queryProbeResult,proto3,enum=chatto.admin.v1.AdminSearchQueryProbeResult" json:"query_probe_result,omitempty"`
+	// When the most recent query probe completed.
+	QueryProbeCompletedAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=query_probe_completed_at,json=queryProbeCompletedAt,proto3" json:"query_probe_completed_at,omitempty"`
+	// When the most recent successful query probe completed.
+	QueryProbeSucceededAt *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=query_probe_succeeded_at,json=queryProbeSucceededAt,proto3" json:"query_probe_succeeded_at,omitempty"`
+	// Query probes that failed or timed out since the last success.
+	QueryProbeConsecutiveFailures uint32 `protobuf:"varint,18,opt,name=query_probe_consecutive_failures,json=queryProbeConsecutiveFailures,proto3" json:"query_probe_consecutive_failures,omitempty"`
+	// Start time of a query probe that has not completed.
+	QueryProbeInFlightSince *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=query_probe_in_flight_since,json=queryProbeInFlightSince,proto3" json:"query_probe_in_flight_since,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *AdminSearchProvider) Reset() {
+	*x = AdminSearchProvider{}
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminSearchProvider) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminSearchProvider) ProtoMessage() {}
+
+func (x *AdminSearchProvider) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminSearchProvider.ProtoReflect.Descriptor instead.
+func (*AdminSearchProvider) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AdminSearchProvider) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
+	}
+	return ""
+}
+
+func (x *AdminSearchProvider) GetHost() string {
+	if x != nil {
+		return x.Host
+	}
+	return ""
+}
+
+func (x *AdminSearchProvider) GetImplementationVersion() string {
+	if x != nil {
+		return x.ImplementationVersion
+	}
+	return ""
+}
+
+func (x *AdminSearchProvider) GetState() AdminSearchProviderState {
+	if x != nil {
+		return x.State
+	}
+	return AdminSearchProviderState_ADMIN_SEARCH_PROVIDER_STATE_UNSPECIFIED
+}
+
+func (x *AdminSearchProvider) GetFreshness() AdminSearchIndexFreshness {
+	if x != nil {
+		return x.Freshness
+	}
+	return AdminSearchIndexFreshness_ADMIN_SEARCH_INDEX_FRESHNESS_UNSPECIFIED
+}
+
+func (x *AdminSearchProvider) GetIndexedEventCount() string {
+	if x != nil && x.IndexedEventCount != nil {
+		return *x.IndexedEventCount
+	}
+	return ""
+}
+
+func (x *AdminSearchProvider) GetTargetEventCount() string {
+	if x != nil && x.TargetEventCount != nil {
+		return *x.TargetEventCount
+	}
+	return ""
+}
+
+func (x *AdminSearchProvider) GetCommittedSequence() string {
+	if x != nil && x.CommittedSequence != nil {
+		return *x.CommittedSequence
+	}
+	return ""
+}
+
+func (x *AdminSearchProvider) GetObservedSequence() string {
+	if x != nil && x.ObservedSequence != nil {
+		return *x.ObservedSequence
+	}
+	return ""
+}
+
+func (x *AdminSearchProvider) GetLastCommitTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastCommitTime
+	}
+	return nil
+}
+
+func (x *AdminSearchProvider) GetPendingSeconds() float64 {
+	if x != nil && x.PendingSeconds != nil {
+		return *x.PendingSeconds
+	}
+	return 0
+}
+
+func (x *AdminSearchProvider) GetCurrentOperation() string {
+	if x != nil {
+		return x.CurrentOperation
+	}
+	return ""
+}
+
+func (x *AdminSearchProvider) GetCurrentOperationSeconds() float64 {
+	if x != nil && x.CurrentOperationSeconds != nil {
+		return *x.CurrentOperationSeconds
+	}
+	return 0
+}
+
+func (x *AdminSearchProvider) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
+func (x *AdminSearchProvider) GetQueryProbeResult() AdminSearchQueryProbeResult {
+	if x != nil {
+		return x.QueryProbeResult
+	}
+	return AdminSearchQueryProbeResult_ADMIN_SEARCH_QUERY_PROBE_RESULT_UNSPECIFIED
+}
+
+func (x *AdminSearchProvider) GetQueryProbeCompletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.QueryProbeCompletedAt
+	}
+	return nil
+}
+
+func (x *AdminSearchProvider) GetQueryProbeSucceededAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.QueryProbeSucceededAt
+	}
+	return nil
+}
+
+func (x *AdminSearchProvider) GetQueryProbeConsecutiveFailures() uint32 {
+	if x != nil {
+		return x.QueryProbeConsecutiveFailures
+	}
+	return 0
+}
+
+func (x *AdminSearchProvider) GetQueryProbeInFlightSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.QueryProbeInFlightSince
+	}
+	return nil
+}
+
 // LiveKit voice and video call setup as seen by the Chatto server that
 // handled the request. The response never includes the API secret or the
 // webhook signing secret.
@@ -385,7 +856,7 @@ type AdminLiveKitStatus struct {
 
 func (x *AdminLiveKitStatus) Reset() {
 	*x = AdminLiveKitStatus{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[2]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -397,7 +868,7 @@ func (x *AdminLiveKitStatus) String() string {
 func (*AdminLiveKitStatus) ProtoMessage() {}
 
 func (x *AdminLiveKitStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[2]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -410,7 +881,7 @@ func (x *AdminLiveKitStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminLiveKitStatus.ProtoReflect.Descriptor instead.
 func (*AdminLiveKitStatus) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{2}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AdminLiveKitStatus) GetEnabled() bool {
@@ -515,7 +986,7 @@ type AdminDurableWorkerStatus struct {
 
 func (x *AdminDurableWorkerStatus) Reset() {
 	*x = AdminDurableWorkerStatus{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[3]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -527,7 +998,7 @@ func (x *AdminDurableWorkerStatus) String() string {
 func (*AdminDurableWorkerStatus) ProtoMessage() {}
 
 func (x *AdminDurableWorkerStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[3]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -540,7 +1011,7 @@ func (x *AdminDurableWorkerStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminDurableWorkerStatus.ProtoReflect.Descriptor instead.
 func (*AdminDurableWorkerStatus) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{3}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AdminDurableWorkerStatus) GetKey() string {
@@ -640,7 +1111,7 @@ type AdminAssetCleanupStatus struct {
 
 func (x *AdminAssetCleanupStatus) Reset() {
 	*x = AdminAssetCleanupStatus{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[4]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -652,7 +1123,7 @@ func (x *AdminAssetCleanupStatus) String() string {
 func (*AdminAssetCleanupStatus) ProtoMessage() {}
 
 func (x *AdminAssetCleanupStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[4]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -665,7 +1136,7 @@ func (x *AdminAssetCleanupStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminAssetCleanupStatus.ProtoReflect.Descriptor instead.
 func (*AdminAssetCleanupStatus) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{4}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AdminAssetCleanupStatus) GetHealth() AdminAssetCleanupHealth {
@@ -761,7 +1232,7 @@ type AdminSystemInfo struct {
 
 func (x *AdminSystemInfo) Reset() {
 	*x = AdminSystemInfo{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[5]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -773,7 +1244,7 @@ func (x *AdminSystemInfo) String() string {
 func (*AdminSystemInfo) ProtoMessage() {}
 
 func (x *AdminSystemInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[5]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -786,7 +1257,7 @@ func (x *AdminSystemInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminSystemInfo.ProtoReflect.Descriptor instead.
 func (*AdminSystemInfo) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{5}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AdminSystemInfo) GetConnection() *AdminConnectionInfo {
@@ -838,7 +1309,7 @@ type AdminConnectionInfo struct {
 
 func (x *AdminConnectionInfo) Reset() {
 	*x = AdminConnectionInfo{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[6]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -850,7 +1321,7 @@ func (x *AdminConnectionInfo) String() string {
 func (*AdminConnectionInfo) ProtoMessage() {}
 
 func (x *AdminConnectionInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[6]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -863,7 +1334,7 @@ func (x *AdminConnectionInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminConnectionInfo.ProtoReflect.Descriptor instead.
 func (*AdminConnectionInfo) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{6}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AdminConnectionInfo) GetConnected() bool {
@@ -933,7 +1404,7 @@ type AdminAccountInfo struct {
 
 func (x *AdminAccountInfo) Reset() {
 	*x = AdminAccountInfo{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[7]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -945,7 +1416,7 @@ func (x *AdminAccountInfo) String() string {
 func (*AdminAccountInfo) ProtoMessage() {}
 
 func (x *AdminAccountInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[7]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -958,7 +1429,7 @@ func (x *AdminAccountInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminAccountInfo.ProtoReflect.Descriptor instead.
 func (*AdminAccountInfo) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{7}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *AdminAccountInfo) GetMemory() int64 {
@@ -1032,7 +1503,7 @@ type AdminServerStats struct {
 
 func (x *AdminServerStats) Reset() {
 	*x = AdminServerStats{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[8]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1044,7 +1515,7 @@ func (x *AdminServerStats) String() string {
 func (*AdminServerStats) ProtoMessage() {}
 
 func (x *AdminServerStats) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[8]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1057,7 +1528,7 @@ func (x *AdminServerStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminServerStats.ProtoReflect.Descriptor instead.
 func (*AdminServerStats) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{8}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AdminServerStats) GetUserCount() int32 {
@@ -1102,7 +1573,7 @@ type AdminNatsStats struct {
 
 func (x *AdminNatsStats) Reset() {
 	*x = AdminNatsStats{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[9]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1114,7 +1585,7 @@ func (x *AdminNatsStats) String() string {
 func (*AdminNatsStats) ProtoMessage() {}
 
 func (x *AdminNatsStats) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[9]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1127,7 +1598,7 @@ func (x *AdminNatsStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminNatsStats.ProtoReflect.Descriptor instead.
 func (*AdminNatsStats) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{9}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AdminNatsStats) GetTotalMessages() int64 {
@@ -1203,7 +1674,7 @@ type AdminNatsStreamInfo struct {
 
 func (x *AdminNatsStreamInfo) Reset() {
 	*x = AdminNatsStreamInfo{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[10]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1215,7 +1686,7 @@ func (x *AdminNatsStreamInfo) String() string {
 func (*AdminNatsStreamInfo) ProtoMessage() {}
 
 func (x *AdminNatsStreamInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[10]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1228,7 +1699,7 @@ func (x *AdminNatsStreamInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminNatsStreamInfo.ProtoReflect.Descriptor instead.
 func (*AdminNatsStreamInfo) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{10}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AdminNatsStreamInfo) GetName() string {
@@ -1349,7 +1820,7 @@ type AdminNatsConsumerInfo struct {
 
 func (x *AdminNatsConsumerInfo) Reset() {
 	*x = AdminNatsConsumerInfo{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[11]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1361,7 +1832,7 @@ func (x *AdminNatsConsumerInfo) String() string {
 func (*AdminNatsConsumerInfo) ProtoMessage() {}
 
 func (x *AdminNatsConsumerInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[11]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1374,7 +1845,7 @@ func (x *AdminNatsConsumerInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminNatsConsumerInfo.ProtoReflect.Descriptor instead.
 func (*AdminNatsConsumerInfo) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{11}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *AdminNatsConsumerInfo) GetStream() string {
@@ -1544,7 +2015,7 @@ type AdminProjectionState struct {
 
 func (x *AdminProjectionState) Reset() {
 	*x = AdminProjectionState{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[12]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1556,7 +2027,7 @@ func (x *AdminProjectionState) String() string {
 func (*AdminProjectionState) ProtoMessage() {}
 
 func (x *AdminProjectionState) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[12]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1569,7 +2040,7 @@ func (x *AdminProjectionState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminProjectionState.ProtoReflect.Descriptor instead.
 func (*AdminProjectionState) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{12}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *AdminProjectionState) GetKey() string {
@@ -1734,7 +2205,7 @@ type AdminProjectionMetric struct {
 
 func (x *AdminProjectionMetric) Reset() {
 	*x = AdminProjectionMetric{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[13]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1746,7 +2217,7 @@ func (x *AdminProjectionMetric) String() string {
 func (*AdminProjectionMetric) ProtoMessage() {}
 
 func (x *AdminProjectionMetric) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[13]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1759,7 +2230,7 @@ func (x *AdminProjectionMetric) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminProjectionMetric.ProtoReflect.Descriptor instead.
 func (*AdminProjectionMetric) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{13}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *AdminProjectionMetric) GetName() string {
@@ -1788,7 +2259,7 @@ var File_chatto_admin_v1_diagnostics_proto protoreflect.FileDescriptor
 const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"\n" +
 	"!chatto/admin/v1/diagnostics.proto\x12\x0fchatto.admin.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x16\n" +
-	"\x14GetSystemInfoRequest\"\xd9\x03\n" +
+	"\x14GetSystemInfoRequest\"\x95\x04\n" +
 	"\x15GetSystemInfoResponse\x12A\n" +
 	"\vsystem_info\x18\x01 \x01(\v2 .chatto.admin.v1.AdminSystemInfoR\n" +
 	"systemInfo\x12G\n" +
@@ -1796,8 +2267,42 @@ const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"\rasset_cleanup\x18\x03 \x01(\v2(.chatto.admin.v1.AdminAssetCleanupStatusR\fassetCleanup\x12R\n" +
 	"\x0fdurable_workers\x18\x04 \x03(\v2).chatto.admin.v1.AdminDurableWorkerStatusR\x0edurableWorkers\x128\n" +
 	"\x15projections_available\x18\x05 \x01(\bH\x00R\x14projectionsAvailable\x88\x01\x01\x12=\n" +
-	"\alivekit\x18\x06 \x01(\v2#.chatto.admin.v1.AdminLiveKitStatusR\alivekitB\x18\n" +
-	"\x16_projections_available\"\x8c\x04\n" +
+	"\alivekit\x18\x06 \x01(\v2#.chatto.admin.v1.AdminLiveKitStatusR\alivekit\x12:\n" +
+	"\x06search\x18\a \x01(\v2\".chatto.admin.v1.AdminSearchStatusR\x06searchB\x18\n" +
+	"\x16_projections_available\"u\n" +
+	"\x11AdminSearchStatus\x12\x1c\n" +
+	"\tavailable\x18\x01 \x01(\bR\tavailable\x12B\n" +
+	"\tproviders\x18\x02 \x03(\v2$.chatto.admin.v1.AdminSearchProviderR\tproviders\"\xb0\n" +
+	"\n" +
+	"\x13AdminSearchProvider\x12\x1f\n" +
+	"\vinstance_id\x18\x01 \x01(\tR\n" +
+	"instanceId\x12\x12\n" +
+	"\x04host\x18\x02 \x01(\tR\x04host\x125\n" +
+	"\x16implementation_version\x18\x03 \x01(\tR\x15implementationVersion\x12?\n" +
+	"\x05state\x18\x04 \x01(\x0e2).chatto.admin.v1.AdminSearchProviderStateR\x05state\x12H\n" +
+	"\tfreshness\x18\x05 \x01(\x0e2*.chatto.admin.v1.AdminSearchIndexFreshnessR\tfreshness\x123\n" +
+	"\x13indexed_event_count\x18\x06 \x01(\tH\x00R\x11indexedEventCount\x88\x01\x01\x121\n" +
+	"\x12target_event_count\x18\a \x01(\tH\x01R\x10targetEventCount\x88\x01\x01\x122\n" +
+	"\x12committed_sequence\x18\b \x01(\tH\x02R\x11committedSequence\x88\x01\x01\x120\n" +
+	"\x11observed_sequence\x18\t \x01(\tH\x03R\x10observedSequence\x88\x01\x01\x12D\n" +
+	"\x10last_commit_time\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\x0elastCommitTime\x12,\n" +
+	"\x0fpending_seconds\x18\v \x01(\x01H\x04R\x0ependingSeconds\x88\x01\x01\x12+\n" +
+	"\x11current_operation\x18\f \x01(\tR\x10currentOperation\x12?\n" +
+	"\x19current_operation_seconds\x18\r \x01(\x01H\x05R\x17currentOperationSeconds\x88\x01\x01\x12;\n" +
+	"\vobserved_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\x12Z\n" +
+	"\x12query_probe_result\x18\x0f \x01(\x0e2,.chatto.admin.v1.AdminSearchQueryProbeResultR\x10queryProbeResult\x12S\n" +
+	"\x18query_probe_completed_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\x15queryProbeCompletedAt\x12S\n" +
+	"\x18query_probe_succeeded_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\x15queryProbeSucceededAt\x12G\n" +
+	" query_probe_consecutive_failures\x18\x12 \x01(\rR\x1dqueryProbeConsecutiveFailures\x12X\n" +
+	"\x1bquery_probe_in_flight_since\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\x17queryProbeInFlightSinceB\x16\n" +
+	"\x14_indexed_event_countB\x15\n" +
+	"\x13_target_event_countB\x15\n" +
+	"\x13_committed_sequenceB\x14\n" +
+	"\x12_observed_sequenceB\x12\n" +
+	"\x10_pending_secondsB\x1c\n" +
+	"\x1a_current_operation_seconds\"\x8c\x04\n" +
 	"\x12AdminLiveKitStatus\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1e\n" +
 	"\n" +
@@ -1941,7 +2446,26 @@ const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"\x15AdminProjectionMetric\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x03R\x05value\x12\x14\n" +
-	"\x05bytes\x18\x03 \x01(\x03R\x05bytes*\xb8\x02\n" +
+	"\x05bytes\x18\x03 \x01(\x03R\x05bytes*\xc2\x02\n" +
+	"\x18AdminSearchProviderState\x12+\n" +
+	"'ADMIN_SEARCH_PROVIDER_STATE_UNSPECIFIED\x10\x00\x12'\n" +
+	"#ADMIN_SEARCH_PROVIDER_STATE_UNKNOWN\x10\x01\x12(\n" +
+	"$ADMIN_SEARCH_PROVIDER_STATE_STARTING\x10\x02\x12(\n" +
+	"$ADMIN_SEARCH_PROVIDER_STATE_INDEXING\x10\x03\x12%\n" +
+	"!ADMIN_SEARCH_PROVIDER_STATE_READY\x10\x04\x12(\n" +
+	"$ADMIN_SEARCH_PROVIDER_STATE_DEGRADED\x10\x05\x12+\n" +
+	"'ADMIN_SEARCH_PROVIDER_STATE_UNAVAILABLE\x10\x06*\xf0\x01\n" +
+	"\x19AdminSearchIndexFreshness\x12,\n" +
+	"(ADMIN_SEARCH_INDEX_FRESHNESS_UNSPECIFIED\x10\x00\x12(\n" +
+	"$ADMIN_SEARCH_INDEX_FRESHNESS_UNKNOWN\x10\x01\x12(\n" +
+	"$ADMIN_SEARCH_INDEX_FRESHNESS_CURRENT\x10\x02\x12'\n" +
+	"#ADMIN_SEARCH_INDEX_FRESHNESS_BEHIND\x10\x03\x12(\n" +
+	"$ADMIN_SEARCH_INDEX_FRESHNESS_STALLED\x10\x04*\xd8\x01\n" +
+	"\x1bAdminSearchQueryProbeResult\x12/\n" +
+	"+ADMIN_SEARCH_QUERY_PROBE_RESULT_UNSPECIFIED\x10\x00\x12-\n" +
+	")ADMIN_SEARCH_QUERY_PROBE_RESULT_SUCCEEDED\x10\x01\x12*\n" +
+	"&ADMIN_SEARCH_QUERY_PROBE_RESULT_FAILED\x10\x02\x12-\n" +
+	")ADMIN_SEARCH_QUERY_PROBE_RESULT_TIMED_OUT\x10\x03*\xb8\x02\n" +
 	"\x1bAdminLiveKitConnectionState\x12/\n" +
 	"+ADMIN_LIVE_KIT_CONNECTION_STATE_UNSPECIFIED\x10\x00\x122\n" +
 	".ADMIN_LIVE_KIT_CONNECTION_STATE_NOT_CONFIGURED\x10\x01\x12&\n" +
@@ -1981,58 +2505,73 @@ func file_chatto_admin_v1_diagnostics_proto_rawDescGZIP() []byte {
 	return file_chatto_admin_v1_diagnostics_proto_rawDescData
 }
 
-var file_chatto_admin_v1_diagnostics_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_chatto_admin_v1_diagnostics_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_chatto_admin_v1_diagnostics_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
+var file_chatto_admin_v1_diagnostics_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_chatto_admin_v1_diagnostics_proto_goTypes = []any{
-	(AdminLiveKitConnectionState)(0), // 0: chatto.admin.v1.AdminLiveKitConnectionState
-	(AdminDurableWorkerHealth)(0),    // 1: chatto.admin.v1.AdminDurableWorkerHealth
-	(AdminAssetCleanupHealth)(0),     // 2: chatto.admin.v1.AdminAssetCleanupHealth
-	(*GetSystemInfoRequest)(nil),     // 3: chatto.admin.v1.GetSystemInfoRequest
-	(*GetSystemInfoResponse)(nil),    // 4: chatto.admin.v1.GetSystemInfoResponse
-	(*AdminLiveKitStatus)(nil),       // 5: chatto.admin.v1.AdminLiveKitStatus
-	(*AdminDurableWorkerStatus)(nil), // 6: chatto.admin.v1.AdminDurableWorkerStatus
-	(*AdminAssetCleanupStatus)(nil),  // 7: chatto.admin.v1.AdminAssetCleanupStatus
-	(*AdminSystemInfo)(nil),          // 8: chatto.admin.v1.AdminSystemInfo
-	(*AdminConnectionInfo)(nil),      // 9: chatto.admin.v1.AdminConnectionInfo
-	(*AdminAccountInfo)(nil),         // 10: chatto.admin.v1.AdminAccountInfo
-	(*AdminServerStats)(nil),         // 11: chatto.admin.v1.AdminServerStats
-	(*AdminNatsStats)(nil),           // 12: chatto.admin.v1.AdminNatsStats
-	(*AdminNatsStreamInfo)(nil),      // 13: chatto.admin.v1.AdminNatsStreamInfo
-	(*AdminNatsConsumerInfo)(nil),    // 14: chatto.admin.v1.AdminNatsConsumerInfo
-	(*AdminProjectionState)(nil),     // 15: chatto.admin.v1.AdminProjectionState
-	(*AdminProjectionMetric)(nil),    // 16: chatto.admin.v1.AdminProjectionMetric
-	(*timestamppb.Timestamp)(nil),    // 17: google.protobuf.Timestamp
+	(AdminSearchProviderState)(0),    // 0: chatto.admin.v1.AdminSearchProviderState
+	(AdminSearchIndexFreshness)(0),   // 1: chatto.admin.v1.AdminSearchIndexFreshness
+	(AdminSearchQueryProbeResult)(0), // 2: chatto.admin.v1.AdminSearchQueryProbeResult
+	(AdminLiveKitConnectionState)(0), // 3: chatto.admin.v1.AdminLiveKitConnectionState
+	(AdminDurableWorkerHealth)(0),    // 4: chatto.admin.v1.AdminDurableWorkerHealth
+	(AdminAssetCleanupHealth)(0),     // 5: chatto.admin.v1.AdminAssetCleanupHealth
+	(*GetSystemInfoRequest)(nil),     // 6: chatto.admin.v1.GetSystemInfoRequest
+	(*GetSystemInfoResponse)(nil),    // 7: chatto.admin.v1.GetSystemInfoResponse
+	(*AdminSearchStatus)(nil),        // 8: chatto.admin.v1.AdminSearchStatus
+	(*AdminSearchProvider)(nil),      // 9: chatto.admin.v1.AdminSearchProvider
+	(*AdminLiveKitStatus)(nil),       // 10: chatto.admin.v1.AdminLiveKitStatus
+	(*AdminDurableWorkerStatus)(nil), // 11: chatto.admin.v1.AdminDurableWorkerStatus
+	(*AdminAssetCleanupStatus)(nil),  // 12: chatto.admin.v1.AdminAssetCleanupStatus
+	(*AdminSystemInfo)(nil),          // 13: chatto.admin.v1.AdminSystemInfo
+	(*AdminConnectionInfo)(nil),      // 14: chatto.admin.v1.AdminConnectionInfo
+	(*AdminAccountInfo)(nil),         // 15: chatto.admin.v1.AdminAccountInfo
+	(*AdminServerStats)(nil),         // 16: chatto.admin.v1.AdminServerStats
+	(*AdminNatsStats)(nil),           // 17: chatto.admin.v1.AdminNatsStats
+	(*AdminNatsStreamInfo)(nil),      // 18: chatto.admin.v1.AdminNatsStreamInfo
+	(*AdminNatsConsumerInfo)(nil),    // 19: chatto.admin.v1.AdminNatsConsumerInfo
+	(*AdminProjectionState)(nil),     // 20: chatto.admin.v1.AdminProjectionState
+	(*AdminProjectionMetric)(nil),    // 21: chatto.admin.v1.AdminProjectionMetric
+	(*timestamppb.Timestamp)(nil),    // 22: google.protobuf.Timestamp
 }
 var file_chatto_admin_v1_diagnostics_proto_depIdxs = []int32{
-	8,  // 0: chatto.admin.v1.GetSystemInfoResponse.system_info:type_name -> chatto.admin.v1.AdminSystemInfo
-	15, // 1: chatto.admin.v1.GetSystemInfoResponse.projections:type_name -> chatto.admin.v1.AdminProjectionState
-	7,  // 2: chatto.admin.v1.GetSystemInfoResponse.asset_cleanup:type_name -> chatto.admin.v1.AdminAssetCleanupStatus
-	6,  // 3: chatto.admin.v1.GetSystemInfoResponse.durable_workers:type_name -> chatto.admin.v1.AdminDurableWorkerStatus
-	5,  // 4: chatto.admin.v1.GetSystemInfoResponse.livekit:type_name -> chatto.admin.v1.AdminLiveKitStatus
-	0,  // 5: chatto.admin.v1.AdminLiveKitStatus.connection_state:type_name -> chatto.admin.v1.AdminLiveKitConnectionState
-	17, // 6: chatto.admin.v1.AdminLiveKitStatus.last_webhook_at:type_name -> google.protobuf.Timestamp
-	17, // 7: chatto.admin.v1.AdminLiveKitStatus.last_rejected_webhook_at:type_name -> google.protobuf.Timestamp
-	1,  // 8: chatto.admin.v1.AdminDurableWorkerStatus.health:type_name -> chatto.admin.v1.AdminDurableWorkerHealth
-	2,  // 9: chatto.admin.v1.AdminAssetCleanupStatus.health:type_name -> chatto.admin.v1.AdminAssetCleanupHealth
-	17, // 10: chatto.admin.v1.AdminAssetCleanupStatus.oldest_pending_at:type_name -> google.protobuf.Timestamp
-	17, // 11: chatto.admin.v1.AdminAssetCleanupStatus.last_pass_at:type_name -> google.protobuf.Timestamp
-	17, // 12: chatto.admin.v1.AdminAssetCleanupStatus.last_successful_pass_at:type_name -> google.protobuf.Timestamp
-	17, // 13: chatto.admin.v1.AdminAssetCleanupStatus.updated_at:type_name -> google.protobuf.Timestamp
-	9,  // 14: chatto.admin.v1.AdminSystemInfo.connection:type_name -> chatto.admin.v1.AdminConnectionInfo
-	10, // 15: chatto.admin.v1.AdminSystemInfo.account:type_name -> chatto.admin.v1.AdminAccountInfo
-	12, // 16: chatto.admin.v1.AdminSystemInfo.nats:type_name -> chatto.admin.v1.AdminNatsStats
-	11, // 17: chatto.admin.v1.AdminSystemInfo.stats:type_name -> chatto.admin.v1.AdminServerStats
-	13, // 18: chatto.admin.v1.AdminNatsStats.streams:type_name -> chatto.admin.v1.AdminNatsStreamInfo
-	14, // 19: chatto.admin.v1.AdminNatsStats.consumers:type_name -> chatto.admin.v1.AdminNatsConsumerInfo
-	16, // 20: chatto.admin.v1.AdminProjectionState.metrics:type_name -> chatto.admin.v1.AdminProjectionMetric
-	17, // 21: chatto.admin.v1.AdminProjectionState.last_commit_time:type_name -> google.protobuf.Timestamp
-	3,  // 22: chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo:input_type -> chatto.admin.v1.GetSystemInfoRequest
-	4,  // 23: chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo:output_type -> chatto.admin.v1.GetSystemInfoResponse
-	23, // [23:24] is the sub-list for method output_type
-	22, // [22:23] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	13, // 0: chatto.admin.v1.GetSystemInfoResponse.system_info:type_name -> chatto.admin.v1.AdminSystemInfo
+	20, // 1: chatto.admin.v1.GetSystemInfoResponse.projections:type_name -> chatto.admin.v1.AdminProjectionState
+	12, // 2: chatto.admin.v1.GetSystemInfoResponse.asset_cleanup:type_name -> chatto.admin.v1.AdminAssetCleanupStatus
+	11, // 3: chatto.admin.v1.GetSystemInfoResponse.durable_workers:type_name -> chatto.admin.v1.AdminDurableWorkerStatus
+	10, // 4: chatto.admin.v1.GetSystemInfoResponse.livekit:type_name -> chatto.admin.v1.AdminLiveKitStatus
+	8,  // 5: chatto.admin.v1.GetSystemInfoResponse.search:type_name -> chatto.admin.v1.AdminSearchStatus
+	9,  // 6: chatto.admin.v1.AdminSearchStatus.providers:type_name -> chatto.admin.v1.AdminSearchProvider
+	0,  // 7: chatto.admin.v1.AdminSearchProvider.state:type_name -> chatto.admin.v1.AdminSearchProviderState
+	1,  // 8: chatto.admin.v1.AdminSearchProvider.freshness:type_name -> chatto.admin.v1.AdminSearchIndexFreshness
+	22, // 9: chatto.admin.v1.AdminSearchProvider.last_commit_time:type_name -> google.protobuf.Timestamp
+	22, // 10: chatto.admin.v1.AdminSearchProvider.observed_at:type_name -> google.protobuf.Timestamp
+	2,  // 11: chatto.admin.v1.AdminSearchProvider.query_probe_result:type_name -> chatto.admin.v1.AdminSearchQueryProbeResult
+	22, // 12: chatto.admin.v1.AdminSearchProvider.query_probe_completed_at:type_name -> google.protobuf.Timestamp
+	22, // 13: chatto.admin.v1.AdminSearchProvider.query_probe_succeeded_at:type_name -> google.protobuf.Timestamp
+	22, // 14: chatto.admin.v1.AdminSearchProvider.query_probe_in_flight_since:type_name -> google.protobuf.Timestamp
+	3,  // 15: chatto.admin.v1.AdminLiveKitStatus.connection_state:type_name -> chatto.admin.v1.AdminLiveKitConnectionState
+	22, // 16: chatto.admin.v1.AdminLiveKitStatus.last_webhook_at:type_name -> google.protobuf.Timestamp
+	22, // 17: chatto.admin.v1.AdminLiveKitStatus.last_rejected_webhook_at:type_name -> google.protobuf.Timestamp
+	4,  // 18: chatto.admin.v1.AdminDurableWorkerStatus.health:type_name -> chatto.admin.v1.AdminDurableWorkerHealth
+	5,  // 19: chatto.admin.v1.AdminAssetCleanupStatus.health:type_name -> chatto.admin.v1.AdminAssetCleanupHealth
+	22, // 20: chatto.admin.v1.AdminAssetCleanupStatus.oldest_pending_at:type_name -> google.protobuf.Timestamp
+	22, // 21: chatto.admin.v1.AdminAssetCleanupStatus.last_pass_at:type_name -> google.protobuf.Timestamp
+	22, // 22: chatto.admin.v1.AdminAssetCleanupStatus.last_successful_pass_at:type_name -> google.protobuf.Timestamp
+	22, // 23: chatto.admin.v1.AdminAssetCleanupStatus.updated_at:type_name -> google.protobuf.Timestamp
+	14, // 24: chatto.admin.v1.AdminSystemInfo.connection:type_name -> chatto.admin.v1.AdminConnectionInfo
+	15, // 25: chatto.admin.v1.AdminSystemInfo.account:type_name -> chatto.admin.v1.AdminAccountInfo
+	17, // 26: chatto.admin.v1.AdminSystemInfo.nats:type_name -> chatto.admin.v1.AdminNatsStats
+	16, // 27: chatto.admin.v1.AdminSystemInfo.stats:type_name -> chatto.admin.v1.AdminServerStats
+	18, // 28: chatto.admin.v1.AdminNatsStats.streams:type_name -> chatto.admin.v1.AdminNatsStreamInfo
+	19, // 29: chatto.admin.v1.AdminNatsStats.consumers:type_name -> chatto.admin.v1.AdminNatsConsumerInfo
+	21, // 30: chatto.admin.v1.AdminProjectionState.metrics:type_name -> chatto.admin.v1.AdminProjectionMetric
+	22, // 31: chatto.admin.v1.AdminProjectionState.last_commit_time:type_name -> google.protobuf.Timestamp
+	6,  // 32: chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo:input_type -> chatto.admin.v1.GetSystemInfoRequest
+	7,  // 33: chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo:output_type -> chatto.admin.v1.GetSystemInfoResponse
+	33, // [33:34] is the sub-list for method output_type
+	32, // [32:33] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_diagnostics_proto_init() }
@@ -2041,14 +2580,15 @@ func file_chatto_admin_v1_diagnostics_proto_init() {
 		return
 	}
 	file_chatto_admin_v1_diagnostics_proto_msgTypes[1].OneofWrappers = []any{}
-	file_chatto_admin_v1_diagnostics_proto_msgTypes[12].OneofWrappers = []any{}
+	file_chatto_admin_v1_diagnostics_proto_msgTypes[3].OneofWrappers = []any{}
+	file_chatto_admin_v1_diagnostics_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_admin_v1_diagnostics_proto_rawDesc), len(file_chatto_admin_v1_diagnostics_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   14,
+			NumEnums:      6,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

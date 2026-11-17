@@ -86,6 +86,11 @@ provider supplies results.
   status without making the rest of the server unusable.
 - Public readiness is deliberately coarse. Exact event-log indexing counts and
   rates remain operator telemetry rather than being exposed to every member.
+- Owners see each search provider process in the Search tab of Admin → System.
+  The tab shows availability and index freshness as separate health checks,
+  and lists the identity, version, state, indexing progress, current work, last
+  progress, and test query result of each provider, with a hint for a provider
+  that has a problem.
 
 ## Design Decisions
 
@@ -203,6 +208,20 @@ results beside the timeline also makes it quick to inspect several matches in
 the same conversation.
 **Tradeoff:** Server-wide and room-scoped Search are two entry points with
 independent transient query state.
+
+### 10. Every provider reports its own health
+
+**Decision:** Admin diagnostics and search metrics collect the status of every
+provider process, not of the one provider that a queue-grouped request reaches.
+The server classifies each status once. A missing or outdated status (older
+than 30 seconds) is unknown. The Admin page aggregates the providers: a failed
+provider next to a healthy one is a warning, and no provider that can answer
+is critical. A stalled index is a warning, separate from availability.
+**Why:** In the incident of #3659, one healthy provider or replica hid a failed
+one. Unknown data must never look healthy.
+**Tradeoff:** The status request waits up to one second for replies. Providers
+that predate the all-providers status subject are not listed while a newer
+provider replies.
 
 ## Permissions
 

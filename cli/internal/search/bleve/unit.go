@@ -2,8 +2,10 @@ package bleve
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -108,7 +110,14 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		provider.probe.timeout = u.probeTimeout
 	}
 	u.Health.setProvider(provider, projection)
-	serviceOptions := search.ServiceOptions{ImplementationVersion: env.Version}
+	// The host name identifies the pod or machine to operators; an error
+	// leaves it empty.
+	host, _ := os.Hostname()
+	serviceOptions := search.ServiceOptions{
+		ImplementationVersion: env.Version,
+		InstanceID:            rand.Text(),
+		Host:                  host,
+	}
 	service, err := search.AddStartupStatusService(ctx, env.NC, provider, serviceOptions)
 	if err != nil {
 		return errors.Join(fmt.Errorf("register search provider status service: %w", err), projection.Close())

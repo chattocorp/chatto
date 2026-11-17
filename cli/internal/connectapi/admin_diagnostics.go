@@ -33,6 +33,7 @@ func (s *adminDiagnosticsService) GetSystemInfo(ctx context.Context, _ *connect.
 		DurableWorkers:       adminDurableWorkerStatuses(diagnostics.DurableWorkers),
 		ProjectionsAvailable: new(diagnostics.ProjectionsAvailable),
 		Livekit:              adminLiveKitStatus(diagnostics.LiveKit),
+		Search:               s.adminSearchStatus(ctx),
 	}), nil
 }
 

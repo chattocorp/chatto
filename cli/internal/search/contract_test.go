@@ -180,8 +180,8 @@ func TestStartupStatusServiceJoinsReadyQueuesOnlyWhenReady(t *testing.T) {
 	if err := AddQueryEndpoint(testContext(t), nc, service, provider); err != nil {
 		t.Fatalf("AddQueryEndpoint: %v", err)
 	}
-	if err := AddStatusEndpoint(testContext(t), service, provider); err != nil {
-		t.Fatalf("AddStatusEndpoint: %v", err)
+	if err := addStatusEndpoint(testContext(t), service, provider, ServiceOptions{}); err != nil {
+		t.Fatalf("addStatusEndpoint: %v", err)
 	}
 	if _, err := NewClient(nc).Query(testContext(t), validQuery()); err != nil {
 		t.Fatalf("Query after readiness: %v", err)
@@ -398,5 +398,98 @@ func TestQueryEndpointBoundsBlockedQueries(t *testing.T) {
 			t.Fatalf("Query after release: %v", err)
 		}
 		time.Sleep(time.Millisecond)
+	}
+}
+
+func TestProviderReportsIncludeEveryProvider(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	for _, provider := range []struct {
+		options ServiceOptions
+		status  *searchv1.GetStatusResponse
+	}{
+		{ServiceOptions{InstanceID: "b", Host: "search-1", ImplementationVersion: "1.0"}, &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_UNAVAILABLE}},
+		{ServiceOptions{InstanceID: "a", Host: "search-0", ImplementationVersion: "1.0"}, &searchv1.GetStatusResponse{
+			State:     searchv1.ProviderState_PROVIDER_STATE_READY,
+			Freshness: searchv1.IndexFreshness_INDEX_FRESHNESS_STALLED,
+		}},
+	} {
+		service, err := AddStartupStatusService(testContext(t), nc, &testProvider{status: provider.status}, provider.options)
+		if err != nil {
+			t.Fatalf("AddStartupStatusService: %v", err)
+		}
+		t.Cleanup(func() { _ = service.Stop() })
+	}
+
+	reports, err := NewClient(nc).ProviderReports(testContext(t))
+	if err != nil {
+		t.Fatalf("ProviderReports: %v", err)
+	}
+	if len(reports) != 2 {
+		t.Fatalf("ProviderReports len = %d, want 2", len(reports))
+	}
+	if got := reports[0]; got.Status.GetInstanceId() != "a" || got.Status.GetHost() != "search-0" || got.Health != ProviderHealthReady || got.Index != IndexHealthStalled {
+		t.Fatalf("first report = %+v", got)
+	}
+	if got := reports[1]; got.Status.GetInstanceId() != "b" || got.Status.GetImplementationVersion() != "1.0" || got.Health != ProviderHealthUnavailable || got.Index != IndexHealthUnknown {
+		t.Fatalf("second report = %+v", got)
+	}
+}
+
+// A provider that predates AllStatusSubject answers only the queue-grouped
+// status subjects.
+func TestProviderReportsFallBackToQueueGroupStatus(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	provider := &testProvider{status: &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_READY}}
+	service, err := AddService(testContext(t), nc, provider, ServiceOptions{})
+	if err != nil {
+		t.Fatalf("AddService: %v", err)
+	}
+	t.Cleanup(func() { _ = service.Stop() })
+
+	reports, err := NewClient(nc).ProviderReports(testContext(t))
+	if err != nil || len(reports) != 1 || reports[0].Health != ProviderHealthReady {
+		t.Fatalf("ProviderReports = %+v, %v; want one ready provider", reports, err)
+	}
+
+	_ = service.Stop()
+	if _, err := NewClient(nc).ProviderReports(testContext(t)); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("ProviderReports without providers = %v, want unavailable", err)
+	}
+}
+
+func TestClassifyStatus(t *testing.T) {
+	now := time.Now()
+	for name, tc := range map[string]struct {
+		status     *searchv1.GetStatusResponse
+		wantHealth ProviderHealth
+		wantIndex  IndexHealth
+	}{
+		"ready and current": {
+			status:     &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_READY, Freshness: searchv1.IndexFreshness_INDEX_FRESHNESS_CURRENT, ObservedAt: timestamppb.New(now)},
+			wantHealth: ProviderHealthReady, wantIndex: IndexHealthCurrent,
+		},
+		"degraded and stalled": {
+			status:     &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_DEGRADED, Freshness: searchv1.IndexFreshness_INDEX_FRESHNESS_STALLED},
+			wantHealth: ProviderHealthDegraded, wantIndex: IndexHealthStalled,
+		},
+		"indexing without freshness": {
+			status:     &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_INDEXING},
+			wantHealth: ProviderHealthIndexing, wantIndex: IndexHealthUnknown,
+		},
+		"unspecified state": {
+			status:     &searchv1.GetStatusResponse{Freshness: searchv1.IndexFreshness_INDEX_FRESHNESS_BEHIND},
+			wantHealth: ProviderHealthUnknown, wantIndex: IndexHealthBehind,
+		},
+		"outdated status": {
+			status:     &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_READY, Freshness: searchv1.IndexFreshness_INDEX_FRESHNESS_CURRENT, ObservedAt: timestamppb.New(now.Add(-MaxStatusAge - time.Second))},
+			wantHealth: ProviderHealthUnknown, wantIndex: IndexHealthUnknown,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			report := ClassifyStatus(tc.status, now)
+			if report.Health != tc.wantHealth || report.Index != tc.wantIndex {
+				t.Fatalf("ClassifyStatus = %s/%s, want %s/%s", report.Health, report.Index, tc.wantHealth, tc.wantIndex)
+			}
+		})
 	}
 }

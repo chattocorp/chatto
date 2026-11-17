@@ -10,33 +10,39 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/prometheus/common/expfmt"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
+	"github.com/chattocorp/chatto/cli/internal/search"
 )
 
 type fakeSearchStatus struct {
-	status *searchv1.GetStatusResponse
-	err    error
+	statuses []*searchv1.GetStatusResponse
+	err      error
 }
 
-func (f fakeSearchStatus) GetStatus(context.Context) (*searchv1.GetStatusResponse, error) {
-	return f.status, f.err
+func (f fakeSearchStatus) ProviderReports(context.Context) ([]search.ProviderReport, error) {
+	reports := make([]search.ProviderReport, 0, len(f.statuses))
+	for _, status := range f.statuses {
+		reports = append(reports, search.ClassifyStatus(status, time.Now()))
+	}
+	return reports, f.err
 }
 
-func TestSearchProviderCollectorReportsStalledIndex(t *testing.T) {
+func TestSearchProviderCollectorReportsProviders(t *testing.T) {
 	for name, tc := range map[string]struct {
 		reader fakeSearchStatus
 		want   string
 	}{
 		"stalled provider": {
-			reader: fakeSearchStatus{status: &searchv1.GetStatusResponse{
+			reader: fakeSearchStatus{statuses: []*searchv1.GetStatusResponse{{
 				State:                    searchv1.ProviderState_PROVIDER_STATE_DEGRADED,
 				Freshness:                searchv1.IndexFreshness_INDEX_FRESHNESS_STALLED,
 				CommittedSequence:        new(uint64(40)),
 				ObservedSequence:         new(uint64(42)),
 				PendingDuration:          durationpb.New(6 * time.Minute),
 				CurrentOperationDuration: durationpb.New(6 * time.Minute),
-			}},
+			}}},
 			want: `
 chatto_search_provider_current_operation_seconds 360
 chatto_search_provider_index_freshness{freshness="stalled"} 1
@@ -44,6 +50,26 @@ chatto_search_provider_lag_events 2
 chatto_search_provider_pending_seconds 360
 chatto_search_provider_stalled 1
 chatto_search_provider_state{state="degraded"} 1
+chatto_search_provider_status_up 1
+`,
+		},
+		"mixed providers": {
+			reader: fakeSearchStatus{statuses: []*searchv1.GetStatusResponse{
+				{State: searchv1.ProviderState_PROVIDER_STATE_READY, Freshness: searchv1.IndexFreshness_INDEX_FRESHNESS_CURRENT},
+				{State: searchv1.ProviderState_PROVIDER_STATE_UNAVAILABLE},
+				{
+					State:      searchv1.ProviderState_PROVIDER_STATE_READY,
+					Freshness:  searchv1.IndexFreshness_INDEX_FRESHNESS_CURRENT,
+					ObservedAt: timestamppb.New(time.Now().Add(-time.Minute)),
+				},
+			}},
+			want: `
+chatto_search_provider_index_freshness{freshness="current"} 1
+chatto_search_provider_index_freshness{freshness="unknown"} 2
+chatto_search_provider_stalled 0
+chatto_search_provider_state{state="ready"} 1
+chatto_search_provider_state{state="unavailable"} 1
+chatto_search_provider_state{state="unknown"} 1
 chatto_search_provider_status_up 1
 `,
 		},

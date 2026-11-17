@@ -153,16 +153,28 @@ warning when a projection stalls and an info message when it recovers.
 | `chatto_search_provider_current_operation_seconds` | Gauge | none |
 
 The `chatto_projection_*` metrics describe the projections of the replica that
-you scrape. The `chatto_search_provider_*` metrics describe the search provider
-that answered the status request of the scrape. When you run more than one
-search provider, each scrape can describe a different provider. A stalled
-search provider reports the `degraded` state. It continues to answer queries,
-but results can miss recent messages.
+you scrape. The `chatto_search_provider_*` metrics include every search
+provider process that answers the status request of the scrape within about
+one second. `chatto_search_provider_state` and
+`chatto_search_provider_index_freshness` count the providers in each state and
+freshness. `chatto_search_provider_stalled` counts the providers with a stalled
+index. The lag and duration metrics show the largest value of all providers.
+A provider with a missing or outdated status counts as `unknown`, never as
+`ready` or `current`. Admin → System uses the same rules. A stalled search
+provider reports the `degraded` state. It continues to answer queries, but
+results can miss recent messages.
 
 For example, this query selects stalled projections and search indexes:
 
 ```promql
-chatto_projection_stalled == 1 or chatto_search_provider_stalled == 1
+chatto_projection_stalled == 1 or chatto_search_provider_stalled > 0
+```
+
+This query selects failed search providers, also when another provider is
+healthy:
+
+```promql
+chatto_search_provider_state{state="unavailable"} > 0
 ```
 
 ### Projection snapshots

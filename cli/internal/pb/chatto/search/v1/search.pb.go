@@ -566,6 +566,10 @@ func (x *QueryResponse) GetThreadExclusionsApplied() bool {
 }
 
 // GetStatusRequest asks for provider readiness.
+//
+// A request on the queue-grouped status subjects reaches one provider. A
+// request on the all-providers status subject reaches every provider process,
+// and each process sends its own GetStatusResponse with its instance_id.
 type GetStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -640,9 +644,16 @@ type GetStatusResponse struct {
 	ObservedAt *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
 	// Query probe result of the answering provider. Absent when the provider
 	// does not run a query probe or has not served queries yet.
-	QueryProbe    *QueryProbeStatus `protobuf:"bytes,13,opt,name=query_probe,json=queryProbe,proto3" json:"query_probe,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	QueryProbe *QueryProbeStatus `protobuf:"bytes,13,opt,name=query_probe,json=queryProbe,proto3" json:"query_probe,omitempty"`
+	// Opaque ID of the provider process, stable for the life of the process.
+	// Empty when the provider does not report an identity.
+	InstanceId string `protobuf:"bytes,14,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	// Host name of the provider process, for example a Kubernetes pod name.
+	Host string `protobuf:"bytes,15,opt,name=host,proto3" json:"host,omitempty"`
+	// Version of the provider implementation.
+	ImplementationVersion string `protobuf:"bytes,16,opt,name=implementation_version,json=implementationVersion,proto3" json:"implementation_version,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *GetStatusResponse) Reset() {
@@ -764,6 +775,27 @@ func (x *GetStatusResponse) GetQueryProbe() *QueryProbeStatus {
 		return x.QueryProbe
 	}
 	return nil
+}
+
+func (x *GetStatusResponse) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
+	}
+	return ""
+}
+
+func (x *GetStatusResponse) GetHost() string {
+	if x != nil {
+		return x.Host
+	}
+	return ""
+}
+
+func (x *GetStatusResponse) GetImplementationVersion() string {
+	if x != nil {
+		return x.ImplementationVersion
+	}
+	return ""
 }
 
 // QueryProbeStatus reports a provider's own synthetic query through its local
@@ -893,7 +925,7 @@ const file_chatto_search_v1_search_proto_rawDesc = "" +
 	"nextCursor\x120\n" +
 	"\x14thread_scope_applied\x18\x03 \x01(\bR\x12threadScopeApplied\x12:\n" +
 	"\x19thread_exclusions_applied\x18\x04 \x01(\bR\x17threadExclusionsApplied\"\x12\n" +
-	"\x10GetStatusRequest\"\x84\a\n" +
+	"\x10GetStatusRequest\"\xf0\a\n" +
 	"\x11GetStatusResponse\x125\n" +
 	"\x05state\x18\x01 \x01(\x0e2\x1f.chatto.search.v1.ProviderStateR\x05state\x123\n" +
 	"\x13indexed_event_count\x18\x02 \x01(\x04H\x00R\x11indexedEventCount\x88\x01\x01\x121\n" +
@@ -911,7 +943,11 @@ const file_chatto_search_v1_search_proto_rawDesc = "" +
 	"\vobserved_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"observedAt\x12C\n" +
 	"\vquery_probe\x18\r \x01(\v2\".chatto.search.v1.QueryProbeStatusR\n" +
-	"queryProbeB\x16\n" +
+	"queryProbe\x12\x1f\n" +
+	"\vinstance_id\x18\x0e \x01(\tR\n" +
+	"instanceId\x12\x12\n" +
+	"\x04host\x18\x0f \x01(\tR\x04host\x125\n" +
+	"\x16implementation_version\x18\x10 \x01(\tR\x15implementationVersionB\x16\n" +
 	"\x14_indexed_event_countB\x15\n" +
 	"\x13_target_event_countB\x15\n" +
 	"\x13_committed_sequenceB\x14\n" +

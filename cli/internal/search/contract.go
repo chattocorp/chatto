@@ -15,6 +15,9 @@ const (
 	// StartupStatusSubject reports startup progress only when no ready provider
 	// is subscribed to StatusSubject.
 	StartupStatusSubject = "svc.chatto_ext.search.v1.status.startup"
+	// AllStatusSubject reports status from every provider process. It has no
+	// queue group: each process replies, from startup until it stops.
+	AllStatusSubject = "svc.chatto_ext.search.v1.status.all"
 
 	ServiceName    = "chatto-ext-search-v1"
 	ServiceVersion = "1.0.0"

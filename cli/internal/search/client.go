@@ -65,6 +65,63 @@ func (c *Client) GetStatus(ctx context.Context) (*searchv1.GetStatusResponse, er
 	return response, nil
 }
 
+const (
+	// allStatusTimeout bounds how long ListStatuses waits for replies.
+	allStatusTimeout = time.Second
+	// allStatusQuietPeriod ends ListStatuses early when no further reply
+	// arrives this long after the latest one.
+	allStatusQuietPeriod = 100 * time.Millisecond
+)
+
+// ListStatuses requests the status of every provider process on
+// AllStatusSubject. It returns the valid replies that arrive within
+// allStatusTimeout, and stops waiting allStatusQuietPeriod after the latest
+// reply. It skips error replies and invalid statuses. Providers that do not
+// answer AllStatusSubject, such as older versions, are not included.
+func (c *Client) ListStatuses(ctx context.Context) ([]*searchv1.GetStatusResponse, error) {
+	if c == nil || c.nc == nil {
+		return nil, fmt.Errorf("%w: NATS connection is required", ErrUnavailable)
+	}
+	payload, err := proto.Marshal(&searchv1.GetStatusRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("marshal search provider request: %w", err)
+	}
+	inbox := c.nc.NewInbox()
+	subscription, err := c.nc.SubscribeSync(inbox)
+	if err != nil {
+		return nil, fmt.Errorf("subscribe to search provider replies: %w", err)
+	}
+	defer func() { _ = subscription.Unsubscribe() }()
+	if err := c.nc.PublishRequest(AllStatusSubject, inbox, payload); err != nil {
+		return nil, fmt.Errorf("request search provider statuses: %w", err)
+	}
+
+	collectContext, cancel := context.WithTimeout(ctx, allStatusTimeout)
+	defer cancel()
+	var statuses []*searchv1.GetStatusResponse
+	for {
+		waitContext := collectContext
+		var cancelWait context.CancelFunc = func() {}
+		if len(statuses) > 0 {
+			waitContext, cancelWait = context.WithTimeout(collectContext, allStatusQuietPeriod)
+		}
+		message, err := subscription.NextMsgWithContext(waitContext)
+		cancelWait()
+		if err != nil {
+			// The deadline or the quiet period ended the collection.
+			return statuses, nil
+		}
+		if message.Header.Get(micro.ErrorHeader) != "" {
+			continue
+		}
+		status := &searchv1.GetStatusResponse{}
+		if proto.Unmarshal(message.Data, status) != nil || validateStatusResponse(status) != nil {
+			continue
+		}
+		statuses = append(statuses, status)
+	}
+}
+
 func (c *Client) request(ctx context.Context, subject string, request, response proto.Message) error {
 	if c == nil || c.nc == nil {
 		return fmt.Errorf("%w: NATS connection is required", ErrUnavailable)

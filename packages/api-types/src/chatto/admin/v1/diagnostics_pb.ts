@@ -7,6 +7,169 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
+ * Whether a search provider can answer queries. The server derives this
+ * state with the same rules that it uses for its search metrics.
+ *
+ * @generated from enum chatto.admin.v1.AdminSearchProviderState
+ */
+export enum AdminSearchProviderState {
+  /**
+   * The server did not report a state.
+   *
+   * @generated from enum value: ADMIN_SEARCH_PROVIDER_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The provider reported no state, or its status is more than 30 seconds
+   * old.
+   *
+   * @generated from enum value: ADMIN_SEARCH_PROVIDER_STATE_UNKNOWN = 1;
+   */
+  UNKNOWN = 1,
+
+  /**
+   * The provider is starting.
+   *
+   * @generated from enum value: ADMIN_SEARCH_PROVIDER_STATE_STARTING = 2;
+   */
+  STARTING = 2,
+
+  /**
+   * The provider builds or catches up its index and cannot answer queries yet.
+   *
+   * @generated from enum value: ADMIN_SEARCH_PROVIDER_STATE_INDEXING = 3;
+   */
+  INDEXING = 3,
+
+  /**
+   * The provider answers queries.
+   *
+   * @generated from enum value: ADMIN_SEARCH_PROVIDER_STATE_READY = 4;
+   */
+  READY = 4,
+
+  /**
+   * The provider has a known problem, such as a stalled index or a failed
+   * query probe.
+   *
+   * @generated from enum value: ADMIN_SEARCH_PROVIDER_STATE_DEGRADED = 5;
+   */
+  DEGRADED = 5,
+
+  /**
+   * The provider cannot answer queries because startup or indexing failed.
+   *
+   * @generated from enum value: ADMIN_SEARCH_PROVIDER_STATE_UNAVAILABLE = 6;
+   */
+  UNAVAILABLE = 6,
+}
+// Retrieve enum metadata with: proto3.getEnumType(AdminSearchProviderState)
+proto3.util.setEnumType(AdminSearchProviderState, "chatto.admin.v1.AdminSearchProviderState", [
+  { no: 0, name: "ADMIN_SEARCH_PROVIDER_STATE_UNSPECIFIED" },
+  { no: 1, name: "ADMIN_SEARCH_PROVIDER_STATE_UNKNOWN" },
+  { no: 2, name: "ADMIN_SEARCH_PROVIDER_STATE_STARTING" },
+  { no: 3, name: "ADMIN_SEARCH_PROVIDER_STATE_INDEXING" },
+  { no: 4, name: "ADMIN_SEARCH_PROVIDER_STATE_READY" },
+  { no: 5, name: "ADMIN_SEARCH_PROVIDER_STATE_DEGRADED" },
+  { no: 6, name: "ADMIN_SEARCH_PROVIDER_STATE_UNAVAILABLE" },
+]);
+
+/**
+ * Whether a search provider's index follows the event log.
+ *
+ * @generated from enum chatto.admin.v1.AdminSearchIndexFreshness
+ */
+export enum AdminSearchIndexFreshness {
+  /**
+   * The server did not report freshness.
+   *
+   * @generated from enum value: ADMIN_SEARCH_INDEX_FRESHNESS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The provider did not report freshness, or its status is more than 30
+   * seconds old.
+   *
+   * @generated from enum value: ADMIN_SEARCH_INDEX_FRESHNESS_UNKNOWN = 1;
+   */
+  UNKNOWN = 1,
+
+  /**
+   * The index contains every matching event that the provider knows of.
+   *
+   * @generated from enum value: ADMIN_SEARCH_INDEX_FRESHNESS_CURRENT = 2;
+   */
+  CURRENT = 2,
+
+  /**
+   * Events wait for indexing, and the index committed progress recently.
+   *
+   * @generated from enum value: ADMIN_SEARCH_INDEX_FRESHNESS_BEHIND = 3;
+   */
+  BEHIND = 3,
+
+  /**
+   * Events wait for indexing, but the index committed no progress for the
+   * provider's stall threshold.
+   *
+   * @generated from enum value: ADMIN_SEARCH_INDEX_FRESHNESS_STALLED = 4;
+   */
+  STALLED = 4,
+}
+// Retrieve enum metadata with: proto3.getEnumType(AdminSearchIndexFreshness)
+proto3.util.setEnumType(AdminSearchIndexFreshness, "chatto.admin.v1.AdminSearchIndexFreshness", [
+  { no: 0, name: "ADMIN_SEARCH_INDEX_FRESHNESS_UNSPECIFIED" },
+  { no: 1, name: "ADMIN_SEARCH_INDEX_FRESHNESS_UNKNOWN" },
+  { no: 2, name: "ADMIN_SEARCH_INDEX_FRESHNESS_CURRENT" },
+  { no: 3, name: "ADMIN_SEARCH_INDEX_FRESHNESS_BEHIND" },
+  { no: 4, name: "ADMIN_SEARCH_INDEX_FRESHNESS_STALLED" },
+]);
+
+/**
+ * Outcome of a search provider's most recent query probe.
+ *
+ * @generated from enum chatto.admin.v1.AdminSearchQueryProbeResult
+ */
+export enum AdminSearchQueryProbeResult {
+  /**
+   * No probe has completed, or the provider does not run a query probe.
+   *
+   * @generated from enum value: ADMIN_SEARCH_QUERY_PROBE_RESULT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The probe query completed.
+   *
+   * @generated from enum value: ADMIN_SEARCH_QUERY_PROBE_RESULT_SUCCEEDED = 1;
+   */
+  SUCCEEDED = 1,
+
+  /**
+   * The probe query returned an error.
+   *
+   * @generated from enum value: ADMIN_SEARCH_QUERY_PROBE_RESULT_FAILED = 2;
+   */
+  FAILED = 2,
+
+  /**
+   * The probe query did not complete before the probe timeout.
+   *
+   * @generated from enum value: ADMIN_SEARCH_QUERY_PROBE_RESULT_TIMED_OUT = 3;
+   */
+  TIMED_OUT = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(AdminSearchQueryProbeResult)
+proto3.util.setEnumType(AdminSearchQueryProbeResult, "chatto.admin.v1.AdminSearchQueryProbeResult", [
+  { no: 0, name: "ADMIN_SEARCH_QUERY_PROBE_RESULT_UNSPECIFIED" },
+  { no: 1, name: "ADMIN_SEARCH_QUERY_PROBE_RESULT_SUCCEEDED" },
+  { no: 2, name: "ADMIN_SEARCH_QUERY_PROBE_RESULT_FAILED" },
+  { no: 3, name: "ADMIN_SEARCH_QUERY_PROBE_RESULT_TIMED_OUT" },
+]);
+
+/**
  * Result of the LiveKit server API check.
  *
  * @generated from enum chatto.admin.v1.AdminLiveKitConnectionState
@@ -264,6 +427,14 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
    */
   livekit?: AdminLiveKitStatus;
 
+  /**
+   * Message search provider diagnostics. Absent when message search is
+   * disabled.
+   *
+   * @generated from field: chatto.admin.v1.AdminSearchStatus search = 7;
+   */
+  search?: AdminSearchStatus;
+
   constructor(data?: PartialMessage<GetSystemInfoResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -278,6 +449,7 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
     { no: 4, name: "durable_workers", kind: "message", T: AdminDurableWorkerStatus, repeated: true },
     { no: 5, name: "projections_available", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 6, name: "livekit", kind: "message", T: AdminLiveKitStatus },
+    { no: 7, name: "search", kind: "message", T: AdminSearchStatus },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSystemInfoResponse {
@@ -294,6 +466,246 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
 
   static equals(a: GetSystemInfoResponse | PlainMessage<GetSystemInfoResponse> | undefined, b: GetSystemInfoResponse | PlainMessage<GetSystemInfoResponse> | undefined): boolean {
     return proto3.util.equals(GetSystemInfoResponse, a, b);
+  }
+}
+
+/**
+ * Message search diagnostics. Every search provider process answers the
+ * status request on its own, so a failed provider stays visible when another
+ * provider is healthy. The server waits at most about one second for replies.
+ * A provider that does not reply is not listed.
+ *
+ * @generated from message chatto.admin.v1.AdminSearchStatus
+ */
+export class AdminSearchStatus extends Message<AdminSearchStatus> {
+  /**
+   * Whether at least one provider answered the status request.
+   *
+   * @generated from field: bool available = 1;
+   */
+  available = false;
+
+  /**
+   * Status of each provider that answered, sorted by host and instance ID.
+   *
+   * @generated from field: repeated chatto.admin.v1.AdminSearchProvider providers = 2;
+   */
+  providers: AdminSearchProvider[] = [];
+
+  constructor(data?: PartialMessage<AdminSearchStatus>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.AdminSearchStatus";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "available", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "providers", kind: "message", T: AdminSearchProvider, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminSearchStatus {
+    return new AdminSearchStatus().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminSearchStatus {
+    return new AdminSearchStatus().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminSearchStatus {
+    return new AdminSearchStatus().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminSearchStatus | PlainMessage<AdminSearchStatus> | undefined, b: AdminSearchStatus | PlainMessage<AdminSearchStatus> | undefined): boolean {
+    return proto3.util.equals(AdminSearchStatus, a, b);
+  }
+}
+
+/**
+ * Status of one message search provider process. The values contain no
+ * message content, query terms, or user IDs.
+ *
+ * @generated from message chatto.admin.v1.AdminSearchProvider
+ */
+export class AdminSearchProvider extends Message<AdminSearchProvider> {
+  /**
+   * Opaque ID of the provider process. Empty for providers that do not
+   * report an identity.
+   *
+   * @generated from field: string instance_id = 1;
+   */
+  instanceId = "";
+
+  /**
+   * Host name of the provider process, for example a Kubernetes pod name.
+   *
+   * @generated from field: string host = 2;
+   */
+  host = "";
+
+  /**
+   * Version of the provider implementation.
+   *
+   * @generated from field: string implementation_version = 3;
+   */
+  implementationVersion = "";
+
+  /**
+   * Whether the provider can answer queries.
+   *
+   * @generated from field: chatto.admin.v1.AdminSearchProviderState state = 4;
+   */
+  state = AdminSearchProviderState.UNSPECIFIED;
+
+  /**
+   * Whether the provider's index follows the event log.
+   *
+   * @generated from field: chatto.admin.v1.AdminSearchIndexFreshness freshness = 5;
+   */
+  freshness = AdminSearchIndexFreshness.UNSPECIFIED;
+
+  /**
+   * EVT records processed during the current index build, when known.
+   *
+   * @generated from field: optional string indexed_event_count = 6;
+   */
+  indexedEventCount?: string;
+
+  /**
+   * EVT records targeted by the current index build, when known.
+   *
+   * @generated from field: optional string target_event_count = 7;
+   */
+  targetEventCount?: string;
+
+  /**
+   * Last EVT sequence that the index committed, when known.
+   *
+   * @generated from field: optional string committed_sequence = 8;
+   */
+  committedSequence?: string;
+
+  /**
+   * Highest matching EVT sequence that the provider knows of, when known.
+   *
+   * @generated from field: optional string observed_sequence = 9;
+   */
+  observedSequence?: string;
+
+  /**
+   * When the index last committed progress.
+   *
+   * @generated from field: google.protobuf.Timestamp last_commit_time = 10;
+   */
+  lastCommitTime?: Timestamp;
+
+  /**
+   * Seconds that waiting events have had no committed progress. Unset when
+   * the index is current.
+   *
+   * @generated from field: optional double pending_seconds = 11;
+   */
+  pendingSeconds?: number;
+
+  /**
+   * Low-cardinality name of the index work that runs now. Empty when idle.
+   *
+   * @generated from field: string current_operation = 12;
+   */
+  currentOperation = "";
+
+  /**
+   * Seconds that current_operation has run. Unset when idle.
+   *
+   * @generated from field: optional double current_operation_seconds = 13;
+   */
+  currentOperationSeconds?: number;
+
+  /**
+   * When the provider collected this status.
+   *
+   * @generated from field: google.protobuf.Timestamp observed_at = 14;
+   */
+  observedAt?: Timestamp;
+
+  /**
+   * Result of the provider's most recent query probe.
+   *
+   * @generated from field: chatto.admin.v1.AdminSearchQueryProbeResult query_probe_result = 15;
+   */
+  queryProbeResult = AdminSearchQueryProbeResult.UNSPECIFIED;
+
+  /**
+   * When the most recent query probe completed.
+   *
+   * @generated from field: google.protobuf.Timestamp query_probe_completed_at = 16;
+   */
+  queryProbeCompletedAt?: Timestamp;
+
+  /**
+   * When the most recent successful query probe completed.
+   *
+   * @generated from field: google.protobuf.Timestamp query_probe_succeeded_at = 17;
+   */
+  queryProbeSucceededAt?: Timestamp;
+
+  /**
+   * Query probes that failed or timed out since the last success.
+   *
+   * @generated from field: uint32 query_probe_consecutive_failures = 18;
+   */
+  queryProbeConsecutiveFailures = 0;
+
+  /**
+   * Start time of a query probe that has not completed.
+   *
+   * @generated from field: google.protobuf.Timestamp query_probe_in_flight_since = 19;
+   */
+  queryProbeInFlightSince?: Timestamp;
+
+  constructor(data?: PartialMessage<AdminSearchProvider>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.AdminSearchProvider";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "instance_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "host", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "implementation_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "state", kind: "enum", T: proto3.getEnumType(AdminSearchProviderState) },
+    { no: 5, name: "freshness", kind: "enum", T: proto3.getEnumType(AdminSearchIndexFreshness) },
+    { no: 6, name: "indexed_event_count", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 7, name: "target_event_count", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 8, name: "committed_sequence", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 9, name: "observed_sequence", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 10, name: "last_commit_time", kind: "message", T: Timestamp },
+    { no: 11, name: "pending_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 12, name: "current_operation", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 13, name: "current_operation_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 14, name: "observed_at", kind: "message", T: Timestamp },
+    { no: 15, name: "query_probe_result", kind: "enum", T: proto3.getEnumType(AdminSearchQueryProbeResult) },
+    { no: 16, name: "query_probe_completed_at", kind: "message", T: Timestamp },
+    { no: 17, name: "query_probe_succeeded_at", kind: "message", T: Timestamp },
+    { no: 18, name: "query_probe_consecutive_failures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 19, name: "query_probe_in_flight_since", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminSearchProvider {
+    return new AdminSearchProvider().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminSearchProvider {
+    return new AdminSearchProvider().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminSearchProvider {
+    return new AdminSearchProvider().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminSearchProvider | PlainMessage<AdminSearchProvider> | undefined, b: AdminSearchProvider | PlainMessage<AdminSearchProvider> | undefined): boolean {
+    return proto3.util.equals(AdminSearchProvider, a, b);
   }
 }
 

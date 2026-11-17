@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/config"
@@ -24,6 +25,7 @@ type fakeMessageSearchProvider struct {
 	queries   []*searchv1.QueryRequest
 	query     func(*searchv1.QueryRequest) (*searchv1.QueryResponse, error)
 	status    *searchv1.GetStatusResponse
+	providers []*searchv1.GetStatusResponse
 	statusErr error
 }
 
@@ -40,6 +42,23 @@ func (p *fakeMessageSearchProvider) Query(_ context.Context, request *searchv1.Q
 
 func (p *fakeMessageSearchProvider) GetStatus(context.Context) (*searchv1.GetStatusResponse, error) {
 	return p.status, p.statusErr
+}
+
+// ProviderReports reports the configured statuses, or the single status when
+// providers is empty.
+func (p *fakeMessageSearchProvider) ProviderReports(context.Context) ([]searchsvc.ProviderReport, error) {
+	if p.statusErr != nil {
+		return nil, p.statusErr
+	}
+	statuses := p.providers
+	if len(statuses) == 0 && p.status != nil {
+		statuses = []*searchv1.GetStatusResponse{p.status}
+	}
+	reports := make([]searchsvc.ProviderReport, 0, len(statuses))
+	for _, status := range statuses {
+		reports = append(reports, searchsvc.ClassifyStatus(status, time.Now()))
+	}
+	return reports, nil
 }
 
 func (p *fakeMessageSearchProvider) capturedQueries() []*searchv1.QueryRequest {

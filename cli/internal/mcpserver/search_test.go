@@ -35,6 +35,10 @@ func (*mcpSearchProvider) GetStatus(context.Context) (*searchv1.GetStatusRespons
 	return &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_READY}, nil
 }
 
+func (*mcpSearchProvider) ProviderReports(context.Context) ([]searchsvc.ProviderReport, error) {
+	return nil, nil
+}
+
 func TestMCPSearchMessages(t *testing.T) {
 	_, nc := testutil.StartSharedNATS(t)
 	c, err := core.NewChattoCore(context.Background(), nc, config.CoreConfig{

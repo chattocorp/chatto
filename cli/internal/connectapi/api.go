@@ -16,6 +16,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1/operatorv1connect"
 	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
+	searchsvc "github.com/chattocorp/chatto/cli/internal/search"
 )
 
 // Prefix is the HTTP mount point for Chatto's ConnectRPC public API.
@@ -59,6 +60,8 @@ type API struct {
 type MessageSearchProviderClient interface {
 	Query(context.Context, *searchv1.QueryRequest) (*searchv1.QueryResponse, error)
 	GetStatus(context.Context) (*searchv1.GetStatusResponse, error)
+	// ProviderReports returns the classified status of every provider.
+	ProviderReports(context.Context) ([]searchsvc.ProviderReport, error)
 }
 
 // APIOption supplies an optional transport dependency to the public API.

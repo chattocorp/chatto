@@ -3,7 +3,7 @@
 
 Shared frame of the System page sections. It loads the diagnostics snapshot,
 renders the header with the refresh action and the section tabs, and provides
-the snapshot to the Overview, Streams, Projections, Workers, and LiveKit pages
+the snapshot to the Overview, Streams, Projections, Workers, Search, and LiveKit pages
 through `systemContext`. A tab shows a status dot when a health check that
 its section explains reports a warning or a problem.
 -->
@@ -65,6 +65,7 @@ its section explains reports a warning or a problem.
     streams: m('admin.system.tabs.streams'),
     projections: m('admin.system.tabs.projections'),
     workers: m('admin.system.tabs.workers'),
+    search: m('admin.system.tabs.search'),
     livekit: m('admin.system.tabs.livekit')
   });
 
@@ -73,6 +74,7 @@ its section explains reports a warning or a problem.
     streams: 'icon-[uil--exchange]',
     projections: 'icon-[uil--layers]',
     workers: 'icon-[uil--cog]',
+    search: 'icon-[uil--search]',
     livekit: 'icon-[uil--video]'
   };
 

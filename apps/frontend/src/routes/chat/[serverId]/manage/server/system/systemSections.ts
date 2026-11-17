@@ -2,7 +2,8 @@ import type { AdminSystemInfo } from '$lib/api/adminDiagnostics';
 import type { HealthCheck, HealthCheckId, HealthStatus } from './systemHealth';
 
 /** Identifies one tab of the System page. Each section has its own route. */
-export type SystemSection = 'overview' | 'streams' | 'projections' | 'workers' | 'livekit';
+export type SystemSection =
+  'overview' | 'streams' | 'projections' | 'workers' | 'search' | 'livekit';
 
 const base = '/chat/[serverId]/manage/server/system' as const;
 
@@ -12,6 +13,7 @@ export const systemSectionRoutes = {
   streams: `${base}/streams`,
   projections: `${base}/projections`,
   workers: `${base}/workers`,
+  search: `${base}/search`,
   livekit: `${base}/livekit`
 } as const satisfies Record<SystemSection, string>;
 
@@ -25,19 +27,23 @@ export const healthCheckSection: Record<HealthCheckId, SystemSection> = {
   backlog: 'streams',
   projections: 'projections',
   workers: 'workers',
-  voice_calls: 'livekit'
+  voice_calls: 'livekit',
+  search: 'search',
+  search_index: 'search'
 };
 
 /**
  * Returns the sections that the System page shows as tabs, in tab order. The
- * LiveKit section is absent when the server does not report LiveKit status,
- * unless it is the current section, so the current page always has a tab.
+ * Search section is absent when the server does not report search status, and
+ * the LiveKit section when it does not report LiveKit status, unless the
+ * section is the current one, so the current page always has a tab.
  */
 export function visibleSystemSections(
   info: AdminSystemInfo | null,
   current: SystemSection | null = null
 ): SystemSection[] {
   const sections: SystemSection[] = ['overview', 'streams', 'projections', 'workers'];
+  if (info?.search || current === 'search') sections.push('search');
   if ((info && info.livekit.connectionState !== 'unavailable') || current === 'livekit') {
     sections.push('livekit');
   }

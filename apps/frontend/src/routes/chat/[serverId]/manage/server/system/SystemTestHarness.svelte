@@ -10,6 +10,7 @@ SvelteKit does for the matching route.
   import SystemStreamsPage from './streams/+page.svelte';
   import SystemProjectionsPage from './projections/+page.svelte';
   import SystemWorkersPage from './workers/+page.svelte';
+  import SystemSearchPage from './search/+page.svelte';
   import SystemLiveKitPage from './livekit/+page.svelte';
   import type { SystemSection } from './systemSections';
 
@@ -25,6 +26,8 @@ SvelteKit does for the matching route.
     <SystemProjectionsPage />
   {:else if section === 'workers'}
     <SystemWorkersPage />
+  {:else if section === 'search'}
+    <SystemSearchPage />
   {:else}
     <SystemLiveKitPage />
   {/if}

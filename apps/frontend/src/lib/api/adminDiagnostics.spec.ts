@@ -2,7 +2,10 @@ import { protoInt64, Timestamp } from '@bufbuild/protobuf';
 import {
   AdminAssetCleanupHealth,
   AdminDurableWorkerHealth,
-  AdminLiveKitConnectionState
+  AdminLiveKitConnectionState,
+  AdminSearchIndexFreshness,
+  AdminSearchProviderState,
+  AdminSearchQueryProbeResult
 } from '@chatto/api-types/admin/v1/diagnostics_pb';
 import { Code } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -245,6 +248,65 @@ describe('getAdminSystemInfo', () => {
     });
   });
 
+  it('maps search providers and treats unspecified states as unknown', async () => {
+    mocks.getSystemInfo.mockReturnValue({
+      projections: [],
+      search: {
+        available: true,
+        providers: [
+          {
+            instanceId: 'abc',
+            host: 'search-0',
+            implementationVersion: '0.5.0',
+            state: AdminSearchProviderState.DEGRADED,
+            freshness: AdminSearchIndexFreshness.STALLED,
+            committedSequence: '40',
+            observedSequence: '42',
+            lastCommitTime: Timestamp.fromDate(new Date('2026-07-10T09:00:00Z')),
+            pendingSeconds: 400,
+            currentOperation: 'live_batch',
+            currentOperationSeconds: 401,
+            observedAt: Timestamp.fromDate(new Date('2026-07-10T09:06:40Z')),
+            queryProbeResult: AdminSearchQueryProbeResult.TIMED_OUT,
+            queryProbeConsecutiveFailures: 2,
+            queryProbeInFlightSince: Timestamp.fromDate(new Date('2026-07-10T09:06:30Z'))
+          },
+          {}
+        ]
+      }
+    });
+
+    const info = await getAdminSystemInfo(config());
+
+    expect(info.search?.available).toBe(true);
+    expect(info.search?.providers[0]).toMatchObject({
+      instanceId: 'abc',
+      host: 'search-0',
+      implementationVersion: '0.5.0',
+      state: 'degraded',
+      freshness: 'stalled',
+      indexedEventCount: null,
+      committedSequence: '40',
+      observedSequence: '42',
+      lastCommitAt: new Date('2026-07-10T09:00:00Z'),
+      pendingSeconds: 400,
+      currentOperation: 'live_batch',
+      currentOperationSeconds: 401,
+      queryProbe: {
+        result: 'timed_out',
+        completedAt: null,
+        succeededAt: null,
+        consecutiveFailures: 2,
+        inFlightSince: new Date('2026-07-10T09:06:30Z')
+      }
+    });
+    expect(info.search?.providers[1]).toMatchObject({
+      state: 'unknown',
+      freshness: 'unknown',
+      queryProbe: { result: 'none' }
+    });
+  });
+
   it('maps missing nested sections to empty defaults', async () => {
     mocks.getSystemInfo.mockReturnValue({
       projections: []
@@ -262,6 +324,7 @@ describe('getAdminSystemInfo', () => {
     expect(info.projections).toEqual([]);
     expect(info.projectionsAvailable).toBe(true);
     expect(info.livekit.connectionState).toBe('unavailable');
+    expect(info.search).toBeNull();
     expect(info.assetCleanup).toEqual({
       available: false,
       health: 'unavailable',

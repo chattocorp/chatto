@@ -117,6 +117,10 @@ message QueryResponse {
 }
 
 // GetStatusRequest asks for provider readiness.
+//
+// A request on the queue-grouped status subjects reaches one provider. A
+// request on the all-providers status subject reaches every provider process,
+// and each process sends its own GetStatusResponse with its instance_id.
 message GetStatusRequest {}
 
 // GetStatusResponse reports readiness independently from NATS service
@@ -158,6 +162,13 @@ message GetStatusResponse {
   // Query probe result of the answering provider. Absent when the provider
   // does not run a query probe or has not served queries yet.
   QueryProbeStatus query_probe = 13;
+  // Opaque ID of the provider process, stable for the life of the process.
+  // Empty when the provider does not report an identity.
+  string instance_id = 14;
+  // Host name of the provider process, for example a Kubernetes pod name.
+  string host = 15;
+  // Version of the provider implementation.
+  string implementation_version = 16;
 }
 
 // QueryProbeResult is the outcome of one synthetic query probe.

@@ -6,7 +6,7 @@ replica that handled the request, and the state, lag, and memory use of
 each projection. Failed projections come first.
 -->
 <script lang="ts">
-  import { formatBytes, formatNumber } from '$lib/components/admin';
+  import { formatBytes, formatNumber, formatSeconds } from '$lib/components/admin';
   import { DataTable, Hint, Panel, Pill } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { useSystem } from '../systemContext';
@@ -35,15 +35,7 @@ each projection. Failed projections come first.
   );
 
   function formatDurationSeconds(seconds: number | null | undefined): string {
-    if (seconds == null) return m('admin.system.pending_state');
-    if (seconds < 0.001) return '<1 ms';
-    if (seconds < 1) return `${Math.round(seconds * 1000)} ms`;
-    if (seconds < 10) return `${seconds.toFixed(2)} s`;
-    if (seconds < 60) return `${seconds.toFixed(1)} s`;
-
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.round(seconds % 60);
-    return `${minutes}m ${remainingSeconds}s`;
+    return seconds == null ? m('admin.system.pending_state') : formatSeconds(seconds);
   }
 </script>
 

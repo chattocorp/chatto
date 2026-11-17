@@ -15,10 +15,10 @@ check whose details are in a different System section links to that section.
   import {
     overallHealth,
     systemHealthChecks,
-    type HealthCheck,
     type HealthCheckId,
     type HealthStatus
   } from './systemHealth';
+  import { healthDetailLabel } from './systemHealthLabels';
   import { healthCheckSection, systemSectionRoutes } from './systemSections';
 
   let { info }: { info: AdminSystemInfo } = $props();
@@ -49,20 +49,21 @@ check whose details are in a different System section links to that section.
     unknown: m('admin.system.health.status_unknown')
   });
 
-  const overallTitle = $derived(
-    overall === 'critical'
-      ? m('admin.system.health.overall_critical')
-      : overall === 'warning'
-        ? m('admin.system.health.overall_warning')
-        : m('admin.system.health.overall_ok')
-  );
+  const overallTitle = $derived<Record<HealthStatus, string>>({
+    ok: m('admin.system.health.overall_ok'),
+    warning: m('admin.system.health.overall_warning'),
+    critical: m('admin.system.health.overall_critical'),
+    unknown: m('admin.system.health.overall_unknown')
+  });
 
   const overallSummary = $derived(
-    overall !== 'ok'
-      ? m('admin.system.health.overall_problem_summary')
-      : checks.some((check) => check.status === 'unknown')
-        ? m('admin.system.health.overall_partial_summary')
-        : m('admin.system.health.overall_ok_summary')
+    overall === 'unknown'
+      ? m('admin.system.health.overall_unknown_summary')
+      : overall !== 'ok'
+        ? m('admin.system.health.overall_problem_summary')
+        : checks.some((check) => check.status === 'unknown')
+          ? m('admin.system.health.overall_partial_summary')
+          : m('admin.system.health.overall_ok_summary')
   );
 
   const checkLabel = $derived<Record<HealthCheckId, string>>({
@@ -71,53 +72,10 @@ check whose details are in a different System section links to that section.
     workers: m('admin.system.health.workers'),
     backlog: m('admin.system.health.backlog'),
     storage: m('admin.system.health.storage'),
-    voice_calls: m('admin.system.health.voice_calls')
+    voice_calls: m('admin.system.health.voice_calls'),
+    search: m('admin.system.health.search'),
+    search_index: m('admin.system.health.search_index')
   });
-
-  function checkDetail({ detail }: HealthCheck): string {
-    switch (detail.kind) {
-      case 'unavailable':
-        return m('admin.system.health.unavailable');
-      case 'broker_connected':
-        return m('admin.system.health.broker_connected', { version: detail.version || '-' });
-      case 'broker_disconnected':
-        return m('admin.system.health.broker_disconnected');
-      case 'projections_failed':
-        return m('admin.system.health.projections_failed_count', { count: detail.count });
-      case 'projections_stalled':
-        return m('admin.system.health.projections_stalled_count', { count: detail.count });
-      case 'projections_catching_up':
-        return m('admin.system.health.projections_catching_up_count', { count: detail.count });
-      case 'projections_running':
-        return m('admin.system.health.projections_running_count', { count: detail.count });
-      case 'workers_failing':
-        return m('admin.system.health.workers_failing_count', { count: detail.count });
-      case 'workers_unconfirmed':
-        return m('admin.system.health.workers_unconfirmed_count', { count: detail.count });
-      case 'workers_running':
-        return m('admin.system.health.workers_running_count', { count: detail.count });
-      case 'backlog_waiting':
-        return m('admin.system.health.backlog_waiting_count', { count: detail.count });
-      case 'backlog_clear':
-        return m('admin.system.health.backlog_clear');
-      case 'storage_used':
-        return m('admin.system.health.storage_used', { percent: detail.percent });
-      case 'storage_unlimited':
-        return m('admin.system.health.storage_unlimited');
-      case 'livekit_connected':
-        return m('admin.system.health.livekit_connected');
-      case 'livekit_unreachable':
-        return m('admin.system.health.livekit_unreachable');
-      case 'livekit_unauthorized':
-        return m('admin.system.health.livekit_unauthorized');
-      case 'livekit_error':
-        return m('admin.system.health.livekit_error');
-      case 'livekit_insecure_url':
-        return m('admin.system.health.livekit_insecure_url');
-      case 'livekit_webhooks_rejected':
-        return m('admin.system.health.livekit_webhooks_rejected');
-    }
-  }
 </script>
 
 <Panel title={m('admin.system.health.title')} icon="iconify icon-[uil--heart-rate]">
@@ -129,7 +87,9 @@ check whose details are in a different System section links to that section.
         data-testid="system-health-overall-icon"
       ></span>
       <div class="min-w-0">
-        <div class="text-xl font-semibold" data-testid="system-health-overall">{overallTitle}</div>
+        <div class="text-xl font-semibold" data-testid="system-health-overall">
+          {overallTitle[overall]}
+        </div>
         <div class="mt-1 text-sm text-muted">{overallSummary}</div>
       </div>
     </div>
@@ -157,7 +117,9 @@ check whose details are in a different System section links to that section.
               {checkLabel[check.id]}
             </a>
           {/if}
-          <span class={['ms-auto text-sm', detailTone[check.status]]}>{checkDetail(check)}</span>
+          <span class={['ms-auto text-sm', detailTone[check.status]]}
+            >{healthDetailLabel(check.detail)}</span
+          >
         </li>
       {/each}
     </ul>
