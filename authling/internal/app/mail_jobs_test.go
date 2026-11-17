@@ -14,6 +14,7 @@ import (
 	"github.com/chattocorp/chatto/authling/internal/config"
 	"github.com/chattocorp/chatto/authling/internal/email"
 	"github.com/chattocorp/chatto/authling/internal/storage"
+	"github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -266,5 +267,70 @@ func TestQueuedMailAcceptanceFailureRollsBackWorkflow(t *testing.T) {
 		if strings.HasPrefix(key, "signup.") || strings.HasPrefix(key, "signup-limit.") {
 			t.Fatal("rejected handoff retained signup state or delivery budget")
 		}
+	}
+}
+
+type acceptingCanceledMail struct {
+	capturingSender
+	cancel context.CancelFunc
+}
+
+func (s *acceptingCanceledMail) SendContext(ctx context.Context, message email.Message) error {
+	if err := s.capturingSender.SendContext(ctx, message); err != nil {
+		return err
+	}
+	s.cancel()
+	return nil
+}
+
+func TestQueuedMailRemovesAcceptedContentAfterCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	transport := &acceptingCanceledMail{cancel: cancel}
+	// Keep workers stopped so the test controls the exact cancellation boundary.
+	r, err := newRuntime(t.Context(), embeddedTestConfig(t), slog.New(slog.NewTextHandler(io.Discard, nil)), transport)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	expiresAt := time.Now().Add(time.Minute)
+	if err := r.mailSender.SendContext(t.Context(), email.Message{To: "accepted@example.invalid", Body: "123456", ExpiresAt: expiresAt}); err != nil {
+		t.Fatal(err)
+	}
+	js, err := jetstream.New(r.connection.NATS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream, err := js.Stream(t.Context(), storage.JobStreamName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := stream.Info(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	fact, err := stream.GetMsg(t.Context(), info.State.LastSeq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := jobs.Job{ID: strings.Split(fact.Subject, ".")[3], ExpiresAt: expiresAt}
+	if err := r.mailSender.Deliver(ctx, job); err != nil {
+		t.Fatal(err)
+	}
+	if !errors.Is(ctx.Err(), context.Canceled) {
+		t.Fatal("transport did not cancel the worker")
+	}
+	stores, err := storage.OpenStores(t.Context(), js, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stores.RuntimeState.Get(t.Context(), "email-delivery."+job.ID); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("delivered content survived cancellation: %v", err)
+	}
+	if err := r.mailSender.Deliver(t.Context(), job); err != nil {
+		t.Fatal(err)
+	}
+	if transport.count() != 1 {
+		t.Fatal("redelivery after shutdown resent accepted mail")
 	}
 }

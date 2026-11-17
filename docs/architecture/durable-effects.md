@@ -151,7 +151,8 @@ retry from five seconds with the queue's capped backoff. The queue rejects
 expired jobs, including manual retries.
 
 Accepted work survives restart and can run on another replica. Content is
-removed after transport acceptance. A replay after removal completes without
+removed after transport acceptance under a separate five-second cleanup context,
+also when shutdown cancels the attempt. A replay after removal completes without
 sending again; a crash before removal can cause a duplicate. This is not a
 transaction with SMTP or JMAP. No domain event or retired consumer is involved.
 Older replicas keep their inline sends during a rolling upgrade; they do not

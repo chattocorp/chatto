@@ -544,7 +544,8 @@ counters even if one fails. Non-refundable request admission remains separate.
 `email.QueueSender` stores messages in encrypted, expiring runtime records at
 `email-delivery.{opaqueId}`. It uses the workflow key and associated data bound
 to the record key. The existing runtime JSON envelope contains the recipient,
-subject, body, and absolute expiry. The record is removed after SMTP acceptance.
+subject, body, and absolute expiry. After SMTP acceptance, content removal has
+its own five-second timeout and continues through worker cancellation.
 Job facts contain only an opaque ID and policy, never content or SMTP error text.
 
 The `authling-jobs-email-v1` consumer filters email jobs on `AUTHLING_JOBS`.

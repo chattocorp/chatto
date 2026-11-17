@@ -111,3 +111,40 @@ func TestEmailJobsFailClosedForExpiredOrCorruptContent(t *testing.T) {
 		})
 	}
 }
+
+// acceptingCanceledMail models transport acceptance followed immediately by
+// shutdown, before the handler can remove its persisted content.
+type acceptingCanceledMail struct {
+	*email.MockSender
+	cancel context.CancelFunc
+}
+
+func (s *acceptingCanceledMail) SendContext(ctx context.Context, msg email.Message) error {
+	if err := s.MockSender.SendContext(ctx, msg); err != nil {
+		return err
+	}
+	s.cancel()
+	return nil
+}
+
+func TestEmailJobsRemoveAcceptedContentAfterCancellation(t *testing.T) {
+	c, _ := newTestCore(t)
+	ctx := testContext(t)
+	attemptCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	transport := &acceptingCanceledMail{MockSender: email.NewMockSender(true), cancel: cancel}
+	sender := c.NewEmailJobs(transport)
+	expiresAt := time.Now().Add(time.Minute)
+	require.NoError(t, sender.SendContext(ctx, email.Message{To: "accepted@example.invalid", Body: "123456", ExpiresAt: expiresAt}))
+	info, err := c.storage.jobsStream.Info(ctx)
+	require.NoError(t, err)
+	fact, err := c.storage.jobsStream.GetMsg(ctx, info.State.LastSeq)
+	require.NoError(t, err)
+	job := jobs.Job{ID: strings.Split(fact.Subject, ".")[2], ExpiresAt: expiresAt}
+	require.NoError(t, sender.deliver(attemptCtx, job))
+	require.ErrorIs(t, attemptCtx.Err(), context.Canceled)
+	_, err = c.storage.runtimeStateKV.Get(ctx, emailDeliveryKey(job.ID))
+	require.ErrorIs(t, err, jetstream.ErrKeyNotFound)
+	require.NoError(t, sender.deliver(ctx, job))
+	require.Len(t, transport.Messages(), 1, "redelivery after shutdown must not resend accepted mail")
+}

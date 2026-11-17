@@ -82,6 +82,11 @@ func (s *QueueSender) Deliver(ctx context.Context, job jobs.Job) error {
 	if err := s.transport.SendContext(attemptCtx, message); err != nil {
 		return &jobs.Failure{Category: "delivery_failed"}
 	}
-	_, err = s.kv.DeleteAt(ctx, key, entry.Revision())
+	// Transport acceptance must survive normal shutdown or an attempt timeout.
+	// Bound cleanup separately so cancellation cannot leave delivered content
+	// available for another send. A crash or storage failure can still duplicate it.
+	cleanupCtx, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancelCleanup()
+	_, err = s.kv.DeleteAt(cleanupCtx, key, entry.Revision())
 	return err
 }

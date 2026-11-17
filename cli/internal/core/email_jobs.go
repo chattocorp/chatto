@@ -122,5 +122,10 @@ func (m *EmailJobs) deliver(ctx context.Context, job jobs.Job) error {
 	if err := m.sender.SendContext(attemptCtx, email.Message{To: message.To, Subject: message.Subject, Body: message.Body}); err != nil {
 		return &jobs.Failure{Category: "delivery_failed"}
 	}
-	return m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+	// Transport acceptance must survive normal shutdown or an attempt timeout.
+	// Bound cleanup separately so cancellation cannot leave delivered content
+	// available for another send. A crash or storage failure can still duplicate it.
+	cleanupCtx, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancelCleanup()
+	return m.core.storage.runtimeStateKV.Delete(cleanupCtx, key, jetstream.LastRevision(entry.Revision()))
 }
