@@ -427,6 +427,10 @@
           "one": "{count} Projektion fehlgeschlagen",
           "other": "{count} Projektionen fehlgeschlagen"
         },
+        "projections_stalled_count": {
+          "one": "{count} Projektion hängt",
+          "other": "{count} Projektionen hängen"
+        },
         "projections_catching_up_count": {
           "one": "{count} Projektion holt auf",
           "other": "{count} Projektionen holen auf"

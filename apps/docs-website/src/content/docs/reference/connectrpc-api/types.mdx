@@ -1664,6 +1664,11 @@ Event-sourced projection health and memory estimates.
 | `estimated_bytes` | `int64` | Estimated memory used by the projection in bytes. |
 | `average_entry_bytes` | `int64` | Estimated average memory per entry in bytes. |
 | `metrics` | repeated [`AdminProjectionMetric`](#chatto-admin-v1-AdminProjectionMetric) | Projection-specific diagnostic metrics. |
+| `stalled` | `bool` | Whether pending events have had no committed progress for the stall threshold. An idle, caught-up projection is never stalled. |
+| `pending_seconds` | `optional double` | Seconds that pending events have had no committed progress. Unset when the projection is caught up. |
+| `current_operation` | `string` | Low-cardinality name of the work that runs now. Empty when idle. |
+| `current_operation_seconds` | `optional double` | Seconds that current_operation has run. Unset when idle. |
+| `last_commit_time` | `google.protobuf.Timestamp` | When the projection last committed progress in this replica. |
 
 <a id="chatto-admin-v1-AdminServerStats"></a>
 

@@ -427,6 +427,10 @@
           "one": "{count} προβολή απέτυχε",
           "other": "{count} προβολές απέτυχαν"
         },
+        "projections_stalled_count": {
+          "one": "{count} προβολή έχει κολλήσει",
+          "other": "{count} προβολές έχουν κολλήσει"
+        },
         "projections_catching_up_count": {
           "one": "{count} προβολή ενημερώνεται",
           "other": "{count} προβολές ενημερώνονται"

@@ -427,6 +427,10 @@
           "one": "{count} projectie mislukt",
           "other": "{count} projecties mislukt"
         },
+        "projections_stalled_count": {
+          "one": "{count} projectie vastgelopen",
+          "other": "{count} projecties vastgelopen"
+        },
         "projections_catching_up_count": {
           "one": "{count} projectie haalt achterstand in",
           "other": "{count} projecties halen achterstand in"

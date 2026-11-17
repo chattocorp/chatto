@@ -161,6 +161,21 @@ after a crash or a failed cleanup request. Durable workers keep their consumers.
 Use `WaitFor`, `WaitForCurrent`, or a subject-aware `StreamPosition` when a
 caller needs read-your-writes visibility.
 
+### Freshness and stalls
+
+`Status` returns at once, also while a commit blocks: it does not take the
+apply barrier. It reports the committed sequence (`LastSeq`), the highest known
+matching sequence (`ObservedSeq`), the last commit time and duration, and the
+current operation and its duration. `Run` refreshes `ObservedSeq` from the
+stream every 30 seconds, so pending work is visible also when delivery stops.
+
+`Stalled` is true when events wait (`ObservedSeq > LastSeq`) and the projector
+commits no progress for `ProjectorOptions.StallAfter` (default five minutes).
+Each commit restarts `PendingFor`. Thus an idle, caught-up projector and a slow
+replay that still commits are not stalled. Set `StallAfter` longer than the
+live batch delay and the slowest expected commit. The projector logs each stall
+state change. It does not restart itself; the application decides what to do.
+
 ### Build a componentized projection
 
 Use `ComponentizedProjection` when related read models consume one event log

@@ -427,6 +427,10 @@
           "one": "{count} proyección fallida",
           "other": "{count} proyecciones fallidas"
         },
+        "projections_stalled_count": {
+          "one": "{count} proyección detenida",
+          "other": "{count} proyecciones detenidas"
+        },
         "projections_catching_up_count": {
           "one": "{count} proyección poniéndose al día",
           "other": "{count} proyecciones poniéndose al día"

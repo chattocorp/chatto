@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"time"
 	"unsafe"
 
 	"google.golang.org/protobuf/proto"
@@ -36,10 +37,18 @@ type ProjectionAdminState struct {
 	Failed            bool
 	FailedSeq         uint64
 	Failure           string
-	EntryCount        int64
-	EstimatedBytes    int64
-	AverageEntryBytes int64
-	Metrics           []ProjectionAdminMetric
+	// Stalled, PendingFor, CurrentOperation, CurrentOperationDuration, and
+	// LastCommitAt copy the projector's freshness status.
+	Stalled                  bool
+	PendingFor               time.Duration
+	CurrentOperation         string
+	CurrentOperationDuration time.Duration
+	LastCommitAt             time.Time
+	LastCommitDuration       time.Duration
+	EntryCount               int64
+	EstimatedBytes           int64
+	AverageEntryBytes        int64
+	Metrics                  []ProjectionAdminMetric
 }
 
 type ProjectionAdminMetric struct {
@@ -79,24 +88,30 @@ func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdm
 			avg = estimatedBytes / entries
 		}
 		states = append(states, ProjectionAdminState{
-			Key:               key,
-			Name:              name,
-			Subjects:          projector.Subjects(),
-			Started:           status.Started,
-			StartupComplete:   status.StartupComplete,
-			StartupDuration:   status.StartupDuration.Seconds(),
-			StartupMessages:   status.StartupMessages,
-			LastAppliedSeq:    lastApplied,
-			MatchingStreamSeq: targetSeq,
-			StreamLastSeq:     streamLastSeq,
-			Lag:               lag,
-			Failed:            status.Err != nil,
-			FailedSeq:         status.FailedSeq,
-			Failure:           failure,
-			EntryCount:        entries,
-			EstimatedBytes:    estimatedBytes,
-			AverageEntryBytes: avg,
-			Metrics:           metrics,
+			Key:                      key,
+			Name:                     name,
+			Subjects:                 projector.Subjects(),
+			Started:                  status.Started,
+			StartupComplete:          status.StartupComplete,
+			StartupDuration:          status.StartupDuration.Seconds(),
+			StartupMessages:          status.StartupMessages,
+			LastAppliedSeq:           lastApplied,
+			MatchingStreamSeq:        targetSeq,
+			StreamLastSeq:            streamLastSeq,
+			Lag:                      lag,
+			Failed:                   status.Err != nil,
+			FailedSeq:                status.FailedSeq,
+			Failure:                  failure,
+			Stalled:                  status.Stalled,
+			PendingFor:               status.PendingFor,
+			CurrentOperation:         string(status.CurrentOperation),
+			CurrentOperationDuration: status.CurrentOperationDuration,
+			LastCommitAt:             status.LastCommitAt,
+			LastCommitDuration:       status.LastCommitDuration,
+			EntryCount:               entries,
+			EstimatedBytes:           estimatedBytes,
+			AverageEntryBytes:        avg,
+			Metrics:                  metrics,
 		})
 		return nil
 	}

@@ -427,6 +427,10 @@
           "one": "{count} projeção falhou",
           "other": "{count} projeções falharam"
         },
+        "projections_stalled_count": {
+          "one": "{count} projeção travada",
+          "other": "{count} projeções travadas"
+        },
         "projections_catching_up_count": {
           "one": "{count} projeção se atualizando",
           "other": "{count} projeções se atualizando"

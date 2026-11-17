@@ -51,6 +51,32 @@ const (
 	// expired startup target prevents completion. Each check reads the last
 	// message of every projection subject.
 	projectionStartupReconcileInterval = 5 * time.Second
+	// DefaultProjectorStallAfter is the stall threshold when
+	// ProjectorOptions.StallAfter is zero.
+	DefaultProjectorStallAfter = 5 * time.Minute
+	// projectionSourceCheckInterval sets how often Run reads the newest
+	// matching stream sequence, so that a consumer that stops delivering
+	// still shows pending work.
+	projectionSourceCheckInterval = 30 * time.Second
+	projectionSourceCheckTimeout  = 10 * time.Second
+)
+
+// ProjectorOperation names the work that a projector does at one moment.
+// The values are stable, low-cardinality labels for diagnostics and metrics.
+type ProjectorOperation string
+
+const (
+	// ProjectorIdle means that the projector waits for events.
+	ProjectorIdle ProjectorOperation = ""
+	// ProjectorRestoring means that Run restores a checkpoint or snapshot,
+	// or resets state for a cold replay.
+	ProjectorRestoring ProjectorOperation = "restore"
+	// ProjectorApplying means that one event is prepared and committed.
+	ProjectorApplying ProjectorOperation = "apply"
+	// ProjectorApplyingStartupBatch means that a startup batch is applied.
+	ProjectorApplyingStartupBatch ProjectorOperation = "startup_batch"
+	// ProjectorApplyingLiveBatch means that a live batch is applied.
+	ProjectorApplyingLiveBatch ProjectorOperation = "live_batch"
 )
 
 type decodedEvent interface {
@@ -142,6 +168,26 @@ type Projector struct {
 	checkpointIdentityResolver StreamIdentityResolver
 	checkpointRestored         bool
 	checkpointCutoffSeq        uint64
+
+	// Freshness tracking. All fields are guarded by mu, so Status never
+	// waits for applyMu or a projection lock.
+	//
+	// deliveredSeq is the highest consumed sequence delivered to the handler.
+	// sourceSeq is the newest matching sequence from the latest source check;
+	// it can decrease when the newest event is deleted. pendingSince is the
+	// later of the last committed progress and the moment work became
+	// pending; it is zero while the projector is caught up.
+	deliveredSeq       uint64
+	sourceSeq          uint64
+	pendingSince       time.Time
+	lastCommitAt       time.Time
+	lastCommitDuration time.Duration
+	operation          ProjectorOperation
+	operationStartedAt time.Time
+	stallAfter         time.Duration
+	// sourceCheckInterval sets how often Run reads the source sequence. Zero
+	// uses projectionSourceCheckInterval.
+	sourceCheckInterval time.Duration
 }
 
 // ProjectorStatus is a concurrency-safe snapshot of a projector's
@@ -168,6 +214,30 @@ type ProjectorStatus struct {
 	CheckpointContractID string
 	LatestSnapshotSeq    uint64
 	LatestSnapshotAt     time.Time
+
+	// ObservedSeq is the highest matching source sequence that the
+	// projector knows of: the newest delivered event, the startup target, or
+	// the result of the latest periodic source check. Work is pending while
+	// ObservedSeq is greater than LastSeq.
+	ObservedSeq uint64
+	// LastCommitAt is when the projector last committed progress. It is zero
+	// before the first commit in this process.
+	LastCommitAt time.Time
+	// LastCommitDuration is how long the last committed apply or batch took.
+	LastCommitDuration time.Duration
+	// CurrentOperation is the work that runs now, or ProjectorIdle.
+	CurrentOperation ProjectorOperation
+	// CurrentOperationDuration is how long CurrentOperation has run.
+	CurrentOperationDuration time.Duration
+	// PendingFor is how long pending work has waited since the later of the
+	// last committed progress and the moment the work became pending. It is
+	// zero when the projector is caught up.
+	PendingFor time.Duration
+	// Stalled is true when a running projector without failure has pending
+	// work and PendingFor reached the stall threshold. An idle, caught-up
+	// projector is never stalled, and each commit restarts PendingFor, so a
+	// slow but advancing replay is not stalled.
+	Stalled bool
 
 	// Err is the fatal error that stopped the projector, or nil. It wraps
 	// ErrProjectionFailed and the cause: a decode, apply, restore, or other
@@ -206,6 +276,11 @@ type ProjectorOptions struct {
 	// Checkpoint enables local checkpoint restore. It cannot be combined
 	// with Snapshots.
 	Checkpoint *CheckpointOptions
+	// StallAfter is how long pending work can wait without committed
+	// progress before Status reports the projector as stalled. Zero uses
+	// DefaultProjectorStallAfter. It must be longer than the live batch
+	// delay. A negative value is invalid.
+	StallAfter time.Duration
 }
 
 // NewDecodedProjector binds a non-nil pointer projection and decoder to a
@@ -315,6 +390,13 @@ func newProjector[E any](
 	if opts.Snapshots != nil && opts.Checkpoint != nil {
 		return nil, fmt.Errorf("projection cannot use both snapshots and a local checkpoint")
 	}
+	if opts.StallAfter < 0 {
+		return nil, fmt.Errorf("projection stall threshold must not be negative")
+	}
+	stallAfter := opts.StallAfter
+	if stallAfter == 0 {
+		stallAfter = DefaultProjectorStallAfter
+	}
 	subjects := slices.Clone(proj.Subjects())
 	p := &Projector{
 		js:                  js,
@@ -338,6 +420,7 @@ func newProjector[E any](
 		subjectMatchers: compileSubjectFilters(subjects),
 		failedCh:        make(chan struct{}),
 		startupCh:       make(chan struct{}),
+		stallAfter:      stallAfter,
 	}
 	if opts.Snapshots != nil {
 		if err := p.configureSnapshots(*opts.Snapshots); err != nil {
@@ -353,8 +436,13 @@ func newProjector[E any](
 }
 
 // Status returns the projector's current lifecycle state. Safe to call from
-// any goroutine.
+// any goroutine. It takes only the short status lock, never the apply
+// barrier, so it returns while a commit blocks.
 func (p *Projector) Status() ProjectorStatus {
+	return p.statusAt(time.Now())
+}
+
+func (p *Projector) statusAt(now time.Time) ProjectorStatus {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -376,11 +464,22 @@ func (p *Projector) Status() ProjectorStatus {
 		CheckpointContractID: p.checkpointContractID,
 		LatestSnapshotSeq:    p.latestSnapshotSeq,
 		LatestSnapshotAt:     p.latestSnapshotAt,
+		ObservedSeq:          p.observedSeqLocked(),
+		LastCommitAt:         p.lastCommitAt,
+		LastCommitDuration:   p.lastCommitDuration,
+		CurrentOperation:     p.operation,
+	}
+	if p.operation != ProjectorIdle {
+		status.CurrentOperationDuration = now.Sub(p.operationStartedAt)
+	}
+	if !p.pendingSince.IsZero() {
+		status.PendingFor = now.Sub(p.pendingSince)
+		status.Stalled = p.started && p.failedErr == nil && status.PendingFor >= p.stallAfter
 	}
 	if !p.startupStartedAt.IsZero() {
 		startupEndsAt := p.startupEndedAt
 		if startupEndsAt.IsZero() {
-			startupEndsAt = time.Now()
+			startupEndsAt = now
 		}
 		status.StartupDuration = startupEndsAt.Sub(p.startupStartedAt)
 	}
@@ -656,12 +755,85 @@ func (p *Projector) consumesSubject(subject string) bool {
 }
 
 // advance updates lastSeq and releases any waiters that have now been
-// reached. Called from the consumer goroutine after each successful Apply.
+// reached. Restore calls it for a restored cutoff.
 func (p *Projector) advance(seq uint64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.advanceLocked(seq, time.Now())
+}
+
+// commitDone ends the current apply operation, records its duration as
+// committed progress, and advances to seq. The caller must hold applyMu.
+func (p *Projector) commitDone(seq uint64) {
+	now := time.Now()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.operation != ProjectorIdle {
+		p.lastCommitDuration = now.Sub(p.operationStartedAt)
+		p.operation = ProjectorIdle
+	}
+	p.advanceLocked(seq, now)
+}
+
+// startOperation records the work that starts now. The caller must hold
+// applyMu, so operations never overlap.
+func (p *Projector) startOperation(operation ProjectorOperation) {
+	now := time.Now()
+	p.mu.Lock()
+	p.operation = operation
+	p.operationStartedAt = now
+	p.mu.Unlock()
+}
+
+// endOperation records that the current operation ended without commit.
+func (p *Projector) endOperation() {
+	p.mu.Lock()
+	p.operation = ProjectorIdle
+	p.mu.Unlock()
+}
+
+// observedSeqLocked returns the highest known matching source sequence. The
+// caller must hold mu.
+func (p *Projector) observedSeqLocked() uint64 {
+	return max(p.deliveredSeq, p.sourceSeq, p.startupTargetSeq)
+}
+
+// updatePendingLocked starts the pending interval when work becomes pending
+// and clears it when the projector is caught up. progress restarts the
+// interval. The caller must hold mu.
+func (p *Projector) updatePendingLocked(now time.Time, progress bool) {
+	if p.observedSeqLocked() <= p.lastSeq {
+		p.pendingSince = time.Time{}
+		return
+	}
+	if progress || p.pendingSince.IsZero() {
+		p.pendingSince = now
+	}
+}
+
+// observeDelivered records a delivered event that the projector consumes.
+func (p *Projector) observeDelivered(seq uint64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if seq > p.deliveredSeq {
+		p.deliveredSeq = seq
+		p.updatePendingLocked(time.Now(), false)
+	}
+}
+
+// observeSource records the newest matching source sequence.
+func (p *Projector) observeSource(seq uint64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.sourceSeq = seq
+	p.updatePendingLocked(time.Now(), false)
+}
+
+func (p *Projector) advanceLocked(seq uint64, now time.Time) {
 	if seq > p.lastSeq {
 		p.lastSeq = seq
+		p.lastCommitAt = now
+		p.updatePendingLocked(now, true)
 	}
 	// Waiters are sorted ascending; pop from the front while their seq is
 	// met by the new lastSeq.
@@ -680,6 +852,7 @@ func (p *Projector) advance(seq uint64) {
 func (p *Projector) fail(seq uint64, err error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.operation = ProjectorIdle
 	if p.failedErr == nil {
 		p.failedSeq = seq
 		p.failedErr = fmt.Errorf("%w at seq %d: %w", ErrProjectionFailed, seq, err)
@@ -740,7 +913,9 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 		return fmt.Errorf("read projection startup target: %w", err)
 	}
 	p.applyMu.Lock()
+	p.startOperation(ProjectorRestoring)
 	restoreErr := p.restoreForRun(ctx, target.seq)
+	p.endOperation()
 	p.applyMu.Unlock()
 	if restoreErr != nil {
 		return restoreErr
@@ -797,6 +972,16 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 		return fmt.Errorf("start consume: %w", err)
 	}
 	defer cc.Stop()
+	sourceChecks, stopSourceChecks := context.WithCancel(ctx)
+	sourceChecksDone := make(chan struct{})
+	go func() {
+		defer close(sourceChecksDone)
+		p.runSourceChecks(sourceChecks)
+	}()
+	defer func() {
+		stopSourceChecks()
+		<-sourceChecksDone
+	}()
 	p.maybeCompleteStartup(time.Now())
 
 	// Startup normally completes when the target event is applied. If the
@@ -872,6 +1057,7 @@ func (p *Projector) reconcileStartup(ctx context.Context, previousHandledSeq uin
 	if p.startupTargetSeq > p.lastSeq {
 		p.startupTargetSeq = p.lastSeq
 	}
+	p.updatePendingLocked(time.Now(), false)
 	lastSeq := p.lastSeq
 	p.mu.Unlock()
 	// Complete before the barrier opens: an event that the consumer applies
@@ -948,6 +1134,7 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 	if p.shouldSkipRestored(seq) {
 		return
 	}
+	p.observeDelivered(seq)
 
 	event, err := p.decode(msg.Data())
 	if err != nil {
@@ -1005,6 +1192,7 @@ func (p *Projector) applyEvent(event decodedEvent, subject string, seq uint64) (
 		p.mu.Lock()
 		if p.startupEndedAt.IsZero() && p.lastSeq < p.startupTargetSeq {
 			p.startupTargetSeq = p.lastSeq
+			p.updatePendingLocked(time.Now(), false)
 		}
 		p.mu.Unlock()
 		if summary, completed := p.completeStartupLocked(time.Now()); completed {
@@ -1019,6 +1207,7 @@ func (p *Projector) applyEvent(event decodedEvent, subject string, seq uint64) (
 		}
 		return 0, nil
 	}
+	p.startOperation(ProjectorApplying)
 	mutation, err := p.prepare(event, subject, seq)
 	if err != nil {
 		return seq, err
@@ -1027,7 +1216,7 @@ func (p *Projector) applyEvent(event decodedEvent, subject string, seq uint64) (
 		mutation.Commit()
 	}
 	p.countStartupMessages(1)
-	p.advance(seq)
+	p.commitDone(seq)
 	return 0, nil
 }
 
@@ -1041,12 +1230,13 @@ func (p *Projector) flushStartupBatch() (uint64, error) {
 	firstSeq := p.startupBatch[0].sequence
 	lastSeq := p.startupBatch[len(p.startupBatch)-1].sequence
 	messageCount := uint64(len(p.startupBatch))
+	p.startOperation(ProjectorApplyingStartupBatch)
 	if err := p.applyStartupBatch(p.startupBatch); err != nil {
 		return firstSeq, err
 	}
 	p.startupBatch = p.startupBatch[:0]
 	p.countStartupMessages(messageCount)
-	p.advance(lastSeq)
+	p.commitDone(lastSeq)
 	return 0, nil
 }
 
@@ -1085,6 +1275,7 @@ func (p *Projector) flushLiveBatch() (uint64, error) {
 	first := p.liveBatch[0].sequence
 	p.liveFlushTimer.Stop()
 	last := p.liveBatch[len(p.liveBatch)-1].sequence
+	p.startOperation(ProjectorApplyingLiveBatch)
 	if err := p.applyLiveBatch(p.liveBatch); err != nil {
 		p.fail(first, err)
 		return first, err
@@ -1092,7 +1283,7 @@ func (p *Projector) flushLiveBatch() (uint64, error) {
 	p.countStartupMessages(uint64(len(p.liveBatch)))
 	clear(p.liveBatch)
 	p.liveBatch = p.liveBatch[:0]
-	p.advance(last)
+	p.commitDone(last)
 	return 0, nil
 }
 
@@ -1155,16 +1346,7 @@ func (p *Projector) completeStartupLocked(now time.Time) (startupSummary, bool) 
 		duration:      now.Sub(p.startupStartedAt),
 		lastSeq:       p.lastSeq,
 		messages:      p.startupMessages,
-		projectionKey: p.checkpointKey,
-	}
-	if summary.projectionKey == "" {
-		summary.projectionKey = p.snapshots.key
-	}
-	if summary.projectionKey == "" {
-		summary.projectionKey = p.consumerName
-	}
-	if summary.projectionKey == "" {
-		summary.projectionKey = reflect.TypeOf(p.proj).Elem().String()
+		projectionKey: p.diagnosticKey(),
 	}
 	summary.restore = "none"
 	if p.snapshotRestored {
@@ -1182,6 +1364,64 @@ func (p *Projector) completeStartupLocked(now time.Time) (startupSummary, bool) 
 	p.mu.Unlock()
 	close(p.startupCh)
 	return summary, true
+}
+
+// diagnosticKey names the projection in logs. It uses only construction-time
+// identity, so it needs no lock.
+func (p *Projector) diagnosticKey() string {
+	for _, key := range []string{p.checkpointKey, p.snapshots.key, p.consumerName} {
+		if key != "" {
+			return key
+		}
+	}
+	return reflect.TypeOf(p.proj).Elem().String()
+}
+
+// runSourceChecks reads the newest matching source sequence at a fixed
+// interval until ctx ends, so that pending work is visible also when the
+// consumer stops delivering. It logs each change of the stall state. It never
+// takes applyMu, so a blocked commit cannot stop it.
+func (p *Projector) runSourceChecks(ctx context.Context) {
+	interval := p.sourceCheckInterval
+	if interval <= 0 {
+		interval = projectionSourceCheckInterval
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	stalled := false
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		checkCtx, cancel := context.WithTimeout(ctx, projectionSourceCheckTimeout)
+		target, err := p.currentTarget(checkCtx)
+		cancel()
+		if err == nil {
+			p.observeSource(target.seq)
+		} else if ctx.Err() == nil {
+			p.logger.Debug("Projection source check failed", "projection", p.diagnosticKey(), "error", err)
+		}
+		status := p.Status()
+		if status.Stalled == stalled {
+			continue
+		}
+		stalled = status.Stalled
+		attrs := []any{
+			"projection", p.diagnosticKey(),
+			"last_seq", status.LastSeq,
+			"observed_seq", status.ObservedSeq,
+			"pending_for", status.PendingFor.Round(time.Second),
+			"operation", string(status.CurrentOperation),
+			"operation_duration", status.CurrentOperationDuration.Round(time.Second),
+		}
+		if stalled {
+			p.logger.Warn("Projection stalled: pending events have no committed progress", attrs...)
+		} else {
+			p.logger.Info("Projection no longer stalled", attrs...)
+		}
+	}
 }
 
 func (p *Projector) logStartupComplete(summary startupSummary) {
@@ -1206,4 +1446,5 @@ func (p *Projector) setStartupTarget(seq uint64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.startupTargetSeq = seq
+	p.updatePendingLocked(time.Now(), false)
 }

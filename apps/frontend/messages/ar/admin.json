@@ -431,6 +431,14 @@
           "many": "{count} إسقاطًا فاشلًا",
           "other": "{count} إسقاط فاشل"
         },
+        "projections_stalled_count": {
+          "zero": "{count} إسقاطات متوقفة",
+          "one": "{count} إسقاط متوقف",
+          "two": "{count} إسقاطان متوقفان",
+          "few": "{count} إسقاطات متوقفة",
+          "many": "{count} إسقاطًا متوقفًا",
+          "other": "{count} إسقاط متوقف"
+        },
         "projections_catching_up_count": {
           "zero": "{count} إسقاطات قيد اللحاق",
           "one": "{count} إسقاط قيد اللحاق",

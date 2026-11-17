@@ -427,6 +427,10 @@
           "one": "{count} projeksjon mislyktes",
           "other": "{count} projeksjoner mislyktes"
         },
+        "projections_stalled_count": {
+          "one": "{count} projeksjon står fast",
+          "other": "{count} projeksjoner står fast"
+        },
         "projections_catching_up_count": {
           "one": "{count} projeksjon tar igjen etterslepet",
           "other": "{count} projeksjoner tar igjen etterslepet"

@@ -316,6 +316,18 @@ message AdminProjectionState {
   int64 average_entry_bytes = 15;
   // Projection-specific diagnostic metrics.
   repeated AdminProjectionMetric metrics = 16;
+  // Whether pending events have had no committed progress for the stall
+  // threshold. An idle, caught-up projection is never stalled.
+  bool stalled = 17;
+  // Seconds that pending events have had no committed progress. Unset when
+  // the projection is caught up.
+  optional double pending_seconds = 18;
+  // Low-cardinality name of the work that runs now. Empty when idle.
+  string current_operation = 19;
+  // Seconds that current_operation has run. Unset when idle.
+  optional double current_operation_seconds = 20;
+  // When the projection last committed progress in this replica.
+  google.protobuf.Timestamp last_commit_time = 21;
 }
 
 // Projection-specific diagnostic metric.

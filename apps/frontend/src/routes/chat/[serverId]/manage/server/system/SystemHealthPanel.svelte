@@ -84,6 +84,8 @@ check whose details are in a different System section links to that section.
         return m('admin.system.health.broker_disconnected');
       case 'projections_failed':
         return m('admin.system.health.projections_failed_count', { count: detail.count });
+      case 'projections_stalled':
+        return m('admin.system.health.projections_stalled_count', { count: detail.count });
       case 'projections_catching_up':
         return m('admin.system.health.projections_catching_up_count', { count: detail.count });
       case 'projections_running':
