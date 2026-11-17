@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"net"
 	"net/http"
 	"net/url"
@@ -41,6 +42,10 @@ type HTTPServerConfig struct {
 	// StartupStartedAt includes core boot in the readiness duration. Zero uses
 	// the time Run starts. Optional runtime units do not gate HTTP readiness.
 	StartupStartedAt time.Time
+	// MetricsCollectors are process-local collectors that the metrics
+	// listener serves in addition to the Chatto metrics, for example the
+	// health metrics of the embedded search provider.
+	MetricsCollectors []prometheus.Collector
 }
 
 // HTTPServer serves the HTTP APIs and static frontend.
@@ -58,6 +63,7 @@ type HTTPServer struct {
 	startupStartedAt    time.Time
 	logger              *log.Logger
 	metrics             *processMetrics
+	metricsExtra        []prometheus.Collector
 	realtimeCatchUps    *realtimeCatchUpAdmission
 	imageTransforms     imageTransforms
 	trustedProxies      trustedProxySet
@@ -169,6 +175,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 		addr:             cfg.Addr,
 		version:          cfg.Version,
 		startupStartedAt: cfg.StartupStartedAt,
+		metricsExtra:     cfg.MetricsCollectors,
 		logger:           logger,
 		metrics:          newProcessMetrics(),
 		realtimeCatchUps: newRealtimeCatchUpAdmission(),

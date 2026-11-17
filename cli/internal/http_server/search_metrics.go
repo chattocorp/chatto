@@ -32,6 +32,12 @@ type searchProviderCollector struct {
 	lag       *prometheus.Desc
 	pending   *prometheus.Desc
 	operation *prometheus.Desc
+	// probeFailures and probeInFlight describe the query probe of the
+	// reported provider. Both are absent before its first probe starts, for
+	// example during initial replay, so that a rebuild does not look like a
+	// query failure.
+	probeFailures *prometheus.Desc
+	probeInFlight *prometheus.Desc
 }
 
 func newSearchProviderCollector(client searchStatusReader) *searchProviderCollector {
@@ -44,11 +50,13 @@ func newSearchProviderCollector(client searchStatusReader) *searchProviderCollec
 		lag:       prometheus.NewDesc("chatto_search_provider_lag_events", "Reported observed EVT sequence minus the last committed sequence; absent when the provider does not report both.", nil, nil),
 		pending:   prometheus.NewDesc("chatto_search_provider_pending_seconds", "Seconds that pending events of the reported search index had no committed progress; zero when current.", nil, nil),
 		operation: prometheus.NewDesc("chatto_search_provider_current_operation_seconds", "Seconds that the current index operation of the reported provider has run; zero when idle.", nil, nil),
+		probeFailures: prometheus.NewDesc("chatto_search_provider_query_probe_consecutive_failures", "Completed query probes of the reported provider that failed or timed out since its last success; absent before the first probe.", nil, nil),
+		probeInFlight: prometheus.NewDesc("chatto_search_provider_query_probe_in_flight_seconds", "Age of the running query probe of the reported provider, or 0 when no probe runs; absent before the first probe.", nil, nil),
 	}
 }
 
 func (c *searchProviderCollector) Describe(ch chan<- *prometheus.Desc) {
-	for _, desc := range []*prometheus.Desc{c.up, c.state, c.freshness, c.stalled, c.lag, c.pending, c.operation} {
+	for _, desc := range []*prometheus.Desc{c.up, c.state, c.freshness, c.stalled, c.lag, c.pending, c.operation, c.probeFailures, c.probeInFlight} {
 		ch <- desc
 	}
 }
@@ -72,6 +80,25 @@ func (c *searchProviderCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(c.pending, prometheus.GaugeValue, status.GetPendingDuration().AsDuration().Seconds())
 	ch <- prometheus.MustNewConstMetric(c.operation, prometheus.GaugeValue, status.GetCurrentOperationDuration().AsDuration().Seconds())
+	if probe := status.GetQueryProbe(); probe != nil {
+		ch <- prometheus.MustNewConstMetric(c.probeFailures, prometheus.GaugeValue, float64(probe.GetConsecutiveFailures()))
+		ch <- prometheus.MustNewConstMetric(c.probeInFlight, prometheus.GaugeValue, probeInFlightSeconds(status))
+	}
+}
+
+// probeInFlightSeconds measures the running probe against the provider's
+// own observation time, so that clock skew between the provider and this
+// replica does not change the value.
+func probeInFlightSeconds(status *searchv1.GetStatusResponse) float64 {
+	since := status.GetQueryProbe().GetInFlightSince()
+	if since == nil {
+		return 0
+	}
+	now := time.Now()
+	if observed := status.GetObservedAt(); observed != nil {
+		now = observed.AsTime()
+	}
+	return max(0, now.Sub(since.AsTime()).Seconds())
 }
 
 // enumLabel turns a protobuf enum name into a short label. Unknown future

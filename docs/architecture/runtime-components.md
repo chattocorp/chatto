@@ -152,7 +152,10 @@ operations do not duplicate these outcomes.
   `/debug/search` serve profiles, goroutine stacks, and index diagnostics to
   loopback clients only. Handlers read no projection lock, so they answer
   during a blocked commit or a rebuild. `chatto run` does not start this
-  listener.
+  listener. Instead, its metrics listener serves the same serving, query
+  probe, and index write age metrics of the bundled provider, so that each
+  replica reports its own provider, also after the provider leaves the query
+  queue.
 - **`video.Unit`** ([`unit.go`](../../cli/internal/video/unit.go),
   [`asset_processing.go`](../../cli/cmd/asset_processing.go),
   [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go)):

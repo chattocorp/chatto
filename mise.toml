@@ -1064,6 +1064,16 @@ run = [
     "bash tools/test-paseo-dev.sh",
     { task = "test-interchange" },
     { task = "test-slack" },
+    { task = "test-alert-rules" },
+]
+
+[tasks.test-alert-rules]
+description = "Check and unit-test the example Prometheus alerting rules"
+dir = "examples/prometheus"
+tools = { promtool = "3.16.0" }
+run = [
+    "promtool check rules chatto-alerts.yml",
+    "promtool test rules chatto-alerts.test.yml",
 ]
 
 [tasks.test-chatto-build]

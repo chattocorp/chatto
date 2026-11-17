@@ -140,7 +140,7 @@ The provider then serves these routes on its own listener:
 | ----- | --- |
 | `/livez` | Liveness probe. It fails only when the NATS connection is permanently closed. It does not fail while the provider builds its index. |
 | `/readyz` | Readiness probe. It succeeds only while this provider answers search queries. |
-| `/metrics` | Prometheus metrics for the process and its query probe. |
+| `/metrics` | Prometheus metrics for the process and its query probe. Use them with the [alert rules](/guides/operations/server-operations/#alert-rules). |
 | `/debug/pprof/`, `/debug/search` | Goroutine stacks, profiles, and index diagnostics. Only with `diagnostics = true`, and only for connections from the same host. |
 
 The provider regularly sends a test query to its own index. While this query
