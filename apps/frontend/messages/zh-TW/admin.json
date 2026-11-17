@@ -596,6 +596,7 @@
       "push_subscription_cleanup": "清理推播訂閱",
       "user_key_shredding": "刪除帳號金鑰",
       "notification_alert": "通知提醒",
+      "email": "電子郵件",
       "queued": "排隊中",
       "running": "執行中",
       "succeeded": "成功",

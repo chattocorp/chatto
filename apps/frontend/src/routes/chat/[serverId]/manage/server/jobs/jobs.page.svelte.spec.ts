@@ -130,7 +130,8 @@ describe('job queue list', () => {
       .mockResolvedValueOnce({
         jobs: [
           job('first'),
-          job('second', { type: 'asset_cleanup', status: JobStatus.QUEUED, failure: '' })
+          job('second', { type: 'asset_cleanup', status: JobStatus.QUEUED, failure: '' }),
+          job('third', { type: 'email', status: JobStatus.SUCCEEDED, failure: '' })
         ],
         nextCursor: ''
       });
@@ -146,7 +147,8 @@ describe('job queue list', () => {
     await expect.poll(() => sentinel).toBeDefined();
     sentinel!([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
     await expect.element(screen.getByRole('link', { name: 'File cleanup' })).toBeVisible();
-    expect(screen.container.querySelectorAll('a.data-table-row-link')).toHaveLength(2);
+    await expect.element(screen.getByRole('link', { name: 'Email' })).toBeVisible();
+    expect(screen.container.querySelectorAll('a.data-table-row-link')).toHaveLength(3);
     expect(mocks.listJobs.mock.calls[1][0]).toMatchObject({ cursor: 'next' });
   });
 

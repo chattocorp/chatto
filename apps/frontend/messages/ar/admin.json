@@ -651,6 +651,7 @@
       "push_subscription_cleanup": "تنظيف اشتراكات الإشعارات الفورية",
       "user_key_shredding": "حذف مفاتيح الحساب",
       "notification_alert": "تنبيه إشعار",
+      "email": "البريد الإلكتروني",
       "queued": "في قائمة الانتظار",
       "running": "قيد التنفيذ",
       "succeeded": "نجحت",

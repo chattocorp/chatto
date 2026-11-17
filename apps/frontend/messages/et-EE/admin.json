@@ -607,6 +607,7 @@
       "push_subscription_cleanup": "Push-tellimuste puhastamine",
       "user_key_shredding": "Kontovõtmete kustutamine",
       "notification_alert": "Teavituse hoiatus",
+      "email": "Meil",
       "queued": "Järjekorras",
       "running": "Töös",
       "succeeded": "Õnnestus",

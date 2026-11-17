@@ -607,6 +607,7 @@
       "push_subscription_cleanup": "Nettoyage des abonnements push",
       "user_key_shredding": "Suppression des clés de compte",
       "notification_alert": "Alerte de notification",
+      "email": "E-mail",
       "queued": "En attente",
       "running": "En cours",
       "succeeded": "Réussie",

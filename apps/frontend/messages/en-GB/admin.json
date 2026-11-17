@@ -607,6 +607,7 @@
       "push_subscription_cleanup": "Push subscription cleanup",
       "user_key_shredding": "Account key deletion",
       "notification_alert": "Notification alert",
+      "email": "Email",
       "queued": "Queued",
       "running": "Running",
       "succeeded": "Succeeded",

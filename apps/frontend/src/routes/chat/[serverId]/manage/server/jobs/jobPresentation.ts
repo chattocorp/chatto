@@ -36,6 +36,8 @@ export function knownJobTypeLabel(type: string): string | null {
       return m('admin.jobs.user_key_shredding');
     case 'notification_alert':
       return m('admin.jobs.notification_alert');
+    case 'email':
+      return m('admin.jobs.email');
     default:
       return null;
   }

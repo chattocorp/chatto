@@ -618,6 +618,7 @@
       "push_subscription_cleanup": "ניקוי מינויי Push",
       "user_key_shredding": "מחיקת מפתחות חשבון",
       "notification_alert": "התראת עדכון",
+      "email": "דוא״ל",
       "queued": "בתור",
       "running": "פועלת",
       "succeeded": "הצליחה",

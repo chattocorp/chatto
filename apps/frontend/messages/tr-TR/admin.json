@@ -607,6 +607,7 @@
       "push_subscription_cleanup": "Anlık bildirim aboneliği temizliği",
       "user_key_shredding": "Hesap anahtarı silme",
       "notification_alert": "Bildirim uyarısı",
+      "email": "E-posta",
       "queued": "Sırada",
       "running": "Çalışıyor",
       "succeeded": "Başarılı",

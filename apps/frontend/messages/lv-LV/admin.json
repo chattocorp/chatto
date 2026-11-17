@@ -618,6 +618,7 @@
       "push_subscription_cleanup": "Push abonementu tīrīšana",
       "user_key_shredding": "Konta atslēgu dzēšana",
       "notification_alert": "Paziņojuma brīdinājums",
+      "email": "E-pasts",
       "queued": "Rindā",
       "running": "Darbojas",
       "succeeded": "Pabeigts",

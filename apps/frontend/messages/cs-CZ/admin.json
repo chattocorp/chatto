@@ -629,6 +629,7 @@
       "push_subscription_cleanup": "Čištění odběrů push",
       "user_key_shredding": "Mazání klíčů účtu",
       "notification_alert": "Upozornění na oznámení",
+      "email": "Email",
       "queued": "Ve frontě",
       "running": "Probíhá",
       "succeeded": "Úspěšná",
