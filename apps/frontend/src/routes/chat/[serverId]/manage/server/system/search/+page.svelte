@@ -159,7 +159,7 @@ problem gets a short hint about what to check.
               {m(`admin.system.search.state_${provider.state}`)}
             </Pill>
             {#if provider.indexedEventCount != null && provider.targetEventCount != null && provider.state !== 'ready'}
-              <div class="mt-1 text-sm text-muted">
+              <div class="mt-1 text-sm whitespace-nowrap text-muted">
                 {m('admin.system.search.progress', {
                   indexed: formatCount(provider.indexedEventCount),
                   target: formatCount(provider.targetEventCount)
@@ -190,7 +190,7 @@ problem gets a short hint about what to check.
             {#if provider.pendingSeconds != null}
               <div
                 class={[
-                  'text-sm',
+                  'text-sm whitespace-nowrap',
                   provider.freshness === 'stalled' ? 'text-warning' : 'text-muted'
                 ]}
               >
@@ -199,7 +199,7 @@ problem gets a short hint about what to check.
                 })}
               </div>
             {/if}
-            <div class="text-sm text-muted">
+            <div class="text-sm whitespace-nowrap text-muted">
               {m('admin.system.search.last_progress', {
                 time: formatTimestamp(provider.lastCommitAt)
               })}
@@ -210,21 +210,21 @@ problem gets a short hint about what to check.
               {m(`admin.system.search.probe_${provider.queryProbe.result}`)}
             </Pill>
             {#if provider.queryProbe.consecutiveFailures > 0}
-              <div class="mt-1 text-sm text-danger">
+              <div class="mt-1 text-sm whitespace-nowrap text-danger">
                 {m('admin.system.search.probe_failures', {
                   count: formatNumber(provider.queryProbe.consecutiveFailures)
                 })}
               </div>
             {/if}
             {#if provider.queryProbe.inFlightSince}
-              <div class="mt-1 text-sm text-muted">
+              <div class="mt-1 text-sm whitespace-nowrap text-muted">
                 {m('admin.system.search.probe_running_since', {
                   time: formatTimestamp(provider.queryProbe.inFlightSince)
                 })}
               </div>
             {/if}
             {#if provider.queryProbe.completedAt}
-              <div class="text-sm text-muted">
+              <div class="text-sm whitespace-nowrap text-muted">
                 {m('admin.system.search.probe_last_run', {
                   time: formatTimestamp(provider.queryProbe.completedAt)
                 })}
