@@ -30,3 +30,11 @@ describe('timeFormatSettingsFor', () => {
     });
   });
 });
+
+// Empty and absent preferences must both leave time-zone selection to the browser.
+it.each([null, ''])('uses the browser timezone for preference %s', (timezone) => {
+  expect(timeFormatSettingsFor({ timezone, timeFormat: TimeFormat.TIME_FORMAT_AUTO })).toEqual({
+    effectiveTimezone: undefined,
+    effectiveHour12: undefined
+  });
+});

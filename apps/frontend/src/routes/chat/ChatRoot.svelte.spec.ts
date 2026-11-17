@@ -62,7 +62,6 @@ const mocks = vi.hoisted(() => {
     hardRedirectAfterSignOut: vi.fn(),
     originSignInRequired: false,
     beginOriginReauthentication: vi.fn(),
-    deviceTimezone: vi.fn<() => string | null>(() => null),
     updateSettings: vi.fn(async () => ({
       timezone: 'Europe/Berlin',
       timeFormat: undefined,
@@ -181,21 +180,6 @@ vi.mock('$lib/auth/sessionChannel', () => ({
 
 vi.mock('@chatto/client/api/memberDirectory', () => ({
   mapDirectoryMember: vi.fn()
-}));
-
-vi.mock('$lib/utils/deviceTimezone', () => ({
-  deviceTimezone: () => mocks.deviceTimezone(),
-  createDeviceTimezoneReportTracker: () => {
-    const reported = new Set<string>();
-    return {
-      begin: (key: string) => {
-        if (reported.has(key)) return false;
-        reported.add(key);
-        return true;
-      },
-      allowRetry: (key: string) => reported.delete(key)
-    };
-  }
 }));
 
 vi.mock('@chatto/client/api/presence', () => ({
@@ -395,91 +379,32 @@ describe('ChatRoot', () => {
     expect(mocks.stopWatchingStores).toHaveBeenCalledOnce();
   });
 
-  it('reports the device time zone once for a viewer without an explicit zone', async () => {
-    vi.mocked(mocks.deviceTimezone).mockReturnValue('Europe/Berlin');
-    mocks.updateSettings.mockResolvedValue({
-      timezone: 'Europe/Berlin',
-      timeFormat: undefined,
-      shareTimezone: false
-    });
-    const remoteUser: CurrentUser = {
-      ...originUser,
-      id: 'remote-user',
-      settings: {
-        timezone: null,
-        timeFormat: TimeFormat.TIME_FORMAT_AUTO,
-        shareTimezone: false
-      }
-    };
-    mocks.remoteCurrentUser.user = remoteUser;
-
-    render(ChatRoot, {
-      props: { children }
-    });
-
-    await expect.poll(() => mocks.remoteCurrentUser.user?.settings?.timezone).toBe('Europe/Berlin');
-    expect(mocks.updateSettings).toHaveBeenCalledExactlyOnceWith({ timezone: 'Europe/Berlin' });
-  });
-
-  it.each(['America/New_York', ''])(
-    'does not report over an explicit viewer time zone: %s',
+  it.each([null, '', 'America/New_York'])(
+    'does not persist a device timezone on startup when the preference is %s',
     async (timezone) => {
-      vi.mocked(mocks.deviceTimezone).mockReturnValue('Europe/Berlin');
-      mocks.remoteCurrentUser.user = {
-        ...originUser,
-        id: 'remote-user',
-        settings: {
-          timezone,
-          timeFormat: TimeFormat.TIME_FORMAT_AUTO,
-          shareTimezone: false
-        }
-      };
-
-      render(ChatRoot, {
-        props: { children }
-      });
-
-      await Promise.resolve();
-      expect(mocks.updateSettings).not.toHaveBeenCalled();
+      // Use the platform boundary so this also catches startup detection added elsewhere.
+      const resolved = Intl.DateTimeFormat.prototype.resolvedOptions;
+      const zoneSpy = vi
+        .spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
+        .mockImplementation(function (this: Intl.DateTimeFormat) {
+          return { ...resolved.call(this), timeZone: 'Europe/Berlin' };
+        });
+      const settings = { timezone, timeFormat: TimeFormat.TIME_FORMAT_AUTO, shareTimezone: false };
+      mocks.remoteCurrentUser.user = { ...originUser, id: 'remote-user', settings };
+      const { unmount } = render(ChatRoot, { props: { children } });
+      try {
+        // Viewer loading after mount must not turn browser default into an account choice.
+        mocks.originCurrentUser.user = { ...originUser, settings };
+        mocks.originCurrentUser.verifiedUserId = originUser.id;
+        mocks.originCurrentUser.loading = false;
+        await vi.waitFor(() => expect(mocks.onSessionTerminated).toHaveBeenCalledOnce());
+        expect(mocks.updateSettings).not.toHaveBeenCalled();
+        expect(mocks.remoteCurrentUser.user.settings).toEqual(settings);
+        expect(mocks.originCurrentUser.user.settings).toEqual(settings);
+      } finally {
+        unmount();
+        zoneSpy.mockRestore();
+      }
     }
   );
-
-  it('does not immediately retry a failed time-zone report', async () => {
-    vi.mocked(mocks.deviceTimezone).mockReturnValue('Europe/Berlin');
-    mocks.updateSettings.mockRejectedValue(new Error('offline'));
-    mocks.remoteCurrentUser.user = {
-      ...originUser,
-      id: 'remote-user',
-      settings: {
-        timezone: null,
-        timeFormat: TimeFormat.TIME_FORMAT_AUTO,
-        shareTimezone: false
-      }
-    };
-
-    render(ChatRoot, {
-      props: { children }
-    });
-
-    await vi.waitFor(() => expect(mocks.updateSettings).toHaveBeenCalledOnce());
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(mocks.updateSettings).toHaveBeenCalledOnce();
-  });
-
-  it('does not report the device time zone when the server lacks privacy support', async () => {
-    vi.mocked(mocks.deviceTimezone).mockReturnValue('Europe/Berlin');
-    mocks.remoteCurrentUser.user = {
-      ...originUser,
-      id: 'remote-user',
-      settings: { timezone: null, timeFormat: TimeFormat.TIME_FORMAT_AUTO }
-    };
-
-    render(ChatRoot, {
-      props: { children }
-    });
-
-    await Promise.resolve();
-    expect(mocks.updateSettings).not.toHaveBeenCalled();
-  });
 });

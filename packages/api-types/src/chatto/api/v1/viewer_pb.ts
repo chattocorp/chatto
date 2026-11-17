@@ -60,7 +60,7 @@ export class UserSettings extends Message<UserSettings> {
   /**
    * Optional IANA timezone override. Absent means no choice has been recorded.
    * Empty means the user explicitly chose the browser's local timezone.
-   * Both use browser-local time; only absence permits automatic device reporting.
+   * Both use browser-local time. Save a named zone only after an explicit user choice.
    *
    * @generated from field: optional string timezone = 1;
    */

@@ -84,7 +84,7 @@ type UserSettings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional IANA timezone override. Absent means no choice has been recorded.
 	// Empty means the user explicitly chose the browser's local timezone.
-	// Both use browser-local time; only absence permits automatic device reporting.
+	// Both use browser-local time. Save a named zone only after an explicit user choice.
 	Timezone *string `protobuf:"bytes,1,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
 	// Preferred time format.
 	TimeFormat TimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.api.v1.TimeFormat" json:"time_format,omitempty"`
