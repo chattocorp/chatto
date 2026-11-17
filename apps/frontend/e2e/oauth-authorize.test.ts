@@ -69,14 +69,11 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 
     const auth = new AuthPage(popup);
     await auth.emailInput.fill('desktop-signup@example.test');
+    await auth.clearCapturedEmails();
     await auth.continueButton.click();
     await expect(auth.firstCodeInput).toBeVisible();
     // The test mailer captures the real registration message at the remote server.
-    const emailResponse = await popup.request.get(
-      `${remoteBaseURL(remoteServer)}/auth/test/last-email`
-    );
-    expect(emailResponse.ok()).toBeTruthy();
-    const email = await emailResponse.json();
+    const email = await auth.getLastVerificationEmail('desktop-signup@example.test');
     await auth.fillRegistrationCode(auth.extractVerificationCode(email.body));
     await auth.submitCodeButton.click();
     await expect(auth.completeRegistrationHeading).toBeVisible();
