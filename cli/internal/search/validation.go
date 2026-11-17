@@ -6,6 +6,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"google.golang.org/protobuf/types/known/durationpb"
+
 	searchv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/search/v1"
 )
 
@@ -16,6 +18,8 @@ const (
 	maxIDBytes        = 128
 	maxCursorBytes    = 4096
 	maxPageSize       = 100
+	// maxStatusOperationBytes bounds GetStatusResponse.current_operation.
+	maxStatusOperationBytes = 64
 )
 
 // ValidateQueryRequest verifies the trusted provider contract before a query
@@ -134,6 +138,15 @@ func validateStatusResponse(response *searchv1.GetStatusResponse) error {
 	}
 	if response.IndexedEventCount != nil && response.TargetEventCount != nil && response.GetIndexedEventCount() > response.GetTargetEventCount() {
 		return fmt.Errorf("%w: indexed event count exceeds target", ErrInvalidResponse)
+	}
+	// Callers use the operation name as a diagnostic label; keep it bounded.
+	if len(response.GetCurrentOperation()) > maxStatusOperationBytes {
+		return fmt.Errorf("%w: provider operation name exceeds %d bytes", ErrInvalidResponse, maxStatusOperationBytes)
+	}
+	for _, duration := range []*durationpb.Duration{response.GetPendingDuration(), response.GetCurrentOperationDuration()} {
+		if duration != nil && (duration.CheckValid() != nil || duration.AsDuration() < 0) {
+			return fmt.Errorf("%w: provider status duration is invalid", ErrInvalidResponse)
+		}
 	}
 	return nil
 }

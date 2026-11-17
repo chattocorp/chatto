@@ -1516,16 +1516,30 @@ type AdminProjectionState struct {
 	FailedSequence string `protobuf:"bytes,11,opt,name=failed_sequence,json=failedSequence,proto3" json:"failed_sequence,omitempty"`
 	// Failure message, when failed is true.
 	Failure string `protobuf:"bytes,12,opt,name=failure,proto3" json:"failure,omitempty"`
-	// Estimated number of entries held by the projection.
+	// Estimated number of entries held by the projection. Zero when the
+	// estimate did not finish in time, for example during a blocked commit.
 	EntryCount int64 `protobuf:"varint,13,opt,name=entry_count,json=entryCount,proto3" json:"entry_count,omitempty"`
 	// Estimated memory used by the projection in bytes.
 	EstimatedBytes int64 `protobuf:"varint,14,opt,name=estimated_bytes,json=estimatedBytes,proto3" json:"estimated_bytes,omitempty"`
 	// Estimated average memory per entry in bytes.
 	AverageEntryBytes int64 `protobuf:"varint,15,opt,name=average_entry_bytes,json=averageEntryBytes,proto3" json:"average_entry_bytes,omitempty"`
-	// Projection-specific diagnostic metrics.
-	Metrics       []*AdminProjectionMetric `protobuf:"bytes,16,rep,name=metrics,proto3" json:"metrics,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Projection-specific diagnostic metrics. Empty when the estimate did not
+	// finish in time.
+	Metrics []*AdminProjectionMetric `protobuf:"bytes,16,rep,name=metrics,proto3" json:"metrics,omitempty"`
+	// Whether pending events have had no committed progress for the stall
+	// threshold. An idle, caught-up projection is never stalled.
+	Stalled bool `protobuf:"varint,17,opt,name=stalled,proto3" json:"stalled,omitempty"`
+	// Seconds that pending events have had no committed progress. Unset when
+	// the projection is caught up.
+	PendingSeconds *float64 `protobuf:"fixed64,18,opt,name=pending_seconds,json=pendingSeconds,proto3,oneof" json:"pending_seconds,omitempty"`
+	// Low-cardinality name of the work that runs now. Empty when idle.
+	CurrentOperation string `protobuf:"bytes,19,opt,name=current_operation,json=currentOperation,proto3" json:"current_operation,omitempty"`
+	// Seconds that current_operation has run. Unset when idle.
+	CurrentOperationSeconds *float64 `protobuf:"fixed64,20,opt,name=current_operation_seconds,json=currentOperationSeconds,proto3,oneof" json:"current_operation_seconds,omitempty"`
+	// When the projection last committed progress in this replica.
+	LastCommitTime *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=last_commit_time,json=lastCommitTime,proto3" json:"last_commit_time,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AdminProjectionState) Reset() {
@@ -1666,6 +1680,41 @@ func (x *AdminProjectionState) GetAverageEntryBytes() int64 {
 func (x *AdminProjectionState) GetMetrics() []*AdminProjectionMetric {
 	if x != nil {
 		return x.Metrics
+	}
+	return nil
+}
+
+func (x *AdminProjectionState) GetStalled() bool {
+	if x != nil {
+		return x.Stalled
+	}
+	return false
+}
+
+func (x *AdminProjectionState) GetPendingSeconds() float64 {
+	if x != nil && x.PendingSeconds != nil {
+		return *x.PendingSeconds
+	}
+	return 0
+}
+
+func (x *AdminProjectionState) GetCurrentOperation() string {
+	if x != nil {
+		return x.CurrentOperation
+	}
+	return ""
+}
+
+func (x *AdminProjectionState) GetCurrentOperationSeconds() float64 {
+	if x != nil && x.CurrentOperationSeconds != nil {
+		return *x.CurrentOperationSeconds
+	}
+	return 0
+}
+
+func (x *AdminProjectionState) GetLastCommitTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastCommitTime
 	}
 	return nil
 }
@@ -1861,7 +1910,7 @@ const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"\x1bdelivered_consumer_sequence\x18\r \x01(\tR\x19deliveredConsumerSequence\x12:\n" +
 	"\x19delivered_stream_sequence\x18\x0e \x01(\tR\x17deliveredStreamSequence\x12=\n" +
 	"\x1back_floor_consumer_sequence\x18\x0f \x01(\tR\x18ackFloorConsumerSequence\x129\n" +
-	"\x19ack_floor_stream_sequence\x18\x10 \x01(\tR\x16ackFloorStreamSequence\"\x97\x05\n" +
+	"\x19ack_floor_stream_sequence\x18\x10 \x01(\tR\x16ackFloorStreamSequence\"\xc5\a\n" +
 	"\x14AdminProjectionState\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -1880,8 +1929,15 @@ const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"entryCount\x12'\n" +
 	"\x0festimated_bytes\x18\x0e \x01(\x03R\x0eestimatedBytes\x12.\n" +
 	"\x13average_entry_bytes\x18\x0f \x01(\x03R\x11averageEntryBytes\x12@\n" +
-	"\ametrics\x18\x10 \x03(\v2&.chatto.admin.v1.AdminProjectionMetricR\ametricsB\x1b\n" +
-	"\x19_startup_duration_seconds\"W\n" +
+	"\ametrics\x18\x10 \x03(\v2&.chatto.admin.v1.AdminProjectionMetricR\ametrics\x12\x18\n" +
+	"\astalled\x18\x11 \x01(\bR\astalled\x12,\n" +
+	"\x0fpending_seconds\x18\x12 \x01(\x01H\x01R\x0ependingSeconds\x88\x01\x01\x12+\n" +
+	"\x11current_operation\x18\x13 \x01(\tR\x10currentOperation\x12?\n" +
+	"\x19current_operation_seconds\x18\x14 \x01(\x01H\x02R\x17currentOperationSeconds\x88\x01\x01\x12D\n" +
+	"\x10last_commit_time\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\x0elastCommitTimeB\x1b\n" +
+	"\x19_startup_duration_secondsB\x12\n" +
+	"\x10_pending_secondsB\x1c\n" +
+	"\x1a_current_operation_seconds\"W\n" +
 	"\x15AdminProjectionMetric\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x03R\x05value\x12\x14\n" +
@@ -1969,13 +2025,14 @@ var file_chatto_admin_v1_diagnostics_proto_depIdxs = []int32{
 	13, // 18: chatto.admin.v1.AdminNatsStats.streams:type_name -> chatto.admin.v1.AdminNatsStreamInfo
 	14, // 19: chatto.admin.v1.AdminNatsStats.consumers:type_name -> chatto.admin.v1.AdminNatsConsumerInfo
 	16, // 20: chatto.admin.v1.AdminProjectionState.metrics:type_name -> chatto.admin.v1.AdminProjectionMetric
-	3,  // 21: chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo:input_type -> chatto.admin.v1.GetSystemInfoRequest
-	4,  // 22: chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo:output_type -> chatto.admin.v1.GetSystemInfoResponse
-	22, // [22:23] is the sub-list for method output_type
-	21, // [21:22] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	17, // 21: chatto.admin.v1.AdminProjectionState.last_commit_time:type_name -> google.protobuf.Timestamp
+	3,  // 22: chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo:input_type -> chatto.admin.v1.GetSystemInfoRequest
+	4,  // 23: chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo:output_type -> chatto.admin.v1.GetSystemInfoResponse
+	23, // [23:24] is the sub-list for method output_type
+	22, // [22:23] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_diagnostics_proto_init() }

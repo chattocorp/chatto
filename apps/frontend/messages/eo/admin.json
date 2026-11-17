@@ -427,6 +427,10 @@
           "one": "{count} projekcio malsukcesis",
           "other": "{count} projekcioj malsukcesis"
         },
+        "projections_stalled_count": {
+          "one": "{count} projekcio haltis",
+          "other": "{count} projekcioj haltis"
+        },
         "projections_catching_up_count": {
           "one": "{count} projekcio postkuras",
           "other": "{count} projekcioj postkuras"

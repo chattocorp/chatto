@@ -426,6 +426,9 @@
         "projections_failed_count": {
           "other": "{count} 件のプロジェクションが失敗しました"
         },
+        "projections_stalled_count": {
+          "other": "{count} 件のプロジェクションが停止しています"
+        },
         "projections_catching_up_count": {
           "other": "{count} 件のプロジェクションが追い付き中です"
         },

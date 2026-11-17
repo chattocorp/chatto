@@ -428,6 +428,11 @@
           "two": "{count} הטלות נכשלו",
           "other": "{count} הטלות נכשלו"
         },
+        "projections_stalled_count": {
+          "one": "{count} הטלה נתקעה",
+          "two": "{count} הטלות נתקעו",
+          "other": "{count} הטלות נתקעו"
+        },
         "projections_catching_up_count": {
           "one": "{count} הטלה משלימה פערים",
           "two": "{count} הטלות משלימות פערים",

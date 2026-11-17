@@ -426,6 +426,9 @@
         "projections_failed_count": {
           "other": "{count} 个 projection 失败"
         },
+        "projections_stalled_count": {
+          "other": "{count} 个 projection 已停滞"
+        },
         "projections_catching_up_count": {
           "other": "{count} 个 projection 正在追赶进度"
         },

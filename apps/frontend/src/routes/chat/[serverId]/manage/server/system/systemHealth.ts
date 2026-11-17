@@ -25,6 +25,7 @@ export type HealthDetail =
   | { kind: 'broker_connected'; version: string }
   | { kind: 'broker_disconnected' }
   | { kind: 'projections_failed'; count: number }
+  | { kind: 'projections_stalled'; count: number }
   | { kind: 'projections_catching_up'; count: number }
   | { kind: 'projections_running'; count: number }
   | { kind: 'workers_failing'; count: number }
@@ -52,8 +53,8 @@ const severity: Record<HealthStatus, number> = { unknown: 0, ok: 1, warning: 2, 
  * Derives the System page health checks from one diagnostics snapshot.
  *
  * Only lasting conditions raise a check above `ok`: a lost broker
- * connection, failed projections, stalled or missing durable workers, and
- * account usage close to a limit. Projection lag, consumer backlog, and
+ * connection, failed projections, stalled projections (a warning), stalled or
+ * missing durable workers, and account usage close to a limit. Projection lag, consumer backlog, and
  * unconfirmed workers are normal while work flows, so they appear only as
  * details.
  *
@@ -124,6 +125,16 @@ function projectionsCheck(info: AdminSystemInfo): HealthCheck {
       id: 'projections',
       status: 'critical',
       detail: { kind: 'projections_failed', count: failed }
+    };
+  }
+  // The server reports a projection as stalled only when events wait without
+  // committed progress for its stall threshold, so ordinary lag stays ok.
+  const stalled = info.projections.filter((projection) => projection.stalled).length;
+  if (stalled > 0) {
+    return {
+      id: 'projections',
+      status: 'warning',
+      detail: { kind: 'projections_stalled', count: stalled }
     };
   }
   const catchingUp = info.projections.filter(

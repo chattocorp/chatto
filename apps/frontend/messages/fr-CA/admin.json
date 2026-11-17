@@ -427,6 +427,10 @@
           "one": "{count} projection en échec",
           "other": "{count} projections en échec"
         },
+        "projections_stalled_count": {
+          "one": "{count} projection bloquée",
+          "other": "{count} projections bloquées"
+        },
         "projections_catching_up_count": {
           "one": "{count} projection en cours de rattrapage",
           "other": "{count} projections en cours de rattrapage"

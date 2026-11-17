@@ -427,6 +427,10 @@
           "one": "{count} projection failed",
           "other": "{count} projections failed"
         },
+        "projections_stalled_count": {
+          "one": "{count} projection stalled",
+          "other": "{count} projections stalled"
+        },
         "projections_catching_up_count": {
           "one": "{count} projection catching up",
           "other": "{count} projections catching up"

@@ -82,8 +82,8 @@ configuration. Explicit TOML values remain valid, and
 Owners and administrators use the admin UI for daily operations. Their
 permissions control which pages they see. The **System** page has tabs. The
 Overview tab starts with a health summary. It shows a lost broker connection,
-failed projections, stalled background workers, and JetStream usage near an
-account limit. The Streams, Projections, Workers, and LiveKit tabs show the
+failed or stalled projections, stalled background workers, and JetStream usage
+near an account limit. The Streams, Projections, Workers, and LiveKit tabs show the
 details. Some checks link to the tab with their details. A dot on a tab shows a
 warning or a problem.
 
@@ -129,6 +129,41 @@ CHATTO_METRICS_PATH=/metrics
 
 Keep the metrics listener private. Enable `metrics.pprof` only while you
 profile, and only on localhost or a trusted internal network.
+
+### Projection and search freshness
+
+A projection is stalled when events wait and the projection commits no
+progress for five minutes. An idle projection that has applied all events is
+not stalled. A slow replay that still commits is not stalled. Chatto logs a
+warning when a projection stalls and an info message when it recovers.
+
+| Metric | Type | Labels |
+| --- | --- | --- |
+| `chatto_projection_stalled` | Gauge | `projection` |
+| `chatto_projection_pending_seconds` | Gauge | `projection` |
+| `chatto_projection_current_operation_seconds` | Gauge | `projection`, `operation` |
+| `chatto_projection_last_commit_timestamp_seconds` | Gauge | `projection` |
+| `chatto_projection_last_commit_duration_seconds` | Gauge | `projection` |
+| `chatto_search_provider_status_up` | Gauge | none |
+| `chatto_search_provider_state` | Gauge | `state` |
+| `chatto_search_provider_index_freshness` | Gauge | `freshness` |
+| `chatto_search_provider_stalled` | Gauge | none |
+| `chatto_search_provider_lag_events` | Gauge | none |
+| `chatto_search_provider_pending_seconds` | Gauge | none |
+| `chatto_search_provider_current_operation_seconds` | Gauge | none |
+
+The `chatto_projection_*` metrics describe the projections of the replica that
+you scrape. The `chatto_search_provider_*` metrics describe the search provider
+that answered the status request of the scrape. When you run more than one
+search provider, each scrape can describe a different provider. A stalled
+search provider reports the `degraded` state. It continues to answer queries,
+but results can miss recent messages.
+
+For example, this query selects stalled projections and search indexes:
+
+```promql
+chatto_projection_stalled == 1 or chatto_search_provider_stalled == 1
+```
 
 ### Projection snapshots
 

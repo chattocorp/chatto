@@ -31,7 +31,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-019](FDR-019-room-lifecycle.md)                        | Room Lifecycle                        | Active       | 2026-10-28    |
 | [FDR-020](FDR-020-server-branding-and-configuration.md)     | Server Branding & Configuration       | Active       | 2026-09-18    |
 | [FDR-021](FDR-021-admin-dashboard.md)                       | Admin Dashboard & System Monitoring   | Active       | 2026-11-01    |
-| [FDR-022](FDR-022-user-profile.md)                          | User Profile                          | Active       | 2026-10-30    |
+| [FDR-022](FDR-022-user-profile.md)                          | User Profile                          | Active       | 2026-11-17    |
 | [FDR-023](FDR-023-authentication-and-sessions.md)           | Authentication & Sessions             | Active       | 2026-10-27    |
 | [FDR-024](FDR-024-permission-inspection-tool.md)            | Permission Inspection Tool            | Active       | 2026-08-27    |
 | [FDR-025](FDR-025-user-search-and-member-directory.md)      | User Search & Member Directory        | Active       | 2026-09-27    |
@@ -66,3 +66,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-054](FDR-054-room-notices.md)                          | Room Notices                          | Experimental | 2026-10-25    |
 | [FDR-055](FDR-055-keyboard-shortcut-help.md)                | Keyboard Shortcut Help                | Active       | 2026-10-28    |
 | [FDR-056](FDR-056-background-jobs.md)                       | Background Jobs                       | Experimental | 2026-11-17    |
+| [FDR-057](FDR-057-search-during-index-rebuild.md)           | Search During Index Rebuild           | Planned      | 2026-11-17    |

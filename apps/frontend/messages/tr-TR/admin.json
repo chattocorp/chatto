@@ -427,6 +427,10 @@
           "one": "{count} projeksiyon başarısız oldu",
           "other": "{count} projeksiyon başarısız oldu"
         },
+        "projections_stalled_count": {
+          "one": "{count} projeksiyon takıldı",
+          "other": "{count} projeksiyon takıldı"
+        },
         "projections_catching_up_count": {
           "one": "{count} projeksiyon geride, yetişiyor",
           "other": "{count} projeksiyon geride, yetişiyor"

@@ -33,6 +33,21 @@ enum ProviderState {
   PROVIDER_STATE_UNAVAILABLE = 5;
 }
 
+// IndexFreshness describes whether a provider's index follows the event log.
+// It is separate from ProviderState: a provider can answer queries from a
+// stalled index, and a current index can still be unable to answer queries.
+enum IndexFreshness {
+  // The provider did not report index freshness.
+  INDEX_FRESHNESS_UNSPECIFIED = 0;
+  // The index contains every matching event that the provider knows of.
+  INDEX_FRESHNESS_CURRENT = 1;
+  // Events wait for indexing, and the index committed progress recently.
+  INDEX_FRESHNESS_BEHIND = 2;
+  // Events wait for indexing, but the index committed no progress for the
+  // provider's stall threshold.
+  INDEX_FRESHNESS_STALLED = 3;
+}
+
 // QueryRequest is a parsed, provider-neutral message search. Every supplied
 // term and phrase is required; providers must not reinterpret these fields as
 // an OR. Terms and phrases may both be empty when another filter is present.
@@ -107,6 +122,12 @@ message GetStatusRequest {}
 // GetStatusResponse reports readiness independently from NATS service
 // availability. Event counts are optional because some providers cannot
 // calculate progress cheaply.
+//
+// The freshness fields describe index progress. A provider that has
+// completed startup but has a stalled index reports PROVIDER_STATE_DEGRADED
+// and INDEX_FRESHNESS_STALLED. A provider that stalls during startup keeps
+// PROVIDER_STATE_INDEXING and reports INDEX_FRESHNESS_STALLED. Providers that
+// do not track progress leave the freshness fields unset.
 message GetStatusResponse {
   // Current provider state.
   ProviderState state = 1;
@@ -116,10 +137,27 @@ message GetStatusResponse {
   optional uint64 target_event_count = 3;
   // Suggested delay before polling again while the provider is not ready.
   google.protobuf.Duration retry_after = 4;
+  // Whether the index follows the event log.
+  IndexFreshness freshness = 5;
+  // Last EVT sequence that the index committed, when known.
+  optional uint64 committed_sequence = 6;
+  // Highest matching EVT sequence that the provider knows of, when known.
+  optional uint64 observed_sequence = 7;
+  // When the index last committed progress in this provider process.
+  google.protobuf.Timestamp last_commit_time = 8;
+  // How long waiting events have had no committed progress. Unset when the
+  // index is current.
+  google.protobuf.Duration pending_duration = 9;
+  // Low-cardinality name of the index work that runs now. Empty when idle.
+  string current_operation = 10;
+  // How long current_operation has run.
+  google.protobuf.Duration current_operation_duration = 11;
+  // When the provider collected this status.
+  google.protobuf.Timestamp observed_at = 12;
 
-  // Query probe results (fields 10-19). Absent when the provider does not
-  // run a query probe or has not served queries yet.
-  QueryProbeStatus query_probe = 10;
+  // Query probe result of the answering provider. Absent when the provider
+  // does not run a query probe or has not served queries yet.
+  QueryProbeStatus query_probe = 13;
 }
 
 // QueryProbeResult is the outcome of one synthetic query probe.

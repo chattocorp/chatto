@@ -427,6 +427,10 @@
           "one": "{count} projektsioon ebaõnnestus",
           "other": "{count} projektsiooni ebaõnnestus"
         },
+        "projections_stalled_count": {
+          "one": "{count} projektsioon on seiskunud",
+          "other": "{count} projektsiooni on seiskunud"
+        },
         "projections_catching_up_count": {
           "one": "{count} projektsioon jõuab järele",
           "other": "{count} projektsiooni jõuavad järele"

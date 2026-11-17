@@ -429,6 +429,12 @@
           "many": "{count} проекций завершились с ошибкой",
           "other": "{count} проекции завершились с ошибкой"
         },
+        "projections_stalled_count": {
+          "one": "{count} проекция остановилась",
+          "few": "{count} проекции остановились",
+          "many": "{count} проекций остановились",
+          "other": "{count} проекции остановились"
+        },
         "projections_catching_up_count": {
           "one": "{count} проекция догоняет",
           "few": "{count} проекции догоняют",

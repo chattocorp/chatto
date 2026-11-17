@@ -428,6 +428,11 @@
           "one": "Neizdevās {count} projekcija",
           "other": "Neizdevās {count} projekcijas"
         },
+        "projections_stalled_count": {
+          "zero": "Apstājušās {count} projekcijas",
+          "one": "Apstājusies {count} projekcija",
+          "other": "Apstājušās {count} projekcijas"
+        },
         "projections_catching_up_count": {
           "zero": "{count} projekciju panāk atpalicību",
           "one": "{count} projekcija panāk atpalicību",
