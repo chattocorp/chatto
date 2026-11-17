@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/nats-io/nats.go/micro"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -78,6 +79,10 @@ type healthTestFixture struct {
 }
 
 func startHealthTestUnit(t *testing.T, health *Health) *healthTestFixture {
+	return startHealthTestUnitWith(t, health, nil)
+}
+
+func startHealthTestUnitWith(t *testing.T, health *Health, servingStarted func(micro.Service)) *healthTestFixture {
 	t.Helper()
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)
@@ -106,6 +111,7 @@ func startHealthTestUnit(t *testing.T, health *Health) *healthTestFixture {
 				return p.index.Batch(batch)
 			}
 		},
+		servingStarted:  servingStarted,
 		probeInterval:   20 * time.Millisecond,
 		probeTimeout:    50 * time.Millisecond,
 		shutdownTimeout: 300 * time.Millisecond,
@@ -319,4 +325,30 @@ func TestHealthHandlerWithoutDiagnostics(t *testing.T) {
 		require.Equal(t, code, recorder.Code, path)
 		_, _ = io.Copy(io.Discard, recorder.Body)
 	}
+}
+
+// NATS micro can stop a service after a subscription error. The provider
+// then clears readiness and registers a new query service.
+func TestUnitReregistersServiceStoppedByNATS(t *testing.T) {
+	health := NewHealth()
+	services := make(chan micro.Service, 4)
+	f := startHealthTestUnitWith(t, health, func(service micro.Service) { services <- service })
+	var first micro.Service
+	select {
+	case first = <-services:
+	case <-time.After(5 * time.Second):
+		t.Fatal("serving service did not start")
+	}
+	require.Eventually(t, health.Ready, 5*time.Second, 10*time.Millisecond)
+
+	require.NoError(t, first.Stop())
+	select {
+	case second := <-services:
+		require.NotSame(t, first, second)
+	case <-time.After(5 * time.Second):
+		t.Fatal("serving service was not registered again")
+	}
+	require.Eventually(t, health.Ready, 5*time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return f.queryAvailable(t) }, 5*time.Second, 10*time.Millisecond)
+	require.Contains(t, f.logs.String(), `"stage":"query_service_stopped"`)
 }

@@ -130,7 +130,9 @@ operations do not duplicate these outcomes.
   every 10 seconds. At most one probe runs at a time; a probe that runs longer
   than 5 seconds counts as blocked. While the latest probe failed or a probe is
   blocked, the unit stops its separate query and ready status NATS service, so
-  that healthy replicas answer. It joins again after a probe succeeds. The
+  that healthy replicas answer. It joins again after a probe succeeds, and
+  also registers a new service when NATS micro stopped the previous one after a
+  subscription error (`stage=query_service_stopped`). The
   startup status service stays registered. The first time the unit joins, it
   logs `stage=service_ready`; the operator's standalone search wrapper uses
   this field to mark the pod ready. Later transitions log

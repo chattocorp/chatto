@@ -41,9 +41,10 @@ type Unit struct {
 	// startupResultHook is a test seam for observing the NATS boundary after
 	// projection startup resolves but before failure cleanup removes it.
 	startupResultHook func(error)
-	// newProjection, probeInterval, probeTimeout, and shutdownTimeout are
-	// test seams. Zero values select production behavior.
+	// newProjection, servingStarted, probeInterval, probeTimeout, and
+	// shutdownTimeout are test seams. Zero values select production behavior.
 	newProjection   func(*Projection)
+	servingStarted  func(micro.Service)
 	probeInterval   time.Duration
 	probeTimeout    time.Duration
 	shutdownTimeout time.Duration
@@ -177,6 +178,14 @@ func (u Unit) serve(ctx context.Context, env runtimeunit.Env, provider *Provider
 
 	readyLogged := false
 	reconcile := func() error {
+		// NATS micro stops a service by itself after some subscription
+		// errors, for example a slow consumer. Clear readiness and register
+		// a new service below.
+		if serving != nil && serving.Stopped() {
+			serving = nil
+			provider.serving.Store(false)
+			env.Logger.Warn("Search provider query service stopped unexpectedly", "stage", "query_service_stopped")
+		}
 		snapshot, _ := provider.probe.Snapshot()
 		healthy := snapshot.Healthy(time.Now())
 		switch {
@@ -187,6 +196,9 @@ func (u Unit) serve(ctx context.Context, env runtimeunit.Env, provider *Provider
 			}
 			serving = service
 			provider.serving.Store(true)
+			if u.servingStarted != nil {
+				u.servingStarted(service)
+			}
 			if !readyLogged {
 				// The operator's standalone search readiness probe consumes
 				// this stage field. Emit it once, after replay, a successful
