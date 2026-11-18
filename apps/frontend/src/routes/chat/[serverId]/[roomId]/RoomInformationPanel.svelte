@@ -5,19 +5,18 @@ Room details, notices, and pins in independently collapsible sidebar sections.
 The sections share one scroll viewport and retain their disclosure preferences.
 -->
 <script lang="ts" module>
-  import type { RoomThreadingMode } from '@chatto/client/util/roomThreading';
+  import type { RoomData } from '$lib/hooks/useRoomData.svelte';
 
-  /** Room rules that limit how members post, as reported by the server. */
-  export type RoomPostingRules = {
-    threadingMode: RoomThreadingMode;
-    /** Minimum seconds between posts; 0 means off. */
-    slowModeSeconds: number;
-    /**
-     * Minimum seconds between replies in each thread. Undefined means that
-     * the server applies one shared slow-mode timer to the room and its threads.
-     */
-    threadSlowModeSeconds?: number;
-  };
+  /**
+   * Room rules that limit how members post, as reported by the server.
+   * `slowModeSeconds` limits root posts, or all posts when
+   * `threadSlowModeSeconds` is undefined; 0 means off. An undefined
+   * `threadSlowModeSeconds` means that the server has one shared timer.
+   */
+  export type RoomPostingRules = Pick<
+    RoomData['room'],
+    'threadingMode' | 'slowModeSeconds' | 'threadSlowModeSeconds'
+  >;
 </script>
 
 <script lang="ts">

@@ -4,8 +4,8 @@ import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 /**
  * Returns the localized name of a room threading mode.
  *
- * An unknown mode from a newer server gets the "Disabled" label, which matches
- * how `normalizeRoomThreadingMode` treats it.
+ * A mode that this client does not know, including `UNSPECIFIED`, gets the
+ * "Disabled" label. Normalize room data with `normalizeRoomThreadingMode` first.
  */
 export function threadingModeLabel(mode: RoomThreadingMode): string {
   switch (mode) {
