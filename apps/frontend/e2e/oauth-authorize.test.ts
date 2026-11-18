@@ -58,7 +58,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Create Account', exact: true }).click();
     const popup = await popupPromise;
     await expect(popup).toHaveURL(/\/register\?redirect=/);
-    await expect(popup.getByTestId('app-frame')).toHaveCount(0);
+    await expect(popup.getByTestId('sign-in-window-header')).toBeVisible();
 
     // Switching auth screens must keep the same authorization request.
     const signupURL = popup.url();
@@ -121,7 +121,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     const identifierInput = remoteAuthPage.locator('input[autocomplete="username"]');
     await expect(identifierInput).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(remoteAuthPage).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/);
-    await expect(remoteAuthPage.getByTestId('app-frame')).toHaveCount(0);
+    await expect(remoteAuthPage.getByTestId('sign-in-window-header')).toBeVisible();
     await expect(remoteAuthPage.getByRole('button', { name: 'Toggle sidebar' })).toHaveCount(0);
 
     // 5. Fill in credentials for the remote user
@@ -136,7 +136,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     await expect(remoteAuthPage.getByText(/^localhost:\d+$/)).toBeVisible();
-    await expect(remoteAuthPage.getByTestId('app-frame')).toHaveCount(0);
+    await expect(remoteAuthPage.getByTestId('sign-in-window-header')).toBeVisible();
     await expect(remoteAuthPage.getByRole('button', { name: 'Toggle sidebar' })).toHaveCount(0);
     await expect(remoteAuthPage.getByText(/instances\/callback/)).toHaveCount(0);
 
@@ -152,7 +152,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await logIn.click();
     remoteAuthPage = await retryPopupPromise;
     await expect(remoteAuthPage.getByRole('button', { name: 'Allow Access' })).toBeVisible();
-    await expect(remoteAuthPage.getByTestId('app-frame')).toHaveCount(0);
+    await expect(remoteAuthPage.getByTestId('sign-in-window-header')).toBeVisible();
 
     const popupClosed = remoteAuthPage.waitForEvent('close');
     await remoteAuthPage.getByRole('button', { name: 'Allow Access' }).click();
