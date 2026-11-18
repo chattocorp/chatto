@@ -7,19 +7,19 @@ import (
 	"testing"
 )
 
-func TestLimitsConfig_Defaults(t *testing.T) {
-	c := &LimitsConfig{}
+func TestAccountsConfig_Defaults(t *testing.T) {
+	c := &AccountsConfig{}
 	if got := c.MaxUsersOrDefault(); got != -1 {
 		t.Errorf("MaxUsersOrDefault() with unset = %d, want -1", got)
 	}
 
 	zero := 0
-	c = &LimitsConfig{MaxUsers: &zero}
+	c = &AccountsConfig{MaxUsers: &zero}
 	if got := c.MaxUsersOrDefault(); got != 0 {
 		t.Errorf("MaxUsersOrDefault() with explicit 0 = %d, want 0", got)
 	}
 
-	c = &LimitsConfig{MaxUsers: new(100)}
+	c = &AccountsConfig{MaxUsers: new(100)}
 	if got := c.MaxUsersOrDefault(); got != 100 {
 		t.Errorf("MaxUsersOrDefault() with 100 = %d, want 100", got)
 	}
@@ -45,8 +45,9 @@ secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 [core.assets]
 signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 
-[limits]
+[core.accounts]
 max_users = -1
+max_login_length = 90
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -56,7 +57,10 @@ max_users = -1
 	if err != nil {
 		t.Fatalf("ReadConfig() failed: %v", err)
 	}
-	if got := cfg.Limits.MaxUsersOrDefault(); got != -1 {
+	if got := cfg.Core.Accounts.MaxLoginLengthOrDefault(); got != 90 {
+		t.Fatalf("TOML login limit = %d, want 90", got)
+	}
+	if got := cfg.Core.Accounts.MaxUsersOrDefault(); got != -1 {
 		t.Errorf("MaxUsers from TOML = %d, want -1", got)
 	}
 }
@@ -74,13 +78,17 @@ func TestReadConfig_LimitsFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
-	t.Setenv("CHATTO_LIMITS_MAX_USERS", "0")
+	t.Setenv("CHATTO_CORE_ACCOUNTS_MAX_USERS", "0")
+	t.Setenv("CHATTO_CORE_ACCOUNTS_MAX_LOGIN_LENGTH", "12")
 
 	cfg, err := ReadConfig("")
 	if err != nil {
 		t.Fatalf("ReadConfig() failed: %v", err)
 	}
-	if got := cfg.Limits.MaxUsersOrDefault(); got != 0 {
+	if got := cfg.Core.Accounts.MaxLoginLengthOrDefault(); got != 12 {
+		t.Fatalf("ENV login limit = %d, want 12", got)
+	}
+	if got := cfg.Core.Accounts.MaxUsersOrDefault(); got != 0 {
 		t.Errorf("MaxUsers from env (explicit 0) = %d, want 0", got)
 	}
 }
@@ -93,18 +101,31 @@ func TestChattoConfig_Validate_Limits(t *testing.T) {
 		}
 	}
 
+	t.Run("login length", func(t *testing.T) {
+		c := base()
+		if got := c.Core.Accounts.MaxLoginLengthOrDefault(); got != 64 {
+			t.Fatalf("default login limit = %d, want 64", got)
+		}
+		for _, value := range []int{-1, 0, 1, 2, 64, 254, 255} {
+			c.Core.Accounts.MaxLoginLength = &value
+			if err := c.Validate(); (err == nil) != (value >= 2 && value <= 254) {
+				t.Errorf("limit %d: %v", value, err)
+			}
+		}
+	})
+
 	t.Run("rejects max_users below -1", func(t *testing.T) {
 		c := base()
-		c.Limits.MaxUsers = new(-5)
-		if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "limits.max_users") {
-			t.Errorf("expected limits.max_users validation error, got %v", err)
+		c.Core.Accounts.MaxUsers = new(-5)
+		if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "core.accounts.max_users") {
+			t.Errorf("expected core.accounts.max_users validation error, got %v", err)
 		}
 	})
 
 	t.Run("accepts -1, 0, positive", func(t *testing.T) {
 		for _, v := range []int{-1, 0, 1, 100} {
 			c := base()
-			c.Limits.MaxUsers = new(v)
+			c.Core.Accounts.MaxUsers = new(v)
 			if err := c.Validate(); err != nil {
 				t.Errorf("validate failed for %d: %v", v, err)
 			}
@@ -134,6 +155,43 @@ func TestOwnersConfig_IsServerOwnerEmail(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := cfg.IsServerOwnerEmail(tt.input); got != tt.want {
 				t.Errorf("IsServerOwnerEmail(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMaxUsersConfigCompatibility(t *testing.T) {
+	const oldTOML = "[limits]\nmax_users=3\n"
+	const newTOML = "[core.accounts]\nmax_users=4\n"
+	for _, tc := range []struct {
+		name, file, legacyEnv, canonicalEnv string
+		want                                int
+	}{
+		{"old file", oldTOML, "", "", 3},
+		{"old environment", "", "0", "", 0},
+		{"both tables", oldTOML + newTOML, "", "", 4},
+		{"old environment overrides new file", newTOML, "0", "", 0},
+		{"new environment overrides old file", oldTOML, "", "6", 6},
+		{"both environments", oldTOML + newTOML, "0", "6", 6},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			validCheckEnvironment(t)
+			if tc.legacyEnv != "" {
+				t.Setenv("CHATTO_LIMITS_MAX_USERS", tc.legacyEnv)
+			}
+			if tc.canonicalEnv != "" {
+				t.Setenv("CHATTO_CORE_ACCOUNTS_MAX_USERS", tc.canonicalEnv)
+			}
+			path := filepath.Join(t.TempDir(), "chatto.toml")
+			if err := os.WriteFile(path, []byte(tc.file), 0600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := ReadConfig(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := cfg.Core.Accounts.MaxUsersOrDefault(); got != tc.want {
+				t.Errorf("max_users = %d, want %d", got, tc.want)
 			}
 		})
 	}

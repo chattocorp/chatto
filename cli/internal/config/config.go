@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/mail"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -31,7 +32,6 @@ type ChattoConfig struct {
 	OperatorAPI     OperatorAPIConfig     `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
 	Core            CoreConfig            `toml:"core" comment:"Core service configuration."`
 	Auth            AuthConfig            `toml:"auth" comment:"Authentication configuration."`
-	Limits          LimitsConfig          `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
 	Email           EmailConfig           `toml:"email" comment:"Transactional email transport configuration. SMTP is the default transport."`
 	SMTP            SMTPConfig            `toml:"smtp" comment:"SMTP configuration for transactional emails."`
 	Push            PushConfig            `toml:"push,commented" comment:"Web Push notification configuration."`
@@ -40,6 +40,11 @@ type ChattoConfig struct {
 	LiveKit         LiveKitConfig         `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
 	NATS            NATSConfig            `toml:"nats"`
 	Bootstrap       BootstrapConfig       `toml:"bootstrap,commented" comment:"Dev/E2E-only: users, bots, and server data auto-created on first startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
+
+	// LegacyLimits is read only for compatibility with older configurations.
+	LegacyLimits *struct {
+		MaxUsers *int `toml:"max_users" env:"CHATTO_LIMITS_MAX_USERS"`
+	} `toml:"limits,omitempty" env:",init"`
 }
 
 // ApplyDefaults fills derived config values that are safe to compute from other
@@ -487,9 +492,12 @@ func (c *ChattoConfig) Validate() error {
 		}
 	}
 
-	// Limits configuration: must be -1 (unlimited) or non-negative.
-	if c.Limits.MaxUsers != nil && *c.Limits.MaxUsers < -1 {
-		errs = append(errs, "limits.max_users must be -1 (unlimited) or a non-negative integer")
+	// Account policy bounds.
+	if max := c.Core.Accounts.MaxLoginLengthOrDefault(); max < 2 || max > LoginLengthCeiling {
+		errs = append(errs, fmt.Sprintf("core.accounts.max_login_length must be between 2 and %d", LoginLengthCeiling))
+	}
+	if c.Core.Accounts.MaxUsers != nil && *c.Core.Accounts.MaxUsers < -1 {
+		errs = append(errs, "core.accounts.max_users must be -1 (unlimited) or a non-negative integer")
 	}
 
 	// Projection snapshot retention and process-local EVT read cache limits.
@@ -554,6 +562,16 @@ func ReadConfig(configPath string) (ChattoConfig, error) {
 	if err != nil {
 		return ChattoConfig{}, err
 	}
+
+	// Environment overrides TOML. Within each source, the canonical name wins.
+	if cfg.LegacyLimits != nil && cfg.LegacyLimits.MaxUsers != nil {
+		_, legacyEnv := os.LookupEnv("CHATTO_LIMITS_MAX_USERS")
+		_, canonicalEnv := os.LookupEnv("CHATTO_CORE_ACCOUNTS_MAX_USERS")
+		if cfg.Core.Accounts.MaxUsers == nil || (legacyEnv && !canonicalEnv) {
+			cfg.Core.Accounts.MaxUsers = cfg.LegacyLimits.MaxUsers
+		}
+	}
+	cfg.LegacyLimits = nil
 
 	// Apply Chatto-specific compatibility environment variables that cannot be
 	// represented by fixed struct tags.

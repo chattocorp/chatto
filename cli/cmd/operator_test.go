@@ -173,6 +173,7 @@ func newOperatorCLITestEnvWithConfig(t testing.TB, cfg config.ChattoConfig) *ope
 	t.Cleanup(cancel)
 
 	c, err := core.NewChattoCore(ctx, nc, config.CoreConfig{
+		Accounts:  cfg.Core.Accounts,
 		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",

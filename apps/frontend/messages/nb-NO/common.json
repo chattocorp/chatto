@@ -43,7 +43,7 @@
       "password_min_bytes": "Passordet er for kort",
       "password_max": "Passordet er for langt",
       "username_min": "Må bestå av minst 2 tegn",
-      "username_max": "Må være på maksimalt 32 tegn",
+      "username_max": "Må være på maksimalt {max} tegn",
       "username_charset": "Bare bokstaver, tall, prikker, bindestreker, understreker",
       "username_end_alphanumeric": "Må slutte med en bokstav eller et tall",
       "username_no_consecutive_periods": "Ingen sammenhengende perioder tillatt",

@@ -191,7 +191,7 @@ func (c *ChattoCore) VerifyEmailCode(ctx context.Context, userID, email, code st
 // requireVerifiedAccountCapacity enforces the user cap at points where an
 // account gains its first verified sign-in factor.
 func (c *ChattoCore) requireVerifiedAccountCapacity(ctx context.Context, userID string) error {
-	if max := c.config.Limits.MaxUsersOrDefault(); max >= 0 {
+	if max := c.config.Accounts.MaxUsersOrDefault(); max >= 0 {
 		if userID != "" && c.userModel.hasVerifiedFactor(userID) {
 			return nil
 		}

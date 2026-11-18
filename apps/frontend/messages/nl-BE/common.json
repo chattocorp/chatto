@@ -43,7 +43,7 @@
       "password_min_bytes": "Het wachtwoord is te kort",
       "password_max": "Het wachtwoord is te lang",
       "username_min": "Moet minimaal 2 tekens lang zijn",
-      "username_max": "Mag maximaal 32 tekens lang zijn",
+      "username_max": "Mag maximaal {max} tekens lang zijn",
       "username_charset": "Alleen letters, cijfers, punten, streepjes en onderstrepingstekens",
       "username_end_alphanumeric": "Moet eindigen met een letter of cijfer",
       "username_no_consecutive_periods": "Geen opeenvolgende perioden toegestaan",

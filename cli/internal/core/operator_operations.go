@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -80,7 +79,7 @@ func (c *ChattoCore) CreateHistoricalOperatorUser(ctx context.Context, key, logi
 		return c.GetUser(ctx, o.resource)
 	}
 	if NormalizeDisplayName(display) == "" {
-		display = strings.TrimSpace(login)
+		display = LoginDisplayName(login)
 	}
 	user, err := c.createUserWithOptions(ctx, SystemActorID, login, display, "", userCreationOptions{
 		importEmails: nonemptyOperatorEmail(email), importReceipt: o.receipt, importContext: &evtv1.ImportContext{HiddenTimeline: true, UnknownTime: true},
@@ -140,7 +139,7 @@ func (c *ChattoCore) ImportHistoricalUser(ctx context.Context, key string, input
 	}
 	display := input.DisplayName
 	if NormalizeDisplayName(display) == "" {
-		display = strings.TrimSpace(input.Login)
+		display = LoginDisplayName(input.Login)
 	}
 	user, err := c.createUserWithOptions(ctx, SystemActorID, input.Login, display, "", userCreationOptions{
 		isBot: input.BotOwnerID != "", botOwnerID: input.BotOwnerID, credentialFreeBot: true,

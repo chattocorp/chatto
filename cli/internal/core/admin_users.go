@@ -120,7 +120,7 @@ func (c *ChattoCore) AdminGetUser(ctx context.Context, userID string) (*AdminUse
 func (c *ChattoCore) AdminCreateUserAs(ctx context.Context, actorID string, req AdminCreateUserRequest) (*AdminUserView, error) {
 	displayName := strings.TrimSpace(req.DisplayName)
 	if displayName == "" {
-		displayName = strings.TrimSpace(req.Login)
+		displayName = LoginDisplayName(req.Login)
 	}
 	if email := strings.TrimSpace(req.VerifiedEmail); email != "" {
 		claimed, err := c.IsEmailClaimed(ctx, email)

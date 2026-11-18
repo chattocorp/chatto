@@ -2383,7 +2383,7 @@ func TestAuthRoutes_RegisterComplete_InvalidLogin(t *testing.T) {
 	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
 
-	for i, login := range []string{"a", "alice."} {
+	for i, login := range []string{"a", "alice.", strings.Repeat("a", 65)} {
 		t.Run(login, func(t *testing.T) {
 			token, err := chattoCore.CreateRegistrationToken(ctx, fmt.Sprintf("invalid-%d@example.com", i))
 			if err != nil {
@@ -3007,11 +3007,13 @@ func TestAuthRoutes_RegisterComplete_ThenLogin(t *testing.T) {
 	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
 
+	login := strings.Repeat("a", 64)
+
 	// Register via two-step flow
 	token, _ := chattoCore.CreateRegistrationToken(ctx, "logintest@example.com")
 	reqBody := map[string]string{
 		"token":                token,
-		"login":                "logintest",
+		"login":                login,
 		"password":             "password123",
 		"passwordConfirmation": "password123",
 	}
@@ -3036,7 +3038,7 @@ func TestAuthRoutes_RegisterComplete_ThenLogin(t *testing.T) {
 
 	// Log in with the same credentials
 	loginBody := map[string]string{
-		"login":    "logintest",
+		"login":    login,
 		"password": "password123",
 	}
 	body, _ = json.Marshal(loginBody)
@@ -3065,8 +3067,8 @@ func TestAuthRoutes_RegisterComplete_ThenLogin(t *testing.T) {
 	if !ok {
 		t.Fatal("Expected user object")
 	}
-	if user["login"] != "logintest" {
-		t.Errorf("Expected login logintest, got %v", user["login"])
+	if user["login"] != login {
+		t.Error("Sign-in did not return the full login")
 	}
 }
 

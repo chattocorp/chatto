@@ -81,6 +81,9 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 		t.Fatalf("read generated raw config: %v", err)
 	}
 	rawText := string(raw)
+	if !strings.Contains(rawText, "[core.accounts]") || strings.Contains(rawText, "[limits]") {
+		t.Fatal("generated config must place account settings under core.accounts")
+	}
 	generalIndex := strings.Index(rawText, "\n[general]\n")
 	if generalIndex == -1 && strings.HasPrefix(rawText, "[general]\n") {
 		generalIndex = 0

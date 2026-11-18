@@ -43,7 +43,7 @@
       "password_min_bytes": "密码太短",
       "password_max": "密码太长",
       "username_min": "至少需要 2 个字符",
-      "username_max": "最多可输入 32 个字符",
+      "username_max": "最多可输入 {max} 个字符",
       "username_charset": "只能使用字母、数字、点、短横线和下划线",
       "username_end_alphanumeric": "必须以字母或数字结尾",
       "username_no_consecutive_periods": "不能使用连续的点",

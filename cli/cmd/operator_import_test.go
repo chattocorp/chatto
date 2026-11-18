@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/chattocorp/chatto/cli/internal/core"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +13,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/stretchr/testify/require"
 )
 
@@ -181,6 +182,67 @@ func TestOperatorImportRejectsSourceBeforeConnecting(t *testing.T) {
 	command := newOperatorImportCommand()
 	command.SetArgs([]string{"/nonexistent/source"})
 	require.ErrorContains(t, command.Execute(), "source must be a directory")
+}
+
+func TestOperatorImportDestinationLoginLimit(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		limit   *int
+		legacy  bool
+		wantErr string
+	}{
+		{"default", nil, false, "maximum 64"},
+		{"legacy", new(32), true, "maximum 32"},
+		{"custom", new(80), false, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := config.ChattoConfig{}
+			cfg.Core.Accounts.MaxLoginLength = tc.limit
+			env := newOperatorCLITestEnvWithConfig(t, cfg)
+			if tc.legacy {
+				handler := env.server.Handler
+				env.server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if strings.HasSuffix(r.URL.Path, "/GetLoginPolicy") {
+						http.NotFound(w, r)
+						return
+					}
+					handler.ServeHTTP(w, r)
+				})
+			}
+			dir := t.TempDir()
+			require.NoError(t, os.CopyFS(dir, os.DirFS("../../schema/interchange/v1/examples/conversation")))
+			path := filepath.Join(dir, "users.jsonl")
+			raw, err := os.ReadFile(path)
+			require.NoError(t, err)
+			// The first account fits. Only the second exceeds the default after adding the suffix.
+			raw = bytes.Replace(raw, []byte(`"username":"bob"`), []byte(`"username":"`+strings.Repeat("b", 64)+`"`), 1)
+			require.NoError(t, os.WriteFile(path, raw, 0600))
+			args := []string{"operator", "import", dir, "--username-suffix", "x", "--accept-omissions", "--progress", filepath.Join(t.TempDir(), "progress")}
+			before, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+			require.NoError(t, err)
+			_, err = env.execute(t, append(args, "--validate-only")...)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, "users.jsonl record 2")
+				require.ErrorContains(t, err, tc.wantErr)
+			}
+			after, err := env.core.EventPublisher.LastStreamSeq(env.ctx)
+			require.NoError(t, err)
+			require.Equal(t, before, after)
+			_, err = env.execute(t, args...)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				_, err = env.core.GetUserByLogin(env.ctx, strings.Repeat("b", 64)+"x")
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.wantErr)
+				after, err = env.core.EventPublisher.LastStreamSeq(env.ctx)
+				require.NoError(t, err)
+				require.Equal(t, before, after)
+			}
+		})
+	}
 }
 
 func TestOperatorImportRejectsLongDisplayNameBeforeWrites(t *testing.T) {

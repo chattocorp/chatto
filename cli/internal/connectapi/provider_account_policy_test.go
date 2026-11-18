@@ -70,7 +70,7 @@ func TestManagedProviderAccountAPI(t *testing.T) {
 
 func TestExternalIdentityAccountLoginValidation(t *testing.T) {
 	for _, managed := range []bool{false, true} {
-		for _, login := range []string{"", "x", strings.Repeat("x", 33), "invalid@name"} {
+		for _, login := range []string{"", "x", strings.Repeat("x", 65), "invalid@name"} {
 			t.Run(fmt.Sprintf("managed=%t/login=%q", managed, login), func(t *testing.T) {
 				env := newConnectAPITestEnvWithAuth(t, 30*time.Second, config.AuthConfig{Providers: []config.AuthProviderConfig{{
 					ID: "company", Type: "github", AutoProvision: new(true), ManageUsernames: managed,

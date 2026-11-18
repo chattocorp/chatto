@@ -43,7 +43,7 @@
       "password_min_bytes": "Пароль занадто короткий",
       "password_max": "Пароль занадто довгий",
       "username_min": "Має бути принаймні 2 символи",
-      "username_max": "Має містити не більше 32 символів",
+      "username_max": "Має містити не більше {max} символів",
       "username_charset": "Тільки літери, цифри, крапки, тире, підкреслення",
       "username_end_alphanumeric": "Має закінчуватися літерою або цифрою",
       "username_no_consecutive_periods": "Заборонені послідовні періоди",

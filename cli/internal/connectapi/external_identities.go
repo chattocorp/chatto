@@ -60,16 +60,20 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 
 func availableExternalIdentityLogin(chattoCore *core.ChattoCore, token, hint string) string {
 	hint = strings.TrimSpace(hint)
+	hint = strings.TrimRight(hint[:min(len(hint), chattoCore.LoginLengthLimit())], ".")
 	if chattoCore.IsLoginAvailable(hint) {
 		return hint
 	}
-	if core.ValidateLogin(hint) != nil {
+	if core.ValidateLogin(hint, chattoCore.LoginLengthLimit()) != nil {
 		return hint
 	}
 	digest := sha256.Sum256([]byte(token))
 	seed := binary.BigEndian.Uint32(digest[:4]) % 10000
 	const suffixLength = 5 // hyphen plus four digits
-	base := strings.TrimRight(hint[:min(len(hint), core.MaxLoginLength-suffixLength)], ".")
+	if chattoCore.LoginLengthLimit() <= suffixLength {
+		return hint
+	}
+	base := strings.TrimRight(hint[:min(len(hint), chattoCore.LoginLengthLimit()-suffixLength)], ".")
 	for offset := range uint32(100) {
 		candidate := fmt.Sprintf("%s-%04d", base, (seed+offset)%10000)
 		if chattoCore.IsLoginAvailable(candidate) {
@@ -179,7 +183,7 @@ func externalIdentityCreateDisplayName(login, requested, hint string) string {
 	if displayName == "" ||
 		utf8.RuneCountInString(displayName) > core.MaxDisplayNameLength ||
 		core.ValidateDisplayName(displayName) != nil {
-		return strings.TrimSpace(login)
+		return core.LoginDisplayName(login)
 	}
 	return displayName
 }

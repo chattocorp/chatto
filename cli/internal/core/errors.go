@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/chattocorp/chatto/cli/internal/config"
 )
 
 // Sentinel errors for common error conditions in ChattoCore.
@@ -151,8 +153,8 @@ var (
 	// ErrLoginTooShort is returned when a login is shorter than MinLoginLength.
 	ErrLoginTooShort = errors.New("username must be at least 2 characters")
 
-	// ErrLoginTooLong is returned when a login exceeds MaxLoginLength.
-	ErrLoginTooLong = errors.New("username cannot exceed 32 characters")
+	// ErrLoginTooLong is returned when a login exceeds the configured maximum.
+	ErrLoginTooLong = errors.New("username is too long")
 
 	// ErrLoginInvalidCharacter is returned when a login contains characters
 	// outside the allowed set (letters, digits, periods, underscores, hyphens).
@@ -257,7 +259,7 @@ const (
 	MaxSpaceNameLength = 42
 
 	// MaxLoginLength is the maximum length of a user login in characters.
-	MaxLoginLength = 32
+	MaxLoginLength = config.LoginLengthCeiling
 
 	// MinLoginLength is the minimum length of a user login in characters.
 	MinLoginLength = 2
