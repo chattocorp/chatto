@@ -67,10 +67,10 @@ then continues the same sign-in (FDR-058). It runs in the sign-in window.
       />
       {#if remembered && handle === remembered}
         <div class="-mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <span class="text-muted">{m('auth.login.atproto_handle_saved')}</span>
+          <span class="text-sm text-muted">{m('auth.login.atproto_handle_saved')}</span>
           <button
             type="button"
-            class="cursor-pointer link"
+            class="cursor-pointer text-sm link"
             disabled={submitting}
             onclick={forgetHandle}>{m('auth.remote.forget_atproto_handle')}</button
           >
@@ -79,7 +79,7 @@ then continues the same sign-in (FDR-058). It runs in the sign-in window.
       <Button type="submit" size="lg" fullWidth loading={submitting} disabled={!handle.trim()}>
         {m('common.continue')}
       </Button>
-      <Hint icon="icon-[uil--shield-check]">
+      <Hint plain icon="icon-[uil--shield-check]">
         {m('auth.login.atproto_handle_next', { server: getServerInfo()?.name || 'Chatto' })}
       </Hint>
     </form>

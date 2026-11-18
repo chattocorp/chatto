@@ -287,7 +287,7 @@ describe('OAuth page layout', () => {
     ['/', true],
     ['/servers/callback?mode=provider', true]
   ] as const)(
-    'shows the app frame on SSO confirmation returning to %s: %s',
+    'shows app navigation on SSO confirmation returning to %s: %s',
     async (redirectPath, framed) => {
       page.route.id = '/sso/confirm';
       Object.assign(page, {
@@ -295,26 +295,27 @@ describe('OAuth page layout', () => {
         data: { pending: { redirectPath } }
       });
       const view = renderLayout();
-      if (framed) await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
-      else await expect.element(view.getByTestId('app-frame')).not.toBeInTheDocument();
+      if (framed)
+        await expect.element(view.getByTestId('sign-in-window-header')).not.toBeInTheDocument();
+      else await expect.element(view.getByTestId('sign-in-window-header')).toBeInTheDocument();
     }
   );
 
-  it('restores the frame when client-side navigation leaves OAuth login', async () => {
+  it('restores app navigation when client-side navigation leaves OAuth login', async () => {
     page.route.id = '/login';
     Object.assign(page, {
       url: new URL('https://chat.example.test/login?redirect=%2Foauth%2Fauthorize')
     });
     const view = renderLayout();
-    await expect.element(view.getByTestId('app-frame')).not.toBeInTheDocument();
+    await expect.element(view.getByTestId('sign-in-window-header')).toBeInTheDocument();
 
     Object.assign(page, { url: new URL('https://chat.example.test/login') });
-    await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
+    await expect.element(view.getByTestId('sign-in-window-header')).not.toBeInTheDocument();
 
     page.route.id = '/oauth/consent';
-    await expect.element(view.getByTestId('app-frame')).not.toBeInTheDocument();
+    await expect.element(view.getByTestId('sign-in-window-header')).toBeInTheDocument();
     page.route.id = '/register';
-    await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
+    await expect.element(view.getByTestId('sign-in-window-header')).not.toBeInTheDocument();
   });
 
   it.each([
@@ -334,7 +335,10 @@ describe('OAuth page layout', () => {
 
     await expect.element(view.getByText('Loading', { exact: true })).toBeVisible();
     await expect.element(view.getByRole('alert')).toBeVisible();
-    expect(q(view.container, '[data-testid="app-frame"]')).toBeNull();
+    const windowBar = view.getByTestId('sign-in-window-header');
+    await expect.element(windowBar).toHaveTextContent('Test Server');
+    await expect.element(windowBar).toHaveTextContent('chat.example.test');
+    await expect.element(view.getByTestId('app-frame')).toBeVisible();
     expect(q(view.container, '[data-testid="mobile-sidebar-panel"]')).toBeNull();
     await expect
       .element(view.getByRole('button', { name: 'Toggle sidebar' }))
@@ -361,11 +365,11 @@ describe('OAuth page layout', () => {
     ['/login', '?redirect=%2F%2Fexternal.test%2Foauth%2Fauthorize'],
     ['/login', '?redirect=%2F%5Cexternal.test%2Foauth%2Fauthorize'],
     ['/login', '?redirect=%2Foauth%2Fauthorize-other']
-  ] as const)('keeps the app frame on %s%s', async (route, search) => {
+  ] as const)('keeps app navigation on %s%s', async (route, search) => {
     page.route.id = route;
     Object.assign(page, { url: new URL(route + search, 'https://chat.example.test') });
     const view = renderLayout();
-    await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
+    await expect.element(view.getByTestId('sign-in-window-header')).not.toBeInTheDocument();
     await expect.element(view.getByRole('button', { name: 'Toggle sidebar' })).toBeVisible();
   });
 });

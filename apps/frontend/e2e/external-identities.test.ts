@@ -50,8 +50,8 @@ test.describe('Managed provider accounts', () => {
       displayNameHint: 'Managed Person'
     });
     await page.goto(flow.confirmUrl);
-    await expect(page.getByText('@e2eadmin-2', { exact: true })).toBeVisible();
-    await expect(page.getByRole('textbox', { name: 'Username' })).toHaveCount(0);
+    await expect(page.getByRole('textbox', { name: 'Username' })).toHaveValue('e2eadmin-2');
+    await expect(page.getByRole('textbox', { name: 'Username' })).toBeDisabled();
     await expect(page.getByLabel('Display Name')).toBeEnabled();
     await page.getByRole('button', { name: 'Create Account' }).click();
     await page.waitForURL(routes.patterns.chatRedirect);
@@ -80,7 +80,7 @@ test.describe('Managed provider accounts', () => {
       providerUsername: 'e2eadmin'
     });
     await page.goto(flow.confirmUrl);
-    await expect(page.getByText('@e2eadmin-2', { exact: true })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Username' })).toHaveValue('e2eadmin-2');
     await expect(page.getByLabel('Display Name')).toHaveValue('');
     await authPage.createUserViaApi('e2eadmin-2', 'password123');
     await page.getByRole('button', { name: 'Create Account' }).click();
@@ -102,8 +102,8 @@ test.describe('Managed provider accounts', () => {
       providerUsername: 'john..doe'
     });
     await page.goto(flow.confirmUrl);
-    await expect(page.getByText('@john..doe', { exact: true })).toBeVisible();
-    await expect(page.getByRole('textbox', { name: 'Username' })).toHaveCount(0);
+    await expect(page.getByRole('textbox', { name: 'Username' })).toHaveValue('john..doe');
+    await expect(page.getByRole('textbox', { name: 'Username' })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Create Account' })).toBeEnabled();
     await page.getByRole('button', { name: 'Create Account' }).click();
     await page.waitForURL(routes.patterns.chatRedirect);
@@ -333,7 +333,7 @@ test.describe('External identity confirmation flows', () => {
     });
 
     await page.goto(flow.confirmUrl);
-    await expect(page.getByRole('heading', { name: 'Create Account' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^Join / })).toBeVisible();
     await expect(page.getByText('Signed in with GitHub')).toBeVisible();
     await expect(page.getByLabel('Username')).toHaveValue(login);
     await expect(page.getByLabel('Display Name')).toHaveValue('GitHub SSO User');

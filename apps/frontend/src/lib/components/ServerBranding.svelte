@@ -1,4 +1,10 @@
-<!-- @component Shared public server identity for authentication and server information pages. -->
+<!--
+@component
+Shared public server identity for authentication and server information pages.
+The compact form, used in sign-in windows, shows only a short banner and the
+description, clamped to two lines. The window bar of a sign-in window shows the
+server's icon and name (`SignInWindowHeader`).
+-->
 <script lang="ts">
   import { MarkdownHtml } from '$lib/ui';
 
@@ -30,28 +36,37 @@
 <div
   class={[
     'mx-auto flex w-full max-w-md min-w-0 flex-col items-center',
-    compact ? 'gap-3' : 'gap-5'
+    compact ? 'gap-2' : 'gap-5'
   ]}
 >
-  <div class={['flex items-center', compact ? 'gap-3' : 'gap-4']}>
-    {#if iconUrl}
-      <img src={iconUrl} alt="" class={compact ? 'h-10 w-10 rounded-lg' : 'h-12 w-12 rounded-xl'} />
+  {#if compact}
+    {#if bannerUrl}
+      <!-- Sign-in windows come in many sizes: the banner follows the window
+           height and gives its space to the form in short windows. -->
+      <img
+        src={bannerUrl}
+        alt=""
+        class="h-[clamp(4rem,18vh,8rem)] w-full rounded-lg object-cover [@media(max-height:540px)]:hidden"
+      />
     {/if}
+  {:else}
+    <div class="flex items-center gap-4">
+      {#if iconUrl}
+        <img src={iconUrl} alt="" class="h-12 w-12 rounded-xl" />
+      {/if}
 
-    <svelte:element
-      this={`h${headingLevel}`}
-      class={compact ? 'text-lg font-bold' : 'text-2xl font-bold'}
-    >
-      <bdi>{name}</bdi>
-    </svelte:element>
-  </div>
+      <svelte:element this={`h${headingLevel}`} class="text-2xl font-bold">
+        <bdi>{name}</bdi>
+      </svelte:element>
+    </div>
+  {/if}
 
-  {#if bannerUrl}
+  {#if bannerUrl && !compact}
     <img src={bannerUrl} alt="" class="aspect-[1200/630] w-full rounded-lg object-cover" />
   {/if}
 
   {#if description}
-    <p class="text-center text-muted">{description}</p>
+    <p class={['text-center text-muted', compact && 'line-clamp-2']}>{description}</p>
   {/if}
 
   {#if welcomeMessage}

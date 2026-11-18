@@ -17,6 +17,7 @@
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
   import { setAuthServerInfo } from '$lib/components/authServerInfo';
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
+  import SignInWindowHeader from '$lib/components/auth/SignInWindowHeader.svelte';
   import { provideKeyboardShortcuts } from '$lib/keyboardShortcuts';
   import InputModalityTracker from '$lib/components/InputModalityTracker.svelte';
   import TouchPressFeedback from '$lib/components/TouchPressFeedback.svelte';
@@ -98,8 +99,8 @@
     )
   );
 
-  // OAuth and provider sign-in windows keep their page content and branding
-  // without app navigation.
+  // OAuth and provider sign-in windows replace app navigation with a window
+  // bar that shows this server's identity and address.
   const standaloneOAuth = $derived.by(() => {
     if (
       page.route.id === '/oauth/consent' ||
@@ -182,9 +183,13 @@
   <div
     {@attach initialPageReveal}
     {@attach watchMotionPreference}
-    class="flex h-full w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+    class="flex h-full w-full flex-col overflow-hidden bg-surface pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] desktop-presentation:app-frame-shell desktop-presentation:px-3 desktop-presentation:pb-3"
   >
-    {@render children?.()}
+    <SignInWindowHeader />
+    <Frame class="flex-col">
+      {@render children?.()}
+      <p class="shrink-0 pb-3 text-center text-sm text-muted">Chatto</p>
+    </Frame>
   </div>
 {:else}
   <div
