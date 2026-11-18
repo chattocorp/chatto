@@ -147,32 +147,28 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByRole('button', { name: 'Create Account' })).toBeEnabled();
   });
 
-  test('shows immediate feedback while starting provider sign-in', async ({ page, context }) => {
-    let releaseProviderRequest: (() => void) | undefined;
-    const providerRequestStarted = new Promise<void>((resolve) => {
-      context.route('**/auth/providers/github-main?**', async (route) => {
-        resolve();
-        await new Promise<void>((release) => {
-          releaseProviderRequest = release;
-        });
-        await route.fulfill({ status: 204, body: '' });
-      });
-    });
-
+  test('offers one-click retry while provider sign-in is pending', async ({ page, context }) => {
+    await context.route('**/auth/providers/github-main?**', (route) =>
+      route.fulfill({ contentType: 'text/html', body: '<p>Test provider consent</p>' })
+    );
     await page.goto(routes.login);
 
-    const githubButton = page.locator('a[href^="/auth/providers/github-main"]').first();
-    const discordButton = page.locator('a[href^="/auth/providers/discord-main"]').first();
-    await githubButton.click();
+    const firstPopup = page.waitForEvent('popup');
+    await page.getByRole('link', { name: 'Continue with GitHub' }).click();
+    await expect((await firstPopup).getByText('Test provider consent')).toBeVisible();
 
-    await expect(githubButton).toHaveAttribute('aria-busy', 'true');
-    await expect(githubButton).toContainText('Connecting to GitHub...');
-    await expect(discordButton).toHaveAttribute('aria-disabled', 'true');
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Continue in the other window.' })
+    ).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Continue with Discord' })).toBeDisabled();
     await expect(page.getByLabel('Username or Email')).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Sign In' })).toBeDisabled();
 
-    await providerRequestStarted;
-    releaseProviderRequest?.();
+    const replacement = page.waitForEvent('popup');
+    await page.getByRole('button', { name: 'Try Again' }).click();
+    await expect((await replacement).getByText('Test provider consent')).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(page.getByRole('link', { name: 'Continue with GitHub' })).toBeEnabled();
   });
 
   test('signs in through a popup from the origin login page and resumes its destination', async ({
