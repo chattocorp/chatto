@@ -446,6 +446,8 @@ commit. Author key provisioning remains part of encryption preparation.
 `ImportRoomEvent` returns the committed event ID. Its atomic operation receipt
 retains that ID for retries; receipts from older servers return no event ID.
 
+`OperatorUserService.GetLoginPolicy` returns the maximum login length enforced by this server.
+
 `OperatorUserService.ImportUser` creates historical human or bot accounts without
 credentials. Initial deactivation and the permanent retry receipt commit with
 account creation. It does not change existing accounts.

@@ -181,10 +181,28 @@ func (m *cliArchiveImport) run(ctx context.Context, validateOnly, acceptOmission
 	return m.progress.put("complete", "true")
 }
 
+// destinationLoginLimit reads the policy from the same socket used for account creation.
+func (m *cliArchiveImport) destinationLoginLimit(ctx context.Context) (int, error) {
+	response, err := m.userAPI.GetLoginPolicy(ctx, operatorRequest(&op.GetLoginPolicyRequest{}))
+	if connect.CodeOf(err) == connect.CodeUnimplemented {
+		// Servers released before GetLoginPolicy enforced a fixed 32-character limit.
+		return 32, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("read destination login policy: %w", err)
+	}
+	limit := int(response.Msg.GetMaxLoginLength())
+	if limit < core.MinLoginLength || limit > core.MaxLoginLength {
+		return 0, fmt.Errorf("unsupported destination login limit: %d", limit)
+	}
+	return limit, nil
+}
+
 func (m *cliArchiveImport) preflight(ctx context.Context) error {
 	if err := m.matchUsers(ctx); err != nil {
 		return err
 	}
+	var loginLimit int
 	userNames := map[string]bool{}
 	roomNames := map[string]bool{}
 	for i, u := range m.archive.Users {
@@ -207,7 +225,7 @@ func (m *cliArchiveImport) preflight(ctx context.Context) error {
 			return fmt.Errorf("users.jsonl record %d: new account needs a username", i+1)
 		}
 		name := m.importUsername(u)
-		if core.ValidateLogin(name, core.MaxLoginLength) != nil || strings.TrimSpace(name) != name || core.ValidateDisplayName(u.DisplayName) != nil || utf8.RuneCountInString(u.DisplayName) > core.MaxDisplayNameLength {
+		if strings.TrimSpace(name) != name || core.ValidateDisplayName(u.DisplayName) != nil || utf8.RuneCountInString(u.DisplayName) > core.MaxDisplayNameLength {
 			return fmt.Errorf("users.jsonl record %d: unsupported destination name", i+1)
 		}
 		lower := strings.ToLower(name)
@@ -221,8 +239,20 @@ func (m *cliArchiveImport) preflight(ctx context.Context) error {
 		if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
 			return err
 		}
-		if err == nil && m.progress.values["pending/user/"+importRef(u.ID)] == "" {
-			return fmt.Errorf("users.jsonl record %d: destination username collision", i+1)
+		if err == nil {
+			if m.progress.values["pending/user/"+importRef(u.ID)] == "" {
+				return fmt.Errorf("users.jsonl record %d: destination username collision", i+1)
+			}
+			continue
+		}
+		if loginLimit == 0 {
+			loginLimit, err = m.destinationLoginLimit(ctx)
+			if err != nil {
+				return err
+			}
+		}
+		if err := core.ValidateLogin(name, loginLimit); err != nil {
+			return fmt.Errorf("users.jsonl record %d: unsupported destination name: %w", i+1, err)
 		}
 	}
 	for i, r := range m.archive.Rooms {

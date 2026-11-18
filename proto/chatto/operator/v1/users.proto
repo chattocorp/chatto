@@ -278,6 +278,15 @@ message UnlinkUserExternalIdentityRequest {
 // Successful removal. A missing user or link returns NOT_FOUND.
 message UnlinkUserExternalIdentityResponse {}
 
+// Request the destination rules for assigning account logins.
+message GetLoginPolicyRequest {}
+
+// Current login policy for new and renamed accounts.
+message GetLoginPolicyResponse {
+  // Maximum length in ASCII characters, including any prefix or suffix.
+  uint32 max_login_length = 1;
+}
+
 // Root-equivalent local operator user commands.
 service OperatorUserService {
   // Creates a user as a local operator.
@@ -311,4 +320,6 @@ service OperatorUserService {
   rpc LinkUserExternalIdentity(LinkUserExternalIdentityRequest) returns (LinkUserExternalIdentityResponse);
   // Removes a link, or returns FAILED_PRECONDITION for the last configured method.
   rpc UnlinkUserExternalIdentity(UnlinkUserExternalIdentityRequest) returns (UnlinkUserExternalIdentityResponse);
+  // Returns the effective login policy for this server.
+  rpc GetLoginPolicy(GetLoginPolicyRequest) returns (GetLoginPolicyResponse);
 }

@@ -1738,6 +1738,89 @@ func (*UnlinkUserExternalIdentityResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{30}
 }
 
+// Request the destination rules for assigning account logins.
+type GetLoginPolicyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLoginPolicyRequest) Reset() {
+	*x = GetLoginPolicyRequest{}
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLoginPolicyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLoginPolicyRequest) ProtoMessage() {}
+
+func (x *GetLoginPolicyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLoginPolicyRequest.ProtoReflect.Descriptor instead.
+func (*GetLoginPolicyRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{31}
+}
+
+// Current login policy for new and renamed accounts.
+type GetLoginPolicyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Maximum length in ASCII characters, including any prefix or suffix.
+	MaxLoginLength uint32 `protobuf:"varint,1,opt,name=max_login_length,json=maxLoginLength,proto3" json:"max_login_length,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetLoginPolicyResponse) Reset() {
+	*x = GetLoginPolicyResponse{}
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLoginPolicyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLoginPolicyResponse) ProtoMessage() {}
+
+func (x *GetLoginPolicyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_operator_v1_users_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLoginPolicyResponse.ProtoReflect.Descriptor instead.
+func (*GetLoginPolicyResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_operator_v1_users_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GetLoginPolicyResponse) GetMaxLoginLength() uint32 {
+	if x != nil {
+		return x.MaxLoginLength
+	}
+	return 0
+}
+
 var File_chatto_operator_v1_users_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_users_proto_rawDesc = "" +
@@ -1847,7 +1930,10 @@ const file_chatto_operator_v1_users_proto_rawDesc = "" +
 	"!UnlinkUserExternalIdentityRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12*\n" +
 	"\fsubject_hash\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsubjectHash\"$\n" +
-	"\"UnlinkUserExternalIdentityResponse2\xdd\f\n" +
+	"\"UnlinkUserExternalIdentityResponse\"\x17\n" +
+	"\x15GetLoginPolicyRequest\"B\n" +
+	"\x16GetLoginPolicyResponse\x12(\n" +
+	"\x10max_login_length\x18\x01 \x01(\rR\x0emaxLoginLength2\xc6\r\n" +
 	"\x13OperatorUserService\x12[\n" +
 	"\n" +
 	"CreateUser\x12%.chatto.operator.v1.CreateUserRequest\x1a&.chatto.operator.v1.CreateUserResponse\x12[\n" +
@@ -1869,7 +1955,8 @@ const file_chatto_operator_v1_users_proto_rawDesc = "" +
 	"\x15ClearUsernameCooldown\x120.chatto.operator.v1.ClearUsernameCooldownRequest\x1a1.chatto.operator.v1.ClearUsernameCooldownResponse\x12\x8b\x01\n" +
 	"\x1aListUserExternalIdentities\x125.chatto.operator.v1.ListUserExternalIdentitiesRequest\x1a6.chatto.operator.v1.ListUserExternalIdentitiesResponse\x12\x85\x01\n" +
 	"\x18LinkUserExternalIdentity\x123.chatto.operator.v1.LinkUserExternalIdentityRequest\x1a4.chatto.operator.v1.LinkUserExternalIdentityResponse\x12\x8b\x01\n" +
-	"\x1aUnlinkUserExternalIdentity\x125.chatto.operator.v1.UnlinkUserExternalIdentityRequest\x1a6.chatto.operator.v1.UnlinkUserExternalIdentityResponseB\xda\x01\n" +
+	"\x1aUnlinkUserExternalIdentity\x125.chatto.operator.v1.UnlinkUserExternalIdentityRequest\x1a6.chatto.operator.v1.UnlinkUserExternalIdentityResponse\x12g\n" +
+	"\x0eGetLoginPolicy\x12).chatto.operator.v1.GetLoginPolicyRequest\x1a*.chatto.operator.v1.GetLoginPolicyResponseB\xda\x01\n" +
 	"\x16com.chatto.operator.v1B\n" +
 	"UsersProtoP\x01ZJgithub.com/chattocorp/chatto/cli/internal/pb/chatto/operator/v1;operatorv1\xa2\x02\x03COX\xaa\x02\x12Chatto.Operator.V1\xca\x02\x12Chatto\\Operator\\V1\xe2\x02\x1eChatto\\Operator\\V1\\GPBMetadata\xea\x02\x14Chatto::Operator::V1b\x06proto3"
 
@@ -1885,7 +1972,7 @@ func file_chatto_operator_v1_users_proto_rawDescGZIP() []byte {
 	return file_chatto_operator_v1_users_proto_rawDescData
 }
 
-var file_chatto_operator_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_chatto_operator_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_chatto_operator_v1_users_proto_goTypes = []any{
 	(*CreateUserRequest)(nil),                  // 0: chatto.operator.v1.CreateUserRequest
 	(*CreateUserResponse)(nil),                 // 1: chatto.operator.v1.CreateUserResponse
@@ -1918,28 +2005,30 @@ var file_chatto_operator_v1_users_proto_goTypes = []any{
 	(*LinkUserExternalIdentityResponse)(nil),   // 28: chatto.operator.v1.LinkUserExternalIdentityResponse
 	(*UnlinkUserExternalIdentityRequest)(nil),  // 29: chatto.operator.v1.UnlinkUserExternalIdentityRequest
 	(*UnlinkUserExternalIdentityResponse)(nil), // 30: chatto.operator.v1.UnlinkUserExternalIdentityResponse
-	(*v1.AdminMember)(nil),                     // 31: chatto.admin.v1.AdminMember
-	(*v11.PageRequest)(nil),                    // 32: chatto.api.v1.PageRequest
-	(*v11.Role)(nil),                           // 33: chatto.api.v1.Role
-	(*v11.PageInfo)(nil),                       // 34: chatto.api.v1.PageInfo
-	(*v1.AdminRole)(nil),                       // 35: chatto.admin.v1.AdminRole
-	(*v11.User)(nil),                           // 36: chatto.api.v1.User
+	(*GetLoginPolicyRequest)(nil),              // 31: chatto.operator.v1.GetLoginPolicyRequest
+	(*GetLoginPolicyResponse)(nil),             // 32: chatto.operator.v1.GetLoginPolicyResponse
+	(*v1.AdminMember)(nil),                     // 33: chatto.admin.v1.AdminMember
+	(*v11.PageRequest)(nil),                    // 34: chatto.api.v1.PageRequest
+	(*v11.Role)(nil),                           // 35: chatto.api.v1.Role
+	(*v11.PageInfo)(nil),                       // 36: chatto.api.v1.PageInfo
+	(*v1.AdminRole)(nil),                       // 37: chatto.admin.v1.AdminRole
+	(*v11.User)(nil),                           // 38: chatto.api.v1.User
 }
 var file_chatto_operator_v1_users_proto_depIdxs = []int32{
-	31, // 0: chatto.operator.v1.CreateUserResponse.member:type_name -> chatto.admin.v1.AdminMember
-	31, // 1: chatto.operator.v1.ImportUserResponse.member:type_name -> chatto.admin.v1.AdminMember
-	32, // 2: chatto.operator.v1.ListUsersRequest.page:type_name -> chatto.api.v1.PageRequest
-	31, // 3: chatto.operator.v1.ListUsersResponse.users:type_name -> chatto.admin.v1.AdminMember
-	33, // 4: chatto.operator.v1.ListUsersResponse.roles:type_name -> chatto.api.v1.Role
-	34, // 5: chatto.operator.v1.ListUsersResponse.page:type_name -> chatto.api.v1.PageInfo
-	31, // 6: chatto.operator.v1.GetUserResponse.member:type_name -> chatto.admin.v1.AdminMember
-	35, // 7: chatto.operator.v1.GetUserResponse.roles:type_name -> chatto.admin.v1.AdminRole
-	31, // 8: chatto.operator.v1.AssignRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
-	31, // 9: chatto.operator.v1.RevokeRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
-	36, // 10: chatto.operator.v1.UpdateUserResponse.user:type_name -> chatto.api.v1.User
-	31, // 11: chatto.operator.v1.UpdateUserResponse.member:type_name -> chatto.admin.v1.AdminMember
-	31, // 12: chatto.operator.v1.SetUserPasswordResponse.member:type_name -> chatto.admin.v1.AdminMember
-	31, // 13: chatto.operator.v1.AddVerifiedEmailResponse.member:type_name -> chatto.admin.v1.AdminMember
+	33, // 0: chatto.operator.v1.CreateUserResponse.member:type_name -> chatto.admin.v1.AdminMember
+	33, // 1: chatto.operator.v1.ImportUserResponse.member:type_name -> chatto.admin.v1.AdminMember
+	34, // 2: chatto.operator.v1.ListUsersRequest.page:type_name -> chatto.api.v1.PageRequest
+	33, // 3: chatto.operator.v1.ListUsersResponse.users:type_name -> chatto.admin.v1.AdminMember
+	35, // 4: chatto.operator.v1.ListUsersResponse.roles:type_name -> chatto.api.v1.Role
+	36, // 5: chatto.operator.v1.ListUsersResponse.page:type_name -> chatto.api.v1.PageInfo
+	33, // 6: chatto.operator.v1.GetUserResponse.member:type_name -> chatto.admin.v1.AdminMember
+	37, // 7: chatto.operator.v1.GetUserResponse.roles:type_name -> chatto.admin.v1.AdminRole
+	33, // 8: chatto.operator.v1.AssignRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
+	33, // 9: chatto.operator.v1.RevokeRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
+	38, // 10: chatto.operator.v1.UpdateUserResponse.user:type_name -> chatto.api.v1.User
+	33, // 11: chatto.operator.v1.UpdateUserResponse.member:type_name -> chatto.admin.v1.AdminMember
+	33, // 12: chatto.operator.v1.SetUserPasswordResponse.member:type_name -> chatto.admin.v1.AdminMember
+	33, // 13: chatto.operator.v1.AddVerifiedEmailResponse.member:type_name -> chatto.admin.v1.AdminMember
 	24, // 14: chatto.operator.v1.ListUserExternalIdentitiesResponse.identities:type_name -> chatto.operator.v1.UserExternalIdentity
 	24, // 15: chatto.operator.v1.LinkUserExternalIdentityResponse.identity:type_name -> chatto.operator.v1.UserExternalIdentity
 	0,  // 16: chatto.operator.v1.OperatorUserService.CreateUser:input_type -> chatto.operator.v1.CreateUserRequest
@@ -1957,23 +2046,25 @@ var file_chatto_operator_v1_users_proto_depIdxs = []int32{
 	25, // 28: chatto.operator.v1.OperatorUserService.ListUserExternalIdentities:input_type -> chatto.operator.v1.ListUserExternalIdentitiesRequest
 	27, // 29: chatto.operator.v1.OperatorUserService.LinkUserExternalIdentity:input_type -> chatto.operator.v1.LinkUserExternalIdentityRequest
 	29, // 30: chatto.operator.v1.OperatorUserService.UnlinkUserExternalIdentity:input_type -> chatto.operator.v1.UnlinkUserExternalIdentityRequest
-	1,  // 31: chatto.operator.v1.OperatorUserService.CreateUser:output_type -> chatto.operator.v1.CreateUserResponse
-	3,  // 32: chatto.operator.v1.OperatorUserService.ImportUser:output_type -> chatto.operator.v1.ImportUserResponse
-	5,  // 33: chatto.operator.v1.OperatorUserService.ImportUserAvatar:output_type -> chatto.operator.v1.ImportUserAvatarResponse
-	7,  // 34: chatto.operator.v1.OperatorUserService.ListUsers:output_type -> chatto.operator.v1.ListUsersResponse
-	9,  // 35: chatto.operator.v1.OperatorUserService.GetUser:output_type -> chatto.operator.v1.GetUserResponse
-	11, // 36: chatto.operator.v1.OperatorUserService.AssignRole:output_type -> chatto.operator.v1.AssignRoleResponse
-	13, // 37: chatto.operator.v1.OperatorUserService.RevokeRole:output_type -> chatto.operator.v1.RevokeRoleResponse
-	15, // 38: chatto.operator.v1.OperatorUserService.UpdateUser:output_type -> chatto.operator.v1.UpdateUserResponse
-	17, // 39: chatto.operator.v1.OperatorUserService.SetUserPassword:output_type -> chatto.operator.v1.SetUserPasswordResponse
-	19, // 40: chatto.operator.v1.OperatorUserService.DeleteUser:output_type -> chatto.operator.v1.DeleteUserResponse
-	21, // 41: chatto.operator.v1.OperatorUserService.AddVerifiedEmail:output_type -> chatto.operator.v1.AddVerifiedEmailResponse
-	23, // 42: chatto.operator.v1.OperatorUserService.ClearUsernameCooldown:output_type -> chatto.operator.v1.ClearUsernameCooldownResponse
-	26, // 43: chatto.operator.v1.OperatorUserService.ListUserExternalIdentities:output_type -> chatto.operator.v1.ListUserExternalIdentitiesResponse
-	28, // 44: chatto.operator.v1.OperatorUserService.LinkUserExternalIdentity:output_type -> chatto.operator.v1.LinkUserExternalIdentityResponse
-	30, // 45: chatto.operator.v1.OperatorUserService.UnlinkUserExternalIdentity:output_type -> chatto.operator.v1.UnlinkUserExternalIdentityResponse
-	31, // [31:46] is the sub-list for method output_type
-	16, // [16:31] is the sub-list for method input_type
+	31, // 31: chatto.operator.v1.OperatorUserService.GetLoginPolicy:input_type -> chatto.operator.v1.GetLoginPolicyRequest
+	1,  // 32: chatto.operator.v1.OperatorUserService.CreateUser:output_type -> chatto.operator.v1.CreateUserResponse
+	3,  // 33: chatto.operator.v1.OperatorUserService.ImportUser:output_type -> chatto.operator.v1.ImportUserResponse
+	5,  // 34: chatto.operator.v1.OperatorUserService.ImportUserAvatar:output_type -> chatto.operator.v1.ImportUserAvatarResponse
+	7,  // 35: chatto.operator.v1.OperatorUserService.ListUsers:output_type -> chatto.operator.v1.ListUsersResponse
+	9,  // 36: chatto.operator.v1.OperatorUserService.GetUser:output_type -> chatto.operator.v1.GetUserResponse
+	11, // 37: chatto.operator.v1.OperatorUserService.AssignRole:output_type -> chatto.operator.v1.AssignRoleResponse
+	13, // 38: chatto.operator.v1.OperatorUserService.RevokeRole:output_type -> chatto.operator.v1.RevokeRoleResponse
+	15, // 39: chatto.operator.v1.OperatorUserService.UpdateUser:output_type -> chatto.operator.v1.UpdateUserResponse
+	17, // 40: chatto.operator.v1.OperatorUserService.SetUserPassword:output_type -> chatto.operator.v1.SetUserPasswordResponse
+	19, // 41: chatto.operator.v1.OperatorUserService.DeleteUser:output_type -> chatto.operator.v1.DeleteUserResponse
+	21, // 42: chatto.operator.v1.OperatorUserService.AddVerifiedEmail:output_type -> chatto.operator.v1.AddVerifiedEmailResponse
+	23, // 43: chatto.operator.v1.OperatorUserService.ClearUsernameCooldown:output_type -> chatto.operator.v1.ClearUsernameCooldownResponse
+	26, // 44: chatto.operator.v1.OperatorUserService.ListUserExternalIdentities:output_type -> chatto.operator.v1.ListUserExternalIdentitiesResponse
+	28, // 45: chatto.operator.v1.OperatorUserService.LinkUserExternalIdentity:output_type -> chatto.operator.v1.LinkUserExternalIdentityResponse
+	30, // 46: chatto.operator.v1.OperatorUserService.UnlinkUserExternalIdentity:output_type -> chatto.operator.v1.UnlinkUserExternalIdentityResponse
+	32, // 47: chatto.operator.v1.OperatorUserService.GetLoginPolicy:output_type -> chatto.operator.v1.GetLoginPolicyResponse
+	32, // [32:48] is the sub-list for method output_type
+	16, // [16:32] is the sub-list for method input_type
 	16, // [16:16] is the sub-list for extension type_name
 	16, // [16:16] is the sub-list for extension extendee
 	0,  // [0:16] is the sub-list for field type_name
@@ -1991,7 +2082,7 @@ func file_chatto_operator_v1_users_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_operator_v1_users_proto_rawDesc), len(file_chatto_operator_v1_users_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   31,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
