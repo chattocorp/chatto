@@ -1,6 +1,6 @@
 ---
 title: Login Providers
-description: Let people sign in to Chatto with OIDC, GitHub, GitLab, Google, Discord, or Bluesky (AT Protocol), with a Pocket ID example.
+description: Let people sign in to Chatto with OIDC, GitHub, GitLab, Google, Discord, or an internet handle (AT Protocol), with a Pocket ID example.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
@@ -18,7 +18,7 @@ in a popup, so users must allow popups for Chatto.
 | `gitlab` | GitLab OAuth applications |
 | `google` | Google OAuth clients |
 | `discord` | Discord OAuth2 applications |
-| `atproto` | [Bluesky and other AT Protocol accounts](#bluesky-at-protocol). Needs no client registration. |
+| `atproto` | [Internet handles (AT Protocol accounts)](#internet-handle-at-protocol). Needs no client registration. |
 
 Self-hosted OIDC providers include [Pocket ID](https://pocket-id.org/),
 [Kanidm](https://kanidm.com/), [VoidAuth](https://github.com/voidauth/voidauth),
@@ -123,10 +123,10 @@ use them together with counted variables.
 </TabItem>
 </Tabs>
 
-## Bluesky (AT Protocol)
+## Internet Handle (AT Protocol)
 
-The `atproto` type lets people sign in with a Bluesky account or another AT
-Protocol account. You do not register a client. Chatto publishes its own client
+The `atproto` type lets people sign in with an internet handle: the handle of
+an AT Protocol account, for example `alice.bsky.social` or `alice.example.com`. You do not register a client. Chatto publishes its own client
 metadata, and the user's server reads it during sign-in.
 
 ```toml
@@ -134,7 +134,7 @@ metadata, and the user's server reads it during sign-in.
 url = "https://chat.example.com"
 
 [[auth.providers]]
-id = "bluesky"
+id = "atproto"
 type = "atproto"
 auto_provision = true
 ```
@@ -154,8 +154,8 @@ auto_provision = true
   username. Usernames have at most 32 characters, so people with longer
   handles, for example on a custom domain, cannot create an account. Keep
   `manage_usernames` disabled unless your users have short handles.
-- New accounts get the display name and avatar of the person's public Bluesky
-  profile, when they have one.
+- New accounts get the display name and avatar of the person's public profile
+  record (`app.bsky.actor.profile`), when they have one.
 
 During sign-in, the Chatto server contacts the handle's domain, the PLC
 directory (`plc.directory`) for most accounts, and the user's AT Protocol
