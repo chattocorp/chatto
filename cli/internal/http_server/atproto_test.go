@@ -24,6 +24,7 @@ import (
 )
 
 const testATProtoDID = "did:plc:testatprotouser00000000"
+const testATProtoWebDID = "did:web:alice.example.com"
 
 // fakeATProtoAuthServer serves the PDS and authorization-server endpoints that
 // an AT Protocol sign-in uses. It requires one DPoP nonce retry, like real
@@ -41,6 +42,18 @@ func newFakeATProtoAuthServer(t *testing.T) *fakeATProtoAuthServer {
 	t.Helper()
 	fake := &fakeATProtoAuthServer{subject: testATProtoDID}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET alice.example.com/.well-known/atproto-did", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(testATProtoWebDID))
+	})
+	mux.HandleFunc("GET alice.example.com/.well-known/did.json", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":          testATProtoWebDID,
+			"alsoKnownAs": []string{"at://alice.example.com"},
+			"service": []map[string]string{{
+				"id": "#atproto_pds", "type": "AtprotoPersonalDataServer", "serviceEndpoint": "https://pds.test",
+			}},
+		})
+	})
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource", func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"authorization_servers": []string{"https://pds.test"}})
 	})
@@ -219,6 +232,31 @@ func TestATProtoSignInVerifiesDIDWithIdentityScopeOnly(t *testing.T) {
 	// The public Bluesky profile supplies the new account's hints.
 	require.Equal(t, "Alice Example", result["display"])
 	require.Equal(t, "https://pds.test/xrpc/com.atproto.sync.getBlob?cid=bafkreiavatar&did="+url.QueryEscape(testATProtoDID), result["avatar"])
+}
+
+func TestATProtoSignInWithWebDID(t *testing.T) {
+	for _, identifier := range []string{testATProtoWebDID, "alice.example.com"} {
+		t.Run(identifier, func(t *testing.T) {
+			fake := newFakeATProtoAuthServer(t)
+			fake.subject = testATProtoWebDID
+			provider, err := newATProtoProvider("https://chat.example/auth/providers/bsky/callback")
+			require.NoError(t, err)
+			useFakeATProtoNetwork(t, provider, fake)
+			// Resolve the handle and DID document over the local TLS transport.
+			provider.app.Dir = &identity.BaseDirectory{
+				HTTPClient:            http.Client{Transport: provider.app.Client.Transport},
+				SkipDNSDomainSuffixes: []string{".example.com"},
+			}
+			runtime := &authProviderRuntime{config: config.AuthProviderConfig{ID: "bsky", Type: config.AuthProviderTypeATProto, ManageUsernames: true}, atproto: provider}
+			server, client := newATProtoFlowRouter(t, runtime)
+			status, start := getJSON(t, client, server.URL+"/start?login_hint="+url.QueryEscape(identifier))
+			require.Equal(t, http.StatusOK, status)
+			status, result := getJSON(t, client, server.URL+"/callback?"+url.Values{"state": {start["state"]}, "iss": {"https://pds.test"}, "code": {"code-1"}}.Encode())
+			require.Equal(t, http.StatusOK, status)
+			require.Equal(t, testATProtoWebDID, result["subject"])
+			require.Equal(t, "alice.example.com", result["username"])
+		})
+	}
 }
 
 func TestATProtoSignInRejectsSubjectMismatch(t *testing.T) {
