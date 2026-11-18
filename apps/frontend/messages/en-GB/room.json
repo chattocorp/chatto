@@ -21,7 +21,12 @@
       "created": "Created",
       "title": "Room information",
       "basic": "General",
-      "pinned_messages": "Pinned messages"
+      "pinned_messages": "Pinned messages",
+      "threads": "Threads",
+      "slow_mode": "Slow mode",
+      "channel_slow_mode": "Channel slow mode",
+      "thread_slow_mode": "Thread slow mode",
+      "slow_mode_off": "Off"
     },
     "create": {
       "title": "Create a New Room",

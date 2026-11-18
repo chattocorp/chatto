@@ -21,7 +21,12 @@
       "created": "أُنشئت",
       "title": "معلومات الغرفة",
       "basic": "عام",
-      "pinned_messages": "الرسائل المثبتة"
+      "pinned_messages": "الرسائل المثبتة",
+      "threads": "المواضيع",
+      "slow_mode": "الوضع البطيء",
+      "channel_slow_mode": "الوضع البطيء للقناة",
+      "thread_slow_mode": "الوضع البطيء للمواضيع",
+      "slow_mode_off": "متوقف"
     },
     "create": {
       "title": "قم بإنشاء غرفة جديدة",

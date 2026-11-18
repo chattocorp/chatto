@@ -21,7 +21,12 @@
       "created": "Oluşturuldu",
       "title": "Oda bilgileri",
       "basic": "Genel",
-      "pinned_messages": "Sabitlenmiş mesajlar"
+      "pinned_messages": "Sabitlenmiş mesajlar",
+      "threads": "Konular",
+      "slow_mode": "Yavaş mod",
+      "channel_slow_mode": "Kanal yavaş modu",
+      "thread_slow_mode": "Konu yavaş modu",
+      "slow_mode_off": "Kapalı"
     },
     "create": {
       "title": "Yeni Oda Oluştur",

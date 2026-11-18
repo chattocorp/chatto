@@ -21,7 +21,12 @@
       "created": "Skapat",
       "title": "Rumsinformation",
       "basic": "Allmänt",
-      "pinned_messages": "Fästa meddelanden"
+      "pinned_messages": "Fästa meddelanden",
+      "threads": "Trådar",
+      "slow_mode": "Långsamt läge",
+      "channel_slow_mode": "Långsamt läge i kanalen",
+      "thread_slow_mode": "Långsamt läge i trådar",
+      "slow_mode_off": "Av"
     },
     "create": {
       "title": "Skapa ett nytt rum",

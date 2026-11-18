@@ -21,7 +21,12 @@
       "created": "Erstellt",
       "title": "Rauminformationen",
       "basic": "Allgemein",
-      "pinned_messages": "Angeheftete Nachrichten"
+      "pinned_messages": "Angeheftete Nachrichten",
+      "threads": "Threads",
+      "slow_mode": "Langsamer Modus",
+      "channel_slow_mode": "Langsamer Modus im Kanal",
+      "thread_slow_mode": "Langsamer Modus in Threads",
+      "slow_mode_off": "Aus"
     },
     "create": {
       "title": "Neuen Raum erstellen",

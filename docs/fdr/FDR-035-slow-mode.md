@@ -38,6 +38,9 @@ configuration changes and the current viewer's next eligible posting time.
   off. Hover, keyboard focus, or a tap shows the full explanation. Both badges
   share one row without moving messages; typing text truncates first in narrow
   panes.
+- The **Room information** panel always shows the current Slow Mode interval,
+  or Off. When the server has a separate thread timer, the panel shows the
+  channel and thread intervals in two rows.
 - Enabling, increasing, decreasing, or disabling Slow Mode immediately
   recalculates eligibility from the member's latest successful original post,
   including posts made while Slow Mode was disabled or while the member was

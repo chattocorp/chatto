@@ -21,7 +21,12 @@
       "created": "Criada",
       "title": "Informações da sala",
       "basic": "Geral",
-      "pinned_messages": "Mensagens afixadas"
+      "pinned_messages": "Mensagens afixadas",
+      "threads": "Tópicos",
+      "slow_mode": "Modo lento",
+      "channel_slow_mode": "Modo lento do canal",
+      "thread_slow_mode": "Modo lento das conversas",
+      "slow_mode_off": "Desativado"
     },
     "create": {
       "title": "Criar uma nova sala",
