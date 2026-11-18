@@ -541,9 +541,9 @@
           "body": "Konfigurera en annan inloggningsmetod som den här servern stöder innan du kopplar bort {provider}."
         },
         "fresh_auth_modal": {
-          "title": "Bekräfta lösenord",
-          "body": "Ange ditt nuvarande lösenord innan du länkar {provider}.",
-          "action": "Fortsätt"
+          "title": "Länka {provider}?",
+          "body": "När du har länkat {provider} kan du använda tjänsten för att logga in på Chatto. Ange ditt nuvarande Chatto-lösenord för att fortsätta.",
+          "password": "Chatto-lösenord"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Bekräfta lösenord",

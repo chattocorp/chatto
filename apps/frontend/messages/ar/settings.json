@@ -541,9 +541,9 @@
           "body": "قم بإعداد طريقة أخرى لتسجيل الدخول يدعمها هذا الخادم قبل قطع الاتصال بـ {provider}."
         },
         "fresh_auth_modal": {
-          "title": "تأكيد كلمة المرور",
-          "body": "أدخل كلمة المرور الحالية قبل ربط {provider}.",
-          "action": "متابعة"
+          "title": "ربط {provider}؟",
+          "body": "بعد الربط، يمكنك استخدام {provider} لتسجيل الدخول إلى Chatto. أدخل كلمة مرور Chatto الحالية للمتابعة.",
+          "password": "كلمة مرور Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "تأكيد كلمة المرور",

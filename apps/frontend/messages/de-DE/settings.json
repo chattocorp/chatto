@@ -541,9 +541,9 @@
           "body": "Richte eine weitere von diesem Server unterstützte Anmeldemethode ein, bevor du {provider} trennst."
         },
         "fresh_auth_modal": {
-          "title": "Passwort bestätigen",
-          "body": "Gib dein aktuelles Passwort ein, bevor du {provider} verknüpfst.",
-          "action": "Weiter"
+          "title": "{provider} verknüpfen?",
+          "body": "Nach der Verknüpfung kannst du dich mit {provider} bei Chatto anmelden. Gib dein aktuelles Chatto-Passwort ein, um fortzufahren.",
+          "password": "Chatto-Passwort"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Passwort bestätigen",

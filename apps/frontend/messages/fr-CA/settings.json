@@ -541,9 +541,9 @@
           "body": "Configurez une autre méthode de connexion prise en charge par ce serveur avant de déconnecter {provider}."
         },
         "fresh_auth_modal": {
-          "title": "Confirmer le mot de passe",
-          "body": "Entrez votre mot de passe actuel avant de lier {provider}.",
-          "action": "Poursuivre"
+          "title": "Lier {provider}?",
+          "body": "Une fois le lien établi, vous pourrez utiliser {provider} pour vous connecter à Chatto. Entrez votre mot de passe Chatto actuel pour continuer.",
+          "password": "Mot de passe Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Confirmer le mot de passe",

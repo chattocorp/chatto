@@ -541,9 +541,9 @@
           "body": "Przed odłączeniem dostawcy {provider} skonfiguruj inną metodę logowania obsługiwaną przez ten serwer."
         },
         "fresh_auth_modal": {
-          "title": "Potwierdź hasło",
-          "body": "Wprowadź swoje aktualne hasło przed połączeniem {provider}.",
-          "action": "Kontynuuj"
+          "title": "Połączyć z {provider}?",
+          "body": "Po połączeniu możesz logować się do Chatto przez {provider}. Aby kontynuować, wpisz swoje obecne hasło do Chatto.",
+          "password": "Hasło do Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Potwierdź hasło",

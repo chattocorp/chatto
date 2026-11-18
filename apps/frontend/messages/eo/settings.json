@@ -541,9 +541,9 @@
           "body": "Agordu alian ensalutmetodon subtenatan de ĉi tiu servilo antaŭ ol malkonekti {provider}."
         },
         "fresh_auth_modal": {
-          "title": "Konfirmu pasvorton",
-          "body": "Enigu vian nunan pasvorton antaŭ ligi {provider}.",
-          "action": "Daŭrigu"
+          "title": "Ĉu ligi {provider}?",
+          "body": "Post la ligado vi povos ensaluti en Chatto per {provider}. Enigu vian nunan pasvorton de Chatto por daŭrigi.",
+          "password": "Pasvorto de Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Konfirmu pasvorton",

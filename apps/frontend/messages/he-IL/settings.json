@@ -541,9 +541,9 @@
           "body": "לפני ניתוק {provider}, יש להגדיר שיטת כניסה נוספת שנתמכת בשרת זה."
         },
         "fresh_auth_modal": {
-          "title": "אשר סיסמה",
-          "body": "הזן את הסיסמה הנוכחית שלך לפני קישור {provider}.",
-          "action": "המשך"
+          "title": "לקשר את {provider}?",
+          "body": "לאחר הקישור תוכל להיכנס ל־Chatto באמצעות {provider}. הזן את סיסמת Chatto הנוכחית שלך כדי להמשיך.",
+          "password": "סיסמת Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "אשר סיסמה",

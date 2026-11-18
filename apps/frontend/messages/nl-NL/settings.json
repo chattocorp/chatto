@@ -541,9 +541,9 @@
           "body": "Stel een andere inlogmethode in die door deze server wordt ondersteund voordat u {provider} loskoppelt."
         },
         "fresh_auth_modal": {
-          "title": "Bevestig wachtwoord",
-          "body": "Voer uw huidige wachtwoord in voordat u {provider} koppelt.",
-          "action": "Ga door"
+          "title": "{provider} koppelen?",
+          "body": "Na het koppelen kun je met {provider} inloggen bij Chatto. Voer je huidige Chatto-wachtwoord in om door te gaan.",
+          "password": "Chatto-wachtwoord"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Bevestig wachtwoord",
