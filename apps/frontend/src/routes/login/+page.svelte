@@ -2,18 +2,14 @@
   import { confirmPendingAtprotoHandle } from '$lib/atproto/rememberedHandle';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
-  import { onDestroy } from 'svelte';
   import {
     confirmProviderAccount,
-    openProviderSignIn,
     ProviderSignInError,
-    verifyProviderSignIn
+    type ProviderSignInResult
   } from '$lib/auth/providerSignIn';
-  import type { OAuthPopup } from '$lib/oauth/popup';
   import { signInWithPassword } from '$lib/auth/passwordSignIn';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
-  import AuthProviderButtons from '$lib/components/auth/AuthProviderButtons.svelte';
-  import AuthPopupNotice from '$lib/components/auth/AuthPopupNotice.svelte';
+  import OriginProviderButtons from '$lib/components/auth/OriginProviderButtons.svelte';
   import { popupErrorMessage } from '$lib/oauth/popupError';
   import { isProviderContinuation } from '$lib/auth/providerContinuation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
@@ -31,12 +27,6 @@
   let isLoading = $state(false);
   let selectedProviderId = $state<string | null>(null);
   let pageErrorDismissed = $state(false);
-  let providerPopup: OAuthPopup | null = null;
-  let active = true;
-  onDestroy(() => {
-    active = false;
-    providerPopup?.close();
-  });
 
   const compact = $derived(data.redirectUrl.startsWith('/oauth/'));
 
@@ -76,39 +66,15 @@
     }
   }
 
-  async function handleProviderClick(e: MouseEvent, provider: PublicAuthProvider) {
-    e.preventDefault();
-    error = '';
-    pageErrorDismissed = true;
-    selectedProviderId = provider.id;
-    // Remote authorization and existing-account linking already own this window.
-    // Keep their continuation here instead of opening another provider popup.
-    if (compact || isProviderContinuation(data.redirectUrl)) {
-      window.location.href = providerLoginHref(provider);
+  async function completeProviderSignIn(result: ProviderSignInResult) {
+    confirmPendingAtprotoHandle();
+    if (result.kind === 'confirm-account') {
+      await confirmProviderAccount(result.token, data.redirectUrl);
       return;
     }
-    try {
-      providerPopup = openProviderSignIn(provider.loginUrl);
-      const result = await verifyProviderSignIn(providerPopup);
-      // The handle page of an AT Protocol sign-in stored its handle (FDR-058).
-      confirmPendingAtprotoHandle();
-      if (!active) return;
-      if (result.kind === 'confirm-account') {
-        await confirmProviderAccount(result.token, data.redirectUrl);
-        return;
-      }
-      const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');
-      const resumed = await completeOriginAuthentication();
-      if (!resumed) await navigateAfterAuthentication(data.redirectUrl);
-    } catch (err) {
-      if (!active) return;
-      error =
-        (err instanceof ProviderSignInError && loginErrorMessage(err.code)) ||
-        popupErrorMessage(err, m('auth.login.failed'));
-    } finally {
-      providerPopup = null;
-      selectedProviderId = null;
-    }
+    const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');
+    const resumed = await completeOriginAuthentication();
+    if (!resumed) await navigateAfterAuthentication(data.redirectUrl);
   }
 
   async function handleSubmit(e: Event) {
@@ -153,16 +119,24 @@
 
   <!-- SSO providers -->
   {#if authProviders.length > 0}
-    <AuthProviderButtons
+    <OriginProviderButtons
       providers={authProviders}
-      {selectedProviderId}
+      bind:selectedProviderId
       {compact}
       href={providerLoginHref}
-      onclick={handleProviderClick}
-    />
-    <AuthPopupNotice
-      pending={!compact && selectedProviderId !== null}
-      oncancel={() => providerPopup?.cancel()}
+      popupUrl={compact || isProviderContinuation(data.redirectUrl)
+        ? undefined
+        : (provider) => provider.loginUrl}
+      onstart={() => {
+        error = '';
+        pageErrorDismissed = true;
+      }}
+      onresult={completeProviderSignIn}
+      onerror={(err) => {
+        error =
+          (err instanceof ProviderSignInError && loginErrorMessage(err.code)) ||
+          popupErrorMessage(err, m('auth.login.failed'));
+      }}
     />
     {#if directLoginEnabled}<Divider label={m('common.or')} />{/if}
   {/if}
