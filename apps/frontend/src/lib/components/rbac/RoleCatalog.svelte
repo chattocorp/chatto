@@ -7,7 +7,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { createQuery } from '$lib/query/client';
-  import { DataTable, Hint, LoadingFog, Panel, Pill, ToggleChip } from '$lib/ui';
+  import { DataTable, Hint, LoadingDots, Panel, Pill, ToggleChip } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { m } from '$lib/i18n/messages';
@@ -61,7 +61,7 @@
     noPadding
   >
     {#if rolesQuery.isPending}
-      <LoadingFog class="m-5 h-32" label={m('admin.permissions.loading_role')} />
+      <LoadingDots class="m-5 h-32" label={m('admin.permissions.loading_role')} />
     {:else if rolesQuery.isError}
       <div class="flex flex-col items-start gap-3 p-5">
         <Hint tone="danger">{errorMessage(rolesQuery.error)}</Hint>

@@ -10,7 +10,7 @@ Request ownership stays with the caller.
   import type { ClassValue } from 'svelte/elements';
   import { MessageSearchState } from '@chatto/client/api/messageSearch';
   import { m } from '$lib/i18n/messages';
-  import { EmptyState, LoadingFog } from '$lib/ui';
+  import { EmptyState, LoadingDots } from '$lib/ui';
   import { Button } from '$lib/ui/form';
 
   let {
@@ -40,7 +40,7 @@ Request ownership stays with the caller.
 
 {#snippet statusContent()}
   {#if checking}
-    <LoadingFog class={['min-h-32 w-full', checkingClass]} label={m('search.checking')} />
+    <LoadingDots class={['min-h-32 w-full', checkingClass]} label={m('search.checking')} />
   {:else if unavailable}
     <EmptyState icon="icon-[uil--cloud-slash]" title={m('search.unavailable.title')}>
       <p>{m('search.unavailable.description')}</p>

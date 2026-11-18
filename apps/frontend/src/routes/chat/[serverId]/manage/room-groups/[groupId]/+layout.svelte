@@ -17,7 +17,7 @@
     PaneContent,
     PaneHeader,
     PageTitle,
-    LoadingFog,
+    LoadingDots,
     TabNav,
     type TabNavItem
   } from '$lib/ui';
@@ -226,7 +226,7 @@
         {#if group}
           {@render children()}
         {:else}
-          <LoadingFog class="h-40 w-full" />
+          <LoadingDots class="h-40 w-full" />
         {/if}
       </div>
     </PaneContent>

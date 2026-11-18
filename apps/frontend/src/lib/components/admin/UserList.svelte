@@ -9,7 +9,7 @@ When `clickable` is set, each row links to the member's Server Admin page.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { CopyId, LoadingFog, DataTable } from '$lib/ui';
+  import { CopyId, LoadingDots, DataTable } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   type User = {
@@ -51,7 +51,7 @@ When `clickable` is set, each row links to the member's Server Admin page.
 </script>
 
 {#if loading}
-  <LoadingFog class="m-5 h-32" label={m('admin.users.loading')} />
+  <LoadingDots class="m-5 h-32" label={m('admin.users.loading')} />
 {:else}
   <DataTable
     items={users}

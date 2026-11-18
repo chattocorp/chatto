@@ -20,7 +20,7 @@ its section explains reports a warning or a problem.
   import {
     HeaderIconButton,
     Hint,
-    LoadingFog,
+    LoadingDots,
     PageTitle,
     PaneContent,
     PaneHeader,
@@ -121,7 +121,7 @@ its section explains reports a warning or a problem.
   <PaneContent>
     <div class="flex flex-col gap-6">
       {#if loading}
-        <LoadingFog class="h-40 w-full" label={m('admin.system.loading')} />
+        <LoadingDots class="h-40 w-full" label={m('admin.system.loading')} />
       {:else if error}
         <Hint tone="danger">{error}</Hint>
       {:else if systemInfo}

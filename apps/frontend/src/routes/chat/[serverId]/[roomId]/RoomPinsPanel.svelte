@@ -23,7 +23,7 @@ message presentation. Each message row itself opens the original message.
   import type { UserSummary } from '@chatto/client/api/users';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
-  import { EmptyState, LoadingFog } from '$lib/ui';
+  import { EmptyState, LoadingDots } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import ClampedMessagePreview from './ClampedMessagePreview.svelte';
 
@@ -108,7 +108,7 @@ message presentation. Each message row itself opens the original message.
       </div>
     </EmptyState>
   {:else if store.isInitialLoading && store.items.length === 0}
-    <LoadingFog class="m-3 min-h-32 flex-1" label={m('room.pins.loading')} />
+    <LoadingDots class="m-3 min-h-32 flex-1" label={m('room.pins.loading')} />
   {:else if store.items.length === 0}
     <EmptyState icon="icon-[mdi--pin-outline]" title={m('room.pins.empty_title')}>
       {m('room.pins.empty_description')}
@@ -177,7 +177,7 @@ message presentation. Each message row itself opens the original message.
             {m('common.retry')}
           </Button>
         {:else}
-          <LoadingFog class="h-8 w-full" />
+          <LoadingDots class="h-8 w-full" />
         {/if}
       </div>
     {/if}

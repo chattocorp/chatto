@@ -1,4 +1,4 @@
-<!-- @component A quiet loading surface with a soft highlight that sweeps across it. Give it an explicit size for its context. -->
+<!-- @component A loading surface for pending media, such as images and video, with a soft highlight that sweeps across it. Give it an explicit size for its context. Use `LoadingDots` for other pending content. -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
   import type { ClassValue } from 'svelte/elements';

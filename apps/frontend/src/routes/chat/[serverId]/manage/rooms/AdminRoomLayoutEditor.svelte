@@ -19,7 +19,7 @@
     Hint,
     Pill,
     ToggleChip,
-    LoadingFog,
+    LoadingDots,
     PaneHeader
   } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
@@ -402,7 +402,7 @@
 
   <div class="flex flex-col gap-4 overflow-y-auto p-6">
     {#if layout.loading}
-      <LoadingFog class="h-48 w-full" label={m('admin.rooms_admin.loading')} />
+      <LoadingDots class="h-48 w-full" label={m('admin.rooms_admin.loading')} />
     {:else if layout.error}
       <Hint tone="danger">{errorMessage(layout.error)}</Hint>
     {:else}

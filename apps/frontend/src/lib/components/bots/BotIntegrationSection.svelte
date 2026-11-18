@@ -1,6 +1,6 @@
 <script lang="ts" generics="Item extends { id: string }">
   import type { Snippet } from 'svelte';
-  import { Panel, LoadingFog } from '$lib/ui';
+  import { Panel, LoadingDots } from '$lib/ui';
 
   let {
     title,
@@ -42,7 +42,7 @@
       {/each}
     </div>
   {:else if loading}
-    <LoadingFog class="m-5 h-32" />
+    <LoadingDots class="m-5 h-32" />
   {:else}
     <div class="p-5 text-muted" data-testid={testId}>{empty}</div>
   {/if}

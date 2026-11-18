@@ -8,6 +8,7 @@ component on selection changes so playback and consent cannot cross items.
   import { m } from '$lib/i18n/messages';
   import ZoomableImage from './ZoomableImage.svelte';
   import LoadingFog from './LoadingFog.svelte';
+  import LoadingDots from './LoadingDots.svelte';
   import ScrollFader from './ScrollFader.svelte';
   import MarkdownHtml from './MarkdownHtml.svelte';
   import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
@@ -165,7 +166,7 @@ component on selection changes so playback and consent cannot cross items.
     }}>{item.filename}</audio
   >
 {:else if busy}
-  <LoadingFog class="h-full min-h-32 w-full" />
+  <LoadingDots class="h-full min-h-32 w-full" />
 {:else}
   <div class="flex flex-col items-center gap-3 p-4 text-center text-muted">
     <span class="iconify icon-[uil--file-alt] text-4xl" aria-hidden="true"></span>

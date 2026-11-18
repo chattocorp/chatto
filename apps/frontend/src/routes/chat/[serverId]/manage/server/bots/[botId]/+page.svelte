@@ -18,7 +18,7 @@ owner reassignment and deletion actions.
     type UpdateUserProfileInput,
     type UserSummary
   } from '@chatto/client/api/users';
-  import { CopyId, Panel, ConfirmDialog, FormDialog, Hint, LoadingFog } from '$lib/ui';
+  import { CopyId, Panel, ConfirmDialog, FormDialog, Hint, LoadingDots } from '$lib/ui';
   import BotProfileSection from '$lib/components/bots/BotProfileSection.svelte';
   import AvatarEditor from '$lib/components/users/AvatarEditor.svelte';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
@@ -198,7 +198,7 @@ owner reassignment and deletion actions.
               viewerSettings={serverScope.store.currentUser.user?.settings}
             />
           {:else if ownerQuery.isPending}
-            <LoadingFog class="h-5 w-28" />
+            <LoadingDots class="h-5 w-28" />
           {:else}
             <span class="text-muted">{m('common.unknown')}</span>
           {/if}
@@ -218,7 +218,7 @@ owner reassignment and deletion actions.
     {/key}
   {/if}
 {:else if detail.isPending}
-  <LoadingFog class="h-40 w-full" />
+  <LoadingDots class="h-40 w-full" />
 {/if}
 
 <FormDialog

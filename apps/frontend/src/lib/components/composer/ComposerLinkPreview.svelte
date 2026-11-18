@@ -1,6 +1,6 @@
 <script lang="ts">
   import { parseMessageLink } from '$lib/chatLinks';
-  import { LoadingFog } from '$lib/ui';
+  import { LoadingDots } from '$lib/ui';
   import LazyMessagePreviewCard from '$lib/components/LazyMessagePreviewCard.svelte';
   import ComposerLinkPreviewCard from './ComposerLinkPreviewCard.svelte';
   import type { LinkPreviewState } from './linkPreviews.svelte';
@@ -18,7 +18,7 @@
       onDismiss={() => state.dismissPreview(url)}
     />
   {:else if state.fetchingURLs.has(url)}
-    <LoadingFog class="h-16 w-full max-w-md rounded-md" />
+    <LoadingDots class="h-16 w-full max-w-md" />
   {:else if state.previews.get(url)}
     <ComposerLinkPreviewCard
       preview={state.previews.get(url)!}
