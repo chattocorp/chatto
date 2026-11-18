@@ -63,11 +63,10 @@
 
   <!-- Right pane: form content, centred in the pane. The automatic margins
        collapse when the content is taller than the pane, so it then starts at
-       the top and scrolls with edge fades. Sign-in windows stay top-aligned
-       below their window bar. -->
+       the top and scrolls with edge fades. -->
   <ScrollFader top bottom mask keyboardFocusable={false} class="min-w-0">
     <div class={['flex min-h-full flex-1 justify-center', compact ? 'p-5 sm:p-6' : 'p-8']}>
-      <div data-page-reveal class={['w-full max-w-sm', !compact && 'my-auto']}>
+      <div data-page-reveal class="my-auto w-full max-w-sm">
         <!-- Show compact branding header on mobile, or when no left pane -->
         {#if showBranding && compact}
           {#if bannerUrl || description}
