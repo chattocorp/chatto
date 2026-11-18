@@ -56,6 +56,9 @@ Narrower designs do not remove this:
 
 - AT Protocol sign-in works without a published identity. Members do not see
   which AT Protocol identity an account uses.
+- Authling, at chatto.id and on self-hosted instances, is the likely issuer.
+  It already verifies identities, shows its own consent page, and signs with
+  rotated keys. That needs its own Authling decision (#3604).
 - A verified handle needs a service that Chatto or another trusted party
   operates. That service learns which accounts its users link.
 - The trust in a verified handle also depends on the verifying client. A
