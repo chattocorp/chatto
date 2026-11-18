@@ -149,7 +149,7 @@ external value changes, such as a successful save, update the mounted editor.
 </script>
 
 <fieldset class="flex min-w-0 flex-col gap-1.5" aria-describedby={id + '-description'}>
-  <legend class="mb-1.5 text-sm font-medium text-text">{label}</legend>
+  <legend class="mb-1.5 font-medium text-text">{label}</legend>
   <ComposerFormattingToolbar
     id={id + '-formatting'}
     {formattingState}

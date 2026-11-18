@@ -50,8 +50,8 @@ test.describe('Managed provider accounts', () => {
       displayNameHint: 'Managed Person'
     });
     await page.goto(flow.confirmUrl);
-    await expect(page.getByLabel('Username')).toHaveValue('e2eadmin-2');
-    await expect(page.getByLabel('Username')).toBeDisabled();
+    await expect(page.getByRole('textbox', { name: 'Username' })).toHaveValue('e2eadmin-2');
+    await expect(page.getByRole('textbox', { name: 'Username' })).toBeDisabled();
     await expect(page.getByLabel('Display Name')).toBeEnabled();
     await page.getByRole('button', { name: 'Create Account' }).click();
     await page.waitForURL(routes.patterns.chatRedirect);
@@ -80,7 +80,7 @@ test.describe('Managed provider accounts', () => {
       providerUsername: 'e2eadmin'
     });
     await page.goto(flow.confirmUrl);
-    await expect(page.getByLabel('Username')).toHaveValue('e2eadmin-2');
+    await expect(page.getByRole('textbox', { name: 'Username' })).toHaveValue('e2eadmin-2');
     await expect(page.getByLabel('Display Name')).toHaveValue('');
     await authPage.createUserViaApi('e2eadmin-2', 'password123');
     await page.getByRole('button', { name: 'Create Account' }).click();
@@ -102,8 +102,8 @@ test.describe('Managed provider accounts', () => {
       providerUsername: 'john..doe'
     });
     await page.goto(flow.confirmUrl);
-    await expect(page.getByLabel('Username')).toHaveValue('john..doe');
-    await expect(page.getByLabel('Username')).toBeDisabled();
+    await expect(page.getByRole('textbox', { name: 'Username' })).toHaveValue('john..doe');
+    await expect(page.getByRole('textbox', { name: 'Username' })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Create Account' })).toBeEnabled();
     await page.getByRole('button', { name: 'Create Account' }).click();
     await page.waitForURL(routes.patterns.chatRedirect);
@@ -282,7 +282,7 @@ test.describe('External identity confirmation flows', () => {
     const popupPromise = page.waitForEvent('popup');
     await page.getByRole('link', { name: 'Continue with GitHub' }).click();
     const popup = await popupPromise;
-    await popup.getByRole('button', { name: 'Create Account', exact: true }).click();
+    await popup.getByRole('button', { name: 'Create account', exact: true }).click();
     await expect.poll(() => popup.isClosed()).toBe(true);
     await expect(page).toHaveURL(routes.patterns.chatRedirect);
   });
@@ -333,12 +333,12 @@ test.describe('External identity confirmation flows', () => {
     });
 
     await page.goto(flow.confirmUrl);
-    await expect(page.getByRole('heading', { name: 'Confirm Sign-In' })).toBeVisible();
-    await expect(page.getByText('GitHub verified your identity')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^Join / })).toBeVisible();
+    await expect(page.getByText('Signed in with GitHub')).toBeVisible();
     await expect(page.getByLabel('Username')).toHaveValue(login);
     await expect(page.getByLabel('Display Name')).toHaveValue('GitHub SSO User');
     await page.getByLabel('Display Name').fill('Chosen SSO Name');
-    await expect(page.getByRole('link', { name: 'Sign in with existing account' })).toHaveAttribute(
+    await expect(page.getByRole('link', { name: 'Sign in to existing account' })).toHaveAttribute(
       'href',
       `${flow.confirmUrl}&existing=1`
     );
@@ -406,11 +406,11 @@ test.describe('External identity confirmation flows', () => {
     });
 
     await page.goto(flow.confirmUrl);
-    await page.getByRole('link', { name: 'Sign in with existing account' }).click();
+    await page.getByRole('link', { name: 'Sign in to existing account' }).click();
     await page.waitForURL(/\/login\?redirect=/);
 
     await page.goto(flow.confirmUrl);
-    await expect(page.getByText('GitHub verified your identity')).toBeVisible();
+    await expect(page.getByText('Signed in with GitHub')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Create Account' })).toBeVisible();
   });
 
@@ -492,13 +492,13 @@ test.describe('External identity confirmation flows', () => {
       const popupPromise = page.waitForEvent('popup');
       await page.getByRole('link', { name: 'Continue with Discord' }).click();
       const popup = await popupPromise;
-      await popup.getByRole('link', { name: 'Sign in with existing account' }).click();
+      await popup.getByRole('link', { name: 'Sign in to existing account' }).click();
       await popup.getByLabel('Username or Email').fill(user.login);
       await popup.getByLabel('Password', { exact: true }).fill(user.password);
       await popup.getByRole('button', { name: 'Sign In', exact: true }).click();
       await expect(popup.getByText(`@${user.login}`, { exact: true })).toBeVisible();
       await expect(
-        popup.getByRole('button', { name: 'Create Account', exact: true })
+        popup.getByRole('button', { name: 'Create account', exact: true })
       ).not.toBeVisible();
       await popup.getByRole('button', { name: 'Link Account', exact: true }).click();
       await expect.poll(() => popup.isClosed()).toBe(true);
@@ -568,7 +568,7 @@ test.describe('External identity confirmation flows', () => {
     });
 
     await page.goto(flow.confirmUrl);
-    await expect(page.getByRole('heading', { name: 'Confirm Sign-In' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Link Account' })).toBeVisible();
     await expect(page.getByText('Discord verified your identity')).toBeVisible();
 
     await page.getByRole('button', { name: 'Link Account' }).click();

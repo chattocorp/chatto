@@ -104,14 +104,16 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 			return nil, core.ErrInvitationInvalid
 		}
 	}
-	// Leave the fallback empty for managed names. Core uses the actual assigned
-	// username, including any collision suffix, when it creates the account.
-	fallbackLogin := req.Msg.GetLogin()
+	// A provider-managed username never comes from the client. Drop the
+	// requested login here; core also assigns the name from the verified
+	// provider claim, including any collision suffix. An empty login also
+	// leaves the display-name fallback to that assigned username.
+	requestedLogin := req.Msg.GetLogin()
 	if s.api.core.ProviderUsernameManaged(flow.ProviderID) {
-		fallbackLogin = ""
+		requestedLogin = ""
 	}
-	displayName := externalIdentityCreateDisplayName(fallbackLogin, req.Msg.GetDisplayName(), flow.DisplayNameHint)
-	user, err := s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
+	displayName := externalIdentityCreateDisplayName(requestedLogin, req.Msg.GetDisplayName(), flow.DisplayNameHint)
+	user, err := s.api.core.CreateUserForExternalIdentity(ctx, requestedLogin, displayName, flow)
 	if err != nil {
 		return nil, err
 	}

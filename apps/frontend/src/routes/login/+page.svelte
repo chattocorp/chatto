@@ -147,6 +147,10 @@
     </div>
   {/if}
 
+  {#if data.serverInfo?.accountCreationPolicy === 'invite_only' && (directRegistrationEnabled || authProviders.some((provider) => provider.autoProvision === true))}
+    <p class="mb-4 text-muted">{m('auth.login.invitation_notice')}</p>
+  {/if}
+
   <!-- SSO providers -->
   {#if authProviders.length > 0}
     <AuthProviderButtons

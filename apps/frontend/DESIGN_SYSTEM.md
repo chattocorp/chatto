@@ -174,6 +174,7 @@ The 48 px server frame has a corner radius 2 px larger than the 44 px logo's
 | Compact nested row                          | `surface-box`                                                                          | A panel nested inside another panel                           |
 | Status or scope label                       | `Pill`; `ToggleChip` when independently interactive                                    | One-off colored badges                                        |
 | Inline contextual notice                    | `Hint`                                                                                 | A panel used as an alert                                      |
+| Short note below a form or action           | `Hint` with `plain`                                                                    | A boxed `Hint` or hand-styled muted paragraph                 |
 | Transient feedback                          | `toast`                                                                                | Persistent inline copy that disappears automatically          |
 | Empty collection or search result           | `EmptyState`                                                                           | Bespoke centered placeholder markup                           |
 | Loading content                             | `LoadingDots` sized to the content area                                                | Rows shaped like future content; `LoadingFog` on non-media    |
@@ -501,6 +502,11 @@ the design-system guardrail.
 
 Focused form fields use the action colour for their border without an additional
 glow. Invalid fields follow the same treatment with the error-coloured border.
+
+Form field labels use the body text size with medium weight. Field descriptions
+and validation messages are one step smaller (`text-sm`). The required marker is
+a small muted asterisk. Do not enlarge field text for one surface with a
+font-size override; change the field components instead.
 
 Compact filled controls pair each tone with its `on-*` foreground token.
 Prominent action, success, warning, and danger buttons use dedicated fills with

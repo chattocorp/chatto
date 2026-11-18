@@ -309,6 +309,7 @@
       <form onsubmit={handleEmailSubmit} class="flex flex-col gap-4">
         <TextInput
           id="email"
+          description={m('auth.register.email_help')}
           label={m('common.email')}
           type="email"
           bind:value={email}
@@ -367,7 +368,7 @@
         digitLabel={(number) => m('auth.register.code.digit_label', { number })}
       />
 
-      <div class="text-center text-sm text-muted">
+      <div class="text-center text-muted">
         {m('auth.register.code.did_not_receive')}
         <button
           type="button"
@@ -443,7 +444,11 @@
     </form>
   {/if}
 
-  <Divider label={m('common.or')} />
+  {#if data.externalIdentityToken}
+    <p class="mt-6 mb-2 text-center text-muted">{m('auth.sso.existing_help')}</p>
+  {:else}
+    <Divider label={m('common.or')} />
+  {/if}
 
   <Button
     href={data.externalIdentityToken

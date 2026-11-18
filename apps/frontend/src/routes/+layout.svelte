@@ -17,6 +17,7 @@
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
   import { setAuthServerInfo } from '$lib/components/authServerInfo';
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
+  import SignInWindowHeader from '$lib/components/auth/SignInWindowHeader.svelte';
   import { provideKeyboardShortcuts } from '$lib/keyboardShortcuts';
   import InputModalityTracker from '$lib/components/InputModalityTracker.svelte';
   import TouchPressFeedback from '$lib/components/TouchPressFeedback.svelte';
@@ -31,6 +32,7 @@
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { serverRegistry } from '$lib/client';
   import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
+  import { isProviderCallback } from '$lib/auth/providerContinuation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { AppUiState, provideAppUiState } from '$lib/state/appUi.svelte';
@@ -97,11 +99,24 @@
     )
   );
 
-  // OAuth windows keep their page content and branding without app navigation.
+  // OAuth and provider sign-in windows replace app navigation with a window
+  // bar that shows this server's identity and address.
   const standaloneOAuth = $derived.by(() => {
-    if (page.route.id === '/oauth/consent' || page.route.id === '/servers/authorize') return true;
+    if (
+      page.route.id === '/oauth/consent' ||
+      page.route.id === '/servers/authorize' ||
+      page.route.id === '/sso/handle'
+    )
+      return true;
     if (page.route.id === '/servers/callback') {
       return ['popup', 'provider'].includes(page.url.searchParams.get('mode') ?? '');
+    }
+    if (page.route.id === '/sso/confirm') {
+      // The confirmation load data says where the sign-in returns.
+      const redirectPath: unknown = page.data?.pending?.redirectPath;
+      return (
+        isSafeInternalPath(redirectPath) && isProviderCallback(new URL(redirectPath, page.url))
+      );
     }
     if (page.route.id !== '/login' && page.route.id !== '/register') return false;
     const redirect = page.url.searchParams.get('redirect');
@@ -168,9 +183,13 @@
   <div
     {@attach initialPageReveal}
     {@attach watchMotionPreference}
-    class="flex h-full w-full flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+    class="flex h-full w-full flex-col overflow-hidden bg-surface pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] desktop-presentation:app-frame-shell desktop-presentation:px-3 desktop-presentation:pb-3"
   >
-    {@render children?.()}
+    <SignInWindowHeader />
+    <Frame class="flex-col">
+      {@render children?.()}
+      <p class="shrink-0 pb-3 text-center text-sm text-muted">Chatto</p>
+    </Frame>
   </div>
 {:else}
   <div
