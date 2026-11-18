@@ -65,7 +65,7 @@
       <a href={resolve('/login')} class="link">{m('auth.forgot_password.back_to_login')}</a>
     </p>
   {:else}
-    <p class="mb-6 text-sm text-muted">
+    <p class="mb-6 text-muted">
       {m('auth.forgot_password.instructions')}
     </p>
 
