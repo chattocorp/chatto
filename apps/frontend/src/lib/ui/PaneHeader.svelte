@@ -159,7 +159,7 @@ shared viewport detector reports an open software keyboard.
         <!-- The subtitle shrinks first. The title truncates only when it alone fills the row. -->
         <div class="flex max-w-full min-w-0 shrink-0 items-baseline gap-3">
           {#if title || titleContent}
-            <h1 class="min-w-0 font-black">
+            <h1 class="min-w-0 font-black text-text-top">
               {#if titleContent}{@render titleContent()}{:else}<bdi class="block truncate"
                   >{title}</bdi
                 >{/if}
