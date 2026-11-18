@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openOAuthPopup } from './popup';
 
 const mocks = vi.hoisted(() => ({ open: vi.fn() }));
-vi.mock('./authorizationWindow', () => ({ openAuthorizationWindow: mocks.open }));
+vi.mock('./authorizationWindow', () => ({
+  openAuthorizationWindow: mocks.open,
+  authorizationWindowFeatures: () => 'popup'
+}));
 
 afterEach(() => {
   vi.useRealTimers();

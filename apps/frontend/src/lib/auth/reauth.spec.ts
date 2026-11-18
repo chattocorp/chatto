@@ -336,7 +336,7 @@ describe('remote server OAuth popup', () => {
       expect(open).toHaveBeenCalledWith(
         expect.stringMatching(/^https:\/\/app\.example\/servers\/authorize#.+/),
         expect.stringMatching(/^chatto-oauth-/),
-        expect.stringContaining('width=560,height=760')
+        expect.stringContaining('width=560,height=800')
       );
       await vi.waitFor(() =>
         expect(authorizationLaunchTarget(open)).toContain('/oauth/authorize?')
@@ -682,5 +682,12 @@ describe('authorization window dimensions', () => {
     const { owner } = browserHarness(null);
     Object.assign(owner.screen, { availWidth: 500, availHeight: 700 });
     expect(authorizationWindowFeatures(owner)).toContain('width=468,height=600');
+  });
+
+  it('fits provider sign-in pages on larger screens', async () => {
+    const { authorizationWindowFeatures } = await import('../oauth/authorizationWindow');
+    const { owner } = browserHarness(null);
+    Object.assign(owner.screen, { availWidth: 1920, availHeight: 1080 });
+    expect(authorizationWindowFeatures(owner)).toContain('width=560,height=800');
   });
 });

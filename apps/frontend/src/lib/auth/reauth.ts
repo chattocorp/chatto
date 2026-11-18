@@ -3,7 +3,6 @@ import { goto, invalidateAll } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { getPublicServerInfo, type PublicServerInfo } from '@chatto/client/api/server';
 import { openOAuthPopup, type OAuthPopup, type OAuthPopupResponse } from '$lib/oauth/popup';
-import { authorizationWindowFeatures } from '$lib/oauth/authorizationWindow';
 import { serverRegistry } from '$lib/client';
 import { findServerByUrl } from '$lib/serverCatalogue';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -98,7 +97,7 @@ async function runServerOAuthFlow(
   // otherwise browsers may treat the secondary window as an unsolicited popup.
   let popup: OAuthPopup;
   try {
-    popup = openOAuthPopup(state, authorizationWindowFeatures(window));
+    popup = openOAuthPopup(state);
   } catch (error) {
     // The blocked window replaces any later server-data error.
     serverInfo.catch(() => {});

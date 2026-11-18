@@ -1,11 +1,13 @@
 import { OAuthPopupError } from '$lib/oauth/popupError';
-import { openAuthorizationWindow, type AuthorizationWindow } from './authorizationWindow';
+import {
+  authorizationWindowFeatures,
+  openAuthorizationWindow,
+  type AuthorizationWindow
+} from './authorizationWindow';
 
 export const OAUTH_POPUP_RESPONSE_TYPE = 'chatto:oauth-popup-response';
 
 const OAUTH_POPUP_CHANNEL_PREFIX = 'chatto:oauth-popup:';
-const POPUP_WIDTH = 520;
-const POPUP_HEIGHT = 600;
 const POPUP_POLL_INTERVAL_MS = 250;
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -84,14 +86,14 @@ export type OAuthPopup = {
 /**
  * Open an OAuth popup while a user gesture is active, and wait for the
  * callback response of the transaction `state`. Call it before any `await`,
- * or the browser can block the window. `features` sets the window size.
+ * or the browser can block the window.
  *
  * @throws OAuthPopupError with reason `blocked` when the browser blocks the window.
  */
-export function openOAuthPopup(state: string, features = popupFeatures(window)): OAuthPopup {
+export function openOAuthPopup(state: string): OAuthPopup {
   const authorizationWindow = openAuthorizationWindow(
     `chatto-oauth-${state.slice(0, 12)}`,
-    features
+    authorizationWindowFeatures(window)
   );
   if (!authorizationWindow)
     throw new OAuthPopupError('The sign-in window could not be opened.', 'blocked');
@@ -113,12 +115,6 @@ export function openOAuthPopup(state: string, features = popupFeatures(window)):
       void closeAuthorizationWindow(authorizationWindow);
     }
   };
-}
-
-function popupFeatures(owner: Window): string {
-  const left = Math.max(0, Math.round(owner.screenX + (owner.outerWidth - POPUP_WIDTH) / 2));
-  const top = Math.max(0, Math.round(owner.screenY + (owner.outerHeight - POPUP_HEIGHT) / 2));
-  return `popup,width=${POPUP_WIDTH},height=${POPUP_HEIGHT},left=${left},top=${top}`;
 }
 
 function waitForPopupResponse(
