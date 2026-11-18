@@ -1,14 +1,14 @@
 # FDR-058: AT Protocol Sign-In
 
 **Status:** Experimental
-**Last reviewed:** 2026-11-12
+**Last reviewed:** 2026-11-18
 
 ## Overview
 
 Users can sign in to Chatto with their AT Protocol identity, for example a
-Bluesky account. Chatto does not show AT Protocol handles as verified. A
-verified handle needs an independent issuer, which Chatto does not have yet
-(ADR-124).
+Bluesky account. The checked handle becomes an identity claim (FDR-059).
+Chatto does not show AT Protocol handles as verified. A verified handle needs
+an independent issuer, which Chatto does not have yet (ADR-124).
 
 ## Behavior
 
@@ -55,12 +55,13 @@ the loopback client, for which the PDS asks every time.
 ### 2. No verified handles from repository records
 
 **Decision:** Chatto does not publish the linked DID on profiles and does not
-show handles as verified.
+show handles as verified. The handle that the server checked at sign-in can
+show as an identity claim without a verification mark (ADR-125, FDR-059).
 **Why:** A proof that the user writes to their own repository can also be
 written by every app that has write access to that repository, for example
 apps with app passwords. A modified server and one such app could link a
 user's identity to a different account (ADR-124).
-**Tradeoff:** Members cannot see which AT Protocol identity an account uses.
+**Tradeoff:** Members can see a handle only with the server's word for it.
 
 ### 3. A remembered handle instead of a device session
 
@@ -102,12 +103,13 @@ verification.
 ## Related
 
 - **ADRs:** ADR-071 (CIMD-identified OAuth clients), ADR-124 (verified AT
-  Protocol handles need an independent issuer)
-- **FDRs:** FDR-023 (Authentication & Sessions)
+  Protocol handles need an independent issuer), ADR-125 (identity claims)
+- **FDRs:** FDR-023 (Authentication & Sessions), FDR-059 (Identity Claims)
 
 ## Open Questions
 
 - **Verified handles:** ADR-124 describes the requirements for an issuer.
+  ADR-125 describes how an issuer attestation fits identity claims.
 - **Windowless sign-in:** AT Protocol service tokens do not name the app that
   requested them, so they are not safe for sign-in. A future protocol feature
   that binds a token to the server's OAuth client could remove the sign-in

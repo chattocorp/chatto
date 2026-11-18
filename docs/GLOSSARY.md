@@ -101,7 +101,9 @@ account-directed email. The first verified email becomes primary, and adding
 another address does not change the selection. See
 [FDR-018](fdr/FDR-018-account-lifecycle.md).
 
-**Internet Handle** — The UI name for an AT Protocol handle, such as `alice.bsky.social`, and for the default label of `atproto` login providers. AT Protocol handles are not limited to Bluesky. Chatto does not show handles as verified. See [FDR-058](fdr/FDR-058-atproto-sign-in.md) and [ADR-124](adr/ADR-124-atproto-handle-verification-needs-an-issuer.md).
+**Internet Handle** — The UI name for an AT Protocol handle, such as `alice.bsky.social`, and for the default label of `atproto` login providers. AT Protocol handles are not limited to Bluesky. The handle that the server checked at sign-in can show as an identity claim, without a verification mark. See [FDR-058](fdr/FDR-058-atproto-sign-in.md) and [ADR-124](adr/ADR-124-atproto-handle-verification-needs-an-issuer.md).
+
+**Identity Claim** — An external identity that an account holder has shown they control, for example an AT Protocol handle. A claim has a scheme (the kind of identity), a method (how control was proven), and an attester (who vouches for it). Only the attester controls the trust statement. A claim that only the server checked has no verification mark. Each claim is hidden until its holder makes it visible. See [FDR-059](fdr/FDR-059-identity-claims.md) and [ADR-125](adr/ADR-125-identity-claims.md).
 
 **Invitation Code** — A code that permits one new account on an invite-only server. Administrators issue and revoke codes, with optional expiry. Validation does not consume the code; successful account creation does. See [FDR-036](fdr/FDR-036-invite-links.md).
 

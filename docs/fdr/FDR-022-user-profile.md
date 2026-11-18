@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-11-17
+**Last reviewed:** 2026-11-18
 
 ## Overview
 
@@ -20,6 +20,10 @@ An absent value means no choice has been recorded. Both values use Browser
 default. Startup does not save the browser time zone to the account.
 Existing timezone-clear events rebuild this distinction during replay. The
 config snapshot contract is `v3` so older snapshots cannot erase that choice.
+
+- Profiles can show identity claims, such as a checked AT Protocol handle.
+  Each claim is hidden until its holder makes it visible. See
+  [FDR-059](FDR-059-identity-claims.md).
 
 - Bot profiles show an **Owned by** row below the bot identity. The owner's
   avatar and name open the shared user profile card on click or tap. The card
@@ -245,5 +249,5 @@ The startup screen in `app.html` paints before the stylesheet loads, so it canno
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-065 (runtime JSON client internationalization), ADR-087 (request-time authorization with aggregate OCC), ADR-089 (server content view), ADR-091 (semantic realtime events), ADR-101 (shared client user profiles)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-011 (User Presence), FDR-018 (Account Lifecycle), FDR-038 (Bot Accounts), FDR-045 (Realtime Event Stream)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-065 (runtime JSON client internationalization), ADR-087 (request-time authorization with aggregate OCC), ADR-089 (server content view), ADR-091 (semantic realtime events), ADR-101 (shared client user profiles), ADR-125 (identity claims)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-011 (User Presence), FDR-018 (Account Lifecycle), FDR-038 (Bot Accounts), FDR-045 (Realtime Event Stream), FDR-059 (Identity Claims)
