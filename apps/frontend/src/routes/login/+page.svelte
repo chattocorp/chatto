@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { rememberAtprotoHandle } from '$lib/atproto/rememberedHandle';
+  import { confirmPendingAtprotoHandle } from '$lib/atproto/rememberedHandle';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
@@ -7,7 +7,6 @@
     confirmProviderAccount,
     openProviderSignIn,
     ProviderSignInError,
-    providerLoginUrl,
     verifyProviderSignIn
   } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
@@ -50,9 +49,8 @@
   );
   const displayedError = $derived(error || pageError);
 
-  function providerLoginHref(provider: PublicAuthProvider, loginHint?: string): string {
-    const url = providerLoginUrl(provider.loginUrl, loginHint);
-    return `${url}${url.includes('?') ? '&' : '?'}redirect=${encodeURIComponent(data.redirectUrl)}`;
+  function providerLoginHref(provider: PublicAuthProvider): string {
+    return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
   }
 
   function loginErrorMessage(code: string): string {
@@ -73,14 +71,12 @@
         return m('auth.login.error.external_identity_conflict');
       case 'invalid_invitation':
         return m('auth.login.error.invalid_invitation');
-      case 'atproto_identity_not_found':
-        return m('auth.login.error.atproto_identity_not_found');
       default:
         return '';
     }
   }
 
-  async function handleProviderClick(e: Event, provider: PublicAuthProvider, loginHint?: string) {
+  async function handleProviderClick(e: MouseEvent, provider: PublicAuthProvider) {
     e.preventDefault();
     error = '';
     pageErrorDismissed = true;
@@ -88,14 +84,14 @@
     // Remote authorization and existing-account linking already own this window.
     // Keep their continuation here instead of opening another provider popup.
     if (compact || isProviderContinuation(data.redirectUrl)) {
-      window.location.href = providerLoginHref(provider, loginHint);
+      window.location.href = providerLoginHref(provider);
       return;
     }
     try {
-      providerPopup = openProviderSignIn(providerLoginUrl(provider.loginUrl, loginHint));
+      providerPopup = openProviderSignIn(provider.loginUrl);
       const result = await verifyProviderSignIn(providerPopup);
-      // Only AT Protocol providers take a handle hint (FDR-058).
-      if (loginHint) rememberAtprotoHandle(loginHint);
+      // The handle page of an AT Protocol sign-in stored its handle (FDR-058).
+      confirmPendingAtprotoHandle();
       if (!active) return;
       if (result.kind === 'confirm-account') {
         await confirmProviderAccount(result.token, data.redirectUrl);

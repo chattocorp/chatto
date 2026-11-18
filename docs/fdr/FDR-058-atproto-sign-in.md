@@ -15,12 +15,12 @@ verified handle needs an independent issuer, which Chatto does not have yet
 - An operator enables sign-in with the `atproto` provider type. No client
   registration or client secret is necessary. The default button label is
   "Internet Handle", because AT Protocol handles are not limited to Bluesky.
-- The login page shows a handle field with the provider button. The server
-  resolves the handle and sends the user to the authorization page of the
-  user's PDS in a sign-in window. After approval, Chatto signs the user in or
-  links the identity, as with other providers. A new account is confirmed in
-  the window that started the sign-in. Without a handle, the user enters it on
-  `bsky.social`.
+- The login page shows the provider like other providers. The sign-in window
+  first asks for the handle, on Chatto's handle page. The server then resolves
+  the handle and sends the user to the authorization page of the user's PDS.
+  After approval, Chatto signs the user in or links the identity, as with
+  other providers. A new account is confirmed in the window that started the
+  sign-in.
 - The linked external identity is the DID. A handle change does not change the
   link. With `manage_usernames`, a new account gets the handle as its username.
   A handle that is not a valid username, for example one longer than 32
@@ -29,12 +29,13 @@ verified handle needs an independent issuer, which Chatto does not have yet
   profile (`app.bsky.actor.profile`) as suggestions, when the repository has
   one. Without it, the handle is the display name suggestion. A signed-in
   account without an avatar gets the profile avatar.
-- A handle that cannot be resolved shows an explanation on the login page.
-  Other failures show the general provider error.
+- A handle that cannot be resolved returns to the handle page with an
+  explanation. Other failures show the general provider error.
 - After a successful sign-in, the device remembers the handle. The handle
-  field suggests it. On another server that has an `atproto` provider, the
+  page suggests it. On another server that has an `atproto` provider, the
   sign-in screen offers **Continue as @handle**, which starts that server's
-  sign-in with the handle filled in. **Use another handle** forgets it.
+  sign-in with the handle, without the handle page. **Use another handle**
+  forgets it.
 
 ## Design Decisions
 
@@ -92,8 +93,7 @@ verification.
 
 - **Sign-in:** the server contacts the handle domain, the PLC directory for
   `did:plc` identities, the user's PDS, and its authorization server. From the
-  PDS, it also reads the public profile record and the avatar image. Without a
-  handle, it contacts `bsky.social`.
+  PDS, it also reads the public profile record and the avatar image.
 - **Remembered handle:** it stays in the browser's storage. The device sends
   it only to the server where the user signs in.
 - **Logs:** handles, DIDs, and tokens identify users. The server does not log

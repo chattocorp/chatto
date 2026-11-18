@@ -314,3 +314,45 @@ func TestATProtoLoopbackProviderForwardsCallbacks(t *testing.T) {
 		}
 	}
 }
+
+// A start without a handle, or with an unknown handle, goes to the handle
+// page, which continues the same start request (FDR-058).
+func TestATProtoStartAsksForTheHandle(t *testing.T) {
+	provider, err := newATProtoProvider("https://chat.example/auth/providers/bsky/callback")
+	require.NoError(t, err)
+	dir := identity.NewMockDirectory()
+	provider.app.Dir = dir
+	runtime := &authProviderRuntime{config: config.AuthProviderConfig{ID: "bsky", Type: config.AuthProviderTypeATProto}, atproto: provider}
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(sessions.Sessions("chatto_session", cookie.NewStore([]byte("0123456789abcdef0123456789abcdef"))))
+	router.GET("/auth/providers/bsky", func(c *gin.Context) {
+		(&HTTPServer{}).handleProviderStart(c, runtime)
+	})
+
+	for _, tc := range []struct {
+		query string
+		want  url.Values
+	}{
+		{
+			query: "redirect=%2Fservers%2Fcallback&intent=link&link_start=tok",
+			want:  url.Values{"next": {"/auth/providers/bsky?intent=link&link_start=tok&redirect=%2Fservers%2Fcallback"}},
+		},
+		{
+			query: "redirect=%2Fchat&login_hint=nobody.test",
+			want: url.Values{
+				"next":   {"/auth/providers/bsky?redirect=%2Fchat"},
+				"error":  {"atproto_identity_not_found"},
+				"handle": {"nobody.test"},
+			},
+		},
+	} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/auth/providers/bsky?"+tc.query, nil))
+		require.Equal(t, http.StatusSeeOther, recorder.Code, tc.query)
+		location, err := url.Parse(recorder.Header().Get("Location"))
+		require.NoError(t, err)
+		require.Equal(t, atprotoHandlePagePath, location.Path, tc.query)
+		require.Equal(t, tc.want, location.Query(), tc.query)
+	}
+}

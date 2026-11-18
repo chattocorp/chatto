@@ -3,7 +3,6 @@ import {
   confirmProviderAccount,
   openProviderSignIn,
   ProviderSignInError,
-  providerLoginUrl,
   verifyProviderSignIn
 } from './providerSignIn';
 
@@ -26,16 +25,6 @@ describe('origin provider sign-in', () => {
     vi.stubGlobal('window', { location: { origin: 'https://chat.example' } });
   });
   afterEach(() => vi.unstubAllGlobals());
-
-  it('adds a login hint only when one is given', () => {
-    expect(providerLoginUrl('/auth/providers/bsky')).toBe('/auth/providers/bsky');
-    expect(providerLoginUrl('/auth/providers/bsky', 'alice.example')).toBe(
-      '/auth/providers/bsky?login_hint=alice.example'
-    );
-    expect(providerLoginUrl('https://remote.example/auth/providers/bsky', 'alice.example')).toBe(
-      'https://remote.example/auth/providers/bsky?login_hint=alice.example'
-    );
-  });
 
   it('opens synchronously and returns to a transaction-bound local callback', () => {
     const popup = { navigate: vi.fn(), close: vi.fn(), response: Promise.resolve({}) };

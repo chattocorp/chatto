@@ -141,8 +141,7 @@ window; an optional native host capability enables inline password submission.
           {providers}
           {selectedProviderId}
           disabled={busy}
-          onclick={(_event, provider, loginHint) =>
-            void signInOnServer(provider.id, false, loginHint)}
+          onclick={(_event, provider) => void signInOnServer(provider.id)}
         />
         {#if showPassword}<Divider label={m('common.or')} />{/if}
       {/if}

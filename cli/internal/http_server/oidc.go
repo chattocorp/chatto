@@ -260,6 +260,26 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authProviderRuntime) {
 	session := sessions.Default(c)
+
+	// AT Protocol needs the handle first. Ask for it on the handle page, and
+	// show an unknown handle there again, before any link token is consumed.
+	var atprotoAuthURL, atprotoState string
+	var atprotoErr error
+	if providerRuntime.atproto != nil {
+		hint := strings.TrimSpace(c.Query("login_hint"))
+		if hint == "" {
+			c.Redirect(http.StatusSeeOther, atprotoHandlePageURL(c.Request.URL, "", ""))
+			return
+		}
+		atprotoAuthURL, atprotoState, atprotoErr = providerRuntime.atproto.authURL(c.Request.Context(), session, providerRuntime.config.ID, hint)
+		if errors.Is(atprotoErr, errATProtoIdentityNotFound) {
+			log.Warn("Failed to begin atproto auth", "provider_id", providerRuntime.config.ID, "identity_not_found", true)
+			_ = session.Save()
+			c.Redirect(http.StatusSeeOther, atprotoHandlePageURL(c.Request.URL, "atproto_identity_not_found", hint))
+			return
+		}
+	}
+
 	intent := c.Query("intent")
 	linkStartRedirect := ""
 	if intent == "link" {
@@ -309,20 +329,14 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 
 	var authURL string
 	if providerRuntime.atproto != nil {
-		// AT Protocol's pushed request chooses the state. The optional hint is
-		// the handle or DID that the user typed.
-		var atprotoState string
-		authURL, atprotoState, err = providerRuntime.atproto.authURL(c.Request.Context(), session, providerRuntime.config.ID, strings.TrimSpace(c.Query("login_hint")))
-		if err != nil {
-			log.Warn("Failed to begin atproto auth", "provider_id", providerRuntime.config.ID, "identity_not_found", errors.Is(err, errATProtoIdentityNotFound))
-			code := "provider_failed"
-			if errors.Is(err, errATProtoIdentityNotFound) {
-				code = "atproto_identity_not_found"
-			}
+		// AT Protocol's pushed request chose the state above.
+		if atprotoErr != nil {
+			log.Warn("Failed to begin atproto auth", "provider_id", providerRuntime.config.ID, "identity_not_found", false)
 			_ = session.Save()
-			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", code))
+			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_failed"))
 			return
 		}
+		authURL = atprotoAuthURL
 		session.Set(providerSessionKey(providerRuntime.config.ID, "state"), atprotoState)
 	} else if providerRuntime.config.Type == config.AuthProviderTypeOpenIDConnect {
 		if !providerRuntime.ensureOIDC(c) {

@@ -23,9 +23,10 @@ import (
 // (FDR-058).
 const atprotoIdentityScope = "atproto"
 
-// atprotoDefaultAuthServer is used when a sign-in starts without a handle.
-// The user then enters the handle on this authorization server.
-const atprotoDefaultAuthServer = "https://bsky.social"
+// atprotoHandlePagePath is the frontend page that asks for the handle when a
+// sign-in starts without one. It continues the same start URL with
+// `login_hint`.
+const atprotoHandlePagePath = "/sso/handle"
 
 // atprotoMaxIdentifierLength bounds a handle or DID hint. The AT Protocol
 // specification limits DIDs to 2 KB.
@@ -76,14 +77,11 @@ func newATProtoProvider(callbackURL string) (*atprotoProvider, error) {
 	return &atprotoProvider{app: app, loopback: loopback}, nil
 }
 
-// authURL starts a sign-in for identifier, a handle or DID. An empty
-// identifier starts at the default authorization server. It returns the URL
+// authURL starts a sign-in for identifier, a handle or DID. It returns the URL
 // of the authorization page and the state that the callback must return.
 func (p *atprotoProvider) authURL(ctx context.Context, session sessions.Session, providerID, identifier string) (string, string, error) {
 	identifier = strings.TrimPrefix(identifier, "@")
-	if identifier == "" {
-		identifier = atprotoDefaultAuthServer
-	} else if _, err := syntax.ParseAtIdentifier(identifier); err != nil {
+	if _, err := syntax.ParseAtIdentifier(identifier); err != nil {
 		// This also rejects URLs: only Chatto chooses authorization servers.
 		return "", "", fmt.Errorf("%w: %w", errATProtoIdentityNotFound, err)
 	}
@@ -289,4 +287,22 @@ func (r *authProviderRuntime) resolveATProtoIdentity(c *gin.Context, session ses
 		identity.providerUsername = account.Handle
 	}
 	return identity, nil
+}
+
+// atprotoHandlePageURL returns the handle page for the start request start.
+// The page continues start with the handle. errorCode and handle show a
+// failed attempt again.
+func atprotoHandlePageURL(start *url.URL, errorCode, handle string) string {
+	next := *start
+	q := next.Query()
+	q.Del("login_hint")
+	next.RawQuery = q.Encode()
+	page := url.Values{"next": {next.RequestURI()}}
+	if errorCode != "" {
+		page.Set("error", errorCode)
+	}
+	if handle != "" {
+		page.Set("handle", handle)
+	}
+	return atprotoHandlePagePath + "?" + page.Encode()
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { rememberAtprotoHandle } from '$lib/atproto/rememberedHandle';
+  import { confirmPendingAtprotoHandle } from '$lib/atproto/rememberedHandle';
   import { goto } from '$app/navigation';
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
@@ -8,7 +8,6 @@
   import {
     confirmProviderAccount,
     openProviderSignIn,
-    providerLoginUrl,
     verifyProviderSignIn
   } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
@@ -91,8 +90,8 @@
       !confirmError
   );
 
-  function providerLoginHref(provider: PublicAuthProvider, loginHint?: string): string {
-    const url = new URL(providerLoginUrl(provider.loginUrl, loginHint), window.location.origin);
+  function providerLoginHref(provider: PublicAuthProvider): string {
+    const url = new URL(provider.loginUrl, window.location.origin);
     url.searchParams.set('redirect', data.redirectUrl);
     if (admissionId) url.searchParams.set('admission', admissionId);
     return url.href;
@@ -128,24 +127,20 @@
     }
   }
 
-  async function handleProviderClick(
-    event: Event,
-    provider: PublicAuthProvider,
-    loginHint?: string
-  ) {
+  async function handleProviderClick(event: MouseEvent, provider: PublicAuthProvider) {
     event.preventDefault();
     providerError = '';
     selectedProviderId = provider.id;
     // Keep the server's OAuth session in this window throughout provider signup.
     if (compact) {
-      window.location.href = providerLoginHref(provider, loginHint);
+      window.location.href = providerLoginHref(provider);
       return;
     }
     try {
-      providerPopup = openProviderSignIn(providerLoginHref(provider, loginHint));
+      providerPopup = openProviderSignIn(providerLoginHref(provider));
       const result = await verifyProviderSignIn(providerPopup);
-      // Only AT Protocol providers take a handle hint (FDR-058).
-      if (loginHint) rememberAtprotoHandle(loginHint);
+      // The handle page of an AT Protocol sign-in stored its handle (FDR-058).
+      confirmPendingAtprotoHandle();
       if (!active) return;
       if (result.kind === 'confirm-account') {
         await confirmProviderAccount(result.token, data.redirectUrl);
