@@ -24,7 +24,8 @@ vi.mock(
 );
 
 vi.mock('$lib/auth/reauth', () => ({
-  startRemoteReauthentication: mocks.startRemoteReauthentication
+  startRemoteReauthentication: mocks.startRemoteReauthentication,
+  cancelServerOAuthFlow: vi.fn()
 }));
 
 import { toast } from '$lib/ui/toast';
@@ -107,6 +108,37 @@ describe('ServerSignedOut', () => {
       expect(mocks.passwordLogin).not.toHaveBeenCalled();
     }
   );
+
+  it('offers Continue as the remembered AT Protocol handle', async () => {
+    localStorage.setItem('chatto:atproto-handle', 'alice.example');
+    mocks.startRemoteReauthentication.mockResolvedValue(undefined);
+    createTestServerScope({
+      serverInfo: {
+        name: 'Saved Server',
+        loading: false,
+        authProviders: [{ id: 'bsky', type: 'atproto', label: 'Internet Handle' }]
+      },
+      store: { realtimeSync: { hasDisplayableView: false } }
+    });
+    try {
+      render(ServerSignedOut, { props: { registration } });
+      await page.getByRole('button', { name: 'Continue as @alice.example' }).click();
+      expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(
+        registration,
+        'bsky',
+        undefined,
+        'alice.example'
+      );
+
+      await page.getByRole('button', { name: 'Use another handle' }).click();
+      await expect
+        .element(page.getByRole('button', { name: 'Continue as @alice.example' }))
+        .not.toBeInTheDocument();
+      expect(localStorage.getItem('chatto:atproto-handle')).toBeNull();
+    } finally {
+      localStorage.removeItem('chatto:atproto-handle');
+    }
+  });
 
   it('shows the Desktop password form and submits without opening OAuth', async () => {
     mocks.desktop = true;

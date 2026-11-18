@@ -1237,3 +1237,42 @@ func (i *noEmailOIDCIssuer) idToken(_ context.Context) string {
 	}
 	return raw
 }
+
+// A sign-in popup must not show the new-account confirmation itself. It hands
+// the pending token, or the unlinked error, to the window that opened it.
+func TestProviderPopupHandsNewAccountConfirmationToOpener(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{
+			{ID: "open", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(), ClientID: "client-id", ClientSecret: "client-secret", AutoProvision: new(true)},
+			{ID: "closed", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(), ClientID: "client-id", ClientSecret: "client-secret"},
+		}
+		s.setupOIDCRoutes()
+	})
+	const popupReturn = "/servers/callback?mode=provider&state=popup-state"
+
+	issuer.SetSubject("popup-new")
+	location, err := url.Parse(completeNoEmailOIDCLogin(t, client, ts.URL, "open", popupReturn))
+	require.NoError(t, err)
+	require.Equal(t, "/servers/callback", location.Path)
+	require.Equal(t, "popup-state", location.Query().Get("state"))
+	token := location.Query().Get("external_identity")
+	require.NotEmpty(t, token)
+	pending, err := chattoCore.GetPendingExternalIdentityFlow(t.Context(), token)
+	require.NoError(t, err)
+	require.Equal(t, "/", pending.RedirectPath, "the opening window owns the return navigation")
+
+	issuer.SetSubject("popup-unlinked")
+	location, err = url.Parse(completeNoEmailOIDCLogin(t, client, ts.URL, "closed", popupReturn))
+	require.NoError(t, err)
+	require.Equal(t, "/servers/callback", location.Path)
+	require.Equal(t, "external_identity_unlinked", location.Query().Get("error"))
+
+	// Without a popup, the confirmation stays in the same window.
+	issuer.SetSubject("full-page-new")
+	full := completeNoEmailOIDCLogin(t, client, ts.URL, "open", "/chat")
+	require.True(t, strings.HasPrefix(full, "/sso/confirm?"), full)
+}

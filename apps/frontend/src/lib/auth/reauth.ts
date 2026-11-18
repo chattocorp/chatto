@@ -3,7 +3,6 @@ import { goto, invalidateAll } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { getPublicServerInfo, type PublicServerInfo } from '@chatto/client/api/server';
 import { openOAuthPopup, type OAuthPopup, type OAuthPopupResponse } from '$lib/oauth/popup';
-import { authorizationWindowFeatures } from '$lib/oauth/authorizationWindow';
 import { serverRegistry } from '$lib/client';
 import { findServerByUrl } from '$lib/serverCatalogue';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -48,7 +47,8 @@ async function runServerOAuthFlow(
   serverUrl: string,
   serverInfo: Promise<Pick<PublicServerInfo, 'name' | 'authorizeUrl' | 'iconUrl'>>,
   providerId?: string,
-  screenHint?: 'signup'
+  screenHint?: 'signup',
+  loginHint?: string
 ): Promise<void> {
   const verifier = randomOAuthValue(64);
   const state = randomOAuthValue(32);
@@ -63,6 +63,7 @@ async function runServerOAuthFlow(
       code_challenge: challenge,
       code_challenge_method: 'S256',
       ...(providerId ? { provider_id: providerId } : {}),
+      ...(providerId && loginHint ? { login_hint: loginHint } : {}),
       ...(screenHint ? { screen_hint: screenHint } : {}),
       state
     });
@@ -96,7 +97,7 @@ async function runServerOAuthFlow(
   // otherwise browsers may treat the secondary window as an unsolicited popup.
   let popup: OAuthPopup;
   try {
-    popup = openOAuthPopup(state, authorizationWindowFeatures(window));
+    popup = openOAuthPopup(state);
   } catch (error) {
     // The blocked window replaces any later server-data error.
     serverInfo.catch(() => {});
@@ -105,6 +106,11 @@ async function runServerOAuthFlow(
   // The window can close while server data still loads. Observe that early
   // rejection here; the later await still receives it.
   popup.response.catch(() => {});
+  abandonActiveFlows.set(serverUrl, popup.cancel);
+  popup.response.then(
+    () => abandonActiveFlows.delete(serverUrl),
+    () => abandonActiveFlows.delete(serverUrl)
+  );
 
   try {
     // A deliberate close must end the attempt even while discovery is pending.
@@ -121,6 +127,7 @@ async function runServerOAuthFlow(
       code_challenge: challenge,
       code_challenge_method: 'S256',
       ...(providerId ? { provider_id: providerId } : {}),
+      ...(providerId && loginHint ? { login_hint: loginHint } : {}),
       ...(screenHint ? { screen_hint: screenHint } : {}),
       state
     });
@@ -173,6 +180,17 @@ function requireResponseFromServer(response: OAuthPopupResponse, serverUrl: stri
 async function openSignedInServer(serverId: string): Promise<void> {
   if (getActiveServer() === serverId) return invalidateAll();
   await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
+}
+
+/** Cancels the waiting popup flow of each server URL that has one. */
+const abandonActiveFlows = new Map<string, () => void>();
+
+/**
+ * Stop waiting for the sign-in window of `serverUrl`. The user may have
+ * closed it while the window handle could not report this.
+ */
+export function cancelServerOAuthFlow(serverUrl: string): void {
+  abandonActiveFlows.get(serverUrl)?.();
 }
 
 /**
@@ -268,10 +286,16 @@ export function oauthClientIdForLocation(
  * one of the server's configured providers; the server validates the hint.
  * The signup screen hint opens registration on servers that support it.
  */
+/**
+ * Sign in to `server` in its OAuth window. `providerId` starts that provider
+ * directly; `loginHint` is the identity to use there, such as a known AT
+ * Protocol handle (FDR-058).
+ */
 export function startRemoteReauthentication(
   server: RegisteredServer,
   providerId?: string,
-  screenHint?: 'signup'
+  screenHint?: 'signup',
+  loginHint?: string
 ): Promise<void> {
   const serverInfo = getPublicServerInfo(server.url, { signal: AbortSignal.timeout(10000) }).then(
     (info) => ({
@@ -280,7 +304,7 @@ export function startRemoteReauthentication(
       iconUrl: info.iconUrl ?? server.iconUrl
     })
   );
-  return runServerOAuthFlow(server.url, serverInfo, providerId, screenHint);
+  return runServerOAuthFlow(server.url, serverInfo, providerId, screenHint, loginHint);
 }
 
 export function beginOriginReauthentication(returnPath?: string): void {

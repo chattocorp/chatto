@@ -277,6 +277,9 @@ test.describe('External identity confirmation flows', () => {
     await page.getByRole('link', { name: 'Continue with GitHub' }).click();
     const popup = await popupPromise;
     await popup.close();
+    // An isolated provider page looks closed to the opener, so the page keeps
+    // waiting until the user cancels (FDR-023).
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(page.getByRole('link', { name: 'Continue with GitHub' })).not.toHaveAttribute(
       'aria-busy',
       'true'

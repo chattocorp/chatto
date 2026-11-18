@@ -1,10 +1,15 @@
 <script lang="ts">
+  import { confirmPendingAtprotoHandle } from '$lib/atproto/rememberedHandle';
   import { goto } from '$app/navigation';
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
-  import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
+  import {
+    confirmProviderAccount,
+    openProviderSignIn,
+    verifyProviderSignIn
+  } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
@@ -133,8 +138,14 @@
     }
     try {
       providerPopup = openProviderSignIn(providerLoginHref(provider));
-      await verifyProviderSignIn(providerPopup);
+      const result = await verifyProviderSignIn(providerPopup);
+      // The handle page of an AT Protocol sign-in stored its handle (FDR-058).
+      confirmPendingAtprotoHandle();
       if (!active) return;
+      if (result.kind === 'confirm-account') {
+        await confirmProviderAccount(result.token, data.redirectUrl);
+        return;
+      }
       if (!(await completeOriginAuthentication()))
         await navigateAfterAuthentication(data.redirectUrl);
     } catch (err) {
@@ -334,7 +345,10 @@
         href={providerLoginHref}
         onclick={handleProviderClick}
       />
-      <AuthPopupNotice pending={!compact && selectedProviderId !== null} />
+      <AuthPopupNotice
+        pending={!compact && selectedProviderId !== null}
+        oncancel={() => providerPopup?.cancel()}
+      />
       <FormError error={providerError} />
     {/if}
   {:else if step === 'code'}
