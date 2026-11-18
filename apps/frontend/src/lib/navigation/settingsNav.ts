@@ -39,7 +39,7 @@ export function getSettingsNavGroups(server?: {
       href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
       label: m('settings.nav.account'),
       description: m('settings.overview.descriptions.account'),
-      icon: 'iconify icon-[uil--setting]'
+      icon: 'iconify icon-[uil--key-skeleton]'
     },
     {
       href: resolve('/chat/[serverId]/settings/profile', { serverId: serverSegment }),

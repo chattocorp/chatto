@@ -208,6 +208,7 @@ Rows are notification causes. Columns follow the current navigation layout.
 <Panel
   title={m('settings.notifications.policy.title')}
   subtitle={m('settings.notifications.policy.description')}
+  icon="iconify icon-[uil--table]"
   noPadding
 >
   {#snippet actions()}
