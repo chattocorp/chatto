@@ -116,6 +116,7 @@ describe('origin sign-in page', () => {
             ...standaloneData,
             serverInfo: {
               ...serverInfo,
+              accountCreationPolicy: 'invite_only',
               authProviders: [
                 {
                   id: 'company',
@@ -131,10 +132,17 @@ describe('origin sign-in page', () => {
         }
       });
 
-      await expect.element(getByRole('link', { name: 'Continue with Company SSO' })).toBeVisible();
+      await expect
+        .element(getByRole('link', { name: 'Continue with Company SSO', exact: true }))
+        .toBeVisible();
       await expect
         .element(getByRole('link', { name: 'Create Account', exact: true }))
         .not.toBeInTheDocument();
+      const inviteNotice = getByText(
+        'New accounts need a single-use invitation code. Existing users can still sign in.'
+      );
+      if (autoProvision === true) await expect.element(inviteNotice).toBeVisible();
+      else await expect.element(inviteNotice).not.toBeInTheDocument();
       await expect.element(getByText('or', { exact: true })).not.toBeInTheDocument();
     }
   );

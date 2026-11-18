@@ -220,7 +220,7 @@ describe('invite-only registration', () => {
       await expect.element(page.getByLabelText('Invitation code')).toBeVisible();
       await expect.element(page.getByLabelText('Email')).not.toBeInTheDocument();
       await expect
-        .element(page.getByRole('link', { name: 'Sign in with existing account' }))
+        .element(page.getByRole('link', { name: 'Sign in to existing account' }))
         .toHaveAttribute('href', '/sso/confirm?token=verified-flow&existing=1');
     }
   );

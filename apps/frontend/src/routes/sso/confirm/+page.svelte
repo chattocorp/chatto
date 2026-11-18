@@ -7,6 +7,8 @@
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import { isProviderCallback } from '$lib/auth/providerContinuation';
+  import { providerIcon } from '$lib/auth/providerIcon';
+  import { getAuthServerInfo } from '$lib/components/authServerInfo';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import {
     createExternalIdentityFlowAPI,
@@ -15,19 +17,24 @@
   } from '$lib/api/externalIdentities';
   import { m } from '$lib/i18n/messages';
   import { MAX_DISPLAY_NAME_LENGTH, validateDisplayName } from '$lib/validation/displayName';
-  import { Hint, PageTitle } from '$lib/ui';
+  import { Divider, Hint, PageTitle } from '$lib/ui';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
 
   const { data } = $props();
+  const getServerInfo = getAuthServerInfo();
+  // Remote-server and settings sign-ins confirm in the provider window.
+  const compact = $derived(
+    !!data.pending?.redirectPath &&
+      isProviderCallback(new URL(data.pending.redirectPath, 'https://chatto.invalid'))
+  );
   const flowAPI = createExternalIdentityFlowAPI();
 
   const pending = $derived(data.pending);
   let actionError = $state('');
   let submitting = $state(false);
   let login = $derived(pending?.loginHint ?? '');
-  const usernameManaged = $derived(
-    pending?.chooseUsername === UsernameChoiceAvailability.PROVIDER_MANAGED
-  );
+  const usernameChoice = $derived(pending?.chooseUsername ?? UsernameChoiceAvailability.ALLOWED);
+  const usernameManaged = $derived(usernameChoice === UsernameChoiceAvailability.PROVIDER_MANAGED);
   let displayName = $derived(
     pending?.displayNameHint ||
       (usernameManaged ? '' : pending?.loginHint.slice(0, MAX_DISPLAY_NAME_LENGTH)) ||
@@ -55,6 +62,9 @@
   );
   const isLink = $derived(
     pending?.kind === ExternalIdentityFlowKind.LINK_ACCOUNT || data.existingAccount
+  );
+  const title = $derived(
+    isCreate ? m('auth.register.title') : isLink ? m('auth.sso.link_button') : m('auth.sso.title')
   );
   const existingAccountHref = $derived(
     `${resolve('/sso/confirm')}?token=${encodeURIComponent(data.token)}&existing=1`
@@ -148,9 +158,30 @@
   }
 </script>
 
-<PageTitle title={m('auth.sso.title')} />
+{#snippet providerIdentity(info: NonNullable<typeof pending>)}
+  <div class="flex items-center gap-3 panel-shell p-3">
+    <span
+      aria-hidden="true"
+      class={['iconify shrink-0 text-2xl text-action', providerIcon(info.providerType)]}
+    ></span>
+    <div class="min-w-0">
+      <p class="font-semibold">{m('auth.sso.signed_in', { provider: info.providerLabel })}</p>
+      {#if info.verifiedEmail}
+        <p class="break-words text-muted"><bdi>{info.verifiedEmail}</bdi></p>
+      {/if}
+    </div>
+  </div>
+{/snippet}
 
-<AuthLayout title={m('auth.sso.title')}>
+{#snippet cancelButton()}
+  <Button variant="ghost" onclick={handleCancel} disabled={submitting}>
+    {m('common.cancel')}
+  </Button>
+{/snippet}
+
+<PageTitle {title} />
+
+<AuthLayout {compact} {title}>
   {#if !data.token}
     <Hint tone="danger">{m('auth.sso.invalid')}</Hint>
     <p class="mt-6 text-center">
@@ -168,35 +199,43 @@
       <a href={resolve('/login')} class="link">{m('common.sign_in')}</a>
     </p>
   {:else if pending && isCreate}
-    <div class="mb-5 flex flex-col gap-2 text-center">
-      <p class="text-sm text-muted">
-        {m('auth.sso.create_intro', { provider: pending.providerLabel })}
+    <div class="mb-6 flex flex-col gap-3">
+      {@render providerIdentity(pending)}
+      <p class="text-muted">
+        {m('auth.sso.create_intro', {
+          provider: pending.providerLabel,
+          server: getServerInfo()?.name || 'Chatto'
+        })}
       </p>
-      {#if pending.verifiedEmail}
-        <p class="text-sm">{pending.verifiedEmail}</p>
-      {/if}
     </div>
 
     <form onsubmit={handleCreate} class="flex flex-col gap-4">
-      <TextInput
-        id="sso-login"
-        label={m('common.username')}
-        bind:value={login}
-        placeholder={m('common.username_placeholder')}
-        disabled={submitting ||
-          (pending.chooseUsername !== undefined &&
-            pending.chooseUsername !== UsernameChoiceAvailability.ALLOWED)}
-        required
-        autocomplete="username"
-        error={loginError}
-      />
-      {#if pending.chooseUsername !== undefined && pending.chooseUsername !== UsernameChoiceAvailability.ALLOWED}
-        <Hint>{usernameChoiceUnavailableMessage(pending.chooseUsername)}</Hint>
+      {#if usernameManaged}
+        <div>
+          <p class="font-medium">{m('common.username')}</p>
+          <p class="mt-1 font-semibold break-words"><bdi>@{login}</bdi></p>
+          <p class="mt-1 text-muted">{m('settings.account.sso.username_managed')}</p>
+        </div>
+      {:else}
+        <TextInput
+          id="sso-login"
+          label={m('common.username')}
+          description={usernameChoice === UsernameChoiceAvailability.ALLOWED
+            ? m('auth.sso.username_help')
+            : usernameChoiceUnavailableMessage(usernameChoice)}
+          bind:value={login}
+          placeholder={m('common.username_placeholder')}
+          disabled={submitting || usernameChoice !== UsernameChoiceAvailability.ALLOWED}
+          required
+          autocomplete="username"
+          error={loginError}
+        />
       {/if}
 
       <TextInput
         id="sso-display-name"
         label={m('settings.profile.display_name.label')}
+        description={usernameManaged ? m('auth.sso.display_default') : m('auth.sso.display_help')}
         bind:value={displayName}
         placeholder={m('settings.profile.display_name.placeholder')}
         disabled={submitting}
@@ -211,56 +250,59 @@
       <Button
         type="submit"
         size="lg"
+        fullWidth
         disabled={!canSubmit}
         loading={submitting}
         loadingText={m('auth.sso.creating')}
       >
-        <span aria-hidden="true" class="iconify icon-[uil--user-plus]"></span>
-        {m('common.create_account')}
+        {m('auth.sso.create_action')}
       </Button>
     </form>
 
-    <div class="mt-3">
+    <Divider label={m('common.or')} />
+
+    <div class="flex flex-col items-center gap-3">
+      <p class="text-center text-muted">{m('auth.sso.existing_help')}</p>
       <Button variant="secondary" fullWidth href={existingAccountHref} disabled={submitting}>
-        <span aria-hidden="true" class="iconify icon-[mdi--login]"></span>
         {m('auth.sso.sign_in_existing')}
       </Button>
-    </div>
-
-    <div class="mt-3">
-      <Button variant="ghost" fullWidth onclick={handleCancel} disabled={submitting}>
-        {m('common.cancel')}
-      </Button>
+      {@render cancelButton()}
     </div>
   {:else if pending && isLink}
-    <div class="mb-5 flex flex-col gap-2 text-center">
-      <p class="text-sm text-muted">
+    <div class="mb-6 flex flex-col gap-3">
+      {@render providerIdentity(pending)}
+      <p class="text-muted">
         {m('auth.sso.link_intro', { provider: pending.providerLabel })}
       </p>
-      {#if data.existingAccount && data.user}
-        <p><bdi>{data.user.displayName}</bdi> (<bdi>@{data.user.login}</bdi>)</p>
-      {/if}
-      {#if pending.verifiedEmail}
-        <p class="text-sm">{pending.verifiedEmail}</p>
+      {#if data.user && (data.existingAccount || data.user.id === pending.boundUserId)}
+        <div class="flex items-center gap-3 panel-shell p-3">
+          <span aria-hidden="true" class="iconify icon-[uil--user] shrink-0 text-2xl text-muted"
+          ></span>
+          <div class="min-w-0">
+            <p class="font-semibold break-words"><bdi>{data.user.displayName}</bdi></p>
+            <p class="break-words text-muted"><bdi>@{data.user.login}</bdi></p>
+          </div>
+        </div>
       {/if}
     </div>
 
     <FormError error={actionError} />
 
-    <div class="flex flex-col gap-3">
-      <Button
-        size="lg"
-        disabled={!canSubmit}
-        loading={submitting}
-        loadingText={m('auth.sso.linking')}
-        onclick={handleLink}
-      >
-        <span aria-hidden="true" class="iconify icon-[uil--link]"></span>
-        {m('auth.sso.link_button')}
-      </Button>
-      <Button variant="secondary" fullWidth onclick={handleCancel} disabled={submitting}>
-        {m('common.cancel')}
-      </Button>
+    <div class="flex items-center gap-2">
+      <div class="min-w-0 flex-1">
+        <Button
+          fullWidth
+          size="lg"
+          disabled={!canSubmit}
+          loading={submitting}
+          loadingText={m('auth.sso.linking')}
+          onclick={handleLink}
+        >
+          <span aria-hidden="true" class="iconify icon-[uil--link]"></span>
+          {m('auth.sso.link_button')}
+        </Button>
+      </div>
+      {@render cancelButton()}
     </div>
   {:else}
     <Hint tone="danger">{m('auth.sso.invalid')}</Hint>

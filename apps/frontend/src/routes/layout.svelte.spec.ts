@@ -74,8 +74,15 @@ vi.mock('$app/state', async () => {
   const { fromStore, writable } = await import('svelte/store');
   const routeId = fromStore(writable('/'));
   const url = fromStore(writable(new URL('https://chat.example.test/')));
+  const data = fromStore(writable<Record<string, unknown>>({}));
   return {
     page: {
+      get data() {
+        return data.current;
+      },
+      set data(value: Record<string, unknown>) {
+        data.current = value;
+      },
       params: {},
       route: {
         get id() {
@@ -272,8 +279,26 @@ describe('OAuth page layout', () => {
 
   afterEach(() => {
     page.route.id = '/';
-    Object.assign(page, { url: new URL('https://chat.example.test/') });
+    Object.assign(page, { url: new URL('https://chat.example.test/'), data: {} });
   });
+
+  it.each([
+    ['/servers/callback?mode=provider&state=abc', false],
+    ['/', true],
+    ['/servers/callback?mode=provider', true]
+  ] as const)(
+    'shows the app frame on SSO confirmation returning to %s: %s',
+    async (redirectPath, framed) => {
+      page.route.id = '/sso/confirm';
+      Object.assign(page, {
+        url: new URL('https://chat.example.test/sso/confirm?token=abc'),
+        data: { pending: { redirectPath } }
+      });
+      const view = renderLayout();
+      if (framed) await expect.element(view.getByTestId('app-frame')).toBeInTheDocument();
+      else await expect.element(view.getByTestId('app-frame')).not.toBeInTheDocument();
+    }
+  );
 
   it('restores the frame when client-side navigation leaves OAuth login', async () => {
     page.route.id = '/login';
@@ -294,6 +319,7 @@ describe('OAuth page layout', () => {
 
   it.each([
     ['/oauth/consent', ''],
+    ['/sso/handle', '?next=%2Fauth%2Fproviders%2Fatproto'],
     ['/servers/callback', '?mode=popup'],
     ['/servers/callback', '?mode=provider'],
     ['/login', '?redirect=%2Foauth%2Fauthorize'],

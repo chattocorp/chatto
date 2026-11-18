@@ -59,7 +59,11 @@
       compact ? 'p-5 sm:p-6' : 'p-8'
     ]}
   >
-    <div data-page-reveal class="w-full max-w-sm">
+    <!-- Auth form labels, descriptions, and validation messages use the body text size. -->
+    <div
+      data-page-reveal
+      class="w-full max-w-sm [&_form]:[--text-sm:var(--text-base)] [&_form]:[--text-xs:var(--text-base)]"
+    >
       <!-- Show compact branding header on mobile, or when no left pane -->
       {#if showBranding && compact}
         <div data-page-reveal class="mb-5">
