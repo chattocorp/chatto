@@ -2,17 +2,25 @@ package config
 
 import "strings"
 
-// LimitsConfig contains server-wide resource limits. A value of -1 means unlimited
-// (the default when unset); 0 means no creation is allowed; any positive integer caps
-// the count at that value.
-//
-// Enforcement note: limits are checked at the entry point of each gated operation
-// (CreateUser) by counting current entries in KV. The check is not atomic with
-// the subsequent write, so a burst of concurrent requests at the boundary can
-// briefly overshoot by one or two. This soft-limit tradeoff is intentional at
-// the current scale; GitHub issue #247 records when a CAS counter is warranted.
+// DefaultMaxLoginLength applies when the operator does not configure a limit.
+const DefaultMaxLoginLength = 64
+
+// LoginLengthCeiling bounds login identifiers accepted by the sign-in endpoint.
+const LoginLengthCeiling = 254
+
+// LimitsConfig contains server-wide limits for accounts and usernames.
 type LimitsConfig struct {
+	MaxLoginLength *int `toml:"max_login_length,commented" env:"CHATTO_LIMITS_MAX_LOGIN_LENGTH" comment:"Maximum length of new or changed usernames, from 2 to 254 characters. Default: 64."`
+	// MaxUsers caps verified accounts. Concurrent creations can briefly exceed this soft limit.
 	MaxUsers *int `toml:"max_users,commented" env:"CHATTO_LIMITS_MAX_USERS" comment:"Maximum number of verified accounts allowed in this instance. -1 = unlimited (default), 0 = no new signups, positive = cap. Counts users with at least one verified email or linked SSO identity."`
+}
+
+// MaxLoginLengthOrDefault returns the maximum length for newly assigned logins.
+func (c LimitsConfig) MaxLoginLengthOrDefault() int {
+	if c.MaxLoginLength == nil {
+		return DefaultMaxLoginLength
+	}
+	return *c.MaxLoginLength
 }
 
 // MaxUsersOrDefault returns the configured max-users limit, defaulting to -1 (unlimited).

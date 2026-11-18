@@ -367,10 +367,10 @@ type CreateExternalIdentityAccountRequest struct {
 	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
 	// Desired username. Ignored when choose_username is externally managed;
 	// the server assigns a name from the verified provider claim in that case.
-	// Otherwise, it must contain 2 to 32 characters and use a valid username format.
+	// Otherwise, it must meet the server requirements for username length and format.
 	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
 	// Desired display name. When omitted, the server uses a valid provider hint
-	// and otherwise falls back to the assigned username.
+	// and otherwise uses the first 32 characters of the assigned username.
 	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	// Required on invite-only servers when the flow has no valid invitation.
 	// A supplied code replaces the flow's invitation for this attempt; an invalid

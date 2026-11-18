@@ -673,9 +673,9 @@ def apply(plan, api, journal, allow_missing_files=False, skip_canvases=False, al
             if user["deactivated"] or user["bot"]:
                 raise ApplyError("Referenced bots and deactivated users are not supported yet.")
             login = user["proposed_login"]
-            if not isinstance(login, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{1,31}", login) or login.endswith("."):
+            if not isinstance(login, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{1,253}", login) or login.endswith("."):
                 raise ApplyError("Source username does not meet Chatto login limits; no automatic rename was made.")
-            display = user["proposed_display_name"] or login
+            display = user["proposed_display_name"] or login[:32]
             if login.lower() in occupied or len(display) > 32:
                 raise ApplyError("Source user conflicts with a bootstrap login or exceeds the display-name limit.")
             occupied.add(login.lower())

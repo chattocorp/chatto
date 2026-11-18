@@ -47,6 +47,7 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 
 [limits]
 max_users = -1
+max_login_length = 90
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "chatto.toml"), []byte(configContent), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -55,6 +56,9 @@ max_users = -1
 	cfg, err := ReadConfig("")
 	if err != nil {
 		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if got := cfg.Limits.MaxLoginLengthOrDefault(); got != 90 {
+		t.Fatalf("TOML login limit = %d, want 90", got)
 	}
 	if got := cfg.Limits.MaxUsersOrDefault(); got != -1 {
 		t.Errorf("MaxUsers from TOML = %d, want -1", got)
@@ -75,10 +79,14 @@ func TestReadConfig_LimitsFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 	t.Setenv("CHATTO_LIMITS_MAX_USERS", "0")
+	t.Setenv("CHATTO_LIMITS_MAX_LOGIN_LENGTH", "12")
 
 	cfg, err := ReadConfig("")
 	if err != nil {
 		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if got := cfg.Limits.MaxLoginLengthOrDefault(); got != 12 {
+		t.Fatalf("ENV login limit = %d, want 12", got)
 	}
 	if got := cfg.Limits.MaxUsersOrDefault(); got != 0 {
 		t.Errorf("MaxUsers from env (explicit 0) = %d, want 0", got)
@@ -92,6 +100,19 @@ func TestChattoConfig_Validate_Limits(t *testing.T) {
 			Core:      CoreConfig{SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", Assets: AssetsConfig{SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"}},
 		}
 	}
+
+	t.Run("login length", func(t *testing.T) {
+		c := base()
+		if got := c.Limits.MaxLoginLengthOrDefault(); got != 64 {
+			t.Fatalf("default login limit = %d, want 64", got)
+		}
+		for _, value := range []int{-1, 0, 1, 2, 64, 254, 255} {
+			c.Limits.MaxLoginLength = &value
+			if err := c.Validate(); (err == nil) != (value >= 2 && value <= 254) {
+				t.Errorf("limit %d: %v", value, err)
+			}
+		}
+	})
 
 	t.Run("rejects max_users below -1", func(t *testing.T) {
 		c := base()

@@ -77,7 +77,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
 	isBot := options.isBot
-	if err := ValidateLogin(login); err != nil {
+	if err := ValidateLogin(login, c.LoginLengthLimit()); err != nil {
 		return nil, err
 	}
 	if isBot {
@@ -528,7 +528,7 @@ var ErrUsernameBlocked = fmt.Errorf("this username is not available")
 // result is advisory; account creation remains the race-safe authority.
 func (c *ChattoCore) IsLoginAvailable(login string) bool {
 	login = strings.TrimSpace(login)
-	return ValidateLogin(login) == nil &&
+	return ValidateLogin(login, c.LoginLengthLimit()) == nil &&
 		!c.configModel.IsUsernameBlocked(login) &&
 		!c.loginConflictsWithMentionHandle(login) &&
 		!c.userModel.loginExists(login)

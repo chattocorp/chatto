@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { MAX_LOGIN_LENGTH } from '$lib/validation/login';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { UsernameChoiceAvailability } from '@chatto/client/api/actionAvailability';
   import { usernameChoiceUnavailableMessage } from '$lib/actionAvailability';
@@ -13,7 +14,7 @@
     ExternalIdentityFlowKind
   } from '$lib/api/externalIdentities';
   import { m } from '$lib/i18n/messages';
-  import { validateDisplayName } from '$lib/validation/displayName';
+  import { MAX_DISPLAY_NAME_LENGTH, validateDisplayName } from '$lib/validation/displayName';
   import { Hint, PageTitle } from '$lib/ui';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
 
@@ -28,13 +29,15 @@
     pending?.chooseUsername === UsernameChoiceAvailability.PROVIDER_MANAGED
   );
   let displayName = $derived(
-    pending?.displayNameHint || (usernameManaged ? '' : pending?.loginHint) || ''
+    pending?.displayNameHint ||
+      (usernameManaged ? '' : pending?.loginHint.slice(0, MAX_DISPLAY_NAME_LENGTH)) ||
+      ''
   );
 
   const loginSchema = z
     .string()
     .min(2, m('common.validation.username_min'))
-    .max(32, m('common.validation.username_max'))
+    .max(MAX_LOGIN_LENGTH, m('common.validation.username_max', { max: MAX_LOGIN_LENGTH }))
     .regex(/^[a-zA-Z0-9._-]+$/, m('common.validation.username_charset'))
     .refine((val) => !val.endsWith('.'), m('common.validation.username_end_alphanumeric'))
     .refine((val) => !val.includes('..'), m('common.validation.username_no_consecutive_periods'));

@@ -43,7 +43,7 @@
       "password_min_bytes": "كلمة المرور قصيرة جدًا",
       "password_max": "كلمة المرور طويلة جدًا",
       "username_min": "يجب أن يتكون من حرفين على الأقل",
-      "username_max": "يجب أن يتكون من 32 حرفًا على الأكثر",
+      "username_max": "يجب أن يتكون من {max} حرفًا على الأكثر",
       "username_charset": "فقط الحروف والأرقام والنقاط والشرطات والشرطات السفلية",
       "username_end_alphanumeric": "يجب أن ينتهي بحرف أو رقم",
       "username_no_consecutive_periods": "لا يسمح بفترات متتالية",

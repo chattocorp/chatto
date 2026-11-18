@@ -87,14 +87,14 @@ func TestValidateLogin(t *testing.T) {
 		{"all digits except first letter", "a1234567890", nil},
 		{"starts with digit", "1alice", nil},
 		{"min length", "ab", nil},
-		{"max length", strings.Repeat("a", MaxLoginLength), nil},
+		{"max length", strings.Repeat("a", 64), nil},
 
 		// Invalid - too short
 		{"empty", "", ErrLoginTooShort},
 		{"single char", "a", ErrLoginTooShort},
 
 		// Invalid - too long
-		{"over max", strings.Repeat("a", MaxLoginLength+1), ErrLoginTooLong},
+		{"over max", strings.Repeat("a", 64+1), ErrLoginTooLong},
 
 		// Invalid - starts with punctuation
 		{"starts with period", ".alice", ErrLoginInvalidCharacter},
@@ -116,8 +116,8 @@ func TestValidateLogin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateLogin(tt.login)
-			if err != tt.wantErr {
+			err := ValidateLogin(tt.login, 64)
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("ValidateLogin(%q) = %v, want %v", tt.login, err, tt.wantErr)
 			}
 		})

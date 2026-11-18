@@ -43,7 +43,7 @@
       "password_min_bytes": "Parole ir pārāk īsa",
       "password_max": "Parole ir pārāk gara",
       "username_min": "Jābūt vismaz 2 rakstzīmēm",
-      "username_max": "Jābūt ne vairāk kā 32 rakstzīmēm",
+      "username_max": "Jābūt ne vairāk kā {max} rakstzīmēm",
       "username_charset": "Tikai burti, cipari, punkti, domuzīmes, pasvītras",
       "username_end_alphanumeric": "Jābeidzas ar burtu vai ciparu",
       "username_no_consecutive_periods": "Nav atļauti secīgi periodi",

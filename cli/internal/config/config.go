@@ -31,7 +31,7 @@ type ChattoConfig struct {
 	OperatorAPI     OperatorAPIConfig     `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
 	Core            CoreConfig            `toml:"core" comment:"Core service configuration."`
 	Auth            AuthConfig            `toml:"auth" comment:"Authentication configuration."`
-	Limits          LimitsConfig          `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
+	Limits          LimitsConfig          `toml:"limits,commented" comment:"Server-wide limits for accounts and usernames."`
 	Email           EmailConfig           `toml:"email" comment:"Transactional email transport configuration. SMTP is the default transport."`
 	SMTP            SMTPConfig            `toml:"smtp" comment:"SMTP configuration for transactional emails."`
 	Push            PushConfig            `toml:"push,commented" comment:"Web Push notification configuration."`
@@ -477,6 +477,9 @@ func (c *ChattoConfig) Validate() error {
 	}
 
 	// Limits configuration: must be -1 (unlimited) or non-negative.
+	if max := c.Limits.MaxLoginLengthOrDefault(); max < 2 || max > LoginLengthCeiling {
+		errs = append(errs, fmt.Sprintf("limits.max_login_length must be between 2 and %d", LoginLengthCeiling))
+	}
 	if c.Limits.MaxUsers != nil && *c.Limits.MaxUsers < -1 {
 		errs = append(errs, "limits.max_users must be -1 (unlimited) or a non-negative integer")
 	}

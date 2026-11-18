@@ -654,10 +654,13 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
 
 ## Limits
 
-Server-wide resource limits. Use `-1` for unlimited (the default), `0` to disable creation entirely, or any positive integer to cap.
+<EnvVar name="CHATTO_LIMITS_MAX_LOGIN_LENGTH" toml="limits.max_login_length" default="64">
+  Maximum number of characters in a new or changed username. Set a value from 2 to 254.
+  Existing users can still sign in if you lower the limit.
+</EnvVar>
 
 <EnvVar name="CHATTO_LIMITS_MAX_USERS" toml="limits.max_users" default="-1">
-  Maximum number of verified accounts on this server. An account counts once it has at least one verified sign-in factor: a verified email or a linked SSO identity. Enforced when accounts are created and when the first verified factor is added. Note that the check is non-atomic, so a burst at the boundary can briefly overshoot by one or two.
+  Maximum number of verified accounts on this server. Use `-1` for unlimited accounts or `0` to disable creation. An account counts once it has at least one verified sign-in factor: a verified email or a linked SSO identity. Enforced when accounts are created and when the first verified factor is added. Note that the check is non-atomic, so a burst at the boundary can briefly overshoot by one or two.
 </EnvVar>
 
 ## Outbound bot webhooks

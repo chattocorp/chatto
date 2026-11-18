@@ -21,7 +21,6 @@ import (
 
 // Pre-compiled regexes for login validation
 var (
-	validLoginRegex   = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 	invalidCharsRegex = regexp.MustCompile(`[^a-z0-9._-]`)
 )
 
@@ -399,13 +398,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 
-		// Validate identifier length to prevent abuse
-		// Email addresses can be up to 254 characters (RFC 5321), usernames up to 32
-		maxLength := 32
-		if strings.Contains(login, "@") {
-			maxLength = 254
-		}
-		if len(login) > maxLength {
+		// Existing usernames remain usable when the assignment limit is lowered.
+		if len(login) > core.MaxLoginLength {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid credentials"})
 			return
 		}
@@ -706,8 +700,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Validate login format
-		if !isValidLogin(req.Login) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Login must be 2-32 characters, using only letters, numbers, dots, dashes, or underscores (no consecutive or trailing periods)"})
+		if err := validateRegistrationLogin(req.Login, s.core.LoginLengthLimit()); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -736,7 +730,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create user with verified email atomically (use login as display name initially)
-		user, err := s.core.CreateSelfServiceUser(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email, tokenData.InvitationID)
+		user, err := s.core.CreateSelfServiceUser(ctx, "system", req.Login, core.LoginDisplayName(req.Login), req.Password, tokenData.Email, tokenData.InvitationID)
 		if err != nil {
 			if errors.Is(err, core.ErrInvitationInvalid) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation code is invalid or no longer available"})
@@ -1024,26 +1018,18 @@ func (s *HTTPServer) setupAuthRoutes() {
 	registerTestEndpoints(auth, s)
 }
 
-// isValidLogin validates that a login name meets the requirements:
-// 2-32 characters, alphanumeric with dots, dashes, or underscores.
-// Consecutive periods (..) and a trailing period are not allowed.
-func isValidLogin(login string) bool {
-	if len(login) < 2 || len(login) > 32 {
-		return false
-	}
+// Registration also excludes consecutive periods.
+func validateRegistrationLogin(login string, maxLength int) error {
 	if strings.Contains(login, "..") {
-		return false
+		return errors.New("username cannot contain consecutive periods")
 	}
-	if strings.HasSuffix(login, ".") {
-		return false
-	}
-	return validLoginRegex.MatchString(login)
+	return core.ValidateLogin(login, maxLength)
 }
 
 // deriveLoginFromEmail extracts a login name from an email address.
 // Takes the part before @, converts to lowercase, and removes invalid characters.
-// Valid characters: alphanumeric, underscore, dash, dot (2-32 chars).
-func deriveLoginFromEmail(email string) string {
+// Valid characters: alphanumeric, underscore, dash, dot.
+func deriveLoginFromEmail(email string, maxLength int) string {
 	// Extract part before @
 	parts := strings.Split(email, "@")
 	base := strings.ToLower(parts[0])
@@ -1057,8 +1043,8 @@ func deriveLoginFromEmail(email string) string {
 	}
 
 	// Truncate to max length
-	if len(base) > 32 {
-		base = base[:32]
+	if len(base) > maxLength {
+		base = base[:maxLength]
 	}
 
 	return base

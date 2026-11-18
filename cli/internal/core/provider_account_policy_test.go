@@ -206,22 +206,23 @@ func TestManagedProviderConcurrentCreation(t *testing.T) {
 
 func TestManagedProviderUsernameValidation(t *testing.T) {
 	c, _ := setupTestCore(t)
+	c.config.Limits.MaxLoginLength = new(80)
 	ctx := testContext(t)
 	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "company", Type: "github", ManageUsernames: true}}
-	for _, base := range []string{"", "person@example.com", "admin", "a", strings.Repeat("x", MaxLoginLength+1)} {
+	for _, base := range []string{"", "person@example.com", "admin", "a", strings.Repeat("x", c.LoginLengthLimit()+1)} {
 		_, err := c.CreateUserForExternalIdentity(ctx, "valid-override", "Person", &PendingExternalIdentityFlow{
 			Kind: ExternalIdentityFlowKindCreate, ProviderID: "company", ProviderType: "github", Issuer: "company", Subject: "validation", ProviderUsername: base,
 		})
 		require.Error(t, err)
 	}
-	base := strings.Repeat("x", MaxLoginLength)
+	base := strings.Repeat("x", c.LoginLengthLimit())
 	_, err := c.CreateUser(ctx, SystemActorID, base, "Existing", "password123")
 	require.NoError(t, err)
 	user, err := c.CreateUserForExternalIdentity(ctx, "ignored", "Person", &PendingExternalIdentityFlow{
 		Kind: ExternalIdentityFlowKindCreate, ProviderID: "company", ProviderType: "github", Issuer: "company", Subject: "long", ProviderUsername: base,
 	})
 	require.NoError(t, err)
-	require.Equal(t, strings.Repeat("x", MaxLoginLength-2)+"-2", user.Login)
+	require.Equal(t, strings.Repeat("x", c.LoginLengthLimit()-2)+"-2", user.Login)
 	_, err = c.CreateUserForExternalIdentity(ctx, "ignored", "Person", &PendingExternalIdentityFlow{
 		Kind: ExternalIdentityFlowKindCreate, ProviderID: "company", ProviderType: "github", Issuer: "company", Subject: "long", ProviderUsername: "different",
 	})

@@ -29,7 +29,7 @@ type CreateUserRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required login for the new user.
 	Login string `protobuf:"bytes,1,opt,name=login,proto3" json:"login,omitempty"`
-	// Optional display name. Defaults to login when empty.
+	// Optional display name. Defaults to the first 32 characters of the login.
 	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	// Optional password. When present, it must satisfy server password policy.
 	Password string `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
@@ -170,7 +170,7 @@ type ImportUserRequest struct {
 	OperationKey string `protobuf:"bytes,1,opt,name=operation_key,json=operationKey,proto3" json:"operation_key,omitempty"`
 	// Required destination username.
 	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	// Defaults to login when empty.
+	// Defaults to the first 32 characters of the login.
 	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	// Human accounts only. The ordinary email uniqueness rules apply.
 	VerifiedEmail string `protobuf:"bytes,4,opt,name=verified_email,json=verifiedEmail,proto3" json:"verified_email,omitempty"`
@@ -1742,9 +1742,10 @@ var File_chatto_operator_v1_users_proto protoreflect.FileDescriptor
 
 const file_chatto_operator_v1_users_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/operator/v1/users.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1dchatto/admin/v1/members.proto\x1a\x1bchatto/admin/v1/roles.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\"\x85\x02\n" +
-	"\x11CreateUserRequest\x12\x1f\n" +
-	"\x05login\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x05login\x12*\n" +
+	"\x1echatto/operator/v1/users.proto\x12\x12chatto.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1dchatto/admin/v1/members.proto\x1a\x1bchatto/admin/v1/roles.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\"\x86\x02\n" +
+	"\x11CreateUserRequest\x12 \n" +
+	"\x05login\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xfe\x01R\x05login\x12*\n" +
 	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18PR\vdisplayName\x12$\n" +
 	"\bpassword\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\bpassword\x12/\n" +
 	"\x0everified_email\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\xc0\x02R\rverifiedEmail\x12'\n" +
@@ -1752,10 +1753,11 @@ const file_chatto_operator_v1_users_proto_rawDesc = "" +
 	"role_names\x18\x05 \x03(\tB\b\xbaH\x05\x92\x01\x02\x10\x14R\troleNames\x12#\n" +
 	"\roperation_key\x18\x06 \x01(\tR\foperationKey\"J\n" +
 	"\x12CreateUserResponse\x124\n" +
-	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"\x8d\x02\n" +
+	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"\x8e\x02\n" +
 	"\x11ImportUserRequest\x12-\n" +
-	"\roperation_key\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\foperationKey\x12\x1f\n" +
-	"\x05login\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x05login\x12*\n" +
+	"\roperation_key\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\foperationKey\x12 \n" +
+	"\x05login\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xfe\x01R\x05login\x12*\n" +
 	"\fdisplay_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18PR\vdisplayName\x12/\n" +
 	"\x0everified_email\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\xc0\x02R\rverifiedEmail\x12)\n" +
 	"\x11bot_owner_user_id\x18\x05 \x01(\tR\x0ebotOwnerUserId\x12 \n" +

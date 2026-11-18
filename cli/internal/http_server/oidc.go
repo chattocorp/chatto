@@ -1064,7 +1064,7 @@ func loginHint(value string) string {
 				lastDot = false
 			}
 		}
-		if b.Len() >= 32 {
+		if b.Len() >= core.MaxLoginLength {
 			break
 		}
 	}

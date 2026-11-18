@@ -70,16 +70,26 @@ func NormalizeDisplayName(name string) string {
 	return strings.TrimSpace(name)
 }
 
+// LoginLengthLimit returns this server's maximum for new and changed usernames.
+func (c *ChattoCore) LoginLengthLimit() int { return c.config.Limits.MaxLoginLengthOrDefault() }
+
+// LoginDisplayName returns a default display name that fits the display-name limit.
+// Valid logins contain only ASCII characters.
+func LoginDisplayName(login string) string {
+	login = strings.TrimSpace(login)
+	return login[:min(len(login), MaxDisplayNameLength)]
+}
+
 // ValidateLogin validates a login/username for allowed characters and length.
 // Allowed: ASCII letters, digits, periods, underscores, hyphens.
 // Must start with a letter or digit and must not end with a period.
-// Length: MinLoginLength to MaxLoginLength characters.
-func ValidateLogin(login string) error {
+// Length: MinLoginLength to maxLength characters.
+func ValidateLogin(login string, maxLength int) error {
 	if len(login) < MinLoginLength {
 		return ErrLoginTooShort
 	}
-	if len(login) > MaxLoginLength {
-		return ErrLoginTooLong
+	if len(login) > maxLength {
+		return fmt.Errorf("%w (maximum %d characters)", ErrLoginTooLong, maxLength)
 	}
 
 	for i, r := range login {

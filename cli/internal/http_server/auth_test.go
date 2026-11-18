@@ -77,7 +77,7 @@ func TestIsValidLogin(t *testing.T) {
 		{"uppercase", "JohnDoe", true},
 		{"starts with number", "123john", true},
 		{"min length", "ab", true},
-		{"max length", strings.Repeat("a", 32), true},
+		{"max length", strings.Repeat("a", 64), true},
 
 		// Invalid - consecutive periods
 		{"consecutive periods middle", "john..doe", false},
@@ -89,7 +89,7 @@ func TestIsValidLogin(t *testing.T) {
 
 		// Invalid - length
 		{"too short", "a", false},
-		{"too long", strings.Repeat("a", 33), false},
+		{"too long", strings.Repeat("a", 65), false},
 		{"empty", "", false},
 
 		// Invalid - characters
@@ -101,7 +101,7 @@ func TestIsValidLogin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isValidLogin(tt.login)
+			got := validateRegistrationLogin(tt.login, 64) == nil
 			if got != tt.want {
 				t.Errorf("isValidLogin(%q) = %v, want %v", tt.login, got, tt.want)
 			}

@@ -43,7 +43,7 @@
       "password_min_bytes": "Das Passwort ist zu kurz",
       "password_max": "Das Passwort ist zu lang",
       "username_min": "Muss mindestens 2 Zeichen lang sein",
-      "username_max": "Darf höchstens 32 Zeichen lang sein",
+      "username_max": "Darf höchstens {max} Zeichen lang sein",
       "username_charset": "Nur Buchstaben, Zahlen, Punkte, Bindestriche und Unterstriche",
       "username_end_alphanumeric": "Muss mit einem Buchstaben oder einer Zahl enden",
       "username_no_consecutive_periods": "Keine aufeinanderfolgenden Punkte erlaubt",

@@ -132,7 +132,8 @@ func writeInitialConfig(cmd *cobra.Command, opts initOptions) error {
 			},
 		},
 		Limits: config.LimitsConfig{
-			MaxUsers: &unlimited,
+			MaxUsers:       &unlimited,
+			MaxLoginLength: new(config.DefaultMaxLoginLength),
 		},
 		Webserver: config.WebserverConfig{
 			Port:                   opts.Port,

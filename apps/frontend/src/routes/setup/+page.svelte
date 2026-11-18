@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { MAX_LOGIN_LENGTH } from '$lib/validation/login';
   import { passwordValidationError } from '$lib/passwordValidation';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { goto } from '$app/navigation';
@@ -184,7 +185,7 @@
                   label={m('common.username')}
                   bind:value={login}
                   autocomplete="username"
-                  maxlength={32}
+                  maxlength={MAX_LOGIN_LENGTH}
                   required
                   disabled={busy}
                 />
