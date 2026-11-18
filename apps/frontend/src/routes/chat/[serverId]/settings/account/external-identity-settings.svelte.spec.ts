@@ -546,6 +546,25 @@ describe('identity link popup and continuation', () => {
     expect(popup.opener).toBeNull();
   });
 
+  it('refreshes after an isolated provider window returns to the origin', async () => {
+    const popup = { closed: false, opener: {} };
+    vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+    mocks.startLink.mockResolvedValue('https://example.test/auth/start');
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
+    popup.closed = true;
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Link', exact: true }))
+      .toBeEnabled();
+    mocks.list.mockResolvedValue(linkedIdentityList());
+    const callback = new BroadcastChannel('chatto-provider-linked');
+    callback.postMessage('user-alice');
+    callback.close();
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
+      .toBeVisible();
+  });
+
   it('keeps password errors in the original page and retries a blocked provider window', async () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
     renderSettings();

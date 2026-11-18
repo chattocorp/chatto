@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
@@ -78,6 +79,22 @@
     userId: string;
   } | null>(null);
   let checkingLink = false;
+
+  // Provider isolation can make a live popup report closed. Its same-origin
+  // callback can still ask the original settings page to read the final state.
+  let linkUpdates: BroadcastChannel | undefined;
+  onMount(() => {
+    if (
+      !serverRegistry.isOriginServer(serverScope.serverId) ||
+      typeof BroadcastChannel === 'undefined'
+    )
+      return;
+    linkUpdates = new BroadcastChannel('chatto-provider-linked');
+    linkUpdates.onmessage = ({ data }) => {
+      if (accountId && data === accountId) void identitiesQuery.refetch();
+    };
+    return () => linkUpdates?.close();
+  });
 
   function providerLinkIsCurrent() {
     return (
@@ -222,6 +239,7 @@
       return;
     }
     if (providers.some((provider) => provider.id === providerId && provider.linked)) {
+      linkUpdates?.postMessage(userId);
       window.close();
     }
   }
