@@ -13,7 +13,6 @@
     titleOnlyWithSideBranding = false,
     compact = false,
     showBranding = true,
-    centerContent = false,
     serverInfo: suppliedServerInfo
   }: {
     children: Snippet;
@@ -28,7 +27,6 @@
      */
     compact?: boolean;
     showBranding?: boolean;
-    centerContent?: boolean;
     /** Public branding of a remote server; defaults to the origin auth context. */
     serverInfo?: Pick<
       PublicServerInfo,
@@ -45,6 +43,12 @@
   const description = $derived(serverInfo?.description ?? null);
   const welcomeMessage = $derived(serverInfo?.welcomeMessage ?? null);
   const hasBranding = $derived(bannerUrl || welcomeMessage || description);
+  /**
+   * Without a banner, description, or welcome message, the server name sits
+   * directly above the title. The two then read as one heading group: the
+   * name leads, and the title is its quieter second line.
+   */
+  const titleFollowsName = $derived(showBranding && !hasBranding && !compact);
 </script>
 
 <div class="flex min-h-0 flex-1 overflow-hidden">
@@ -57,16 +61,13 @@
     </div>
   {/if}
 
-  <!-- Right pane: form content. Short windows scroll it with edge fades. -->
+  <!-- Right pane: form content, centred in the pane. The automatic margins
+       collapse when the content is taller than the pane, so it then starts at
+       the top and scrolls with edge fades. Sign-in windows stay top-aligned
+       below their window bar. -->
   <ScrollFader top bottom mask keyboardFocusable={false} class="min-w-0">
-    <div
-      class={[
-        'flex flex-1 justify-center',
-        centerContent ? 'items-center' : 'items-start',
-        compact ? 'p-5 sm:p-6' : 'p-8'
-      ]}
-    >
-      <div data-page-reveal class="w-full max-w-sm">
+    <div class={['flex min-h-full flex-1 justify-center', compact ? 'p-5 sm:p-6' : 'p-8']}>
+      <div data-page-reveal class={['w-full max-w-sm', !compact && 'my-auto']}>
         <!-- Show compact branding header on mobile, or when no left pane -->
         {#if showBranding && compact}
           {#if bannerUrl || description}
@@ -75,7 +76,7 @@
             </div>
           {/if}
         {:else if showBranding && !hasBranding}
-          <div data-page-reveal class="mb-8">
+          <div data-page-reveal class="mb-1">
             <ServerBranding name={serverName} {iconUrl} />
           </div>
         {:else if showBranding}
@@ -93,7 +94,8 @@
         {#if title}
           <h1
             class={[
-              'text-center text-xl font-semibold text-balance',
+              'text-center text-balance',
+              titleFollowsName ? 'text-lg font-medium text-muted' : 'text-xl font-semibold',
               titleOnlyWithSideBranding
                 ? showBranding && hasBranding && !compact
                   ? 'sr-only md:not-sr-only md:mb-6'

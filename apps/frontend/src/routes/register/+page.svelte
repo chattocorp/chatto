@@ -305,6 +305,24 @@
       </Button>
     </form>
   {:else if step === 'email'}
+    {#if registrationProviders.length > 0}
+      <AuthProviderButtons
+        providers={registrationProviders}
+        {selectedProviderId}
+        href={providerLoginHref}
+        onclick={handleProviderClick}
+      />
+      <AuthPopupNotice
+        pending={!compact && selectedProviderId !== null}
+        oncancel={() => providerPopup?.cancel()}
+      />
+      <FormError error={providerError} />
+    {/if}
+
+    {#if registrationEnabled && registrationProviders.length > 0}
+      <Divider label={m('common.or')} />
+    {/if}
+
     {#if registrationEnabled}
       <form onsubmit={handleEmailSubmit} class="flex flex-col gap-4">
         <TextInput
@@ -334,24 +352,6 @@
           <span aria-hidden="true" class="iconify icon-[uil--arrow-right] rtl:-scale-x-100"></span>
         </Button>
       </form>
-    {/if}
-
-    {#if registrationEnabled && registrationProviders.length > 0}
-      <Divider label={m('common.or')} />
-    {/if}
-
-    {#if registrationProviders.length > 0}
-      <AuthProviderButtons
-        providers={registrationProviders}
-        {selectedProviderId}
-        href={providerLoginHref}
-        onclick={handleProviderClick}
-      />
-      <AuthPopupNotice
-        pending={!compact && selectedProviderId !== null}
-        oncancel={() => providerPopup?.cancel()}
-      />
-      <FormError error={providerError} />
     {/if}
   {:else if step === 'code'}
     <form onsubmit={handleCodeSubmit} class="flex flex-col gap-5">
