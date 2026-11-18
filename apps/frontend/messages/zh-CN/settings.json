@@ -541,9 +541,9 @@
           "body": "解除与 {provider} 的关联前，请先设置此服务器支持的其他登录方式。"
         },
         "fresh_auth_modal": {
-          "title": "确认密码",
-          "body": "关联 {provider} 前，请输入当前密码。",
-          "action": "继续"
+          "title": "关联 {provider}？",
+          "body": "关联后，你可以使用 {provider} 登录 Chatto。请输入你当前的 Chatto 密码以继续。",
+          "password": "Chatto 密码"
         },
         "disconnect_fresh_auth_modal": {
           "title": "确认密码",

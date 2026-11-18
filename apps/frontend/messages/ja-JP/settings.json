@@ -541,9 +541,9 @@
           "body": "{provider}との連携を解除する前に、このサーバーが対応している別のサインイン方法を設定してください。"
         },
         "fresh_auth_modal": {
-          "title": "パスワードを確認してください",
-          "body": "{provider} をリンクする前に、現在のパスワードを入力してください。",
-          "action": "続行"
+          "title": "{provider} を連携しますか？",
+          "body": "連携すると、{provider} を使って Chatto にサインインできます。続行するには、現在の Chatto のパスワードを入力してください。",
+          "password": "Chatto のパスワード"
         },
         "disconnect_fresh_auth_modal": {
           "title": "パスワードを確認してください",

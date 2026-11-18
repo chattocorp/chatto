@@ -541,9 +541,9 @@
           "body": "Configura otro método de inicio de sesión compatible con este servidor antes de desconectar {provider}."
         },
         "fresh_auth_modal": {
-          "title": "Confirmar contraseña",
-          "body": "Ingresa tu contraseña actual antes de vincular {provider}.",
-          "action": "Continuar"
+          "title": "¿Vincular {provider}?",
+          "body": "Una vez vinculado, podrás usar {provider} para iniciar sesión en Chatto. Ingresa tu contraseña actual de Chatto para continuar.",
+          "password": "Contraseña de Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Confirmar contraseña",

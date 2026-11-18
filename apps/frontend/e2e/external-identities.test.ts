@@ -200,7 +200,7 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
   });
 
-  test('links a provider in a popup from origin account settings without reloading', async ({
+  test('confirms the password in origin account settings before opening the provider popup', async ({
     page,
     context,
     authPage
@@ -232,8 +232,27 @@ test.describe('External identity confirmation flows', () => {
     });
     await page.goto(routes.settingsAccount);
     const row = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
-    const popupPromise = page.waitForEvent('popup');
+    // Request fresh proof on the first attempt without ageing the browser session.
+    await page.route(
+      '**/chatto.api.v1.MyAccountService/StartExternalIdentityLink',
+      (route) =>
+        route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 'failed_precondition',
+            message: 'fresh authentication is required'
+          })
+        }),
+      { times: 1 }
+    );
+
     await row.getByRole('button', { name: 'Link', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Link Discord?' });
+    await dialog.getByLabel('Chatto password').fill(user.password);
+    expect(context.pages()).toHaveLength(1);
+    const popupPromise = page.waitForEvent('popup');
+    await dialog.getByRole('button', { name: 'Continue with Discord' }).click();
     const popup = await popupPromise;
     await expect.poll(() => popup.isClosed()).toBe(true);
     await expect(row.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();

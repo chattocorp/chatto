@@ -541,9 +541,9 @@
           "body": "{provider} bağlantısını kesmeden önce bu sunucunun desteklediği başka bir oturum açma yöntemi ayarlayın."
         },
         "fresh_auth_modal": {
-          "title": "Şifreyi onayla",
-          "body": "{provider} bağlantısını yapmadan önce mevcut şifrenizi girin.",
-          "action": "Devam et"
+          "title": "{provider} bağlansın mı?",
+          "body": "Bağlantı kurulduktan sonra Chatto’da oturum açmak için {provider} kullanabilirsiniz. Devam etmek için mevcut Chatto şifrenizi girin.",
+          "password": "Chatto şifresi"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Şifreyi onayla",

@@ -541,9 +541,9 @@
           "body": "Před odpojením poskytovatele {provider} nastavte jiný způsob přihlášení podporovaný tímto serverem."
         },
         "fresh_auth_modal": {
-          "title": "Potvrďte heslo",
-          "body": "Před propojením {provider} zadejte své aktuální heslo.",
-          "action": "Pokračovat"
+          "title": "Propojit {provider}?",
+          "body": "Po propojení se můžete přes {provider} přihlásit do Chatto. Pro pokračování zadejte své současné heslo do Chatto.",
+          "password": "Heslo do Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Potvrďte heslo",

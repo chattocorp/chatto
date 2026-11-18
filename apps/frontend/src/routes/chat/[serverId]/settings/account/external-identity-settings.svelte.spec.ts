@@ -532,18 +532,74 @@ describe('identity link popup and continuation', () => {
     expect(mocks.startLink).not.toHaveBeenCalled();
   });
 
-  it('also opens a popup when linking on the origin server', async () => {
-    const { popup, open } = remote();
-    mocks.serverId = 'origin';
-    connection.serverId = 'origin';
+  it('opens the provider directly when the origin session is fresh', async () => {
+    const popup = { closed: false, opener: {} };
+    const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+    mocks.startLink.mockResolvedValue('https://example.test/auth/start');
     renderSettings();
     await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
-    expect(open).toHaveBeenCalledOnce();
-    expect(popup.opener).toBeNull();
-    expect(new URL(authorizationLaunchTarget(open)!).searchParams.get('link_provider')).toBe(
-      'github-main'
+    expect(open).toHaveBeenCalledWith(
+      'https://example.test/auth/start',
+      '_blank',
+      expect.any(String)
     );
-    expect(mocks.startLink).not.toHaveBeenCalled();
+    expect(popup.opener).toBeNull();
+  });
+
+  it('refreshes after an isolated provider window returns to the origin', async () => {
+    const popup = { closed: false, opener: {} };
+    vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+    mocks.startLink.mockResolvedValue('https://example.test/auth/start');
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
+    popup.closed = true;
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Link', exact: true }))
+      .toBeEnabled();
+    mocks.list.mockResolvedValue(linkedIdentityList());
+    const callback = new BroadcastChannel('chatto-provider-linked');
+    callback.postMessage('user-alice');
+    callback.close();
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
+      .toBeVisible();
+  });
+
+  it('keeps password errors in the original page and retries a blocked provider window', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
+    const dialog = browserPage.getByRole('dialog', { name: 'Link GitHub?' });
+    await dialog.getByLabelText('Chatto password').fill('wrong');
+    mocks.startLink.mockRejectedValueOnce(
+      new ConnectError('current password is invalid', Code.InvalidArgument)
+    );
+    await dialog.getByRole('button', { name: 'Continue with GitHub' }).click();
+    await expect
+      .element(dialog.getByText('current password is invalid', { exact: false }))
+      .toBeVisible();
+    expect(open).not.toHaveBeenCalled();
+    await dialog.getByLabelText('Chatto password').fill('correct');
+    mocks.startLink.mockResolvedValue('https://example.test/auth/start');
+    await dialog.getByRole('button', { name: 'Continue with GitHub' }).click();
+    await expect
+      .element(browserPage.getByText('Allow pop-ups for this site, then try linking again.'))
+      .toBeVisible();
+    open.mockReturnValue({ closed: false, opener: {} } as unknown as Window);
+    await browserPage.getByRole('button', { name: 'Continue with GitHub' }).click();
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(mocks.startLink).toHaveBeenCalledTimes(3);
+    await expect.element(browserPage.getByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('cancels password verification without opening a window', async () => {
+    const open = vi.spyOn(window, 'open');
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
+    await browserPage.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+    await expect.element(browserPage.getByRole('dialog')).not.toBeInTheDocument();
+    expect(open).not.toHaveBeenCalled();
+    expect(mocks.startLink).toHaveBeenCalledOnce();
   });
 
   it('shows a blocked popup error', async () => {
@@ -675,9 +731,7 @@ describe('identity link popup and continuation', () => {
         '/chat/-/settings/account?link_provider=github-main&link_user=user-alice&link_complete=1',
       currentPassword: undefined
     });
-    await expect
-      .element(browserPage.getByRole('dialog', { name: 'Confirm password' }))
-      .toBeVisible();
+    await expect.element(browserPage.getByRole('dialog', { name: 'Link GitHub?' })).toBeVisible();
     view.unmount();
     renderSettings();
     await settle();
@@ -759,7 +813,7 @@ describe('identity link popup and continuation', () => {
       .element(browserPage.getByText(/Open account settings on the server that owns this account/))
       .toBeVisible();
     await expect
-      .element(browserPage.getByRole('dialog', { name: 'Confirm password' }))
+      .element(browserPage.getByRole('dialog', { name: 'Link GitHub?' }))
       .not.toBeInTheDocument();
   });
 
@@ -781,7 +835,7 @@ describe('identity link popup and continuation', () => {
       continuation();
       renderSettings();
       await expect
-        .element(browserPage.getByLabelText('Current Password', { exact: true }))
+        .element(browserPage.getByLabelText('Chatto password', { exact: true }))
         .toBeEnabled();
     } finally {
       observer.disconnect();
@@ -793,8 +847,8 @@ describe('identity link popup and continuation', () => {
   it('shows a repeated freshness failure in the password dialog', async () => {
     continuation();
     renderSettings();
-    await browserPage.getByLabelText('Current Password', { exact: true }).fill('test-password');
-    await browserPage.getByRole('button', { name: 'Continue', exact: true }).click();
+    await browserPage.getByLabelText('Chatto password', { exact: true }).fill('test-password');
+    await browserPage.getByRole('button', { name: 'Continue with GitHub', exact: true }).click();
     await expect
       .element(browserPage.getByText('fresh authentication is required', { exact: true }))
       .toBeVisible();

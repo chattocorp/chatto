@@ -541,9 +541,9 @@
           "body": "Configura un altro metodo di accesso supportato da questo server prima di scollegare {provider}."
         },
         "fresh_auth_modal": {
-          "title": "Conferma la password",
-          "body": "Inserisci la tua password attuale prima di collegare {provider}.",
-          "action": "Continua"
+          "title": "Collegare {provider}?",
+          "body": "Dopo il collegamento potrai usare {provider} per accedere a Chatto. Inserisci la tua password attuale di Chatto per continuare.",
+          "password": "Password di Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Conferma la password",
