@@ -16,7 +16,7 @@ buttons, and context menus in the row keep their own behaviour.
   import type { Attachment } from 'svelte/attachments';
   import ScrollFader from './ScrollFader.svelte';
   import { m } from '$lib/i18n/messages';
-  import LoadingFog from './LoadingFog.svelte';
+  import LoadingDots from './LoadingDots.svelte';
   import { forwardRowClicks } from './dataTableRowLinks';
 
   let {
@@ -204,7 +204,7 @@ buttons, and context menus in the row keep their own behaviour.
             class={empty || loading ? 'p-0' : 'px-4 py-8 text-center text-muted'}
           >
             {#if loading}
-              <LoadingFog class="m-4 h-32" label={loadingMessage} />
+              <LoadingDots class="m-4 h-32" label={loadingMessage} />
             {:else if empty}
               {@render empty()}
             {:else}
@@ -224,7 +224,7 @@ buttons, and context menus in the row keep their own behaviour.
             colspan={columns}
             class={loadingMore ? 'px-4 py-3 text-center text-sm text-muted' : 'h-px p-0'}
           >
-            {#if loadingMore}<LoadingFog class="h-10 w-full" label={loadingMoreMessage} />{/if}
+            {#if loadingMore}<LoadingDots class="h-10 w-full" label={loadingMoreMessage} />{/if}
           </td>
         </tr>
       {/if}

@@ -17,7 +17,7 @@ Room-scoped file list for the room sidebar.
   import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import VirtualGroupedList from '$lib/components/chat/VirtualGroupedList.svelte';
   import type { VirtualListGroup } from '$lib/components/chat/groupedListItems';
-  import { EmptyState, LoadingFog } from '$lib/ui';
+  import { EmptyState, LoadingDots } from '$lib/ui';
 
   type RoomFileListItem = {
     id: string;
@@ -233,7 +233,7 @@ Room-scoped file list for the room sidebar.
   aria-busy={loading}
 >
   {#if loading}
-    <LoadingFog class="m-3 min-h-32 flex-1" label={m('room.sidebar.loading_files')} />
+    <LoadingDots class="m-3 min-h-32 flex-1" label={m('room.sidebar.loading_files')} />
   {:else if files.length === 0}
     <EmptyState icon="icon-[mdi--file-outline]" title={m('room.sidebar.no_files')} />
   {:else}
@@ -246,7 +246,7 @@ Room-scoped file list for the room sidebar.
         {@attach loadMoreWhenVisible}
       >
         {#if store.isLoadingMore}
-          <LoadingFog class="h-10 w-full" label={m('room.sidebar.loading_files')} />
+          <LoadingDots class="h-10 w-full" label={m('room.sidebar.loading_files')} />
         {/if}
       </div>
     {/if}

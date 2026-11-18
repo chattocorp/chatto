@@ -9,7 +9,7 @@
   import { createMutation, queryClient } from '$lib/query/client';
   import { errorMessage, toastError } from '$lib/utils/errorMessage';
   import { m } from '$lib/i18n/messages';
-  import { Panel, Hint, LoadingFog, ChoiceRow } from '$lib/ui';
+  import { Panel, Hint, LoadingDots, ChoiceRow } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
 
   const scope = useServerScope();
@@ -56,7 +56,7 @@
 <!-- @component Controls admission for new accounts on this server. -->
 <Panel title={m('admin.registration.title')}>
   {#if loading}
-    <LoadingFog class="h-24 w-full" />
+    <LoadingDots class="h-24 w-full" />
   {:else if error}
     <Hint tone="danger">{errorMessage(error)}</Hint>
   {:else}

@@ -2,7 +2,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import { MarkdownHtml, UserCard, LoadingFog } from '$lib/ui';
+  import { MarkdownHtml, UserCard, LoadingDots } from '$lib/ui';
   import { renderMarkdown } from '$lib/markdown';
   let {
     name = 'Alex',
@@ -27,7 +27,7 @@
   </UserCard>
   <!-- MarkdownHtml uses display:contents. Give inline text a block parent, never a flex parent. -->
   <div class="prose ms-11 min-w-0 leading-relaxed break-words">
-    {#await rendered}<LoadingFog class="h-8" />{:then html}<MarkdownHtml {html} />{/await}
+    {#await rendered}<LoadingDots class="h-8" />{:then html}<MarkdownHtml {html} />{/await}
   </div>
   {#if children}<div class="ms-11">{@render children()}</div>{/if}
 </div>

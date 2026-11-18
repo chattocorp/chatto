@@ -20,7 +20,7 @@
   import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 
-  import { Panel, Hint, LoadingFog } from '$lib/ui';
+  import { Panel, Hint, LoadingDots } from '$lib/ui';
   import { TextInput, TextArea, Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/dom/dropZone.svelte';
@@ -276,7 +276,7 @@
 </script>
 
 {#if loading}
-  <LoadingFog class="h-64 w-full" label={m('server_settings.loading')} />
+  <LoadingDots class="h-64 w-full" label={m('server_settings.loading')} />
 {:else if loaded}
   <div class="flex flex-col gap-6">
     <!-- Server Details Form -->

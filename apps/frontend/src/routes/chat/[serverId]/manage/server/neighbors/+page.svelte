@@ -23,7 +23,7 @@ polls the cache briefly after a change. See FDR-042.
     ConfirmDialog,
     EmptyState,
     Hint,
-    LoadingFog,
+    LoadingDots,
     PaneContent,
     PageTitle,
     PaneHeader,
@@ -247,7 +247,7 @@ polls the cache briefly after a change. See FDR-042.
         {/if}
 
         {#if neighborsQuery.isPending && neighbors.length === 0}
-          <LoadingFog class="h-40 w-full" />
+          <LoadingDots class="h-40 w-full" />
         {:else if neighbors.length === 0}
           <EmptyState icon="icon-[uil--server-connection]" title={m('admin.neighbors.empty')} />
         {:else}

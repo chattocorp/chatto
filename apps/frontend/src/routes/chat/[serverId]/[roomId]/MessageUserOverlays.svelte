@@ -5,7 +5,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { RoomMember } from '$lib/state/room';
   import type { RoomSuspensionChoice } from '@chatto/client/api/rooms';
-  import { ContextMenu, Dialog, LoadingFog, LoadRetry } from '$lib/ui';
+  import { ContextMenu, Dialog, LoadingDots, LoadRetry } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
   import type { MessageUserInteractionState } from './messageUserInteractions.svelte';
@@ -138,7 +138,7 @@
       ariaLabel={m('common.loading')}
       onclose={() => interactions.close()}
     >
-      <LoadingFog class="m-2 h-28 w-64 max-w-full" />
+      <LoadingDots class="m-2 h-28 w-64 max-w-full" />
     </ContextMenu>
   {:then { default: UserContextMenu }}
     <UserContextMenu
@@ -172,7 +172,7 @@
       title={m('room.moderation.remove_action')}
       onclose={() => (banDialogUser = null)}
     >
-      <LoadingFog class="h-24 w-full" />
+      <LoadingDots class="h-24 w-full" />
     </Dialog>
   {:then { default: RemoveRoomUserModal }}
     <RemoveRoomUserModal

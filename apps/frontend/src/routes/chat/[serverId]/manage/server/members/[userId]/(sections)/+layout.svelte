@@ -28,7 +28,7 @@ Roles, and Permissions pages through `memberDetailContext`.
   import {
     Hint,
     PaneContent,
-    LoadingFog,
+    LoadingDots,
     PaneHeader,
     PageTitle,
     TabNav,
@@ -210,7 +210,7 @@ Roles, and Permissions pages through `memberDetailContext`.
   {#if member}
     <AccountName name={member.displayName} identity={member} />
   {:else}
-    <LoadingFog class="h-4 w-28" label={m('admin.members.loading_member')} />
+    <LoadingDots class="h-4 w-28" label={m('admin.members.loading_member')} />
   {/if}
 {/snippet}
 
@@ -236,7 +236,7 @@ Roles, and Permissions pages through `memberDetailContext`.
   <PaneContent fillHeight={isPermissionsSection}>
     <div class={['flex flex-col gap-6', isPermissionsSection && 'min-h-0 flex-1']}>
       {#if loading}
-        <LoadingFog class="h-40 w-full" label={m('admin.members.loading_member')} />
+        <LoadingDots class="h-40 w-full" label={m('admin.members.loading_member')} />
       {:else if !details || !member}
         <Hint tone="danger">{m('admin.members.not_found')}</Hint>
       {:else}

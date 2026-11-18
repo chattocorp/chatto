@@ -13,7 +13,7 @@
   import {
     ConfirmDialog,
     Hint,
-    LoadingFog,
+    LoadingDots,
     PageTitle,
     PaneContent,
     PaneHeader,
@@ -81,7 +81,7 @@
   <PaneContent>
     <div class="flex min-h-0 flex-col gap-6">
       {#if jobQuery.isPending}
-        <LoadingFog class="h-40 w-full" label={m('common.loading')} />
+        <LoadingDots class="h-40 w-full" label={m('common.loading')} />
       {:else if jobQuery.error && jobQuery.data === undefined}
         <Hint tone="danger">{errorMessage(jobQuery.error, m('admin.jobs.load_failed'))}</Hint>
       {:else if !jobQuery.data}

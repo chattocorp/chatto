@@ -58,7 +58,7 @@ describe('MarkdownEditorField mention lifecycle', () => {
       });
       flushSync();
       expect(second.container.querySelector('[contenteditable="true"]')).not.toBeNull();
-      expect(second.container.querySelector('[data-loading-fog]')).toBeNull();
+      expect(second.container.querySelector('[data-loading-dots]')).toBeNull();
       await tick();
       expect(second.container.querySelector('[contenteditable="true"]')?.textContent).toContain(
         'Second draft'

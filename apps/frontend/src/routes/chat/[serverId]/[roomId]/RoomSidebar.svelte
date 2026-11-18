@@ -25,7 +25,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import {
     UserCard,
     EmptyState,
-    LoadingFog,
+    LoadingDots,
     ScrollFader,
     PaneHeader,
     HeaderIconButton
@@ -507,7 +507,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
           aria-busy={membersPending}
         >
           {#if membersPending}
-            <LoadingFog class="m-3 min-h-32 flex-1" label={m('room.sidebar.loading_members')} />
+            <LoadingDots class="m-3 min-h-32 flex-1" label={m('room.sidebar.loading_members')} />
           {:else if members.length === 0}
             <EmptyState icon="icon-[uil--users-alt]" title={m('room.sidebar.no_members')} />
           {:else}

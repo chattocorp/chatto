@@ -15,7 +15,7 @@
     Panel,
     Hint,
     PaneContent,
-    LoadingFog,
+    LoadingDots,
     PaneHeader,
     PageTitle,
     TabNav,
@@ -258,7 +258,7 @@
   {#if role}
     <span class="block truncate">{role.displayName}</span>
   {:else}
-    <LoadingFog class="h-4 w-28" label={m('admin.permissions.loading_role')} />
+    <LoadingDots class="h-4 w-28" label={m('admin.permissions.loading_role')} />
   {/if}
 {/snippet}
 
@@ -289,7 +289,7 @@
   <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
       {#if loading}
-        <LoadingFog class="h-40 w-full" label={m('admin.permissions.loading_role')} />
+        <LoadingDots class="h-40 w-full" label={m('admin.permissions.loading_role')} />
       {:else if !role}
         {#if roleQuery.error}
           <FormError error={errorMessage(roleQuery.error)} />

@@ -9,7 +9,15 @@
     type EditableOAuthClientPolicyName
   } from '$lib/api/oauthClients';
   import { getServerSecurityConfig, updateBlockedUsernames } from '@chatto/client/api/serverState';
-  import { PaneHeader, PageTitle, Panel, Hint, PaneContent, LoadingFog, EmptyState } from '$lib/ui';
+  import {
+    PaneHeader,
+    PageTitle,
+    Panel,
+    Hint,
+    PaneContent,
+    LoadingDots,
+    EmptyState
+  } from '$lib/ui';
   import { TextArea, Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -231,7 +239,7 @@
         icon="iconify icon-[uil--shield-exclamation]"
       >
         {#if loading}
-          <LoadingFog class="h-32 w-full" />
+          <LoadingDots class="h-32 w-full" />
         {:else}
           <form onsubmit={save} class="flex flex-col gap-4">
             {#if error}
@@ -326,10 +334,10 @@
             <div class="h-px" aria-hidden="true" {@attach loadMoreWhenVisible}></div>
           {/if}
           {#if oauthClientsLoadingMore}
-            <LoadingFog class="m-4 h-10" label={m('admin.common.loading')} />
+            <LoadingDots class="m-4 h-10" label={m('admin.common.loading')} />
           {/if}
         {:else if oauthClientsLoading}
-          <LoadingFog class="m-5 h-32" />
+          <LoadingDots class="m-5 h-32" />
         {/if}
       </Panel>
     </div>

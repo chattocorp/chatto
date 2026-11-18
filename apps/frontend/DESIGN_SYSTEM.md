@@ -176,8 +176,8 @@ The 48 px server frame has a corner radius 2 px larger than the 44 px logo's
 | Inline contextual notice                    | `Hint`                                                                                 | A panel used as an alert                                      |
 | Transient feedback                          | `toast`                                                                                | Persistent inline copy that disappears automatically          |
 | Empty collection or search result           | `EmptyState`                                                                           | Bespoke centered placeholder markup                           |
-| Loading content                             | `LoadingFog` sized to the content area                                                 | Rows shaped like future content                               |
-| Loading conversation timeline               | `LoadingDots` at the bottom of the timeline                                            | `LoadingFog` without a stable content size                    |
+| Loading content                             | `LoadingDots` sized to the content area                                                | Rows shaped like future content; `LoadingFog` on non-media    |
+| Loading conversation timeline               | `LoadingDots` at the bottom of the timeline                                            | A fixed-height placeholder block                              |
 | Loading image                               | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                                |
 | Part or its data failed to load             | `LoadRetry` in place of the part                                                       | A hand-built message and Retry button                         |
 
@@ -417,17 +417,18 @@ Follow these defaults:
 - Render loading, error, and empty states inside the panel whose content they
   replace. A single full-page availability state may use one untitled panel
   because there are no peer sections to distinguish.
-- Use one `LoadingFog` block for a pending content area. Give it a size that
-  keeps the surrounding layout stable. A soft highlight sweeps across each block,
-  and the block has an accessible busy state. It fades in briefly and leaves as
-  soon as content is ready. When the user requests less motion, the highlight
-  stops and the fade is removed.
+- Use one `LoadingDots` element for a pending content area. Give it a size that
+  keeps the surrounding layout stable; the dots stay in its centre. The element
+  has an accessible busy state. The dots appear after a short delay, so fast
+  loads do not show them. When the user requests less motion, the dots stay
+  still.
+- Use `LoadingFog` only for pending media: images, video, and link preview
+  images. It fills the reserved media frame, and a soft highlight sweeps across
+  it. When the user requests less motion, the highlight stops.
 - Use `LoadingDots` in the centre of the server sidebar while its first view
   loads. Keep the server header and current-user footer in place.
 - A conversation timeline grows from the bottom and has no stable size to
-  reserve. Use `LoadingDots` at the bottom of a pending timeline instead of
-  `LoadingFog`. The dots appear after a short delay, so fast loads do not
-  show them. When the user requests less motion, the dots stay still.
+  reserve. Put `LoadingDots` at the bottom of a pending timeline.
 - Use `fillHeight` on both `PaneContent` and the single primary `Panel` when a
   dense table or editor should consume the remaining pane height. Ordinary
   forms and document-like pages should remain content-sized.
