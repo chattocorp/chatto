@@ -21,7 +21,12 @@
       "created": "Opprettet",
       "title": "Rominformasjon",
       "basic": "Generelt",
-      "pinned_messages": "Festede meldinger"
+      "pinned_messages": "Festede meldinger",
+      "threads": "Tråder",
+      "slow_mode": "Sakte modus",
+      "channel_slow_mode": "Langsom modus i kanalen",
+      "thread_slow_mode": "Langsom modus i tråder",
+      "slow_mode_off": "Av"
     },
     "create": {
       "title": "Opprett et nytt rom",

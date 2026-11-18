@@ -21,7 +21,12 @@
       "created": "Utworzono",
       "title": "Informacje o pokoju",
       "basic": "Ogólne",
-      "pinned_messages": "Przypięte wiadomości"
+      "pinned_messages": "Przypięte wiadomości",
+      "threads": "Wątki",
+      "slow_mode": "Tryb powolny",
+      "channel_slow_mode": "Tryb spowolniony kanału",
+      "thread_slow_mode": "Tryb spowolniony wątków",
+      "slow_mode_off": "Wyłączony"
     },
     "create": {
       "title": "Utwórz nowy pokój",

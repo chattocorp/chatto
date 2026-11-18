@@ -21,7 +21,12 @@
       "created": "Aangemaakt",
       "title": "Ruiminformatie",
       "basic": "Algemeen",
-      "pinned_messages": "Vastgezette berichten"
+      "pinned_messages": "Vastgezette berichten",
+      "threads": "Discussies",
+      "slow_mode": "Langzame modus",
+      "channel_slow_mode": "Langzame modus in het kanaal",
+      "thread_slow_mode": "Langzame modus in threads",
+      "slow_mode_off": "Uit"
     },
     "create": {
       "title": "Maak een nieuwe kamer",

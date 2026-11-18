@@ -21,7 +21,12 @@
       "created": "Loodud",
       "title": "Ruumi teave",
       "basic": "Üldine",
-      "pinned_messages": "Kinnitatud sõnumid"
+      "pinned_messages": "Kinnitatud sõnumid",
+      "threads": "Lõimed",
+      "slow_mode": "Aeglane režiim",
+      "channel_slow_mode": "Kanali aeglane režiim",
+      "thread_slow_mode": "Lõimede aeglane režiim",
+      "slow_mode_off": "Väljas"
     },
     "create": {
       "title": "Looge uus tuba",

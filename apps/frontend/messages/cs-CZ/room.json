@@ -21,7 +21,12 @@
       "created": "Vytvořeno",
       "title": "Informace o místnosti",
       "basic": "Obecné",
-      "pinned_messages": "Připnuté zprávy"
+      "pinned_messages": "Připnuté zprávy",
+      "threads": "Vlákna",
+      "slow_mode": "Pomalý režim",
+      "channel_slow_mode": "Pomalý režim kanálu",
+      "thread_slow_mode": "Pomalý režim vláken",
+      "slow_mode_off": "Vypnuto"
     },
     "create": {
       "title": "Vytvořit novou místnost",

@@ -21,7 +21,12 @@
       "created": "Créé",
       "title": "Informations du salon",
       "basic": "Général",
-      "pinned_messages": "Messages épinglés"
+      "pinned_messages": "Messages épinglés",
+      "threads": "Sujets",
+      "slow_mode": "Mode lent",
+      "channel_slow_mode": "Mode lent du canal",
+      "thread_slow_mode": "Mode lent des fils",
+      "slow_mode_off": "Désactivé"
     },
     "create": {
       "title": "Créer une nouvelle salle",

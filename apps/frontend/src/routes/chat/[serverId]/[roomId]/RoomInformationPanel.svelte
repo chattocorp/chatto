@@ -4,6 +4,22 @@
 Room details, notices, and pins in independently collapsible sidebar sections.
 The sections share one scroll viewport and retain their disclosure preferences.
 -->
+<script lang="ts" module>
+  import type { RoomThreadingMode } from '@chatto/client/util/roomThreading';
+
+  /** Room rules that limit how members post, as reported by the server. */
+  export type RoomPostingRules = {
+    threadingMode: RoomThreadingMode;
+    /** Minimum seconds between posts; 0 means off. */
+    slowModeSeconds: number;
+    /**
+     * Minimum seconds between replies in each thread. Undefined means that
+     * the server applies one shared slow-mode timer to the room and its threads.
+     */
+    threadSlowModeSeconds?: number;
+  };
+</script>
+
 <script lang="ts">
   import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
@@ -13,6 +29,8 @@ The sections share one scroll viewport and retain their disclosure preferences.
   import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { formatRelativeMessageTimestamp } from '$lib/messageTimestamps';
+  import { threadingModeLabel } from '$lib/roomThreadingMode';
+  import { formatSlowModeInterval } from '$lib/slowMode';
   import type { RoomPinsStore } from '$lib/state/room';
   import { ScrollFader } from '$lib/ui';
   import RoomPinsPanel from './RoomPinsPanel.svelte';
@@ -26,6 +44,7 @@ The sections share one scroll viewport and retain their disclosure preferences.
     roomDescription,
     roomCreatedAt = null,
     memberCount = null,
+    postingRules = null,
     isUniversal = false,
     pinsStore,
     noticeStore,
@@ -39,6 +58,8 @@ The sections share one scroll viewport and retain their disclosure preferences.
     roomCreatedAt?: string | null;
     /** Null means that the first member page has not loaded yet. */
     memberCount?: number | null;
+    /** Null means that the room has not loaded yet. */
+    postingRules?: RoomPostingRules | null;
     isUniversal?: boolean;
     pinsStore?: RoomPinsStore;
     noticeStore?: RoomNoticeStore;
@@ -52,6 +73,13 @@ The sections share one scroll viewport and retain their disclosure preferences.
     const date = new Date(roomCreatedAt);
     return Number.isFinite(date.getTime()) ? date : null;
   });
+
+  function slowModeLabel(seconds: number | undefined): string {
+    if (seconds === undefined) return m('common.unknown');
+    return seconds > 0
+      ? formatSlowModeInterval(seconds, getReactiveLocale())
+      : m('room.information.slow_mode_off');
+  }
 </script>
 
 <Interval milliseconds={60_000} ontick={() => (now = new Date())} />
@@ -89,6 +117,19 @@ The sections share one scroll viewport and retain their disclosure preferences.
               ? m('common.unknown')
               : memberCount.toLocaleString(getReactiveLocale())}
           </dd>
+          <dt class="text-muted">{m('room.information.threads')}</dt>
+          <dd class="min-w-0 text-end">
+            {postingRules ? threadingModeLabel(postingRules.threadingMode) : m('common.unknown')}
+          </dd>
+          {#if postingRules?.threadSlowModeSeconds === undefined}
+            <dt class="text-muted">{m('room.information.slow_mode')}</dt>
+            <dd class="min-w-0 text-end">{slowModeLabel(postingRules?.slowModeSeconds)}</dd>
+          {:else}
+            <dt class="text-muted">{m('room.information.channel_slow_mode')}</dt>
+            <dd class="min-w-0 text-end">{slowModeLabel(postingRules.slowModeSeconds)}</dd>
+            <dt class="text-muted">{m('room.information.thread_slow_mode')}</dt>
+            <dd class="min-w-0 text-end">{slowModeLabel(postingRules.threadSlowModeSeconds)}</dd>
+          {/if}
         </dl>
       </div>
     {/snippet}

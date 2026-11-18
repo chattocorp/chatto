@@ -21,7 +21,12 @@
       "created": "Kreita",
       "title": "Informoj pri la ĉambro",
       "basic": "Ĝenerala",
-      "pinned_messages": "Fiksitaj mesaĝoj"
+      "pinned_messages": "Fiksitaj mesaĝoj",
+      "threads": "Fadenoj",
+      "slow_mode": "Malrapida reĝimo",
+      "channel_slow_mode": "Malrapida reĝimo de kanalo",
+      "thread_slow_mode": "Malrapida reĝimo de fadenoj",
+      "slow_mode_off": "Malŝaltita"
     },
     "create": {
       "title": "Kreu Novan Ĉambron",

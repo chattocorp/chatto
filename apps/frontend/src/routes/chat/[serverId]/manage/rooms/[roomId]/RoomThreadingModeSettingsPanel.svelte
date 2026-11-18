@@ -10,6 +10,7 @@ Threading Mode of a room. Selecting a mode edits a draft until the form submits.
   import RoomSettingsForm from './RoomSettingsForm.svelte';
   import { m } from '$lib/i18n/messages';
   import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
+  import { threadingModeLabel } from '$lib/roomThreadingMode';
   import type { RoomSettingsPatch } from './roomSettings';
 
   let {
@@ -37,22 +38,22 @@ Threading Mode of a room. Selecting a mode edits a draft until the form submits.
   const options = $derived([
     {
       value: RoomThreadingMode.REQUIRED,
-      label: m('room.management.threading_mode_required'),
+      label: threadingModeLabel(RoomThreadingMode.REQUIRED),
       description: m('admin.rooms_admin.threading_mode_required_description')
     },
     {
       value: RoomThreadingMode.ENCOURAGED,
-      label: m('room.management.threading_mode_encouraged'),
+      label: threadingModeLabel(RoomThreadingMode.ENCOURAGED),
       description: m('admin.rooms_admin.threading_mode_encouraged_description')
     },
     {
       value: RoomThreadingMode.ENABLED,
-      label: m('room.management.threading_mode_enabled'),
+      label: threadingModeLabel(RoomThreadingMode.ENABLED),
       description: m('admin.rooms_admin.threading_mode_enabled_description')
     },
     {
       value: RoomThreadingMode.DISABLED,
-      label: m('room.management.threading_mode_disabled'),
+      label: threadingModeLabel(RoomThreadingMode.DISABLED),
       description: m('admin.rooms_admin.threading_mode_disabled_description')
     }
   ]);

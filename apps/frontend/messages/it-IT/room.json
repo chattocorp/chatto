@@ -21,7 +21,12 @@
       "created": "Creata",
       "title": "Informazioni sulla stanza",
       "basic": "Generale",
-      "pinned_messages": "Messaggi fissati"
+      "pinned_messages": "Messaggi fissati",
+      "threads": "Discussioni",
+      "slow_mode": "Modalità lenta",
+      "channel_slow_mode": "Modalità lenta del canale",
+      "thread_slow_mode": "Modalità lenta dei thread",
+      "slow_mode_off": "Disattivata"
     },
     "create": {
       "title": "Crea una nuova stanza",

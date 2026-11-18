@@ -11,7 +11,7 @@
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import { m } from '$lib/i18n/messages';
-  import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
+  import { threadingModeLabel } from '$lib/roomThreadingMode';
 
   let {
     event,
@@ -46,21 +46,6 @@
   });
 
   const eventKind = $derived(timelineEventKind(event.event));
-
-  function threadingModeLabel(mode: RoomThreadingMode): string {
-    switch (mode) {
-      case RoomThreadingMode.REQUIRED:
-        return m('room.management.threading_mode_required');
-      case RoomThreadingMode.ENCOURAGED:
-        return m('room.management.threading_mode_encouraged');
-      case RoomThreadingMode.ENABLED:
-        return m('room.management.threading_mode_enabled');
-      case RoomThreadingMode.DISABLED:
-        return m('room.management.threading_mode_disabled');
-      default:
-        return m('room.management.threading_mode_disabled');
-    }
-  }
 
   const action = $derived.by(() => {
     switch (eventKind) {

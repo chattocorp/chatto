@@ -59,7 +59,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import RoomSidebarProfile from './RoomSidebarProfile.svelte';
   import RoomFilesPanel from './RoomFilesPanel.svelte';
   import RoomSearchPanel from './RoomSearchPanel.svelte';
-  import RoomInformationPanel from './RoomInformationPanel.svelte';
+  import RoomInformationPanel, { type RoomPostingRules } from './RoomInformationPanel.svelte';
   import type { RoomNoticeStore } from '@chatto/client/room/notice';
   import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
 
@@ -71,6 +71,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     roomName = '',
     roomDescription = '',
     roomCreatedAt = null,
+    postingRules = null,
     activePanel = 'members',
     activeProfileUserId = null,
     presentation = 'desktop',
@@ -103,6 +104,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     roomName?: string;
     roomDescription?: string;
     roomCreatedAt?: string | null;
+    postingRules?: RoomPostingRules | null;
     activePanel?: RoomSidebarPanel;
     activeProfileUserId?: string | null;
     presentation?: 'desktop' | 'overlay';
@@ -576,6 +578,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {roomName}
       {roomDescription}
       {roomCreatedAt}
+      {postingRules}
       memberCount={membersStore.hasFirstPage ? memberCount : null}
       {isUniversal}
       {pinsStore}

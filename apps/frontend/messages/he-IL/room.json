@@ -21,7 +21,12 @@
       "created": "נוצר",
       "title": "מידע על החדר",
       "basic": "כללי",
-      "pinned_messages": "הודעות נעוצות"
+      "pinned_messages": "הודעות נעוצות",
+      "threads": "שרשורים",
+      "slow_mode": "מצב איטי",
+      "channel_slow_mode": "מצב איטי בערוץ",
+      "thread_slow_mode": "מצב איטי בשרשורים",
+      "slow_mode_off": "כבוי"
     },
     "create": {
       "title": "צור חדר חדש",
