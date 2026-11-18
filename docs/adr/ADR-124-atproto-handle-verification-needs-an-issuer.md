@@ -1,6 +1,6 @@
 # ADR-124: Verified AT Protocol Handles Need an Independent Issuer
 
-**Status:** Accepted
+**Status:** Partially superseded by ADR-125
 **Date:** 2026-11-12
 
 ## Context
@@ -44,7 +44,8 @@ Narrower designs do not remove this:
    AT Protocol handle as verified based on records in the user's repository.
 2. **No published DID for now.** Servers do not publish the DID of the linked
    sign-in identity. A future verification design defines what a server
-   publishes.
+   publishes. ADR-125 replaces this decision: servers publish the checked
+   handle as an identity claim, but still not the DID.
 3. **Verification needs an independent issuer.** A future design must use an
    attestation that only a trusted issuer can make, for example a signature
    with the issuer's key. The issuer makes it only after the DID's owner signs
@@ -54,8 +55,9 @@ Narrower designs do not remove this:
 
 ## Consequences
 
-- AT Protocol sign-in works without a published identity. Members do not see
-  which AT Protocol identity an account uses.
+- AT Protocol sign-in works without a published identity. ADR-125 lets
+  members see the checked handle when its holder makes it visible, without a
+  verification mark.
 - Authling, at chatto.id and on self-hosted instances, is the likely issuer.
   It already verifies identities, shows its own consent page, and signs with
   rotated keys. That needs its own Authling decision (#3604).
@@ -72,3 +74,4 @@ Narrower designs do not remove this:
 - [FDR-058: AT Protocol Sign-In](../fdr/FDR-058-atproto-sign-in.md)
 - [ADR-025: Multi-Server Client Architecture](ADR-025-multi-instance-client-architecture.md)
 - [ADR-071: Identify Open OAuth Clients through CIMD](ADR-071-cimd-identified-open-oauth-clients.md)
+- [ADR-125: Identity Claims with Separate Schemes and Attesters](ADR-125-identity-claims.md)
