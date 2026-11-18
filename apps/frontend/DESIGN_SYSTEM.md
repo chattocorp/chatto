@@ -471,6 +471,12 @@ state ownership, not the visual treatment of their forms.
   operate as one group. It is not a substitute for the page-level panel frame.
 - Stack independent settings panels with the standard `gap-6`, and never nest
   one `Panel` inside another.
+- Use `SettingsColumns` from `$lib/components/settings` for a page with two or
+  more short form panels. It puts the panels in two columns when the content
+  column is at least 48rem wide, and in one column when it is narrower. Put
+  related panels in the same column. Keep a wide panel, such as a table or a
+  matrix, outside `SettingsColumns`, so that it spans the content column. A
+  page with one panel does not use it.
 
 ## Semantic Color Language
 
