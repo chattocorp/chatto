@@ -24,8 +24,8 @@
       "pinned_messages": "Festede meldinger",
       "threads": "Tråder",
       "slow_mode": "Sakte modus",
-      "channel_slow_mode": "Langsom modus i kanalen",
-      "thread_slow_mode": "Langsom modus i tråder",
+      "channel_slow_mode": "Sakte modus i kanalen",
+      "thread_slow_mode": "Sakte modus i tråder",
       "slow_mode_off": "Av"
     },
     "create": {

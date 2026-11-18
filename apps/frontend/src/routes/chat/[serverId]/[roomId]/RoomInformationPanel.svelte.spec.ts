@@ -97,14 +97,14 @@ describe('RoomInformationPanel', () => {
     });
     await expect.element(page.getByText('Threads', { exact: true })).toBeVisible();
     expect(value('Threads')).toBe('Unknown');
-    expect(value('Slow mode')).toBe('Unknown');
+    expect(value('Slow Mode')).toBe('Unknown');
 
     await view.rerender({
       postingRules: { threadingMode: RoomThreadingMode.REQUIRED, slowModeSeconds: 0 }
     });
     await expect.poll(() => value('Threads')).toBe('Required');
-    expect(value('Slow mode')).toBe('Off');
-    expect(value('Thread slow mode')).toBeUndefined();
+    expect(value('Slow Mode')).toBe('Off');
+    expect(value('Thread Slow Mode')).toBeUndefined();
 
     await view.rerender({
       postingRules: {
@@ -114,9 +114,9 @@ describe('RoomInformationPanel', () => {
       }
     });
     await expect.poll(() => value('Threads')).toBe('Disabled');
-    expect(value('Slow mode')).toBeUndefined();
-    expect(value('Channel slow mode')).toBe('2 minutes');
-    expect(value('Thread slow mode')).toBe('Off');
+    expect(value('Slow Mode')).toBeUndefined();
+    expect(value('Channel Slow Mode')).toBe('2 minutes');
+    expect(value('Thread Slow Mode')).toBe('Off');
   });
 
   it('shows current room metadata and collapses each section independently', async () => {

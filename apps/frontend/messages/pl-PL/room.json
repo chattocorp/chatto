@@ -24,8 +24,8 @@
       "pinned_messages": "Przypięte wiadomości",
       "threads": "Wątki",
       "slow_mode": "Tryb powolny",
-      "channel_slow_mode": "Tryb spowolniony kanału",
-      "thread_slow_mode": "Tryb spowolniony wątków",
+      "channel_slow_mode": "Tryb powolny kanału",
+      "thread_slow_mode": "Tryb powolny wątków",
       "slow_mode_off": "Wyłączony"
     },
     "create": {
