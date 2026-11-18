@@ -314,7 +314,7 @@ func TestLowerLoginLimit(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, strings.Repeat("a", MaxDisplayNameLength), user.DisplayName)
 
-	c.config.Limits.MaxLoginLength = new(2)
+	c.config.Accounts.MaxLoginLength = new(2)
 	_, err = c.VerifyPassword(ctx, login, "password123")
 	require.NoError(t, err)
 	_, err = c.AdminUpdateUserProfile(ctx, user.Id, &login, new("New name"), nil)

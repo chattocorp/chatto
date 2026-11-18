@@ -131,10 +131,6 @@ func writeInitialConfig(cmd *cobra.Command, opts initOptions) error {
 				MaxWrongAttempts:  5,
 			},
 		},
-		Limits: config.LimitsConfig{
-			MaxUsers:       &unlimited,
-			MaxLoginLength: new(config.DefaultMaxLoginLength),
-		},
 		Webserver: config.WebserverConfig{
 			Port:                   opts.Port,
 			URL:                    opts.PublicURL,
@@ -142,6 +138,10 @@ func writeInitialConfig(cmd *cobra.Command, opts initOptions) error {
 			CookieEncryptionSecret: cookieEncryptionSecretString,
 		},
 		Core: config.CoreConfig{
+			Accounts: config.AccountsConfig{
+				MaxUsers:       &unlimited,
+				MaxLoginLength: new(config.DefaultMaxLoginLength),
+			},
 			SecretKey: coreSecretString,
 			Assets: config.AssetsConfig{
 				SigningSecret:  signingSecretString,

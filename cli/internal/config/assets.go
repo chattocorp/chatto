@@ -156,7 +156,7 @@ type CoreConfig struct {
 	AuthLoopbackClientEnabled   bool                 `toml:"-" env:"-"` // Set by caller from AuthConfig.LoopbackClientEnabled; gates the built-in loopback OAuth client.
 	EmailOTP                    EmailOTPConfig       `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
 	Replicas                    int                  `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
-	Limits                      LimitsConfig         `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
+	Accounts                    AccountsConfig       `toml:"accounts,commented" comment:"Account quotas and username rules."`
 	Owners                      OwnersConfig         `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
 	Version                     string               `toml:"-" env:"-"` // Set by caller from the running build version; diagnostics only
 	ServerOrigins               []string             `toml:"-" env:"-"` // Canonical origins derived from WebserverConfig.ServerOrigins().

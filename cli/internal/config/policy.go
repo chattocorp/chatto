@@ -8,15 +8,15 @@ const DefaultMaxLoginLength = 64
 // LoginLengthCeiling bounds login identifiers accepted by the sign-in endpoint.
 const LoginLengthCeiling = 254
 
-// LimitsConfig contains server-wide limits for accounts and usernames.
-type LimitsConfig struct {
-	MaxLoginLength *int `toml:"max_login_length,commented" env:"CHATTO_LIMITS_MAX_LOGIN_LENGTH" comment:"Maximum length of new or changed usernames, from 2 to 254 characters. Default: 64."`
+// AccountsConfig contains server-wide limits for accounts and usernames.
+type AccountsConfig struct {
+	MaxLoginLength *int `toml:"max_login_length,commented" env:"CHATTO_CORE_ACCOUNTS_MAX_LOGIN_LENGTH" comment:"Maximum length of new or changed usernames, from 2 to 254 characters. Default: 64."`
 	// MaxUsers caps verified accounts. Concurrent creations can briefly exceed this soft limit.
-	MaxUsers *int `toml:"max_users,commented" env:"CHATTO_LIMITS_MAX_USERS" comment:"Maximum number of verified accounts allowed in this instance. -1 = unlimited (default), 0 = no new signups, positive = cap. Counts users with at least one verified email or linked SSO identity."`
+	MaxUsers *int `toml:"max_users,commented" env:"CHATTO_CORE_ACCOUNTS_MAX_USERS" comment:"Maximum number of verified accounts allowed in this instance. -1 = unlimited (default), 0 = no new signups, positive = cap. Counts users with at least one verified email or linked SSO identity."`
 }
 
 // MaxLoginLengthOrDefault returns the maximum length for newly assigned logins.
-func (c LimitsConfig) MaxLoginLengthOrDefault() int {
+func (c AccountsConfig) MaxLoginLengthOrDefault() int {
 	if c.MaxLoginLength == nil {
 		return DefaultMaxLoginLength
 	}
@@ -24,7 +24,7 @@ func (c LimitsConfig) MaxLoginLengthOrDefault() int {
 }
 
 // MaxUsersOrDefault returns the configured max-users limit, defaulting to -1 (unlimited).
-func (c *LimitsConfig) MaxUsersOrDefault() int {
+func (c *AccountsConfig) MaxUsersOrDefault() int {
 	if c.MaxUsers == nil {
 		return -1
 	}

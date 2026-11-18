@@ -206,7 +206,7 @@ func TestManagedProviderConcurrentCreation(t *testing.T) {
 
 func TestManagedProviderUsernameValidation(t *testing.T) {
 	c, _ := setupTestCore(t)
-	c.config.Limits.MaxLoginLength = new(80)
+	c.config.Accounts.MaxLoginLength = new(80)
 	ctx := testContext(t)
 	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "company", Type: "github", ManageUsernames: true}}
 	for _, base := range []string{"", "person@example.com", "admin", "a", strings.Repeat("x", c.LoginLengthLimit()+1)} {

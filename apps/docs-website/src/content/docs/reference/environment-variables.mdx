@@ -272,6 +272,17 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
   256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, account-flow, and invitation-code verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions, pending credentials, and existing invitation codes to remain valid. Changing it invalidates distributed codes without deleting their durable invitation records; authorised administrators can copy newly derived codes. It also makes projection snapshots unreadable, which Chatto safely rebuilds from `EVT`.
 </EnvVar>
 
+### Accounts
+
+<EnvVar name="CHATTO_CORE_ACCOUNTS_MAX_LOGIN_LENGTH" toml="core.accounts.max_login_length" default="64">
+  Maximum number of characters in a new or changed username. Set a value from 2 to 254.
+  Existing users can still sign in if you lower the limit.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_ACCOUNTS_MAX_USERS" toml="core.accounts.max_users" default="-1">
+  Maximum number of verified accounts on this server. Use `-1` for unlimited accounts or `0` to disable creation. An account counts once it has at least one verified sign-in factor: a verified email or a linked SSO identity. Enforced when accounts are created and when the first verified factor is added. Note that the check is non-atomic, so a burst at the boundary can briefly overshoot by one or two.
+</EnvVar>
+
 ## Assets
 
 <EnvVar name="CHATTO_CORE_ASSETS_SIGNING_SECRET" toml="core.assets.signing_secret" required>
@@ -650,17 +661,6 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
 
 <EnvVar name="CHATTO_OWNERS_EMAILS" toml="owners.emails">
   Comma-separated list of email addresses that confer server-owner status. A user with any verified email matching the list gets full server access (including `/admin` routes). Only verified email addresses are matched.
-</EnvVar>
-
-## Limits
-
-<EnvVar name="CHATTO_LIMITS_MAX_LOGIN_LENGTH" toml="limits.max_login_length" default="64">
-  Maximum number of characters in a new or changed username. Set a value from 2 to 254.
-  Existing users can still sign in if you lower the limit.
-</EnvVar>
-
-<EnvVar name="CHATTO_LIMITS_MAX_USERS" toml="limits.max_users" default="-1">
-  Maximum number of verified accounts on this server. Use `-1` for unlimited accounts or `0` to disable creation. An account counts once it has at least one verified sign-in factor: a verified email or a linked SSO identity. Enforced when accounts are created and when the first verified factor is added. Note that the check is non-atomic, so a burst at the boundary can briefly overshoot by one or two.
 </EnvVar>
 
 ## Outbound bot webhooks

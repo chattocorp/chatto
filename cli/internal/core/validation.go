@@ -71,7 +71,7 @@ func NormalizeDisplayName(name string) string {
 }
 
 // LoginLengthLimit returns this server's maximum for new and changed usernames.
-func (c *ChattoCore) LoginLengthLimit() int { return c.config.Limits.MaxLoginLengthOrDefault() }
+func (c *ChattoCore) LoginLengthLimit() int { return c.config.Accounts.MaxLoginLengthOrDefault() }
 
 // LoginDisplayName returns a default display name that fits the display-name limit.
 // Valid logins contain only ASCII characters.
