@@ -11,10 +11,10 @@ window.
 </script>
 
 {#if pending}
-  <div class="mt-4 flex flex-col items-center gap-2">
+  <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
     <p role="status" class="text-center text-sm text-muted">{m('auth.popup.waiting')}</p>
     {#if oncancel}
-      <Button variant="ghost" size="sm" onclick={oncancel}>{m('common.cancel')}</Button>
+      <Button variant="secondary" size="sm" onclick={oncancel}>{m('common.cancel')}</Button>
     {/if}
   </div>
 {/if}

@@ -537,8 +537,7 @@ describe('remote server OAuth popup', () => {
     const completion = startRemoteReauthentication(remote);
 
     const cancelled = expect(completion).rejects.toMatchObject({ reason: 'cancelled' });
-    const { cancelServerOAuthFlow } = await import('./reauth');
-    cancelServerOAuthFlow(remote.url);
+    popup.close();
     await cancelled;
     rejectServerInfo?.(new Error('discovery failed'));
     await new Promise((resolve) => setTimeout(resolve, 0));

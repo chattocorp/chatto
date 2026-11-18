@@ -40,6 +40,48 @@ describe('provider popup outcomes', () => {
     expect(popupWindow.close).toHaveBeenCalledOnce();
   });
 
+  it('detects closure on the launch page even with a callback channel', async () => {
+    vi.useFakeTimers();
+    mocks.open.mockReturnValue({
+      detachOpener: vi.fn(),
+      close: vi.fn(),
+      isClosed: async () => true
+    });
+    const popup = openOAuthPopup('launch');
+    const result = expect(popup.response).rejects.toMatchObject({ reason: 'cancelled' });
+    await vi.advanceTimersByTimeAsync(250);
+    await result;
+  });
+
+  it('uses the native closure of the matching desktop window after navigation', async () => {
+    const unsubscribe = vi.fn();
+    let notify!: (name: string) => void;
+    window.chattoDesktop = {
+      onAuthorizationWindowClosed(callback) {
+        notify = callback;
+        return unsubscribe;
+      }
+    };
+    try {
+      mocks.open.mockReturnValue({
+        detachOpener: vi.fn(),
+        close: vi.fn(),
+        navigate: vi.fn(),
+        isClosed: async () => true
+      });
+      const popup = openOAuthPopup('desktop');
+      await popup.navigate('https://provider.example/');
+      notify('chatto-oauth-other');
+      expect(unsubscribe).not.toHaveBeenCalled();
+      const result = expect(popup.response).rejects.toMatchObject({ reason: 'cancelled' });
+      notify('chatto-oauth-desktop');
+      await result;
+      expect(unsubscribe).toHaveBeenCalledOnce();
+    } finally {
+      delete window.chattoDesktop;
+    }
+  });
+
   it('keeps waiting when a provider page hides the window, until the user cancels', async () => {
     vi.useFakeTimers();
     const popupWindow = {
@@ -52,6 +94,7 @@ describe('provider popup outcomes', () => {
     };
     mocks.open.mockReturnValue(popupWindow);
     const popup = openOAuthPopup('severed');
+    await popup.navigate('https://provider.example/');
     let settled = false;
     popup.response.then(
       () => (settled = true),

@@ -91,8 +91,9 @@ export type OAuthPopup = {
  * @throws OAuthPopupError with reason `blocked` when the browser blocks the window.
  */
 export function openOAuthPopup(state: string): OAuthPopup {
+  const frameName = `chatto-oauth-${state.slice(0, 12)}`;
   const authorizationWindow = openAuthorizationWindow(
-    `chatto-oauth-${state.slice(0, 12)}`,
+    frameName,
     authorizationWindowFeatures(window)
   );
   if (!authorizationWindow)
@@ -106,28 +107,26 @@ export function openOAuthPopup(state: string): OAuthPopup {
   // page does not need a reference capable of navigating the main client.
   if (channel) authorizationWindow.detachOpener();
 
-  const wait = waitForPopupResponse(authorizationWindow, state, channel);
-  return {
-    response: wait.response,
-    cancel: wait.cancel,
-    navigate: (url) => authorizationWindow.navigate(url),
-    close: () => {
-      void closeAuthorizationWindow(authorizationWindow);
-    }
-  };
+  return waitForPopupResponse(authorizationWindow, state, channel, frameName);
 }
 
 function waitForPopupResponse(
   authorizationWindow: AuthorizationWindow,
   state: string,
-  channel: BroadcastChannel | null
-): { response: Promise<OAuthPopupResponse>; cancel: () => void } {
+  channel: BroadcastChannel | null,
+  frameName: string
+): OAuthPopup {
+  // An installed web app can launch an independent browser tab. Its window
+  // handle can report closed even while the launch page is still visible.
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches;
+  let navigationStarted = false;
   let cancel = () => {};
   const response = new Promise<OAuthPopupResponse>((resolve, reject) => {
     let settled = false;
 
     const cleanup = () => {
       window.removeEventListener('message', handleWindowMessage);
+      unsubscribeClosed?.();
       channel?.close();
       window.clearInterval(closePoll);
       window.clearTimeout(timeout);
@@ -168,33 +167,47 @@ function waitForPopupResponse(
 
     cancel = () => fail('The sign-in attempt was cancelled.', 'cancelled');
 
+    const unsubscribeClosed = window.chattoDesktop?.onAuthorizationWindowClosed?.((closedName) => {
+      if (closedName === frameName) cancel();
+    });
+
     let polling = false;
-    const closePoll = window.setInterval(async () => {
-      if (polling || settled) return;
-      polling = true;
-      try {
-        if (!(await authorizationWindow.isClosed())) return;
-        if (channel) {
-          // A provider page with `Cross-Origin-Opener-Policy: same-origin`, such as
-          // Bluesky's, cuts the link to this window. The window handle then reports
-          // `closed` although the user is still signing in. With a channel, keep
-          // waiting for the result; the user can cancel the wait instead.
-          window.clearInterval(closePoll);
-          return;
-        }
-        fail('The sign-in window was closed before authorization completed.', 'cancelled');
-      } catch {
-        fail('The sign-in window could not be inspected.');
-      } finally {
-        polling = false;
-      }
-    }, POPUP_POLL_INTERVAL_MS);
+    const closePoll = unsubscribeClosed
+      ? undefined
+      : window.setInterval(async () => {
+          if (polling || settled) return;
+          polling = true;
+          try {
+            if (!(await authorizationWindow.isClosed())) return;
+            if (channel && (navigationStarted || standalone)) {
+              // A provider page with `Cross-Origin-Opener-Policy: same-origin`, such as
+              // Bluesky's, cuts the link to this window. The window handle then reports
+              // `closed` although the user is still signing in. With a channel, keep
+              // waiting for the result; the user can cancel the wait instead.
+              window.clearInterval(closePoll);
+              return;
+            }
+            fail('The sign-in window was closed before authorization completed.', 'cancelled');
+          } catch {
+            fail('The sign-in window could not be inspected.');
+          } finally {
+            polling = false;
+          }
+        }, POPUP_POLL_INTERVAL_MS);
     const timeout = window.setTimeout(
       () => fail('The sign-in attempt timed out.'),
       POPUP_TIMEOUT_MS
     );
   });
-  return { response, cancel };
+  return {
+    response,
+    cancel,
+    close: cancel,
+    navigate(url) {
+      navigationStarted = true;
+      return authorizationWindow.navigate(url);
+    }
+  };
 }
 
 async function closeAuthorizationWindow(authorizationWindow: AuthorizationWindow): Promise<void> {
