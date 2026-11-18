@@ -81,6 +81,11 @@ contextBridge.exposeInMainWorld(
         return () => ipcRenderer.removeListener('chatto:notifications:click', listener);
       }
     }),
+    onAuthorizationWindowClosed: (callback) => {
+      const listener = (_event, frameName) => callback(frameName);
+      ipcRenderer.on('chatto:authorization:closed', listener);
+      return () => ipcRenderer.removeListener('chatto:authorization:closed', listener);
+    },
     passwordLogin: (request) =>
       ipcRenderer.invoke('chatto:password-login', {
         serverUrl: request?.serverUrl,
