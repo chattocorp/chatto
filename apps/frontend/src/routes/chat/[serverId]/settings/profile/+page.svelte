@@ -5,6 +5,7 @@
   import { PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import AvatarSettings from '../AvatarSettings.svelte';
   import ProfileDetailsSettings from '../ProfileDetailsSettings.svelte';
+  import SettingsColumns from '$lib/components/settings/SettingsColumns.svelte';
 
   const serverScope = useServerScope();
 </script>
@@ -15,9 +16,13 @@
   <PaneHeader title={m('settings.profile.title')} subtitle={m('settings.profile.subtitle')} />
 
   <PaneContent>
-    <div class="flex flex-col gap-6">
-      <AvatarSettings />
-      <ProfileDetailsSettings getUserAPI={() => serverScope.connection.getAPI(createUserAPI)} />
-    </div>
+    <SettingsColumns>
+      {#snippet start()}
+        <AvatarSettings />
+      {/snippet}
+      {#snippet end()}
+        <ProfileDetailsSettings getUserAPI={() => serverScope.connection.getAPI(createUserAPI)} />
+      {/snippet}
+    </SettingsColumns>
   </PaneContent>
 </div>

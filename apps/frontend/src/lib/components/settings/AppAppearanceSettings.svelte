@@ -9,6 +9,7 @@
     type ThreadPanePresentation
   } from '$lib/state/userPreferences.svelte';
   import AccentColorPicker from './AccentColorPicker.svelte';
+  import SettingsColumns from './SettingsColumns.svelte';
   import SurfaceTonePicker from './SurfaceTonePicker.svelte';
   import { RangeField } from '$lib/ui/form';
   import { transitionTheme } from '$lib/dom/viewTransitions';
@@ -107,54 +108,57 @@
   />
 
   <PaneContent>
-    <div class="@container flex flex-col gap-6">
-      <div class="grid gap-6 @min-[48rem]:grid-cols-2">
-        <Panel
-          fillHeight
-          title={m('settings.preferences.theme.title')}
-          icon="iconify icon-[uil--palette]"
-        >
-          <div class="max-w-md">
+    <div class="flex flex-col gap-6">
+      <SettingsColumns>
+        {#snippet start()}
+          <Panel
+            fillHeight
+            title={m('settings.preferences.theme.title')}
+            icon="iconify icon-[uil--palette]"
+          >
+            <div class="max-w-md">
+              <div
+                class="flex flex-col gap-2"
+                role="radiogroup"
+                aria-label={m('settings.preferences.theme.title')}
+              >
+                {#each themeOptions as option (option.value)}
+                  <ChoiceRow
+                    label={option.label}
+                    description={option.description}
+                    selected={userPreferences.displayTheme === option.value}
+                    onclick={(event) => {
+                      transitionTheme(event, () => (userPreferences.displayTheme = option.value));
+                    }}
+                  />
+                {/each}
+              </div>
+            </div>
+          </Panel>
+        {/snippet}
+        {#snippet end()}
+          <Panel
+            fillHeight
+            title={m('settings.preferences.animations.title')}
+            icon="iconify icon-[uil--play-circle]"
+          >
             <div
-              class="flex flex-col gap-2"
+              class="flex max-w-md flex-col gap-2"
               role="radiogroup"
-              aria-label={m('settings.preferences.theme.title')}
+              aria-label={m('settings.preferences.animations.title')}
             >
-              {#each themeOptions as option (option.value)}
+              {#each animationOptions as option (option.value)}
                 <ChoiceRow
                   label={option.label}
                   description={option.description}
-                  selected={userPreferences.displayTheme === option.value}
-                  onclick={(event) => {
-                    transitionTheme(event, () => (userPreferences.displayTheme = option.value));
-                  }}
+                  selected={userPreferences.animations === option.value}
+                  onclick={() => (userPreferences.animations = option.value)}
                 />
               {/each}
             </div>
-          </div>
-        </Panel>
-
-        <Panel
-          fillHeight
-          title={m('settings.preferences.animations.title')}
-          icon="iconify icon-[uil--play-circle]"
-        >
-          <div
-            class="flex max-w-md flex-col gap-2"
-            role="radiogroup"
-            aria-label={m('settings.preferences.animations.title')}
-          >
-            {#each animationOptions as option (option.value)}
-              <ChoiceRow
-                label={option.label}
-                description={option.description}
-                selected={userPreferences.animations === option.value}
-                onclick={() => (userPreferences.animations = option.value)}
-              />
-            {/each}
-          </div>
-        </Panel>
-      </div>
+          </Panel>
+        {/snippet}
+      </SettingsColumns>
 
       <Panel
         title={m('settings.preferences.customization.title')}
