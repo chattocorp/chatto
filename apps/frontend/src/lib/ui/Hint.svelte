@@ -30,7 +30,8 @@ a page without competing with primary content.
   let {
     children,
     tone = 'info',
-    icon
+    icon,
+    plain = false
   }: {
     children: Snippet;
     /** Tint of the hint. Defaults to a muted info style. */
@@ -40,6 +41,11 @@ a page without competing with primary content.
      * icon per tone. Pass `null` to suppress the icon.
      */
     icon?: string | null;
+    /**
+     * Drop the box: a small muted note with its icon, for a footnote below a
+     * form or an action. Use the boxed form for notices above content.
+     */
+    plain?: boolean;
   } = $props();
 
   const toneStyles: Record<Tone, string> = {
@@ -47,6 +53,13 @@ a page without competing with primary content.
     warning: 'border-warning/30 bg-warning/10 text-warning',
     success: 'border-success/30 bg-success/10 text-success',
     danger: 'border-danger/30 bg-danger/10 text-danger'
+  };
+
+  const plainToneStyles: Record<Tone, string> = {
+    info: 'text-muted',
+    warning: 'text-warning',
+    success: 'text-success',
+    danger: 'text-danger'
   };
 
   const defaultIcons: Record<Tone, string> = {
@@ -59,9 +72,19 @@ a page without competing with primary content.
   const resolvedIcon = $derived(icon === null ? null : (icon ?? defaultIcons[tone]));
 </script>
 
-<div class={['flex items-start gap-3 rounded-lg border p-4', toneStyles[tone]]}>
+<div
+  class={[
+    'flex items-start',
+    plain
+      ? ['gap-2 text-sm', plainToneStyles[tone]]
+      : ['gap-3 rounded-lg border p-4', toneStyles[tone]]
+  ]}
+>
   {#if resolvedIcon}
-    <span aria-hidden="true" class={['iconify mt-0.5 shrink-0 text-lg', resolvedIcon]}></span>
+    <span
+      aria-hidden="true"
+      class={['iconify mt-0.5 shrink-0', plain ? 'text-base' : 'text-lg', resolvedIcon]}
+    ></span>
   {/if}
   <div class="min-w-0 flex-1">
     {@render children()}
