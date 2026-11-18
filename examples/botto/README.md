@@ -428,19 +428,21 @@ configuration is required or accepted:
 ```toml
 [mcp.servers.memory_klaus]
 command = "means"
-args = ["mcp", "--path", ".botto/brains/klaus"]
+args = ["mcp", "--path", "brains/klaus"]
 serialize = true
 tools = ["info", "list", "search", "read", "create", "update", "delete"]
 admin_tools = ["schema_set"]
 
 [mcp.servers.memory_chatto]
 command = "means"
-args = ["mcp", "--path", "/shared/chatto-knowledge"]
+args = ["mcp", "--path", "brains/chatto"]
 serialize = true
-tools = ["info", "list", "search", "read"]
+tools = ["info", "list", "search", "read", "create"]
+admin_tools = ["update", "delete", "schema_set"]
 ```
 
-Create the collection's `MEANS.md` before enabling the connection. `.botto/brains/`
+The example includes `brains/klaus/MEANS.md` and `brains/chatto/MEANS.md`.
+Review these collection instructions before enabling the connections. `brains/`
 is a storage convention, not a special base directory. Relative `--path` values
 resolve from the TOML directory, as for other stdio MCP servers. Use an absolute
 path to keep a collection at its existing location. Commands and arguments support
@@ -454,7 +456,9 @@ names are arbitrary. Schemas reload through Means; restart after changing the
 connection settings. Stored documents cannot grant authority.
 
 Use explicit tool lists. The first example allows document writes and reserves
-schema changes for configured admins. The second grants only reads. Neither
+schema changes for configured admins. The second allows new knowledge entries
+and reserves changes to existing entries, deletion, and schema changes for admins.
+Its collection instructions require explicit owner approval for maintenance. Neither
 configuration enforces ownership of individual documents: every permitted tool
 can access the collection. Collection guidance and personal-memory rules remain
 model instructions, not per-document access controls.

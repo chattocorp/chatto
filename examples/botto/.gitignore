@@ -6,3 +6,12 @@ botto.toml
 
 # Publish placeholders, never the local credentials.
 !.env.github.example
+
+# Durable local Means collections.
+brains/*
+!brains/klaus/
+!brains/chatto/
+brains/klaus/*
+brains/chatto/*
+!brains/klaus/MEANS.md
+!brains/chatto/MEANS.md

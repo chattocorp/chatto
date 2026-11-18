@@ -25,6 +25,7 @@ goreleaser = "2.19.0"
 node = "24.22.1"
 pnpm = "11.25.0"
 uv = "0.11.30"
+wrangler = { version = "latest", allow_builds = ["esbuild", "sharp", "workerd"] }
 
 [env]
 _.file = '.env'
