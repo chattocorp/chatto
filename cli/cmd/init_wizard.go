@@ -18,12 +18,17 @@ type initWizard struct {
 	welcome, cancelled, backward, dark bool
 }
 
-func newInitWizard(opts *initOptions, port, smtpPort *string, confirmed *bool) *initWizard {
+func newInitWizard(opts *initOptions, port, smtpPort *string) *initWizard {
 	wizard := &initWizard{configPath: opts.ConfigPath, width: 80, height: 24, welcome: true, dark: true}
-	wizard.form = newInitForm(opts, port, smtpPort, confirmed, &wizard.backward)
+	wizard.form = newInitForm(opts, port, smtpPort, &wizard.backward)
 	wizard.form.WithTheme(huh.ThemeFunc(func(bool) *huh.Styles { return initTheme(wizard.dark) }))
 	wizard.resize()
 	return wizard
+}
+
+// approved requires the operator to submit the review with Create files selected.
+func (w *initWizard) approved() bool {
+	return !w.cancelled && w.form.State == huh.StateCompleted && w.form.GetBool("createFiles")
 }
 
 func (w *initWizard) Init() tea.Cmd {
