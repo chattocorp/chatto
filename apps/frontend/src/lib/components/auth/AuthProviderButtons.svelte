@@ -8,6 +8,7 @@
   let {
     providers,
     selectedProviderId = null,
+    retrySelected = false,
     disabled = false,
     compact = false,
     href,
@@ -15,6 +16,7 @@
   }: {
     providers: readonly PublicAuthProvider[];
     selectedProviderId?: string | null;
+    retrySelected?: boolean;
     disabled?: boolean;
     compact?: boolean;
     href?: (provider: PublicAuthProvider) => string;
@@ -24,18 +26,21 @@
 
 <div class="flex flex-col gap-3">
   {#each providers as provider (provider.id)}
+    {@const retry = retrySelected && selectedProviderId === provider.id}
     <Button
       variant="secondary"
       size={compact ? 'md' : 'lg'}
       fullWidth
-      href={href?.(provider)}
-      disabled={disabled || selectedProviderId !== null}
-      loading={selectedProviderId === provider.id}
+      href={retry ? undefined : href?.(provider)}
+      disabled={disabled || (selectedProviderId !== null && !retry)}
+      loading={selectedProviderId === provider.id && !retry}
       loadingText={m('auth.login.connecting_provider', { provider: provider.label })}
       onclick={(event) => onclick(event, provider)}
     >
       <span aria-hidden="true" class={['iconify text-lg', providerIcon(provider.type)]}></span>
-      {m('auth.login.continue_with_provider', { provider: provider.label })}
+      {retry
+        ? m('common.retry')
+        : m('auth.login.continue_with_provider', { provider: provider.label })}
     </Button>
   {/each}
 </div>

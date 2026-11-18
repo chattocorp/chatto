@@ -6,19 +6,13 @@
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
-  import {
-    confirmProviderAccount,
-    openProviderSignIn,
-    verifyProviderSignIn
-  } from '$lib/auth/providerSignIn';
-  import type { OAuthPopup } from '$lib/oauth/popup';
+  import { confirmProviderAccount, type ProviderSignInResult } from '$lib/auth/providerSignIn';
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import { acceptRegistrationInvitation } from '$lib/auth/registrationAdmission';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
-  import AuthProviderButtons from '$lib/components/auth/AuthProviderButtons.svelte';
-  import AuthPopupNotice from '$lib/components/auth/AuthPopupNotice.svelte';
+  import OriginProviderButtons from '$lib/components/auth/OriginProviderButtons.svelte';
   import { popupErrorMessage } from '$lib/oauth/popupError';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
@@ -52,13 +46,10 @@
   let error = $state('');
   let isLoading = $state(false);
   let isResending = $state(false);
-  let selectedProviderId = $state<string | null>(null);
   let providerError = $state('');
-  let providerPopup: OAuthPopup | null = null;
   let active = true;
   onDestroy(() => {
     active = false;
-    providerPopup?.close();
   });
 
   const emailSchema = z.string().email(m('common.validation.email'));
@@ -128,33 +119,14 @@
     }
   }
 
-  async function handleProviderClick(event: MouseEvent, provider: PublicAuthProvider) {
-    event.preventDefault();
-    providerError = '';
-    selectedProviderId = provider.id;
-    // Keep the server's OAuth session in this window throughout provider signup.
-    if (compact) {
-      window.location.href = providerLoginHref(provider);
+  async function completeProviderSignIn(result: ProviderSignInResult) {
+    confirmPendingAtprotoHandle();
+    if (result.kind === 'confirm-account') {
+      await confirmProviderAccount(result.token, data.redirectUrl);
       return;
     }
-    try {
-      providerPopup = openProviderSignIn(providerLoginHref(provider));
-      const result = await verifyProviderSignIn(providerPopup);
-      // The handle page of an AT Protocol sign-in stored its handle (FDR-058).
-      confirmPendingAtprotoHandle();
-      if (!active) return;
-      if (result.kind === 'confirm-account') {
-        await confirmProviderAccount(result.token, data.redirectUrl);
-        return;
-      }
-      if (!(await completeOriginAuthentication()))
-        await navigateAfterAuthentication(data.redirectUrl);
-    } catch (err) {
-      if (active) providerError = popupErrorMessage(err, m('auth.register.failed'));
-    } finally {
-      selectedProviderId = null;
-      providerPopup = null;
-    }
+    if (!(await completeOriginAuthentication()))
+      await navigateAfterAuthentication(data.redirectUrl);
   }
 
   async function requestRegistrationCode(options: { resend?: boolean } = {}) {
@@ -306,15 +278,17 @@
     </form>
   {:else if step === 'email'}
     {#if registrationProviders.length > 0}
-      <AuthProviderButtons
+      <OriginProviderButtons
         providers={registrationProviders}
-        {selectedProviderId}
         href={providerLoginHref}
-        onclick={handleProviderClick}
-      />
-      <AuthPopupNotice
-        pending={!compact && selectedProviderId !== null}
-        oncancel={() => providerPopup?.cancel()}
+        popupUrl={compact ? undefined : providerLoginHref}
+        onstart={() => {
+          providerError = '';
+        }}
+        onresult={completeProviderSignIn}
+        onerror={(err) => {
+          providerError = popupErrorMessage(err, m('auth.register.failed'));
+        }}
       />
       <FormError error={providerError} />
     {/if}
