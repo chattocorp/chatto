@@ -1,8 +1,14 @@
 <script lang="ts">
+  import { confirmPendingAtprotoHandle } from '$lib/atproto/rememberedHandle';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
-  import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
+  import {
+    confirmProviderAccount,
+    openProviderSignIn,
+    ProviderSignInError,
+    verifyProviderSignIn
+  } from '$lib/auth/providerSignIn';
   import type { OAuthPopup } from '$lib/oauth/popup';
   import { signInWithPassword } from '$lib/auth/passwordSignIn';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
@@ -83,13 +89,22 @@
     }
     try {
       providerPopup = openProviderSignIn(provider.loginUrl);
-      await verifyProviderSignIn(providerPopup);
+      const result = await verifyProviderSignIn(providerPopup);
+      // The handle page of an AT Protocol sign-in stored its handle (FDR-058).
+      confirmPendingAtprotoHandle();
       if (!active) return;
+      if (result.kind === 'confirm-account') {
+        await confirmProviderAccount(result.token, data.redirectUrl);
+        return;
+      }
       const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');
       const resumed = await completeOriginAuthentication();
       if (!resumed) await navigateAfterAuthentication(data.redirectUrl);
     } catch (err) {
-      if (active) error = popupErrorMessage(err, m('auth.login.failed'));
+      if (!active) return;
+      error =
+        (err instanceof ProviderSignInError && loginErrorMessage(err.code)) ||
+        popupErrorMessage(err, m('auth.login.failed'));
     } finally {
       providerPopup = null;
       selectedProviderId = null;
@@ -141,7 +156,10 @@
       href={providerLoginHref}
       onclick={handleProviderClick}
     />
-    <AuthPopupNotice pending={!compact && selectedProviderId !== null} />
+    <AuthPopupNotice
+      pending={!compact && selectedProviderId !== null}
+      oncancel={() => providerPopup?.cancel()}
+    />
     {#if directLoginEnabled}<Divider label={m('common.or')} />{/if}
   {/if}
 

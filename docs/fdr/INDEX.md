@@ -67,3 +67,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-055](FDR-055-keyboard-shortcut-help.md)                | Keyboard Shortcut Help                | Active       | 2026-10-28    |
 | [FDR-056](FDR-056-background-jobs.md)                       | Background Jobs                       | Experimental | 2026-11-17    |
 | [FDR-057](FDR-057-search-during-index-rebuild.md)           | Search During Index Rebuild           | Planned      | 2026-11-17    |
+| [FDR-058](FDR-058-atproto-sign-in.md)                       | AT Protocol Sign-In                   | Experimental | 2026-11-12    |

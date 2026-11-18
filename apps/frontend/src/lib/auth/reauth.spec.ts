@@ -336,7 +336,7 @@ describe('remote server OAuth popup', () => {
       expect(open).toHaveBeenCalledWith(
         expect.stringMatching(/^https:\/\/app\.example\/servers\/authorize#.+/),
         expect.stringMatching(/^chatto-oauth-/),
-        expect.stringContaining('width=560,height=760')
+        expect.stringContaining('width=560,height=800')
       );
       await vi.waitFor(() =>
         expect(authorizationLaunchTarget(open)).toContain('/oauth/authorize?')
@@ -537,7 +537,8 @@ describe('remote server OAuth popup', () => {
     const completion = startRemoteReauthentication(remote);
 
     const cancelled = expect(completion).rejects.toMatchObject({ reason: 'cancelled' });
-    (popup as unknown as { closed: boolean }).closed = true;
+    const { cancelServerOAuthFlow } = await import('./reauth');
+    cancelServerOAuthFlow(remote.url);
     await cancelled;
     rejectServerInfo?.(new Error('discovery failed'));
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -561,7 +562,30 @@ describe('remote server OAuth popup', () => {
     expect(unhandled).not.toHaveBeenCalled();
   });
 
-  it('identifies a closed remote sign-in window as cancellation', async () => {
+  it('keeps waiting when a provider page hides the window, until the user cancels', async () => {
+    const popup = fakePopup();
+    const { owner } = browserHarness(popup);
+    vi.stubGlobal('window', owner);
+    const { startRemoteReauthentication, cancelServerOAuthFlow } = await import('./reauth');
+    const completion = startRemoteReauthentication(remote);
+    let settled = false;
+    completion.then(
+      () => (settled = true),
+      () => (settled = true)
+    );
+    // A Cross-Origin-Opener-Policy page makes the handle report `closed`.
+    (popup as unknown as { closed: boolean }).closed = true;
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(settled).toBe(false);
+
+    const rejected = expect(completion).rejects.toMatchObject({ reason: 'cancelled' });
+    cancelServerOAuthFlow(remote.url);
+    await rejected;
+    expect(gotoMock).not.toHaveBeenCalled();
+  });
+
+  it('without a channel, identifies a closed remote sign-in window as cancellation', async () => {
+    vi.stubGlobal('BroadcastChannel', undefined);
     const popup = fakePopup();
     const { owner } = browserHarness(popup);
     vi.stubGlobal('window', owner);
@@ -658,5 +682,12 @@ describe('authorization window dimensions', () => {
     const { owner } = browserHarness(null);
     Object.assign(owner.screen, { availWidth: 500, availHeight: 700 });
     expect(authorizationWindowFeatures(owner)).toContain('width=468,height=600');
+  });
+
+  it('fits provider sign-in pages on larger screens', async () => {
+    const { authorizationWindowFeatures } = await import('../oauth/authorizationWindow');
+    const { owner } = browserHarness(null);
+    Object.assign(owner.screen, { availWidth: 1920, availHeight: 1080 });
+    expect(authorizationWindowFeatures(owner)).toContain('width=560,height=800');
   });
 });

@@ -20,7 +20,8 @@ vi.mock('$lib/desktop/passwordLogin', () => ({ hasPasswordLogin: () => mocks.des
 vi.mock('$lib/ui/toast', () => ({ toast: { error: vi.fn() } }));
 
 vi.mock('$lib/auth/reauth', () => ({
-  startRemoteReauthentication: mocks.startRemoteReauthentication
+  startRemoteReauthentication: mocks.startRemoteReauthentication,
+  cancelServerOAuthFlow: vi.fn()
 }));
 
 import { toast } from '$lib/ui/toast';
@@ -42,6 +43,28 @@ describe('startRemoteSignIn', () => {
     mocks.desktop = false;
     mocks.active = '';
     closeInlineSignIn(server.id);
+  });
+
+  it('remembers an AT Protocol handle only after a successful sign-in', async () => {
+    try {
+      mocks.startRemoteReauthentication.mockRejectedValueOnce(new Error('Provider failed'));
+      await startRemoteSignIn(server, {
+        useOAuth: true,
+        providerId: 'bsky',
+        loginHint: 'bob.example'
+      });
+      expect(localStorage.getItem('chatto:atproto-handle')).toBeNull();
+
+      mocks.startRemoteReauthentication.mockResolvedValueOnce(undefined);
+      await startRemoteSignIn(server, {
+        useOAuth: true,
+        providerId: 'bsky',
+        loginHint: '@alice.example'
+      });
+      expect(localStorage.getItem('chatto:atproto-handle')).toBe('alice.example');
+    } finally {
+      localStorage.removeItem('chatto:atproto-handle');
+    }
   });
 
   it('opens the Desktop form without OAuth and retains the active deep link', async () => {

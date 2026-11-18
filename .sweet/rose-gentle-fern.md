@@ -1,0 +1,11 @@
+---
+type: feature
+---
+
+People can now sign in with an internet handle: the handle of an AT Protocol account, such as a Bluesky account.
+
+- Operators enable sign-in with a new `atproto` login provider type. It needs no client registration or secret. See the login providers guide.
+- The login page shows the provider like other providers. The sign-in window then asks for the person's handle.
+- Chatto requests only the AT Protocol identity permission and gets no access to people's posts or other data.
+- New accounts start with the display name and avatar of the person's public AT Protocol profile.
+- On other servers, the sign-in screen offers **Continue as @handle** for the handle that the device used last.
