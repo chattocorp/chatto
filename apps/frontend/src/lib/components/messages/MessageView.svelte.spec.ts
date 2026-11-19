@@ -68,12 +68,21 @@ it('truncates the username first and keeps the timestamp on the header line', as
     const dot = view.getByText('·', { exact: true }).element();
     const time = view.getByText('12:11 PM').element();
     const row = view.getByRole('article').element() as HTMLElement;
-    for (const width of [520, 390, 320]) {
+    for (const width of [520, 390, 320, 520]) {
       row.style.width = `${width}px`;
-      expect(handle.scrollWidth).toBeGreaterThan(handle.clientWidth);
-      if (width === 520) expect(name.scrollWidth).toBe(name.clientWidth);
+      if (width === 520) {
+        await expect.element(handle).toBeVisible();
+        expect(handle.scrollWidth).toBeGreaterThan(handle.clientWidth);
+        expect(name.scrollWidth).toBe(name.clientWidth);
+      } else {
+        await expect.element(handle).not.toBeVisible();
+        expect(name.getBoundingClientRect().right).toBeCloseTo(
+          name.closest('strong')!.getBoundingClientRect().right,
+          0
+        );
+      }
       const bounds = name.getBoundingClientRect();
-      for (const item of [handle, dot, time]) {
+      for (const item of [dot, time]) {
         const rect = item.getBoundingClientRect();
         expect(rect.top).toBeLessThan(bounds.bottom);
         expect(rect.bottom).toBeGreaterThan(bounds.top);

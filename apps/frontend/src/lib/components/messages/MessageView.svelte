@@ -7,6 +7,7 @@ identity, body rendering, and row geometry consistent.
 -->
 <script lang="ts">
   import { experimentalFeatures } from '$lib/state/experimentalFeatures.svelte';
+  import MessageAuthorIdentity from './MessageAuthorIdentity.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import { getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
@@ -195,11 +196,10 @@ identity, body rendering, and row geometry consistent.
         >
           {#if actor && !actor.deleted}
             {#snippet authorLabel()}
-              <AccountName name={displayName} identity={actor} badgeSize="md" />
-              {#if newHeader && actor.login}
-                <bdi dir="ltr" class="min-w-[4ch] flex-[1_1_0px] truncate font-normal text-muted"
-                  >@{actor.login}</bdi
-                >
+              {#if newHeader}
+                <MessageAuthorIdentity name={displayName} {actor} />
+              {:else}
+                <AccountName name={displayName} identity={actor} badgeSize="md" />
               {/if}
               <UserCustomStatusBadge status={customStatus} />
               {@render authorSuffix?.()}
