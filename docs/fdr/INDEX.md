@@ -47,7 +47,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-035](FDR-035-slow-mode.md)                             | Slow Mode                             | Active       | 2026-10-15    |
 | [FDR-036](FDR-036-invite-links.md)                          | Invitation Codes                      | Active       | 2026-10-30    |
 | [FDR-037](FDR-037-pinned-messages.md)                       | Pinned Messages                       | Active       | 2026-10-12    |
-| [FDR-038](FDR-038-bot-accounts.md)                          | Bot Accounts                          | Experimental | 2026-09-23    |
+| [FDR-038](FDR-038-bot-accounts.md)                          | Bot Accounts                          | Experimental | 2026-11-19    |
 | [FDR-039](FDR-039-message-access-and-interactions.md)       | Message Access & Interactions         | Experimental | 2026-09-20    |
 | [FDR-040](FDR-040-backup-and-restore.md)                    | Backup and Restore                    | Active       | 2026-10-26    |
 | [FDR-041](FDR-041-transactional-email-delivery.md)          | Transactional Email Delivery          | Active       | 2026-11-17    |

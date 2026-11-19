@@ -930,7 +930,7 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 		return fmt.Errorf("%w: bot permissions are an allowlist and do not support explicit denials", ErrInvalidArgument)
 	}
 	if _, known := GetPermissionMetadata(perm); !known {
-		return fmt.Errorf("%w: permission %s cannot be delegated to a bot", ErrInvalidArgument, perm)
+		return fmt.Errorf("%w: unknown permission %s", ErrInvalidArgument, perm)
 	}
 	normalized := normalizePermissionScope(scope)
 	validateScope := func() error {

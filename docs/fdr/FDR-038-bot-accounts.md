@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-11-19
 
 ## Overview
 
@@ -464,6 +464,10 @@ the currently readable version, so it can change between attempts after an
 edit. Retracted or inaccessible messages are not sent.
 
 ## Permissions
+
+- A bot can receive `user.delete-self` when its owner has that permission. The
+  grant appears in the bot's effective permissions. Only human accounts can
+  use it to delete their own account.
 
 - `bot.create` — create bot accounts. Human callers become the owner; bot
   callers use their current human owner.

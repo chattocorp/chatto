@@ -409,13 +409,13 @@ parent and scrolls internally with a sticky column header.
                         scope: scope.label,
                         state: decisionWord(eff)
                       })}
+              {@const ownerBlocked = cell.allowPermitted === false}
               {@const allowConstraint =
-                cell.allowPermitted === false
-                  ? m('rbac.permissions.binary.owner_ceiling', {
-                      permission: permissionId,
-                      scope: scope.label
-                    })
-                  : null}
+                ownerBlocked &&
+                m('rbac.permissions.binary.owner_ceiling', {
+                  permission: permissionId,
+                  scope: scope.label
+                })}
               {@const titleParts = forceAllow
                 ? [
                     m('rbac.permissions.cell.owner_allow'),
@@ -434,9 +434,7 @@ parent and scrolls internally with a sticky column header.
                             cell.override === 'NONE'
                               ? m('rbac.permissions.binary.inherited')
                               : null,
-                            cell.allowPermitted === false
-                              ? m('rbac.permissions.binary.unavailable')
-                              : null
+                            ownerBlocked ? m('rbac.permissions.binary.unavailable') : null
                           ]
                             .filter(Boolean)
                             .join(' · ')
@@ -472,9 +470,8 @@ parent and scrolls internally with a sticky column header.
                 updating={updatingKey === `${scope.id}::${permission}`}
                 disabled={readOnly}
                 locked={inheritedBinaryGrant}
-                allowBlocked={cell.allowPermitted === false &&
-                  (decisionMode !== 'binary' || parent !== 'ALLOW')}
-                ceilingBlocked={cell.allowPermitted === false &&
+                allowBlocked={ownerBlocked && (decisionMode !== 'binary' || parent !== 'ALLOW')}
+                ceilingBlocked={ownerBlocked &&
                   (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
                 {decisionMode}
                 {ariaLabel}

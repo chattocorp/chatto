@@ -244,9 +244,6 @@ func (r *PermissionResolver) resolveHumanWithGroup(ctx context.Context, userID s
 }
 
 func (r *PermissionResolver) resolveBotWithGroup(ctx context.Context, botUserID, ownerUserID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
-	if _, known := GetPermissionMetadata(perm); !known {
-		return DecisionDeny, nil
-	}
 	if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
 		return DecisionDeny, nil
 	}

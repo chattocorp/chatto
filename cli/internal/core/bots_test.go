@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBotAPIKeyFormatIsCompactAndAcceptsLegacySecrets(t *testing.T) {
@@ -914,6 +916,21 @@ func TestBotPermissionCeilingResolvesExplicitInclusion(t *testing.T) {
 	}
 }
 
+func requireBotGrantability(t *testing.T, c *ChattoCore, ctx context.Context, editorID, botID string, scope PermissionTargetScope, perm Permission, want bool) {
+	t.Helper()
+	matrix, err := c.GetUserPermissionMatrixPage(ctx, editorID, botID, false, PermissionScopeQuery{Scope: &scope})
+	require.NoError(t, err)
+	require.Len(t, matrix.Scopes, 1)
+	for _, cell := range matrix.Cells {
+		if cell.ScopeID == matrix.Scopes[0].ID && cell.Permission == string(perm) {
+			require.NotNil(t, cell.AllowPermitted)
+			require.Equal(t, want, *cell.AllowPermitted)
+			return
+		}
+	}
+	t.Fatalf("missing %s cell for %+v", perm, scope)
+}
+
 func TestBotDMGrantIsScopedAndUsesDynamicOwnerCeiling(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -941,6 +958,17 @@ func TestBotDMGrantIsScopedAndUsesDynamicOwnerCeiling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
+	// The narrow grant is available only through the owner's broader DM read
+	// permission. Its direct deny makes the inclusion observable.
+	scope := PermissionTargetScope{Kind: MatrixScopeDM}
+	narrow := PermMessageReadInteractions
+	require.NoError(t, c.SetUserPermissionState(ctx, admin.Id, owner.Id, scope, narrow, PermissionStateDeny))
+	requireBotGrantability(t, c, ctx, admin.Id, bot.User.Id, scope, narrow, true)
+	require.NoError(t, c.SetUserPermissionState(ctx, admin.Id, bot.User.Id, scope, narrow, PermissionStateAllow))
+	decision, err := c.PermResolver().Resolve(ctx, bot.User.Id, KindDM, dm.Id, narrow)
+	require.NoError(t, err)
+	require.Equal(t, DecisionAllow, decision)
+
 	for _, permission := range []Permission{PermMessageRead, PermMessagePost, PermMessagePostInThread} {
 		if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, permission, PermissionStateAllow); err != nil {
 			t.Fatalf("grant bot DM %s: %v", permission, err)
@@ -973,6 +1001,11 @@ func TestBotDMGrantIsScopedAndUsesDynamicOwnerCeiling(t *testing.T) {
 	if allowed, err := c.CanReadMessages(ctx, bot.User.GetId(), KindDM, dm.GetId()); err != nil || allowed {
 		t.Fatalf("owner-capped bot DM read = %v, %v; want false", allowed, err)
 	}
+	requireBotGrantability(t, c, ctx, admin.Id, bot.User.Id, scope, narrow, false)
+	require.ErrorIs(t, c.SetUserPermissionState(ctx, admin.Id, bot.User.Id, scope, narrow, PermissionStateAllow), ErrBotOwnerPermissionCeiling)
+	decision, err = c.PermResolver().Resolve(ctx, bot.User.Id, KindDM, dm.Id, narrow)
+	require.NoError(t, err)
+	require.Equal(t, DecisionDeny, decision)
 	if err := c.SetUserPermissionState(ctx, admin.GetId(), owner.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageRead, PermissionStateAllow); err != nil {
 		t.Fatalf("restore owner DM message.read: %v", err)
 	}
@@ -1349,6 +1382,12 @@ func TestCanonicalUserPermissionMatrixForBotFiltersHiddenRoomsAndKeepsDirectoryG
 	if err != nil {
 		t.Fatalf("SetUserPermissionState empty group room.create: %v", err)
 	}
+	otherGroup := PermissionTargetScope{Kind: MatrixScopeGroup, ID: group.Id}
+	requireBotGrantability(t, c, ctx, owner.Id, bot.User.Id, otherGroup, PermRoomCreate, false)
+	require.ErrorIs(t, c.SetUserPermissionState(ctx, owner.Id, bot.User.Id, otherGroup, PermRoomCreate, PermissionStateAllow), ErrBotOwnerPermissionCeiling)
+	decision, err := c.PermResolver().ResolveGroup(ctx, bot.User.Id, KindChannel, group.Id, PermRoomCreate)
+	require.NoError(t, err)
+	require.Equal(t, DecisionDeny, decision)
 	matrix, err = c.GetUserPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())
 	if err != nil {
 		t.Fatalf("GetUserPermissionMatrix after group grant: %v", err)
