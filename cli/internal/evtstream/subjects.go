@@ -147,6 +147,7 @@ const (
 	EventServerRegistrationAdmissionChanged     = "server_registration_admission_changed"
 	EventServerMotdChanged                      = "server_motd_changed"
 	EventServerBlockedUsernamesChanged          = "server_blocked_usernames_changed"
+	EventServerBrandingAssetRetired             = "server_branding_asset_retired"
 	EventServerLogoSet                          = "server_logo_set"
 	EventServerLogoCleared                      = "server_logo_cleared"
 	EventServerBannerSet                        = "server_banner_set"
@@ -390,6 +391,8 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventServerMotdChanged
 	case *evtv1.Event_ServerBlockedUsernamesChanged:
 		return EventServerBlockedUsernamesChanged
+	case *evtv1.Event_ServerBrandingAssetRetired:
+		return EventServerBrandingAssetRetired
 	case *evtv1.Event_ServerLogoSet:
 		return EventServerLogoSet
 	case *evtv1.Event_ServerLogoCleared:

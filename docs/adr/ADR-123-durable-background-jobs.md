@@ -153,7 +153,7 @@ reconciliation owns the outcome.
 | Notification alert                                                             | 5                           | 15 seconds    | 16                                     |
 | Email                                                                          | Unlimited until expiry      | 5 seconds     | 8 (HTTP server replicas)               |
 | Media                                                                          | Unlimited                   | 30 seconds    | `asset_processing.max_concurrent_jobs` |
-| Asset cleanup, call-key cleanup, push-subscription cleanup, user-key shredding | Unlimited                   | 30 seconds    | `core.job_concurrency` for each type   |
+| Asset cleanup, branding cleanup, call-key cleanup, push-subscription cleanup, user-key shredding | Unlimited                   | 30 seconds    | `core.job_concurrency` for each type   |
 
 Media, cleanup, and key deletion keep the unlimited retries of the workers that
 they replace. A long tool, KMS, or object-store outage must not leave

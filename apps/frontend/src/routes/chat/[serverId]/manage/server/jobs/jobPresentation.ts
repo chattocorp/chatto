@@ -26,6 +26,8 @@ export function knownJobTypeLabel(type: string): string | null {
       return m('admin.jobs.webhook');
     case 'media':
       return m('admin.jobs.media');
+    case 'branding_cleanup':
+      return m('admin.jobs.branding_cleanup');
     case 'asset_cleanup':
       return m('admin.jobs.asset_cleanup');
     case 'call_key_cleanup':

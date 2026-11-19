@@ -376,7 +376,7 @@ func (c *ChattoCore) deleteAsset(ctx context.Context, asset *evtv1.DeprecatedAss
 	c.deleteCachedResizesForServerAsset(ctx, assetIDFromAsset(asset), assetType, ownerID)
 }
 
-func (c *ChattoCore) deleteCachedResizesForServerAsset(ctx context.Context, assetID, assetType, ownerID string) {
+func (c *ChattoCore) deleteCachedResizesForServerAsset(ctx context.Context, assetID, assetType, ownerID string) error {
 	assetKeys := []string{assetID}
 	if logicalID, namespaced, ok := serverAssetRequestKey(assetID); ok {
 		if namespaced {
@@ -405,4 +405,5 @@ func (c *ChattoCore) deleteCachedResizesForServerAsset(ctx context.Context, asse
 			"owner_id", ownerID,
 			"deleted_count", deletedCount)
 	}
+	return cacheErr
 }

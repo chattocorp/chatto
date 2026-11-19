@@ -328,6 +328,7 @@ reaction projection and read behavior.
 | `evt.config.{subject}.server_motd_changed` | `ServerMotdChangedEvent` |
 | `evt.config.{subject}.server_blocked_usernames_changed` | `ServerBlockedUsernamesChangedEvent` |
 | `evt.config.server.server_registration_admission_changed` | `ServerRegistrationAdmissionChangedEvent`; selects open or invitation-only account creation |
+| `evt.config.server.server_branding_asset_retired` | `ServerBrandingAssetRetiredEvent`; records the old asset for cleanup in the same transaction as the pointer change |
 | `evt.config.{subject}.server_logo_set` | `ServerLogoSetEvent` |
 | `evt.config.{subject}.server_logo_cleared` | `ServerLogoClearedEvent` |
 | `evt.config.{subject}.server_banner_set` | `ServerBannerSetEvent` |
@@ -634,7 +635,7 @@ facts identify both participants. They do not appear in room timelines.
 `jobs.{type}.{jobId}.{fact}` carries JSON job facts, in the form that `pkg/jobs` owns, in
 `JOBS`. The fact is `queued`, `started`, `attempt_failed`, `succeeded`,
 `failed`, `retried`, or `deleted`. The job types are `webhook`, `media`,
-`notification_alert`, `asset_cleanup`, `call_key_cleanup`,
+`notification_alert`, `asset_cleanup`, `branding_cleanup`, `call_key_cleanup`,
 `push_subscription_cleanup`, `user_key_shredding`, and `email`. The state of a
 job is the fold of its facts in stream order. The `queued`, `retried`, and `failed`
 facts carry the private work payload and policy. Job facts are operational facts, not

@@ -13,7 +13,7 @@ option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/ev
 //
 // Top-level Event oneof tags owned by this file:
 //   - 500: reserved tombstone for the abandoned server_config_changed snapshot
-//   - 501-525: durable server/user configuration events on evt.config.*
+//   - 501-526: durable server/user configuration events on evt.config.*
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -50,6 +50,11 @@ message ServerMotdChangedEvent {
 
 message ServerBlockedUsernamesChangedEvent {
   string blocked_usernames = 1;
+}
+
+// The branding change in the same batch released the stored object.
+message ServerBrandingAssetRetiredEvent {
+  AssetRecord asset = 1;
 }
 
 message ServerLogoSetEvent {

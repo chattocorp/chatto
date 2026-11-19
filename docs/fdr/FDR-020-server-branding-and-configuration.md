@@ -56,7 +56,7 @@ when the public server profile changes. These changes are infrequent.
 
 ### 4. Branding asset bytes stay outside EVT
 
-**Decision:** Server logo and banner binaries stay in the object store; configuration events only carry the current storage pointer and set/clear history.
+**Decision:** Server logo and banner binaries stay in the object store; configuration events record the current storage pointer and each change. A replacement or removal records the retired asset in the same transaction. A background job removes its stored image and cached sizes.
 **Why:** The event log should record durable domain state and audit history, not inline image bytes. This matches the broader asset model while still making the user-visible branding selection replayable from EVT.
 **Tradeoff:** Backup/restore still needs the object-store bucket alongside EVT. A replay can reconstruct which logo or banner is current, but not the image bytes unless the asset store is preserved too.
 

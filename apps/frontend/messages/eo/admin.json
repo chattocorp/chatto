@@ -606,6 +606,7 @@
       "delete_message": "La laboro de ĉi tiu tasko estas forlasita. Vi ne povos reprovi ĝin poste.",
       "webhook": "Rethoka livero",
       "media": "Prilaborado de aŭdvidaĵoj",
+      "branding_cleanup": "Purigado de servilaj emblemoj kaj standardoj",
       "asset_cleanup": "Purigado de dosieroj",
       "call_key_cleanup": "Forigo de vokŝlosiloj",
       "push_subscription_cleanup": "Purigado de puŝabonoj",
