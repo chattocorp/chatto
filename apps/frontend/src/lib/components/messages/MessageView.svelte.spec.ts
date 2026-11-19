@@ -54,7 +54,9 @@ it('shows the login between the display name and timestamp when the experiment i
 it('truncates the username first and keeps the timestamp on the header line', async () => {
   const displayName = 'Alexandra Montgomery-Westfield';
   const login = 'alexandra.westfield';
-  const headerMeta = createRawSnippet(() => ({ render: () => '<time>12:11 PM</time>' }));
+  const headerMeta = createRawSnippet(() => ({
+    render: () => '<time class="text-muted">12:11 PM</time>'
+  }));
   const view = render(MessageViewTestHarness, {
     ...props,
     actor: { ...actor, login, displayName, customStatus: undefined },
@@ -69,9 +71,20 @@ it('truncates the username first and keeps the timestamp on the header line', as
 
     const time = view.getByText('12:11 PM').element();
     const row = view.getByRole('article').element() as HTMLElement;
-    for (const width of [520, 390, 320, 520]) {
+    for (const width of [800, 520, 390, 320, 800]) {
       row.style.width = `${width}px`;
-      if (width === 520) {
+      if (width === 800) {
+        await expect.element(handle).toBeVisible();
+        const separator = view.getByText('·', { exact: true }).element();
+        expect(
+          separator.getBoundingClientRect().left - handle.getBoundingClientRect().right
+        ).toBeCloseTo(8, 0);
+        expect(
+          time.getBoundingClientRect().left - separator.getBoundingClientRect().right
+        ).toBeCloseTo(8, 0);
+        expect(getComputedStyle(time).color).toBe(getComputedStyle(separator).color);
+        expect(getComputedStyle(time).color).not.toBe(getComputedStyle(handle).color);
+      } else if (width === 520) {
         await expect.element(handle).toBeVisible();
         expect(handle.scrollWidth).toBeGreaterThan(handle.clientWidth);
         expect(name.scrollWidth).toBe(name.clientWidth);
@@ -86,9 +99,8 @@ it('truncates the username first and keeps the timestamp on the header line', as
       const clock = time.getBoundingClientRect();
       expect(clock.top).toBeLessThan(bounds.bottom);
       expect(clock.bottom).toBeGreaterThan(bounds.top);
-      expect(clock.right).toBeCloseTo(
-        row.querySelector('.message-content-stack')!.getBoundingClientRect().right,
-        0
+      expect(clock.right).toBeLessThanOrEqual(
+        row.querySelector('.message-content-stack')!.getBoundingClientRect().right + 1
       );
     }
   } finally {
