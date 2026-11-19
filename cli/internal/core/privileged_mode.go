@@ -129,7 +129,7 @@ func (c *ChattoCore) setRenewableSessionPrivilegedMode(ctx context.Context, sess
 			return PrivilegedModeActivation{}, fmt.Errorf("set renewable-session privileged mode: %w", err)
 		}
 		if action != DeactivatePrivilegedMode {
-			if err := c.recordPrivilegedModeActivated(ctx, session.UserID, next.ExpiresAt); err != nil {
+			if err := c.recordPrivilegedModeActivated(ctx, session.UserID, next); err != nil {
 				c.logger.Warn("Failed to append privileged-mode activation audit event", "error", err)
 			}
 		} else if wasActive {
@@ -197,7 +197,7 @@ func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID stri
 			return PrivilegedModeActivation{}, fmt.Errorf("set cookie-session privileged mode: %w", err)
 		}
 		if action != DeactivatePrivilegedMode {
-			if err := c.recordPrivilegedModeActivated(ctx, tokenData.UserID, next.ExpiresAt); err != nil {
+			if err := c.recordPrivilegedModeActivated(ctx, tokenData.UserID, next); err != nil {
 				c.logger.Warn("Failed to append privileged-mode activation audit event", "error", err)
 			}
 		} else if wasActive {

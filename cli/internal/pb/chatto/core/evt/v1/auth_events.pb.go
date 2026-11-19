@@ -821,10 +821,12 @@ func (x *BearerTokenRevokedEvent) GetRequest() *AuditRequestMetadata {
 // PrivilegedModeActivatedEvent records one successful transition into
 // privileged mode. The deadline identifies when the runtime activation ends.
 type PrivilegedModeActivatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	Request       *AuditRequestMetadata  `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	UserId    string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Request   *AuditRequestMetadata  `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
+	// Protected role names selected for this activation. Older events omit the selection.
+	RoleNames     []string `protobuf:"bytes,4,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -876,6 +878,13 @@ func (x *PrivilegedModeActivatedEvent) GetExpiresAt() *timestamppb.Timestamp {
 func (x *PrivilegedModeActivatedEvent) GetRequest() *AuditRequestMetadata {
 	if x != nil {
 		return x.Request
+	}
+	return nil
+}
+
+func (x *PrivilegedModeActivatedEvent) GetRoleNames() []string {
+	if x != nil {
+		return x.RoleNames
 	}
 	return nil
 }
@@ -1374,12 +1383,14 @@ const file_chatto_core_evt_v1_auth_events_proto_rawDesc = "" +
 	"\x17BearerTokenRevokedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12B\n" +
-	"\arequest\x18\x03 \x01(\v2(.chatto.core.evt.v1.AuditRequestMetadataR\arequest\"\xb6\x01\n" +
+	"\arequest\x18\x03 \x01(\v2(.chatto.core.evt.v1.AuditRequestMetadataR\arequest\"\xd5\x01\n" +
 	"\x1cPrivilegedModeActivatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x129\n" +
 	"\n" +
 	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12B\n" +
-	"\arequest\x18\x03 \x01(\v2(.chatto.core.evt.v1.AuditRequestMetadataR\arequest\"}\n" +
+	"\arequest\x18\x03 \x01(\v2(.chatto.core.evt.v1.AuditRequestMetadataR\arequest\x12\x1d\n" +
+	"\n" +
+	"role_names\x18\x04 \x03(\tR\troleNames\"}\n" +
 	"\x1ePrivilegedModeDeactivatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12B\n" +
 	"\arequest\x18\x02 \x01(\v2(.chatto.core.evt.v1.AuditRequestMetadataR\arequest\"\xfd\x01\n" +
@@ -1422,8 +1433,7 @@ const file_chatto_core_evt_v1_auth_events_proto_rawDesc = "" +
 	"\n" +
 	"client_uri\x18\x06 \x01(\tR\tclientUri\x12\x1a\n" +
 	"\bresource\x18\a \x01(\tR\bresource\x12\x16\n" +
-	"\x06scopes\x18\b \x03(\tR\x06scopesB\xdb\x01\n" +
-	"\x16com.chatto.core.evt.v1B\x0fAuthEventsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
+	"\x06scopes\x18\b \x03(\tR\x06scopesBGZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1b\x06proto3"
 
 var (
 	file_chatto_core_evt_v1_auth_events_proto_rawDescOnce sync.Once

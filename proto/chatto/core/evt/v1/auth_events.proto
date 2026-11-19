@@ -93,6 +93,8 @@ message PrivilegedModeActivatedEvent {
   string user_id = 1;
   google.protobuf.Timestamp expires_at = 2;
   AuditRequestMetadata request = 3;
+  // Protected role names selected for this activation. Older events omit the selection.
+  repeated string role_names = 4;
 }
 
 // PrivilegedModeDeactivatedEvent records one explicit transition out of

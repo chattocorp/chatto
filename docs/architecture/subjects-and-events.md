@@ -398,7 +398,7 @@ reaction projection and read behavior.
 | `evt.user.{userId}.auth_code_exchange_failed` | `AuthCodeExchangeFailedEvent` |
 | `evt.user.{userId}.bearer_token_issued` | `BearerTokenIssuedEvent` |
 | `evt.user.{userId}.bearer_token_revoked` | `BearerTokenRevokedEvent` |
-| `evt.user.{userId}.privileged_mode_activated` | `PrivilegedModeActivatedEvent`; audit-only transition with the fixed deadline |
+| `evt.user.{userId}.privileged_mode_activated` | `PrivilegedModeActivatedEvent`; audit-only transition with the selected protected role names and the fixed deadline |
 | `evt.user.{userId}.privileged_mode_deactivated` | `PrivilegedModeDeactivatedEvent`; audit-only explicit transition before expiry |
 | `evt.user.{userId}.oauth_consent_granted` | `OAuthConsentGrantedEvent` |
 | `evt.user.{userId}.oauth_consent_denied` | `OAuthConsentDeniedEvent` |

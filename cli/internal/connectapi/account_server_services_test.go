@@ -11,6 +11,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/chattocorp/chatto/cli/internal/authctx"
@@ -129,6 +130,14 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 		t.Fatalf("privileged-mode activation audit entries = %d, want 2", len(activationLog.Entries))
 	}
 
+	// The event log is newest first. The legacy request selected both assigned
+	// roles, while the earlier picker request selected only moderator.
+	for i, want := range [][]string{{core.RoleModerator, core.RoleOwner}, {core.RoleModerator}} {
+		var event evtv1.Event
+		require.NoError(t, protojson.Unmarshal([]byte(activationLog.Entries[i].PayloadJSON), &event))
+		require.Equal(t, want, event.GetPrivilegedModeActivated().GetRoleNames())
+	}
+
 	armedContext := requestContext()
 	deactivated, err := env.viewerService.DeactivatePrivilegedMode(armedContext, connect.NewRequest(&apiv1.DeactivatePrivilegedModeRequest{}))
 	if err != nil {
@@ -187,6 +196,7 @@ func TestViewerLegacyActivationRetryKeepsStoredSelection(t *testing.T) {
 				require.NoError(t, err)
 				return res.Msg
 			}
+			require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, user.Id, core.PermAdminAuditView))
 			first := activate()
 			require.False(t, apiCapabilityGranted(first.Capabilities.Grants, viewerCapabilityAdminViewSystem))
 			require.NoError(t, env.core.RevokeServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator))
@@ -200,6 +210,14 @@ func TestViewerLegacyActivationRetryKeepsStoredSelection(t *testing.T) {
 			require.False(t, apiCapabilityGranted(retry.Capabilities.Grants, viewerCapabilityAdminViewSystem))
 			_, err := env.viewerService.ActivatePrivilegedRoles(ctx, connect.NewRequest(&apiv1.ActivatePrivilegedRolesRequest{RoleNames: []string{core.RoleOwner}}))
 			require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
+			log, err := env.core.ListEventLog(ctx, user.Id, core.EventLogQuery{
+				Filter: core.EventLogFilter{EventType: "PrivilegedModeActivatedEvent", ActorID: user.Id},
+			})
+			require.NoError(t, err)
+			require.Len(t, log.Entries, 1)
+			var event evtv1.Event
+			require.NoError(t, protojson.Unmarshal([]byte(log.Entries[0].PayloadJSON), &event))
+			require.Equal(t, []string{core.RoleModerator}, event.GetPrivilegedModeActivated().GetRoleNames())
 			if kind == authctx.RuntimeCredentialKindCookieSession {
 				session, err := env.core.ValidateCookieCredential(ctx, handle)
 				require.NoError(t, err)
