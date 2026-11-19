@@ -7,7 +7,7 @@ identity, body rendering, and row geometry consistent.
 -->
 <script lang="ts">
   import { experimentalFeatures } from '$lib/state/experimentalFeatures.svelte';
-  import MessageAuthorIdentity from './MessageAuthorIdentity.svelte';
+  import ExperimentalMessageHeader from './ExperimentalMessageHeader.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import { getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
@@ -116,7 +116,6 @@ identity, body rendering, and row geometry consistent.
   const actorInteractive = $derived(
     actor !== null && (!!onActorClick || !!onActorContextMenu || !!onActorTouchStart)
   );
-  const newHeader = $derived(experimentalFeatures.newMessageHeader.enabled);
   // Read the current profile so retained messages follow status changes and clears.
   const customStatus = $derived(
     actor && !actor.deleted && !authorLoading && !compact
@@ -191,19 +190,10 @@ identity, body rendering, and row geometry consistent.
       {@render prelude?.()}
 
       {#if !compact}
-        <div
-          class={[
-            'flex min-w-0 items-baseline gap-x-2',
-            newHeader ? 'whitespace-nowrap' : 'flex-wrap gap-y-1'
-          ]}
-        >
+        {#snippet author(identity: Snippet<[UserAvatarUserView]>, fallbackClass: string)}
           {#if actor && !actor.deleted}
             {#snippet authorLabel()}
-              {#if newHeader}
-                <MessageAuthorIdentity name={displayName} {actor} />
-              {:else}
-                <AccountName name={displayName} identity={actor} badgeSize="md" />
-              {/if}
+              {@render identity(actor)}
               <UserCustomStatusBadge status={customStatus} />
               {@render authorSuffix?.()}
             {/snippet}
@@ -227,38 +217,27 @@ identity, body rendering, and row geometry consistent.
           {:else if authorLoading && !actor?.deleted}
             <LoadingDots class="h-4 w-24 shrink-0" />
           {:else if actor?.deleted || (missingActorIsDeleted && !authorLoading)}
-            <strong
-              class={[
-                newHeader ? 'min-w-0 truncate' : 'shrink-0',
-                'leading-tight font-semibold text-muted'
-              ]}
-            >
+            <strong class={[fallbackClass, 'leading-tight font-semibold text-muted']}>
               <DeletedUserLabel />
             </strong>
           {:else}
-            <strong
-              class={[
-                newHeader ? 'min-w-0 truncate' : 'shrink-0',
-                'leading-tight font-semibold text-muted'
-              ]}><bdi>{displayName}</bdi></strong
+            <strong class={[fallbackClass, 'leading-tight font-semibold text-muted']}
+              ><bdi>{displayName}</bdi></strong
             >
           {/if}
-          {#if newHeader && headerMeta}
-            <span
-              class={[
-                '[&>*]:[font-size:inherit]',
-                timelineClock ? 'ms-auto shrink-0' : 'contents [&>time]:truncate'
-              ]}
-            >
-              {#if !timelineClock}
-                <span aria-hidden="true" class="shrink-0 text-muted/60 only:hidden">·</span>
-              {/if}
-              {@render headerMeta()}
-            </span>
-          {:else}
+        {/snippet}
+
+        {#if experimentalFeatures.newMessageHeader.enabled}
+          <ExperimentalMessageHeader {author} {displayName} {headerMeta} {timelineClock} />
+        {:else}
+          {#snippet accountName(resolvedActor: UserAvatarUserView)}
+            <AccountName name={displayName} identity={resolvedActor} badgeSize="md" />
+          {/snippet}
+          <div class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+            {@render author(accountName, 'shrink-0')}
             {@render headerMeta?.()}
-          {/if}
-        </div>
+          </div>
+        {/if}
       {/if}
 
       {#if deleted}
