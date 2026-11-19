@@ -2928,6 +2928,14 @@
 }
 
 @layer base {
+  button,
+  input:is([type='button'], [type='submit'], [type='reset']),
+  [role='button'],
+  label:has(> input:is([type='checkbox'], [type='radio'])),
+  [role='radio'] {
+    @apply select-none;
+  }
+
   /* Match the focus-visible variant: hide the browser's default focus outline
      after pointer input. Text entry keeps it, as browsers always show focus
      on fields that accept typing. */

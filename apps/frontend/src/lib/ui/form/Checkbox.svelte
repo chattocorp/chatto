@@ -129,9 +129,13 @@ the DOM for form semantics, keyboard focus, and screen-reader state.
     </span>
 
     {#if error}
-      <span id={`${id}-error`} role="alert" class="block text-sm text-error">{error}</span>
+      <span id={`${id}-error`} role="alert" class="block text-sm text-error select-text"
+        >{error}</span
+      >
     {:else if description}
-      <span id={`${id}-description`} class="block text-sm text-muted">{description}</span>
+      <span id={`${id}-description`} class="block text-sm text-muted select-text"
+        >{description}</span
+      >
     {/if}
   </span>
 </label>
