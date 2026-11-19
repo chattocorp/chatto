@@ -96,6 +96,8 @@ clients must follow the same rule.
 
 **Tradeoff:** The legacy activation command selects all assigned protected roles when it starts a window. A retry during that window keeps the stored selection and deadline, even if the user’s assigned roles have changed.
 
+A role-picker retry checks the current assignments again. If a picked role has been revoked, the retry returns `PERMISSION_DENIED` when another protected role is available or `FAILED_PRECONDITION` when none are available. The session keeps its original selection and deadline. The revoked role grants no permissions while it is unassigned, and the user can still deactivate Shield Mode.
+
 ### 3. Use one fixed session window
 
 **Decision:** One confirmation starts a fixed 15-minute window for the current

@@ -310,7 +310,7 @@ func (c *ChattoCore) createBearerSessionForGrant(ctx context.Context, userID, cl
 		return BearerSessionCredentials{}, fmt.Errorf("marshal renewable session: %w", err)
 	}
 	sessionKey := c.renewableSessionKey(sessionID)
-	if _, err := c.storage.runtimeStateKV.Create(ctx, sessionKey, value, jetstream.KeyTTL(session.ExpiresAt.Sub(now))); err != nil {
+	if _, err := c.storage.runtimeStateKV.Create(ctx, sessionKey, value, jetstream.KeyTTL(runtimeStateRetention(session.ExpiresAt.Sub(now)))); err != nil {
 		return BearerSessionCredentials{}, fmt.Errorf("store renewable session: %w", err)
 	}
 	credentials := c.credentialsForGeneration(sessionID, session, now)
@@ -370,7 +370,7 @@ func (c *ChattoCore) createAccessTokenRecord(ctx context.Context, sessionID stri
 	if err != nil {
 		return fmt.Errorf("marshal bearer access token: %w", err)
 	}
-	if _, err := c.storage.runtimeStateKV.Create(ctx, c.authTokenKey(token), value, jetstream.KeyTTL(ttl)); err != nil {
+	if _, err := c.storage.runtimeStateKV.Create(ctx, c.authTokenKey(token), value, jetstream.KeyTTL(runtimeStateRetention(ttl))); err != nil {
 		if !jetstreamutil.IsSequenceConflict(err) {
 			return fmt.Errorf("store bearer access token: %w", err)
 		}

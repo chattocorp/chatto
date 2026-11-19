@@ -202,7 +202,7 @@ func newConnectAPITestEnvWithAuth(t *testing.T, timeout time.Duration, auth conf
 		threads:              &threadService{api: api},
 		users:                &userService{api: api},
 		viewerService:        &viewerService{api: api},
-		voice:                &voiceCallService{api: api},
+		voice:                &voiceCallService{api: api, now: time.Now},
 		viewer:               viewer,
 	}
 }

@@ -57,12 +57,12 @@ type participantMetadata struct {
 
 // StoreCallRoleSelection saves the issuing credential's selection until its
 // deadline. The reference is bound to one LiveKit room, participant and user.
-func (c *ChattoCore) StoreCallRoleSelection(ctx context.Context, roomName, identity, userID string) (string, error) {
+func (c *ChattoCore) StoreCallRoleSelection(ctx context.Context, roomName, identity, userID string, now time.Time) (string, error) {
 	credential, ok := authctx.CredentialForContext(ctx)
 	if !ok || credential.Kind == authctx.RuntimeCredentialKindBotAPIKey || credential.UserID != userID {
 		return "", nil
 	}
-	ttl := time.Until(credential.PrivilegedModeExpiresAt)
+	ttl := credential.PrivilegedModeExpiresAt.Sub(now)
 	if ttl <= 0 || len(credential.PrivilegedRoles) == 0 {
 		return "", nil
 	}
@@ -74,10 +74,7 @@ func (c *ChattoCore) StoreCallRoleSelection(ctx context.Context, roomName, ident
 		return "", err
 	}
 	ref := rand.Text()
-	// JetStream stores TTLs in whole seconds. Round retention up so that the
-	// record remains available until the exact deadline checked by callRoles.
-	retention := (ttl + time.Second - 1).Truncate(time.Second)
-	_, err = c.storage.runtimeStateKV.Create(ctx, callSelectionKey(ref), value, jetstream.KeyTTL(retention))
+	_, err = c.storage.runtimeStateKV.Create(ctx, callSelectionKey(ref), value, jetstream.KeyTTL(runtimeStateRetention(ttl)))
 	if err != nil {
 		return "", fmt.Errorf("store call role selection: %w", err)
 	}

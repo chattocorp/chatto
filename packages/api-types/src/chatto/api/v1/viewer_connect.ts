@@ -42,8 +42,11 @@ export const ViewerService = {
     },
     /**
      * Activates only the selected roles for 15 minutes.
-     * Returns PERMISSION_DENIED for an unassigned or unprotected role. Deactivate
-     * before changing the selection. Repeated activation keeps the deadline.
+     * Each request, including a retry, requires all selected roles to be assigned
+     * and protected. Returns FAILED_PRECONDITION if no protected roles are
+     * available, or PERMISSION_DENIED if a selected role is unavailable.
+     * A rejected retry preserves the stored selection and deadline. Deactivate
+     * before changing the selection.
      *
      * @generated from rpc chatto.api.v1.ViewerService.ActivatePrivilegedRoles
      */
