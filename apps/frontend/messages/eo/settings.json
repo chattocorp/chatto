@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Eksperimentaj funkcioj",
+      "new_message_header": "Nova mesaĝokapo"
+    },
     "desktop": {
       "title": "Ĝisdatigoj",
       "subtitle": "Ĝisdatigoj por ĉi tiu instalaĵo",

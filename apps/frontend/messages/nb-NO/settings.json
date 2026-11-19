@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Eksperimentelle funksjoner",
+      "new_message_header": "Ny meldingsoverskrift"
+    },
     "desktop": {
       "title": "Oppdateringer",
       "subtitle": "Oppdateringer for denne installasjonen",

@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "實驗性功能",
+      "new_message_header": "新版訊息標頭"
+    },
     "desktop": {
       "title": "更新",
       "subtitle": "此安裝的更新",

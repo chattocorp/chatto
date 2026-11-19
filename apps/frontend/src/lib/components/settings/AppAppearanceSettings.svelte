@@ -11,7 +11,8 @@
   import AccentColorPicker from './AccentColorPicker.svelte';
   import SettingsColumns from './SettingsColumns.svelte';
   import SurfaceTonePicker from './SurfaceTonePicker.svelte';
-  import { RangeField } from '$lib/ui/form';
+  import { experimentalFeatures } from '$lib/state/experimentalFeatures.svelte';
+  import { Checkbox, RangeField } from '$lib/ui/form';
   import { transitionTheme } from '$lib/dom/viewTransitions';
   import type { AnimationPreference } from '$lib/dom/motionPreference';
 
@@ -244,6 +245,16 @@
               />
             {/each}
           </div>
+        </div>
+      </Panel>
+
+      <Panel title={m('settings.experiments.title')} icon="iconify icon-[uil--flask]">
+        <div class="max-w-md">
+          <Checkbox
+            id="new-message-header"
+            label={m('settings.experiments.new_message_header')}
+            bind:checked={experimentalFeatures.newMessageHeader.enabled}
+          />
         </div>
       </Panel>
     </div>

@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "תכונות ניסיוניות",
+      "new_message_header": "כותרת הודעה חדשה"
+    },
     "desktop": {
       "title": "עדכונים",
       "subtitle": "עדכונים להתקנה זו",

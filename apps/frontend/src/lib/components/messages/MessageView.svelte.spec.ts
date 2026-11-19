@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createRawSnippet, flushSync } from 'svelte';
+import { experimentalFeatures } from '$lib/state/experimentalFeatures.svelte';
+import '../../../app.css';
 import { render } from 'vitest-browser-svelte';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -16,6 +19,24 @@ const actor: UserAvatarUserView = {
 const props = { eventId: 'message', actor, displayName: 'Message author', body: 'Hello' };
 
 afterEach(() => vi.useRealTimers());
+
+it('moves the timestamp below the author when the experiment is enabled', async () => {
+  const headerMeta = createRawSnippet(() => ({ render: () => '<time>12:34</time>' }));
+  const view = render(MessageViewTestHarness, { ...props, headerMeta });
+  const author = view.getByText(props.displayName, { exact: true });
+  const time = view.getByText('12:34');
+  await expect.element(author).toBeVisible();
+  const isBelowAuthor = () =>
+    time.element().getBoundingClientRect().top >= author.element().getBoundingClientRect().bottom;
+  expect(isBelowAuthor()).toBe(false);
+  try {
+    flushSync(() => (experimentalFeatures.newMessageHeader.enabled = true));
+    expect(isBelowAuthor()).toBe(true);
+  } finally {
+    flushSync(() => (experimentalFeatures.newMessageHeader.enabled = false));
+  }
+  expect(isBelowAuthor()).toBe(false);
+});
 
 describe('message author custom status', () => {
   it.each([false, true])(

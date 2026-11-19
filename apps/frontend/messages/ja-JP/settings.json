@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "試験的な機能",
+      "new_message_header": "新しいメッセージヘッダー"
+    },
     "desktop": {
       "title": "更新",
       "subtitle": "このインストールの更新",

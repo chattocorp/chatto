@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Експериментальні функції",
+      "new_message_header": "Новий заголовок повідомлення"
+    },
     "desktop": {
       "title": "Оновлення",
       "subtitle": "Оновлення цієї інсталяції",

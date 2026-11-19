@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "ميزات تجريبية",
+      "new_message_header": "ترويسة رسالة جديدة"
+    },
     "desktop": {
       "title": "التحديثات",
       "subtitle": "تحديثات هذا التثبيت",

@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Experimentella funktioner",
+      "new_message_header": "Ny meddelanderubrik"
+    },
     "desktop": {
       "title": "Uppdateringar",
       "subtitle": "Uppdateringar för den här installationen",

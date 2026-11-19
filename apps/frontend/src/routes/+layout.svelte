@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { refreshExperimentalFeatures } from '$lib/state/experimentalFeatures.svelte';
   import { initialPageReveal } from '$lib/dom/initialPageReveal';
   import { watchMotionPreference } from '$lib/dom/motionPreference';
   import {
@@ -168,7 +169,10 @@
   });
 </script>
 
-<svelte:window onresize={() => appUi.loadVisibleRoomMembers()} />
+<svelte:window
+  onstorage={refreshExperimentalFeatures}
+  onresize={() => appUi.loadVisibleRoomMembers()}
+/>
 
 {#if !standaloneOAuth}
   <GlobalKeyboardShortcuts />

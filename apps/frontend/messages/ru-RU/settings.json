@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Экспериментальные функции",
+      "new_message_header": "Новый заголовок сообщения"
+    },
     "desktop": {
       "title": "Обновления",
       "subtitle": "Обновления этой установки",

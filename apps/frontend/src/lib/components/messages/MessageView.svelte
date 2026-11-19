@@ -6,6 +6,7 @@ their own contextual metadata and actions while this component keeps message
 identity, body rendering, and row geometry consistent.
 -->
 <script lang="ts">
+  import { experimentalFeatures } from '$lib/state/experimentalFeatures.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import { getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
@@ -219,7 +220,13 @@ identity, body rendering, and row geometry consistent.
               ><bdi>{displayName}</bdi></strong
             >
           {/if}
-          {@render headerMeta?.()}
+          {#if headerMeta && experimentalFeatures.newMessageHeader.enabled}
+            <div class="flex min-w-0 basis-full flex-wrap items-baseline gap-x-2 gap-y-1">
+              {@render headerMeta()}
+            </div>
+          {:else}
+            {@render headerMeta?.()}
+          {/if}
         </div>
       {/if}
 

@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Katsefunktsioonid",
+      "new_message_header": "Uus sõnumipäis"
+    },
     "desktop": {
       "title": "Uuendused",
       "subtitle": "Selle paigalduse uuendused",

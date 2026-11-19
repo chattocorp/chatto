@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Experimental Features",
+      "new_message_header": "New message header"
+    },
     "desktop": {
       "title": "Updates",
       "subtitle": "Updates for this installation",

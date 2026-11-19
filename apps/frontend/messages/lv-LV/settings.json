@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Eksperimentālās funkcijas",
+      "new_message_header": "Jauna ziņojuma galvene"
+    },
     "desktop": {
       "title": "Atjauninājumi",
       "subtitle": "Šīs instalācijas atjauninājumi",

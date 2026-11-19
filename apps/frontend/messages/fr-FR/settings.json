@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Fonctionnalités expérimentales",
+      "new_message_header": "Nouvel en-tête de message"
+    },
     "desktop": {
       "title": "Mises à jour",
       "subtitle": "Mises à jour de cette installation",

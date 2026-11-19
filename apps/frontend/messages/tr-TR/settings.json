@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Deneysel özellikler",
+      "new_message_header": "Yeni ileti başlığı"
+    },
     "desktop": {
       "title": "Güncellemeler",
       "subtitle": "Bu kurulumun güncellemeleri",

@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Funzioni sperimentali",
+      "new_message_header": "Nuova intestazione del messaggio"
+    },
     "desktop": {
       "title": "Aggiornamenti",
       "subtitle": "Aggiornamenti di questa installazione",

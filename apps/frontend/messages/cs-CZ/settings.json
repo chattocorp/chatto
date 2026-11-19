@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Experimentální funkce",
+      "new_message_header": "Nové záhlaví zprávy"
+    },
     "desktop": {
       "title": "Aktualizace",
       "subtitle": "Aktualizace této instalace",

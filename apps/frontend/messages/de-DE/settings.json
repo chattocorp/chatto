@@ -1,5 +1,9 @@
 {
   "settings": {
+    "experiments": {
+      "title": "Experimentelle Funktionen",
+      "new_message_header": "Neue Nachrichtenkopfzeile"
+    },
     "desktop": {
       "title": "Updates",
       "subtitle": "Updates für diese Installation",

@@ -10,6 +10,25 @@ import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
 test.describe('App and User Preferences', () => {
+  test('shares experimental features across tabs and remembers them after reload', async ({
+    page,
+    context
+  }) => {
+    await createAndLoginTestUser(page);
+    await page.goto(routes.appPreferencesAppearance);
+    const other = await context.newPage();
+    await other.goto(routes.appPreferencesAppearance);
+    const toggle = page.getByRole('checkbox', { name: 'New message header' });
+    const otherToggle = other.getByRole('checkbox', { name: 'New message header' });
+    await expect(otherToggle).not.toBeChecked();
+    await page.getByText('New message header', { exact: true }).click();
+    await expect(otherToggle).toBeChecked();
+    await other.reload();
+    await expect(otherToggle).toBeChecked();
+    await other.getByText('New message header', { exact: true }).click();
+    await expect(toggle).not.toBeChecked();
+  });
+
   test('opens the settings Overview from the Application Header', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.chat);
