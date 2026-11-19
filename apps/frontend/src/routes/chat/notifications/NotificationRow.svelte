@@ -104,7 +104,7 @@
                 y="7.5"
                 direction="ltr"
                 dominant-baseline="central"
-                font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif"
+                font-family="Twemoji, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif"
                 font-size="12">{reactionEmoji}</text
               >
             </svg>

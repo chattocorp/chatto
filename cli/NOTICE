@@ -132,6 +132,10 @@ Frontend, Examples, and Documentation Components:
   https://fontsource.org/fonts/ibm-plex-mono) - SIL Open Font License 1.1
 - daisyUI, used by the Runling console (https://daisyui.com/) - MIT License
 - gemoji (https://github.com/github/gemoji) - MIT License
+- Twemoji graphics (https://github.com/jdecked/twemoji) - Creative Commons
+  Attribution 4.0 International (CC-BY-4.0); Copyright 2014-2021 Twitter,
+  Copyright 2022-present Jason Sofonia & Justine De Caires. Chatto converts the
+  graphics into the bundled Twemoji color font.
 - Unicode Emoji 15.0 data (https://www.unicode.org/Public/emoji/15.0/)
   - Unicode Data Files and Software License (Unicode-DFS-2016)
   - Copyright © 2022 Unicode, Inc. Used to generate skin-tone emoji mappings.

@@ -265,6 +265,10 @@ description = "Generate server, client, and converter emoji maps from gemoji and
 depends = ["setup-frontend"]
 run = "node tools/gen-emoji-map.mjs"
 
+[tasks.update-twemoji-font]
+description = "Build the bundled Twemoji font from the pinned Twemoji release (output is committed)"
+run = "uv run --script tools/build-twemoji-font.py"
+
 [tasks.codegen]
 description = "Run all code generation tasks"
 run = { task = "codegen-*" }

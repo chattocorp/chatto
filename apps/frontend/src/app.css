@@ -7,6 +7,26 @@
 @import './composer.css';
 @import './view-transitions.css';
 
+/* Twemoji gives emoji the same look on every platform. Build the font with
+   `mise update-twemoji-font` (tools/build-twemoji-font.py).
+
+   The font is first in each font stack: Safari selects the system emoji font
+   for an emoji presentation sequence (a character followed by U+FE0F) when
+   this font comes after the text font. The unicode-range keeps text in the
+   text font. It excludes ASCII, because the font maps digits, `#`, and `*` to
+   empty glyphs for keycap sequences, and it excludes ©, ®, and ™, which text
+   uses as symbols. Keycap emoji therefore use the system emoji font. The
+   browser downloads the font only when a page shows a character in the range. */
+@font-face {
+  font-family: Twemoji;
+  src: url('./lib/assets/fonts/twemoji.woff2') format('woff2');
+  font-display: swap;
+  unicode-range:
+    U+200D, U+203C, U+2049, U+20E3, U+2139, U+2194-2199, U+21A9-21AA, U+231A-23FF, U+24C2,
+    U+25AA-27BF, U+2934-2935, U+2B05-2B55, U+3030, U+303D, U+3297, U+3299, U+FE0F, U+1F000-1FAFF,
+    U+E0020-E007F;
+}
+
 /* Both CSS and JavaScript use the effective app motion policy. */
 @custom-variant motion-reduce (&:where([data-motion='reduced'], [data-motion='reduced'] *));
 @custom-variant motion-safe (&:where([data-motion='full'], [data-motion='full'] *));
@@ -822,8 +842,8 @@
   --container-pane: 64rem;
   --container-pane-wide: 72rem;
 
-  --font-sans: 'IBM Plex Sans Variable', sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
+  --font-sans: Twemoji, 'IBM Plex Sans Variable', sans-serif;
+  --font-mono: Twemoji, 'IBM Plex Mono', monospace;
 
   /* Tailwind defines neutrals with a `none` hue. Chrome before 138 carries
      that missing component into the blue channel of `color-mix(in srgb, …)`,
