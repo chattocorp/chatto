@@ -446,18 +446,23 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 	logger.Info("Push notifications enabled")
 
 	chattoCore.OnPushTestRequested = func(ctx context.Context, userID string) error {
+		testLog := logger.With("user_id", userID)
 		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, userID)
 		if err != nil {
+			testLog.Warn("Push test failed", "stage", "subscription_lookup")
 			return err
 		}
 		if len(subscriptions) == 0 {
+			testLog.Warn("Push test failed", "stage", "subscription_lookup", "subscription_count", 0)
 			return errors.New("no push subscriptions registered")
 		}
 		subscriptions, err = filterOwnedPushSubscriptions(ctx, chattoCore, userID, subscriptions)
 		if err != nil {
+			testLog.Warn("Push test failed", "stage", "ownership_check")
 			return fmt.Errorf("revalidate push endpoint ownership: %w", err)
 		}
 		if len(subscriptions) == 0 {
+			testLog.Warn("Push test failed", "stage", "ownership_check", "subscription_count", 0)
 			return errors.New("no current push subscriptions registered")
 		}
 		results := sender.SendToManyMapped(ctx, subscriptions, func(subscription *runtimestatev1.PushSubscription) *push.Payload {
@@ -473,12 +478,11 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 		var sendErr error
 		accepted := false
 		for _, result := range results {
+			logPushTestDelivery(testLog, len(subscriptions), result)
 			if result.Gone {
 				if err := chattoCore.DeletePushSubscription(ctx, userID, result.Endpoint); err != nil {
-					logger.Warn("Failed to remove gone push subscription",
-						"user_id", userID,
-						"endpoint_hash", push.EndpointLogID(result.Endpoint),
-						"error", err)
+					testLog.Warn("Failed to remove gone push subscription",
+						"endpoint_hash", push.EndpointLogID(result.Endpoint))
 				}
 			}
 			if result.Error == nil && result.Success {
@@ -498,6 +502,30 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 	}
 
 	chattoCore.SetNotificationAlertHandler(notificationAlertHandler(chattoCore, cfg, sender, logger))
+}
+
+// logPushTestDelivery records only controlled outcomes. Endpoints and error
+// messages can contain subscription credentials.
+func logPushTestDelivery(logger *log.Logger, count int, result *push.SendResult) {
+	fields := []any{"subscription_count", count, "endpoint_hash", push.EndpointLogID(result.Endpoint)}
+	if result.HTTPStatus != 0 {
+		fields = append(fields, "http_status", result.HTTPStatus)
+	}
+	outcome := "request_failed"
+	switch {
+	case result.Success:
+		logger.Info("Push test delivery", append(fields, "outcome", "accepted")...)
+		return
+	case result.Gone:
+		outcome = "subscription_gone"
+	case result.HTTPStatus != 0:
+		outcome = "provider_rejected"
+	case errors.Is(result.Error, context.DeadlineExceeded):
+		outcome = "timeout"
+	case errors.Is(result.Error, context.Canceled):
+		outcome = "canceled"
+	}
+	logger.Warn("Push test delivery", append(fields, "outcome", outcome)...)
 }
 
 type notificationPushSender interface {
