@@ -57,6 +57,7 @@ parent and scrolls internally with a sticky column header.
     effective: MatrixDecision;
     /** Present when a delegation ceiling can prevent storing an allow. */
     allowPermitted?: boolean;
+    actorCanGrant?: boolean;
   };
   export type MatrixData = {
     applicablePermissions: string[];
@@ -409,13 +410,17 @@ parent and scrolls internally with a sticky column header.
                         scope: scope.label,
                         state: decisionWord(eff)
                       })}
+              {@const editorGrantBlocked =
+                cell.actorCanGrant === false && cell.override === 'NONE' && !inheritedBinaryGrant}
               {@const allowConstraint =
                 cell.allowPermitted === false
                   ? m('rbac.permissions.binary.owner_ceiling', {
                       permission: permissionId,
                       scope: scope.label
                     })
-                  : null}
+                  : editorGrantBlocked
+                    ? m('common.error.permission_denied')
+                    : null}
               {@const titleParts = forceAllow
                 ? [
                     m('rbac.permissions.cell.owner_allow'),
@@ -472,7 +477,7 @@ parent and scrolls internally with a sticky column header.
                 updating={updatingKey === `${scope.id}::${permission}`}
                 disabled={readOnly}
                 locked={inheritedBinaryGrant}
-                allowBlocked={cell.allowPermitted === false &&
+                allowBlocked={(cell.allowPermitted === false || editorGrantBlocked) &&
                   (decisionMode !== 'binary' || parent !== 'ALLOW')}
                 ceilingBlocked={cell.allowPermitted === false &&
                   (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}

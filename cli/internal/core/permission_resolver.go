@@ -116,7 +116,7 @@ func (r *PermissionResolver) resolveInContentView(ctx context.Context, resolve f
 }
 
 // resolveWithGroup resolves effective authorization. For humans, privileged
-// mode gates selected roles, the owner override, and elevated direct grants. An owner without active privileged mode resolves through direct
+// mode gates selected role grants and the owner override. An owner without active privileged mode resolves through direct
 // grants, named roles, and the everyone baseline like any other human.
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
 	// A bot subject has no human session to arm, including during inspection.
@@ -152,28 +152,6 @@ func withRoleEntitlement(ctx context.Context, userID string) context.Context {
 	return context.WithValue(ctx, privilegedModeEvaluationKey{}, privilegedModeEvaluation{userID: userID, active: true, allRoles: true})
 }
 
-// PrivilegedModeDeadline returns the end of the active privileged mode of the
-// human credential in ctx when it authenticates userID. It returns zero when
-// the mode is inactive, ctx has no human credential, or the credential belongs
-// to another user. Work that outlives the request, such as a call connection,
-// stores this deadline to keep the same state.
-func PrivilegedModeDeadline(ctx context.Context, userID string) time.Time {
-	credential, ok := authctx.CredentialForContext(ctx)
-	if !ok || credential.Kind == authctx.RuntimeCredentialKindBotAPIKey || credential.UserID != userID || !time.Now().Before(credential.PrivilegedModeExpiresAt) {
-		return time.Time{}
-	}
-	return credential.PrivilegedModeExpiresAt
-}
-
-// PrivilegedRoles returns the role selection attached to the current credential.
-func PrivilegedRoles(ctx context.Context, userID string) []string {
-	credential, ok := authctx.CredentialForContext(ctx)
-	if !ok || credential.UserID != userID || !time.Now().Before(credential.PrivilegedModeExpiresAt) {
-		return nil
-	}
-	return credential.PrivilegedRoles
-}
-
 // privilegedModeAllows reports whether privileged mode is active for userID.
 // A fixed evaluation state wins. Otherwise, internal work without a credential
 // keeps entitlement semantics. An authenticated request resolves checks for a
@@ -207,14 +185,6 @@ func privilegedRoleAllows(ctx context.Context, userID, role string) bool {
 	}
 	credential, ok := authctx.CredentialForContext(ctx)
 	return !ok || slices.Contains(credential.PrivilegedRoles, role)
-}
-
-// resolveEntitlement reads assigned authority in a consistent content view,
-// without applying the inspecting human's session activation state.
-func (r *PermissionResolver) resolveEntitlement(ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission) (DecisionKind, error) {
-	return r.resolveInContentView(ctx, func(readCtx context.Context) (DecisionKind, error) {
-		return r.resolveEntitlementWithGroup(readCtx, userID, kind, roomID, groupID, perm)
-	})
 }
 
 // resolveEntitlementWithGroup resolves durable RBAC entitlement without the
@@ -405,7 +375,7 @@ func (r *PermissionResolver) applicableDecisions(
 	ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission,
 ) (applicablePermissionDecisions, error) {
 	var out applicablePermissionDecisions
-	meta, known := GetPermissionMetadata(perm)
+	_, known := GetPermissionMetadata(perm)
 	if !known {
 		return out, nil
 	}
@@ -422,9 +392,7 @@ func (r *PermissionResolver) applicableDecisions(
 
 	for _, subject := range subjects {
 		allows := true
-		if subject == userID {
-			allows = !meta.RequiresPrivilegedMode || privilegedModeAllows(ctx, userID, time.Now())
-		} else if r.rbac.roleRequiresShieldMode(subject) {
+		if subject != userID && r.rbac.roleRequiresShieldMode(subject) {
 			allows = privilegedRoleAllows(ctx, userID, subject)
 		}
 		entry, gated := nearestSubjectDecision(scopes, subject, allows, func(target permissionScopeTarget) DecisionKind {

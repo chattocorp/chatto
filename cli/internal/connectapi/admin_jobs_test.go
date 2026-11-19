@@ -17,7 +17,7 @@ import (
 	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
-func TestJobsAPIRequiresPermissionAndPrivilegedMode(t *testing.T) {
+func TestJobsAPIUsesEffectiveServerManagePermission(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	service := &adminJobService{api: env.api}
 	_, err := service.ListJobs(env.ctx, connect.NewRequest(&adminv1.ListJobsRequest{}))
@@ -29,10 +29,7 @@ func TestJobsAPIRequiresPermissionAndPrivilegedMode(t *testing.T) {
 	_, err = service.DeleteJob(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.DeleteJobRequest{Id: "missing"}))
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermServerManage))
-	// Authority alone is insufficient for a human bearer session.
-	_, err = service.ListJobs(withBearerCredential(env.ctx, env.viewer, "unarmed"), connect.NewRequest(&adminv1.ListJobsRequest{}))
-	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
-	ctx := withArmedBearerCredential(env.ctx, env.viewer, "armed")
+	ctx := withBearerCredential(env.ctx, env.viewer, "unarmed")
 	response, err := service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{}))
 	require.NoError(t, err)
 	require.Empty(t, response.Msg.Jobs)

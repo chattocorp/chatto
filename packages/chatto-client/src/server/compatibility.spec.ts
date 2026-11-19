@@ -52,11 +52,27 @@ describe('bundled frontend feature guidance', () => {
 
 describe('server compatibility evaluation', () => {
   it.each([
-    ['0.5.0-beta.11', 'limited', ['threadViews', 'independentSlowMode', 'backgroundJobs']],
-    ['0.5.0-beta.15-custom', 'limited', ['threadViews', 'independentSlowMode', 'backgroundJobs']],
-    ['0.5.0-beta.16', 'supported', ['independentSlowMode', 'backgroundJobs']],
-    ['0.5.0-beta.16-custom+build.2', 'supported', ['independentSlowMode', 'backgroundJobs']],
-    ['0.5.0', 'supported', ['backgroundJobs']],
+    [
+      '0.5.0-beta.11',
+      'limited',
+      ['threadViews', 'independentSlowMode', 'backgroundJobs', 'shieldRoleSelection']
+    ],
+    [
+      '0.5.0-beta.15-custom',
+      'limited',
+      ['threadViews', 'independentSlowMode', 'backgroundJobs', 'shieldRoleSelection']
+    ],
+    [
+      '0.5.0-beta.16',
+      'supported',
+      ['independentSlowMode', 'backgroundJobs', 'shieldRoleSelection']
+    ],
+    [
+      '0.5.0-beta.16-custom+build.2',
+      'supported',
+      ['independentSlowMode', 'backgroundJobs', 'shieldRoleSelection']
+    ],
+    ['0.5.0', 'supported', ['backgroundJobs', 'shieldRoleSelection']],
     ['0.6.0', 'supported', []],
     ['dev', 'unknown', []],
     ['', 'unknown', []]
@@ -78,7 +94,10 @@ describe('server compatibility evaluation', () => {
     expect(serverFeatureSupport('0.5.0-beta.17', 'independentSlowMode')).toBe('limited');
     expect(serverFeatureSupport('0.5.0-beta.18', 'independentSlowMode')).toBe('supported');
     expect(serverFeatureSupport('dev', 'independentSlowMode')).toBe('unknown');
-    expect(limitedServerFeatures('0.5.0-beta.18')).toEqual(['backgroundJobs']);
+    expect(limitedServerFeatures('0.5.0-beta.18')).toEqual([
+      'backgroundJobs',
+      'shieldRoleSelection'
+    ]);
     expect(isConnectableServerVersion('0.5.0-beta.17')).toBe(true);
   });
 

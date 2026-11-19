@@ -130,7 +130,6 @@
         "open": "Informazioni su {permission}",
         "category": "Categoria",
         "scopes": "Impostabile per",
-        "privileged_detail": "Se concessa direttamente a un account, questa autorizzazione richiede la modalità privilegiata.",
         "includes": "Include",
         "included_by": "Inclusa in"
       }

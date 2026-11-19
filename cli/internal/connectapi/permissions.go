@@ -398,13 +398,12 @@ func apiPermissionMatrixCells(cells []core.PermissionMatrixCell) []*adminv1.Perm
 	out := make([]*adminv1.PermissionMatrixCell, 0, len(cells))
 	for _, cell := range cells {
 		mapped := &adminv1.PermissionMatrixCell{
-			Permission: cell.Permission,
-			ScopeId:    cell.ScopeID,
-			Override:   apiPermissionDecision(cell.Override),
-			Effective:  apiPermissionDecision(cell.Effective),
-		}
-		if cell.AllowPermitted != nil {
-			mapped.AllowPermitted = cell.AllowPermitted
+			Permission:     cell.Permission,
+			ScopeId:        cell.ScopeID,
+			Override:       apiPermissionDecision(cell.Override),
+			Effective:      apiPermissionDecision(cell.Effective),
+			AllowPermitted: cell.AllowPermitted,
+			ActorCanGrant:  cell.ActorCanGrant,
 		}
 		out = append(out, mapped)
 	}

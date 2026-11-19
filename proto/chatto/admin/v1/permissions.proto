@@ -105,9 +105,11 @@ message PermissionMatrixCell {
   PermissionDecision override = 3;
   // Effective decision at this scope.
   PermissionDecision effective = 4;
-  // Whether an explicit allow may currently be stored for this target. Absent
-  // when no additional delegation ceiling applies.
+  // Whether the bot owner's assigned permissions allow this grant. Absent for other targets.
   optional bool allow_permitted = 5;
+  // Whether the editor currently holds this permission at this scope. For bots,
+  // adding a grant requires both this authority and the owner's entitlement.
+  optional bool actor_can_grant = 6;
 }
 
 // Complete permission matrix for one role at the matching scopes.

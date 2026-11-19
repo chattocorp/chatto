@@ -130,7 +130,6 @@
         "open": "关于 {permission}",
         "category": "类别",
         "scopes": "可设置范围",
-        "privileged_detail": "如果直接向账户授予此权限，则需启用特权模式才能使用此权限。",
         "includes": "包含",
         "included_by": "被以下权限包含"
       }

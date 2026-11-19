@@ -212,7 +212,8 @@ describe('createPermissionAPI', () => {
             scopeId: 'group:G1',
             override: PermissionDecision.NONE,
             effective: PermissionDecision.NONE,
-            allowPermitted: false
+            allowPermitted: true,
+            actorCanGrant: false
           }
         ]
       }
@@ -231,7 +232,8 @@ describe('createPermissionAPI', () => {
           scopeId: 'group:G1',
           override: 'NONE',
           effective: 'NONE',
-          allowPermitted: false
+          allowPermitted: true,
+          actorCanGrant: false
         }
       ]
     });

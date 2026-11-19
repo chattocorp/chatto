@@ -56,12 +56,12 @@ describe('PermissionHelpDialog', () => {
     await expect.element(help).toHaveTextContent('Included in message.post');
   });
 
-  it('marks permissions that need privileged mode', async () => {
+  it('shows no per-permission Shield Mode requirement', async () => {
     const help = openHelp('message.manage');
 
     await expect
       .element(help)
-      .toHaveTextContent(
+      .not.toHaveTextContent(
         'When granted directly to an account, this permission requires Shield Mode.'
       );
   });

@@ -130,7 +130,6 @@
         "open": "Sobre {permission}",
         "category": "Categoria",
         "scopes": "Configurável para",
-        "privileged_detail": "Quando atribuída diretamente a uma conta, esta permissão exige o modo privilegiado.",
         "includes": "Inclui",
         "included_by": "Incluída em"
       }

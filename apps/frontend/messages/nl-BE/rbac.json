@@ -130,7 +130,6 @@
         "open": "Over {permission}",
         "category": "Categorie",
         "scopes": "In te stellen voor",
-        "privileged_detail": "Als dit recht rechtstreeks aan een account is toegekend, is de bevoorrechte modus nodig om het te gebruiken.",
         "includes": "Omvat",
         "included_by": "Onderdeel van"
       }

@@ -612,7 +612,7 @@ Request to update role metadata.
 | `description` | `optional string` | Role description, when changing it. Empty clears the description. |
 | `pingable` | `optional bool` | Whether messages may notify users assigned to this role, when changing it. |
 | `requires_shield_mode` | `optional bool` | Grants from this role require explicit selection in Shield Mode. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, description, pingable, requires_shield_mode. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, description, pingable, requires_shield_mode. Omit to infer populated fields. A wildcard selects all metadata fields and includes requires_shield_mode only when its value is supplied. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-admin-v1-UpdateRoleResponse"></a>
@@ -2821,7 +2821,8 @@ Matrix cell for one permission and scope.
 | `scope_id` | `string` | Scope ID matching PermissionMatrixScope.id. |
 | `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision at this scope. |
 | `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. |
-| `allow_permitted` | `optional bool` | Whether an explicit allow may currently be stored for this target. Absent when no additional delegation ceiling applies. |
+| `allow_permitted` | `optional bool` | Whether the bot owner's assigned permissions allow this grant. Absent for other targets. |
+| `actor_can_grant` | `optional bool` | Whether the editor currently holds this permission at this scope. For bots, adding a grant requires both this authority and the owner's entitlement. |
 
 
 

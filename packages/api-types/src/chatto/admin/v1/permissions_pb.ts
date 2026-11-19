@@ -544,12 +544,19 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
   effective = PermissionDecision.UNSPECIFIED;
 
   /**
-   * Whether an explicit allow may currently be stored for this target. Absent
-   * when no additional delegation ceiling applies.
+   * Whether the bot owner's assigned permissions allow this grant. Absent for other targets.
    *
    * @generated from field: optional bool allow_permitted = 5;
    */
   allowPermitted?: boolean;
+
+  /**
+   * Whether the editor currently holds this permission at this scope. For bots,
+   * adding a grant requires both this authority and the owner's entitlement.
+   *
+   * @generated from field: optional bool actor_can_grant = 6;
+   */
+  actorCanGrant?: boolean;
 
   constructor(data?: PartialMessage<PermissionMatrixCell>) {
     super();
@@ -564,6 +571,7 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
     { no: 3, name: "override", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
     { no: 4, name: "effective", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
     { no: 5, name: "allow_permitted", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 6, name: "actor_can_grant", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PermissionMatrixCell {

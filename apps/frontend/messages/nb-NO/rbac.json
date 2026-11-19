@@ -130,7 +130,6 @@
         "open": "Om {permission}",
         "category": "Kategori",
         "scopes": "Kan angis for",
-        "privileged_detail": "Når denne tillatelsen gis direkte til en konto, kreves privilegert modus for å bruke den.",
         "includes": "Omfatter",
         "included_by": "Inngår i"
       }

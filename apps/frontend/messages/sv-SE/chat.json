@@ -77,7 +77,9 @@
       "independent_slow_mode_description": "Den här servern använder en gemensam väntetid för kanalmeddelanden och trådsvar.",
       "upgrade": "Be serveradministratören att uppgradera till {version} eller senare för fullt stöd.",
       "background_jobs_title": "Bakgrundsjobb är inte tillgängliga",
-      "background_jobs_description": "Den här servern kan inte visa eller försöka igen med bakgrundsjobb i serverinställningarna."
+      "background_jobs_description": "Den här servern kan inte visa eller försöka igen med bakgrundsjobb i serverinställningarna.",
+      "shield_role_selection_title": "Rollval i privilegierat läge",
+      "shield_role_selection_description": "Den här servern aktiverar alla tillgängliga rättigheter samtidigt."
     },
     "server_gutter": {
       "move_up": "Flytta upp",

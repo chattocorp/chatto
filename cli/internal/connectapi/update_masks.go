@@ -17,9 +17,11 @@ import (
 // and concurrency tokens are deliberately not maskable. Nested leaf paths select
 // individual settings; notification overrides use their own container.
 type updateMaskSpec struct {
-	fields          string
-	container       protoreflect.Name
-	preserveAbsence bool
+	fields string
+	// A wildcard preserves this field unless the request supplies its value.
+	wildcardRequiresValue string
+	container             protoreflect.Name
+	preserveAbsence       bool
 	// defaults overrides protobuf zero values when a resource has a different reset value.
 	defaults map[string]protoreflect.Value
 }
@@ -33,7 +35,7 @@ var updateMaskSpecs = map[protoreflect.FullName]updateMaskSpec{
 	"chatto.admin.v1.UpdateServerConfigRequest":                              {fields: "server_name description motd welcome_message registration.admission"},
 	"chatto.admin.v1.UpdateBlockedUsernamesRequest":                          {fields: "blocked_usernames"},
 	"chatto.admin.v1.UpdateNeighborRequest":                                  {fields: "origin"},
-	"chatto.admin.v1.UpdateRoleRequest":                                      {fields: "display_name description pingable requires_shield_mode"},
+	"chatto.admin.v1.UpdateRoleRequest":                                      {fields: "display_name description pingable requires_shield_mode", wildcardRequiresValue: "requires_shield_mode"},
 	"chatto.admin.v1.UpdateRoomGroupRequest":                                 {fields: "name description"},
 	"chatto.admin.v1.UpdateSidebarLinkRequest":                               {fields: "label url"},
 	"chatto.admin.v1.UpdateOAuthClientPolicyRequest":                         {fields: "policy", defaults: map[string]protoreflect.Value{"policy": protoreflect.ValueOfEnum(protoreflect.EnumNumber(adminv1.OauthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT))}},
@@ -81,6 +83,9 @@ func applyUpdateMask(request proto.Message) error {
 		}
 	} else if len(mask.Paths) == 1 && mask.Paths[0] == "*" {
 		for _, name := range allowed {
+			if name == spec.wildcardRequiresValue && !values.Has(values.Descriptor().Fields().ByName(protoreflect.Name(name))) {
+				continue
+			}
 			selected[name] = true
 		}
 	} else {

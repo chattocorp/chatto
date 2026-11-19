@@ -568,7 +568,7 @@ type UpdateRoleRequest struct {
 	// Grants from this role require explicit selection in Shield Mode.
 	RequiresShieldMode *bool `protobuf:"varint,6,opt,name=requires_shield_mode,json=requiresShieldMode,proto3,oneof" json:"requires_shield_mode,omitempty"`
 	// Editable fields to apply or reset: display_name, description, pingable, requires_shield_mode.
-	// Omit to infer populated fields; * selects all editable fields. An explicit
+	// Omit to infer populated fields. A wildcard selects all metadata fields and includes requires_shield_mode only when its value is supplied. An explicit
 	// empty mask is invalid. Unselected values are ignored. Selected absent values
 	// reset the field to its default, subject to field validation.
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,5,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`

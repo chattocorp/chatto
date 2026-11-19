@@ -130,7 +130,6 @@
         "open": "{permission} hakkında",
         "category": "Kategori",
         "scopes": "Ayarlanabildiği yerler",
-        "privileged_detail": "Bu izin doğrudan bir hesaba verildiğinde kullanılması için ayrıcalıklı mod gerekir.",
         "includes": "Kapsadıkları",
         "included_by": "Kapsayan izinler"
       }

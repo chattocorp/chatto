@@ -83,7 +83,7 @@ func (s *viewerService) activatePrivilegedRoles(ctx context.Context, requested [
 		return nil, err
 	}
 	return &apiv1.ActivatePrivilegedRolesResponse{
-		PrivilegedMode:    privilegedModeState(true, deadline, roles...),
+		PrivilegedMode:    privilegedModeState(deadline, roles...),
 		Capabilities:      capabilities,
 		ViewerPermissions: permissions,
 	}, nil
@@ -97,14 +97,14 @@ func (s *viewerService) DeactivatePrivilegedMode(ctx context.Context, _ *connect
 	if _, err := s.api.setPrivilegedMode(ctx, caller.UserID, false); err != nil {
 		return nil, err
 	}
-	roles, available := s.api.core.PrivilegedModeOptions(caller.UserID)
+	roles := s.api.core.ProtectedRoles(caller.UserID)
 	ctx = privilegedModeContext(ctx, time.Time{})
 	capabilities, permissions, err := s.api.buildViewerAuthorization(ctx, caller.UserID)
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.DeactivatePrivilegedModeResponse{
-		PrivilegedMode:    privilegedModeState(available, time.Time{}, roles...),
+		PrivilegedMode:    privilegedModeState(time.Time{}, roles...),
 		Capabilities:      capabilities,
 		ViewerPermissions: permissions,
 	}), nil
@@ -137,9 +137,10 @@ func (a *API) setPrivilegedMode(ctx context.Context, userID string, active bool,
 	}
 }
 
-func privilegedModeState(available bool, deadline time.Time, roles ...string) *apiv1.PrivilegedModeState {
-	active := available && time.Now().Before(deadline)
-	state := &apiv1.PrivilegedModeState{Available: available, Active: active, AvailableRoles: roles}
+func privilegedModeState(deadline time.Time, roles ...string) *apiv1.PrivilegedModeState {
+	available := len(roles) > 0
+	active := time.Now().Before(deadline)
+	state := &apiv1.PrivilegedModeState{Available: available, Active: active, RoleSelection: &apiv1.PrivilegedRoleSelection{AvailableRoles: roles}}
 	if active {
 		state.ExpiresAt = timestamppb.New(deadline)
 	}
@@ -202,15 +203,15 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 	})
 	group.Go(func() error {
 		if hasCredential && credential.Kind == authctx.RuntimeCredentialKindBotAPIKey {
-			privilegedMode = privilegedModeState(false, time.Time{})
+			privilegedMode = privilegedModeState(time.Time{})
 			return nil
 		}
-		roles, available := a.core.PrivilegedModeOptions(userID)
+		roles := a.core.ProtectedRoles(userID)
 		deadline := time.Time{}
 		if hasCredential && credential.UserID == userID {
 			deadline = credential.PrivilegedModeExpiresAt
 		}
-		privilegedMode = privilegedModeState(available, deadline, roles...)
+		privilegedMode = privilegedModeState(deadline, roles...)
 		return nil
 	})
 	if err := group.Wait(); err != nil {

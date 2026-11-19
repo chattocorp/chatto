@@ -16,22 +16,24 @@ import (
 // Ordinary use does not extend the deadline.
 const PrivilegedModeWindow = 15 * time.Minute
 
-// PrivilegedModeOptions returns this user's available protected roles and
-// whether any role or direct grant can be activated.
-func (c *ChattoCore) PrivilegedModeOptions(userID string) ([]string, bool) {
-	return c.rbacModel.rbac.Projection().PrivilegedModeOptions(userID)
+// ProtectedRoles returns the roles the user can select for Shield Mode.
+func (c *ChattoCore) ProtectedRoles(userID string) []string {
+	return c.rbacModel.rbac.Projection().ProtectedRoles(userID)
 }
 
 // SelectPrivilegedRoles validates a session activation against current role
 // assignments. The legacy activation command selects all available roles.
 // Every subsequent authorization still resolves current grants and denies.
 func (c *ChattoCore) SelectPrivilegedRoles(userID string, requested []string, allRoles bool) (available, selected []string, err error) {
-	available, eligible := c.PrivilegedModeOptions(userID)
-	if !eligible {
+	available = c.ProtectedRoles(userID)
+	if len(available) == 0 {
 		return nil, nil, ErrPrivilegedModeUnavailable
 	}
 	if allRoles {
 		return available, available, nil
+	}
+	if len(requested) == 0 {
+		return nil, nil, fmt.Errorf("%w: select at least one protected role", ErrInvalidArgument)
 	}
 	selected = slices.Clone(requested)
 	slices.Sort(selected)

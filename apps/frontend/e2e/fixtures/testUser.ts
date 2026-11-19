@@ -122,7 +122,7 @@ async function revokeRoleViaConnect(page: Page, userId: string, roleName: string
   expect(data.member?.roles ?? []).not.toContain(roleName);
 }
 
-/** Activate the current test session's elevation-required permissions. */
+/** Activate the current test session's assigned protected roles. */
 export async function activatePrivilegedMode(page: Page): Promise<void> {
   await connectPost(page, 'chatto.api.v1.ViewerService/ActivatePrivilegedRoles', {
     roleNames: ['owner']

@@ -77,7 +77,9 @@
       "independent_slow_mode_description": "此服务器对频道消息和话题回复使用共用的冷却时间。",
       "upgrade": "如需完整支持，请要求服务器管理员升级到 {version} 或更新版本。",
       "background_jobs_title": "后台任务不可用",
-      "background_jobs_description": "此服务器无法在服务器设置中显示或重试后台任务。"
+      "background_jobs_description": "此服务器无法在服务器设置中显示或重试后台任务。",
+      "shield_role_selection_title": "特权模式角色选择",
+      "shield_role_selection_description": "此服务器会同时启用所有可用权限。"
     },
     "server_gutter": {
       "move_up": "向上移动",

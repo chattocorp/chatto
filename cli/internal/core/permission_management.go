@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
@@ -81,6 +82,8 @@ type PermissionMatrixCell struct {
 	// It does not include the acting human's session activation or edit authority.
 	// Nil means that the cell does not use a bot owner ceiling.
 	AllowPermitted *bool
+	// ActorCanGrant reports the editing session's effective authority at this scope for a bot target.
+	ActorCanGrant *bool
 }
 
 type RolePermissionMatrix struct {
@@ -752,11 +755,14 @@ func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID stri
 			}
 			if ok {
 				if bot {
-					allowed, err := c.botOwnerAllowsAtMatrixScope(ctx, user.GetBotOwnerUserId(), perm, scope)
+					_, id, _ := strings.Cut(scope.ID, ":")
+					target := PermissionTargetScope{Kind: scope.Kind, ID: id}
+					ownerAllows, actorAllows, err := c.botGrantAuthority(ctx, user.GetBotOwnerUserId(), actorID, perm, target)
 					if err != nil {
 						return nil, err
 					}
-					cell.AllowPermitted = &allowed
+					cell.AllowPermitted = &ownerAllows
+					cell.ActorCanGrant = &actorAllows
 				}
 				cells = append(cells, cell)
 			}
@@ -771,24 +777,31 @@ func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID stri
 	}, nil
 }
 
-func (c *ChattoCore) botOwnerAllowsAtMatrixScope(ctx context.Context, ownerID string, perm Permission, scope PermissionMatrixScope) (bool, error) {
-	var (
-		decision DecisionKind
-		err      error
-	)
-	switch scope.Kind {
+// botGrantAuthority evaluates the owner's durable ceiling and the editor's
+// current permission using the same scope and content view.
+func (c *ChattoCore) botGrantAuthority(ctx context.Context, ownerID, actorID string, perm Permission, target PermissionTargetScope) (ownerAllows, actorAllows bool, err error) {
+	kind, roomID, groupID := KindChannel, "", ""
+	switch target.Kind {
 	case MatrixScopeServer:
-		decision, err = c.PermResolver().resolveEntitlement(ctx, ownerID, KindChannel, "", "", perm)
 	case MatrixScopeDM:
-		decision, err = c.PermResolver().resolveEntitlement(ctx, ownerID, KindDM, "", "", perm)
+		kind = KindDM
 	case MatrixScopeGroup:
-		decision, err = c.PermResolver().resolveEntitlement(ctx, ownerID, KindChannel, "", scopeRefID(scope.ID, "group:"), perm)
+		groupID = target.ID
 	case MatrixScopeRoom:
-		decision, err = c.PermResolver().resolveEntitlement(ctx, ownerID, KindChannel, scopeRefID(scope.ID, "room:"), "", perm)
+		roomID = target.ID
 	default:
-		return false, fmt.Errorf("%w: unknown scope kind %q", ErrInvalidArgument, scope.Kind)
+		return false, false, fmt.Errorf("%w: unknown scope kind %q", ErrInvalidArgument, target.Kind)
 	}
-	return decision == DecisionAllow, err
+	resolver := c.PermResolver()
+	actor, err := resolver.resolveInContentView(ctx, func(readCtx context.Context) (DecisionKind, error) {
+		owner, err := resolver.resolveEntitlementWithGroup(readCtx, ownerID, kind, roomID, groupID, perm)
+		if err != nil {
+			return DecisionNone, err
+		}
+		ownerAllows = owner == DecisionAllow
+		return resolver.resolveWithGroup(readCtx, actorID, kind, roomID, groupID, perm)
+	})
+	return ownerAllows, actor == DecisionAllow, err
 }
 
 func matrixApplicablePermissions() []string {

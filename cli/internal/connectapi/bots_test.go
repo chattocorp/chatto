@@ -179,7 +179,7 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 		t.Fatalf("GetUserPermissionMatrix = %+v, %v", matrix, err)
 	}
 	cell := findAPIPermissionCell(matrix.Msg.GetMatrix().GetCells(), "server", string(core.PermMessagePost))
-	if cell == nil || cell.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW || cell.GetEffective() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW || cell.AllowPermitted == nil || !cell.GetAllowPermitted() {
+	if cell == nil || cell.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW || cell.GetEffective() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW || cell.AllowPermitted == nil || !cell.GetAllowPermitted() || !cell.GetActorCanGrant() {
 		t.Fatalf("bot user permission matrix cell = %+v", cell)
 	}
 	viewer, err := env.viewerService.GetViewer(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.GetViewerRequest{}))

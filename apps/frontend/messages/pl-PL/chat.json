@@ -77,7 +77,9 @@
       "independent_slow_mode_description": "Ten serwer używa wspólnego czasu oczekiwania dla wiadomości kanału i odpowiedzi w wątkach.",
       "upgrade": "Aby uzyskać pełną obsługę, poproś administratora serwera o aktualizację do wersji {version} lub nowszej.",
       "background_jobs_title": "Zadania w tle są niedostępne",
-      "background_jobs_description": "Ten serwer nie może wyświetlać ani ponawiać zadań w tle w ustawieniach serwera."
+      "background_jobs_description": "Ten serwer nie może wyświetlać ani ponawiać zadań w tle w ustawieniach serwera.",
+      "shield_role_selection_title": "Wybór ról w trybie uprzywilejowanym",
+      "shield_role_selection_description": "Ten serwer aktywuje wszystkie dostępne uprawnienia jednocześnie."
     },
     "server_gutter": {
       "move_up": "Przesuń w górę",

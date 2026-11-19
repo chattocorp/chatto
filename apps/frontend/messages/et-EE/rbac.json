@@ -130,7 +130,6 @@
         "open": "Teave: {permission}",
         "category": "Kategooria",
         "scopes": "Saab määrata",
-        "privileged_detail": "Kui see õigus antakse otse kontole, on selle kasutamiseks vaja privilegeeritud režiimi.",
         "includes": "Hõlmab",
         "included_by": "Sisaldub"
       }

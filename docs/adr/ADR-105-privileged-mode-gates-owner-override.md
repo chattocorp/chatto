@@ -4,7 +4,7 @@
 
 **Status:** Accepted
 
-> **Amended 2026-11-19.** Role grants now require activation only when the role is protected. Sessions activate the selected roles. The owner override requires selection of `owner`. The permission catalog still controls elevation for direct user grants. See [FDR-046](../fdr/FDR-046-privileged-mode.md).
+> **Amended 2026-11-19.** Role grants now require activation only when the role is protected. Sessions activate the selected roles. The owner override requires selection of `owner`. Direct user grants apply with Shield Mode on or off. See [FDR-046](../fdr/FDR-046-privileged-mode.md).
 
 ## Context
 
@@ -25,8 +25,8 @@ active for the owner. Owners are still entitled to every permission.
 
 Effective authorization for a human applies these rules:
 
-- The authenticated owner with active privileged mode has the override.
-- The authenticated owner without active privileged mode resolves through
+- The authenticated owner has the override when the session selects the owner role.
+- Without the owner override, the authenticated owner resolves through
   direct grants, named roles, and the `everyone` baseline like every other
   human. The `owner` role has no stored decisions, so it adds nothing.
 - A request that checks a different human uses that human's inactive state.
@@ -57,11 +57,10 @@ receiving session:
   another connection of the same session ends privileged mode.
 - Notification decisions and alert revalidation are not bound to one session.
   They use the unprivileged view for owners.
-- A call connection outlives its token request. The token's participant
-  metadata stores the privileged-mode deadline of the requesting session.
-  Call reconciliation evaluates the participant with that state, so the
-  next reconciliation scan after the deadline applies ordinary RBAC. Other
-  call participants can read this deadline.
+- A call connection outlives its token request. Chatto stores the issuing
+  session’s selected roles and deadline in an expiring server-side record.
+  Participant metadata carries an opaque reference. Reconciliation applies
+  the selection only to the bound connection and only until its deadline.
 - A signed asset access ticket is a bounded capability. Its read check does
   not have a runtime credential and keeps entitlement semantics until the
   ticket expires. Chatto issues a ticket only after an authorized read.

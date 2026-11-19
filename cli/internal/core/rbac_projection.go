@@ -616,9 +616,8 @@ func (p *RBACProjection) DecisionsForRoleServer(roleName string) (grants []Permi
 	return p.DecisionsFor(ScopeServer, "", roleName)
 }
 
-// PrivilegedModeOptions returns assigned protected roles and whether the user
-// can activate Shield Mode, including users with direct elevated grants.
-func (p *RBACProjection) PrivilegedModeOptions(userID string) ([]string, bool) {
+// ProtectedRoles returns the user's assigned protected roles in name order.
+func (p *RBACProjection) ProtectedRoles(userID string) []string {
 	p.RLock()
 	defer p.RUnlock()
 	var names []string
@@ -627,19 +626,8 @@ func (p *RBACProjection) PrivilegedModeOptions(userID string) ([]string, bool) {
 			names = append(names, name)
 		}
 	}
-	if len(names) > 0 {
-		slices.Sort(names)
-		return names, true
-	}
-	for key, decision := range p.decisions {
-		if decision != DecisionAllow || key.subject != userID || key.subjectKind != evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER {
-			continue
-		}
-		if meta, known := GetPermissionMetadata(key.permission); known && meta.RequiresPrivilegedMode {
-			return nil, true
-		}
-	}
-	return nil, false
+	slices.Sort(names)
+	return names
 }
 
 func (p *RBACProjection) NextAvailablePosition() int32 {

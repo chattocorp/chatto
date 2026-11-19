@@ -130,7 +130,6 @@
         "open": "Par atļauju {permission}",
         "category": "Kategorija",
         "scopes": "Var iestatīt",
-        "privileged_detail": "Ja šī atļauja ir piešķirta tieši kontam, tās izmantošanai nepieciešams privileģētais režīms.",
         "includes": "Ietver",
         "included_by": "Ietverta"
       }

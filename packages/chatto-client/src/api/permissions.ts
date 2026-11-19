@@ -58,6 +58,7 @@ export type MatrixCell = {
   override: MatrixDecision;
   effective: MatrixDecision;
   allowPermitted?: boolean;
+  actorCanGrant?: boolean;
 };
 
 export type MatrixData = {
@@ -298,6 +299,7 @@ function matrixCell(cell: APIPermissionMatrixCell): MatrixCell {
     scopeId: cell.scopeId,
     override: matrixDecision(cell.override),
     effective: matrixDecision(cell.effective),
+    ...(cell.actorCanGrant !== undefined ? { actorCanGrant: cell.actorCanGrant } : {}),
     ...(cell.allowPermitted !== undefined ? { allowPermitted: cell.allowPermitted } : {})
   };
 }

@@ -151,6 +151,83 @@ func (x *CookieSession) GetPrivilegedRoles() []string {
 	return nil
 }
 
+// CallRoleSelection binds one call token's Shield Mode selection to its connection.
+type CallRoleSelection struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	RoomName            string                 `protobuf:"bytes,1,opt,name=room_name,json=roomName,proto3" json:"room_name,omitempty"`
+	ParticipantIdentity string                 `protobuf:"bytes,2,opt,name=participant_identity,json=participantIdentity,proto3" json:"participant_identity,omitempty"`
+	UserId              string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Roles               []string               `protobuf:"bytes,4,rep,name=roles,proto3" json:"roles,omitempty"`
+	ExpiresAt           *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *CallRoleSelection) Reset() {
+	*x = CallRoleSelection{}
+	mi := &file_chatto_core_runtime_state_v1_session_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallRoleSelection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallRoleSelection) ProtoMessage() {}
+
+func (x *CallRoleSelection) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_runtime_state_v1_session_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallRoleSelection.ProtoReflect.Descriptor instead.
+func (*CallRoleSelection) Descriptor() ([]byte, []int) {
+	return file_chatto_core_runtime_state_v1_session_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CallRoleSelection) GetRoomName() string {
+	if x != nil {
+		return x.RoomName
+	}
+	return ""
+}
+
+func (x *CallRoleSelection) GetParticipantIdentity() string {
+	if x != nil {
+		return x.ParticipantIdentity
+	}
+	return ""
+}
+
+func (x *CallRoleSelection) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *CallRoleSelection) GetRoles() []string {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+func (x *CallRoleSelection) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
 var File_chatto_core_runtime_state_v1_session_proto protoreflect.FileDescriptor
 
 const file_chatto_core_runtime_state_v1_session_proto_rawDesc = "" +
@@ -170,7 +247,14 @@ const file_chatto_core_runtime_state_v1_session_proto_rawDesc = "" +
 	"\x11fresh_auth_source\x18\t \x01(\tR\x0ffreshAuthSource\x12W\n" +
 	"\x1aprivileged_mode_expires_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\x17privilegedModeExpiresAt\x12)\n" +
-	"\x10privileged_roles\x18\v \x03(\tR\x0fprivilegedRolesB\x99\x02\n" +
+	"\x10privileged_roles\x18\v \x03(\tR\x0fprivilegedRoles\"\xcd\x01\n" +
+	"\x11CallRoleSelection\x12\x1b\n" +
+	"\troom_name\x18\x01 \x01(\tR\broomName\x121\n" +
+	"\x14participant_identity\x18\x02 \x01(\tR\x13participantIdentity\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\x12\x14\n" +
+	"\x05roles\x18\x04 \x03(\tR\x05roles\x129\n" +
+	"\n" +
+	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAtB\x99\x02\n" +
 	" com.chatto.core.runtime_state.v1B\fSessionProtoP\x01ZXgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
@@ -185,23 +269,25 @@ func file_chatto_core_runtime_state_v1_session_proto_rawDescGZIP() []byte {
 	return file_chatto_core_runtime_state_v1_session_proto_rawDescData
 }
 
-var file_chatto_core_runtime_state_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_chatto_core_runtime_state_v1_session_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chatto_core_runtime_state_v1_session_proto_goTypes = []any{
 	(*CookieSession)(nil),           // 0: chatto.core.runtime_state.v1.CookieSession
-	(*timestamppb.Timestamp)(nil),   // 1: google.protobuf.Timestamp
-	(*v1.AuditRequestMetadata)(nil), // 2: chatto.core.evt.v1.AuditRequestMetadata
+	(*CallRoleSelection)(nil),       // 1: chatto.core.runtime_state.v1.CallRoleSelection
+	(*timestamppb.Timestamp)(nil),   // 2: google.protobuf.Timestamp
+	(*v1.AuditRequestMetadata)(nil), // 3: chatto.core.evt.v1.AuditRequestMetadata
 }
 var file_chatto_core_runtime_state_v1_session_proto_depIdxs = []int32{
-	1, // 0: chatto.core.runtime_state.v1.CookieSession.created_at:type_name -> google.protobuf.Timestamp
-	1, // 1: chatto.core.runtime_state.v1.CookieSession.expires_at:type_name -> google.protobuf.Timestamp
-	2, // 2: chatto.core.runtime_state.v1.CookieSession.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
-	1, // 3: chatto.core.runtime_state.v1.CookieSession.fresh_auth_at:type_name -> google.protobuf.Timestamp
-	1, // 4: chatto.core.runtime_state.v1.CookieSession.privileged_mode_expires_at:type_name -> google.protobuf.Timestamp
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	2, // 0: chatto.core.runtime_state.v1.CookieSession.created_at:type_name -> google.protobuf.Timestamp
+	2, // 1: chatto.core.runtime_state.v1.CookieSession.expires_at:type_name -> google.protobuf.Timestamp
+	3, // 2: chatto.core.runtime_state.v1.CookieSession.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
+	2, // 3: chatto.core.runtime_state.v1.CookieSession.fresh_auth_at:type_name -> google.protobuf.Timestamp
+	2, // 4: chatto.core.runtime_state.v1.CookieSession.privileged_mode_expires_at:type_name -> google.protobuf.Timestamp
+	2, // 5: chatto.core.runtime_state.v1.CallRoleSelection.expires_at:type_name -> google.protobuf.Timestamp
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_runtime_state_v1_session_proto_init() }
@@ -215,7 +301,7 @@ func file_chatto_core_runtime_state_v1_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_runtime_state_v1_session_proto_rawDesc), len(file_chatto_core_runtime_state_v1_session_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

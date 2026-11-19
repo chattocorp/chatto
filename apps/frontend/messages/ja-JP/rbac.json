@@ -130,7 +130,6 @@
         "open": "{permission} について",
         "category": "カテゴリ",
         "scopes": "設定できる範囲",
-        "privileged_detail": "この権限がアカウントに直接付与された場合、使用するには特権モードが必要です。",
         "includes": "含まれる権限",
         "included_by": "この権限を含む権限"
       }

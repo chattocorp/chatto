@@ -36,7 +36,7 @@ Renders nothing on other servers or later visits.
     visible = true;
     if (privilegedMode.available && !privilegedMode.active) {
       store
-        .setPrivilegedMode(true, privilegedMode.availableRoles?.length ? ['owner'] : [])
+        .setPrivilegedMode(true, privilegedMode.roleSelection ? ['owner'] : undefined)
         .catch((error: unknown) => {
           shieldFailed = true;
           toastError(error, m('chat.owner_welcome.shield_failed'));

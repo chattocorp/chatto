@@ -78,14 +78,20 @@ message ServerViewerState {
 
 // State of explicit privileged-mode activation for this authenticated session.
 message PrivilegedModeState {
-  // Whether the user has a protected role or a direct grant that requires elevation.
+  // Whether the user has an assigned protected role.
   bool available = 1;
-  // Whether elevated permissions are effective for this session now.
+  // Whether protected roles have been activated for this session now.
   bool active = 2;
   // Absolute activation deadline. Present only while privileged mode is active.
   google.protobuf.Timestamp expires_at = 3;
-  // Assigned protected roles available for activation.
-  repeated string available_roles = 4;
+  // Present when this server supports selective activation, even when no roles are available.
+  PrivilegedRoleSelection role_selection = 4;
+}
+
+// Protected roles that the caller can select for this session.
+message PrivilegedRoleSelection {
+  // Assigned protected roles. An empty list means there are no roles to activate.
+  repeated string available_roles = 1;
 }
 
 // Request for the authenticated viewer snapshot.
@@ -108,7 +114,7 @@ message GetViewerResponse {
   PrivilegedModeState privileged_mode = 7;
 }
 
-// Request to activate all currently entitled elevation-required permissions.
+// Request to activate all assigned protected roles.
 message ActivatePrivilegedModeRequest {}
 
 // Result of activating privileged mode for the current session.
@@ -123,7 +129,7 @@ message ActivatePrivilegedModeResponse {
 
 // Request to activate grants from specific protected roles.
 message ActivatePrivilegedRolesRequest {
-  // Assigned protected roles. An empty list activates only eligible direct user grants.
+  // One or more assigned protected roles. An empty selection returns INVALID_ARGUMENT for an eligible user.
   repeated string role_names = 1;
 }
 
@@ -137,7 +143,7 @@ message ActivatePrivilegedRolesResponse {
   ServerViewerPermissions viewer_permissions = 3;
 }
 
-// Request to deactivate all elevation-required permissions for this session.
+// Request to deactivate all selected protected roles for this session.
 message DeactivatePrivilegedModeRequest {}
 
 // Result of deactivating privileged mode for the current session.
@@ -155,16 +161,16 @@ service ViewerService {
   // Returns the current authenticated viewer. This RPC requires a logged-in
   // user; unauthenticated callers receive an UNAUTHENTICATED error.
   rpc GetViewer(GetViewerRequest) returns (GetViewerResponse);
-  // Activates all currently assigned protected roles and eligible direct grants for 15 minutes.
+  // Activates all currently assigned protected roles for 15 minutes.
   // Deactivate before changing the selection. Repeated activation keeps the deadline.
-  // Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
-  // permission entitlement.
+  // Returns FAILED_PRECONDITION when the caller is a bot or has no assigned
+  // protected role.
   rpc ActivatePrivilegedMode(ActivatePrivilegedModeRequest) returns (ActivatePrivilegedModeResponse);
-  // Activates only the selected roles and eligible direct grants for 15 minutes.
+  // Activates only the selected roles for 15 minutes.
   // Returns PERMISSION_DENIED for an unassigned or unprotected role. Deactivate
   // before changing the selection. Repeated activation keeps the deadline.
   rpc ActivatePrivilegedRoles(ActivatePrivilegedRolesRequest) returns (ActivatePrivilegedRolesResponse);
-  // Deactivates elevation-required permissions immediately. Returns
+  // Deactivates the selected protected roles immediately. Returns
   // FAILED_PRECONDITION when the caller is a bot.
   rpc DeactivatePrivilegedMode(DeactivatePrivilegedModeRequest) returns (DeactivatePrivilegedModeResponse);
 }

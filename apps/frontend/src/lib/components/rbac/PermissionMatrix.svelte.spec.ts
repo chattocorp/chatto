@@ -197,7 +197,7 @@ describe('PermissionMatrix', () => {
     await expect.element(help).toHaveTextContent('At Room group scope');
     await expect
       .element(help)
-      .toHaveTextContent(
+      .not.toHaveTextContent(
         'When granted directly to an account, this permission requires Shield Mode.'
       );
     expect(container.querySelector('[data-testid="permission-name"]')?.hasAttribute('title')).toBe(

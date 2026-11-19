@@ -2,14 +2,21 @@ package core
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/chattocorp/chatto/cli/internal/readmodel"
-
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
+	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	lkauth "github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
 )
@@ -44,28 +51,58 @@ type participantMetadata struct {
 	CallID        string `json:"callId,omitempty"`
 	PublisherKind string `json:"publisherKind,omitempty"`
 	OwnerIdentity string `json:"ownerIdentity,omitempty"`
-	// PrivilegedRoles records the issuing session’s selection for reconciliation.
-	PrivilegedRoles []string `json:"privilegedRoles,omitempty"`
-	// PrivilegedUntil is the Unix time at which the privileged mode of the
-	// issuing session ends. Zero means inactive. Call reconciliation evaluates
-	// the participant with this state, so the owner override ends with it.
-
-	PrivilegedUntil int64 `json:"selectedRolesUntil,omitempty"`
+	// SelectionRef identifies private, expiring server state for this connection.
+	SelectionRef string `json:"selectionRef,omitempty"`
 }
 
-// privilegedUntilUnix encodes a privileged-mode deadline for participant
-// metadata. A zero deadline stays zero.
-func privilegedUntilUnix(deadline time.Time) int64 {
-	if deadline.IsZero() {
-		return 0
+// StoreCallRoleSelection saves the issuing credential's selection until its
+// deadline. The reference is bound to one LiveKit room, participant and user.
+func (c *ChattoCore) StoreCallRoleSelection(ctx context.Context, roomName, identity, userID string) (string, error) {
+	credential, ok := authctx.CredentialForContext(ctx)
+	if !ok || credential.Kind == authctx.RuntimeCredentialKindBotAPIKey || credential.UserID != userID {
+		return "", nil
 	}
-	return deadline.Unix()
+	ttl := time.Until(credential.PrivilegedModeExpiresAt)
+	if ttl <= 0 || len(credential.PrivilegedRoles) == 0 {
+		return "", nil
+	}
+	value, err := proto.Marshal(&runtimestatev1.CallRoleSelection{
+		RoomName: roomName, ParticipantIdentity: identity, UserId: userID,
+		Roles: credential.PrivilegedRoles, ExpiresAt: timestamppb.New(credential.PrivilegedModeExpiresAt),
+	})
+	if err != nil {
+		return "", err
+	}
+	ref := rand.Text()
+	_, err = c.storage.runtimeStateKV.Create(ctx, callSelectionKey(ref), value, jetstream.KeyTTL(ttl))
+	if err != nil {
+		return "", fmt.Errorf("store call role selection: %w", err)
+	}
+	return ref, nil
 }
 
-// privilegedModeActive reports whether the metadata's privileged-mode
-// deadline is still in the future.
-func (md participantMetadata) privilegedModeActive(now time.Time) bool {
-	return md.PrivilegedUntil > 0 && now.Before(time.Unix(md.PrivilegedUntil, 0))
+func callSelectionKey(ref string) string { return "call_role_selection." + ref }
+
+// callRoles returns only the unexpired selection for this exact connection.
+func (c *ChattoCore) callRoles(ctx context.Context, ref, roomName, identity, userID string) ([]string, error) {
+	if ref == "" {
+		return nil, nil
+	}
+	entry, err := c.storage.runtimeStateKV.Get(ctx, callSelectionKey(ref))
+	if errors.Is(err, jetstream.ErrKeyNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read call role selection: %w", err)
+	}
+	var selection runtimestatev1.CallRoleSelection
+	if err := proto.Unmarshal(entry.Value(), &selection); err != nil {
+		return nil, err
+	}
+	if selection.RoomName != roomName || selection.ParticipantIdentity != identity || selection.UserId != userID || !time.Now().Before(selection.ExpiresAt.AsTime()) {
+		return nil, nil
+	}
+	return selection.Roles, nil
 }
 
 // ParseParticipantMetadata parses JSON metadata from a LiveKit participant.
@@ -148,12 +185,10 @@ func ParseLiveKitRoomServerID(lkRoomName string) string {
 
 // GenerateVoiceCallToken creates a LiveKit join token for a user.
 // The login, avatar URL, and bot status are embedded as JSON metadata so the
-// frontend can render identity without additional queries. privilegedUntil is
-// the privileged-mode deadline of the requesting session; see
-// PrivilegedModeDeadline.
+// frontend can render identity without additional queries. selectionRef refers to private call authorization state.
 // Authorization: Caller must verify current membership and call.join, then
 // pass the resolved publishing permissions.
-func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL string, isBot bool, e2eeKey string, permissions CallPermissions, privilegedUntil time.Time, callID string, roles ...string) (*VoiceCallToken, error) {
+func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL string, isBot bool, e2eeKey string, permissions CallPermissions, selectionRef, callID string) (*VoiceCallToken, error) {
 	at := lkauth.NewAccessToken(apiKey, apiSecret)
 	grant := &lkauth.VideoGrant{
 		RoomJoin: true,
@@ -168,7 +203,7 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 		SetName(displayName).
 		SetValidFor(VoiceCallTokenTTL)
 
-	md, err := json.Marshal(participantMetadata{Login: login, AvatarURL: avatarURL, IsBot: isBot, CallID: callID, PrivilegedRoles: roles, PrivilegedUntil: privilegedUntilUnix(privilegedUntil)})
+	md, err := json.Marshal(participantMetadata{Login: login, AvatarURL: avatarURL, IsBot: isBot, CallID: callID, SelectionRef: selectionRef})
 	if err != nil {
 		return nil, fmt.Errorf("marshal participant metadata: %w", err)
 	}
@@ -184,9 +219,9 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 // GenerateCallMediaPublisherToken creates a publish-only LiveKit credential
 // for a native companion process. The companion has its own opaque identity so
 // it cannot evict the owner's primary LiveKit connection.
-// privilegedUntil is the privileged-mode deadline of the requesting session.
+// selectionRef refers to private call authorization state.
 // Authorization: Caller must verify room membership and active participation.
-func GenerateCallMediaPublisherToken(apiKey, apiSecret, roomName, publisherIdentity, ownerIdentity, displayName, e2eeKey, callID, publisherKind string, privilegedUntil time.Time, roles ...string) (*VoiceCallToken, error) {
+func GenerateCallMediaPublisherToken(apiKey, apiSecret, roomName, publisherIdentity, ownerIdentity, displayName, e2eeKey, callID, publisherKind, selectionRef string) (*VoiceCallToken, error) {
 	grant := &lkauth.VideoGrant{RoomJoin: true, Room: roomName}
 	grant.SetCanSubscribe(false)
 	grant.SetCanPublishData(false)
@@ -204,11 +239,10 @@ func GenerateCallMediaPublisherToken(apiKey, apiSecret, roomName, publisherIdent
 		SetValidFor(CallMediaPublisherTokenTTL)
 
 	md, err := json.Marshal(participantMetadata{
-		CallID:          callID,
-		PublisherKind:   publisherKind,
-		OwnerIdentity:   ownerIdentity,
-		PrivilegedUntil: privilegedUntilUnix(privilegedUntil),
-		PrivilegedRoles: roles,
+		CallID:        callID,
+		PublisherKind: publisherKind,
+		OwnerIdentity: ownerIdentity,
+		SelectionRef:  selectionRef,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal media publisher metadata: %w", err)

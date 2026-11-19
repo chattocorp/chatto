@@ -1,6 +1,6 @@
 /**
  * Catalogue of the server's permissions: where each permission can be
- * configured, whether it needs privileged mode, and which permissions it
+ * configured and which permissions it
  * includes. Hosts use it to explain and group permissions. It never decides
  * authority: the server checks every request.
  *
@@ -34,7 +34,7 @@ export type PermissionDefinition = {
   category: PermissionCategory;
   /** Levels where the permission can be configured, broadest first. */
   scopes: readonly PermissionScope[];
-  /** A human session must enable Shield Mode to use a direct account grant of this permission. */
+  /** @deprecated Shield Mode applies to roles. Current catalog entries omit this flag. */
   privileged?: boolean;
   /** Permissions that an allow for this permission also grants. */
   includes?: readonly string[];
@@ -46,20 +46,17 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
   'server.manage': {
     category: 'server',
     scopes: ['server'],
-    privileged: true,
     includes: ['server.manage-neighbors']
   },
   'server.manage-neighbors': {
     category: 'server',
-    scopes: ['server'],
-    privileged: true
+    scopes: ['server']
   },
 
   // Room permissions
   'room.create': {
     category: 'room',
-    scopes: ['server', 'group'],
-    privileged: true
+    scopes: ['server', 'group']
   },
   'room.join': {
     category: 'room',
@@ -75,8 +72,7 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
   },
   'room.manage': {
     category: 'room',
-    scopes: ['server', 'group', 'room'],
-    privileged: true
+    scopes: ['server', 'group', 'room']
   },
   'room.manage-notice': {
     category: 'room',
@@ -84,8 +80,7 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
   },
   'room.remove-member': {
     category: 'room',
-    scopes: ['server', 'group', 'room'],
-    privileged: true
+    scopes: ['server', 'group', 'room']
   },
 
   // Call permissions
@@ -143,8 +138,7 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
   },
   'message.manage': {
     category: 'message',
-    scopes: ['server', 'group', 'room', 'dm'],
-    privileged: true
+    scopes: ['server', 'group', 'room', 'dm']
   },
   'message.pin': {
     category: 'message',
@@ -158,32 +152,27 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
   // Role management
   'role.manage': {
     category: 'role',
-    scopes: ['server'],
-    privileged: true
+    scopes: ['server']
   },
   'role.assign': {
     category: 'role',
-    scopes: ['server'],
-    privileged: true
+    scopes: ['server']
   },
 
   // Admin panel
   'admin.view-users': {
     category: 'admin',
-    scopes: ['server'],
-    privileged: true
+    scopes: ['server']
   },
   'admin.view-audit': {
     category: 'admin',
-    scopes: ['server'],
-    privileged: true
+    scopes: ['server']
   },
 
   // User management
   'user.delete-any': {
     category: 'user',
-    scopes: ['server'],
-    privileged: true
+    scopes: ['server']
   },
   'user.delete-self': {
     category: 'user',
@@ -195,18 +184,15 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
   },
   'user.manage-invites': {
     category: 'user',
-    scopes: ['server'],
-    privileged: true
+    scopes: ['server']
   },
   'user.manage-accounts': {
     category: 'user',
-    scopes: ['server'],
-    privileged: true
+    scopes: ['server']
   },
   'user.manage-permissions': {
     category: 'user',
-    scopes: ['server'],
-    privileged: true
+    scopes: ['server']
   },
 
   // Bot accounts
@@ -216,8 +202,7 @@ export const PERMISSION_DEFINITIONS: Readonly<Record<string, PermissionDefinitio
   },
   'bot.manage': {
     category: 'bot',
-    scopes: ['server'],
-    privileged: true
+    scopes: ['server']
   }
 };
 

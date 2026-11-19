@@ -192,10 +192,10 @@ test('a protected role can be selected without the owner override', async ({
   await page.getByRole('button', { name: 'Enable privileged mode' }).click();
   const dialog = page.getByRole('dialog', { name: 'Enable privileged mode' });
   await expect(
-    dialog.getByRole('checkbox', { name: 'room-helper Room helper', exact: true })
+    dialog.getByRole('checkbox', { name: 'Room helper room-helper', exact: true })
   ).toBeVisible();
   await expect(
-    dialog.getByRole('checkbox', { name: 'owner Owner', exact: true })
+    dialog.getByRole('checkbox', { name: 'Owner owner', exact: true })
   ).not.toBeChecked();
   await dialog.getByText('room-helper', { exact: true }).click();
   await dialog.getByRole('button', { name: 'Enable privileged mode' }).click();

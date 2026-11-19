@@ -130,7 +130,6 @@
         "open": "Über {permission}",
         "category": "Kategorie",
         "scopes": "Einstellbar für",
-        "privileged_detail": "Wird diese Berechtigung einem Konto direkt erteilt, ist dafür der privilegierte Modus erforderlich.",
         "includes": "Enthält",
         "included_by": "Enthalten in"
       }

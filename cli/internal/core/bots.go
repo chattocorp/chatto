@@ -996,34 +996,15 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 			return err
 		}
 		if state == PermissionStateAllow {
-			kind, roomID, groupID := KindChannel, "", ""
-			switch normalized.Kind {
-			case MatrixScopeDM:
-				kind = KindDM
-			case MatrixScopeGroup:
-				groupID = normalized.ID
-			case MatrixScopeRoom:
-				roomID = normalized.ID
-			}
-			decision, err := c.PermResolver().resolveEntitlement(ctx, currentBot.GetBotOwnerUserId(), kind, roomID, groupID, perm)
+			ownerAllows, actorAllows, err := c.botGrantAuthority(ctx, currentBot.GetBotOwnerUserId(), actorID, perm, normalized)
 			if err != nil {
 				return err
 			}
-			if decision != DecisionAllow {
+			if !ownerAllows {
 				return ErrBotOwnerPermissionCeiling
 			}
-			// Delegating elevated authority requires the acting caller to hold
-			// it actively at this scope, independently of the owner's ceiling.
-			if metadata, known := GetPermissionMetadata(perm); known && metadata.RequiresPrivilegedMode {
-				decision, err := c.PermResolver().resolveInContentView(ctx, func(readCtx context.Context) (DecisionKind, error) {
-					return c.PermResolver().resolveWithGroup(readCtx, actorID, kind, roomID, groupID, perm)
-				})
-				if err != nil {
-					return err
-				}
-				if decision != DecisionAllow {
-					return ErrPermissionDenied
-				}
+			if !actorAllows {
+				return ErrPermissionDenied
 			}
 		}
 		return nil

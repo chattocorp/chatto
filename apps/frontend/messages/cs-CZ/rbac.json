@@ -130,7 +130,6 @@
         "open": "O oprávnění {permission}",
         "category": "Kategorie",
         "scopes": "Lze nastavit pro",
-        "privileged_detail": "Pokud je toto oprávnění uděleno přímo účtu, jeho použití vyžaduje privilegovaný režim.",
         "includes": "Zahrnuje",
         "included_by": "Součástí"
       }

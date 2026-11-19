@@ -12,12 +12,12 @@ server session when they need them.
 ## Behavior
 
 - The control appears in the current-user area of the selected server when the
-  user has a protected role or a direct grant that requires elevation.
+  user has an assigned protected role or an active session deadline.
 - Settings Overview shows a notice inside Server configuration when the mode is available but inactive. It directs the user to the shield button beside their name to activate additional permissions. The notice disappears while the mode is active.
 - Activating the mode requires a confirmation. One exception: after first-run
   setup, the client activates the mode for the new owner without a
   confirmation and explains it in a welcome dialog (FDR-047).
-- The dialog lists the user's assigned protected roles. The user selects the roles to activate. Direct grants that require elevation also become available during the session window.
+- The dialog lists the user's assigned protected roles. The user selects the roles to activate. Direct account grants apply at their configured scopes during ordinary use and during Shield Mode.
 - A protected role contributes its grants only while selected. Its denies always apply during normal permission resolution. Grants from unprotected roles, including `everyone`, apply at their configured scopes.
 - Selecting `owner` activates the owner override. Without
   the mode, an owner has only the permissions of their other roles, direct
@@ -25,7 +25,7 @@ server session when they need them.
   room only while the mode is active, unless ordinary grants allow it.
 - The activation lasts for 15 minutes and does not extend when the user takes
   an action.
-- The user can deactivate the mode immediately.
+- The user can deactivate the mode until its deadline, even if all protected role assignments have been removed.
 - Expiry, logout, and session revocation deactivate the mode.
 - The client updates effective server permissions from the activation or
   deactivation response. It keeps its resume cursor and mounted realtime
@@ -55,7 +55,7 @@ server session when they need them.
 - When one connection of a session ends the mode, the other realtime
   connections of that session reconnect within one credential check interval.
 - A call connection keeps the mode state of the request that issued its
-  token. After that deadline, the next call reconciliation applies ordinary
+  token. Other call participants cannot see which roles the user selected. After that deadline, the next call reconciliation applies ordinary
   RBAC to the owner.
 - Asset URLs that Chatto issued during the mode stay usable until their access
   tickets expire.
@@ -65,7 +65,7 @@ server session when they need them.
 - Each connected server has independent state.
 - Bot API keys keep their current direct permission behavior. Bots do not use
   privileged mode. Their owner ceiling uses current RBAC entitlement, independent
-  of human session activation. Granting an elevation-required permission to a
+  of human session activation. Granting a permission to a
   bot requires the acting human to have it active at the target scope. Clearing
   a grant does not require activation of that permission.
 - The admin entry point remains visible to entitled users while the mode is
@@ -75,19 +75,6 @@ server session when they need them.
   an open Moderation page. Direct access shows an access-denied screen.
 - A user can edit or delete their own message without privileged mode. Editing
   or deleting another user's message requires active `message.manage`.
-
-## Elevation-Required Permissions
-
-For direct user grants, the permission catalog requires privileged mode for these permissions:
-
-- `server.manage` and `server.manage-neighbors`
-- `room.create`, `room.manage`, and `room.remove-member`
-- `message.manage`
-- `role.manage` and `role.assign`
-- `admin.view-users` and `admin.view-audit`
-- `user.manage-invites`, `user.delete-any`, `user.manage-accounts`, and
-  `user.manage-permissions`
-- `bot.manage`
 
 System diagnostics require the selected `owner` role.
 
@@ -161,7 +148,7 @@ gap can remain stale until a later event or full recovery.
 
 ## Compatibility
 
-- A client connected to a server without role selection uses that server’s activation dialog.
+- The viewer reports a role selection even when the list is empty. Older servers omit the selection. The client uses all-role activation only when the viewer omits the selection or the caller explicitly requests legacy activation.
 - Clients that support selection send the chosen role names to `ActivatePrivilegedRoles`. Servers without this RPC reject the selection. Older replicas cannot use a selective activation to enable the owner override.
 - All replicas must run the new authorization code before an operator relies
   on the gate.

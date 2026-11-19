@@ -130,7 +130,6 @@
         "open": "Informacje o {permission}",
         "category": "Kategoria",
         "scopes": "Można ustawić dla",
-        "privileged_detail": "Jeśli to uprawnienie przyznano bezpośrednio kontu, jego użycie wymaga trybu uprzywilejowanego.",
         "includes": "Obejmuje",
         "included_by": "Zawarte w"
       }

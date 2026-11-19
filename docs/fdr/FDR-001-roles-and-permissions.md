@@ -53,14 +53,13 @@ shows:
 
 - the short description and a longer explanation of the permission;
 - the category and the scopes where the permission can be set;
-- whether a direct grant of the permission needs privileged mode;
 - the permissions that it includes, and the permissions that include it.
 
 A related permission is a button that shows the help for that permission. The
 **Joined** row has its own dialog that explains membership. A permission from a
 newer server shows only its identifier and category.
 
-The frontend copies scopes, inclusions, and privileged-mode requirements from
+The frontend copies scopes and inclusions from
 the backend permission catalog. Update both catalogs together.
 
 ## Behavior

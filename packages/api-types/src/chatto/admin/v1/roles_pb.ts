@@ -525,7 +525,7 @@ export class UpdateRoleRequest extends Message<UpdateRoleRequest> {
 
   /**
    * Editable fields to apply or reset: display_name, description, pingable, requires_shield_mode.
-   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * Omit to infer populated fields. A wildcard selects all metadata fields and includes requires_shield_mode only when its value is supplied. An explicit
    * empty mask is invalid. Unselected values are ignored. Selected absent values
    * reset the field to its default, subject to field validation.
    *

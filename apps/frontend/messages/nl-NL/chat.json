@@ -77,7 +77,9 @@
       "independent_slow_mode_description": "Deze server gebruikt één gedeelde wachttijd voor kanaalberichten en antwoorden in threads.",
       "upgrade": "Vraag de serverbeheerder om te upgraden naar {version} of nieuwer voor volledige ondersteuning.",
       "background_jobs_title": "Achtergrondtaken zijn niet beschikbaar",
-      "background_jobs_description": "Deze server kan achtergrondtaken niet tonen of opnieuw proberen in de serverinstellingen."
+      "background_jobs_description": "Deze server kan achtergrondtaken niet tonen of opnieuw proberen in de serverinstellingen.",
+      "shield_role_selection_title": "Rolselectie in de bevoorrechte modus",
+      "shield_role_selection_description": "Deze server activeert alle beschikbare rechten tegelijk."
     },
     "server_gutter": {
       "move_up": "Omhoog verplaatsen",

@@ -77,7 +77,9 @@
       "independent_slow_mode_description": "Tento server používá společnou čekací dobu pro zprávy kanálu a odpovědi ve vláknech.",
       "upgrade": "Pro plnou podporu požádejte správce serveru o aktualizaci na verzi {version} nebo novější.",
       "background_jobs_title": "Úlohy na pozadí nejsou dostupné",
-      "background_jobs_description": "Tento server nemůže v nastavení serveru zobrazit úlohy na pozadí ani je opakovat."
+      "background_jobs_description": "Tento server nemůže v nastavení serveru zobrazit úlohy na pozadí ani je opakovat.",
+      "shield_role_selection_title": "Výběr rolí v privilegovaném režimu",
+      "shield_role_selection_description": "Tento server aktivuje všechna dostupná oprávnění najednou."
     },
     "server_gutter": {
       "move_up": "Přesunout nahoru",

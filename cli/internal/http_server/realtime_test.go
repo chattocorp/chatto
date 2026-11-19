@@ -20,6 +20,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/publiccursor"
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -979,6 +980,30 @@ func TestRealtimeWebSocketReconnectsAfterSessionPrivilegedModeDeactivation(t *te
 		}
 		return
 	}
+}
+
+func TestRealtimeRevalidationDetectsRoleChangeAtSameSessionDeadline(t *testing.T) {
+	env := setupWebSocketTestServerWithTTLs(t, 0, 5*time.Minute)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-selection", "Role selection", "password123")
+	require.NoError(t, err)
+	handle, _, err := env.core.CreateCookieSession(env.ctx, user.Id, "password_login")
+	require.NoError(t, err)
+	deadline, err := env.core.SetCookiePrivilegedMode(env.ctx, handle, true, core.RoleOwner)
+	require.NoError(t, err)
+	env.cookieJar.SetCookies(mustParseURL(env.server.URL), []*http.Cookie{{Name: browserSessionCookieName, Value: handle}})
+	conn := env.dialRealtime(t)
+	// The handshake captured the owner role. Change the selection before the socket
+	// subscribes so its next credential check observes only the final session state.
+	_, err = env.core.SetCookiePrivilegedMode(env.ctx, handle, false)
+	require.NoError(t, err)
+	next, err := env.core.SetCookiePrivilegedMode(env.ctx, handle, true, core.RoleModerator)
+	require.NoError(t, err)
+	require.True(t, deadline.Equal(next))
+	subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	frame, ok := readRealtimeServerFrame(t, conn, 2*time.Second)
+	require.True(t, ok)
+	require.Equal(t, realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED, frame.GetClose().GetCode())
+	require.True(t, frame.GetClose().GetReconnect())
 }
 
 func TestRealtimeWebSocketClosesOnlyForRevokedBotAPIKey(t *testing.T) {

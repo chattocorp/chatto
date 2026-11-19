@@ -96,7 +96,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   let privilegedModeLoading = $state(false);
   const privilegedMode = $derived(activeStore.projection.viewer?.privilegedMode);
   let selectedRoles = $state<string[]>([]);
-  const availableRoles = $derived(privilegedMode?.availableRoles ?? []);
+  const availableRoles = $derived(privilegedMode?.roleSelection?.availableRoles ?? []);
   const selectedAvailableRoles = $derived(
     availableRoles.filter((role) => selectedRoles.includes(role))
   );
@@ -215,8 +215,11 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
     privilegedModeLoading = true;
     try {
       if (active) {
-        if (availableRoles.length && !selectedAvailableRoles.length) return;
-        await activeStore.setPrivilegedMode(true, selectedAvailableRoles);
+        if (privilegedMode?.roleSelection && !selectedAvailableRoles.length) return;
+        await activeStore.setPrivilegedMode(
+          true,
+          privilegedMode?.roleSelection ? selectedAvailableRoles : undefined
+        );
       } else {
         await activeStore.setPrivilegedMode(false);
       }
@@ -265,7 +268,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
               quality={voiceCallState.participants.find((p) => p.isLocal)?.connectionQuality}
             />
           {/if}
-          {#if privilegedMode?.available}
+          {#if privilegedMode?.active || privilegedMode?.available}
             <button
               type="button"
               class={['user-card-toggle', privilegedMode.active && 'user-card-toggle-active']}
@@ -301,7 +304,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   size="sm"
   submitTone="warning"
   disabled={!privilegedMode?.available ||
-    (availableRoles.length > 0 && !selectedAvailableRoles.length)}
+    (!!privilegedMode?.roleSelection && !selectedAvailableRoles.length)}
   submitLabel={m('chat.privileged_mode.enable')}
   submitIcon="iconify icon-[uil--shield-check]"
   loading={privilegedModeLoading}
@@ -325,9 +328,9 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
               : selectedRoles.filter((name) => name !== role);
           }}
         >
-          <bdi>{role}</bdi>
+          <bdi>{roleLabel || role}</bdi>
           {#if roleLabel && roleLabel !== role}
-            <bdi class="ms-1 text-muted">{roleLabel}</bdi>
+            <bdi class="ms-1 text-muted">{role}</bdi>
           {/if}
         </Checkbox>
       {/each}

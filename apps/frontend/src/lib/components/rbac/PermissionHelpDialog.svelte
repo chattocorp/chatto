@@ -1,13 +1,13 @@
 <!--
 @component
 Explains one permission: its summary, detailed help, the levels where it can be
-set, its privileged-mode requirement, and its inclusion relationships. `Dialog`
+set and its inclusion relationships. `Dialog`
 opens it as a bottom sheet in narrow touch windows. Related permissions are
 buttons that switch the dialog to that permission.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { Dialog, Hint } from '$lib/ui';
+  import { Dialog } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import {
     getIncludingPermissions,
@@ -79,11 +79,6 @@ buttons that switch the dialog to that permission.
           <dd>{@render related(includedBy)}</dd>
         {/if}
       </dl>
-      {#if metadata?.privileged}
-        <Hint icon="icon-[uil--shield]">
-          {m('rbac.permissions.help.privileged_detail')}
-        </Hint>
-      {/if}
     </div>
   {/if}
 

@@ -8,7 +8,11 @@ const mocks = vi.hoisted(() => ({
   isOrigin: true,
   setPrivilegedMode: vi.fn(),
   viewer: null as {
-    privilegedMode: { availableRoles?: string[]; available: boolean; active: boolean };
+    privilegedMode: {
+      roleSelection?: { availableRoles: string[] };
+      available: boolean;
+      active: boolean;
+    };
   } | null
 }));
 
@@ -26,7 +30,11 @@ describe('OwnerWelcomeDialog', () => {
     takeOwnerOnboarding();
     mocks.isOrigin = true;
     mocks.viewer = {
-      privilegedMode: { availableRoles: ['owner', 'admin'], available: true, active: false }
+      privilegedMode: {
+        roleSelection: { availableRoles: ['owner', 'admin'] },
+        available: true,
+        active: false
+      }
     };
     mocks.setPrivilegedMode.mockReset().mockResolvedValue(undefined);
     createTestServerScope({
@@ -55,12 +63,12 @@ describe('OwnerWelcomeDialog', () => {
     expect(takeOwnerOnboarding()).toBe(false);
   });
 
-  it('uses direct-grant activation with legacy fallback when the server reports no roles', async () => {
+  it('uses legacy activation when the server lacks role selection', async () => {
     mocks.viewer = { privilegedMode: { available: true, active: false } };
     markOwnerOnboardingPending();
     render(OwnerWelcomeDialog);
     await vi.waitFor(() =>
-      expect(mocks.setPrivilegedMode).toHaveBeenCalledExactlyOnceWith(true, [])
+      expect(mocks.setPrivilegedMode).toHaveBeenCalledExactlyOnceWith(true, undefined)
     );
   });
 

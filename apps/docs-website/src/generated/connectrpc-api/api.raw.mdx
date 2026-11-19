@@ -1762,10 +1762,10 @@ Authenticated viewer snapshot needed by application shells.
 
 ### ActivatePrivilegedMode
 
-Activates all currently assigned protected roles and eligible direct grants for 15 minutes.
+Activates all currently assigned protected roles for 15 minutes.
 Deactivate before changing the selection. Repeated activation keeps the deadline.
-Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
-permission entitlement.
+Returns FAILED_PRECONDITION when the caller is a bot or has no assigned
+protected role.
 
 ```http
 POST /api/connect/chatto.api.v1.ViewerService/ActivatePrivilegedMode
@@ -1775,7 +1775,7 @@ POST /api/connect/chatto.api.v1.ViewerService/ActivatePrivilegedMode
 
 #### Input: ActivatePrivilegedModeRequest
 
-Request to activate all currently entitled elevation-required permissions.
+Request to activate all assigned protected roles.
 
 
 <a id="chatto-api-v1-ActivatePrivilegedModeResponse"></a>
@@ -1795,7 +1795,7 @@ Result of activating privileged mode for the current session.
 
 ### ActivatePrivilegedRoles
 
-Activates only the selected roles and eligible direct grants for 15 minutes.
+Activates only the selected roles for 15 minutes.
 Returns PERMISSION_DENIED for an unassigned or unprotected role. Deactivate
 before changing the selection. Repeated activation keeps the deadline.
 
@@ -1811,7 +1811,7 @@ Request to activate grants from specific protected roles.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `role_names` | `repeated string` | Assigned protected roles. An empty list activates only eligible direct user grants. |
+| `role_names` | `repeated string` | One or more assigned protected roles. An empty selection returns INVALID_ARGUMENT for an eligible user. |
 
 
 <a id="chatto-api-v1-ActivatePrivilegedRolesResponse"></a>
@@ -1831,7 +1831,7 @@ Result of activating privileged mode for the current session.
 
 ### DeactivatePrivilegedMode
 
-Deactivates elevation-required permissions immediately. Returns
+Deactivates the selected protected roles immediately. Returns
 FAILED_PRECONDITION when the caller is a bot.
 
 ```http
@@ -1842,7 +1842,7 @@ POST /api/connect/chatto.api.v1.ViewerService/DeactivatePrivilegedMode
 
 #### Input: DeactivatePrivilegedModeRequest
 
-Request to deactivate all elevation-required permissions for this session.
+Request to deactivate all selected protected roles for this session.
 
 
 <a id="chatto-api-v1-DeactivatePrivilegedModeResponse"></a>
@@ -6230,10 +6230,22 @@ State of explicit privileged-mode activation for this authenticated session.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `available` | `bool` | Whether the user has a protected role or a direct grant that requires elevation. |
-| `active` | `bool` | Whether elevated permissions are effective for this session now. |
+| `available` | `bool` | Whether the user has an assigned protected role. |
+| `active` | `bool` | Whether protected roles have been activated for this session now. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute activation deadline. Present only while privileged mode is active. |
-| `available_roles` | `repeated string` | Assigned protected roles available for activation. |
+| `role_selection` | [`PrivilegedRoleSelection`](#chatto-api-v1-PrivilegedRoleSelection) | Present when this server supports selective activation, even when no roles are available. |
+
+
+
+<a id="chatto-api-v1-PrivilegedRoleSelection"></a>
+
+### PrivilegedRoleSelection
+
+Protected roles that the caller can select for this session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `available_roles` | `repeated string` | Assigned protected roles. An empty list means there are no roles to activate. |
 
 
 

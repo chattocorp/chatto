@@ -143,7 +143,7 @@ describe('getCurrentUserViaConnect', () => {
         },
         hasVerifiedEmail: true
       },
-      privilegedMode: { available: true, availableRoles: ['moderator'] },
+      privilegedMode: { available: true, roleSelection: { availableRoles: ['moderator'] } },
       capabilities: {
         grants: [
           { capability: 'admin.view', granted: true },
@@ -238,18 +238,7 @@ describe('getCurrentUserViaConnect', () => {
     expect(mocks.getViewer).toHaveBeenCalledOnce();
   });
 
-  it('requests direct grants only with an explicit empty selection', async () => {
-    mocks.activatePrivilegedRoles.mockReturnValue({
-      privilegedMode: { active: true },
-      capabilities: {},
-      viewerPermissions: {}
-    });
-    await createPrivilegedModeAPI(config()).activate([]);
-    expect(receivedRequest(mocks.activatePrivilegedRoles)?.roleNames).toEqual([]);
-    expect(mocks.activatePrivilegedMode).not.toHaveBeenCalled();
-  });
-
-  it('uses legacy activation only when an empty selection reaches an older server', async () => {
+  it('rejects explicit selections when an older replica lacks the selective RPC', async () => {
     mocks.activatePrivilegedRoles.mockImplementation(() => {
       throw new ConnectError('unknown method', Code.Unimplemented);
     });
@@ -261,8 +250,8 @@ describe('getCurrentUserViaConnect', () => {
     const api = createPrivilegedModeAPI(config());
     await expect(api.activate(['moderator'])).rejects.toMatchObject({ code: Code.Unimplemented });
     expect(mocks.activatePrivilegedMode).not.toHaveBeenCalled();
-    await api.activate([]);
-    expect(mocks.activatePrivilegedMode).toHaveBeenCalledOnce();
+    await expect(api.activate([])).rejects.toMatchObject({ code: Code.Unimplemented });
+    expect(mocks.activatePrivilegedMode).not.toHaveBeenCalled();
   });
 
   it('preserves other errors for empty selections', async () => {

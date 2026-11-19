@@ -175,7 +175,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Permission** — Capability gate with an opaque, stable identifier, for example `message.post` or `role.assign`. Punctuation does not define authority. The catalog in `cli/internal/core/permission.go` defines scope and explicit inclusion.
 
-**Privileged Mode** — A fixed 15-minute window in which one human session can use grants from selected protected roles and direct grants that require elevation. See [ADR-096](adr/ADR-096-session-scoped-privileged-mode.md), [ADR-105](adr/ADR-105-privileged-mode-gates-owner-override.md), and [FDR-046](fdr/FDR-046-privileged-mode.md).
+**Privileged Mode** — A fixed 15-minute window in which one human session can use grants from selected protected roles. See [ADR-096](adr/ADR-096-session-scoped-privileged-mode.md), [ADR-105](adr/ADR-105-privileged-mode-gates-owner-override.md), and [FDR-046](fdr/FDR-046-privileged-mode.md).
 
 **Shield Mode** — User-facing name for Privileged Mode, controlled by the shield button for the current server. The user chooses which protected roles to activate for the session. See [FDR-046](fdr/FDR-046-privileged-mode.md).
 

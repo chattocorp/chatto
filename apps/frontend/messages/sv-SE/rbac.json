@@ -130,7 +130,6 @@
         "open": "Om {permission}",
         "category": "Kategori",
         "scopes": "Kan ställas in för",
-        "privileged_detail": "När behörigheten ges direkt till ett konto krävs privilegierat läge för att använda den.",
         "includes": "Omfattar",
         "included_by": "Ingår i"
       }

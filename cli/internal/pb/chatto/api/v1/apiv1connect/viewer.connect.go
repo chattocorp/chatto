@@ -51,16 +51,16 @@ type ViewerServiceClient interface {
 	// Returns the current authenticated viewer. This RPC requires a logged-in
 	// user; unauthenticated callers receive an UNAUTHENTICATED error.
 	GetViewer(context.Context, *connect.Request[v1.GetViewerRequest]) (*connect.Response[v1.GetViewerResponse], error)
-	// Activates all currently assigned protected roles and eligible direct grants for 15 minutes.
+	// Activates all currently assigned protected roles for 15 minutes.
 	// Deactivate before changing the selection. Repeated activation keeps the deadline.
-	// Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
-	// permission entitlement.
+	// Returns FAILED_PRECONDITION when the caller is a bot or has no assigned
+	// protected role.
 	ActivatePrivilegedMode(context.Context, *connect.Request[v1.ActivatePrivilegedModeRequest]) (*connect.Response[v1.ActivatePrivilegedModeResponse], error)
-	// Activates only the selected roles and eligible direct grants for 15 minutes.
+	// Activates only the selected roles for 15 minutes.
 	// Returns PERMISSION_DENIED for an unassigned or unprotected role. Deactivate
 	// before changing the selection. Repeated activation keeps the deadline.
 	ActivatePrivilegedRoles(context.Context, *connect.Request[v1.ActivatePrivilegedRolesRequest]) (*connect.Response[v1.ActivatePrivilegedRolesResponse], error)
-	// Deactivates elevation-required permissions immediately. Returns
+	// Deactivates the selected protected roles immediately. Returns
 	// FAILED_PRECONDITION when the caller is a bot.
 	DeactivatePrivilegedMode(context.Context, *connect.Request[v1.DeactivatePrivilegedModeRequest]) (*connect.Response[v1.DeactivatePrivilegedModeResponse], error)
 }
@@ -136,16 +136,16 @@ type ViewerServiceHandler interface {
 	// Returns the current authenticated viewer. This RPC requires a logged-in
 	// user; unauthenticated callers receive an UNAUTHENTICATED error.
 	GetViewer(context.Context, *connect.Request[v1.GetViewerRequest]) (*connect.Response[v1.GetViewerResponse], error)
-	// Activates all currently assigned protected roles and eligible direct grants for 15 minutes.
+	// Activates all currently assigned protected roles for 15 minutes.
 	// Deactivate before changing the selection. Repeated activation keeps the deadline.
-	// Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
-	// permission entitlement.
+	// Returns FAILED_PRECONDITION when the caller is a bot or has no assigned
+	// protected role.
 	ActivatePrivilegedMode(context.Context, *connect.Request[v1.ActivatePrivilegedModeRequest]) (*connect.Response[v1.ActivatePrivilegedModeResponse], error)
-	// Activates only the selected roles and eligible direct grants for 15 minutes.
+	// Activates only the selected roles for 15 minutes.
 	// Returns PERMISSION_DENIED for an unassigned or unprotected role. Deactivate
 	// before changing the selection. Repeated activation keeps the deadline.
 	ActivatePrivilegedRoles(context.Context, *connect.Request[v1.ActivatePrivilegedRolesRequest]) (*connect.Response[v1.ActivatePrivilegedRolesResponse], error)
-	// Deactivates elevation-required permissions immediately. Returns
+	// Deactivates the selected protected roles immediately. Returns
 	// FAILED_PRECONDITION when the caller is a bot.
 	DeactivatePrivilegedMode(context.Context, *connect.Request[v1.DeactivatePrivilegedModeRequest]) (*connect.Response[v1.DeactivatePrivilegedModeResponse], error)
 }

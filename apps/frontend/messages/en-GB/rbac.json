@@ -130,7 +130,6 @@
         "open": "About {permission}",
         "category": "Category",
         "scopes": "Can be set for",
-        "privileged_detail": "When granted directly to an account, this permission requires Shield Mode.",
         "includes": "Includes",
         "included_by": "Included in"
       }

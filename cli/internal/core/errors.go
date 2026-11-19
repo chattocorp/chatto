@@ -163,7 +163,7 @@ var (
 	// ErrHumanAccountRequired is returned when a human-only operation targets a bot.
 	ErrHumanAccountRequired = errors.New("operation requires a human account")
 	// ErrPrivilegedModeUnavailable means the current user has no
-	// elevation-required permission to activate.
+	// protected role to activate.
 	ErrPrivilegedModeUnavailable = errors.New("privileged mode is not available")
 
 	// ErrBotOwnerPermissionCeiling is returned when a requested bot grant would

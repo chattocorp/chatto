@@ -4,7 +4,7 @@
 
 **Status:** Accepted
 
-> **Amended 2026-11-19.** Role grants now require activation only when the role is protected. Sessions activate the selected roles. The owner override requires selection of `owner`. The permission catalog still controls elevation for direct user grants. See [FDR-046](../fdr/FDR-046-privileged-mode.md).
+> **Amended 2026-11-19.** Role grants now require activation only when the role is protected. Sessions activate the selected roles. The owner override requires selection of `owner`. Direct user grants apply with Shield Mode on or off. See [FDR-046](../fdr/FDR-046-privileged-mode.md).
 
 > **Amended 2026-09-25:** [ADR-105](ADR-105-privileged-mode-gates-owner-override.md)
 > also gates the effective-owner override with privileged mode. Realtime
@@ -27,13 +27,9 @@ cannot safely represent authority on several independent servers.
 
 ## Decision
 
-The permission catalog identifies permissions that require privileged mode.
-Chatto requires an authenticated human to activate privileged mode before
-these assigned permissions become effective. Roles and direct grants continue
-to define entitlement. Activation does not change RBAC state.
+Role protection determines which grants a human must activate. Direct user grants and unprotected role grants apply during ordinary use. Activation does not change RBAC state.
 
-One activation applies to all elevation-required permissions that the user is
-currently entitled to use on that server. It does not grant a new permission.
+One activation applies to the protected roles the user selects on that server. It does not grant a new permission.
 A later role removal or deny takes effect during an active window.
 
 The first activation flow uses an explicit user confirmation. An activation

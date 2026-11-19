@@ -130,7 +130,6 @@
         "open": "Pri {permission}",
         "category": "Kategorio",
         "scopes": "Agordebla por",
-        "privileged_detail": "Kiam oni donas ĉi tiun permeson rekte al konto, ĝia uzo postulas privilegian reĝimon.",
         "includes": "Inkluzivas",
         "included_by": "Inkluzivita en"
       }

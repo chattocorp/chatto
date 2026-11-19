@@ -82,31 +82,6 @@ func TestGetPermissionMetadata(t *testing.T) {
 	})
 }
 
-func TestPermissionMetadata_PrivilegedModeClassification(t *testing.T) {
-	elevated := map[Permission]bool{
-		PermServerManage:          true,
-		PermServerManageNeighbors: true,
-		PermRoomCreate:            true,
-		PermRoomManage:            true,
-		PermRoomMemberRemove:      true,
-		PermMessageManage:         true,
-		PermRoleManage:            true,
-		PermRoleAssign:            true,
-		PermAdminUsersView:        true,
-		PermAdminAuditView:        true,
-		PermUserManageInvites:     true,
-		PermUserDeleteAny:         true,
-		PermUserManageAccounts:    true,
-		PermUserManagePermissions: true,
-		PermBotManage:             true,
-	}
-	for _, metadata := range AllPermissions() {
-		if got, want := metadata.RequiresPrivilegedMode, elevated[metadata.Permission]; got != want {
-			t.Errorf("permission %s RequiresPrivilegedMode = %v, want %v", metadata.Permission, got, want)
-		}
-	}
-}
-
 // ============================================================================
 // ValidatePermission Tests
 // ============================================================================

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"time"
 
 	lkauth "github.com/livekit/protocol/auth"
 	"github.com/livekit/protocol/livekit"
@@ -32,7 +31,11 @@ func (c *liveKitRoomClient) reconcileParticipantPermissions(ctx context.Context,
 	}
 	// The connection outlives its token request. Evaluate it with the
 	// privileged-mode state of the issuing session, not entitlement.
-	authCtx := withPrivilegedModeEvaluation(ctx, actorID, metadata.privilegedModeActive(time.Now()), metadata.PrivilegedRoles...)
+	roles, err := c.core.callRoles(ctx, metadata.SelectionRef, roomName, identity, actorID)
+	if err != nil {
+		return false, err
+	}
+	authCtx := withPrivilegedModeEvaluation(ctx, actorID, len(roles) > 0, roles...)
 	permissions, err := c.core.AuthorizeCall(authCtx, actorID, roomID, false)
 	if err != nil && !errors.Is(err, ErrPermissionDenied) && !errors.Is(err, ErrNotRoomMember) && !errors.Is(err, ErrNotFound) {
 		return false, err

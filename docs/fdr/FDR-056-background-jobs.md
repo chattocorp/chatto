@@ -97,7 +97,6 @@ the job list repeatedly.
 
 - `server.manage`: view job summaries, retry eligible failed jobs, and delete
   failed jobs.
-  Human credential sessions must enable privileged mode.
 - `asset_processing.enabled`: process media in the server process. Standalone
   media processes remain available when embedded media processing is disabled.
 

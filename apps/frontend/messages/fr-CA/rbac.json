@@ -130,7 +130,6 @@
         "open": "À propos de {permission}",
         "category": "Catégorie",
         "scopes": "Configurable pour",
-        "privileged_detail": "Lorsque cette autorisation est accordée directement à un compte, son utilisation nécessite le mode privilégié.",
         "includes": "Inclut",
         "included_by": "Incluse dans"
       }

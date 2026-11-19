@@ -27,10 +27,10 @@ export const ViewerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Activates all currently assigned protected roles and eligible direct grants for 15 minutes.
+     * Activates all currently assigned protected roles for 15 minutes.
      * Deactivate before changing the selection. Repeated activation keeps the deadline.
-     * Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
-     * permission entitlement.
+     * Returns FAILED_PRECONDITION when the caller is a bot or has no assigned
+     * protected role.
      *
      * @generated from rpc chatto.api.v1.ViewerService.ActivatePrivilegedMode
      */
@@ -41,7 +41,7 @@ export const ViewerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Activates only the selected roles and eligible direct grants for 15 minutes.
+     * Activates only the selected roles for 15 minutes.
      * Returns PERMISSION_DENIED for an unassigned or unprotected role. Deactivate
      * before changing the selection. Repeated activation keeps the deadline.
      *
@@ -54,7 +54,7 @@ export const ViewerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deactivates elevation-required permissions immediately. Returns
+     * Deactivates the selected protected roles immediately. Returns
      * FAILED_PRECONDITION when the caller is a bot.
      *
      * @generated from rpc chatto.api.v1.ViewerService.DeactivatePrivilegedMode

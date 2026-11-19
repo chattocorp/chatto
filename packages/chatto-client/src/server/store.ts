@@ -454,7 +454,7 @@ export class ServerStateStore {
     this.applyPrivilegedModeState(
       new PrivilegedModeState({
         available: this.projection.viewer?.privilegedMode?.available ?? false,
-        availableRoles: this.projection.viewer?.privilegedMode?.availableRoles,
+        roleSelection: this.projection.viewer?.privilegedMode?.roleSelection,
         active: false
       })
     );

@@ -183,7 +183,7 @@ Request to update role metadata.
 | `description` | `optional string` | Role description, when changing it. Empty clears the description. |
 | `pingable` | `optional bool` | Whether messages may notify users assigned to this role, when changing it. |
 | `requires_shield_mode` | `optional bool` | Grants from this role require explicit selection in Shield Mode. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, description, pingable, requires_shield_mode. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, description, pingable, requires_shield_mode. Omit to infer populated fields. A wildcard selects all metadata fields and includes requires_shield_mode only when its value is supplied. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-admin-v1-UpdateRoleResponse"></a>

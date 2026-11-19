@@ -197,9 +197,7 @@ credentials for other bots; those credentials use the target bot's authority.
   both the bot's allowlist and its owner's current RBAC entitlement allow
   it at that scope. The owner ceiling does not depend on privileged mode in
   any human session. Bot permission inspection uses the same rule.
-- Granting an elevation-required permission requires the acting caller to have
-  that permission active at the target scope. Human callers need privileged
-  mode; bot callers use their explicit grant and owner ceiling. Clearing a grant uses the normal
+- Granting a permission requires the acting caller to hold it at the target scope. A human caller can use a direct grant, an unprotected role, or a selected protected role. Clearing a grant uses the normal
   bot management checks and does not require activation of that permission.
 - Bot permission mutations accept only allow or clear; explicit denials are
   rejected. The editor therefore presents each applicable permission as
