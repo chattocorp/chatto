@@ -98,7 +98,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
 </script>
 
 <div class="server-gutter flex min-h-0 flex-1 flex-col border-e border-border" {@attach syncOrder}>
-  <ScrollFader top bottom scrollClass="scrollbar-hide">
+  <ScrollFader top bottom scrollClass="scrollbar-hide" fadeColorClass="from-surface">
     <div class="flex flex-col gap-2 p-2 max-md:ps-3">
       <div
         class="flex flex-col gap-2"

@@ -78,7 +78,7 @@ describe('RoomGroupSection', () => {
     expect(content?.closest('[inert]')).toBeNull();
   });
 
-  it('draws a full-width divider when it follows another room group', () => {
+  it('adds space instead of a divider when it follows another room group', () => {
     const { container } = render(RoomGroupSection, {
       props: {
         label: 'Community',
@@ -90,8 +90,8 @@ describe('RoomGroupSection', () => {
     });
 
     const section = q(container, '[data-testid="room-group-section"]');
-    expect(section?.classList).toContain('border-t');
-    expect(section?.classList).toContain('border-border');
+    expect(section?.classList).toContain('pt-2');
+    expect(section?.classList).not.toContain('border-t');
   });
 
   it('mirrors its collapsed inline-end disclosure icon in RTL', () => {

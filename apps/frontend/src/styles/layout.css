@@ -136,7 +136,7 @@
 }
 
 @utility selectable-list-item {
-  @apply rounded-md transition-colors feedback-quick hover:bg-surface focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
+  @apply rounded-md transition-colors feedback-quick hover:bg-text/5 focus-visible:bg-text/5 focus-visible:outline-2 focus-visible:outline-action;
 }
 
 /* Compact framed surface for inline rows inside forms, dialogs, and settings. */

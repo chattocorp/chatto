@@ -145,6 +145,9 @@
     )
   );
   --color-surface-selected: var(--color-surface-strong);
+  /* Cards on a sidebar, such as the user card, sit one step above the
+     surface: lighter than the surface in both themes. */
+  --color-card: var(--color-background);
 
   /* Form-field surface — distinct from any container surface so inputs
      never disappear into a dialog or panel. Pure white in light mode
@@ -256,6 +259,8 @@
 
   /* See light-mode comment — sits below all surfaces for an inset well look. */
   --color-input: var(--tone-950);
+  /* Dark surfaces get lighter as they rise. */
+  --color-card: var(--color-surface-emphasized);
 
   --color-action: var(--accent-bright);
   --color-action-hover: color-mix(in srgb, var(--color-action), white 15%);

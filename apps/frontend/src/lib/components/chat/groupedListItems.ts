@@ -30,7 +30,7 @@ export type GroupedListItem<T extends { id: string }> =
       type: 'header';
       key: string;
       group: ResolvedListGroup<T>;
-      /** True when the heading draws the divider above its group: every heading after the first, or all headings with `separateFirst`. */
+      /** True when the heading adds space above its group: every heading after the first, or all headings with `separateFirst`. */
       separated: boolean;
     }
   | {

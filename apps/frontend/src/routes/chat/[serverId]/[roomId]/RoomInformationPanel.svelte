@@ -82,7 +82,13 @@ The sections share one scroll viewport and retain their disclosure preferences.
 </script>
 
 <Interval milliseconds={60_000} ontick={() => (now = new Date())} />
-<ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
+<ScrollFader
+  top
+  bottom
+  keyboardFocusable={false}
+  fadeColorClass="from-surface"
+  class="min-h-0 flex-1"
+>
   <RoomGroupSection
     label={m('room.information.basic')}
     items={[]}

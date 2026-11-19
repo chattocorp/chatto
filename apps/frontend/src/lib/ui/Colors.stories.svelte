@@ -24,6 +24,7 @@
       cssVar: '--color-surface-selected',
       bgClass: 'bg-surface-selected'
     },
+    { name: 'card', cssVar: '--color-card', bgClass: 'bg-card' },
     { name: 'border', cssVar: '--color-border', bgClass: 'bg-border' },
     { name: 'input', cssVar: '--color-input', bgClass: 'bg-input' },
     { name: 'input-border', cssVar: '--color-input-border', bgClass: 'bg-input-border' }

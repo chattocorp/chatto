@@ -58,8 +58,9 @@ message search results:
 - Rows rest transparently on the owning `background` work plane. Threads
   uses an avatar dot for unread rows, so bold text is not the only unread cue.
   Notification and thread rows use neutral backgrounds for all attention levels. Hover and keyboard
-  focus rise exactly one level to `surface`; do not introduce ruled
-  separators or a stronger surface jump.
+  focus use the translucent `text/5` fill of `selectable-list-item`, which
+  works on any pane surface; do not introduce ruled separators or a stronger
+  surface jump.
 - Each row owns its rounded shape. The collection owns only the standard
   `p-1` inset and `gap-1`, so selections never merge into a single slab.
 
@@ -793,9 +794,9 @@ instead of adding local gradients or arbitrary inset shadows.
 | `control-raised`      | Buttons and Select fields; shared shell lighting with disabled-state handling and no cast shadow. Semantic utilities supply fill changes for press feedback.                                                                                                                                                                                                                                                                                                   |
 | `option-depth`        | Quiet checkbox and radio rows; removes depth when disabled. Empty indicators in these rows use `surface-lowered`.                                                                                                                                                                                                                                                                                                                                              |
 | `selection-indicator` | Soft lighting on selected checkbox and radio indicators, without a drop shadow.                                                                                                                                                                                                                                                                                                                                                                                |
-| `shell-surface`       | User card and call participant cards; soft rim with no button elevation or pressed finish.                                                                                                                                                                                                                                                                                                                                                                     |
+| `shell-surface`       | User card and call participant cards; `card` fill with a soft rim, no button elevation or pressed finish.                                                                                                                                                                                                                                                                                                                                                      |
 | `shell-action`        | Standalone native buttons in the bottom row, such as Start call. Uses the same surface and 48 px minimum height as the composer and user card, with hover, focus, pressed, and disabled states.                                                                                                                                                                                                                                                                |
-| `chat-input-surface`  | Composer and sidebar search fields; the same quiet raised `shell-surface` finish as the user card.                                                                                                                                                                                                                                                                                                                                                             |
+| `chat-input-surface`  | Composer and sidebar search fields; the recessed `control-frame` field with the `input` fill, like `TextInput`.                                                                                                                                                                                                                                                                                                                                                |
 | `shell-lighting`      | Shared quiet finish for shell surfaces and raised controls. Also lights server gutter artwork without changing the image or intercepting clicks.                                                                                                                                                                                                                                                                                                               |
 | `floating-frame`      | Lit panel, dialog, and menu frames.                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `floating-inset`      | Recessed content inside those frames.                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -805,8 +806,8 @@ instead of adding local gradients or arbitrary inset shadows.
 
 The shared `--shell-*` theme tokens soften shell bevels in light mode with a
 cleaner top highlight, less lower shading, and a small edge blur. Dark mode
-keeps its sharper, low-light finish. Composer, user card, pill segments, buttons,
-and Select fields all use the same recipe. Buttons
+keeps its sharper, low-light finish. User card, pill segments, buttons, and
+Select fields all use the same recipe. Buttons
 have no cast shadow or inset pressed effect. Secondary buttons keep transparent
 border space; Select fields retain their field boundary. Ghost buttons stay flat.
 Disabled and loading controls, including button-like links, have no decorative
@@ -904,19 +905,43 @@ Surfaces form a small semantic ladder:
 - Light and dark mode are intentionally asymmetric. Do not infer elevation by
   mechanically reversing luminance between themes.
 - In light mode, `background` is the pale primary work plane and `surface` is
-  the tinted gray used for anchored chrome, composers, user cards, dialogs, and
-  panel frames and headers. These surfaces read as inset and substantial, not
+  the tinted gray used for navigation and information sidebars, anchored
+  chrome, dialogs, and panel frames and headers. These surfaces read as inset and substantial, not
   as white paper floating above the application.
 - In dark mode, progressively lighter surfaces provide separation from the
   dark primary plane.
 - `surface-emphasized` separates hover states and nested rows from their
   surrounding surface.
 - `surface-strong` provides firmer contrast for compact framed UI.
+- `card` fills cards that sit on a sidebar, such as the user card and call
+  participant cards. It is one step lighter than `surface` in both themes:
+  `background` in light mode and `surface-emphasized` in dark mode.
 - `surface-selected` is reserved for persistent selection. Pair it with an
   action-colored indicator when selection must be obvious at a glance.
 - In light mode, reserve white for form fields or an explicitly reviewed
   paper-like surface; do not use it as the default fill for persistent
   application chrome.
+
+### Pane surfaces
+
+Content panes, such as the room timeline, threads, and pane pages, use the
+`background` work plane. Navigation and information sidebars, such as the
+server gutter, server sidebar, settings sidebar, and room sidebar, use
+`surface`, like the application shell around them. The colour change separates
+the panes: do not add a border between a sidebar and a content pane, and do not
+draw dividers between groups in a sidebar list. Use spacing instead. A
+`PaneHeader` keeps its bottom border, so the header row stays one band across
+all panes.
+
+Inside a sidebar:
+
+- Pass `fadeColorClass="from-surface"` to `ScrollFader`, so the edge fades
+  match the sidebar.
+- Use translucent state fills, such as `hover:bg-text/5` and
+  `active:bg-text/10`, as `sidebar-item`, `selectable-list-item`, and icon
+  actions do. A fixed `hover:bg-surface` is invisible on a `surface` sidebar.
+- Search fields and the composer use `chat-input-surface`, a recessed form
+  field. Cards use `shell-surface`, which has the `card` fill.
 
 Panel shells provide a `surface` frame around a `background` work plane. Panel
 and table headers also use `surface`, keeping padded forms, row rules, nested

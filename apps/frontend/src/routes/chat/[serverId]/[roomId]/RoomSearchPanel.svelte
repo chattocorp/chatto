@@ -70,7 +70,13 @@ so switching rooms cannot leak a query or plaintext results into another room.
     {/if}
   {/snippet}
   <div class="flex min-h-0 flex-1 flex-col">
-    <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
+    <ScrollFader
+      top
+      bottom
+      keyboardFocusable={false}
+      fadeColorClass="from-surface"
+      class="min-h-0 flex-1"
+    >
       <SearchResults {store} compact>
         {#snippet children(result)}
           {@const timestamp = result.createdAt ? formatTimestamp(result.createdAt) : undefined}
@@ -102,7 +108,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
       </SearchResults>
     </ScrollFader>
 
-    <div class="shrink-0 bg-background p-2" data-testid="room-search-input-block">
+    <div class="shrink-0 bg-surface p-2" data-testid="room-search-input-block">
       {#if store.availability.status.state === MessageSearchState.DEGRADED}
         <div class="mb-2">
           <Hint tone="warning">{m('search.degraded')}</Hint>

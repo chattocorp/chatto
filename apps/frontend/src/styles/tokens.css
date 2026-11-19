@@ -37,6 +37,7 @@
   --color-surface-emphasized: var(--color-surface-emphasized);
   --color-surface-strong: var(--color-surface-strong);
   --color-surface-selected: var(--color-surface-selected);
+  --color-card: var(--color-card);
 
   /* Message details use a lighter tint in dark themes and a darker tint in light
      themes. Keep borders opaque so table intersections cannot compound alpha. */

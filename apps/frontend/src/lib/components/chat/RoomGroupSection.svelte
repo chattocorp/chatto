@@ -29,7 +29,7 @@ can slide out before its rows are removed.
     footer?: Snippet;
     /** Optional action that replaces the disclosure icon on hover or focus. */
     leadingOverlay?: Snippet;
-    /** Whether to draw the full-width divider preceding this section. */
+    /** Whether to add space above this section to set it apart from the previous one. */
     separated?: boolean;
     /** Optional right-click/long-press behavior for the group header. */
     contextMenuTrigger?: Attachment<HTMLElement>;
@@ -101,7 +101,7 @@ can slide out before its rows are removed.
 </script>
 
 <section
-  class={[separated ? 'border-t border-border' : '', isDndShadow ? 'rounded-md' : '']}
+  class={[separated && 'pt-2', isDndShadow && 'rounded-md']}
   data-is-dnd-shadow-item-hint={isDndShadow || undefined}
   data-testid="room-group-section"
   {@attach containNestedDragAttachment}

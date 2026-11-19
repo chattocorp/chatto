@@ -167,7 +167,7 @@ Room-scoped file list for the room sidebar.
   <div class="sidebar-item min-h-14 min-w-0 gap-3" data-testid="room-file-row">
     <button
       type="button"
-      class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-border bg-surface text-muted"
+      class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-border bg-card text-muted"
       onclick={() => openFile(item)}
       aria-label={m('room.attachment.view_label', { filename: item.attachment.filename })}
       title={m('room.attachment.view_label', { filename: item.attachment.filename })}

@@ -68,8 +68,9 @@
 
 @utility sidebar-item {
   @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text;
-  @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
-  @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
+  /* Translucent state fills work on every pane surface. */
+  @apply transition-[background-color,color] feedback-quick hover:bg-text/5 hover:text-text active:bg-text/10;
+  @apply focus-visible:bg-text/5 focus-visible:outline-2 focus-visible:outline-action;
 
   /* A current route declares itself semantically. The shared item then gives
    * every sidebar navigation surface the same quiet action-coloured treatment. */

@@ -1773,7 +1773,7 @@ describe('Room local message echo', () => {
       .toBeInTheDocument();
     await expect
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
-      .toHaveClass('end-0', 'border-s');
+      .toHaveClass('end-0', 'bg-surface');
   });
 
   it('removes the mobile sidebar immediately when closed', async () => {

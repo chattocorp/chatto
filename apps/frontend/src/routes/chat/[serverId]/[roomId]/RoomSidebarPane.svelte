@@ -53,7 +53,7 @@
       onclick={sidebarProps.onClose}
     ></button>
     <div
-      class="absolute inset-y-0 end-0 z-20 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-s border-border bg-background inline-end-overlay-shadow sm:w-[90%] lg:hidden"
+      class="absolute inset-y-0 end-0 z-20 flex min-h-0 w-full min-w-0 flex-col overflow-hidden bg-surface inline-end-overlay-shadow sm:w-[90%] lg:hidden"
       data-testid="room-sidebar-mobile-pane"
     >
       {@render sidebar(sidebarProps)}

@@ -899,7 +899,7 @@ describe('RoomList', () => {
     expect(row.querySelector('[role="img"][aria-label="[deleted user]"]')).not.toBeNull();
   });
 
-  it('renders a full-width separator between adjacent room and DM sections', () => {
+  it('spaces adjacent room and DM sections apart', () => {
     const { container } = render(RoomList);
     const roomList = q(container, 'nav.room-list') as HTMLElement;
     const groupHeaders = container.querySelectorAll<HTMLButtonElement>(
@@ -910,7 +910,8 @@ describe('RoomList', () => {
 
     expect(groupHeaders).toHaveLength(2);
     expect(sections).toHaveLength(2);
-    expect(separatedSection?.classList.contains('border-t')).toBe(true);
+    expect(separatedSection?.classList.contains('pt-2')).toBe(true);
+    expect(separatedSection?.classList.contains('border-t')).toBe(false);
     expect(separatedSection?.previousElementSibling?.contains(groupHeaders[0])).toBe(true);
     expect(separatedSection?.contains(groupHeaders[1])).toBe(true);
   });

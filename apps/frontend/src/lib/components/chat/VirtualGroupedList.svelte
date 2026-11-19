@@ -161,8 +161,9 @@ Rows do not animate in or out. Each mounted heading and row wrapper carries
       {#if group && entry?.type === 'header'}
         <div
           class={[
-            'px-2 pt-1.5',
-            entry?.separated && 'border-t border-border',
+            // Padding, not margin: virtua measures border boxes.
+            'px-2',
+            entry?.separated ? 'pt-3.5' : 'pt-1.5',
             group.collapsed && 'pb-1.5'
           ]}
           data-room-group-id={group.id}

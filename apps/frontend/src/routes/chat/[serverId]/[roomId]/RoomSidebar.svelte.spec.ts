@@ -1979,7 +1979,7 @@ describe('RoomSidebar', () => {
 
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
     expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
-    expect(container.querySelectorAll('[data-room-group-id].border-t')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-room-group-id].pt-3\\.5')).toHaveLength(2);
   });
 
   it('separates an offline-only member group from member search', async () => {
@@ -1998,7 +1998,7 @@ describe('RoomSidebar', () => {
     });
 
     expect(buttonByText(container, 'Online (1)')).toBeFalsy();
-    expect(container.querySelectorAll('[data-room-group-id].border-t')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-room-group-id].pt-3\\.5')).toHaveLength(1);
   });
 
   it('coalesces a burst of presence-driven member group movement', async () => {
@@ -2533,7 +2533,7 @@ describe('RoomSidebar', () => {
     await vi.waitFor(() => {
       expect(roomFileGroupHeadings(container)).toEqual(['Today', 'Yesterday']);
     });
-    expect(container.querySelectorAll('[data-room-group-id].border-t')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-room-group-id].pt-3\\.5')).toHaveLength(1);
     expect(roomFileRowLabels(container)).toHaveLength(2);
     expect(roomFileRowLabels(container)[0]).toContain('today.txt');
     expect(roomFileRowLabels(container)[1]).toContain('yesterday.txt');
@@ -2556,7 +2556,7 @@ describe('RoomSidebar', () => {
         'May 2026'
       ]);
     });
-    expect(container.querySelectorAll('[data-room-group-id].border-t')).toHaveLength(4);
+    expect(container.querySelectorAll('[data-room-group-id].pt-3\\.5')).toHaveLength(4);
     const labels = roomFileRowLabels(container);
     expect(labels).toHaveLength(5);
     expect(labels.filter((label) => label.includes('today.txt'))).toHaveLength(1);

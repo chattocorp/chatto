@@ -47,7 +47,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
   data-app-sidebar="true"
   data-testid="server-sidebar"
   class={[
-    'server-sidebar sidebar-drawer relative z-50 flex min-w-0 flex-col overflow-hidden border-e border-border bg-background',
+    'server-sidebar sidebar-drawer relative z-50 flex min-w-0 flex-col overflow-hidden bg-surface',
     width,
     'md:flex-initial',
     // Mobile: fixed overlay positioned after the Server Gutter (~68px), or at the

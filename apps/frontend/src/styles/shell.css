@@ -14,7 +14,7 @@
 }
 
 @utility shell-surface {
-  @apply rounded-xl bg-surface shell-lighting;
+  @apply rounded-xl bg-card shell-lighting;
 }
 
 /* Standalone shell actions align with the composer and user card. */
@@ -29,10 +29,10 @@
   }
 }
 
-/* Chat inputs share the quiet raised finish of the user card and server tiles.
- */
+/* Chat inputs, such as the composer and sidebar search, are recessed form
+ * fields like TextInput, so they never read as buttons. */
 @utility chat-input-surface {
-  @apply min-h-12 shell-surface;
+  @apply min-h-12 control-frame bg-input focus-within:border-action;
 }
 
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */

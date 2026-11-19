@@ -78,7 +78,7 @@
 
 <PaneHeader {title} {subtitle} {backHref} {backLabel} />
 
-<ScrollFader top bottom>
+<ScrollFader top bottom fadeColorClass="from-surface">
   <nav aria-label={title}>
     {#if items.length > 0}
       <div class="sidebar-nav p-2">

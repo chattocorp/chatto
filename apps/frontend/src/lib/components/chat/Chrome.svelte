@@ -154,12 +154,12 @@
       <LoadingDots class="min-h-0 flex-1 items-center" />
     {:else}
       <!-- Scrollable area for room list sidebar -->
-      <ScrollFader top bottom>
+      <ScrollFader top bottom fadeColorClass="from-surface">
         {#if bannerUrl}
           <ServerBanner url={bannerUrl} />
         {/if}
 
-        <nav class="sidebar-nav p-2">
+        <nav class="sidebar-nav p-2 pb-4">
           <a
             href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
             aria-current={isHomeActive ? 'page' : undefined}
@@ -181,8 +181,6 @@
           {/if}
           <MyThreadsNavItem active={isMyThreadsActive} />
         </nav>
-
-        <hr class="border-border" />
 
         <!-- Room List - always visible to server members (shows rooms user has joined) -->
         <RoomList canReorderGroups={activeStore.permissions.canManageRooms} />

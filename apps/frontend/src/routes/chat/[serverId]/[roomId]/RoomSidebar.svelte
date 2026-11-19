@@ -424,9 +424,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
   bind:this={sidebarElement}
   {@attach syncPresenceGrouping}
   class={[
-    'relative flex min-h-0 flex-col bg-background',
+    'relative flex min-h-0 flex-col bg-surface',
     presentation === 'desktop'
-      ? [!isCallFullscreen && 'border-s border-border', maximized && 'min-w-0 flex-1']
+      ? maximized && 'min-w-0 flex-1'
       : 'w-full min-w-0 flex-1 overflow-hidden'
   ]}
   style:width={presentation === 'desktop' && !maximized ? `${roomSidebarWidth.value}px` : undefined}
@@ -498,6 +498,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       <ScrollFader
         top
         bottom
+        fadeColorClass="from-surface"
         bind:scrollEl={memberScrollEl}
         class="min-h-0 flex-1"
         data-testid="room-member-list"
@@ -524,7 +525,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         </nav>
       </ScrollFader>
 
-      <div class="shrink-0 bg-background p-2" data-testid="room-member-search-block">
+      <div class="shrink-0 bg-surface p-2" data-testid="room-member-search-block">
         <ChatSearchInput
           id="room-member-search"
           label={m('room.sidebar.search_members')}
