@@ -40,6 +40,8 @@ behavior. Apply those rules when choosing an implementation too.
 
 ## Architecture
 
+Use [chatto-experiments](../../.agents/skills/chatto-experiments/SKILL.md) when adding, reviewing, adopting, or retiring a client feature in App Preferences → Experiments.
+
 - Prefer store classes and small components. Stores own the data lifecycle.
   Components render state and call named store methods.
 - Server data lives in `@chatto/client` (`packages/chatto-client/`). Use the
