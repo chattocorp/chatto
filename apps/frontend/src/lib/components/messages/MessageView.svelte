@@ -188,6 +188,14 @@ identity, body rendering, and row geometry consistent.
       {#if !compact}
         <div class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
           {#if actor && !actor.deleted}
+            {#snippet authorLabel()}
+              <AccountName name={displayName} identity={actor} badgeSize="md" />
+              {#if experimentalFeatures.newMessageHeader.enabled && actor.login}
+                <bdi dir="ltr" class="min-w-0 truncate font-normal text-muted">@{actor.login}</bdi>
+              {/if}
+              <UserCustomStatusBadge status={customStatus} />
+              {@render authorSuffix?.()}
+            {/snippet}
             {#if actorInteractive}
               <button
                 type="button"
@@ -196,17 +204,13 @@ identity, body rendering, and row geometry consistent.
                 ontouchstart={onActorTouchStart}
                 oncontextmenu={onActorContextMenu}
               >
-                <AccountName name={displayName} identity={actor} badgeSize="md" />
-                <UserCustomStatusBadge status={customStatus} />
-                {@render authorSuffix?.()}
+                {@render authorLabel()}
               </button>
             {:else}
               <strong
                 class="inline-flex max-w-full min-w-0 items-center gap-1.5 leading-tight font-semibold"
               >
-                <AccountName name={displayName} identity={actor} badgeSize="md" />
-                <UserCustomStatusBadge status={customStatus} />
-                {@render authorSuffix?.()}
+                {@render authorLabel()}
               </strong>
             {/if}
           {:else if authorLoading && !actor?.deleted}
@@ -220,13 +224,7 @@ identity, body rendering, and row geometry consistent.
               ><bdi>{displayName}</bdi></strong
             >
           {/if}
-          {#if headerMeta && experimentalFeatures.newMessageHeader.enabled}
-            <div class="flex min-w-0 basis-full flex-wrap items-baseline gap-x-2 gap-y-1">
-              {@render headerMeta()}
-            </div>
-          {:else}
-            {@render headerMeta?.()}
-          {/if}
+          {@render headerMeta?.()}
         </div>
       {/if}
 

@@ -7,7 +7,7 @@
 
 In App Preferences, open Appearance and select a feature under Experimental Features. Each feature starts disabled. A change takes effect immediately on every connected server in this app. Tabs that share the same browser local storage also apply the change. The browser remembers the choice after a reload.
 
-With **New message header** enabled, the author and badges appear on the first line. The time and other message metadata appear below them. Consecutive messages with a compact layout keep their compact timestamp.
+With **New message header** enabled, the header shows the author’s display name followed by their @username. The timestamp follows on the same line when space permits. Consecutive messages with a compact layout keep their compact timestamp.
 
 ## Rationale
 

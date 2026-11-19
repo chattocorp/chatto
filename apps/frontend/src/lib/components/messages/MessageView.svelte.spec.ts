@@ -20,22 +20,27 @@ const props = { eventId: 'message', actor, displayName: 'Message author', body: 
 
 afterEach(() => vi.useRealTimers());
 
-it('moves the timestamp below the author when the experiment is enabled', async () => {
+it('shows the login between the display name and timestamp when the experiment is enabled', async () => {
   const headerMeta = createRawSnippet(() => ({ render: () => '<time>12:34</time>' }));
   const view = render(MessageViewTestHarness, { ...props, headerMeta });
   const author = view.getByText(props.displayName, { exact: true });
   const time = view.getByText('12:34');
   await expect.element(author).toBeVisible();
-  const isBelowAuthor = () =>
-    time.element().getBoundingClientRect().top >= author.element().getBoundingClientRect().bottom;
-  expect(isBelowAuthor()).toBe(false);
+  const login = view.getByText('@author', { exact: true });
+  await expect.element(login).not.toBeInTheDocument();
   try {
     flushSync(() => (experimentalFeatures.newMessageHeader.enabled = true));
-    expect(isBelowAuthor()).toBe(true);
+    await expect.element(login).toBeVisible();
+    const nameBounds = author.element().getBoundingClientRect();
+    const loginBounds = login.element().getBoundingClientRect();
+    const timeBounds = time.element().getBoundingClientRect();
+    expect(loginBounds.left).toBeGreaterThanOrEqual(nameBounds.right);
+    expect(timeBounds.left).toBeGreaterThanOrEqual(loginBounds.right);
+    expect(timeBounds.top).toBeLessThan(nameBounds.bottom);
   } finally {
     flushSync(() => (experimentalFeatures.newMessageHeader.enabled = false));
   }
-  expect(isBelowAuthor()).toBe(false);
+  await expect.element(login).not.toBeInTheDocument();
 });
 
 describe('message author custom status', () => {
