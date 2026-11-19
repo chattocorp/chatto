@@ -106,6 +106,8 @@ A bot that responds only to direct mentions checks for a `direct` target with
 
 ### Resource-change events
 
+After `RoomInformationChangedEvent`, refresh the channel with `RoomDirectoryService.GetRoom`. The optional `information` field contains the current Markdown for members and room managers. An empty string means the field is clear.
+
 `RoomMembershipEventsVisibilityChangedEvent` changes a room's join/leave display
 setting. Refresh the room resource or apply `show_membership_events` to its current
 state. Apply it to history and new timeline rows. Continue to process membership

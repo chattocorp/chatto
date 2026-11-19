@@ -81,7 +81,7 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 			require.NoError(t, first.GrantUserRoomPermission(ctx, SystemActorID, room.Id, actor.Id, PermRoomManage))
 			concurrentManagerID := newRoomManagerForTest(t, ctx, first, "compound-concurrent-manager", room.Id)
 			second := startReplica(t, ns, first.config)
-			input := RoomUpdateInput{ActorID: actor.Id, RoomID: room.Id, Description: new("after"),
+			input := RoomUpdateInput{ActorID: actor.Id, RoomID: room.Id, Description: new("after"), Information: new("# Guidelines"),
 				Universal: new(true), SlowModeSeconds: proto.Uint32(30),
 				ShowMembershipEvents: new(false),
 				ThreadingMode:        evtv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED.Enum()}
@@ -113,12 +113,13 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 				require.Equal(t, 2, attempts)
 				require.Equal(t, "concurrent", updated.Name)
 				require.Equal(t, "after", updated.Description)
+				require.Equal(t, "# Guidelines", updated.Information)
 				require.True(t, updated.Universal)
 				require.EqualValues(t, 30, updated.SlowModeSeconds)
 				require.Equal(t, *input.ThreadingMode, updated.ThreadingMode)
 				require.False(t, updated.ShowMembershipEvents)
 				var previous uint64
-				for _, eventType := range []string{evtstream.EventRoomUpdated, evtstream.EventRoomUniversalChanged, evtstream.EventRoomSlowModeChanged, evtstream.EventRoomThreadingModeChanged, evtstream.EventRoomMembershipEventsVisibilityChanged} {
+				for _, eventType := range []string{evtstream.EventRoomUpdated, evtstream.EventRoomInformationChanged, evtstream.EventRoomUniversalChanged, evtstream.EventRoomSlowModeChanged, evtstream.EventRoomThreadingModeChanged, evtstream.EventRoomMembershipEventsVisibilityChanged} {
 					seq, err := first.EventPublisher.LastSubjectSeq(ctx, evtstream.RoomAggregate(room.Id).Subject(eventType))
 					require.NoError(t, err)
 					if previous != 0 {
@@ -141,6 +142,7 @@ func TestCompoundRoomUpdateRetriesAcrossReplicas(t *testing.T) {
 			unchanged, err := first.GetRoom(ctx, KindChannel, room.Id)
 			require.NoError(t, err)
 			require.Equal(t, "before", unchanged.Description)
+			require.Empty(t, unchanged.Information)
 			require.False(t, unchanged.Universal)
 			require.True(t, unchanged.ShowMembershipEvents)
 			require.Zero(t, unchanged.SlowModeSeconds)

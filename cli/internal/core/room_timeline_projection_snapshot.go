@@ -12,8 +12,8 @@ import (
 	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 )
 
-// v11 excludes import reconciliation facts from the visible timeline.
-var roomTimelineSnapshotContractID = snapshotContractID("v11", &projectionv1.RoomTimelineProjectionSnapshot{})
+// v12 includes changes to room information in the visible timeline.
+var roomTimelineSnapshotContractID = snapshotContractID("v12", &projectionv1.RoomTimelineProjectionSnapshot{})
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID

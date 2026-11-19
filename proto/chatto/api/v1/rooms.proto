@@ -54,6 +54,8 @@ message Room {
   // Whether clients show room join/leave activity. Absence on older servers
   // means true. Membership state and event delivery are not affected.
   optional bool show_membership_events = 12;
+  // Channel Markdown for room members and managers. Absent when unavailable.
+  optional string information = 13;
 }
 
 // Current member-only notice in a channel room.
@@ -163,7 +165,7 @@ message UpdateRoomRequest {
   // New threading policy. Direct-message rooms cannot set this field, and an
   // explicitly supplied UNSPECIFIED or unknown value is rejected.
   optional RoomThreadingMode threading_mode = 6;
-  // Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events.
+  // Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events, information.
   // Omit to infer populated fields; * selects all editable fields. An explicit
   // empty mask is invalid. Unselected values are ignored. Selected absent values
   // reset the field to its default, subject to field validation.
@@ -174,6 +176,8 @@ message UpdateRoomRequest {
   // Whether clients show join/leave activity in this channel's history and live
   // timeline. Requires room.manage. Selecting an absent value resets to true.
   optional bool show_membership_events = 9;
+  // Markdown shown in the room sidebar. Requires room.manage. Empty clears it.
+  optional string information = 10 [(buf.validate.field).string.max_len = 10000];
 }
 
 // Result of updating a room.

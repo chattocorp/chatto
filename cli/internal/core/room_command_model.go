@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
@@ -72,10 +73,12 @@ type RoomCreateInput struct {
 }
 
 type RoomUpdateInput struct {
-	ActorID         string
-	RoomID          string
-	Name            *string
-	Description     *string
+	ActorID     string
+	RoomID      string
+	Name        *string
+	Description *string
+	// Information replaces the channel sidebar Markdown when supplied.
+	Information     *string
 	Universal       *bool
 	SlowModeSeconds *uint32
 	// ThreadSlowModeSeconds changes the independent per-thread interval.
@@ -159,8 +162,11 @@ func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput
 	if err != nil {
 		return nil, err
 	}
-	if input.Name == nil && input.Description == nil && input.Universal == nil && input.SlowModeSeconds == nil && input.ThreadSlowModeSeconds == nil && input.ThreadingMode == nil && input.ShowMembershipEvents == nil {
+	if input.Name == nil && input.Description == nil && input.Information == nil && input.Universal == nil && input.SlowModeSeconds == nil && input.ThreadSlowModeSeconds == nil && input.ThreadingMode == nil && input.ShowMembershipEvents == nil {
 		return nil, fmt.Errorf("%w: provide at least one room field to update", ErrInvalidArgument)
+	}
+	if input.Information != nil && utf8.RuneCountInString(*input.Information) > RoomInformationMaxLength {
+		return nil, invalidArgument(fmt.Sprintf("room information must be %d characters or less", RoomInformationMaxLength))
 	}
 	if input.SlowModeSeconds != nil && *input.SlowModeSeconds > MaxRoomSlowModeSeconds {
 		return nil, invalidArgument("slow mode cannot exceed 21600 seconds")
@@ -214,6 +220,9 @@ func (s *RoomCommandModel) updateRoom(ctx context.Context, input RoomUpdateInput
 		}
 		if name != room.GetName() || description != room.GetDescription() {
 			add(&evtv1.Event{Event: &evtv1.Event_RoomUpdated{RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: input.RoomID, Name: name, Description: description}}})
+		}
+		if input.Information != nil && *input.Information != room.Information {
+			add(&evtv1.Event{Event: &evtv1.Event_RoomInformationChanged{RoomInformationChanged: &evtv1.RoomInformationChangedEvent{RoomId: input.RoomID, Information: *input.Information}}})
 		}
 		if input.Universal != nil && *input.Universal != room.GetUniversal() {
 			add(&evtv1.Event{Event: &evtv1.Event_RoomUniversalChanged{RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{RoomId: input.RoomID, Universal: *input.Universal}}})

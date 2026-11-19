@@ -111,6 +111,8 @@ another address does not change the selection. See
 
 **Room** — A channel or DM. Where messages live. Identified by `(serverId, roomId)`.
 
+**Room Information** — Markdown text that room managers maintain for channel members in the Room Sidebar. See [FDR-019](fdr/FDR-019-room-lifecycle.md).
+
 **Room notice** — One current Markdown notice for a channel room's members. A correction preserves device-local dismissals; explicit republishing makes the notice appear again. See [FDR-054](fdr/FDR-054-room-notices.md).
 
 **Universal room** — Channel room that behaves as joined for every server member currently eligible to join it, without writing per-user membership events. See [FDR-019](fdr/FDR-019-room-lifecycle.md).

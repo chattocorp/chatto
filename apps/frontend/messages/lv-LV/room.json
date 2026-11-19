@@ -18,6 +18,9 @@
       "edit": "Rediģēt paziņojumu"
     },
     "information": {
+      "edit": "Rediģēt informāciju par istabu",
+      "updated": "Informācija par istabu ir atjaunināta.",
+      "too_long": "Izmantojiet ne vairāk kā {max} rakstzīmes.",
       "description": "Apraksts",
       "created": "Izveidota",
       "title": "Informācija par istabu",

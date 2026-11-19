@@ -84,6 +84,7 @@ thread IDs can change while the pane stays mounted.
     onComposerInputConsumed,
     onOpenThread,
     onOpenCall,
+    onOpenInformation,
     onOpenProfile,
     header,
     class: className,
@@ -108,6 +109,7 @@ thread IDs can change while the pane stays mounted.
     composerInput?: PendingComposerInput | null;
     onComposerInputConsumed?: (input: PendingComposerInput) => void;
     onOpenThread?: OpenThreadHandler;
+    onOpenInformation?: () => void;
     onOpenCall?: () => void;
     onOpenProfile?: (userId: string) => void;
     /** Rendered above the timeline, inside the file drop area. */
@@ -441,6 +443,7 @@ thread IDs can change while the pane stays mounted.
       )}
       {onOpenThread}
       {onOpenCall}
+      {onOpenInformation}
       {onOpenProfile}
       unreadAfterEventId={unread.unreadMarkerEventId}
       onReachedBottom={() => unread.clearUnreadMarker()}

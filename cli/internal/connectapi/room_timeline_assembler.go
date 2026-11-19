@@ -246,6 +246,8 @@ func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*a
 		apiEvent.Event = &apiv1.RoomTimelineEvent_RoomCreated{RoomCreated: roomEvent(payload.RoomCreated.GetRoomId())}
 	case *evtv1.Event_RoomUpdated:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_RoomUpdated{RoomUpdated: roomEvent(payload.RoomUpdated.GetRoomId())}
+	case *evtv1.Event_RoomInformationChanged:
+		apiEvent.Event = &apiv1.RoomTimelineEvent_RoomInformationChanged{RoomInformationChanged: roomEvent(payload.RoomInformationChanged.GetRoomId())}
 	case *evtv1.Event_RoomDeleted:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_RoomDeleted{RoomDeleted: roomEvent(payload.RoomDeleted.GetRoomId())}
 	case *evtv1.Event_RoomArchived:

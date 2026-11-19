@@ -35,6 +35,7 @@ func (p *RoomDirectoryProjection) Snapshot() ([]byte, error) {
 			// Keep the raw enum; runtime reads normalize unknown future values.
 			ThreadingMode: entry.threadingMode, ThreadSlowModeSeconds: entry.threadSlowModeSeconds,
 			ShowMembershipEvents: entry.showMembershipEvents,
+			Information:          entry.information,
 			CreatedAt:            entry.createdAt, Purpose: entry.purpose, Notice: snapshotRoomNotice(entry.notice),
 		})
 	}
@@ -79,10 +80,11 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 			return fmt.Errorf("room directory snapshot repeats room %q", room.GetId())
 		}
 		rooms[room.GetId()] = &roomCatalogEntry{
-			createdAt: room.GetCreatedAt(),
-			notice:    restoreRoomNotice(room.GetNotice()),
-			purpose:   room.GetPurpose(),
-			name:      room.GetName(), description: room.GetDescription(), kind: room.GetKind(),
+			createdAt:   room.GetCreatedAt(),
+			notice:      restoreRoomNotice(room.GetNotice()),
+			purpose:     room.GetPurpose(),
+			information: room.GetInformation(),
+			name:        room.GetName(), description: room.GetDescription(), kind: room.GetKind(),
 			archived: room.GetArchived(), universal: room.GetUniversal(), slowModeSeconds: room.GetSlowModeSeconds(),
 			threadingMode:         room.GetThreadingMode(),
 			showMembershipEvents:  room.GetShowMembershipEvents(),

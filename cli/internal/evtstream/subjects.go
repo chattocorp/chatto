@@ -78,6 +78,7 @@ const (
 	EventRoomUniversalChanged                  = "room_universal_changed"
 	EventRoomSlowModeChanged                   = "room_slow_mode_changed"
 	EventRoomNoticeChanged                     = "room_notice_changed"
+	EventRoomInformationChanged                = "room_information_changed"
 	EventRoomThreadingModeChanged              = "room_threading_mode_changed"
 	EventRoomMembershipEventsVisibilityChanged = "room_membership_events_visibility_changed"
 	EventRoomDeleted                           = "room_deleted"
@@ -286,6 +287,8 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventRoomSlowModeChanged
 	case *evtv1.Event_RoomNoticeChanged:
 		return EventRoomNoticeChanged
+	case *evtv1.Event_RoomInformationChanged:
+		return EventRoomInformationChanged
 	case *evtv1.Event_RoomThreadingModeChanged:
 		return EventRoomThreadingModeChanged
 	case *evtv1.Event_RoomMembershipEventsVisibilityChanged:

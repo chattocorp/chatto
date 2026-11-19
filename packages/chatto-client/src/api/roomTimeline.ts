@@ -346,6 +346,11 @@ function timelinePayload(
         kind: TimelineEventKind.RoomUpdated,
         roomId: event.event.value.roomId
       };
+    case 'roomInformationChanged':
+      return {
+        kind: TimelineEventKind.RoomInformationChanged,
+        roomId: event.event.value.roomId
+      };
     case 'roomDeleted':
       return {
         kind: TimelineEventKind.RoomDeleted,

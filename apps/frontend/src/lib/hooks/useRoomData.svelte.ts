@@ -10,6 +10,8 @@ export type RoomData = {
     name: string;
     type: RoomKind;
     description?: string | null;
+    /** Channel Markdown, absent when unavailable to this viewer. */
+    information?: string;
     /** Creation provenance, when reported by the server. */
     createdAt?: string | null;
     isUniversal: boolean;
@@ -74,6 +76,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
         id: room.id,
         name: room.name,
         description: room.description ?? undefined,
+        information: room.information,
         createdAt: room.createdAt,
         type: roomKindOrChannel(room.kind ?? RoomKind.CHANNEL),
         isUniversal: room.isUniversal,

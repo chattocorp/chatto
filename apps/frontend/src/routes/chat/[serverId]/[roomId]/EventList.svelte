@@ -69,6 +69,7 @@
     // Threading - only root messages can open threads
     onOpenThread,
     onOpenCall,
+    onOpenInformation,
     onOpenProfile,
     // Filtering - whether to filter out thread replies (false for thread pane)
     filterThreadReplies = true,
@@ -93,6 +94,7 @@
     showTombstones?: boolean;
     // Threading
     onOpenThread?: OpenThreadHandler;
+    onOpenInformation?: () => void;
     onOpenCall?: () => void;
     onOpenProfile?: (userId: string) => void;
     // Filtering
@@ -1089,6 +1091,7 @@
               {#if groupEvents && groupKind && groupEvents.length > 0}
                 <SystemEventGroup
                   events={groupEvents}
+                  {onOpenInformation}
                   kind={groupKind}
                   expanded={isSystemGroupExpanded(groupEvents)}
                   onExpandedChange={(expanded) => setSystemGroupExpanded(groupEvents, expanded)}

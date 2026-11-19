@@ -18,6 +18,9 @@
       "edit": "編輯公告"
     },
     "information": {
+      "edit": "編輯聊天室資訊",
+      "updated": "聊天室資訊已更新。",
+      "too_long": "請最多輸入 {max} 個字元。",
       "description": "說明",
       "created": "建立時間",
       "title": "聊天室資訊",

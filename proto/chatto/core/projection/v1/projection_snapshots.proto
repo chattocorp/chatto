@@ -561,6 +561,8 @@ message RoomSnapshot {
   RoomNoticeSnapshot notice = 15;
   // Room-owned display setting. Membership facts remain available.
   bool show_membership_events = 16;
+  // Current channel Room Information in Markdown.
+  string information = 17;
 }
 
 // RoomNoticeSnapshot stores room notice state for projection restore.

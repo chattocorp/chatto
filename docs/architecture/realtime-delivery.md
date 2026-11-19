@@ -72,6 +72,8 @@ is active sends a temporary failure with reconnect enabled.
 
 ## Public events
 
+Members receive `room_information_changed` for the channel whose sidebar Markdown changed. The client refreshes the room and its timeline. Room reads expose the text to channel members and managers.
+
 `room_notice_changed` identifies a channel whose current notice changed. It is
 delivered to current members after Room Directory projection readiness. The
 public mapper omits notice text and storage state; recipients read the canonical

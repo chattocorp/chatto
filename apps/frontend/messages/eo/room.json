@@ -18,6 +18,9 @@
       "edit": "Redakti avizon"
     },
     "information": {
+      "edit": "Redakti informojn pri la ĉambro",
+      "updated": "La informoj pri la ĉambro estis ĝisdatigitaj.",
+      "too_long": "Uzu maksimume {max} signojn.",
       "description": "Priskribo",
       "created": "Kreita",
       "title": "Informoj pri la ĉambro",

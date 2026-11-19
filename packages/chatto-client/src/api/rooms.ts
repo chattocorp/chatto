@@ -17,6 +17,8 @@ export type PublicRoom = {
   id: string;
   name: string;
   description: string;
+  /** Sidebar Markdown when the server supplies it to this viewer. */
+  information?: string;
   archived: boolean;
   groupId: string;
   universal: boolean;
@@ -54,12 +56,16 @@ export type RoomCommandAPI = ReturnType<typeof createRoomCommandAPI>;
 
 const ROOM_DESCRIPTION_MAX_LENGTH = 500;
 
+/** Maximum number of Unicode code points in the channel sidebar Markdown. */
+export const MAX_ROOM_INFORMATION_LENGTH = 10_000;
+
 function publicRoom(room: Room | undefined): PublicRoom | null {
   if (!room) return null;
   return {
     id: room.id,
     name: room.name,
     description: room.description,
+    information: room.information,
     archived: room.archived,
     groupId: room.groupId,
     universal: room.universal,
@@ -129,6 +135,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
     async updateRoom(input: {
       roomId: string;
       name?: string;
+      information?: string;
       description?: string | null;
       universal?: boolean;
       slowModeSeconds?: number;
@@ -142,6 +149,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
           roomId: input.roomId,
           name: input.name,
           description: input.description === undefined ? undefined : (input.description ?? ''),
+          information: input.information,
           universal: input.universal,
           slowModeSeconds: input.slowModeSeconds,
           threadSlowModeSeconds: input.threadSlowModeSeconds,
@@ -150,6 +158,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
           updateMask: updateMask(input, [
             'name',
             'description',
+            'information',
             'universal',
             'slowModeSeconds',
             'threadSlowModeSeconds',

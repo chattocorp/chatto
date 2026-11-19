@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Attachment } from 'svelte/attachments';
   import { m } from '$lib/i18n/messages';
   import FormField from './FormField.svelte';
 
@@ -17,7 +18,8 @@
     rows = 3,
     maxlength,
     maxBytes,
-    oninput
+    oninput,
+    attachment
   }: {
     label: string;
     id: string;
@@ -32,6 +34,8 @@
     maxlength?: number;
     /** Reject edits whose UTF-8 encoding would exceed this many bytes. */
     maxBytes?: number;
+    /** Optional DOM behavior for the textarea itself. */
+    attachment?: Attachment<HTMLTextAreaElement>;
     oninput?: (e: Event) => void;
   } = $props();
 
@@ -82,6 +86,7 @@
 
 <FormField {label} {id} {error} description={effectiveDescription} {required}>
   <textarea
+    {@attach attachment}
     {id}
     data-testid={testid}
     onbeforeinput={maxBytes === undefined ? undefined : handleBeforeInput}

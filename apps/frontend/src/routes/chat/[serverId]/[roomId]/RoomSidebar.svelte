@@ -70,6 +70,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
     roomId,
     roomName = '',
     roomDescription = '',
+    information,
+    informationEditHref,
     roomCreatedAt = null,
     postingRules = null,
     activePanel = 'members',
@@ -103,6 +105,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
     roomId: string;
     roomName?: string;
     roomDescription?: string;
+    information?: string;
+    informationEditHref?: string;
     roomCreatedAt?: string | null;
     postingRules?: RoomPostingRules | null;
     activePanel?: RoomSidebarPanel;
@@ -577,6 +581,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
       serverId={activeServerId}
       {roomName}
       {roomDescription}
+      {information}
+      {informationEditHref}
       {roomCreatedAt}
       {postingRules}
       memberCount={membersStore.hasFirstPage ? memberCount : null}

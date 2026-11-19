@@ -18,6 +18,9 @@
       "edit": "Redigera meddelande"
     },
     "information": {
+      "edit": "Redigera rumsinformation",
+      "updated": "Rumsinformationen har uppdaterats.",
+      "too_long": "Använd högst {max} tecken.",
       "description": "Beskrivning",
       "created": "Skapat",
       "title": "Rumsinformation",

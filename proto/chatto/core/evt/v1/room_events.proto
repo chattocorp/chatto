@@ -25,6 +25,13 @@ option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/ev
 // ROOM LIFECYCLE EVENTS
 // ============================================================================
 
+// RoomInformationChangedEvent records a change to the channel sidebar text.
+message RoomInformationChangedEvent {
+  string room_id = 1;
+  // Markdown source. Empty clears the field.
+  string information = 2;
+}
+
 // RoomNoticeChangedEvent replaces the current notice, or clears it when the
 // body is empty. The envelope ID is the write version. An announcement also
 // uses the envelope ID and time as the publication ID and publication time.

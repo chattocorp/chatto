@@ -153,6 +153,7 @@ const (
 	timelineUserLeftRoom
 	timelineCallStarted
 	timelineCallEnded
+	timelineRoomInformationChanged
 )
 
 func timelineKind(eventType string) timelineEventKind {
@@ -163,6 +164,8 @@ func timelineKind(eventType string) timelineEventKind {
 		return timelineRoomCreated
 	case evtstream.EventRoomUpdated:
 		return timelineRoomUpdated
+	case evtstream.EventRoomInformationChanged:
+		return timelineRoomInformationChanged
 	case evtstream.EventRoomDeleted:
 		return timelineRoomDeleted
 	case evtstream.EventRoomArchived:
@@ -192,6 +195,8 @@ func (k timelineEventKind) eventType() string {
 		return evtstream.EventRoomCreated
 	case timelineRoomUpdated:
 		return evtstream.EventRoomUpdated
+	case timelineRoomInformationChanged:
+		return evtstream.EventRoomInformationChanged
 	case timelineRoomDeleted:
 		return evtstream.EventRoomDeleted
 	case timelineRoomArchived:

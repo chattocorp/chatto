@@ -268,6 +268,7 @@ does not include the setting-change fact. Membership facts remain available.
 | `evt.room.{roomId}.room_universal_changed`      | `RoomUniversalChangedEvent`                                                                                                                                   |
 | `evt.room.{roomId}.room_slow_mode_changed`      | `RoomSlowModeChangedEvent`                                                                                                                                    |
 | `evt.room.{roomId}.room_threading_mode_changed` | `RoomThreadingModeChangedEvent`                                                                                                                               |
+| `evt.room.{roomId}.room_information_changed`    | `RoomInformationChangedEvent` stores the current sidebar Markdown. An empty value clears the field.                                                           |
 | `evt.room.{roomId}.room_notice_changed`         | `RoomNoticeChangedEvent`: current Markdown and an announcement flag; the envelope supplies publication identity and time, and an empty body clears the notice |
 | `evt.room.{roomId}.room_deleted`                | `RoomDeletedEvent`                                                                                                                                            |
 | `evt.room.{roomId}.user_joined`                 | `UserJoinedRoomEvent`                                                                                                                                         |

@@ -18,6 +18,9 @@
       "edit": "编辑公告"
     },
     "information": {
+      "edit": "编辑聊天室信息",
+      "updated": "聊天室信息已更新。",
+      "too_long": "请最多输入 {max} 个字符。",
       "description": "描述",
       "created": "创建时间",
       "title": "聊天室信息",

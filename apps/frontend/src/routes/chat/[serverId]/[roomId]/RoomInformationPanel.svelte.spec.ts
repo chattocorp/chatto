@@ -19,6 +19,33 @@ describe('RoomInformationPanel', () => {
     setReactiveLocale('en-GB');
   });
 
+  it('renders channel Markdown and keeps its edit link available to managers when empty', async () => {
+    const informationEditHref = '/chat/-/manage/rooms/R1#room-information';
+    const view = render(RoomInformationPanel, {
+      serverId: 'test-server',
+      roomName: 'general',
+      roomDescription: '',
+      informationEditHref
+    });
+    const link = page.getByRole('link', { name: 'Edit room information' });
+    const section = page.getByRole('button', { name: 'Room information', exact: true });
+    await expect.element(link).not.toBeInTheDocument();
+    await view.rerender({ information: '' });
+    await expect.element(link).toHaveAttribute('href', informationEditHref);
+    await section.click();
+    await expect.element(link).toBeVisible();
+    await section.click();
+    await view.rerender({
+      informationEditHref: undefined,
+      information: '## Welcome\n\n- Read the rules'
+    });
+    await expect.element(link).not.toBeInTheDocument();
+    await expect.element(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
+    await expect.element(page.getByRole('listitem')).toHaveTextContent('Read the rules');
+    await view.rerender({ information: '' });
+    await expect.element(section).not.toBeInTheDocument();
+  });
+
   it('hides an empty notice section from readers but keeps it available to editors', async () => {
     let notice = new RoomNotice();
     const store = new RoomNoticeStore(

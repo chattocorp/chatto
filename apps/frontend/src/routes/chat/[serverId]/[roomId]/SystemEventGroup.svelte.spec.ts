@@ -48,6 +48,30 @@ describe('SystemEventGroup', () => {
     setReactiveLocale('en-GB');
   });
 
+  it('opens the room information from an actorless update', async () => {
+    const onOpenInformation = vi.fn();
+    const view = render(SystemEventGroup, {
+      props: {
+        kind: 'information',
+        events: [
+          {
+            id: 'e1',
+            createdAt: '2026-06-15T12:00:00Z',
+            actorId: null,
+            actor: null,
+            event: { kind: TimelineEventKind.RoomInformationChanged, roomId: 'room-1' }
+          }
+        ],
+        expanded: false,
+        onExpandedChange: vi.fn(),
+        onOpenInformation
+      }
+    });
+    await expect.element(view.getByText('Room information was updated.')).toBeVisible();
+    await view.getByRole('button', { name: 'Room information' }).click();
+    expect(onOpenInformation).toHaveBeenCalledOnce();
+  });
+
   it('separates two actors with the localized conjunction', () => {
     const { container } = render(SystemEventGroup, {
       props: {

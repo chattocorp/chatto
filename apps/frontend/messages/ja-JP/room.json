@@ -18,6 +18,9 @@
       "edit": "お知らせを編集"
     },
     "information": {
+      "edit": "ルーム情報を編集",
+      "updated": "ルーム情報が更新されました。",
+      "too_long": "{max} 文字以内で入力してください。",
       "description": "説明",
       "created": "作成日時",
       "title": "ルーム情報",

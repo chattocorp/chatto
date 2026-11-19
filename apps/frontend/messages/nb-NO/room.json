@@ -18,6 +18,9 @@
       "edit": "Rediger kunngjøring"
     },
     "information": {
+      "edit": "Rediger rominformasjon",
+      "updated": "Rominformasjonen ble oppdatert.",
+      "too_long": "Bruk høyst {max} tegn.",
       "description": "Beskrivelse",
       "created": "Opprettet",
       "title": "Rominformasjon",

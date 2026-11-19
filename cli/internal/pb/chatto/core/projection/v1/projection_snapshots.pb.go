@@ -4617,8 +4617,10 @@ type RoomSnapshot struct {
 	Notice *RoomNoticeSnapshot `protobuf:"bytes,15,opt,name=notice,proto3" json:"notice,omitempty"`
 	// Room-owned display setting. Membership facts remain available.
 	ShowMembershipEvents bool `protobuf:"varint,16,opt,name=show_membership_events,json=showMembershipEvents,proto3" json:"show_membership_events,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Current channel Room Information in Markdown.
+	Information   string `protobuf:"bytes,17,opt,name=information,proto3" json:"information,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RoomSnapshot) Reset() {
@@ -4740,6 +4742,13 @@ func (x *RoomSnapshot) GetShowMembershipEvents() bool {
 		return x.ShowMembershipEvents
 	}
 	return false
+}
+
+func (x *RoomSnapshot) GetInformation() string {
+	if x != nil {
+		return x.Information
+	}
+	return ""
 }
 
 // RoomNoticeSnapshot stores room notice state for projection restore.
@@ -5528,7 +5537,7 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
 	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x1b\n" +
-	"\tauthor_id\x18\x04 \x01(\tR\bauthorId\"\xe7\x04\n" +
+	"\tauthor_id\x18\x04 \x01(\tR\bauthorId\"\x89\x05\n" +
 	"\fRoomSnapshot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
@@ -5544,7 +5553,8 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x18\n" +
 	"\apurpose\x18\x0e \x01(\tR\apurpose\x12E\n" +
 	"\x06notice\x18\x0f \x01(\v2-.chatto.core.projection.v1.RoomNoticeSnapshotR\x06notice\x124\n" +
-	"\x16show_membership_events\x18\x10 \x01(\bR\x14showMembershipEventsB\x1b\n" +
+	"\x16show_membership_events\x18\x10 \x01(\bR\x14showMembershipEvents\x12 \n" +
+	"\vinformation\x18\x11 \x01(\tR\vinformationB\x1b\n" +
 	"\x19_thread_slow_mode_seconds\"\xa8\x01\n" +
 	"\x12RoomNoticeSnapshot\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12%\n" +

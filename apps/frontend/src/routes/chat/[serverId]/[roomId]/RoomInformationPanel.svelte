@@ -31,6 +31,7 @@ The sections share one scroll viewport and retain their disclosure preferences.
   import { threadingModeLabel } from '$lib/roomThreadingMode';
   import { formatSlowModeInterval } from '$lib/slowMode';
   import type { RoomPinsStore } from '$lib/state/room';
+  import { Button } from '$lib/ui/form';
   import { ScrollFader } from '$lib/ui';
   import RoomPinsPanel from './RoomPinsPanel.svelte';
   import RoomNoticePanel from './RoomNoticePanel.svelte';
@@ -41,6 +42,8 @@ The sections share one scroll viewport and retain their disclosure preferences.
     serverId,
     roomName,
     roomDescription,
+    information,
+    informationEditHref,
     roomCreatedAt = null,
     memberCount = null,
     postingRules = null,
@@ -54,6 +57,8 @@ The sections share one scroll viewport and retain their disclosure preferences.
     serverId: string;
     roomName: string;
     roomDescription: string;
+    information?: string;
+    informationEditHref?: string;
     roomCreatedAt?: string | null;
     /** Null means that the first member page has not loaded yet. */
     memberCount?: number | null;
@@ -133,6 +138,32 @@ The sections share one scroll viewport and retain their disclosure preferences.
       </div>
     {/snippet}
   </RoomGroupSection>
+  {#if information !== undefined && (information.trim() || informationEditHref)}
+    <RoomGroupSection
+      label={m('room.information.title')}
+      items={[]}
+      persistKey={serverStorageKey(serverId, 'collapsible:room-information:markdown')}
+      separated
+    >
+      {#snippet headerActions()}
+        {#if informationEditHref}
+          <Button
+            href={informationEditHref}
+            variant="ghost"
+            size="compact"
+            label={m('room.information.edit')}
+            title={m('room.information.edit')}
+            ><span aria-hidden="true" class="iconify icon-[uil--pen]"></span></Button
+          >
+        {/if}
+      {/snippet}
+      {#snippet content()}
+        {#if information.trim()}
+          <div class="min-w-0 px-2 py-3"><MessageContent body={information} /></div>
+        {/if}
+      {/snippet}
+    </RoomGroupSection>
+  {/if}
   {#if noticeStore?.supported && (canManageNotice || noticeStore.notice?.body)}
     <RoomGroupSection
       label={m('room.notice.title')}

@@ -140,6 +140,13 @@ export class Room extends Message<Room> {
    */
   showMembershipEvents?: boolean;
 
+  /**
+   * Channel Markdown for room members and managers. Absent when unavailable.
+   *
+   * @generated from field: optional string information = 13;
+   */
+  information?: string;
+
   constructor(data?: PartialMessage<Room>) {
     super();
     proto3.util.initPartial(data, this);
@@ -160,6 +167,7 @@ export class Room extends Message<Room> {
     { no: 10, name: "thread_slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 11, name: "created_at", kind: "message", T: Timestamp },
     { no: 12, name: "show_membership_events", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 13, name: "information", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Room {
@@ -734,7 +742,7 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
   threadingMode?: RoomThreadingMode;
 
   /**
-   * Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events.
+   * Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode, thread_slow_mode_seconds, show_membership_events, information.
    * Omit to infer populated fields; * selects all editable fields. An explicit
    * empty mask is invalid. Unselected values are ignored. Selected absent values
    * reset the field to its default, subject to field validation.
@@ -759,6 +767,13 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
    */
   showMembershipEvents?: boolean;
 
+  /**
+   * Markdown shown in the room sidebar. Requires room.manage. Empty clears it.
+   *
+   * @generated from field: optional string information = 10;
+   */
+  information?: string;
+
   constructor(data?: PartialMessage<UpdateRoomRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -776,6 +791,7 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
     { no: 7, name: "update_mask", kind: "message", T: FieldMask },
     { no: 8, name: "thread_slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 9, name: "show_membership_events", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 10, name: "information", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomRequest {

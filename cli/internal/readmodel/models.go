@@ -18,6 +18,8 @@ type Room struct {
 	Name        string
 	Description string
 	Archived    bool
+	// Information is Markdown visible to channel members and room managers.
+	Information string
 	// GroupId is filled by grouped room reads. Catalog-only reads leave it empty.
 	GroupId string
 	// Canonical kind discriminator.

@@ -18,6 +18,9 @@
       "edit": "Duyuruyu düzenle"
     },
     "information": {
+      "edit": "Oda bilgilerini düzenle",
+      "updated": "Oda bilgileri güncellendi.",
+      "too_long": "En fazla {max} karakter kullanın.",
       "description": "Açıklama",
       "created": "Oluşturuldu",
       "title": "Oda bilgileri",

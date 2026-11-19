@@ -175,6 +175,22 @@ describe('TimelineSync', () => {
     await expect(track.mock.calls[0][0]).resolves.toBeUndefined();
   });
 
+  it('refreshes the channel timeline alone for a channel information edit', async () => {
+    const room = fakeTimeline();
+    const thread = fakeTimeline();
+    const { sync, track } = makeSync({ R1: { messages: room, threads: { T1: thread } } });
+    sync.refreshRoomWindow('R1', 'edit');
+    expect(room.refreshCurrentWindow).toHaveBeenCalledWith(
+      'edit',
+      false,
+      'cursor',
+      expect.any(Function)
+    );
+    expect(thread.refreshCurrentWindow).not.toHaveBeenCalled();
+    room.reads[0].resolve();
+    await track.mock.calls[0][0];
+  });
+
   it('runs one window read at a time for each timeline and keeps distinct requests', async () => {
     const room = fakeTimeline();
     const { sync, track } = makeSync({ R1: { messages: room } });
