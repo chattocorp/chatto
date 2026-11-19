@@ -13,6 +13,7 @@ import (
 // to wait until the serving replica's content view includes at least this
 // opaque realtime boundary. It is not a historical read or an asynchronous
 // effect barrier. Public and unauthenticated procedures cannot use this header.
+// An expired cursor is already satisfied and does not fail the request.
 const RealtimeMinimumCursorHeader = "Chatto-Realtime-Minimum-Cursor"
 
 func (a *API) realtimeConsistencyInterceptor() connect.Interceptor {
@@ -30,8 +31,6 @@ func (a *API) realtimeConsistencyInterceptor() connect.Interceptor {
 				switch {
 				case errors.Is(err, core.ErrRealtimeCursorInvalid):
 					return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid realtime minimum cursor"))
-				case errors.Is(err, core.ErrRealtimeCursorExpired):
-					return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("realtime minimum cursor expired"))
 				case errors.Is(err, context.Canceled):
 					return nil, connect.NewError(connect.CodeCanceled, errors.New("realtime consistency wait canceled"))
 				case errors.Is(err, context.DeadlineExceeded):

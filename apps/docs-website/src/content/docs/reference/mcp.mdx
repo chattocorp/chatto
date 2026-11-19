@@ -60,8 +60,8 @@ decides which available tool it calls.
 A client that also consumes Chatto realtime can send its latest accepted opaque
 cursor in `Chatto-Realtime-Minimum-Cursor` on an MCP tool request. The serving
 replica waits for that viewer-bound content boundary before it runs the tool.
-An invalid or expired cursor returns HTTP `400`; a wait timeout returns HTTP
-`503` without running the tool. Refresh expired boundaries through realtime.
+An expired cursor needs no wait, and the tool runs at once. An invalid cursor
+returns HTTP `400`; a wait timeout returns HTTP `503` without running the tool.
 This header does not grant permission or make uncertain writes safe to repeat.
 
 ## Work with individual messages
