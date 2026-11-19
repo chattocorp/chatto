@@ -6,6 +6,8 @@ their own contextual metadata and actions while this component keeps message
 identity, body rendering, and row geometry consistent.
 -->
 <script lang="ts">
+  import { experimentalFeatures } from '$lib/state/experimentalFeatures.svelte';
+  import ExperimentalMessageHeader from './ExperimentalMessageHeader.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import { getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
@@ -60,6 +62,7 @@ identity, body rendering, and row geometry consistent.
     prelude,
     authorSuffix,
     headerMeta,
+    timelineClock = false,
     afterBody,
     actions
   }: {
@@ -104,6 +107,8 @@ identity, body rendering, and row geometry consistent.
     prelude?: Snippet;
     authorSuffix?: Snippet;
     headerMeta?: Snippet;
+    /** Align the timeline clock at the inline end when the experimental header is active. */
+    timelineClock?: boolean;
     afterBody?: Snippet;
     actions?: Snippet;
   } = $props();
@@ -185,8 +190,13 @@ identity, body rendering, and row geometry consistent.
       {@render prelude?.()}
 
       {#if !compact}
-        <div class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+        {#snippet author(identity: Snippet<[UserAvatarUserView]>, fallbackClass: string)}
           {#if actor && !actor.deleted}
+            {#snippet authorLabel()}
+              {@render identity(actor)}
+              <UserCustomStatusBadge status={customStatus} />
+              {@render authorSuffix?.()}
+            {/snippet}
             {#if actorInteractive}
               <button
                 type="button"
@@ -195,32 +205,39 @@ identity, body rendering, and row geometry consistent.
                 ontouchstart={onActorTouchStart}
                 oncontextmenu={onActorContextMenu}
               >
-                <AccountName name={displayName} identity={actor} badgeSize="md" />
-                <UserCustomStatusBadge status={customStatus} />
-                {@render authorSuffix?.()}
+                {@render authorLabel()}
               </button>
             {:else}
               <strong
                 class="inline-flex max-w-full min-w-0 items-center gap-1.5 leading-tight font-semibold"
               >
-                <AccountName name={displayName} identity={actor} badgeSize="md" />
-                <UserCustomStatusBadge status={customStatus} />
-                {@render authorSuffix?.()}
+                {@render authorLabel()}
               </strong>
             {/if}
           {:else if authorLoading && !actor?.deleted}
             <LoadingDots class="h-4 w-24 shrink-0" />
           {:else if actor?.deleted || (missingActorIsDeleted && !authorLoading)}
-            <strong class="shrink-0 leading-tight font-semibold text-muted">
+            <strong class={[fallbackClass, 'leading-tight font-semibold text-muted']}>
               <DeletedUserLabel />
             </strong>
           {:else}
-            <strong class="shrink-0 leading-tight font-semibold text-muted"
+            <strong class={[fallbackClass, 'leading-tight font-semibold text-muted']}
               ><bdi>{displayName}</bdi></strong
             >
           {/if}
-          {@render headerMeta?.()}
-        </div>
+        {/snippet}
+
+        {#if experimentalFeatures.newMessageHeader.enabled}
+          <ExperimentalMessageHeader {author} {displayName} {headerMeta} {timelineClock} />
+        {:else}
+          {#snippet accountName(resolvedActor: UserAvatarUserView)}
+            <AccountName name={displayName} identity={resolvedActor} badgeSize="md" />
+          {/snippet}
+          <div class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+            {@render author(accountName, 'shrink-0')}
+            {@render headerMeta?.()}
+          </div>
+        {/if}
       {/if}
 
       {#if deleted}

@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "实验",
+      "title": "实验性功能",
+      "new_message_header": "新版消息标头"
+    },
     "desktop": {
       "title": "更新",
       "subtitle": "此安装的更新",

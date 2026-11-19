@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createRawSnippet, flushSync } from 'svelte';
+import { experimentalFeatures } from '$lib/state/experimentalFeatures.svelte';
+import '../../../app.css';
 import { render } from 'vitest-browser-svelte';
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -16,6 +19,82 @@ const actor: UserAvatarUserView = {
 const props = { eventId: 'message', actor, displayName: 'Message author', body: 'Hello' };
 
 afterEach(() => vi.useRealTimers());
+
+it('shows the login between the display name and timestamp when the experiment is enabled', async () => {
+  const headerMeta = createRawSnippet(() => ({
+    render: () => '<time class="text-xs">12:34</time>'
+  }));
+  const view = render(MessageViewTestHarness, { ...props, headerMeta });
+  const author = view.getByText(props.displayName, { exact: true });
+  const time = view.getByText('12:34');
+  await expect.element(author).toBeVisible();
+  const login = view.getByText('@author', { exact: true });
+  await expect.element(login).not.toBeInTheDocument();
+  try {
+    flushSync(() => (experimentalFeatures.newMessageHeader.enabled = true));
+    await expect.element(login).toBeVisible();
+    await expect
+      .element(view.getByText('·', { exact: true }))
+      .toHaveAttribute('aria-hidden', 'true');
+    expect(getComputedStyle(time.element()).fontSize).toBe(
+      getComputedStyle(author.element()).fontSize
+    );
+    const nameBounds = author.element().getBoundingClientRect();
+    const loginBounds = login.element().getBoundingClientRect();
+    const timeBounds = time.element().getBoundingClientRect();
+    expect(loginBounds.left).toBeGreaterThanOrEqual(nameBounds.right);
+    expect(timeBounds.left).toBeGreaterThanOrEqual(loginBounds.right);
+    expect(timeBounds.top).toBeLessThan(nameBounds.bottom);
+  } finally {
+    flushSync(() => (experimentalFeatures.newMessageHeader.enabled = false));
+  }
+  await expect.element(login).not.toBeInTheDocument();
+});
+
+it('truncates the username first and keeps the timestamp on the header line', async () => {
+  const displayName = 'Alexandra Montgomery-Westfield';
+  const login = 'alexandra.westfield';
+  const headerMeta = createRawSnippet(() => ({ render: () => '<time>12:11 PM</time>' }));
+  const view = render(MessageViewTestHarness, {
+    ...props,
+    actor: { ...actor, login, displayName, customStatus: undefined },
+    timelineClock: true,
+    displayName,
+    headerMeta
+  });
+  try {
+    flushSync(() => (experimentalFeatures.newMessageHeader.enabled = true));
+    const name = view.getByText(displayName, { exact: true }).element();
+    const handle = view.getByText(`@${login}`, { exact: true }).element();
+
+    const time = view.getByText('12:11 PM').element();
+    const row = view.getByRole('article').element() as HTMLElement;
+    for (const width of [520, 390, 320, 520]) {
+      row.style.width = `${width}px`;
+      if (width === 520) {
+        await expect.element(handle).toBeVisible();
+        expect(handle.scrollWidth).toBeGreaterThan(handle.clientWidth);
+        expect(name.scrollWidth).toBe(name.clientWidth);
+      } else {
+        await expect.element(handle).not.toBeVisible();
+        expect(name.getBoundingClientRect().right).toBeCloseTo(
+          name.closest('strong')!.getBoundingClientRect().right,
+          0
+        );
+      }
+      const bounds = name.getBoundingClientRect();
+      const clock = time.getBoundingClientRect();
+      expect(clock.top).toBeLessThan(bounds.bottom);
+      expect(clock.bottom).toBeGreaterThan(bounds.top);
+      expect(clock.right).toBeCloseTo(
+        row.querySelector('.message-content-stack')!.getBoundingClientRect().right,
+        0
+      );
+    }
+  } finally {
+    flushSync(() => (experimentalFeatures.newMessageHeader.enabled = false));
+  }
+});
 
 describe('message author custom status', () => {
   it.each([false, true])(

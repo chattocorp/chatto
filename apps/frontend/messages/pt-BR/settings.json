@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "Experimentos",
+      "title": "Funcionalidades experimentais",
+      "new_message_header": "Novo cabeçalho de mensagem"
+    },
     "desktop": {
       "title": "Atualizações",
       "subtitle": "Atualizações desta instalação",

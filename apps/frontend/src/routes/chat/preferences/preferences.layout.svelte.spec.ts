@@ -101,6 +101,7 @@ describe('App Preferences layout', () => {
   it.each([
     ['/chat/preferences', '/chat/remote.example.com/settings/overview'],
     ['/chat/preferences/appearance', '/chat/remote.example.com/settings/appearance'],
+    ['/chat/preferences/experiments', '/chat/remote.example.com/settings/experiments'],
     ['/chat/preferences/language', '/chat/remote.example.com/settings/language'],
     ['/chat/preferences/composer', '/chat/remote.example.com/settings/composer'],
     ['/chat/preferences/desktop', '/chat/remote.example.com/settings/desktop']
