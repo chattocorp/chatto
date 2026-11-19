@@ -1,0 +1,256 @@
+/* Fonts, motion preference, registered custom properties, base :root values, the Iconify plugin, and custom variants.
+ * Imported by src/app.css. Keep the import order: later rules can override earlier ones. */
+
+/* Twemoji gives emoji the same look on every platform. Build the font with
+   `mise update-twemoji-font` (tools/build-twemoji-font.py).
+
+   `Twemoji` is first in each font stack: Safari selects the system emoji font
+   for an emoji presentation sequence (a character followed by U+FE0F) when
+   the emoji font comes after the text font. Its unicode-range keeps text in
+   the text font. It excludes ASCII, because the font maps digits, `#`, and `*`
+   to empty glyphs for keycap sequences, and it excludes ©, ®, and ™, which
+   text uses as symbols.
+
+   `Twemoji Keycaps` uses the same file and comes after the text font. The text
+   font draws digits, `#`, and `*`, but it cannot draw a keycap sequence such
+   as 1️⃣ (digit, U+FE0F, U+20E3), so the browser uses this face for the
+   complete sequence. The browser downloads the file once, and only when a
+   page shows a character in one of the ranges. */
+@font-face {
+  font-family: Twemoji;
+  src: url('../lib/assets/fonts/twemoji.woff2') format('woff2');
+  font-display: swap;
+  unicode-range:
+    U+200D, U+203C, U+2049, U+20E3, U+2139, U+2194-2199, U+21A9-21AA, U+231A-23FF, U+24C2,
+    U+25AA-27BF, U+2934-2935, U+2B05-2B55, U+3030, U+303D, U+3297, U+3299, U+FE0F, U+1F000-1FAFF,
+    U+E0020-E007F;
+}
+
+@font-face {
+  font-family: 'Twemoji Keycaps';
+  src: url('../lib/assets/fonts/twemoji.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+23, U+2A, U+30-39, U+FE0F, U+20E3;
+}
+
+/* Both CSS and JavaScript use the effective app motion policy. */
+@custom-variant motion-reduce (&:where([data-motion='reduced'], [data-motion='reduced'] *));
+@custom-variant motion-safe (&:where([data-motion='full'], [data-motion='full'] *));
+
+/* Keep the timed, static message-location cue; finish other CSS animations
+   immediately so completion events and final states still work. */
+:root[data-motion='reduced'] *:not(.highlight-flash),
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  transition-duration: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+/* Registered numbers let the whole design system interpolate depth together. */
+@property --depth-strength {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0.75;
+}
+
+@property --depth-width {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
+/* Registered colours interpolate, so theme, tone, accent, and contrast changes
+   fade instead of snapping. Only `:root` transitions them; tokens derived with
+   var(), such as hover shades and links, follow automatically. Keep every value
+   assigned to these properties a valid <color>. */
+@property --color-background {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-surface {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-surface-emphasized {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-surface-strong {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-border {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-input {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-input-border {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-text {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-text-top {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-muted {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-action {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-on-action {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-button-action {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --color-neutral-action {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+
+:root {
+  /* 30 uses the exact existing palette. Each half of the slider mixes toward
+     a reviewed endpoint without changing accent, status, focus, or depth. */
+  --contrast-soft-mix: 0%;
+  --contrast-strong-mix: 0%;
+  --contrast-base-text: var(--tone-600);
+  --contrast-soft-text: color-mix(in srgb, var(--tone-500), var(--tone-400) 45%);
+  --contrast-strong-text: var(--color-black);
+  --contrast-base-text-top: var(--color-black);
+  --contrast-soft-text-top: var(--tone-500);
+  --contrast-base-muted: color-mix(in srgb, var(--tone-500), var(--tone-600) 75%);
+  --contrast-soft-muted: var(--tone-400);
+  --contrast-strong-muted: var(--color-black);
+  --contrast-base-background: var(--tone-100);
+  --contrast-strong-background: var(--color-white);
+  --contrast-base-surface: var(--tone-200);
+  --contrast-soft-surface: color-mix(in srgb, var(--tone-200), var(--tone-100) 55%);
+  --contrast-strong-surface: var(--color-white);
+  --contrast-base-surface-emphasized: color-mix(in srgb, var(--tone-200), var(--tone-300) 55%);
+  --contrast-soft-surface-emphasized: color-mix(in srgb, var(--tone-200), var(--tone-300) 30%);
+  --contrast-strong-surface-emphasized: var(--tone-100);
+  --contrast-base-surface-strong: var(--tone-300);
+  --contrast-soft-surface-strong: color-mix(in srgb, var(--tone-200), var(--tone-300) 65%);
+  --contrast-strong-surface-strong: var(--tone-200);
+  --contrast-base-border: var(--tone-200);
+  --contrast-soft-border: color-mix(in srgb, var(--tone-100), var(--tone-200) 50%);
+  --contrast-strong-border: var(--color-black);
+  --contrast-base-input-border: var(--tone-300);
+  --contrast-soft-input-border: color-mix(in srgb, var(--tone-200), var(--tone-300) 70%);
+  --contrast-strong-input-border: var(--color-black);
+
+  --inline-direction: 1;
+  /* CSS approximates Svelte's `expoOut` curve for expressive movement that
+     settles quickly without an abrupt stop. */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-duration-pane: 240ms;
+  /* Symmetric hover, focus, and action-reveal feedback. */
+  --motion-duration-feedback: 0ms;
+  --motion-easing-feedback: ease-out;
+  /* Floating surfaces enter separately from their instant item feedback. */
+  --motion-duration-overlay-enter: 100ms;
+  --motion-easing-overlay-enter: ease-out;
+}
+
+:root[dir='rtl'] {
+  --inline-direction: -1;
+}
+
+/* Shared code-token palette for visual and Markdown composer surfaces. */
+.composer-code-palette {
+  --composer-code-text: #24292f;
+  --composer-code-comment: #59636e;
+  --composer-code-keyword: #b4232c;
+  --composer-code-string: #0a3069;
+  --composer-code-title: #7040c0;
+  --composer-code-literal: #0550ae;
+  --composer-code-attribute: #953800;
+}
+
+:root[data-theme='dark'] .composer-code-palette {
+  --composer-code-text: #d0d7de;
+  --composer-code-comment: #8b949e;
+  --composer-code-keyword: #ff7b72;
+  --composer-code-string: #a5d6ff;
+  --composer-code-title: #d2a8ff;
+  --composer-code-literal: #79c0ff;
+  --composer-code-attribute: #ffa657;
+}
+/* Dynamic utilities load only referenced candidates such as icon-[uil--check].
+   Do not add `prefixes`: that eagerly expands whole collections. */
+@plugin '@iconify/tailwind4' {
+  scale: 1.2;
+}
+
+/* Custom variant for desktop/mouse devices (fine pointer like mouse/trackpad).
+   Usage: pointer-fine:select-text - enables selection only on desktop */
+@custom-variant pointer-fine (@media (pointer: fine));
+/* Focus styles follow the last input, not the browser's :focus-visible guess.
+   iOS Safari matches :focus-visible when a menu moves focus by script after a
+   tap or long-press. InputModalityTracker sets data-input-modality="pointer" on
+   the root element for pointer input and removes it on a key press. Both
+   variants use :where() so they add no specificity. */
+@custom-variant focus-visible (&:focus-visible:where(:root:not([data-input-modality='pointer']) *));
+/* Gates hand-written :focus-visible selectors, for example inside :has(). */
+@custom-variant keyboard-modality (:where(:root:not([data-input-modality='pointer'])) &);
+/* Hover affordances should follow input capability, not viewport width. */
+@custom-variant hover-actions (@media (any-hover: hover) and (any-pointer: fine));
+/* Keep these queries in sync with utils/inputMediaQueries.ts. Width still owns
+ * content fitting; only narrow touch-capable windows use mobile presentation. */
+@custom-variant touch-input (@media (any-pointer: coarse));
+@custom-variant compact-input (@media not all and (any-pointer: coarse));
+/* Density follows the primary pointer.
+ * Capability variants above still own gesture and action availability. */
+@custom-variant comfortable-density (@media (pointer: coarse));
+@custom-variant compact-density (@media not all and (pointer: coarse));
+@custom-variant mobile-presentation (@media (width < 768px) and (any-pointer: coarse));
+@custom-variant desktop-presentation {
+  @media (width >= 768px) {
+    @slot;
+  }
+  @media not all and (any-pointer: coarse) {
+    @slot;
+  }
+}
+
+/* Opt in to reclaiming header space while the software keyboard is open. */
+@utility keyboard-hide-mobile {
+  @variant mobile-presentation {
+    [data-keyboard-open] & {
+      display: none;
+    }
+  }
+}

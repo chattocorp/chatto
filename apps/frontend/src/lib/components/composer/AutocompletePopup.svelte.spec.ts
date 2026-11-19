@@ -191,7 +191,7 @@ describe('AutocompletePopup', () => {
   });
 
   describe('scroll into view', () => {
-    // The popup's max-h-80 overflow lives in app.css (not loaded in component
+    // The popup's max-h-80 overflow lives in src/styles/ (not loaded in component
     // tests), so assert the behaviour directly: the selected item's element
     // gets scrollIntoView called on it whenever the selection moves.
     it('scrolls the newly selected item into view on keyboard navigation', () => {

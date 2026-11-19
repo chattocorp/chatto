@@ -6,7 +6,7 @@ component once at the root layout level.
 
 Pointer input sets `data-input-modality="pointer"` on the root element. A key
 press without Ctrl, Meta, or Alt removes it. The `focus-visible` and
-`keyboard-modality` variants in `app.css` show focus styles only while the
+`keyboard-modality` variants in `src/styles/foundation.css` show focus styles only while the
 attribute is absent.
 
 This replaces the browser's own `:focus-visible` heuristic. iOS Safari matches

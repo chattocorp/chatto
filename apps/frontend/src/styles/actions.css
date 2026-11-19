@@ -1,0 +1,418 @@
+/* Message rows, icon actions, pane-header and sidebar controls, hover and copy feedback, and loading indicators.
+ * Imported by src/app.css. Keep the import order: later rules can override earlier ones. */
+
+/* Chat message row primitives. These keep the hover-highlight shell and its
+   child content stack aligned across the app and Storybook fixtures. */
+@utility message-row {
+  @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface desktop-presentation:mx-2 desktop-presentation:rounded-md desktop-presentation:pe-8;
+}
+
+@utility inline-end-overlay-shadow {
+  box-shadow: calc(-4px * var(--inline-direction)) 0 12px rgb(0 0 0 / 0.15);
+}
+
+@utility message-row-footer {
+  @apply pb-0.5;
+}
+
+@utility message-content-stack {
+  @apply min-w-0 flex-1 space-y-1;
+}
+
+/* Shared foreground feedback for quiet and filled icon controls. */
+@utility icon-action-emphasis {
+  @apply not-disabled:hover:text-text-top not-disabled:focus-visible:text-text-top;
+}
+
+/* Quiet icon feedback follows the surface beneath it instead of adding a solid tile. */
+@utility icon-action-feedback {
+  @apply rounded-lg icon-action-emphasis text-muted transition-[background-color,color] feedback-quick;
+  @apply not-disabled:hover:bg-text/5 not-disabled:active:bg-text/10;
+  @apply focus-visible:bg-text/5 focus-visible:outline-2 focus-visible:outline-action;
+}
+
+/* Pane header icon button — fixed padded hit area for icon-only controls in PaneHeader.
+   Resting inactive state is intentionally transparent; pair with
+   `pane-header-icon-button-active` to mark the selected panel. */
+@utility pane-header-icon-button {
+  @apply inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center icon-action-feedback bg-transparent leading-none;
+  @apply comfortable-density:h-11 comfortable-density:w-11;
+  @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
+}
+
+/* Pane header button with an icon and a label, such as a section tab or a room
+   sidebar toggle. Without a visible label it has the size of
+   `pane-header-icon-button`. Callers hide the label with `sr-only` and show it
+   with a `pane-header` container query when the header has room. */
+@utility pane-header-label-button {
+  @apply inline-flex h-10 min-w-10 shrink-0 cursor-pointer items-center justify-center gap-2 icon-action-feedback px-3 leading-none whitespace-nowrap;
+  @apply comfortable-density:h-11 comfortable-density:min-w-11;
+  @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50;
+}
+
+@utility pane-header-icon-glyph {
+  @apply shrink-0 text-base transition-colors feedback-quick;
+}
+
+/* This utility gives a selected panel button the fill and colour of the
+   current sidebar item. */
+@utility pane-header-icon-button-active {
+  @apply bg-action/10 text-action not-disabled:hover:bg-action/15 not-disabled:hover:text-action;
+  @apply focus-visible:bg-action/10 not-disabled:active:bg-action/20;
+}
+
+/* Sidebar navigation utilities */
+@utility sidebar-nav {
+  @apply flex flex-col gap-1;
+}
+
+@utility sidebar-item {
+  @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text;
+  @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
+  @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
+
+  /* A current route declares itself semantically. The shared item then gives
+   * every sidebar navigation surface the same quiet action-coloured treatment. */
+  &[aria-current='page'] {
+    @apply bg-action/10 text-text-top hover:bg-action/15 hover:text-text-top active:bg-action/20;
+    @apply focus-visible:bg-action/10;
+  }
+
+  &[aria-current='page'] .sidebar-icon {
+    @apply text-action;
+  }
+}
+
+@utility sidebar-item-attention {
+  @apply font-medium text-text-top hover:text-text-top;
+}
+
+/* One broad highlight crosses the overlay, leaving ::after for the tile rim. */
+.shimmer-hover::before,
+.server-gutter-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--shimmer-gradient);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  background-position: 150% 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.shimmer-hover:hover::before,
+.shimmer-group:hover .shimmer-hover::before,
+.server-gutter-item:hover::before {
+  animation: shimmer-sweep 450ms ease-out forwards;
+}
+
+@keyframes shimmer-sweep {
+  to {
+    background-position: -50% 0;
+  }
+}
+
+/* A gutter logo defers to the outer shimmer. */
+.server-gutter-item .shimmer-hover::before {
+  display: none;
+}
+
+:root[data-motion='reduced'] {
+  .shimmer-hover:hover::before,
+  .shimmer-group:hover .shimmer-hover::before,
+  .server-gutter-item:hover::before {
+    animation: none;
+  }
+}
+
+@utility highlight-flash {
+  --jump-edge: 3px;
+  animation: highlight-flash 1.5s ease-out;
+  &:dir(rtl) {
+    --jump-edge: -3px;
+  }
+}
+
+@keyframes highlight-flash {
+  0%,
+  30% {
+    --message-highlight-ring: color-mix(in srgb, var(--color-muted) 15%, transparent);
+    background-color: color-mix(in oklch, var(--color-action) 16%, transparent);
+    box-shadow: inset var(--jump-edge) 0 var(--color-action);
+  }
+  100% {
+    --message-highlight-ring: transparent;
+    background-color: transparent;
+    box-shadow: inset var(--jump-edge) 0 transparent;
+  }
+}
+
+.copy-feedback [data-copy-check],
+.copy-feedback[data-copied] [data-copy-icon] {
+  display: none;
+}
+.copy-feedback[data-copied] [data-copy-check] {
+  display: inline-block;
+  animation: copy-confirmation 160ms ease-out;
+}
+@keyframes copy-confirmation {
+  from {
+    transform: scale(0.75);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes highlight-still {
+  from,
+  to {
+    --message-highlight-ring: color-mix(in srgb, var(--color-muted) 15%, transparent);
+    background-color: color-mix(in oklch, var(--color-action) 16%, transparent);
+    box-shadow: inset var(--jump-edge) 0 var(--color-action);
+  }
+}
+:root[data-motion='reduced'] {
+  .highlight-flash {
+    animation-name: highlight-still;
+  }
+  .copy-feedback[data-copied] [data-copy-check] {
+    animation: none;
+  }
+}
+
+@utility sidebar-icon {
+  @apply inline-flex h-5 w-5 shrink-0 items-center justify-center text-base;
+}
+
+/* Header actions highlight their glyph or text, keeping the 44px hit area. */
+@utility app-header-icon {
+  @apply relative -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors feedback-quick;
+  @apply not-disabled:hover:text-text-top focus-visible:text-text-top focus-visible:outline-2 focus-visible:outline-action;
+}
+
+/* Text actions share the icon highlight and hit-area height. */
+@utility app-header-text-action {
+  @apply app-header-icon w-auto min-w-11 px-3;
+}
+
+/* The shared recess adds an outer rim as the user's depth setting increases. */
+@utility app-call-frame {
+  @apply inset-content rounded-xl;
+  padding: calc(2px * min(1, var(--depth-strength)));
+}
+
+/* Darker neutral buttons separate the call controls from global navigation. */
+@utility app-call-bar {
+  @apply h-[30px] min-h-[30px] shrink-0 rounded-lg bg-background;
+  width: clamp(148px, calc(75cqw - 100px), 168px);
+  & > button {
+    @apply min-w-0 px-1 py-0;
+  }
+  @variant comfortable-density {
+    @apply h-9 min-h-9;
+  }
+}
+
+/* Compact inline icon-only action for row/input affordances such as dismiss
+ * and clear. Larger toolbar icons should use HeaderIconButton or
+ * pane-header-icon-button instead.
+ */
+@utility icon-action {
+  @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center icon-action-feedback;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Persistent mode toggle in a user card, such as privileged mode. A 36 px
+ * square with a large icon. At rest it is muted and unfilled. The active
+ * state has a warning-tinted raised fill so that the mode stays visible while
+ * it is on. Pair with user-card-toggle-active.
+ */
+@utility user-card-toggle {
+  @apply grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-muted transition-colors feedback-quick hover:text-text;
+}
+
+@utility user-card-toggle-active {
+  @apply bg-warning/15 control-raised text-warning hover:bg-warning/25 hover:text-warning;
+}
+
+/* Destructive tone for icon-action and field-action. Hover and keyboard focus
+ * show the danger colour instead of the neutral emphasis. Scoping the rule to
+ * the base utilities gives it a higher specificity than their shared hover
+ * colour, independent of rule order.
+ */
+@utility icon-action-danger {
+  @media (hover: hover) {
+    &:is(.icon-action, .field-action):not(:disabled):hover {
+      color: var(--color-danger);
+    }
+  }
+
+  @variant keyboard-modality {
+    &:is(.icon-action, .field-action):focus-visible {
+      color: var(--color-danger);
+    }
+  }
+}
+
+/* Icon action inside a form field, such as an emoji trigger or a clear button
+ * in TextInput's leading or trailing slot. It shares icon-action feedback at
+ * a 32 px size so it fits within the 40 px field.
+ */
+@utility field-action {
+  @apply inline-flex size-8 shrink-0 cursor-pointer items-center justify-center icon-action-feedback rounded-md;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Unframed icon-sized action for a subordinate command placed directly beside
+ * the text or value it affects. Use icon-action for a standard hit area.
+ */
+@utility mini-icon-action {
+  @apply inline-flex shrink-0 cursor-pointer rounded text-muted transition-colors feedback-quick hover:text-text focus-visible:text-text;
+  @apply focus-visible:outline-2 focus-visible:outline-action;
+}
+
+/* Keep a row action visible on touch devices. Reveal it on hover or keyboard
+ * focus only when the primary input can hover precisely.
+ */
+@utility hover-reveal-action {
+  @apply transition-opacity feedback-quick;
+
+  @media (hover: hover) and (pointer: fine) {
+    @apply pointer-events-none opacity-0;
+
+    .group:hover &,
+    .group:focus-within & {
+      @apply pointer-events-auto opacity-100;
+    }
+  }
+}
+
+/* Hide scrollbar while maintaining scroll functionality */
+@utility scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+}
+
+/* Specialized browser and motion helpers. Keep these recipes centralized so
+   components can compose them with Tailwind without owning scoped CSS. */
+@utility search-cancel-hidden {
+  &::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+  }
+}
+
+@utility typing-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background-color: currentColor;
+  animation: typing-chase 800ms linear infinite;
+}
+
+@keyframes typing-chase {
+  0% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  75%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.85);
+  }
+}
+
+/* Braille activity spinner. The frame column moves up one frame per step. */
+@utility braille-spinner {
+  animation: braille-spinner 800ms steps(10) infinite;
+  /* Follow Chatto's motion setting, which already resolves the system default.
+     The global reduced rule would end on an empty frame, so show the first. */
+  :where([data-motion='reduced']) & {
+    animation: none;
+  }
+}
+
+@keyframes braille-spinner {
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+/* Timeline loading indicator. The reveal waits briefly, so fast loads do not
+   flash the dots. */
+@utility loading-dots {
+  animation: backdrop-enter 200ms ease-out 300ms both;
+}
+
+@utility loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background-color: currentColor;
+  animation: loading-pulse 1s ease-in-out infinite;
+}
+
+@keyframes loading-pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.quick-switcher[open] {
+  animation: quick-switcher-enter 120ms var(--ease-out-expo);
+}
+
+.quick-switcher[open]::backdrop {
+  animation: backdrop-enter 100ms ease-out;
+}
+
+.image-modal[open] {
+  animation: backdrop-enter 150ms ease-out;
+}
+
+@keyframes quick-switcher-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+:root[data-motion='reduced'] {
+  .typing-dot,
+  .loading-dot,
+  .quick-switcher[open],
+  .quick-switcher[open]::backdrop,
+  .image-modal[open] {
+    animation: none;
+  }
+
+  /* Keep the reveal delay so fast loads still show no dots; drop only the fade. */
+  .loading-dots {
+    animation-duration: 1ms;
+  }
+}

@@ -1,0 +1,218 @@
+/* Pane pages, panels, data tables, selectable lists, and the loading fog.
+ * Imported by src/app.css. Keep the import order: later rules can override earlier ones. */
+
+/* Primary pane-page shell. Keeps the fixed header and scrollable body in one
+ * shrinkable column inside the application layout.
+ */
+@utility pane-page {
+  @apply flex min-h-0 min-w-0 flex-1 flex-col;
+
+  /* The PaneHeader row of a pane page stops at the content column, so its
+   * end-side tabs and actions stay next to the content on wide screens.
+   * PaneContent pads its column by 1.5rem and the header row by 0.5rem, so
+   * the header row is 1rem narrower to line up both end edges. */
+  --pane-header-max-width: calc(var(--container-pane) - 1rem);
+
+  &:has([data-pane-content='wide']) {
+    --pane-header-max-width: calc(var(--container-pane-wide) - 1rem);
+  }
+  &:has([data-pane-content='fluid']) {
+    --pane-header-max-width: 100%;
+  }
+}
+
+/* Panel/card shells provide the outer surface frame. Their content sits on a
+ * rounded background work plane owned by `Panel`, keeping the same concentric
+ * geometry for forms, tables, and dense lists.
+ */
+@utility panel-shell {
+  @apply rounded-lg border border-border floating-frame;
+
+  /* The title is part of this continuous frame, not a separate solid band. */
+  & > .panel-header {
+    background-color: transparent;
+    border-bottom-color: transparent;
+  }
+}
+
+@utility panel-shell-raised {
+  @apply shadow-sm;
+}
+
+/* Page sections are flat below 768px, for both mouse and touch input.
+ * PaneContent keeps one gutter for free-standing controls. Panel sections
+ * extend across that gutter, then give their titles and padded content the
+ * same inset. Only Panel's own frame changes; controls and standalone panels
+ * retain their borders and depth. Native dialogs form a separate surface,
+ * even when their DOM remains inside the page. */
+@utility pane-content {
+  @variant max-md {
+    & [data-panel]:not(:where(dialog *)) {
+      margin-inline: calc(var(--spacing) * -4);
+      border-radius: 0;
+      border-width: 0 0 1px;
+      background: none;
+      box-shadow: none;
+
+      & > .panel-header {
+        @apply flex-row flex-wrap items-center justify-between px-4;
+        border-bottom-width: 0;
+      }
+
+      & > [data-panel-frame] {
+        padding: 0;
+      }
+
+      & > [data-panel-frame] > .panel-inset {
+        border-radius: 0;
+        background: none;
+        outline: none;
+        box-shadow: none;
+      }
+
+      & > [data-panel-frame] > .panel-inset:not(.panel-inset-flush) {
+        @apply p-4;
+      }
+    }
+  }
+}
+
+/* Concentric work plane inside a panel-shell surface frame. The owning
+ * component supplies p-1 around this inset.
+ */
+@utility panel-inset {
+  @apply rounded-md bg-background floating-inset;
+}
+
+/* Edge-to-edge panel content is clipped to the work plane's outer radius.
+ * Nested table viewports become square so controls, notices, and table headers
+ * meet at a clean internal boundary instead of stacking rounded corners.
+ */
+@utility panel-inset-flush {
+  @apply overflow-hidden;
+}
+
+@utility data-table-viewport {
+  @apply rounded-md bg-background;
+}
+
+.panel-inset-flush > .data-table-viewport {
+  border-radius: 0;
+}
+
+/* DataTable body row. A row is navigable when one of its cells contains a
+ * `data-table-row-link`: DataTable forwards plain clicks on the row to that
+ * link, and keyboard focus on the link highlights the whole row. The marker
+ * class needs no styles of its own; the link keeps its caller's text styling.
+ */
+@utility data-table-row {
+  &:has(.data-table-row-link) {
+    cursor: pointer;
+  }
+
+  @variant keyboard-modality {
+    &:has(.data-table-row-link:focus-visible) {
+      @apply bg-surface/70;
+    }
+  }
+}
+
+/* Standard record-table header cell. Matrix headers remain deliberately
+ * bespoke because their vertical labels encode a different interaction.
+ * Header cells set their own alignment: browsers centre th unless the
+ * inherited alignment differs from start, so a logical text-start on the row
+ * would not reach them. Callers may still override with text-end.
+ */
+@utility table-header-cell {
+  @apply px-4 py-2.5 text-start font-medium;
+}
+
+/* Selectable non-table collections use the same inset and rounded-row treatment.
+ * Records rest on their owner's background plane; hover or keyboard focus rises
+ * exactly one level.
+ */
+@utility selectable-list {
+  @apply flex flex-col gap-1 p-1;
+}
+
+@utility selectable-list-item {
+  @apply rounded-md transition-colors feedback-quick hover:bg-surface focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
+}
+
+/* Compact framed surface for inline rows inside forms, dialogs, and settings. */
+@utility surface-box {
+  @apply rounded-md border border-border bg-surface-emphasized/60;
+}
+
+/* Pending content is a quiet surface with two wide highlights that sweep
+ * across it. Their periods differ, so the overlap changes on every pass. */
+.loading-fog {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-surface), var(--color-surface-emphasized) 35%);
+  --loading-shine: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-background), white 60%) 75%,
+    transparent
+  );
+}
+
+/* Each band is as wide as the block. The animation moves it from just outside
+ * the start edge to just outside the end edge. The gradient is horizontal and
+ * the band is skewed, so its side edges are always fully transparent. The
+ * stops follow a smoothstep curve, which prevents visible creases. */
+.loading-fog::before,
+.loading-fog::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in srgb, var(--loading-shine) 16%, transparent) 12.5%,
+    color-mix(in srgb, var(--loading-shine) 50%, transparent) 25%,
+    color-mix(in srgb, var(--loading-shine) 84%, transparent) 37.5%,
+    var(--loading-shine),
+    color-mix(in srgb, var(--loading-shine) 84%, transparent) 62.5%,
+    color-mix(in srgb, var(--loading-shine) 50%, transparent) 75%,
+    color-mix(in srgb, var(--loading-shine) 16%, transparent) 87.5%,
+    transparent
+  );
+  transform: translateX(-100%) skewX(var(--loading-shine-skew));
+  animation: loading-shine var(--loading-shine-duration) linear infinite;
+}
+
+.loading-fog::before {
+  --loading-shine-skew: -10deg;
+  --loading-shine-duration: 2.6s;
+}
+
+.loading-fog::after {
+  --loading-shine-skew: -4deg;
+  --loading-shine-duration: 1.6s;
+}
+
+@keyframes loading-shine {
+  to {
+    transform: translateX(100%) skewX(var(--loading-shine-skew));
+  }
+}
+
+:root[data-motion='reduced'] {
+  .loading-fog::before,
+  .loading-fog::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* Dark surfaces are lighter than the background, so the same mix reads too
+ * bright. Sink the base toward the background and soften the highlights. */
+:root[data-theme='dark'] .loading-fog {
+  background: color-mix(in srgb, var(--color-surface), var(--color-background) 70%);
+  --loading-shine: color-mix(in srgb, var(--color-surface-emphasized) 40%, transparent);
+}

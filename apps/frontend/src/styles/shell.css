@@ -1,0 +1,335 @@
+/* Application shell, composer surface, server gutter, floating frames, sidebar drawer, menus, and the command palette.
+ * Imported by src/app.css. Keep the import order: later rules can override earlier ones. */
+
+/* Shared quiet finish for shell surfaces and raised controls. No outer shadow
+ * or interaction states: consumers own those separately. */
+@utility shell-lighting {
+  @apply surface-raised;
+  --lighting-top: rgb(255 255 255 / calc(var(--shell-highlight) * var(--depth-strength)));
+  --lighting-bottom: rgb(0 0 0 / calc(var(--shell-shade) * var(--depth-strength)));
+  --lighting-midpoint: 55%;
+  --lighting-edge-blur: calc(var(--shell-edge-blur) * var(--depth-width));
+  --lighting-edge-top: rgb(255 255 255 / calc(var(--shell-edge-highlight) * var(--depth-strength)));
+  --lighting-edge-bottom: rgb(0 0 0 / calc(var(--shell-edge-shade) * var(--depth-strength)));
+}
+
+@utility shell-surface {
+  @apply rounded-xl bg-surface shell-lighting;
+}
+
+/* Standalone shell actions align with the composer and user card. */
+@utility shell-action {
+  @apply inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 shell-surface px-4 font-semibold text-text;
+  @apply transition-[background-color,color] feedback-quick enabled:hover:bg-surface-selected enabled:active:bg-surface-strong;
+  @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action;
+  @apply disabled:cursor-not-allowed disabled:opacity-50 disabled:inset-shadow-none;
+
+  &:disabled {
+    background-image: none;
+  }
+}
+
+/* Composer input and formatting surfaces share the app shell's compact radius. */
+@utility composer-surface {
+  @apply shell-surface;
+}
+
+/* Chat inputs share the quiet raised finish of the user card and server tiles.
+ * Keep compact formatting shelves on composer-surface.
+ */
+@utility chat-input-surface {
+  @apply min-h-12 shell-surface;
+}
+
+/* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
+@utility server-gutter-item {
+  @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center text-3xl transition-[background-color,color] feedback-quick;
+  @apply bg-surface text-text/70 hover:bg-surface-selected hover:text-text active:bg-surface-strong;
+  @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action;
+  /* The 44 px logo has rounded-xl corners inside a 48 px frame. */
+  border-radius: calc(var(--radius-xl) + 2px);
+}
+
+/* Paint above server artwork so image logos and fallback initials get the same rim.
+ * The overlay does not intercept links or notification controls. */
+.server-gutter-item::after {
+  @apply pointer-events-none absolute inset-0 z-1 rounded-[inherit] shell-lighting;
+  content: '';
+}
+
+@utility server-gutter-item-active {
+  @apply bg-surface-selected text-text hover:bg-surface-selected hover:text-text;
+  @apply ring-2 ring-text;
+}
+
+/* Sidebar drag targets keep their frame mounted so outline-colour changes can
+ * fade both in and out when svelte-dnd-action toggles the active class. */
+.sidebar-drop-target {
+  border-radius: 0.375rem;
+  outline: 2px dashed transparent;
+  outline-offset: -2px;
+  transition: outline-color 120ms ease;
+}
+
+.sidebar-drop-target-active {
+  outline-color: var(--color-action);
+}
+
+:root[data-motion='reduced'] {
+  .sidebar-drop-target {
+    transition: none;
+  }
+}
+
+/* Make ServerLogo slightly smaller inside server-icon to leave room for the ring */
+.server-icon > div {
+  @apply h-11 w-11;
+}
+
+/* Light falls across the padded outer frame; inset content keeps its own fill.
+ * Inset shadows compose with each floating surface's existing outer shadow. */
+@utility floating-frame {
+  @apply bg-surface surface-raised;
+  --lighting-top: rgb(255 255 255 / calc(0.06 * var(--depth-strength)));
+  --lighting-bottom: rgb(0 0 0 / calc(var(--frame-shade-alpha) * var(--depth-strength)));
+  --lighting-midpoint: 45%;
+  --lighting-edge-top: rgb(255 255 255 / calc(0.1 * var(--depth-strength)));
+  --lighting-edge-bottom: rgb(0 0 0 / calc(var(--frame-edge-shade-alpha) * var(--depth-strength)));
+}
+
+/* Compact informational cards share the same surface as menus and panels. */
+@utility preview-surface {
+  @apply w-72 preview-frame text-sm leading-snug shadow-xl;
+}
+
+/* A soft inner edge makes content sit below the surrounding floating frame. */
+@utility floating-inset {
+  @apply surface-lowered;
+  --lowered-shadow: var(--frame-inset-shadow-offset)
+    rgb(0 0 0 / calc(var(--frame-inset-shadow-alpha) * var(--depth-strength)));
+  --lowered-edge: 0 0 0 1px rgb(0 0 0 / calc(var(--frame-inset-edge-alpha) * var(--depth-strength)));
+  outline: 1px solid var(--color-depth-border);
+  outline-offset: -1px;
+}
+
+/* Touch overlays retain the same frame and recessed work planes as dialogs
+ * and menus. Only the outer edge meets the viewport; depth follows preferences. */
+@utility sheet-frame {
+  @apply rounded-t-lg border border-b-0 border-border floating-frame px-4 pt-1 pb-4;
+  max-height: var(--modal-available-height);
+  padding-inline-start: max(1rem, env(safe-area-inset-left));
+  padding-inline-end: max(1rem, env(safe-area-inset-right));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* The outer app frame meets the window edge without a depth highlight. */
+@utility app-frame-shell {
+  @apply bg-surface;
+}
+
+/* Pane backgrounds cover ordinary inset shadows. A non-interactive overlay
+ * keeps the dark-theme recess visible across every pane. Light mode uses a
+ * raised edge and outer shadow instead.
+ */
+@utility app-frame-inset {
+  @apply relative shadow-[-1px_-1px_0_var(--app-edge-upper),1px_1px_0_var(--app-edge-lower),var(--app-frame-elevation)];
+
+  /* Narrow mouse drawers slide within the rounded work plane. Establish a
+   * containing block for their fixed positioning and clip every animation
+   * frame. Touch drawers still use the viewport for iOS safe-area handling. */
+  @variant max-md {
+    @variant compact-input {
+      contain: layout paint;
+      --sidebar-overlay-top: 0px;
+      --sidebar-overlay-bottom: 0px;
+    }
+  }
+
+  /* Pane backgrounds cover the frame itself, so draw its boundary above them. */
+  &::before {
+    @apply pointer-events-none absolute inset-0 rounded-[inherit];
+    z-index: 60;
+    border: 1px solid var(--color-depth-border);
+    content: '';
+  }
+
+  &::after {
+    @apply pointer-events-none absolute inset-0 z-40 rounded-[inherit] opacity-[var(--app-inset-opacity)] floating-inset;
+    content: '';
+  }
+}
+
+/* Both sidebar columns inherit one progress value from MobileSidebarChrome.
+ * Mouse drawers use the thread overlay's short slide and fade. Touch drawers
+ * travel their full width so the surface follows a finger without scaling. */
+@utility sidebar-drawer {
+  @variant max-md {
+    --sidebar-motion-duration: var(--motion-duration-pane);
+    transform: translateX(
+      calc((var(--sidebar-progress, 1) - 1) * var(--sidebar-width, 100vw) * var(--inline-direction))
+    );
+
+    @variant compact-input {
+      transform: translateX(
+        calc((var(--sidebar-progress, 1) - 1) * 300px * var(--inline-direction))
+      );
+      opacity: var(--sidebar-progress, 1);
+    }
+
+    [data-sidebar-dragging='false'] & {
+      transition:
+        transform var(--sidebar-motion-duration) var(--ease-out-expo),
+        opacity var(--sidebar-motion-duration) var(--ease-out-expo),
+        visibility 0s;
+    }
+
+    [data-sidebar-closed='true'] & {
+      visibility: hidden;
+      transition-delay: 0s, 0s, var(--sidebar-motion-duration);
+    }
+
+    @variant motion-reduce {
+      --sidebar-motion-duration: 0ms;
+    }
+  }
+}
+
+/* Menus (popup/context) */
+@utility menu {
+  /* `text-text` here counters the `[popover]` UA default of `color: CanvasText`
+     (which is pure white in dark mode, not the app's slightly-off neutral-100).
+     Menu items that need a different color still override it on their own. */
+  @apply inset-frame text-sm shadow-xl;
+}
+
+/* Palettes retain the app header even while their search opens the keyboard. */
+@media (width < 48rem) {
+  body[data-keyboard-open]:has(.palette-dialog[open]) .app-header {
+    display: flex;
+  }
+}
+
+/* Quick navigation uses the menu frame with a larger search and result rhythm. */
+@utility palette-dialog {
+  @apply fixed z-60 m-auto mt-[15vh] max-h-none max-w-none overflow-visible;
+  @media (width < 48rem) {
+    --palette-top: max(
+      var(--modal-viewport-top, 0px),
+      calc(var(--app-header-height) + env(safe-area-inset-top, 0px))
+    );
+    margin: 0;
+    top: var(--palette-top);
+    bottom: auto;
+    width: 100%;
+    height: calc(
+      var(--modal-viewport-height, 100dvh) + var(--modal-viewport-top, 0px) - var(--palette-top)
+    );
+    overflow: hidden;
+    &[open]::backdrop {
+      background: transparent;
+    }
+  }
+}
+
+@utility command-palette {
+  @apply flex min-h-0 w-full flex-col gap-0 bg-background text-base;
+  @media (width < 48rem) {
+    height: 100%;
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    & :is(.menu-section, .menu-section-sm) {
+      border-radius: 0;
+      /* Full-pane mobile results remain flat, without desktop inset lighting. */
+      box-shadow: none;
+      outline: none;
+    }
+  }
+  @media (width >= 48rem) {
+    @apply w-140 max-w-[calc(100vw-2rem)] gap-1 menu;
+  }
+}
+
+@utility command-palette-leading {
+  @apply inline-flex size-5 shrink-0 items-center justify-center text-muted;
+}
+
+@utility command-palette-result {
+  @apply menu-entry command-palette-row;
+}
+
+/* Shared geometry for actionable results and noninteractive shortcut rows. */
+@utility command-palette-row {
+  @apply flex min-h-8 items-center gap-2 px-2 py-1 comfortable-density:min-h-11 comfortable-density:px-3 comfortable-density:py-2.5;
+}
+
+@utility command-palette-heading {
+  @apply px-2 pt-2 pb-0.5 text-xs font-medium text-muted uppercase comfortable-density:px-3;
+}
+
+@utility command-palette-result-active {
+  @apply bg-surface text-text-top;
+}
+
+@utility keycap {
+  @apply inline-flex shrink-0 items-center justify-center rounded border border-text/10 px-1.5 py-0.5 text-xs text-muted;
+}
+
+@utility menu-section {
+  @apply inset-content p-1;
+}
+
+@utility menu-section-sm {
+  @apply inset-content p-0.5;
+}
+
+@utility menu-item {
+  @apply select-none;
+  @apply flex min-h-10 w-full cursor-pointer items-center gap-3 rounded px-3 py-1.5 text-start transition-[background-color,scale] feedback-quick hover:bg-surface active:scale-[0.96];
+}
+
+@utility menu-item-active {
+  @apply bg-surface;
+}
+
+/* Semantic command rows for ContextMenu and related action surfaces. */
+@utility menu-entry {
+  @apply select-none;
+  @apply relative flex min-h-8 w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-start text-text;
+  @apply comfortable-density:min-h-11 comfortable-density:px-3 comfortable-density:py-2.5;
+  @apply transition-[background-color,color] feedback-quick hover:bg-surface hover:text-text active:bg-surface-emphasized;
+  @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+
+  &[aria-disabled='true'] {
+    @apply cursor-not-allowed opacity-50;
+  }
+}
+
+@utility menu-entry-sheet {
+  @apply min-h-11 gap-3 px-3 py-2.5 text-base;
+}
+
+@utility menu-entry-selected {
+  @apply bg-surface;
+}
+
+@utility menu-entry-leading {
+  @apply flex h-5 w-5 shrink-0 items-center justify-center text-base;
+}
+
+@utility menu-entry-leading-floating {
+  @apply mt-0.5;
+}
+
+@utility menu-entry-leading-sheet {
+  @apply mt-0.5;
+}
+
+/* Fixed mobile drawers cover the browser content down to the viewport edge.
+   Embedded hosts can supply a bottom inset to match their content padding. */
+@utility mobile-sidebar-insets {
+  top: var(
+    --sidebar-overlay-top,
+    calc(var(--app-header-height) + var(--mobile-sidebar-safe-top, env(safe-area-inset-top, 0px)))
+  );
+  bottom: var(--sidebar-overlay-bottom, var(--mobile-sidebar-safe-bottom, 0px));
+}

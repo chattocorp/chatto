@@ -24,7 +24,7 @@ content. Keep both in the **UI/Inset Frame** Storybook comparison when changing
 the shared treatment.
 
 For images, files, embeds, composer thumbnails, and link hover cards, use the
-preview primitives in `src/app.css`. Read the **Preview surfaces** section in
+preview primitives in `src/styles/content.css`. Read the **Preview surfaces** section in
 `DESIGN_SYSTEM.md` and the **UI/Preview frames** Storybook collection before
 adding a preview surface. Use `preview-frame` for the outer frame,
 `preview-content` for inset content, and `preview-thumbnail` for compact media.
