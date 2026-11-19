@@ -3,9 +3,12 @@ package email
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/wneessen/go-mail"
@@ -78,6 +81,7 @@ func (m *Mailer) SendContext(ctx context.Context, msg Message) error {
 	if err := message.To(msg.To); err != nil {
 		return errors.New("invalid to address")
 	}
+	setMessageID(message)
 	message.Subject(msg.Subject)
 	message.SetBodyString(mail.TypeTextPlain, msg.Body)
 
@@ -107,6 +111,48 @@ func (m *Mailer) SendContext(ctx context.Context, msg Message) error {
 	}
 
 	return nil
+}
+
+// setMessageID sets a Message-ID that uses the domain of the sender address.
+// Without it, go-mail uses the machine hostname. In containers, that is
+// usually a container ID without a dot, and some receivers, such as Gmail,
+// reject the message. If the sender has no usable ASCII domain, go-mail keeps
+// its default.
+func setMessageID(message *mail.Msg) {
+	sender, err := message.GetSender(false)
+	if err != nil {
+		return
+	}
+	// go-mail returns the address in angle brackets.
+	domain := messageIDDomain(strings.Trim(sender, "<>"))
+	if domain == "" {
+		return
+	}
+	random := make([]byte, 16)
+	if _, err := rand.Read(random); err != nil {
+		return
+	}
+	message.SetMessageIDWithValue(hex.EncodeToString(random) + "@" + domain)
+}
+
+// messageIDDomain returns the lowercase domain of an address, or "" when the
+// domain is missing or contains characters that a Message-ID cannot contain.
+func messageIDDomain(address string) string {
+	at := strings.LastIndexByte(address, '@')
+	if at < 0 {
+		return ""
+	}
+	domain := strings.ToLower(strings.TrimSuffix(address[at+1:], "."))
+	if domain == "" || strings.HasPrefix(domain, "[") {
+		return ""
+	}
+	for i := 0; i < len(domain); i++ {
+		c := domain[i]
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-' || c == '.') {
+			return ""
+		}
+	}
+	return domain
 }
 
 // redactSendError removes the recipient addresses, message ID, and SMTP server

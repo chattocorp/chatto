@@ -1,6 +1,7 @@
 package email_test
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -83,6 +84,9 @@ func TestMailer_Integration_SendSuccess(t *testing.T) {
 	}
 	if !strings.Contains(data, "Test body content") {
 		t.Errorf("expected message to contain body, got %q", data)
+	}
+	if !regexp.MustCompile(`(?m)^Message-ID: <[0-9a-f]{32}@example\.com>\r?$`).MatchString(data) {
+		t.Errorf("expected Message-ID with the sender domain, got %q", data)
 	}
 }
 
