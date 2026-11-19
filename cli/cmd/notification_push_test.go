@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"sync"
@@ -21,6 +23,43 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/push"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
+
+func TestLogPushTestDelivery(t *testing.T) {
+	const endpoint = "https://example.test/private-subscription"
+	for _, tc := range []struct {
+		outcome string
+		result  push.SendResult
+	}{
+		{"accepted", push.SendResult{Success: true, HTTPStatus: 201}},
+		{"provider_rejected", push.SendResult{HTTPStatus: 403}},
+		{"subscription_gone", push.SendResult{Gone: true, HTTPStatus: 410}},
+		{"timeout", push.SendResult{Error: context.DeadlineExceeded}},
+		{"canceled", push.SendResult{Error: context.Canceled}},
+		{"request_failed", push.SendResult{Error: errors.New("private-subscription")}},
+	} {
+		t.Run(tc.outcome, func(t *testing.T) {
+			var buf bytes.Buffer
+			logger := log.New(&buf)
+			logger.SetFormatter(log.JSONFormatter)
+			tc.result.Endpoint = endpoint
+			logPushTestDelivery(logger, 2, &tc.result)
+			var fields map[string]any
+			if err := json.Unmarshal(buf.Bytes(), &fields); err != nil {
+				t.Fatal(err)
+			}
+			if fields["outcome"] != tc.outcome || fields["subscription_count"] != float64(2) || fields["endpoint_hash"] != push.EndpointLogID(endpoint) {
+				t.Fatalf("unexpected delivery log: %v", fields)
+			}
+			status, hasStatus := fields["http_status"]
+			if hasStatus != (tc.result.HTTPStatus != 0) || hasStatus && status != float64(tc.result.HTTPStatus) {
+				t.Fatalf("unexpected HTTP status: %v", fields)
+			}
+			if bytes.Contains(buf.Bytes(), []byte("private-subscription")) {
+				t.Fatal("log disclosed subscription data")
+			}
+		})
+	}
+}
 
 type recordingNotificationPushSender struct {
 	mu        sync.Mutex

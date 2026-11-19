@@ -87,6 +87,13 @@ provider access from the server. Keep the service worker reachable through the
 reverse proxy. Use **Try Again** in notification settings if browser subscription
 setup has paused.
 
+For a failed test, search the server logs for `Push test failed` and `Push test delivery`.
+A failure before delivery gives the stage. A subscription count of zero means the server
+found no eligible subscriptions. Each delivery entry gives the number of current
+subscriptions, an endpoint hash, and the outcome. If the provider responded, the entry
+also gives its HTTP status. Check each outcome even if the test succeeds. One provider
+can accept the test while another rejects it.
+
 ## Operator Checklist
 
 1. Set `webserver.url` to the public HTTPS origin.

@@ -233,9 +233,11 @@ func truncatePreview(text string) string {
 
 // SendResult contains the result of a push notification send attempt.
 type SendResult struct {
-	Endpoint string
-	Success  bool
-	Error    error
+	// HTTPStatus is zero when the push service returned no HTTP response.
+	HTTPStatus int
+	Endpoint   string
+	Success    bool
+	Error      error
 	// Gone indicates the subscription is no longer valid and should be deleted
 	Gone bool
 }
@@ -311,6 +313,8 @@ func (s *Sender) Send(ctx context.Context, sub *runtimestatev1.PushSubscription,
 		return result
 	}
 	defer resp.Body.Close()
+
+	result.HTTPStatus = resp.StatusCode
 
 	// Check response status
 	switch resp.StatusCode {
