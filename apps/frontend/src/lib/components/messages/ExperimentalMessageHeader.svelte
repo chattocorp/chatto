@@ -28,7 +28,7 @@ owns author interactions and badges. This layout owns identity and timestamp pre
     <span
       class={[
         'contents [&>*]:[font-size:inherit]',
-        timelineClock ? '[&>*]:shrink-0 [&>*]:text-muted/60' : '[&>time]:truncate'
+        timelineClock ? 'text-xs [&>*]:shrink-0 [&>*]:text-muted/60' : '[&>time]:truncate'
       ]}
     >
       <span aria-hidden="true" class="shrink-0 text-muted/60 only:hidden">·</span>

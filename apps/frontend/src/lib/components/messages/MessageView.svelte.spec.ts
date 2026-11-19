@@ -70,6 +70,9 @@ it('truncates the username first and keeps the timestamp on the header line', as
     const handle = view.getByText(`@${login}`, { exact: true }).element();
 
     const time = view.getByText('12:11 PM').element();
+    expect(parseFloat(getComputedStyle(time).fontSize)).toBeLessThan(
+      parseFloat(getComputedStyle(handle).fontSize)
+    );
     const row = view.getByRole('article').element() as HTMLElement;
     for (const width of [800, 520, 390, 320, 800]) {
       row.style.width = `${width}px`;
