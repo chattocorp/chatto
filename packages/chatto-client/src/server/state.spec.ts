@@ -295,13 +295,22 @@ describe('ServerInfoState.compatibilityProblem', () => {
     );
     expect(state.limitedFeatures).toEqual([]);
     await state.init();
-    expect(state.limitedFeatures).toEqual(['threadViews', 'independentSlowMode', 'backgroundJobs']);
+    expect(state.limitedFeatures).toEqual([
+      'threadViews',
+      'independentSlowMode',
+      'backgroundJobs',
+      'shieldRoleSelection'
+    ]);
     version = '0.5.0-beta.16';
     await state.init();
-    expect(state.limitedFeatures).toEqual(['independentSlowMode', 'backgroundJobs']);
+    expect(state.limitedFeatures).toEqual([
+      'independentSlowMode',
+      'backgroundJobs',
+      'shieldRoleSelection'
+    ]);
     version = '0.5.0-beta.18';
     await state.init();
-    expect(state.limitedFeatures).toEqual(['backgroundJobs']);
+    expect(state.limitedFeatures).toEqual(['backgroundJobs', 'shieldRoleSelection']);
     version = '0.6.0';
     await state.init();
     expect(state.limitedFeatures).toEqual([]);

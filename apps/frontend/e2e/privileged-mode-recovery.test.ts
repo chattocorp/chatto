@@ -43,6 +43,7 @@ const test = base.extend<{ browserErrors: string[] }>({
 /** Click the actual shield and its confirmation; wait until the operation finishes. */
 async function activate(page: Page): Promise<void> {
   await page.getByTestId('privileged-mode-toggle').click();
+  await page.getByRole('dialog').getByText('owner', { exact: true }).click();
   await page
     .getByRole('dialog', { name: 'Enable privileged mode' })
     .getByRole('button', { name: 'Enable privileged mode' })
@@ -97,7 +98,7 @@ test('confirmation can be cancelled and pending activation prevents duplicate re
   let calls = 0;
   let release: (() => void) | undefined;
   const held = new Promise<void>((resolve) => (release = resolve));
-  await page.route(`**/${viewerService}/ActivatePrivilegedMode`, async (route) => {
+  await page.route(`**/${viewerService}/ActivatePrivilegedRoles`, async (route) => {
     calls++;
     await held;
     await route.continue();
@@ -113,6 +114,7 @@ test('confirmation can be cancelled and pending activation prevents duplicate re
 
   try {
     await shield.click();
+    await dialog.getByText('owner', { exact: true }).click();
     const confirm = dialog.getByRole('button', { name: 'Enable privileged mode' });
     await confirm.click();
     await expect.poll(() => calls).toBe(1);
@@ -131,6 +133,32 @@ test('confirmation can be cancelled and pending activation prevents duplicate re
   }
 });
 
+test('a replica without role selection cannot activate the owner role through the picker', async ({
+  page
+}) => {
+  await page.goto(routes.root);
+  await loginAsAdminAndUsePrimaryServer(page, { activatePrivilegedMode: false });
+  await page.goto(routes.serverOverview);
+  let legacyRequests = 0;
+  page.on('request', (request) => {
+    if (request.url().endsWith('/ActivatePrivilegedMode')) legacyRequests++;
+  });
+  await page.route(`**/${viewerService}/ActivatePrivilegedRoles`, (route) =>
+    route.fulfill({
+      status: 501,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'unimplemented', message: 'Unknown method' })
+    })
+  );
+  await page.getByTestId('privileged-mode-toggle').click();
+  const dialog = page.getByRole('dialog', { name: 'Enable privileged mode' });
+  await dialog.getByText('owner', { exact: true }).click();
+  await dialog.getByRole('button', { name: 'Enable privileged mode' }).click();
+  await expect(page.getByText('Something went wrong', { exact: true })).toBeVisible();
+  await expect(dialog).toBeVisible();
+  expect(legacyRequests).toBe(0);
+});
+
 for (const active of [true, false]) {
   test(`failed ${active ? 'activation' : 'deactivation'} preserves authority and can be retried`, async ({
     page
@@ -139,7 +167,7 @@ for (const active of [true, false]) {
     await loginAsAdminAndUsePrimaryServer(page, { activatePrivilegedMode: !active });
     await page.goto(routes.serverOverview);
     let failures = 0;
-    const procedure = active ? 'ActivatePrivilegedMode' : 'DeactivatePrivilegedMode';
+    const procedure = active ? 'ActivatePrivilegedRoles' : 'DeactivatePrivilegedMode';
     await page.route(`**/${viewerService}/${procedure}`, async (route) => {
       if (failures++ === 0) {
         await route.fulfill({
@@ -151,7 +179,10 @@ for (const active of [true, false]) {
     });
     await page.getByTestId('privileged-mode-toggle').click();
     const dialog = page.getByRole('dialog', { name: 'Enable privileged mode' });
-    if (active) await dialog.getByRole('button', { name: 'Enable privileged mode' }).click();
+    if (active) {
+      await dialog.getByText('owner', { exact: true }).click();
+      await dialog.getByRole('button', { name: 'Enable privileged mode' }).click();
+    }
     await expect(page.getByText('Something went wrong', { exact: true })).toBeVisible();
     await expect(page.getByTestId('privileged-mode-toggle')).toBeEnabled();
     const viewer = await connectPost<{ privilegedMode?: { active?: boolean } }>(
@@ -273,7 +304,7 @@ test('shield resumes do not reload cached profiles or unrelated resources', asyn
     ]) {
       expect(requests, `Unexpected ${procedure} after shield transition`).not.toContain(procedure);
     }
-    expect(requests).toContain(active ? 'ActivatePrivilegedMode' : 'DeactivatePrivilegedMode');
+    expect(requests).toContain(active ? 'ActivatePrivilegedRoles' : 'DeactivatePrivilegedMode');
     expect(requests).toContain('ListRooms');
     expect(requests).toContain('ListRoomGroups');
   }
@@ -341,7 +372,7 @@ test('a user without elevation entitlement has no shield and cannot activate thr
     'true'
   );
   await expect(page.getByTestId('privileged-mode-toggle')).toHaveCount(0);
-  const response = await connectPostResponse(page, `${viewerService}/ActivatePrivilegedMode`);
+  const response = await connectPostResponse(page, `${viewerService}/ActivatePrivilegedRoles`);
   expect(response.status()).toBe(400);
   expect(await response.json()).toMatchObject({ code: 'failed_precondition' });
   const viewer = await connectPost<{ privilegedMode?: { available?: boolean; active?: boolean } }>(

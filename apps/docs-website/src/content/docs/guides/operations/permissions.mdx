@@ -24,7 +24,7 @@ setting is **Allow**, **Deny**, or **Inherit**.
 - **`everyone` is the baseline.** An allow on a user or a named role overrides
   an `everyone` deny only at the same scope or a more specific scope.
 - **No setting means no access.**
-- **Owners have every permission in privileged mode.** Without the mode, an
+- **Owners have every permission when they select `owner` in Shield Mode.** Without the mode, an
   owner has only the permissions of their roles and grants. You cannot lock
   out an owner, because an owner can always enable privileged mode. A user is
   an owner when they have the `owner` role or a verified email address in
@@ -56,7 +56,7 @@ roles does not change which setting wins.
 | `everyone` | Baseline member access. |
 | `moderator` | Message moderation and room-member removal. |
 | `admin` | Server, account, room, role, and bot administration. |
-| `owner` | Full authority while privileged mode is active. |
+| `owner` | Full authority while selected in Shield Mode. |
 
 Moderators and admins also have the baseline member permissions of `everyone`.
 Inspect the server's saved grants before you delegate access. Existing servers
@@ -64,40 +64,13 @@ keep their settings when defaults change.
 
 ## Privileged mode
 
-Administrative and moderation permissions stay off during normal chat use. To
-use them:
+If you have `role.manage`, use **Require Shield Mode** in the role settings to protect its grants. The `admin` and `moderator` roles start protected. Custom roles start unprotected. Chatto always protects `owner` and always applies the `everyone` baseline. For example, members can use `room.create` granted to `everyone` during normal use.
 
-<Steps>
+To use a protected role, select the shield in your user area, choose the roles you need, and confirm. The selection applies to this server session for 15 minutes. Select the shield again to end the session's activation early. The event log records activation and deactivation.
 
-1. Select the shield in your user area.
-2. Confirm **Enable privileged mode**.
+A protected role's denies still apply when its grants are inactive. Direct user grants apply even with Shield Mode off. To require activation for a management permission, grant it through a protected role and remove the direct grant. Select `owner` to use the owner override. A user who selects only `moderator` keeps their ordinary room access unless that role grants additional access. Notifications use ordinary room access.
 
-</Steps>
-
-Privileged mode lasts 15 minutes and does not extend. Select the shield again
-to stop it sooner. It applies only to the server
-session where you enabled it. The event log records each activation and
-deactivation.
-
-Privileged mode turns on permissions, not roles. It applies to each permission
-marked as privileged in the server's permission settings, from any
-role or user setting. It does not give you permissions that you do not have.
-
-For owners, privileged mode also turns on the owner permissions. Without the
-mode, an owner cannot see, join, or read a room that denies this to
-`everyone`, unless one of their roles or a direct grant allows it. If an owner
-joins such a room in privileged mode, they stay a member, but they can read the
-room only while the mode is active. Chatto removes them from a call in such a
-room shortly after the mode ends. Notifications use the permissions without the
-mode. MCP clients cannot enable privileged mode.
-
-Without privileged mode, Server Administration stays visible, but its
-protected actions are not available. The Moderation page needs server-wide
-`room.remove-member`, so it is available only in privileged mode.
-
-Bots do not use privileged mode. To allow a privileged permission for a bot,
-you must have that permission active at the same scope. You can remove a bot's
-permission without privileged mode.
+The bot owner’s assigned permissions set the ceiling for each bot grant at the same scope. A bot manager can grant permissions from the owner’s protected roles even while Shield Mode is off.
 
 ## Permission reference
 
@@ -193,21 +166,14 @@ Make these changes on an upgraded server:
 - **Allow `bot.create`** for the roles that can create bots.
 - **Allow `room.manage`** for delegated room managers. In 0.4, room-group
   management used `role.manage`.
-- **Allow `message.post`** for `admin` and `owner` in the `announcements` room
-  if they must post there without privileged mode. New servers have these
-  grants; existing servers keep their current settings.
+- Grant `message.post` in `announcements` directly or through an unprotected role if a member must post there during normal use.
 - **Check `message.post`.** It now also allows thread replies, so a deny of
   `message.post-in-thread` does not stop replies.
 - **Check `everyone` denies.** An allow on a named role or user at the same or
   a more specific scope now overrides them.
 
 <Aside type="caution">
-  Administrators, moderators, and owners must now enable
-  [privileged mode](#privileged-mode) to use their administrative permissions.
-  This also applies to custom `room.create` grants. Owners also need privileged
-  mode to see, join, or read rooms that deny this to `everyone` when no explicit
-  grant allows access. Give the `owner` role a room-level allow if owners need
-  this access during normal use.
+  Review your custom roles after upgrading. Turn on **Require Shield Mode** for roles whose grants should require explicit activation. Update every replica before relying on role protection.
 </Aside>
 
 See the [0.5.0 release notes](/releases/0-5-0/) for all upgrade steps.

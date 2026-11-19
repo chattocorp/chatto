@@ -23,6 +23,7 @@
       "display_name_too_long": "Kuvatav nimi peab olema kuni 64 tähemärki pikk",
       "description": "Kirjeldus",
       "description_placeholder": "Selle rolli valikuline kirjeldus",
+      "require_shield": "Nõua privilegeeritud režiimi",
       "pingable": "Lubage inimestel seda rolli pingida",
       "pingable_description": "Pingitavad rollid ilmuvad @ automaatse täitmise funktsioonis ja teavitavad määratud ruumi liikmeid."
     },
@@ -129,8 +130,6 @@
         "open": "Teave: {permission}",
         "category": "Kategooria",
         "scopes": "Saab määrata",
-        "privileged": "Vajab privilegeeritud režiimi",
-        "privileged_detail": "Selle õiguse kasutamiseks peab konto lülitama sisse privilegeeritud režiimi.",
         "includes": "Hõlmab",
         "included_by": "Sisaldub"
       }

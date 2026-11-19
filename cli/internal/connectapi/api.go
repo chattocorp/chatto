@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 	"connectrpc.com/validate"
@@ -171,7 +172,7 @@ func (a *API) Handlers() []Handler {
 	roomDirectoryPath, roomDirectoryHandler := apiv1connect.NewRoomDirectoryServiceHandler(&roomDirectoryService{api: a}, options...)
 	adminRoomLayoutPath, adminRoomLayoutHandler := adminv1connect.NewAdminRoomLayoutServiceHandler(&adminRoomLayoutService{api: a}, options...)
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
-	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
+	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a, now: time.Now}, options...)
 	handlers := []Handler{
 		{ServicePath: roomInvitationPath, Handler: roomInvitationHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: setupPath, Handler: setupHandler, AuthPolicy: AuthPolicyPublic},

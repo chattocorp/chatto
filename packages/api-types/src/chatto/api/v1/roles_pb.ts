@@ -54,6 +54,13 @@ export class Role extends Message<Role> {
    */
   pingable = false;
 
+  /**
+   * Grants from this role require explicit selection in Shield Mode.
+   *
+   * @generated from field: bool requires_shield_mode = 7;
+   */
+  requiresShieldMode = false;
+
   constructor(data?: PartialMessage<Role>) {
     super();
     proto3.util.initPartial(data, this);
@@ -68,6 +75,7 @@ export class Role extends Message<Role> {
     { no: 4, name: "is_system", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "position", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 6, name: "pingable", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 7, name: "requires_shield_mode", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Role {

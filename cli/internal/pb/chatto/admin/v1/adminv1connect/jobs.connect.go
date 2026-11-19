@@ -48,16 +48,16 @@ const (
 
 // AdminJobServiceClient is a client for the chatto.admin.v1.AdminJobService service.
 type AdminJobServiceClient interface {
-	// Lists jobs. Requires server.manage, including privileged mode.
+	// Lists jobs. Requires effective server.manage.
 	// This call does not subscribe or poll; callers refresh explicitly.
 	ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error)
-	// Gets a job. Requires server.manage, including privileged mode.
+	// Gets a job. Requires effective server.manage.
 	GetJob(context.Context, *connect.Request[v1.GetJobRequest]) (*connect.Response[v1.GetJobResponse], error)
-	// Retries a failed job. Requires server.manage, including privileged mode.
+	// Retries a failed job. Requires effective server.manage.
 	// Returns FAILED_PRECONDITION for active, successful, or expired jobs.
 	// A lost response does not cancel an accepted retry. Read the job before retrying.
 	RetryJob(context.Context, *connect.Request[v1.RetryJobRequest]) (*connect.Response[v1.RetryJobResponse], error)
-	// Deletes a failed job. Requires server.manage, including privileged mode.
+	// Deletes a failed job. Requires effective server.manage.
 	// The work of the job is abandoned and cannot be retried later. Returns
 	// FAILED_PRECONDITION when the job is not failed or changed after the caller
 	// read it, and NOT_FOUND when it is already deleted.
@@ -132,16 +132,16 @@ func (c *adminJobServiceClient) DeleteJob(ctx context.Context, req *connect.Requ
 
 // AdminJobServiceHandler is an implementation of the chatto.admin.v1.AdminJobService service.
 type AdminJobServiceHandler interface {
-	// Lists jobs. Requires server.manage, including privileged mode.
+	// Lists jobs. Requires effective server.manage.
 	// This call does not subscribe or poll; callers refresh explicitly.
 	ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error)
-	// Gets a job. Requires server.manage, including privileged mode.
+	// Gets a job. Requires effective server.manage.
 	GetJob(context.Context, *connect.Request[v1.GetJobRequest]) (*connect.Response[v1.GetJobResponse], error)
-	// Retries a failed job. Requires server.manage, including privileged mode.
+	// Retries a failed job. Requires effective server.manage.
 	// Returns FAILED_PRECONDITION for active, successful, or expired jobs.
 	// A lost response does not cancel an accepted retry. Read the job before retrying.
 	RetryJob(context.Context, *connect.Request[v1.RetryJobRequest]) (*connect.Response[v1.RetryJobResponse], error)
-	// Deletes a failed job. Requires server.manage, including privileged mode.
+	// Deletes a failed job. Requires effective server.manage.
 	// The work of the job is abandoned and cannot be retried later. Returns
 	// FAILED_PRECONDITION when the job is not failed or changed after the caller
 	// read it, and NOT_FOUND when it is already deleted.

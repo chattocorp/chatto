@@ -66,11 +66,6 @@ func (c *ChattoCore) HasAnyAdminPermission(ctx context.Context, userID string) (
 	return c.authorization.HasAnyAdminPermission(ctx, userID)
 }
 
-// HasAnyPrivilegedModeEntitlement delegates to shared authorization policy.
-func (c *ChattoCore) HasAnyPrivilegedModeEntitlement(ctx context.Context, userID string) (bool, error) {
-	return c.authorization.HasAnyPrivilegedModeEntitlement(ctx, userID)
-}
-
 // CanManageServer delegates to shared authorization policy.
 func (c *ChattoCore) CanManageServer(ctx context.Context, userID string) (bool, error) {
 	return c.authorization.CanManageServer(ctx, userID)

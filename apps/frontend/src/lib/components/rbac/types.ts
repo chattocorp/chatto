@@ -9,6 +9,7 @@ export type Role = {
   isSystem: boolean;
   position: number;
   pingable: boolean;
+  requiresShieldMode?: boolean;
 };
 
 export type PermissionState = 'allow' | 'deny' | 'neutral';

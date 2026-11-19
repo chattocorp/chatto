@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Ieslēgt privileģēto režīmu",
       "disable": "Izslēgt privileģēto režīmu",
+      "select_roles": "Izvēlieties lomas, kuras vēlaties aktivizēt uz 15 minūtēm.",
       "confirmation": "Tas uz 15 minūtēm aktivizē tev šajā serverī piešķirtās papildu atļaujas."
     },
     "notifications": {
@@ -76,7 +77,9 @@
       "independent_slow_mode_description": "Šis serveris izmanto vienu kopīgu gaidīšanas laiku kanāla ziņojumiem un atbildēm pavedienos.",
       "upgrade": "Lai iegūtu pilnu atbalstu, lūdziet servera administratoram atjaunināt uz {version} vai jaunāku versiju.",
       "background_jobs_title": "Fona uzdevumi nav pieejami",
-      "background_jobs_description": "Šis serveris servera iestatījumos nevar parādīt vai atkārtot fona uzdevumus."
+      "background_jobs_description": "Šis serveris servera iestatījumos nevar parādīt vai atkārtot fona uzdevumus.",
+      "shield_role_selection_title": "Lomu izvēle privileģētajā režīmā",
+      "shield_role_selection_description": "Šis serveris aktivizē visas pieejamās privilēģijas vienlaikus."
     },
     "server_gutter": {
       "move_up": "Pārvietot uz augšu",

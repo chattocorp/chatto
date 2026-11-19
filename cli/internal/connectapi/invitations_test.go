@@ -54,26 +54,22 @@ func TestMemberInvitationPermissionBoundary(t *testing.T) {
 	_, err = env.adminInvitationCodes.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{}))
 	require.NoError(t, err)
 
-	// Management remains privileged even after it is granted to the same member.
+	// A direct management grant immediately exposes all codes in the same session.
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserManageInvites))
 	listed, err = env.adminInvitationCodes.ListInvitationCodes(ctx, connect.NewRequest(&adminv1.ListInvitationCodesRequest{}))
 	require.NoError(t, err)
-	require.Len(t, listed.Msg.InvitationCodes, 2)
-	adminCtx := withArmedBearerCredential(env.ctx, env.viewer, "member-session")
-	listed, err = env.adminInvitationCodes.ListInvitationCodes(adminCtx, connect.NewRequest(&adminv1.ListInvitationCodesRequest{}))
-	require.NoError(t, err)
 	require.Len(t, listed.Msg.InvitationCodes, 3)
-	_, err = env.adminInvitationCodes.RevokeInvitationCode(adminCtx, connect.NewRequest(&adminv1.RevokeInvitationCodeRequest{Id: other.ID}))
+	_, err = env.adminInvitationCodes.RevokeInvitationCode(ctx, connect.NewRequest(&adminv1.RevokeInvitationCodeRequest{Id: other.ID}))
 	require.NoError(t, err)
-	// Losing issuance also removes access to owned codes outside privileged mode.
 	require.NoError(t, env.core.DenyUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserInvite))
+	// Management alone still permits creation. Losing both grants removes access.
+	_, err = env.adminInvitationCodes.CreateInvitationCode(ctx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{}))
+	require.NoError(t, err)
+	require.NoError(t, env.core.DenyUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserManageInvites))
 	_, err = env.adminInvitationCodes.GetInvitationCode(ctx, connect.NewRequest(&adminv1.GetInvitationCodeRequest{Id: code.Id}))
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	_, err = env.adminInvitationCodes.RevokeInvitationCode(ctx, connect.NewRequest(&adminv1.RevokeInvitationCodeRequest{Id: code.Id}))
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
-	// Management alone still allows creation and access to all codes when armed.
-	_, err = env.adminInvitationCodes.CreateInvitationCode(adminCtx, connect.NewRequest(&adminv1.CreateInvitationCodeRequest{}))
-	require.NoError(t, err)
 }
 
 func TestInvitationExpiryIsServerControlledForEveryCaller(t *testing.T) {

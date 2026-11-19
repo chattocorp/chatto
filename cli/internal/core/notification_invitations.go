@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -33,38 +32,6 @@ func (m *NotificationMaterializer) createInvitationConsumer(ctx context.Context)
 		FilterSubjects: invitationNotificationSubjects(), AckWait: notificationWorkerAckWait,
 		MaxAckPending: 1, DeliverPolicy: jetstream.DeliverNewPolicy,
 	})
-}
-
-func (m *NotificationMaterializer) waitInvitationCurrent(ctx context.Context) error {
-	var boundary uint64
-	for _, subject := range invitationNotificationSubjects() {
-		position, err := m.core.EventPublisher.LastSubjectPosition(ctx, subject)
-		if err != nil {
-			return err
-		}
-		boundary = max(boundary, position.Seq)
-	}
-	if boundary == 0 {
-		return nil
-	}
-	ticker := time.NewTicker(5 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		m.invitationConsumerInfoMu.Lock()
-		info, err := m.invitationConsumer.Info(ctx)
-		m.invitationConsumerInfoMu.Unlock()
-		if err != nil {
-			return err
-		}
-		if info.AckFloor.Stream >= boundary || (info.NumAckPending == 0 && info.Delivered.Stream >= boundary) {
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-		}
-	}
 }
 
 func (m *NotificationMaterializer) processInvitationDelivery(ctx context.Context, delivery events.DurableDelivery) error {

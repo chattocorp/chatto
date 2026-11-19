@@ -23,6 +23,7 @@
       "display_name_too_long": "Zobrazovaný název musí mít 64 znaků nebo méně",
       "description": "Popis",
       "description_placeholder": "Volitelný popis pro tuto roli",
+      "require_shield": "Vyžadovat privilegovaný režim",
       "pingable": "Umožněte lidem ping na tuto roli",
       "pingable_description": "Pingovatelné role se zobrazují v @ autocomplete a informují přiřazené členy místnosti."
     },
@@ -129,8 +130,6 @@
         "open": "O oprávnění {permission}",
         "category": "Kategorie",
         "scopes": "Lze nastavit pro",
-        "privileged": "Vyžaduje privilegovaný režim",
-        "privileged_detail": "Účty musí zapnout privilegovaný režim, aby mohly toto oprávnění používat.",
         "includes": "Zahrnuje",
         "included_by": "Součástí"
       }

@@ -144,7 +144,7 @@ func (JobRetryAvailability) EnumDescriptor() ([]byte, []int) {
 }
 
 // Safe administrative job summary. Content, credentials, and internal payloads
-// are never returned. Requires server.manage, including privileged mode.
+// are never returned. Requires effective server.manage.
 type Job struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable opaque job ID, preserved across manual retries.

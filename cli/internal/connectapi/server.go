@@ -99,6 +99,12 @@ func serverFeatureCatalog(locale string) []*discoveryv1.ServerFeature {
 			Description:       "Inspect background jobs and retry failed jobs in server settings.",
 			IntroducedVersion: "0.6.0-beta.0",
 		},
+		{
+			Id:                "shieldRoleSelection",
+			Name:              "Shield Mode role selection",
+			Description:       "Choose which protected roles to activate for 15 minutes.",
+			IntroducedVersion: "0.6.0-beta.0",
+		},
 	}
 	for _, feature := range features {
 		if text, ok := featureTranslation(locale, feature.Id); ok {

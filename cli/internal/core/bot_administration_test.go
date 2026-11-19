@@ -141,12 +141,14 @@ func TestBotCanCreateAndManageBotsWithExplicitGrants(t *testing.T) {
 	listed, err := c.ListBots(botCtx, manager.User.Id)
 	require.NoError(t, err)
 	require.Len(t, listed, 3)
-	_, err = c.GetUserPermissionMatrix(botCtx, manager.User.Id, target.User.Id)
-	require.NoError(t, err)
+	// Only the target owner holds the permission. The editor and its owner
+	// can still manage the grant.
+	require.NoError(t, c.DenyUserPermission(ctx, SystemActorID, owner.Id, PermUserDeleteAny))
+	requireBotGrantability(t, c, botCtx, manager.User.Id, target.User.Id, scope, PermUserDeleteAny, true)
 
 	// bot.manage intentionally permits credentials for a more powerful bot.
 	// The issued credential acts with the target's grants and owner ceiling.
-	require.NoError(t, c.SetUserPermissionState(ctx, otherOwner.Id, target.User.Id, scope, PermUserDeleteAny, PermissionStateAllow))
+	require.NoError(t, c.SetUserPermissionState(botCtx, manager.User.Id, target.User.Id, scope, PermUserDeleteAny, PermissionStateAllow))
 	issued, err := c.CreateBotAPIKey(botCtx, manager.User.Id, target.User.Id, "Automation")
 	require.NoError(t, err)
 	identity, err := c.ValidateBotAPIKey(ctx, issued.Credential)
@@ -164,6 +166,12 @@ func TestBotCanCreateAndManageBotsWithExplicitGrants(t *testing.T) {
 	require.Error(t, err)
 	_, err = c.ReassignBotOwner(botCtx, manager.User.Id, target.User.Id, owner.Id)
 	require.NoError(t, err)
+	requireBotGrantability(t, c, botCtx, manager.User.Id, target.User.Id, scope, PermUserDeleteAny, false)
+	allowed, err = c.CanDeleteUser(ctx, target.User.Id, otherOwner.Id)
+	require.NoError(t, err)
+	require.False(t, allowed)
+	err = c.SetUserPermissionState(botCtx, manager.User.Id, target.User.Id, scope, PermUserDeleteAny, PermissionStateAllow)
+	require.ErrorIs(t, err, ErrBotOwnerPermissionCeiling)
 	_, err = c.ReassignBotOwner(botCtx, manager.User.Id, target.User.Id, manager.User.Id)
 	require.ErrorIs(t, err, ErrHumanAccountRequired)
 

@@ -33,7 +33,7 @@ enum JobRetryAvailability {
 }
 
 // Safe administrative job summary. Content, credentials, and internal payloads
-// are never returned. Requires server.manage, including privileged mode.
+// are never returned. Requires effective server.manage.
 message Job {
   // Stable opaque job ID, preserved across manual retries.
   string id = 1;
@@ -118,16 +118,16 @@ message DeleteJobRequest {
 message DeleteJobResponse {}
 // Administrative background-job inspection and recovery.
 service AdminJobService {
-  // Lists jobs. Requires server.manage, including privileged mode.
+  // Lists jobs. Requires effective server.manage.
   // This call does not subscribe or poll; callers refresh explicitly.
   rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
-  // Gets a job. Requires server.manage, including privileged mode.
+  // Gets a job. Requires effective server.manage.
   rpc GetJob(GetJobRequest) returns (GetJobResponse);
-  // Retries a failed job. Requires server.manage, including privileged mode.
+  // Retries a failed job. Requires effective server.manage.
   // Returns FAILED_PRECONDITION for active, successful, or expired jobs.
   // A lost response does not cancel an accepted retry. Read the job before retrying.
   rpc RetryJob(RetryJobRequest) returns (RetryJobResponse);
-  // Deletes a failed job. Requires server.manage, including privileged mode.
+  // Deletes a failed job. Requires effective server.manage.
   // The work of the job is abandoned and cannot be retried later. Returns
   // FAILED_PRECONDITION when the job is not failed or changed after the caller
   // read it, and NOT_FOUND when it is already deleted.

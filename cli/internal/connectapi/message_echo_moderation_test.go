@@ -21,7 +21,7 @@ func TestMessageServiceModeratorEchoRemoval(t *testing.T) {
 		{name: "owner with power mode", owner: true, powerMode: true, wantRemove: true},
 		{name: "owner without power mode", owner: true},
 		{name: "delegated moderator", manage: true, powerMode: true, wantRemove: true},
-		{name: "delegated moderator without power mode", manage: true},
+		{name: "direct room grant without Shield Mode", manage: true, wantRemove: true},
 		{name: "member without manage"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

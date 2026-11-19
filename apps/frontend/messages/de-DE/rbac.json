@@ -23,6 +23,7 @@
       "display_name_too_long": "Der Anzeigename darf höchstens 64 Zeichen lang sein",
       "description": "Beschreibung",
       "description_placeholder": "Optionale Beschreibung für diese Rolle",
+      "require_shield": "Privilegierten Modus voraussetzen",
       "pingable": "Personen dürfen diese Rolle pingen",
       "pingable_description": "Pingbare Rollen erscheinen in der @-Autovervollständigung und benachrichtigen zugewiesene Raummitglieder."
     },
@@ -129,8 +130,6 @@
         "open": "Über {permission}",
         "category": "Kategorie",
         "scopes": "Einstellbar für",
-        "privileged": "Benötigt den privilegierten Modus",
-        "privileged_detail": "Konten müssen den privilegierten Modus aktivieren, um diese Berechtigung zu nutzen.",
         "includes": "Enthält",
         "included_by": "Enthalten in"
       }

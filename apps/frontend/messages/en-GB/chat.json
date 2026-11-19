@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Enable privileged mode",
       "disable": "Disable privileged mode",
+      "select_roles": "Choose the roles to activate for 15 minutes.",
       "confirmation": "For 15 minutes, this enables the additional permissions assigned to you on this server."
     },
     "notifications": {
@@ -76,7 +77,9 @@
       "independent_slow_mode_description": "This server uses one shared cooldown for channel messages and thread replies.",
       "upgrade": "For full support, ask the server administrator to upgrade to {version} or newer.",
       "background_jobs_title": "Background jobs are unavailable",
-      "background_jobs_description": "This server cannot show or retry background jobs in server settings."
+      "background_jobs_description": "This server cannot show or retry background jobs in server settings.",
+      "shield_role_selection_title": "Shield Mode role selection",
+      "shield_role_selection_description": "This server activates all eligible privileges together."
     },
     "server_gutter": {
       "move_up": "Move up",

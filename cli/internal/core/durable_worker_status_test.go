@@ -107,8 +107,8 @@ func TestDurableWorkerAdminStatusesDoNotInferHandlerLivenessFromAckPending(t *te
 
 func TestDurableWorkerAdminStatusesReportMissingRequiredConsumers(t *testing.T) {
 	statuses := durableWorkerAdminStatuses(nil, true)
-	// Ten source and materializer consumers, plus one JOBS consumer per job type.
-	if want := 10 + len(jobTypes()); len(statuses) != want {
+	// Eleven source and materializer consumers, plus one JOBS consumer per job type.
+	if want := 11 + len(jobTypes()); len(statuses) != want {
 		t.Fatalf("statuses len = %d, want %d", len(statuses), want)
 	}
 	for _, status := range statuses {

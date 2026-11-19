@@ -280,6 +280,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   direct durable push consumption from `notifications.signalled` with an
   immutable deadline and current policy, visibility, DND, and subscription
   revalidation.
+  A separate role-protection consumer removes stored attention that a member loses permission to read.
 - **`MessageModel`**
   ([`message_model.go`](../../cli/internal/core/message_model.go),
   [`messages.go`](../../cli/internal/core/messages.go)): Operation-level message

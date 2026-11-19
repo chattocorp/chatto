@@ -116,27 +116,14 @@ func (r *PermissionResolver) resolveInContentView(ctx context.Context, resolve f
 }
 
 // resolveWithGroup resolves effective authorization. For humans, privileged
-// mode gates both elevation-required permissions and the effective-owner
-// override. An owner without active privileged mode resolves through direct
+// mode gates selected role grants and the owner override. An owner without active privileged mode resolves through direct
 // grants, named roles, and the everyone baseline like any other human.
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
 	// A bot subject has no human session to arm, including during inspection.
 	if isBot, ownerUserID, exists := r.users.isBotAndOwner(userID); exists && isBot {
 		return r.resolveBotWithGroup(ctx, userID, ownerUserID, kind, roomID, explicitGroupID, perm)
 	}
-	privileged := privilegedModeAllows(ctx, userID, time.Now())
-	decision, err := r.resolveHumanWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm, privileged)
-	if err != nil || decision != DecisionAllow {
-		return decision, err
-	}
-	metadata, known := GetPermissionMetadata(perm)
-	if !known || !metadata.RequiresPrivilegedMode {
-		return decision, nil
-	}
-	if !privileged {
-		return DecisionDeny, nil
-	}
-	return decision, nil
+	return r.resolveHumanWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm, privilegedRoleAllows(ctx, userID, RoleOwner))
 }
 
 // privilegedModeEvaluationKey carries a fixed privileged-mode state for work
@@ -146,29 +133,23 @@ type privilegedModeEvaluationKey struct{}
 // privilegedModeEvaluation is the fixed privileged-mode state of one human.
 // Checks for any other user resolve as inactive.
 type privilegedModeEvaluation struct {
-	userID string
-	active bool
+	userID   string
+	active   bool
+	roles    []string
+	allRoles bool
 }
 
 // withPrivilegedModeEvaluation fixes the privileged-mode state that effective
 // authorization uses for userID. Realtime fan-out uses it to evaluate one
 // class of sessions with the same state as their request credentials. It
 // takes precedence over a request credential in ctx.
-func withPrivilegedModeEvaluation(ctx context.Context, userID string, active bool) context.Context {
-	return context.WithValue(ctx, privilegedModeEvaluationKey{}, privilegedModeEvaluation{userID: userID, active: active})
+func withPrivilegedModeEvaluation(ctx context.Context, userID string, active bool, roles ...string) context.Context {
+	return context.WithValue(ctx, privilegedModeEvaluationKey{}, privilegedModeEvaluation{userID: userID, active: active, roles: roles})
 }
 
-// PrivilegedModeDeadline returns the end of the active privileged mode of the
-// human credential in ctx when it authenticates userID. It returns zero when
-// the mode is inactive, ctx has no human credential, or the credential belongs
-// to another user. Work that outlives the request, such as a call connection,
-// stores this deadline to keep the same state.
-func PrivilegedModeDeadline(ctx context.Context, userID string) time.Time {
-	credential, ok := authctx.CredentialForContext(ctx)
-	if !ok || credential.Kind == authctx.RuntimeCredentialKindBotAPIKey || credential.UserID != userID || !time.Now().Before(credential.PrivilegedModeExpiresAt) {
-		return time.Time{}
-	}
-	return credential.PrivilegedModeExpiresAt
+// withRoleEntitlement evaluates durable grants independent of a session.
+func withRoleEntitlement(ctx context.Context, userID string) context.Context {
+	return context.WithValue(ctx, privilegedModeEvaluationKey{}, privilegedModeEvaluation{userID: userID, active: true, allRoles: true})
 }
 
 // privilegedModeAllows reports whether privileged mode is active for userID.
@@ -193,12 +174,17 @@ func privilegedModeAllows(ctx context.Context, userID string, now time.Time) boo
 	return now.Before(credential.PrivilegedModeExpiresAt)
 }
 
-// resolveEntitlement reads assigned authority in a consistent content view,
-// without applying the inspecting human's session activation state.
-func (r *PermissionResolver) resolveEntitlement(ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission) (DecisionKind, error) {
-	return r.resolveInContentView(ctx, func(readCtx context.Context) (DecisionKind, error) {
-		return r.resolveEntitlementWithGroup(readCtx, userID, kind, roomID, groupID, perm)
-	})
+// privilegedRoleAllows checks the selected roles for a human session. Internal
+// entitlement checks explicitly evaluate all currently assigned roles.
+func privilegedRoleAllows(ctx context.Context, userID, role string) bool {
+	if !privilegedModeAllows(ctx, userID, time.Now()) {
+		return false
+	}
+	if evaluation, ok := ctx.Value(privilegedModeEvaluationKey{}).(privilegedModeEvaluation); ok {
+		return evaluation.allRoles || slices.Contains(evaluation.roles, role)
+	}
+	credential, ok := authctx.CredentialForContext(ctx)
+	return !ok || slices.Contains(credential.PrivilegedRoles, role)
 }
 
 // resolveEntitlementWithGroup resolves durable RBAC entitlement without the
@@ -209,7 +195,7 @@ func (r *PermissionResolver) resolveEntitlementWithGroup(ctx context.Context, us
 	if accountExists && isBot {
 		return r.resolveBotWithGroup(ctx, userID, ownerUserID, kind, roomID, explicitGroupID, perm)
 	}
-	return r.resolveHumanWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm, true)
+	return r.resolveHumanWithGroup(withRoleEntitlement(ctx, userID), userID, kind, roomID, explicitGroupID, perm, true)
 }
 
 // resolveHumanWithGroup resolves a human's decision. ownerOverride selects
@@ -239,20 +225,25 @@ func (r *PermissionResolver) resolveHumanWithGroup(ctx context.Context, userID s
 		}
 	}
 
-	return resolvePermissionWithInclusions(perm, func(candidate Permission) (DecisionKind, error) {
+	gatedInclusion := false
+	decision, err := resolvePermissionWithInclusions(perm, func(candidate Permission) (DecisionKind, error) {
 		decisions, err := r.applicableDecisions(ctx, userID, kind, roomID, groupID, candidate)
 		if err != nil {
 			return DecisionNone, err
 		}
-		result, _, _ := resolveApplicablePermissionDecisions(decisions)
+		result, winner, _ := resolveApplicablePermissionDecisions(decisions)
+		if winner.RoleName == "@privileged-mode" {
+			gatedInclusion = true
+		}
 		return result, nil
 	})
+	if decision == DecisionNone && gatedInclusion {
+		return DecisionDeny, err
+	}
+	return decision, err
 }
 
 func (r *PermissionResolver) resolveBotWithGroup(ctx context.Context, botUserID, ownerUserID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
-	if !botPermissionDelegable(perm) {
-		return DecisionDeny, nil
-	}
 	if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
 		return DecisionDeny, nil
 	}
@@ -367,6 +358,7 @@ type permissionScopeTarget struct {
 }
 
 type applicablePermissionDecisions struct {
+	gated    []TraceEntry
 	named    []TraceEntry
 	everyone *TraceEntry
 }
@@ -380,7 +372,8 @@ func (r *PermissionResolver) applicableDecisions(
 	ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission,
 ) (applicablePermissionDecisions, error) {
 	var out applicablePermissionDecisions
-	if _, known := GetPermissionMetadata(perm); !known {
+	_, known := GetPermissionMetadata(perm)
+	if !known {
 		return out, nil
 	}
 
@@ -395,8 +388,18 @@ func (r *PermissionResolver) applicableDecisions(
 	subjects := append([]string{userID}, roles...)
 
 	for _, subject := range subjects {
-		if entry, ok := r.nearestDecision(subject, perm, scopes); ok {
+		allows := true
+		if subject != userID && r.rbac.roleRequiresShieldMode(subject) {
+			allows = privilegedRoleAllows(ctx, userID, subject)
+		}
+		entry, gated := nearestSubjectDecision(scopes, subject, allows, func(target permissionScopeTarget) DecisionKind {
+			return r.decisionFor(target.scope, target.id, subject, perm)
+		})
+		if entry.Decision != "" {
 			out.named = append(out.named, entry)
+		}
+		if gated.Decision != "" {
+			out.gated = append(out.gated, gated)
 		}
 	}
 
@@ -407,19 +410,30 @@ func (r *PermissionResolver) applicableDecisions(
 }
 
 func (r *PermissionResolver) nearestDecision(subject string, perm Permission, scopes []permissionScopeTarget) (TraceEntry, bool) {
+	entry, _ := nearestSubjectDecision(scopes, subject, true, func(target permissionScopeTarget) DecisionKind {
+		return r.decisionFor(target.scope, target.id, subject, perm)
+	})
+	return entry, entry.Decision != ""
+}
+
+// nearestSubjectDecision skips inactive grants before resolving scope precedence.
+// A room grant on an inactive role cannot mask the same role's server deny.
+func nearestSubjectDecision(scopes []permissionScopeTarget, subject string, allows bool, read func(permissionScopeTarget) DecisionKind) (effective, gated TraceEntry) {
 	for _, target := range scopes {
-		decision := r.decisionFor(target.scope, target.id, subject, perm)
+		decision := read(target)
 		if decision == DecisionNone {
 			continue
 		}
-		return TraceEntry{
-			Level:    target.level,
-			RoleName: subject,
-			Decision: decision,
-			ObjectID: target.objectID(),
-		}, true
+		entry := TraceEntry{Level: target.level, RoleName: subject, Decision: decision, ObjectID: target.objectID()}
+		if decision == DecisionAllow && !allows {
+			if gated.Decision == "" {
+				gated = entry
+			}
+			continue
+		}
+		return entry, gated
 	}
-	return TraceEntry{}, false
+	return effective, gated
 }
 
 // resolveDecisionEntries applies deny-wins across direct-user and named-role
@@ -450,6 +464,9 @@ func resolveApplicablePermissionDecisions(decisions applicablePermissionDecision
 	state, winner, decided := resolveDecisionEntries(decisions.named)
 	if state == DecisionDeny {
 		return state, winner, decided
+	}
+	if state == DecisionNone && decisions.everyone == nil && len(decisions.gated) > 0 {
+		return DecisionDeny, TraceEntry{Level: LevelServer, RoleName: "@privileged-mode", Decision: DecisionDeny, ObjectID: ObjectIdAny}, true
 	}
 	if decisions.everyone == nil {
 		return state, winner, decided

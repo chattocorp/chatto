@@ -22,4 +22,14 @@ message CookieSession {
   string fresh_auth_source = 9;
   // Absolute end of the current explicit privileged-mode activation.
   google.protobuf.Timestamp privileged_mode_expires_at = 10;
+  repeated string privileged_roles = 11;
+}
+
+// CallRoleSelection binds one call token's Shield Mode selection to its connection.
+message CallRoleSelection {
+  string room_name = 1;
+  string participant_identity = 2;
+  string user_id = 3;
+  repeated string roles = 4;
+  google.protobuf.Timestamp expires_at = 5;
 }

@@ -76,6 +76,13 @@ func (p *RBACProjection) Apply(event *evtv1.Event, seq uint64) error {
 		p.applyRoleDisplayNameChanged(e.RbacRoleDisplayNameChanged.GetRoleName(), e.RbacRoleDisplayNameChanged.GetDisplayName())
 	case *evtv1.Event_RbacRoleDescriptionChanged:
 		p.applyRoleDescriptionChanged(e.RbacRoleDescriptionChanged.GetRoleName(), e.RbacRoleDescriptionChanged.GetDescription())
+	case *evtv1.Event_RbacRoleProtectionChanged:
+		change := e.RbacRoleProtectionChanged
+		if role := p.roles[change.GetRoleName()]; role != nil && role.Name != RoleOwner && role.Name != RoleEveryone {
+			updated := role.Clone()
+			updated.RequiresShieldMode = change.GetRequiresShieldMode()
+			p.roles[role.Name] = updated
+		}
 	case *evtv1.Event_RbacRolePingableChanged:
 		p.applyRolePingableChanged(e.RbacRolePingableChanged.GetRoleName(), e.RbacRolePingableChanged.GetPingable())
 	case *evtv1.Event_RbacRoleDeleted:
@@ -123,12 +130,22 @@ func rbacRoleFromCreated(event *evtv1.RbacRoleCreatedEvent) *readmodel.Role {
 	if event == nil {
 		return nil
 	}
+	// Built-in roles predate the stored setting. Replay their creation with
+	// the built-in defaults, then apply any later protection changes.
+	protected := event.RequiresShieldMode
+	switch event.RoleName {
+	case RoleOwner, RoleAdmin, RoleModerator:
+		protected = true
+	case RoleEveryone:
+		protected = false
+	}
 	return &readmodel.Role{
-		Name:        event.GetRoleName(),
-		DisplayName: event.GetDisplayName(),
-		Description: event.GetDescription(),
-		Position:    event.GetRank(),
-		Pingable:    event.GetPingable(),
+		Name:               event.GetRoleName(),
+		DisplayName:        event.GetDisplayName(),
+		Description:        event.GetDescription(),
+		Position:           event.GetRank(),
+		Pingable:           event.GetPingable(),
+		RequiresShieldMode: protected,
 	}
 }
 
@@ -398,6 +415,14 @@ func (p *RBACProjection) GetRole(name string) (*readmodel.Role, bool) {
 	return role.Clone(), true
 }
 
+// RoleRequiresShieldMode reports whether the role's grants require selection.
+func (p *RBACProjection) RoleRequiresShieldMode(name string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	role := p.roles[name]
+	return role != nil && role.RequiresShieldMode
+}
+
 func (p *RBACProjection) RoleExists(name string) bool {
 	p.RLock()
 	defer p.RUnlock()
@@ -591,35 +616,18 @@ func (p *RBACProjection) DecisionsForRoleServer(roleName string) (grants []Permi
 	return p.DecisionsFor(ScopeServer, "", roleName)
 }
 
-// HasAnyPrivilegedModeAllow reports whether the user, everyone, or one of the
-// user's assigned roles has an explicit allow for an elevation-required
-// permission at any scope. Effective authorization still resolves denies and
-// scope precedence when the user performs an action.
-func (p *RBACProjection) HasAnyPrivilegedModeAllow(userID string) bool {
+// ProtectedRoles returns the user's assigned protected roles in name order.
+func (p *RBACProjection) ProtectedRoles(userID string) []string {
 	p.RLock()
 	defer p.RUnlock()
-	roles := p.assignments[userID]
-	for key, decision := range p.decisions {
-		if decision != DecisionAllow {
-			continue
-		}
-		metadata, known := GetPermissionMetadata(key.permission)
-		if !known || !metadata.RequiresPrivilegedMode {
-			continue
-		}
-		if key.subjectKind == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER && key.subject == userID {
-			return true
-		}
-		if key.subjectKind == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE && (key.subject == RoleEveryone) {
-			return true
-		}
-		if key.subjectKind == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE {
-			if _, assigned := roles[key.subject]; assigned {
-				return true
-			}
+	var names []string
+	for name := range p.assignments[userID] {
+		if role := p.roles[name]; role != nil && role.RequiresShieldMode {
+			names = append(names, name)
 		}
 	}
-	return false
+	slices.Sort(names)
+	return names
 }
 
 func (p *RBACProjection) NextAvailablePosition() int32 {

@@ -39,7 +39,8 @@ Chatto's pre-1.0 API remains experimental.
   thread Slow Mode requires beta.18. Older servers keep a shared cooldown
   and a single setting; room field presence still controls the runtime fallback.
   Background jobs require `0.6.0-beta.0`, the first 0.6.0 prerelease. On older servers, server settings omit the
-  Jobs page ([FDR-056](FDR-056-background-jobs.md)). Below the
+  Jobs page ([FDR-056](FDR-056-background-jobs.md)). Shield Mode role selection also requires
+  `0.6.0-beta.0`. Older servers activate all eligible privileges together ([FDR-046](FDR-046-privileged-mode.md)). Below the
   connection threshold, it blocks chat routes and the realtime connection.
 - A connected server's version stays current without a reload. The client
   reads the server profile again at each full realtime catch-up. A full

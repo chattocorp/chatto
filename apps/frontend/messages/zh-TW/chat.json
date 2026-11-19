@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "啟用特權模式",
       "disable": "停用特權模式",
+      "select_roles": "選擇要啟用 15 分鐘的角色。",
       "confirmation": "這會在 15 分鐘內啟用你在此伺服器上獲得的額外權限。"
     },
     "notifications": {
@@ -76,7 +77,9 @@
       "independent_slow_mode_description": "此伺服器對頻道訊息和討論串回覆使用共用的冷卻時間。",
       "upgrade": "如需完整支援，請要求伺服器管理員升級至 {version} 或更新版本。",
       "background_jobs_title": "無法使用背景工作",
-      "background_jobs_description": "此伺服器無法在伺服器設定中顯示或重試背景工作。"
+      "background_jobs_description": "此伺服器無法在伺服器設定中顯示或重試背景工作。",
+      "shield_role_selection_title": "特權模式角色選擇",
+      "shield_role_selection_description": "此伺服器會同時啟用所有可用權限。"
     },
     "server_gutter": {
       "move_up": "向上移動",

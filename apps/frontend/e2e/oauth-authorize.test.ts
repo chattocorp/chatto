@@ -295,6 +295,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
         timeout: TIMEOUTS.REALTIME_EVENT
       });
       await adminPage.getByRole('button', { name: 'Enable privileged mode' }).click();
+      await adminPage.getByRole('dialog').getByText('owner', { exact: true }).click();
       await adminPage
         .getByRole('dialog', { name: 'Enable privileged mode' })
         .getByRole('button', { name: 'Enable privileged mode' })

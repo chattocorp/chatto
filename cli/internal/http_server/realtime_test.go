@@ -20,6 +20,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/publiccursor"
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -840,7 +841,11 @@ func TestRealtimeRapidPrivilegedModeChangesKeepResuming(t *testing.T) {
 	// Freeze admission time so the test cannot pass by refilling replay tokens.
 	now := time.Now()
 	env.httpServer.realtimeCatchUps = newRealtimeCatchUpAdmissionWithLimits(8, 3, 20*time.Second, func() time.Time { return now })
-	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rapid-privilege", "Rapid Privilege", "password123"); err != nil {
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rapid-privilege", "Rapid Privilege", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator); err != nil {
 		t.Fatal(err)
 	}
 	env.login(t, "rapid-privilege", "password123")
@@ -861,7 +866,11 @@ func TestRealtimeRapidPrivilegedModeChangesKeepResuming(t *testing.T) {
 		t.Fatal(err)
 	}
 	for change := range 8 {
-		if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, change%2 == 0); err != nil {
+		action := core.DeactivatePrivilegedMode
+		if change%2 == 0 {
+			action = core.ActivateAllPrivilegedRoles
+		}
+		if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, action); err != nil {
 			t.Fatalf("privilege change %d: %v", change, err)
 		}
 		conn = env.dialRealtime(t)
@@ -930,8 +939,12 @@ func TestRealtimeLargeReplayStillUsesStrictBudget(t *testing.T) {
 func TestRealtimeWebSocketReconnectsAfterSessionPrivilegedModeDeactivation(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	env.httpServer.realtimeCredentialCheckEvery = 25 * time.Millisecond
-	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-privileged-tabs", "RT Privileged Tabs", "password123"); err != nil {
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-privileged-tabs", "RT Privileged Tabs", "password123")
+	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator); err != nil {
+		t.Fatal(err)
 	}
 	env.login(t, "rt-privileged-tabs", "password123")
 	var sessionID string
@@ -944,7 +957,7 @@ func TestRealtimeWebSocketReconnectsAfterSessionPrivilegedModeDeactivation(t *te
 	if sessionID == "" {
 		t.Fatal("login did not set browser session cookie")
 	}
-	if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, true); err != nil {
+	if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, core.ActivateAllPrivilegedRoles); err != nil {
 		t.Fatalf("activate privileged mode: %v", err)
 	}
 	conn := env.dialRealtime(t)
@@ -962,7 +975,7 @@ func TestRealtimeWebSocketReconnectsAfterSessionPrivilegedModeDeactivation(t *te
 	if frame, ok := readRealtimeServerFrame(t, conn, 2*time.Second); !ok || frame.GetClose() != nil {
 		t.Fatalf("frame before deactivation = %+v, want a live event on the open socket", frame)
 	}
-	if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, false); err != nil {
+	if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, core.DeactivatePrivilegedMode); err != nil {
 		t.Fatalf("deactivate privileged mode: %v", err)
 	}
 	deadline := time.Now().Add(2 * time.Second)
@@ -979,6 +992,32 @@ func TestRealtimeWebSocketReconnectsAfterSessionPrivilegedModeDeactivation(t *te
 		}
 		return
 	}
+}
+
+func TestRealtimeRevalidationDetectsRoleChangeAtSameSessionDeadline(t *testing.T) {
+	env := setupWebSocketTestServerWithTTLs(t, 0, 5*time.Minute)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-selection", "Role selection", "password123")
+	require.NoError(t, err)
+	require.NoError(t, env.core.AssignOwnerRole(env.ctx, user.Id))
+	require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator))
+	handle, _, err := env.core.CreateCookieSession(env.ctx, user.Id, "password_login")
+	require.NoError(t, err)
+	deadline, err := env.core.SetCookiePrivilegedMode(env.ctx, handle, core.ActivateSelectedPrivilegedRoles, core.RoleOwner)
+	require.NoError(t, err)
+	env.cookieJar.SetCookies(mustParseURL(env.server.URL), []*http.Cookie{{Name: browserSessionCookieName, Value: handle}})
+	conn := env.dialRealtime(t)
+	// The handshake captured the owner role. Change the selection before the socket
+	// subscribes so its next credential check observes only the final session state.
+	_, err = env.core.SetCookiePrivilegedMode(env.ctx, handle, core.DeactivatePrivilegedMode)
+	require.NoError(t, err)
+	next, err := env.core.SetCookiePrivilegedMode(env.ctx, handle, core.ActivateSelectedPrivilegedRoles, core.RoleModerator)
+	require.NoError(t, err)
+	require.True(t, deadline.ExpiresAt.Equal(next.ExpiresAt))
+	subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	frame, ok := readRealtimeServerFrame(t, conn, 2*time.Second)
+	require.True(t, ok)
+	require.Equal(t, realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED, frame.GetClose().GetCode())
+	require.True(t, frame.GetClose().GetReconnect())
 }
 
 func TestRealtimeWebSocketClosesOnlyForRevokedBotAPIKey(t *testing.T) {

@@ -616,8 +616,7 @@ type PermissionMatrixCell struct {
 	Override PermissionDecision `protobuf:"varint,3,opt,name=override,proto3,enum=chatto.admin.v1.PermissionDecision" json:"override,omitempty"`
 	// Effective decision at this scope.
 	Effective PermissionDecision `protobuf:"varint,4,opt,name=effective,proto3,enum=chatto.admin.v1.PermissionDecision" json:"effective,omitempty"`
-	// Whether an explicit allow may currently be stored for this target. Absent
-	// when no additional delegation ceiling applies.
+	// Whether the bot owner's assigned permissions allow this grant. Absent for other targets.
 	AllowPermitted *bool `protobuf:"varint,5,opt,name=allow_permitted,json=allowPermitted,proto3,oneof" json:"allow_permitted,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache

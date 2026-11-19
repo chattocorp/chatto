@@ -9,14 +9,18 @@
   let {
     role,
     saving,
-    savingPingable,
+    savingSetting,
+    showShieldSetting,
+    onSaveShield,
     onSaveMetadata,
     onSavePingable,
     onDelete
   }: {
     role: Role;
     saving: boolean;
-    savingPingable: boolean;
+    savingSetting: boolean;
+    showShieldSetting: boolean;
+    onSaveShield: (checked: boolean) => Promise<boolean>;
     onSaveMetadata: (displayName: string, description: string) => void;
     onSavePingable: (pingable: boolean) => Promise<boolean>;
     onDelete: () => void;
@@ -39,12 +43,12 @@
 
   function saveMetadata(event: SubmitEvent): void {
     event.preventDefault();
-    if (!metadataChanged || saving || savingPingable) return;
+    if (!metadataChanged || saving || savingSetting) return;
     onSaveMetadata(editDisplayName, editDescription);
   }
 
   async function savePingable(event: Event): Promise<void> {
-    if (!canEditPingable || saving || savingPingable) return;
+    if (!canEditPingable || saving || savingSetting) return;
     const target = event.currentTarget as HTMLInputElement;
     const nextPingable = target.checked;
     const previousPingable = role.pingable;
@@ -122,13 +126,25 @@
       />
     {/if}
 
+    {#if showShieldSetting}
+      <Checkbox
+        id="requires-shield-mode"
+        checked={role.requiresShieldMode}
+        label={m('rbac.role_form.require_shield')}
+        disabled={saving || savingSetting || role.name === 'owner' || role.name === 'everyone'}
+        onCheckedChange={async (checked) => {
+          await onSaveShield(checked);
+        }}
+      />
+    {/if}
+
     {#if canEditPingable}
       <Checkbox
         id="pingable"
         bind:checked={editPingable}
         label={m('rbac.role_form.pingable')}
         onchange={savePingable}
-        disabled={saving || savingPingable}
+        disabled={saving || savingSetting}
         description={m('rbac.role_form.pingable_description')}
       />
     {:else}
@@ -144,7 +160,7 @@
 
     {#if !role.isSystem}
       <div class="flex gap-2">
-        <Button type="submit" disabled={!metadataChanged || saving || savingPingable}>
+        <Button type="submit" disabled={!metadataChanged || saving || savingSetting}>
           {saving ? m('rbac.role_form.saving') : m('admin.permissions.save_changes')}
         </Button>
       </div>

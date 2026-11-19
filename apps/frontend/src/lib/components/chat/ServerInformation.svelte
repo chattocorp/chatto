@@ -59,6 +59,10 @@
       title: m('chat.compatibility.independent_slow_mode_title'),
       description: m('chat.compatibility.independent_slow_mode_description')
     },
+    shieldRoleSelection: {
+      title: m('chat.compatibility.shield_role_selection_title'),
+      description: m('chat.compatibility.shield_role_selection_description')
+    },
     backgroundJobs: {
       title: m('chat.compatibility.background_jobs_title'),
       description: m('chat.compatibility.background_jobs_description')

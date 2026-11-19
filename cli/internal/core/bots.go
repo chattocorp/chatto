@@ -929,8 +929,8 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 	if state == PermissionStateDeny {
 		return fmt.Errorf("%w: bot permissions are an allowlist and do not support explicit denials", ErrInvalidArgument)
 	}
-	if !botPermissionDelegable(perm) {
-		return fmt.Errorf("%w: permission %s cannot be delegated to a bot", ErrInvalidArgument, perm)
+	if _, known := GetPermissionMetadata(perm); !known {
+		return fmt.Errorf("%w: unknown permission %s", ErrInvalidArgument, perm)
 	}
 	normalized := normalizePermissionScope(scope)
 	validateScope := func() error {
@@ -996,34 +996,12 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 			return err
 		}
 		if state == PermissionStateAllow {
-			kind, roomID, groupID := KindChannel, "", ""
-			switch normalized.Kind {
-			case MatrixScopeDM:
-				kind = KindDM
-			case MatrixScopeGroup:
-				groupID = normalized.ID
-			case MatrixScopeRoom:
-				roomID = normalized.ID
-			}
-			decision, err := c.PermResolver().resolveEntitlement(ctx, currentBot.GetBotOwnerUserId(), kind, roomID, groupID, perm)
+			ownerAllows, err := c.botOwnerAllowsGrant(ctx, currentBot.GetBotOwnerUserId(), perm, normalized)
 			if err != nil {
 				return err
 			}
-			if decision != DecisionAllow {
+			if !ownerAllows {
 				return ErrBotOwnerPermissionCeiling
-			}
-			// Delegating elevated authority requires the acting caller to hold
-			// it actively at this scope, independently of the owner's ceiling.
-			if metadata, known := GetPermissionMetadata(perm); known && metadata.RequiresPrivilegedMode {
-				decision, err := c.PermResolver().resolveInContentView(ctx, func(readCtx context.Context) (DecisionKind, error) {
-					return c.PermResolver().resolveWithGroup(readCtx, actorID, kind, roomID, groupID, perm)
-				})
-				if err != nil {
-					return err
-				}
-				if decision != DecisionAllow {
-					return ErrPermissionDenied
-				}
 			}
 		}
 		return nil
@@ -1048,11 +1026,4 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 		return err
 	}
 	return nil
-}
-
-func botPermissionDelegable(perm Permission) bool {
-	if _, known := GetPermissionMetadata(perm); !known {
-		return false
-	}
-	return perm != PermUserDeleteSelf
 }

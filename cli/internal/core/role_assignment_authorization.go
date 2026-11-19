@@ -78,7 +78,7 @@ func (c *ChattoCore) requireRoleAssignmentWithinAuthority(ctx context.Context, a
 	if err != nil {
 		return err
 	}
-	if isOwner {
+	if isOwner && privilegedRoleAllows(ctx, actorID, RoleOwner) {
 		return nil
 	}
 	if roleName == RoleOwner {

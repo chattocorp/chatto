@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Privilegierten Modus aktivieren",
       "disable": "Privilegierten Modus deaktivieren",
+      "select_roles": "Wähle die Rollen aus, die du für 15 Minuten aktivieren möchtest.",
       "confirmation": "Damit aktivierst du für 15 Minuten die zusätzlichen Berechtigungen, die dir auf diesem Server zugewiesen sind."
     },
     "notifications": {
@@ -76,7 +77,9 @@
       "independent_slow_mode_description": "Dieser Server verwendet eine gemeinsame Wartezeit für Kanalnachrichten und Thread-Antworten.",
       "upgrade": "Bitte den Serveradministrator, für volle Unterstützung auf {version} oder neuer zu aktualisieren.",
       "background_jobs_title": "Hintergrundaufträge sind nicht verfügbar",
-      "background_jobs_description": "Dieser Server kann Hintergrundaufträge in den Servereinstellungen weder anzeigen noch wiederholen."
+      "background_jobs_description": "Dieser Server kann Hintergrundaufträge in den Servereinstellungen weder anzeigen noch wiederholen.",
+      "shield_role_selection_title": "Rollenauswahl im privilegierten Modus",
+      "shield_role_selection_description": "Dieser Server aktiviert alle verfügbaren Berechtigungen gemeinsam."
     },
     "server_gutter": {
       "move_up": "Nach oben verschieben",

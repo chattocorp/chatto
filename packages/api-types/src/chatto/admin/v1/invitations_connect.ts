@@ -8,8 +8,7 @@ import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * Issues and manages registration codes. user.invite permits access to own codes.
- * Effective user.manage-invites permits access to all codes and requires
- * privileged mode for human sessions.
+ * Effective user.manage-invites permits access to all codes.
  * External systems can issue codes with an authorized API credential.
  *
  * @generated from service chatto.admin.v1.AdminInvitationCodeService

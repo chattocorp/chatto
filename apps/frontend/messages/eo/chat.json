@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Ŝalti privilegian reĝimon",
       "disable": "Malŝalti privilegian reĝimon",
+      "select_roles": "Elektu la rolojn por aktivigi dum 15 minutoj.",
       "confirmation": "Dum 15 minutoj tio ŝaltas la aldonajn permesojn asignitajn al vi en ĉi tiu servilo."
     },
     "notifications": {
@@ -76,7 +77,9 @@
       "independent_slow_mode_description": "Ĉi tiu servilo uzas unu komunan atendotempon por kanalaj mesaĝoj kaj respondoj en fadenoj.",
       "upgrade": "Por plena subteno, petu la servilan administranton ĝisdatigi al {version} aŭ pli nova versio.",
       "background_jobs_title": "Fonaj taskoj ne disponeblas",
-      "background_jobs_description": "Ĉi tiu servilo ne povas montri aŭ reprovi fonajn taskojn en la servilaj agordoj."
+      "background_jobs_description": "Ĉi tiu servilo ne povas montri aŭ reprovi fonajn taskojn en la servilaj agordoj.",
+      "shield_role_selection_title": "Elekto de roloj en privilegia reĝimo",
+      "shield_role_selection_description": "Ĉi tiu servilo aktivigas ĉiujn disponeblajn privilegiojn samtempe."
     },
     "server_gutter": {
       "move_up": "Movi supren",

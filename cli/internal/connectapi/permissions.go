@@ -266,12 +266,13 @@ func apiTierRoles(matrix *core.TierRoles) *adminv1.TierRoles {
 			InheritedAllows:  append([]string(nil), role.InheritedAllows...),
 			InheritedDenials: append([]string(nil), role.InheritedDenials...),
 			Role: &apiv1.Role{
-				Name:        role.RoleName,
-				DisplayName: role.DisplayName,
-				Description: role.Description,
-				IsSystem:    role.IsSystem,
-				Position:    role.Position,
-				Pingable:    role.Pingable,
+				Name:               role.RoleName,
+				DisplayName:        role.DisplayName,
+				Description:        role.Description,
+				IsSystem:           role.IsSystem,
+				Position:           role.Position,
+				Pingable:           role.Pingable,
+				RequiresShieldMode: role.RequiresShieldMode,
 			},
 		})
 	}
@@ -397,13 +398,11 @@ func apiPermissionMatrixCells(cells []core.PermissionMatrixCell) []*adminv1.Perm
 	out := make([]*adminv1.PermissionMatrixCell, 0, len(cells))
 	for _, cell := range cells {
 		mapped := &adminv1.PermissionMatrixCell{
-			Permission: cell.Permission,
-			ScopeId:    cell.ScopeID,
-			Override:   apiPermissionDecision(cell.Override),
-			Effective:  apiPermissionDecision(cell.Effective),
-		}
-		if cell.AllowPermitted != nil {
-			mapped.AllowPermitted = cell.AllowPermitted
+			Permission:     cell.Permission,
+			ScopeId:        cell.ScopeID,
+			Override:       apiPermissionDecision(cell.Override),
+			Effective:      apiPermissionDecision(cell.Effective),
+			AllowPermitted: cell.AllowPermitted,
 		}
 		out = append(out, mapped)
 	}

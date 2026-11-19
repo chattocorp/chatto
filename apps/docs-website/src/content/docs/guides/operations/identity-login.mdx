@@ -189,8 +189,7 @@ account creation. Each code permits one account and expires after seven days.
 
 Grant `user.manage-invites` to administrators who manage all codes. Grant
 `user.invite` only to members who can issue and revoke their own codes. The
-**Server Admin → Invites** page provides these actions. Invitation managers need
-privileged mode; members who manage only their own codes do not.
+**Server Admin → Invites** page provides these actions. Managers who receive this permission through a protected role must select that role in Shield Mode.
 
 A code grants admission to anyone who has it. Do not put codes in logs or URLs.
 Keep `core.secret_key` stable on all replicas and after a restore. A change makes

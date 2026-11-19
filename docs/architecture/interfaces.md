@@ -699,8 +699,7 @@ recipient can read an invitation. Only the recipient can respond.
 ## Background job administration
 
 `chatto.admin.v1.AdminJobService` provides bounded `ListJobs`, `GetJob`,
-`RetryJob`, and `DeleteJob` operations. Core operations require `server.manage`, including
-privileged mode for human credential sessions. The API exposes state, safe
+`RetryJob`, and `DeleteJob` operations. Core operations require effective `server.manage`. The API exposes state, safe
 failure categories, attempt counts, timestamps, and typed retry availability.
 It never exposes private payloads or broker positions. The operations read
 the in-memory job view of the serving replica. Page cursors are sealed and

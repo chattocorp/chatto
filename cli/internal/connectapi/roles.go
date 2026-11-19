@@ -113,10 +113,11 @@ func (s *roleService) CreateRole(ctx context.Context, req *connect.Request[admin
 	}
 	pingable := req.Msg.GetPingable()
 	role, err := s.api.core.AdminCreateServerRole(ctx, caller.UserID, core.AdminRoleInput{
-		Name:        req.Msg.GetName(),
-		DisplayName: req.Msg.GetDisplayName(),
-		Description: req.Msg.GetDescription(),
-		Pingable:    &pingable,
+		Name:               req.Msg.GetName(),
+		DisplayName:        req.Msg.GetDisplayName(),
+		Description:        req.Msg.GetDescription(),
+		Pingable:           &pingable,
+		RequiresShieldMode: req.Msg.RequiresShieldMode,
 	})
 	if err != nil {
 		return nil, err
@@ -134,10 +135,11 @@ func (s *roleService) UpdateRole(ctx context.Context, req *connect.Request[admin
 		return nil, err
 	}
 	role, err := s.api.core.AdminUpdateServerRole(ctx, caller.UserID, core.AdminRoleUpdateInput{
-		Name:        req.Msg.GetName(),
-		DisplayName: req.Msg.DisplayName,
-		Description: req.Msg.Description,
-		Pingable:    req.Msg.Pingable,
+		Name:               req.Msg.GetName(),
+		DisplayName:        req.Msg.DisplayName,
+		Description:        req.Msg.Description,
+		Pingable:           req.Msg.Pingable,
+		RequiresShieldMode: req.Msg.RequiresShieldMode,
 	})
 	if err != nil {
 		return nil, err
@@ -181,12 +183,13 @@ func publicAPIRole(role *core.RoleWithPermissions) *apiv1.Role {
 		return nil
 	}
 	return &apiv1.Role{
-		Name:        role.Name,
-		DisplayName: role.DisplayName,
-		Description: role.Description,
-		IsSystem:    role.IsSystem,
-		Position:    role.Position,
-		Pingable:    role.Pingable,
+		Name:               role.Name,
+		DisplayName:        role.DisplayName,
+		Description:        role.Description,
+		IsSystem:           role.IsSystem,
+		Position:           role.Position,
+		Pingable:           role.Pingable,
+		RequiresShieldMode: role.RequiresShieldMode,
 	}
 }
 

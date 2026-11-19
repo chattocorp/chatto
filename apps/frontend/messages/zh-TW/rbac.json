@@ -23,6 +23,7 @@
       "display_name_too_long": "顯示名稱不得超過 64 個字元",
       "description": "說明",
       "description_placeholder": "此角色的選填說明",
+      "require_shield": "要求使用特權模式",
       "pingable": "允許使用者提及此角色",
       "pingable_description": "可提及的角色會顯示在 @ 自動完成中，並通知已指派此角色的聊天室成員。"
     },
@@ -129,8 +130,6 @@
         "open": "關於 {permission}",
         "category": "類別",
         "scopes": "可設定範圍",
-        "privileged": "需要特權模式",
-        "privileged_detail": "帳戶必須啟用特權模式才能使用此權限。",
         "includes": "包含",
         "included_by": "包含於"
       }
