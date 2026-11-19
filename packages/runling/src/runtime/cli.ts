@@ -3,6 +3,8 @@ import { Command, InvalidArgumentError } from 'commander';
 export interface RunOptions {
   input?: string;
   json: boolean;
+  /** Disable the interactive task display and print ordinary log lines. */
+  plain?: boolean;
   verbose: boolean;
 }
 
@@ -63,6 +65,7 @@ export function createCli(version: string, actions: CliActions): Command {
     .argument('[prompt]', 'Input passed to the workflow', '')
     .option('--input <json>', 'Task input as JSON (instead of prompt)')
     .option('--json', 'Write the result as JSON', false)
+    .option('--plain', 'Print ordinary logs without a live task display')
     .option('-v, --verbose', 'Show debug logs', false)
     .action(async (file: string, prompt: string, options: RunOptions, command: Command) => {
       if (options.input !== undefined && command.args.length > 1) {

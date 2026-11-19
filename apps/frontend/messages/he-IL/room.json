@@ -14,6 +14,7 @@
       "clear_confirm_title": "לנקות את הודעת החדר?",
       "clear_confirm_description": "פעולה זו מסירה מיד את ההודעה הפעילה עבור כולם בחדר. השינויים שלא שמרת לא יפורסמו.",
       "empty": "לא פורסמה הודעה.",
+      "load_failed": "לא ניתן לטעון את ההודעה.",
       "edit": "ערוך הודעה"
     },
     "information": {
@@ -21,7 +22,12 @@
       "created": "נוצר",
       "title": "מידע על החדר",
       "basic": "כללי",
-      "pinned_messages": "הודעות נעוצות"
+      "pinned_messages": "הודעות נעוצות",
+      "threads": "שרשורים",
+      "slow_mode": "מצב איטי",
+      "channel_slow_mode": "מצב איטי בערוץ",
+      "thread_slow_mode": "מצב איטי בשרשורים",
+      "slow_mode_off": "כבוי"
     },
     "create": {
       "title": "צור חדר חדש",

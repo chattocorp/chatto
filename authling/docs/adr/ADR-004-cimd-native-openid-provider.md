@@ -23,6 +23,8 @@ OIDC state contains redirects, state and nonce values, account identifiers,
 authorization codes, and bearer-token authority. It therefore needs stronger
 storage and network-fetch boundaries than ordinary application data.
 
+[ADR-010](ADR-010-resource-access-and-refresh-tokens.md) extends this profile with resource-bound JWT access tokens and rotating refresh tokens.
+
 ## Decision
 
 One Authling deployment is one immutable OIDC issuer. The canonical
@@ -58,7 +60,7 @@ Special-use CIMD destinations remain denied by default. An issuer with a
 loopback hostname permits loopback CIMD destinations for local development.
 Other issuers require explicit trust for exact loopback hostnames. Operators
 may also explicitly trust exact private hostnames for controlled development
-environments. CIMD document URLs still require HTTPS.
+environments. A CIMD URL must use HTTPS, or plain HTTP on a loopback host for local development. A plain-HTTP fetch must resolve only to loopback addresses.
 Private-host and loopback-host trust are separate capabilities, and each
 permits only its named address class. Link-local, multicast, and all other
 special-use destinations stay blocked.

@@ -1,10 +1,12 @@
 import { requireDirectory } from './directory.ts';
 import { createReadStream } from 'node:fs';
-import { lstat, readlink } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { lstat, readlink, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { resolve, join } from 'node:path';
 import { createHash, type Hash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { usePrivateTempDirectory } from './private-temp.ts';
+import type { TaskContext } from './context.ts';
 
 const exec = promisify(execFile);
 
@@ -97,4 +99,56 @@ export class WorkingDirectory {
 
 export function getPwd(path: string) {
   return WorkingDirectory.create(path);
+}
+
+/** A private NUL-separated list of current worktree files. The caller owns its lifetime,
+ * for example until containers using this file have stopped. It does not snapshot file data. */
+export interface WorkingTreeManifest extends AsyncDisposable {
+  readonly path: string;
+}
+
+/** Select tracked and unignored files, including local changes, without Git metadata.
+ * Deleted files and submodule directories are excluded. Tracked files remain included even
+ * when an ignore rule matches. Disposal removes the private manifest and its directory. */
+export async function workingTreeManifest(
+  ctx: Pick<TaskContext, 'signal'>,
+  cwd: string
+): Promise<WorkingTreeManifest> {
+  requireDirectory(cwd);
+  ctx.signal.throwIfAborted();
+  let stdout: string;
+  try {
+    ({ stdout } = await exec(
+      'git',
+      ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
+      {
+        cwd,
+        signal: ctx.signal,
+        encoding: 'utf8',
+        maxBuffer: 16 * 1024 * 1024
+      }
+    ));
+  } catch (error) {
+    ctx.signal.throwIfAborted();
+    throw error;
+  }
+  const files: string[] = [];
+  for (const file of new Set(stdout.split('\0').filter(Boolean))) {
+    ctx.signal.throwIfAborted();
+    try {
+      if (!(await lstat(join(cwd, file))).isDirectory()) files.push(file);
+    } catch (error) {
+      if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error;
+    }
+  }
+  const directory = await mkdtemp(join(await usePrivateTempDirectory(), 'git-manifest-'));
+  try {
+    const path = join(directory, 'files');
+    await writeFile(path, files.map((file) => `${file}\0`).join(''), { mode: 0o600 });
+    ctx.signal.throwIfAborted();
+    return { path, [Symbol.asyncDispose]: () => rm(directory, { recursive: true, force: true }) };
+  } catch (error) {
+    await rm(directory, { recursive: true, force: true });
+    throw error;
+  }
 }

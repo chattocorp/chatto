@@ -6,14 +6,24 @@ import { isHLSProvider } from 'vidstack';
 import type { MediaPlayerElement } from 'vidstack/elements';
 import { VideoProcessingStatus } from '@chatto/client/timeline/messageAttachments';
 import VideoPlayer from './VideoPlayer.svelte';
+import { fullscreenVideo } from '$lib/state/globals.svelte';
 
 const TRANSPARENT_THUMBNAIL = 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';
 
-function renderAutoLoopVideo({ width, height }: { width: number; height: number }) {
+function renderAutoLoopVideo({
+  width,
+  height,
+  onOpen
+}: {
+  width: number;
+  height: number;
+  onOpen?: () => void;
+}) {
   return render(VideoPlayer, {
     props: {
       status: VideoProcessingStatus.Completed,
       filename: 'clip.mp4',
+      onOpen,
       autoLoop: true,
       variants: [
         {
@@ -95,6 +105,71 @@ async function posterImage(container: HTMLElement): Promise<HTMLImageElement> {
 }
 
 describe('VideoPlayer', () => {
+  it('opens a GIF from its preview without a reader toolbar', async () => {
+    const onOpen = vi.fn();
+    const view = renderAutoLoopVideo({ width: 640, height: 480, onOpen });
+    const button = view.getByRole('button', { name: 'View clip.mp4' });
+    expect(view.container.querySelector('button video[data-autoloop]')).not.toBeNull();
+    expect(view.container.querySelector('.preview-toolbar')).toBeNull();
+    await button.click();
+    expect(onOpen).toHaveBeenCalledOnce();
+  });
+
+  it('keeps playback controls inside the player without a reader toolbar', async () => {
+    const view = renderPostedVideo({ width: 1280, height: 720 });
+    const player = (await mediaPlayer(view.container)) as MediaPlayerElement;
+    player.$state.canFullscreen.set(true);
+    player.$state.canGoogleCast.set(true);
+    player.$state.canPictureInPicture.set(true);
+    player.$state.controlsVisible.set(true);
+    player.$state.started.set(true);
+    await tick();
+    expect(view.container.querySelector('.preview-toolbar')).toBeNull();
+    for (const selector of ['.vds-fullscreen-button', '.compact-pip', '.vds-google-cast-button']) {
+      await expect.poll(() => player.querySelector(selector)).toBeTruthy();
+      await expect
+        .poll(() => getComputedStyle(player.querySelector(selector)!).display)
+        .not.toBe('none');
+    }
+  });
+
+  it('aligns compact PiP with Cast and volume controls', async () => {
+    const view = renderPostedVideo({ width: 1280, height: 720 });
+    const player = (await mediaPlayer(view.container)) as MediaPlayerElement;
+    player.$state.canGoogleCast.set(true);
+    player.$state.canPictureInPicture.set(true);
+    player.$state.started.set(true);
+    player.$state.controlsVisible.set(true);
+    await expect.poll(() => player.querySelector('.vds-mute-button')).toBeTruthy();
+    await tick();
+    const pip = player.querySelector('.compact-pip')!.getBoundingClientRect();
+    const volume = player.querySelector('.vds-mute-button')!.getBoundingClientRect();
+    const cast = player.querySelector('.vds-google-cast-button')!.getBoundingClientRect();
+    expect(pip.top).toBe(volume.top);
+    expect(pip.height).toBe(volume.height);
+    expect(pip.top).toBe(cast.top);
+    expect(pip.right).toBeLessThan(volume.left);
+  });
+
+  it('preserves playback time when the player requests fullscreen', async () => {
+    const view = renderPostedVideo({ width: 1280, height: 720 });
+    const player = (await mediaPlayer(view.container)) as MediaPlayerElement;
+    const media = await playerVideo(view.container);
+    vi.spyOn(media, 'pause').mockImplementation(() => {});
+    const open = vi.spyOn(fullscreenVideo, 'open').mockImplementation(() => {});
+    media.currentTime = 12;
+    player.dispatchEvent(
+      new CustomEvent('media-enter-fullscreen-request', { bubbles: true, cancelable: true })
+    );
+    expect(open).toHaveBeenCalledWith(
+      { src: 'https://chat.example.test/clip.mp4', type: 'video/mp4' },
+      null,
+      12,
+      null,
+      null
+    );
+  });
+
   it.each([
     [1280, 720],
     [1080, 1920]
@@ -129,6 +204,7 @@ describe('VideoPlayer', () => {
     await expect.poll(() => fog?.getBoundingClientRect().width).toBeGreaterThan(0);
     // The loading canvas fills the content box inside the shared 4px preview rim.
     expect(fog?.getBoundingClientRect().width).toBeCloseTo(videoFrame.clientWidth - 8, 0);
+    expect(container.querySelector('.preview-toolbar')).toBeNull();
     expect(fog?.getBoundingClientRect().height).toBeCloseTo(videoFrame.clientHeight - 8, 0);
   });
 
@@ -184,8 +260,8 @@ describe('VideoPlayer', () => {
       await expect
         .poll(() => frame(container).getBoundingClientRect().width)
         .toBeLessThanOrEqual(width);
-      const bounds = frame(container).getBoundingClientRect();
-      expect(bounds.height - 10).toBeCloseTo(((bounds.width - 10) * 9) / 16, 0);
+      const bounds = container.querySelector('media-player')!.getBoundingClientRect();
+      expect(bounds.height).toBeCloseTo(Math.max(128, (bounds.width * 9) / 16), 0);
     }
   });
 

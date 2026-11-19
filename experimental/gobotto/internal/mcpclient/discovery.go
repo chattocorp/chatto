@@ -13,8 +13,8 @@ import (
 
 // schemaRevision lets restored sessions recognize changed definitions without
 // putting those definitions back into every model request.
-func schemaRevision(tool agent.Tool) string {
-	data, _ := json.Marshal([]any{tool.Name, tool.Description, tool.Parameters})
+func schemaRevision(tool agent.Tool, instructions ...string) string {
+	data, _ := json.Marshal([]any{tool.Name, tool.Description, tool.Parameters, instructions})
 	hash := sha256.Sum256(data)
 	return fmt.Sprintf("%x", hash[:8])
 }
@@ -47,7 +47,7 @@ func (m *Manager) discover(ctx context.Context, raw json.RawMessage) (string, er
 		if tool.Name != request.Name {
 			continue
 		}
-		data, _ := json.Marshal(map[string]any{"status": "complete", "name": tool.Name, "revision": schemaRevision(tool), "description": tool.Description, "parameters": tool.Parameters, "untrusted": true})
+		data, _ := json.Marshal(map[string]any{"status": "complete", "name": tool.Name, "revision": schemaRevision(tool, m.instructions[tool.Name]), "server_instructions": m.instructions[tool.Name], "description": tool.Description, "parameters": tool.Parameters, "untrusted": true})
 		return string(data), nil
 	}
 	return feedback("rejected", "Tool is not available in the current configured allowlist"), nil

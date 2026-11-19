@@ -1,5 +1,5 @@
 import { resolve } from '$app/paths';
-import { generateState } from './pkce';
+import { randomOAuthValue } from '@chatto/client/auth/oauth';
 
 export interface AuthorizationWindow {
   readonly messageSource: Window | null;
@@ -47,7 +47,7 @@ export function openAuthorizationWindow(
   target: string,
   features: string
 ): AuthorizationWindow | null {
-  const launchId = generateState();
+  const launchId = randomOAuthValue(32);
   const launchUrl = `${window.location.origin}${resolve(AUTHORIZATION_LAUNCH_PATH)}#${launchId}`;
   const popup = window.open(launchUrl, target, features);
   if (!popup) return null;
@@ -133,10 +133,13 @@ export function replaceLaunchPage(target: string): void {
   window.location.replace(target);
 }
 
-/** Size an authorization popup for the form while keeping it within the screen. */
+/**
+ * Size a sign-in popup for provider and server forms, such as Bluesky's, while
+ * keeping it within the screen.
+ */
 export function authorizationWindowFeatures(owner: Window): string {
   const width = Math.max(1, Math.min(560, owner.screen.availWidth - 32));
-  const height = Math.max(1, Math.min(760, owner.screen.availHeight - 100));
+  const height = Math.max(1, Math.min(800, owner.screen.availHeight - 100));
   const left = Math.max(0, Math.round(owner.screenX + (owner.outerWidth - width) / 2));
   const top = Math.max(0, Math.round(owner.screenY + (owner.outerHeight - height) / 2));
   return `popup,width=${width},height=${height},left=${left},top=${top}`;

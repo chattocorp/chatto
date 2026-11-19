@@ -15,6 +15,7 @@ import (
 
 type voiceCallService struct {
 	api *API
+	now func() time.Time
 }
 
 func (s *voiceCallService) ListActiveCalls(ctx context.Context, _ *connect.Request[apiv1.ListActiveCallsRequest]) (*connect.Response[apiv1.ListActiveCallsResponse], error) {
@@ -171,6 +172,10 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 	// origin, not the hostname alias of this request.
 	avatarURL = s.api.canonicalServerURL(avatarURL)
 	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, kind, req.Msg.GetRoomId(), access.CallID)
+	selectionRef, err := s.api.core.StoreCallRoleSelection(ctx, roomName, caller.UserID, caller.UserID, s.now())
+	if err != nil {
+		return nil, err
+	}
 	token, err := core.GenerateVoiceCallToken(
 		s.api.config.LiveKit.APIKey,
 		s.api.config.LiveKit.APISecret,
@@ -182,7 +187,7 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 		user.GetIsBot(),
 		access.E2EEKey,
 		permissions,
-		core.PrivilegedModeDeadline(ctx, caller.UserID),
+		selectionRef,
 		access.CallID,
 	)
 	if err != nil {
@@ -240,6 +245,10 @@ func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, re
 	}
 	publisherIdentity := core.NewCallMediaPublisherID()
 	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, kind, req.Msg.GetRoomId(), access.CallID)
+	selectionRef, err := s.api.core.StoreCallRoleSelection(ctx, roomName, publisherIdentity, caller.UserID, s.now())
+	if err != nil {
+		return nil, err
+	}
 	token, err := core.GenerateCallMediaPublisherToken(
 		s.api.config.LiveKit.APIKey,
 		s.api.config.LiveKit.APISecret,
@@ -250,7 +259,7 @@ func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, re
 		access.E2EEKey,
 		access.CallID,
 		publisherKind,
-		core.PrivilegedModeDeadline(ctx, caller.UserID),
+		selectionRef,
 	)
 	if err != nil {
 		return nil, err

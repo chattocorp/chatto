@@ -36,6 +36,7 @@ const emptyFormattingState: ComposerFormattingState = {
   bold: false,
   italic: false,
   underline: false,
+  strikethrough: false,
   inlineCode: false,
   heading: false,
   bulletList: false,
@@ -50,7 +51,7 @@ export type MessageComposerApi = {
   insertQuote: (text: QuoteInsertionContent) => void;
 };
 
-export type RecentThreadRootCandidate = {
+export type LatestThreadRootCandidate = {
   threadRootEventId: string;
 };
 
@@ -77,7 +78,7 @@ export type MessageComposerProps = {
   threadsEncouraged?: boolean;
   /** Users that rank first in @mention autocomplete, such as thread participants. */
   mentionPriorityUserIds?: ReadonlySet<string>;
-  getRecentThreadRootCandidate?: () => RecentThreadRootCandidate | null;
+  getLatestThreadRootCandidate?: () => LatestThreadRootCandidate | null;
   onThreadMessageSent?: (threadRootEventId: string, event: TimelineEventView | null) => void;
   /**
    * Inline status badges, such as the typing indicator. The composer places
@@ -100,7 +101,7 @@ type MessageComposerDependencies = {
   getCanCreateThread: () => boolean;
   getCreateThreadRequired: () => boolean;
   getCreateThreadDefault: () => boolean;
-  getRecentThreadRootCandidate: () => RecentThreadRootCandidate | null;
+  getLatestThreadRootCandidate: () => LatestThreadRootCandidate | null;
   getAutoFocus: () => boolean;
   getComposerSendMode: () => ComposerSendMode;
   getPlaceholder: () => string | undefined;
@@ -166,7 +167,7 @@ export class MessageComposerState {
   #cancelPreviewDetection: (() => void) | undefined;
   pendingThreadDestinationConfirmation = $state<{
     post: PreparedPost;
-    candidate: RecentThreadRootCandidate;
+    candidate: LatestThreadRootCandidate;
   } | null>(null);
 
   constructor(dependencies: MessageComposerDependencies) {
@@ -175,6 +176,7 @@ export class MessageComposerState {
     onDestroy(() => {
       dependencies.context.focus = undefined;
       this.#cancelPreviewDetection?.();
+      this.attachments.cancelVideoPreparation();
       this.draft.stashFiles(this.attachments.filesWithUrls);
     });
     this.attachments = new AttachmentsState(() => dependencies.serverInfo);
@@ -348,7 +350,7 @@ export class MessageComposerState {
     this.pendingThreadDestinationConfirmation = null;
   }
 
-  async postInRecentThread(): Promise<void> {
+  async postInLatestThread(): Promise<void> {
     const pending = this.pendingThreadDestinationConfirmation;
     if (!pending || this.#threadDestinationChoicePending) return;
     this.#threadDestinationChoicePending = true;
@@ -496,7 +498,10 @@ export class MessageComposerState {
 
   #synchronizeAttachmentPermission(): void {
     $effect(() => {
-      if (!this.#dependencies.getCanAttach() && this.attachments.filesWithUrls.length > 0) {
+      if (
+        !this.#dependencies.getCanAttach() &&
+        (this.attachments.filesWithUrls.length > 0 || this.attachments.pendingCount > 0)
+      ) {
         this.attachments.clear();
       }
     });
@@ -640,9 +645,10 @@ export class MessageComposerState {
           !this.#dependencies.getThreadRootEventId() &&
           this.createThread)
     };
+    // An explicit reply already has a destination. Never suggest an unrelated thread.
     const candidate =
       post.threadRootEventId === null && post.inReplyTo === null
-        ? this.#dependencies.getRecentThreadRootCandidate()
+        ? this.#dependencies.getLatestThreadRootCandidate()
         : null;
     if (candidate) {
       this.pendingThreadDestinationConfirmation = { post, candidate };

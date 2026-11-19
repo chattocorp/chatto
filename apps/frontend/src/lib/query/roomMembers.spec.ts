@@ -129,17 +129,24 @@ describe('room member queries', () => {
   it('refreshes an open invitation search after removal and invalidates closed pickers', async () => {
     const connection = { queryScope: 'session-1' };
     const key = [
-      ...directoryQueryKeys.eligibleRoomMembers('server-1', connection, 'room-1', 'bob', 20),
+      ...directoryQueryKeys.eligibleRoomMembers(
+        { serverId: 'server-1', connection },
+        'room-1',
+        'bob',
+        20
+      ),
       'human-invitations'
     ];
     const closed = directoryQueryKeys.eligibleRoomMembers(
-      'server-1',
-      { queryScope: 'session-2' },
+      { serverId: 'server-1', connection: { queryScope: 'session-2' } },
       'room-1',
       'b',
       20
     );
-    const unrelated = directoryQueryKeys.roomMembers('server-1', connection, 'other-room');
+    const unrelated = directoryQueryKeys.roomMembers(
+      { serverId: 'server-1', connection },
+      'other-room'
+    );
     let isMember = true;
     const queryFn = vi.fn(async () =>
       listEligibleRoomMembers(
@@ -174,25 +181,26 @@ describe('room member queries', () => {
 
   it('clears a removed room before its authorization is revalidated', async () => {
     const connection = { queryScope: 'session-1' };
-    const queryKey = directoryQueryKeys.roomMembers('server-1', connection, 'room-1');
+    const queryKey = directoryQueryKeys.roomMembers({ serverId: 'server-1', connection }, 'room-1');
     queryClient.setQueryData(queryKey, data(page([member('private-user')])));
 
-    purgeRoomMemberQueries('server-1', connection, 'room-1');
+    purgeRoomMemberQueries({ serverId: 'server-1', connection }, 'room-1');
 
     expect(flattenRoomMembers(queryClient.getQueryData(queryKey))).toEqual([]);
     await vi.waitFor(() => expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true));
   });
 
   it('purges retained room identities across every cached session', () => {
-    const first = directoryQueryKeys.roomMembers('server-1', { queryScope: 'session-1' }, 'room-1');
+    const first = directoryQueryKeys.roomMembers(
+      { serverId: 'server-1', connection: { queryScope: 'session-1' } },
+      'room-1'
+    );
     const second = directoryQueryKeys.roomMembers(
-      'server-1',
-      { queryScope: 'session-2' },
+      { serverId: 'server-1', connection: { queryScope: 'session-2' } },
       'room-1'
     );
     const unrelated = directoryQueryKeys.roomMembers(
-      'server-1',
-      { queryScope: 'session-1' },
+      { serverId: 'server-1', connection: { queryScope: 'session-1' } },
       'room-2'
     );
     queryClient.setQueryData(first, data(page([member('private-1')])));
@@ -208,10 +216,12 @@ describe('room member queries', () => {
 
   it('scrubs a removed user from member and eligible-user caches', () => {
     const connection = { queryScope: 'session-1' };
-    const membersKey = directoryQueryKeys.roomMembers('server-1', connection, 'room-1');
+    const membersKey = directoryQueryKeys.roomMembers(
+      { serverId: 'server-1', connection },
+      'room-1'
+    );
     const eligibleKey = directoryQueryKeys.eligibleRoomMembers(
-      'server-1',
-      connection,
+      { serverId: 'server-1', connection },
       'room-2',
       'a',
       20

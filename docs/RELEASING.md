@@ -16,6 +16,7 @@ version and supply its changelog. Commits do not select releases. See
 | `pkg/appconfig`       | `pkg/appconfig/v`     | Package manifest                         |
 | `pkg/datacrypto`      | `pkg/datacrypto/v`    | Package manifest                         |
 | `pkg/jetstreamutil`   | `pkg/jetstreamutil/v` | Package manifest                         |
+| `pkg/jobs`            | `pkg/jobs/v`          | Package manifest                         |
 | `pkg/natsruntime`     | `pkg/natsruntime/v`   | Package manifest                         |
 
 Each unit owns `.sweet.yml`, `.sweet/` notes, and `CHANGELOG.md`. The client,
@@ -28,10 +29,19 @@ Add notes with `mise x -- sweet change <package-path>`. `fix` selects a patch,
 `feature` and `breaking` select a minor while versions are below 1.0. Review
 this policy before any package reaches 1.0. `chore` alone does not release.
 
+If a change amends an existing unreleased note in the same release unit, you
+can update that note or combine the notes and remove duplicates. Preserve the
+final behavior, required upgrade actions, and release type needed for the
+combined change. Do not rewrite published release notes. See
+[Writing change notes](../CONTRIBUTING.md#writing-change-notes).
+
 The Prepare releases workflow runs on `main` when notes, manifests, Sweet
 configuration, or the workflow change. It uses Sweet's pinned reusable workflow
 to create one PR per package. Run it manually to refresh a PR or retry a failure.
 A release PR consumes notes, updates version targets, and adds a changelog entry.
+A release PR that changes only these release files runs no product jobs in CI.
+The full checks run on `main` after the merge, before CI makes the tag. See
+[CI Job Selection](../CONTRIBUTING.md#ci-job-selection).
 
 After selected CI jobs succeed, tagging uses the push's complete before/after
 range. Tags point to the commits that introduced each version. Rerunning the
@@ -45,6 +55,13 @@ The existing `RELEASE_PLEASE_PAT` secret is retained only as a credential name
 for PR creation and tag pushes; no release-please action or configuration remains.
 Use a token that can write contents and PRs and start downstream workflows.
 
+## Prereleases
+
+To release prereleases of a package, set `prerelease: <label>` in its
+`.sweet.yml`, for example `prerelease: beta`. Remove the label to release the
+final version. Sweet finalizes a prerelease manifest version that has no label
+on its next bump. The artifact workflows accept prerelease tags.
+
 ## GitHub Latest release
 
 Only the highest stable Chatto version claims **Latest**. The Chatto publication
@@ -57,16 +74,20 @@ that its artifact publication succeeded. Check both runs.
 Rerun failed component notes jobs against the same tag. Existing releases are
 reused. Do not change published tag targets or rebuild a version with new content.
 
+## iOS TestFlight
+
+Chatto `v*` tags also start the independent `Publish iOS to TestFlight` workflow.
+It rebuilds the bundled frontend and uploads a signed device build. Configure
+its `mobile-testflight` environment and Apple credentials as described in the
+[mobile release guide](../apps/mobile/README.md#automated-testflight-updates).
+A successful server or desktop release does not confirm a TestFlight upload.
+The workflow can also run manually from `main`.
+
 ## Current limits
 
 Preparation and tagging run on `main`. Maintenance-branch automation is not
 configured. Do not use old commit footers to request releases. Backport the
 release workflow explicitly before enabling releases on another branch.
-
-Sweet 0.3.0 does not preserve prerelease channels during a bump. Authling keeps
-its imported `0.1.0-alpha.3` baseline, but its next ordinary bump can be stable
-(for example, a fix selects `0.1.1`). Automated alpha/beta sequences need future
-Sweet support. Existing artifact workflows still accept prerelease tags.
 
 ## Publication approval
 

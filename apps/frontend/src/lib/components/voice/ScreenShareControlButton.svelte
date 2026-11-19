@@ -8,7 +8,6 @@ to the browser's `getDisplayMedia` picker through LiveKit.
 <script lang="ts">
   import { onMount } from 'svelte';
   import { m } from '$lib/i18n/messages';
-  import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { VoiceCallState } from '$lib/state/server/voiceCall.svelte';
   import {
     cancelNativeScreenShareSourceList,
@@ -31,7 +30,8 @@ to the browser's `getDisplayMedia` picker through LiveKit.
     testId: string;
     iconClass?: string;
   } = $props();
-  const serverScope = useServerScope();
+  // Controls also live outside a server route, in the app header.
+  let mounted = false;
 
   let nativeAvailable = $state(false);
   let dialogVisible = $state(false);
@@ -46,10 +46,12 @@ to the browser's `getDisplayMedia` picker through LiveKit.
   );
 
   onMount(() => {
+    mounted = true;
     nativeAvailable = isNativeScreenShareAvailable();
     // The chooser dialog does not report a close when this control unmounts,
     // for example when the call ends. Cancel a running source listing here.
     return () => {
+      mounted = false;
       if (dialogVisible) clearChooserState();
     };
   });
@@ -96,7 +98,7 @@ to the browser's `getDisplayMedia` picker through LiveKit.
       }
       await voiceCallState.toggleScreenShare();
     } catch {
-      if (!serverScope.isCurrent()) return;
+      if (!mounted) return;
       toast.error(m('voice.screen_share_failed'));
     }
   }
@@ -113,7 +115,7 @@ to the browser's `getDisplayMedia` picker through LiveKit.
     try {
       await voiceCallState.startNativeScreenShare(source.id, sourceName);
     } catch {
-      if (!serverScope.isCurrent()) return;
+      if (!mounted) return;
       toast.error(m('voice.screen_share_failed'));
     }
   }

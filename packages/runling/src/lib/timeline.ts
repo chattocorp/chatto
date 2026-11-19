@@ -1,6 +1,7 @@
 import type { RunlingEvent, TokenUsage } from 'runling';
 import { mergeUsage } from './usage.ts';
 import type { RunStatus } from './runs.ts';
+import { formatLogFields } from '../runtime/log-fields.ts';
 
 export interface TaskMessage {
   id: string;
@@ -21,6 +22,8 @@ export interface Activity {
   status: string;
   startedAt: number;
   durationMs?: number;
+  /** Own recorded output for callers with full event history. The console loads output
+   * separately; ancestor output is queried from the journal rather than copied here. */
   logs: string[];
   children: Activity[];
   usage?: TokenUsage;
@@ -43,6 +46,9 @@ export function buildTimeline(events: RunlingEvent[], runStatus: RunStatus): Act
   const progressAgents = new Set<string>();
   const actionLogs = new Map<string, string[]>();
   const roots: Activity[] = [];
+  const appendLog = (owner: Activity | undefined, message: string) => {
+    owner?.logs.push(message);
+  };
   const add = (node: Activity) => {
     nodes.set(node.id, node);
     const parent = node.parent ? nodes.get(node.parent) : undefined;
@@ -84,9 +90,10 @@ export function buildTimeline(events: RunlingEvent[], runStatus: RunStatus): Act
         node.status = event.status;
         node.durationMs = event.durationMs;
         if (event.type === 'command.finished') {
-          if (event.output.stdout) node.logs.push(event.output.stdout);
-          if (event.output.stderr) node.logs.push(event.output.stderr);
+          if (event.output.stdout) appendLog(node, event.output.stdout);
+          if (event.output.stderr) appendLog(node, event.output.stderr);
         }
+        if (event.type === 'step.finished' && event.error) appendLog(node, event.error);
       }
     }
     if (event.type === 'agent.finished') {
@@ -129,7 +136,7 @@ export function buildTimeline(events: RunlingEvent[], runStatus: RunStatus): Act
           ? (agents.get(event.sourceId ?? '') ?? '')
           : (event.sourceId ?? event.activityId ?? '')
       );
-      node?.logs.push(event.message);
+      appendLog(node, event.message + formatLogFields(event.fields));
     }
   }
   // Resolve links after all events: schema parsing can delay a child's first step.

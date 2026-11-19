@@ -1762,9 +1762,11 @@ Authenticated viewer snapshot needed by application shells.
 
 ### ActivatePrivilegedMode
 
-Activates elevation-required permissions for a fixed, non-sliding window.
-Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
-permission entitlement.
+Starts a window of up to 15 minutes with all currently assigned protected roles.
+During an active window, a retry keeps the stored selection and deadline,
+even if all selected roles have been revoked. Deactivate to change the selection.
+Returns FAILED_PRECONDITION for a bot or when starting a new activation
+without any assigned protected roles.
 
 ```http
 POST /api/connect/chatto.api.v1.ViewerService/ActivatePrivilegedMode
@@ -1774,7 +1776,7 @@ POST /api/connect/chatto.api.v1.ViewerService/ActivatePrivilegedMode
 
 #### Input: ActivatePrivilegedModeRequest
 
-Request to activate all currently entitled elevation-required permissions.
+Request to activate all assigned protected roles.
 
 
 <a id="chatto-api-v1-ActivatePrivilegedModeResponse"></a>
@@ -1790,11 +1792,51 @@ Result of activating privileged mode for the current session.
 | `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Effective server permission decisions after activation. |
 
 
+<a id="chatto-api-v1-ViewerService-ActivatePrivilegedRoles"></a>
+
+### ActivatePrivilegedRoles
+
+Activates the selected protected roles for up to 15 minutes.
+Each request, including a retry, returns FAILED_PRECONDITION for a bot or
+a caller with no assigned protected roles. Otherwise an empty selection
+returns INVALID_ARGUMENT, and an unavailable role returns PERMISSION_DENIED.
+During an active window, a retry with the same eligible selection keeps the
+deadline. A different eligible selection returns INVALID_ARGUMENT. Deactivate
+before changing the selection. A rejected retry preserves the selection and deadline.
+
+```http
+POST /api/connect/chatto.api.v1.ViewerService/ActivatePrivilegedRoles
+```
+
+<a id="chatto-api-v1-ActivatePrivilegedRolesRequest"></a>
+
+#### Input: ActivatePrivilegedRolesRequest
+
+Request to activate grants from specific protected roles.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_names` | `repeated string` | One or more assigned protected roles. An empty selection returns INVALID_ARGUMENT for an eligible user. |
+
+
+<a id="chatto-api-v1-ActivatePrivilegedRolesResponse"></a>
+
+#### Result: ActivatePrivilegedRolesResponse
+
+Result of activating privileged mode for the current session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `privileged_mode` | [`PrivilegedModeState`](#chatto-api-v1-PrivilegedModeState) | Current privileged-mode state after activation. |
+| `capabilities` | [`ViewerCapabilities`](#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities that are effective after activation. |
+| `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Effective server permission decisions after activation. |
+
+
 <a id="chatto-api-v1-ViewerService-DeactivatePrivilegedMode"></a>
 
 ### DeactivatePrivilegedMode
 
-Deactivates elevation-required permissions immediately. Returns
+Deactivates the selected protected roles immediately. Returns
 FAILED_PRECONDITION when the caller is a bot.
 
 ```http
@@ -1805,7 +1847,7 @@ POST /api/connect/chatto.api.v1.ViewerService/DeactivatePrivilegedMode
 
 #### Input: DeactivatePrivilegedModeRequest
 
-Request to deactivate all elevation-required permissions for this session.
+Request to deactivate all selected protected roles for this session.
 
 
 <a id="chatto-api-v1-DeactivatePrivilegedModeResponse"></a>
@@ -3234,7 +3276,7 @@ Accessible thread read states in first-seen request order.
 
 ### ListThreadParticipants
 
-Lists the root author and distinct authors of non-retracted replies,
+Lists distinct authors of non-retracted replies,
 excluding erased users. Each author appears once. Requires the same
 membership and message-read access as GetThreadEvents.
 
@@ -3259,8 +3301,7 @@ Request a complete thread participant collection, ordered by user ID ascending.
 
 #### Result: ListThreadParticipantsResponse
 
-A page of distinct thread authors. A thread without replies includes its
-root author unless that user has been erased.
+A page of distinct reply authors. A thread without replies has no participants.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -5214,6 +5255,7 @@ Public role metadata used for rendering role mentions, labels, and catalogs.
 | `is_system` | `bool` | Whether this is a built-in role. |
 | `position` | `int32` | Display/order position. |
 | `pingable` | `bool` | Whether messages may notify users assigned to this role. |
+| `requires_shield_mode` | `bool` | Grants from this role require explicit selection in Shield Mode. |
 
 
 
@@ -5673,8 +5715,8 @@ Aggregated state for one message thread.
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
 | `reply_count` | `int32` | Number of replies in this message's thread. |
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
-| `participant_preview_user_ids` | `repeated string` | Preview of up to twelve distinct thread authors, excluding erased users. The root author appears first, followed by current reply authors. |
-| `participant_count` | `int32` | Total number of distinct root and current reply authors, excluding erased users. |
+| `participant_preview_user_ids` | `repeated string` | Preview of up to twelve distinct current reply authors, excluding erased users. The root author appears first only if they have a current reply. |
+| `participant_count` | `int32` | Total number of distinct current reply authors, excluding erased users. |
 | `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | State resolved for the current user. |
 
 
@@ -6193,9 +6235,22 @@ State of explicit privileged-mode activation for this authenticated session.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `available` | `bool` | Whether the user has an elevation-required permission entitlement. This includes owner entitlement and explicit allows at any supported scope. |
-| `active` | `bool` | Whether elevated permissions are effective for this session now. |
+| `available` | `bool` | Whether the user has an assigned protected role. |
+| `active` | `bool` | Whether protected roles have been activated for this session now. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute activation deadline. Present only while privileged mode is active. |
+| `role_selection` | [`PrivilegedRoleSelection`](#chatto-api-v1-PrivilegedRoleSelection) | Present when this server supports selective activation, even when no roles are available. |
+
+
+
+<a id="chatto-api-v1-PrivilegedRoleSelection"></a>
+
+### PrivilegedRoleSelection
+
+Protected roles that the caller can select for this session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `available_roles` | `repeated string` | Assigned protected roles. An empty list means there are no roles to activate. |
 
 
 
@@ -6231,7 +6286,7 @@ Server-level display settings for the authenticated user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `timezone` | `optional string` | Optional IANA timezone override. Absent means no choice has been recorded. Empty means the user explicitly chose the browser's local timezone. Both use browser-local time; only absence permits automatic device reporting. |
+| `timezone` | `optional string` | Optional IANA timezone override. Absent means no choice has been recorded. Empty means the user explicitly chose the browser's local timezone. Both use browser-local time. Save a named zone only after an explicit user choice. |
 | `time_format` | [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
 | `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. New servers always set this field. Its absence means the server does not support private time zones and may publish any stored time zone. |
 

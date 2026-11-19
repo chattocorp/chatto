@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync, tick } from 'svelte';
 import { q, testSnippet } from '$lib/test-utils';
+import FullscreenVideoOverlay from '$lib/components/chat/FullscreenVideoOverlay.svelte';
+import { fullscreenVideo } from '$lib/state/globals.svelte';
 import ContextMenu from '$lib/ui/ContextMenu.svelte';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -211,7 +213,8 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'wrong-server'
 }));
 
-vi.mock('$lib/state/globals.svelte', () => ({
+vi.mock('$lib/state/globals.svelte', async (importActual) => ({
+  ...(await importActual<typeof import('$lib/state/globals.svelte')>()),
   appState: mocks.appState
 }));
 
@@ -301,7 +304,7 @@ vi.mock('$lib/ui', async () => {
     PaneHeader: (await import('$lib/ui/PaneHeader.svelte')).default,
     PageTitle: (await import('$lib/ui/PageTitle.svelte')).default,
     HeaderIconButton: (await import('$lib/ui/HeaderIconButton.svelte')).default,
-    LoadingFog: (await import('$lib/ui/LoadingFog.svelte')).default,
+    LoadingDots: (await import('$lib/ui/LoadingDots.svelte')).default,
     Pill: (await import('$lib/ui/Pill.svelte')).default,
     EmptyState,
     Hint
@@ -511,6 +514,7 @@ afterEach(async () => {
   // Default Members can start an import that outlives a membership-only assertion.
   // Finish it before the next test clears and checks the module-load spies.
   await vi.dynamicImportSettled();
+  fullscreenVideo.close();
   vi.restoreAllMocks();
 });
 
@@ -1230,6 +1234,48 @@ describe('Room local message echo', () => {
     });
   });
 
+  it('offers the latest thread only while the room timeline is current', async () => {
+    const thread = (id: string) => {
+      const event = roomMessageEvent(id);
+      return {
+        ...event,
+        createdAt: new Date().toISOString(),
+        event: { ...event.event, threadExists: true }
+      };
+    };
+    mocks.timeline.getRoomEvents.mockResolvedValue({
+      ...emptyTimelinePage(),
+      events: [thread('latest-thread')]
+    });
+    mocks.timeline.getRoomEventsAround.mockResolvedValue({
+      events: [thread('historical-thread')],
+      startCursor: 'tl:historical',
+      endCursor: 'tl:historical',
+      hasOlder: true,
+      hasNewer: true
+    });
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const messages = mocks.roomMessages('room-1') as MessagesStore;
+    await vi.waitFor(() => expect(messages.isCurrent).toBe(true));
+
+    const checkCandidate = () =>
+      (q(container, '[data-testid="check-thread-candidate"]') as HTMLButtonElement).click();
+    const candidate = () => q(container, '[data-testid="thread-candidate-id"]');
+    checkCandidate();
+    await expect.element(candidate()).toHaveTextContent('latest-thread');
+
+    await messages.jumpToMessage('historical-thread');
+    expect(messages.isCurrent).toBe(false);
+    expect(messages.rootEvents.at(-1)?.id).toBe('historical-thread');
+    checkCandidate();
+    await expect.element(candidate()).toHaveTextContent('');
+
+    await messages.jumpToLatest();
+    expect(messages.isCurrent).toBe(true);
+    checkCandidate();
+    await expect.element(candidate()).toHaveTextContent('latest-thread');
+  });
+
   it('keeps root message-link highlights pending until the jump completes', async () => {
     highlights.set('room-1', null, 'msg-linked', 'notification-linked');
     mocks.timeline.getRoomEventsAround.mockResolvedValue({
@@ -1825,7 +1871,7 @@ describe('Room local message echo', () => {
 
       const pane = container.querySelector(selector);
       expect(pane).not.toBeNull();
-      expect(pane?.querySelector('[data-loading-fog]')).toBeNull();
+      expect(pane?.querySelector('[data-loading-dots]')).toBeNull();
       expect(pane?.querySelector('[data-testid="close-room-sidebar"]')).not.toBeNull();
     }
   );
@@ -1853,6 +1899,35 @@ describe('Room local message echo', () => {
     } finally {
       appSidebar.remove();
     }
+  });
+
+  it('dismisses fullscreen video before closing the thread with Escape', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
+    // Native fullscreen needs user activation. Exercise the full-window fallback.
+    vi.spyOn(HTMLElement.prototype, 'requestFullscreen').mockRejectedValue(
+      new Error('Unavailable')
+    );
+    render(FullscreenVideoOverlay);
+    fullscreenVideo.open('/test-video.mp4', null, 0);
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Fullscreen video', exact: true }))
+      .toBeVisible();
+    mocks.goto.mockClear();
+
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
+    expect(mocks.goto).not.toHaveBeenCalled();
+    await expect
+      .element(browserPage.getByRole('dialog', { name: 'Fullscreen video', exact: true }))
+      .not.toBeInTheDocument();
+    expect(fullscreenVideo.isOpen).toBe(false);
+    expect(q(container, '[data-testid="thread-pane-root-id"]')).toHaveTextContent('thread-root');
+
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
   });
 
   it('dismisses the user menu with Escape before closing the thread', async () => {
@@ -1956,6 +2031,10 @@ describe('Room local message echo', () => {
 
     mocks.goto.mockClear();
     roomRegion.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    expect(mocks.goto).not.toHaveBeenCalled();
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    );
     expect(mocks.goto).not.toHaveBeenCalled();
   });
 

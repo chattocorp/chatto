@@ -14,6 +14,7 @@
       "clear_confirm_title": "Cancellare l’avviso della stanza?",
       "clear_confirm_description": "Questo rimuove subito l’avviso attivo per tutti nella stanza. Le tue modifiche non salvate non verranno pubblicate.",
       "empty": "Non è stato pubblicato alcun avviso.",
+      "load_failed": "Impossibile caricare l’avviso.",
       "edit": "Modifica avviso"
     },
     "information": {
@@ -21,7 +22,12 @@
       "created": "Creata",
       "title": "Informazioni sulla stanza",
       "basic": "Generale",
-      "pinned_messages": "Messaggi fissati"
+      "pinned_messages": "Messaggi fissati",
+      "threads": "Discussioni",
+      "slow_mode": "Modalità lenta",
+      "channel_slow_mode": "Modalità lenta del canale",
+      "thread_slow_mode": "Modalità lenta dei thread",
+      "slow_mode_off": "Disattivata"
     },
     "create": {
       "title": "Crea una nuova stanza",

@@ -91,18 +91,30 @@ test('all release units preserve migration tags and bump independently configure
   f.git('tag', 'translatto/v0.2.0');
   f.git('tag', 'pkg/events/v0.1.0');
   const repo = f.git('rev-parse', '--show-toplevel');
-  const units = [
-    '.',
-    'authling',
-    'packages/runling',
-    'packages/translatto',
-    ...['appconfig', 'datacrypto', 'events', 'jetstreamutil', 'natsruntime'].map((p) => `pkg/${p}`)
-  ];
-  for (const unit of units) {
+  // Keep the migration baseline fixed when a release PR updates the source versions.
+  // Read the real manifests so changes to version-file configuration remain covered.
+  const units = {
+    '.': '0.5.0',
+    authling: '0.1.0-alpha.3',
+    'packages/runling': '0.7.0',
+    'packages/translatto': '0.2.0',
+    'pkg/appconfig': '0.0.0',
+    'pkg/datacrypto': '0.0.0',
+    'pkg/events': '0.1.0',
+    'pkg/jetstreamutil': '0.0.0',
+    'pkg/jobs': '0.0.0',
+    'pkg/natsruntime': '0.0.0'
+  };
+  const sourceVersions = {};
+  for (const [unit, version] of Object.entries(units)) {
+    const manifest = readFileSync(path.join(root, unit, '.sweet.yml'), 'utf8');
+    sourceVersions[unit] = manifest.match(/^version: (.+)$/m)[1];
     mkdirSync(path.join(repo, unit), { recursive: true });
+    // Remove the prerelease label so the expected tags do not depend on the
+    // current release channel of each unit.
     writeFileSync(
       path.join(repo, unit, '.sweet.yml'),
-      readFileSync(path.join(root, unit, '.sweet.yml'))
+      manifest.replace(/^version: .+$/m, `version: ${version}`).replace(/^prerelease: .+\n/m, '')
     );
   }
   for (const file of [
@@ -116,12 +128,16 @@ test('all release units preserve migration tags and bump independently configure
     ...['packages/chatto-client', 'apps/frontend', 'apps/desktop'].map((p) => `${p}/package.json`)
   ]) {
     mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
-    writeFileSync(path.join(repo, file), readFileSync(path.join(root, file)));
+    const unit = Object.keys(units).find((unit) => file.startsWith(`${unit}/`)) ?? '.';
+    writeFileSync(
+      path.join(repo, file),
+      readFileSync(path.join(root, file), 'utf8').replaceAll(sourceVersions[unit], units[unit])
+    );
   }
   const migration = f.commit('migration.txt', 'Baseline');
   f.tag(before, migration);
   assert.equal(f.git('tag', '--list').split('\n').length, 5);
-  for (const unit of units) {
+  for (const unit of Object.keys(units)) {
     execFileSync('mise', ['x', '--', 'sweet', 'change', '--type', 'fix', '--stdin', unit], {
       cwd: repo,
       input: 'Fix a release fixture.\n',
@@ -134,15 +150,18 @@ test('all release units preserve migration tags and bump independently configure
   f.tag(migration, after);
   for (const tag of [
     'v0.5.1',
-    'authling/v0.1.1',
+    // Sweet finalizes an unlabeled prerelease instead of bumping it.
+    'authling/v0.1.0',
     'runling/v0.7.1',
     'translatto/v0.2.1',
-    ...['appconfig', 'datacrypto', 'jetstreamutil', 'natsruntime'].map((p) => `pkg/${p}/v0.0.1`),
+    ...['appconfig', 'datacrypto', 'jetstreamutil', 'jobs', 'natsruntime'].map(
+      (p) => `pkg/${p}/v0.0.1`
+    ),
     'pkg/events/v0.1.1'
   ]) {
     assert.equal(f.git('rev-parse', `${tag}^{}`), released);
   }
-  assert.match(readFileSync(path.join(repo, 'authling/version.go'), 'utf8'), /"0\.1\.1"/);
+  assert.match(readFileSync(path.join(repo, 'authling/version.go'), 'utf8'), /"0\.1\.0"/);
   assert.equal(
     readFileSync(path.join(repo, 'packages/runling/version.txt'), 'utf8').trim(),
     '0.7.1'

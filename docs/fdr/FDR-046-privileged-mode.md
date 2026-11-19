@@ -1,7 +1,7 @@
 # FDR-046: Privileged Mode
 
 **Status:** Active
-**Last reviewed:** 2026-11-03
+**Last reviewed:** 2026-11-19
 
 ## Overview
 
@@ -12,20 +12,20 @@ server session when they need them.
 ## Behavior
 
 - The control appears in the current-user area of the selected server when the
-  user has an elevation-required permission entitlement. This includes owner
-  entitlement and explicit allows at any scope. A deny can still prevent an
-  explicit allow from becoming effective.
+  user has an assigned protected role or an active session deadline.
 - Settings Overview shows a notice inside Server configuration when the mode is available but inactive. It directs the user to the shield button beside their name to activate additional permissions. The notice disappears while the mode is active.
-- Activating the mode requires a confirmation.
-- The mode activates all elevation-required permissions that the user is
-  entitled to use. It does not activate a role and does not add a grant.
-- For an effective owner, the mode also activates the owner override. Without
+- Activating the mode requires a confirmation. One exception: after first-run
+  setup, the client activates the mode for the new owner without a
+  confirmation and explains it in a welcome dialog (FDR-047).
+- The dialog lists the user's assigned protected roles. The user selects the roles to activate. Direct account grants apply at their configured scopes during ordinary use and during Shield Mode.
+- A protected role contributes its grants only while selected. Its denies always apply during normal permission resolution. Grants from unprotected roles, including `everyone`, apply at their configured scopes.
+- Selecting `owner` activates the owner override. Without
   the mode, an owner has only the permissions of their other roles, direct
   grants, and `everyone`. Thus an owner sees, joins, and reads a restricted
   room only while the mode is active, unless ordinary grants allow it.
 - The activation lasts for 15 minutes and does not extend when the user takes
   an action.
-- The user can deactivate the mode immediately.
+- The user can deactivate the mode until its deadline, even if all protected role assignments have been removed.
 - Expiry, logout, and session revocation deactivate the mode.
 - The client updates effective server permissions from the activation or
   deactivation response. It keeps its resume cursor and mounted realtime
@@ -55,19 +55,17 @@ server session when they need them.
 - When one connection of a session ends the mode, the other realtime
   connections of that session reconnect within one credential check interval.
 - A call connection keeps the mode state of the request that issued its
-  token. After that deadline, the next call reconciliation applies ordinary
+  token. Other call participants cannot see which roles the user selected. After that deadline, the next call reconciliation applies ordinary
   RBAC to the owner.
 - Asset URLs that Chatto issued during the mode stay usable until their access
   tickets expire.
 - The event log records successful activation and explicit deactivation
-  transitions. The activation entry includes the fixed deadline. Automatic
+  transitions. The activation entry includes the selected role names and the fixed deadline. Automatic
   expiry does not add a second event because the deadline is already durable.
 - Each connected server has independent state.
 - Bot API keys keep their current direct permission behavior. Bots do not use
   privileged mode. Their owner ceiling uses current RBAC entitlement, independent
-  of human session activation. Granting an elevation-required permission to a
-  bot requires the acting human to have it active at the target scope. Clearing
-  a grant does not require activation of that permission.
+  of human session activation. A bot manager can grant permissions from the owner's protected roles even while Shield Mode is off.
 - The admin entry point remains visible to entitled users while the mode is
   inactive. Protected capabilities and actions remain unavailable.
 - The Moderation link and page require effective server-wide
@@ -76,35 +74,15 @@ server session when they need them.
 - A user can edit or delete their own message without privileged mode. Editing
   or deleting another user's message requires active `message.manage`.
 
-## Elevation-Required Permissions
-
-The initial catalog requires privileged mode for these permissions:
-
-- `server.manage` and `server.manage-neighbors`
-- `room.create`, `room.manage`, and `room.remove-member`
-- `message.manage`
-- `role.manage` and `role.assign`
-- `admin.view-users` and `admin.view-audit`
-- `user.manage-invites`, `user.delete-any`, `user.manage-accounts`, and
-  `user.manage-permissions`
-- `bot.manage`
-- owner-only system diagnostics
-
-Ordinary room listing, joining, reading, posting, thread posting, attachments,
-reactions, message echo, `user.delete-self`, and `bot.create` remain active for
-users who have them through roles or grants. An owner who has them only through
-the owner override needs active privileged mode.
+System diagnostics require the selected `owner` role.
 
 ## Design Decisions
 
-### 1. Activate permissions, not roles
+### 1. Select protected roles
 
-**Decision:** The server classifies permissions that require activation.
+A user with effective `role.manage` can change **Require Shield Mode** on a role. The setting is fixed on for `owner` and off for `everyone`. The built-in `admin` and `moderator` roles start protected. Custom roles start unprotected unless the creator enables protection. Existing custom roles start unprotected.
 
-**Why:** Custom roles and direct user grants can provide the same authority as
-the built-in owner, admin, and moderator roles.
-
-**Tradeoff:** The catalog must classify each new dangerous permission.
+Role selection lets a user moderate a room while leaving broader administration or owner access inactive. Each permission check still uses the user's current assignments and the role's current settings.
 
 ### 2. Enforce the mode on the server
 
@@ -114,7 +92,9 @@ state. The client uses the returned effective grants only as UI hints.
 **Why:** A hidden client action is not an authorization boundary. Other API
 clients must follow the same rule.
 
-**Tradeoff:** Old clients cannot use elevated permissions on a new server.
+**Tradeoff:** The legacy activation command selects all assigned protected roles when it starts a window. A retry during that window keeps the stored selection and deadline, even if the user’s assigned roles have changed.
+
+A role-picker retry checks the current assignments again. If a picked role has been revoked, the retry returns `PERMISSION_DENIED` when another protected role is available or `FAILED_PRECONDITION` when none are available. The session keeps its original selection and deadline. The revoked role grants no permissions while it is unassigned, and the user can still deactivate Shield Mode.
 
 ### 3. Use one fixed session window
 
@@ -136,7 +116,7 @@ activation. See ADR-105.
 
 **Tradeoff:** On a fresh server, the first owner has only the `owner` role.
 The announcements room denies root posts to `everyone`, so this owner must
-activate the mode to post there, or get the `admin` role or a room allow. MCP
+activate the mode to post there, or receive a direct room allow or an allow through an unprotected role. MCP
 tools cannot activate the mode, so they act without the owner override.
 
 ### 5. Keep runtime authority out of EVT
@@ -168,8 +148,8 @@ gap can remain stale until a later event or full recovery.
 
 ## Compatibility
 
-- A new client with an old server does not show the control.
-- An old client with a new server cannot activate elevated permissions.
+- The viewer reports a role selection even when the list is empty. Older servers omit the selection. The client uses all-role activation only when the viewer omits the selection or the caller explicitly requests legacy activation.
+- Clients that support selection send the chosen role names to `ActivatePrivilegedRoles`. Servers without this RPC reject the selection. Older replicas cannot use a selective activation to enable the owner override.
 - All replicas must run the new authorization code before an operator relies
   on the gate.
 

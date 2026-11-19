@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "En ĉi tiu paĝo",
+    "design": {
+      "welcome": "Orientiĝu en Chatto.",
+      "explore": "Esploru plu",
+      "reference": "Formatado per ekzemploj",
+      "reference_hint": "Elektu ekzemplon por provi ĝin en la redaktilo.",
+      "question": "Kiu partoprenos la venontan vokon?"
+    },
+    "overview": "Superrigardo",
+    "intro": "Mallongaj gvidiloj por babilado kaj servila administrado.",
+    "users": "Por membroj",
+    "admins": "Por administrantoj",
+    "example": "Provu ĉi tie",
+    "example_hint": "Ĉi tiu ekzemplo restas sur ĉi tiu paĝo. Ĝi ne sendas mesaĝon.",
+    "input": "Mesaĝa teksto",
+    "preview": "Antaŭrigardo",
+    "sample": "Saluton al **ĉiuj**!",
+    "conversations": {
+      "title": "Uzi Chatto",
+      "description": "Fadenoj, nelegita aktiveco, sciigoj kaj konektaj problemoj."
+    },
+    "formatting": {
+      "title": "Formati mesaĝon",
+      "description": "Aldonu emfazon kaj entekstan kodon."
+    },
+    "bots": {
+      "title": "Botoj",
+      "description": "Kreu API-kontojn kaj kontrolu precize kion ili povas fari"
+    },
+    "phone": {
+      "title": "Instali Chatto en via telefono",
+      "description": "Aldonu Chatto al via hejmekrano kaj ebligu sciigojn."
+    }
+  }
+}

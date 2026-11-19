@@ -772,7 +772,8 @@ test('image lightbox supports keyboard navigation with multiple images', async (
     .poll(() =>
       galleryImages.evaluateAll(
         ([first, second]) =>
-          second.getBoundingClientRect().left - first.getBoundingClientRect().right
+          second.closest('.preview-frame')!.getBoundingClientRect().left -
+          first.closest('.preview-frame')!.getBoundingClientRect().right
       )
     )
     .toBe(12);

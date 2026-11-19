@@ -13,9 +13,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('$app/state', () => ({
   page: { route: { id: '/chat/[serverId]/[roomId]' }, params: { serverId: '-' } }
 }));
-vi.mock('../auth/legacyCookieMigration.js', () => ({
-  migrateLegacyOriginCookieSession: async () => false
-}));
 
 vi.mock('../api/viewer.js', async (original) => ({
   ...(await original<typeof import('../api/viewer.js')>()),

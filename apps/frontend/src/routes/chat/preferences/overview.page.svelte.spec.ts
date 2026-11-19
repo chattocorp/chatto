@@ -13,11 +13,12 @@ describe('signed-out settings overview', () => {
 
     await expect.element(view.getByRole('heading', { name: 'Overview' })).toBeVisible();
     expect(view.container.querySelectorAll('h2')).toHaveLength(1);
-    expect(view.container.querySelectorAll('nav a')).toHaveLength(3);
+    expect(view.container.querySelectorAll('nav a')).toHaveLength(4);
     for (const [name, path] of [
       ['Appearance', 'appearance'],
       ['Language', 'language'],
-      ['Composer', 'composer']
+      ['Composer', 'composer'],
+      ['Experiments', 'experiments']
     ]) {
       const link = view.getByRole('link', { name, exact: true });
       await expect.element(link).toHaveAttribute('href', `/chat/preferences/${path}`);
@@ -47,6 +48,9 @@ describe('signed-out settings overview', () => {
       channel: 'stable'
     };
     const view = render(Overview);
+    expect([...view.container.querySelectorAll('nav a')].at(-1)?.getAttribute('href')).toBe(
+      '/chat/preferences/experiments'
+    );
     await expect
       .element(view.getByRole('link', { name: 'Updates' }))
       .toHaveAttribute('href', '/chat/preferences/desktop');

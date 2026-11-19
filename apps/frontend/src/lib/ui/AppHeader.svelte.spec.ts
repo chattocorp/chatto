@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import AppHeader from './AppHeader.svelte';
+import AppHeaderTestHarness from './AppHeaderTestHarness.svelte';
+import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
+import type { ServerStateStore } from '@chatto/client/server/store';
 import { cdp, page } from 'vitest/browser';
 import '../../app.css';
 import { desktopUpdates } from '$lib/desktop/updates.svelte';
@@ -9,9 +12,12 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     servers: [] as Array<{ id: string }>,
     activeServer: '',
+    callStore: null as ServerStateStore | null,
     activeStore: undefined as
       | {
           serverInfo: { motd: string };
+          currentUser: { user: { id: string } | null };
+          voiceCall: { connected: boolean };
           attention: {
             counts: {
               unreadNotificationCount: number;
@@ -21,6 +27,10 @@ const { mocks } = vi.hoisted(() => ({
         }
       | undefined,
     authenticated: {} as Record<string, boolean>,
+    connections: {} as Record<
+      string,
+      { status: string; showConnectionLostIcon: boolean; showConnectionLostBanner: boolean }
+    >,
     getStore: vi.fn(),
     pushState: vi.fn(),
     toggleSidebar: vi.fn(),
@@ -50,13 +60,20 @@ vi.mock('$lib/client', async () => ({
         ? { id, url: `https://${id}.example.com` }
         : undefined,
     getStore: mocks.getStore,
-    tryGetStore: (id: string) => (id === mocks.activeServer ? mocks.activeStore : undefined)
+    tryGetStore: (id: string) =>
+      id === mocks.callStore?.serverId
+        ? mocks.callStore
+        : id === mocks.activeServer
+          ? mocks.activeStore
+          : undefined
   },
   serverConnectionManager: {
-    originClient: {
-      showConnectionLostIcon: false,
-      showConnectionLostBanner: false
-    }
+    getClient: (id: string) =>
+      mocks.connections[id] ?? {
+        status: 'connected',
+        showConnectionLostIcon: false,
+        showConnectionLostBanner: false
+      }
   }
 }));
 
@@ -86,6 +103,61 @@ vi.mock('$lib/state/globals.svelte', () => ({
   }
 }));
 describe('AppHeader', () => {
+  it.each([320, 375, 420, 1280])(
+    'keeps the other server call accessible at %i pixels',
+    async (width) => {
+      const leave = vi.fn();
+      const call = createTestServerScope({
+        serverId: 'call-server',
+        store: {
+          voiceCall: { connected: true, roomId: 'room-1', isMuted: true, leave },
+          navigation: { rooms: [] },
+          attention: { counts: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 } }
+        }
+      });
+      mocks.activeServer = 'other-server';
+      mocks.servers = [{ id: 'other-server' }, { id: 'call-server' }];
+      mocks.callStore = call.scope.store;
+      await page.viewport(width, 480);
+      try {
+        const { container, getByRole } = render(AppHeaderTestHarness);
+        const header = container.querySelector('header')!;
+        const bounds = header.getBoundingClientRect();
+        const controls = header.querySelector('[data-testid="app-header-call-card"]')!;
+        expect(controls).not.toBeNull();
+        for (const button of controls.querySelectorAll('button')) {
+          const rect = button.getBoundingClientRect();
+          expect(rect.width).toBeGreaterThanOrEqual(28);
+          expect(rect.height).toBeGreaterThanOrEqual(30);
+          expect(rect.left).toBeGreaterThanOrEqual(bounds.left);
+          expect(rect.right).toBeLessThanOrEqual(bounds.right);
+          expect(rect.top).toBeGreaterThanOrEqual(bounds.top);
+          expect(rect.bottom).toBeLessThanOrEqual(bounds.bottom);
+        }
+        expect(getComputedStyle(header.firstElementChild!).gap).toBe('12px');
+        if (width >= 420) {
+          expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth);
+        } else {
+          // With Help beside About, narrow screens use the header's scroll fallback.
+          // Preserve navigation spacing and the call controls' minimum target sizes.
+          const about = header.querySelector<HTMLButtonElement>('button[title="About Chatto"]')!;
+          const help = header.querySelector<HTMLAnchorElement>('a[href="/help"]')!;
+          help.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          expect(about.getBoundingClientRect().left).toBeGreaterThanOrEqual(bounds.left);
+          expect(help.getBoundingClientRect().right).toBeLessThanOrEqual(bounds.right);
+          expect(help.getBoundingClientRect().left).toBeGreaterThan(
+            about.getBoundingClientRect().left
+          );
+          expect(about.getBoundingClientRect().right).toBeLessThanOrEqual(bounds.right);
+        }
+        await getByRole('button', { name: 'Leave call', exact: true }).click();
+        expect(leave).toHaveBeenCalledOnce();
+      } finally {
+        mocks.callStore = null;
+        await page.viewport(1280, 720);
+      }
+    }
+  );
   it('shows an update-ready link only while a host update is ready', async () => {
     const { getByRole } = render(AppHeader);
     await expect.element(getByRole('link', { name: 'Update ready' })).not.toBeInTheDocument();
@@ -114,6 +186,67 @@ describe('AppHeader', () => {
       container.querySelector('a[href="/chat/remote.example.com/notifications"]')
     ).not.toBeNull();
     mocks.activeServer = '';
+  });
+
+  describe('connection warning', () => {
+    const signedInStore = {
+      serverInfo: { motd: '' },
+      currentUser: { user: { id: 'viewer' } },
+      voiceCall: { connected: false },
+      attention: { counts: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 } }
+    };
+
+    function renderWithConnection(connection: (typeof mocks.connections)[string]) {
+      mocks.activeServer = 'remote';
+      mocks.servers = [{ id: 'remote' }];
+      mocks.activeStore = signedInStore;
+      mocks.connections = { remote: connection };
+      return render(AppHeader);
+    }
+
+    it('shows no warning while the active server connection is healthy', () => {
+      const { container } = renderWithConnection({
+        status: 'connected',
+        showConnectionLostIcon: false,
+        showConnectionLostBanner: false
+      });
+      expect(container.querySelector('[role="img"]')).toBeNull();
+    });
+
+    it('warns when the realtime connection of the active server failed', async () => {
+      const { getByRole } = renderWithConnection({
+        status: 'disconnected',
+        showConnectionLostIcon: true,
+        showConnectionLostBanner: false
+      });
+      const warning = getByRole('img', { name: 'Real-time updates paused. Reconnecting...' });
+      await expect.element(warning).toHaveClass('animate-pulse');
+    });
+
+    it('warns urgently when API requests fail while realtime stays connected', async () => {
+      const { getByRole } = renderWithConnection({
+        status: 'connected',
+        showConnectionLostIcon: true,
+        showConnectionLostBanner: true
+      });
+      const warning = getByRole('img', { name: 'Connection unavailable' });
+      await expect.element(warning).toHaveClass('text-warning');
+    });
+
+    it('shows no warning for a server without a signed-in user', () => {
+      mocks.activeServer = 'remote';
+      mocks.servers = [{ id: 'remote' }];
+      mocks.activeStore = { ...signedInStore, currentUser: { user: null } };
+      mocks.connections = {
+        remote: {
+          status: 'disconnected',
+          showConnectionLostIcon: true,
+          showConnectionLostBanner: true
+        }
+      };
+      const { container } = render(AppHeader);
+      expect(container.querySelector('[role="img"]')).toBeNull();
+    });
   });
 
   it('keeps global notifications available when the origin is signed out', () => {
@@ -151,6 +284,7 @@ describe('AppHeader', () => {
     mocks.activeServer = '';
     mocks.activeStore = undefined;
     mocks.authenticated = {};
+    mocks.connections = {};
     mocks.getStore.mockReset();
     mocks.pushState.mockReset();
   });
@@ -234,6 +368,8 @@ describe('AppHeader', () => {
         await empty.unmount();
         mocks.activeStore = {
           serverInfo: { motd },
+          currentUser: { user: null },
+          voiceCall: { connected: false },
           attention: {
             counts: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }
           }

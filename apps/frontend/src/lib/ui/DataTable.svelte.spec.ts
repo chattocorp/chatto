@@ -137,7 +137,7 @@ describe('DataTable.hoverable', () => {
       }
     });
 
-    const fog = container.querySelector('[data-loading-fog]');
+    const fog = container.querySelector('[data-loading-dots]');
     expect(fog).not.toBeNull();
     expect(fog?.getAttribute('aria-busy')).toBe('true');
     expect(container.textContent).not.toContain('No records');

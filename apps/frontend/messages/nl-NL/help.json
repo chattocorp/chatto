@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "Op deze pagina",
+    "design": {
+      "welcome": "Vind je weg in Chatto.",
+      "explore": "Ontdek meer",
+      "reference": "Opmaak in één oogopslag",
+      "reference_hint": "Kies een voorbeeld om het in de editor te proberen.",
+      "question": "Wie doet mee aan het volgende gesprek?"
+    },
+    "overview": "Overzicht",
+    "intro": "Korte handleidingen voor chatten en serverbeheer.",
+    "users": "Voor leden",
+    "admins": "Voor beheerders",
+    "example": "Probeer het hier",
+    "example_hint": "Dit voorbeeld blijft op deze pagina. Het verstuurt geen bericht.",
+    "input": "Berichttekst",
+    "preview": "Voorbeeld",
+    "sample": "Hallo **allemaal**!",
+    "conversations": {
+      "title": "Chatto gebruiken",
+      "description": "Threads, ongelezen activiteit, meldingen en verbindingsproblemen."
+    },
+    "formatting": {
+      "title": "Een bericht opmaken",
+      "description": "Voeg nadruk en inlinecode toe."
+    },
+    "bots": {
+      "title": "Bots",
+      "description": "Maak API-accounts en beheer precies wat ze kunnen doen"
+    },
+    "phone": {
+      "title": "Chatto op je telefoon installeren",
+      "description": "Voeg Chatto toe aan je startscherm en schakel meldingen in."
+    }
+  }
+}

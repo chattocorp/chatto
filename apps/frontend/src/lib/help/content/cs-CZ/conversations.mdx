@@ -1,0 +1,75 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Odpovědi a vlákna
+
+U zprávy použijte **Odpovědět ve vláknu**, aby odpověď zůstala u dané konverzace.
+Chcete-li novou zprávou založit vlákno, před odesláním vyberte v editoru **Publikovat
+jako vlákno**. Místnost zůstane otevřená; vlákno otevřete odkazem na vlákno u zprávy.
+
+Otevřené vlákno má vlastní adresu. Zkopírujte adresu z prohlížeče a sdílejte ji s
+někým, kdo má do místnosti přístup. Zavřením vlákna se vrátíte do místnosti;
+sledování konverzace tím nezrušíte.
+
+<p>Pokud chcete při odpovídání vidět i místnost, otevřete
+<a href={resolve('/chat/preferences/appearance')}>Předvolby aplikace → Vzhled</a>
+a nastavte <strong>Panel vlákna</strong> na <strong>Vedle sebe</strong>. Pokud není
+dost místa, Chatto zobrazí vlákno přes místnost.</p>
+
+## Sledujte konverzace
+
+Vyberte **Sledujte vlákno**, aby konverzace zůstala v seznamu **Vlákna**. Vlákno
+můžete sledovat i bez toho, abyste do něj psali.
+
+Ve **Vláknech** zobrazuje pohled **Sledovaná** vlákna, která sledujete. **Moje**
+zobrazuje ta, která jste založili a stále sledujete. Zrušení sledování odstraní
+vlákno z obou pohledů. Vyberte **Nepřečteno** a najděte konverzace s dosud nepřečtenými odpověďmi.
+
+Vyhledávací pole prohledává zprávy a odpovědi ve sledovaných vláknech, včetně vláken
+přímých zpráv. Hledejte slova, frázi v uvozovkách nebo autora pomocí `from:username`.
+Vyhledávání je dostupné, pokud ho server podporuje a má ho zapnuté.
+
+## Přecházejte mezi místnostmi a nepřečtenou aktivitou
+
+Stisknutím **Ctrl+K**, nebo **Command+K** na Macu, otevřete rychlé přepínání. Zde
+vyhledávejte a přecházejte mezi místnostmi a servery bez procházení postranního panelu.
+
+Stisknutím **Alt+Shift+Down**, nebo **Option+Shift+Down** na Macu, přejdete k dalšímu
+nepřečtenému zdroji na serverech, kde jste přihlášeni. Chatto vás nejprve zavede k
+důležitým oznámením, potom k ostatním a nakonec k místnostem s tečkou nepřečtené aktivity.
+Aktuální rozepsaná zpráva zůstane zachována.
+
+Zvonek v záhlaví aplikace otevře oznámení ze všech serverů, kde jste přihlášeni.
+Čtení místnosti nebo vlákna označí oznámení za přečtená jen po zprávy, které vidíte.
+Otevření starší zprávy neoznačí novější odpovědi za přečtené.
+
+Dostupné klávesové zkratky zobrazíte stisknutím **Ctrl+Shift+K**, nebo **Command+Shift+K** na Macu.
+
+## Vyberte, na co vás má aplikace upozornit
+
+Otevřete nastavení **Oznámení** serveru a změňte upozornění na zmínky, odpovědi, reakce
+a další aktivitu. Každé nastavení může platit pro celý server, skupinu místností nebo jednu místnost.
+
+- **Zdědit** použije nastavení skupiny místností nebo serveru.
+- **Vypnuto** pro daný typ aktivity nevytvoří oznámení ani tečku nepřečtené aktivity.
+- **Tečka nepřečteného obsahu** označí místnost bez vytvoření oznámení.
+- **Oznámení v aplikaci** přidá položku do centra oznámení.
+- **Push oznámení** navíc umožní upozornění na zařízení, kde jste oznámení povolili.
+
+Například použijte **Tečka nepřečteného obsahu** pro nové zprávy v místnosti a
+**Push oznámení** pro přímé zmínky, pokud chcete běžný chat číst, až se vám to hodí.
+
+<p>Push upozornění vyžadují také oprávnění zařízení. Na telefonu postupujte podle
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Instalace Chatto na telefon</a>,
+abyste aplikaci nainstalovali a povolili oznámení. Nastavení oznámení telefonu určuje,
+zda se na zamčené obrazovce zobrazí jména a náhledy zpráv.</p>
+
+## Když vypadne připojení
+
+Již načtené zprávy zůstávají viditelné, ale Chatto potřebuje připojení k serveru,
+aby načetlo další zprávy nebo odeslalo odpověď. Po obnovení připojení načte zmeškané aktualizace.
+
+Pokud odeslání selže, rozepsaná zpráva zůstane v editoru. Nečeká ve frontě na automatické
+odeslání: zkontrolujte připojení a odešlete ji znovu. Instalace Chatto na telefon
+nezpřístupní historii chatu offline.

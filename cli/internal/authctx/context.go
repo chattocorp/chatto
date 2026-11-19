@@ -44,6 +44,7 @@ type RuntimeCredential struct {
 	// PrivilegedModeExpiresAt is the absolute end of the current explicit
 	// privilege activation. A zero or past value keeps elevated permissions off.
 	PrivilegedModeExpiresAt time.Time
+	PrivilegedRoles         []string
 }
 
 // ForContext extracts the authenticated user from the request context.

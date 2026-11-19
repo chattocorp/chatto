@@ -692,8 +692,7 @@ func (x *ListThreadParticipantsRequest) GetPage() *PageRequest {
 	return nil
 }
 
-// A page of distinct thread authors. A thread without replies includes its
-// root author unless that user has been erased.
+// A page of distinct reply authors. A thread without replies has no participants.
 type ListThreadParticipantsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User IDs in this page. Use UserService.BatchGetUsers for profiles.

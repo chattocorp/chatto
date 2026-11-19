@@ -110,7 +110,7 @@ picker uses it to fill the sheet width.
     {onmouseenter}
     {onmouseleave}
   >
-    <div class="flex flex-col gap-1">
+    <div class="flex flex-col gap-1" data-menu-presentation="floating">
       {@render children()}
     </div>
   </FloatingPopover>

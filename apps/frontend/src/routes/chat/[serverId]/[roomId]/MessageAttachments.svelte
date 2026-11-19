@@ -2,7 +2,7 @@
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
   import { retainPlayback } from '$lib/media/playbackRetention';
   import { positiveVideoDimension, videoFrameStyle } from '$lib/media/videoFrame';
-  import { LoadingFog, LoadRetry, PreviewToolbar, PreviewAction } from '$lib/ui';
+  import { LoadingFog, LoadRetry, PreviewToolbar, PreviewAction, AttachmentActions } from '$lib/ui';
   import { type MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
 
   type RawAttachment = MessageAttachmentView;
@@ -259,13 +259,9 @@
     return `width: ${display.width}px; max-width: 100%`;
   }
 
-  /** Fit the action row beside thin media without changing the media dimensions. */
-  function mediaActionMinWidth(showViewer = false): string {
-    const count =
-      Number(canDeleteAttachment) + Number(canEditAttachmentDescription) + Number(showViewer);
-    if (count === 0) return 'min-w-0';
-    if (count === 1) return 'min-w-11';
-    return count === 2 ? 'min-w-19' : 'min-w-27';
+  /** Reserve a touch target on the rim without changing narrow image dimensions. */
+  function mediaActionMinWidth(): string {
+    return canDeleteAttachment || canEditAttachmentDescription ? 'min-w-14' : 'min-w-0';
   }
 
   function imageAttachmentUrl(attachment: Attachment): string | null {
@@ -420,40 +416,27 @@
 </script>
 
 {#if attachments.length > 0}
-  {#snippet deleteAttachmentButton(attachment: Attachment)}
-    {#if canDeleteAttachment}
-      <PreviewAction
-        onclick={() => openDeleteConfirmation(attachment)}
-        label={m('room.attachment.delete_label')}
-        icon="icon-[uil--trash-alt]"
-      />
-    {/if}
-  {/snippet}
-
-  {#snippet editDescriptionButton(attachment: Attachment)}
-    {#if canEditAttachmentDescription}
-      <PreviewAction
-        onclick={() => openDescriptionEditor(attachment)}
-        label={attachment.description
-          ? m('room.attachment.edit_description')
-          : m('room.attachment.add_description')}
-        icon="icon-[uil--file-edit-alt]"
-      />
-    {/if}
+  {#snippet attachmentActionButtons(attachment: Attachment)}
+    <AttachmentActions
+      onDelete={canDeleteAttachment ? () => openDeleteConfirmation(attachment) : undefined}
+      onEdit={canEditAttachmentDescription ? () => openDescriptionEditor(attachment) : undefined}
+      editLabel={attachment.description
+        ? m('room.attachment.edit_description')
+        : m('room.attachment.add_description')}
+    />
   {/snippet}
 
   {#snippet attachmentControls(
     attachment: Attachment,
     showViewer = false,
-    layout: 'overlay' | 'row' = 'overlay'
+    layout: 'footer' | 'row' = 'footer'
   )}
     {#if canDeleteAttachment || showViewer || canEditAttachmentDescription}
       <PreviewToolbar {layout}>
-        {@render deleteAttachmentButton(attachment)}
-        {#if showViewer}
-          {@render viewAttachmentButton(attachment)}
-        {/if}
-        {@render editDescriptionButton(attachment)}
+        {#snippet viewing()}
+          {#if showViewer}{@render viewAttachmentButton(attachment)}{/if}
+        {/snippet}
+        {@render attachmentActionButtons(attachment)}
       </PreviewToolbar>
     {/if}
   {/snippet}
@@ -471,7 +454,7 @@
     {@const fixedHeight = variant === 'gallery' || display.width === MIN_THUMB_SIZE}
     <div
       class={[
-        'group/preview attachment-media-frame',
+        'group/preview attachment-media-frame preview-frame',
         mediaActionMinWidth(),
         variant === 'gallery' ? 'shrink-0' : 'max-w-full'
       ]}
@@ -485,7 +468,7 @@
         aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
         data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
         style={imageButtonStyle(display, fixedHeight)}
-        class="relative my-1.5 block min-w-0 cursor-pointer preview-frame overflow-hidden"
+        class="relative mx-auto block max-w-full min-w-0 cursor-pointer preview-content"
       >
         {#if attachment.description}
           <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
@@ -503,7 +486,7 @@
             alt={attachment.description || attachment.filename}
             style:aspect-ratio={fixedHeight ? undefined : `${display.width} / ${display.height}`}
             class={[
-              'w-full preview-content',
+              'block w-full',
               // The content owns the ratio; the frame adds its rim outside it.
               fixedHeight ? 'h-full' : 'h-auto',
               display.fit === 'contain' ? 'object-contain' : 'object-cover'
@@ -566,8 +549,7 @@
         <div
           class={[
             'group/preview',
-            autoLoop ? 'attachment-media-frame max-w-full' : 'attachment-video-frame',
-            autoLoop && mediaActionMinWidth(true)
+            autoLoop ? 'attachment-media-frame max-w-full' : 'attachment-video-frame'
           ]}
           data-attachment-media
           title={attachment.description || undefined}
@@ -575,8 +557,12 @@
           {#await loadVideoPlayer(videoPlayerLoadAttempt)}
             <div class="preview-media-frame my-1.5 preview-frame" style={loadingFrameStyle}>
               <LoadingFog class="h-full w-full" />
+              {@render attachmentControls(attachment)}
             </div>
           {:then { default: VideoPlayer }}
+            {#snippet videoManagementActions()}
+              {@render attachmentActionButtons(attachment)}
+            {/snippet}
             <VideoPlayer
               status={attachment.videoProcessing.status}
               variants={attachment.videoProcessing.variants}
@@ -599,13 +585,17 @@
                   attachment,
                   !autoLoop && attachment.videoProcessing?.hlsUrl ? 'hls' : 'video'
                 )}
+              onOpen={autoLoop ? () => openAttachmentModal(attachment) : undefined}
+              actions={canDeleteAttachment || canEditAttachmentDescription
+                ? videoManagementActions
+                : undefined}
             />
           {:catch}
             <div class="preview-media-frame my-1.5 preview-frame" style={loadingFrameStyle}>
               <LoadRetry class="h-full w-full" onretry={() => (videoPlayerLoadAttempt += 1)} />
+              {@render attachmentControls(attachment)}
             </div>
           {/await}
-          {@render attachmentControls(attachment, true)}
         </div>
       {:else if attachment.contentType.startsWith('image/')}
         {@render imageAttachmentButton(attachment, 'single')}
@@ -628,13 +618,13 @@
             controls
             preload="metadata"
             src={attachment.url}
-            class="block h-full w-full preview-content object-contain"
+            class="block h-full min-h-32 w-full preview-content object-contain"
             onerror={() => refreshAfterAssetError(attachment, 'asset')}
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
           >
             <track kind="captions" />
           </video>
-          {@render attachmentControls(attachment, true)}
+          {@render attachmentControls(attachment)}
         </div>
       {:else if attachment.contentType.startsWith('audio/') && attachment.url}
         <div

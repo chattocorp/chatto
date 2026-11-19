@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/search"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -80,6 +81,10 @@ func (s *HTTPServer) newMetricsServer() (*http.Server, error) {
 	if s.core != nil {
 		registry.MustRegister(s.core.ProjectionSnapshotMetrics())
 	}
+	if s.config.Search.Enabled && s.nc != nil {
+		registry.MustRegister(newSearchProviderCollector(search.NewClient(s.nc)))
+	}
+	registry.MustRegister(s.metricsExtra...)
 
 	mux := http.NewServeMux()
 	mux.Handle(s.config.Metrics.PathOrDefault(), promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
@@ -131,6 +136,11 @@ type chattoCollector struct {
 	projectionEntries        *prometheus.Desc
 	projectionBytes          *prometheus.Desc
 	projectionComponentBytes *prometheus.Desc
+	projectionStalled        *prometheus.Desc
+	projectionPending        *prometheus.Desc
+	projectionOperation      *prometheus.Desc
+	projectionLastCommit     *prometheus.Desc
+	projectionCommitDuration *prometheus.Desc
 	scrapeError              *prometheus.Desc
 }
 
@@ -312,6 +322,36 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 			[]string{"component"},
 			nil,
 		),
+		projectionStalled: prometheus.NewDesc(
+			"chatto_projection_stalled",
+			"Whether pending events of a process-local projection had no committed progress for the stall threshold.",
+			[]string{"projection"},
+			nil,
+		),
+		projectionPending: prometheus.NewDesc(
+			"chatto_projection_pending_seconds",
+			"Seconds that pending events of a process-local projection had no committed progress; zero when caught up.",
+			[]string{"projection"},
+			nil,
+		),
+		projectionOperation: prometheus.NewDesc(
+			"chatto_projection_current_operation_seconds",
+			"Seconds that the current restore, apply, or batch of a process-local projection has run; absent when idle.",
+			[]string{"projection", "operation"},
+			nil,
+		),
+		projectionLastCommit: prometheus.NewDesc(
+			"chatto_projection_last_commit_timestamp_seconds",
+			"Unix time of the last committed progress of a process-local projection; absent before the first commit.",
+			[]string{"projection"},
+			nil,
+		),
+		projectionCommitDuration: prometheus.NewDesc(
+			"chatto_projection_last_commit_duration_seconds",
+			"Seconds that the last committed apply or batch of a process-local projection took.",
+			[]string{"projection"},
+			nil,
+		),
 		scrapeError: prometheus.NewDesc(
 			"chatto_metrics_scrape_error",
 			"Whether a Chatto metrics collector failed during this scrape.",
@@ -351,6 +391,11 @@ func (c *chattoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.projectionEntries
 	ch <- c.projectionBytes
 	ch <- c.projectionComponentBytes
+	ch <- c.projectionStalled
+	ch <- c.projectionPending
+	ch <- c.projectionOperation
+	ch <- c.projectionLastCommit
+	ch <- c.projectionCommitDuration
 	ch <- c.scrapeError
 }
 
@@ -439,6 +484,19 @@ func (c *chattoCollector) collectCoreMetrics(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(c.projectionLastApplied, prometheus.GaugeValue, float64(projection.LastAppliedSeq), projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionTarget, prometheus.GaugeValue, float64(projection.MatchingStreamSeq), projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionLag, prometheus.GaugeValue, float64(projection.Lag), projection.Key)
+		ch <- prometheus.MustNewConstMetric(c.projectionStalled, prometheus.GaugeValue, boolMetric(projection.Stalled), projection.Key)
+		ch <- prometheus.MustNewConstMetric(c.projectionPending, prometheus.GaugeValue, projection.PendingFor.Seconds(), projection.Key)
+		ch <- prometheus.MustNewConstMetric(c.projectionCommitDuration, prometheus.GaugeValue, projection.LastCommitDuration.Seconds(), projection.Key)
+		if projection.CurrentOperation != "" {
+			ch <- prometheus.MustNewConstMetric(c.projectionOperation, prometheus.GaugeValue, projection.CurrentOperationDuration.Seconds(), projection.Key, projection.CurrentOperation)
+		}
+		if !projection.LastCommitAt.IsZero() {
+			ch <- prometheus.MustNewConstMetric(c.projectionLastCommit, prometheus.GaugeValue, float64(projection.LastCommitAt.UnixNano())/1e9, projection.Key)
+		}
+		// Omit estimates that did not finish rather than export misleading zeros.
+		if !projection.EstimateAvailable {
+			continue
+		}
 		ch <- prometheus.MustNewConstMetric(c.projectionEntries, prometheus.GaugeValue, float64(projection.EntryCount), projection.Key)
 		ch <- prometheus.MustNewConstMetric(c.projectionBytes, prometheus.GaugeValue, float64(projection.EstimatedBytes), projection.Key)
 		for _, metric := range projection.Metrics {

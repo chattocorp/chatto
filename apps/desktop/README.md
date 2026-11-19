@@ -89,13 +89,25 @@ the default session beneath the platform's application-data directory for
 
 ## Verify and build
 
+To build a universal macOS app locally, set `CHATTO_DESKTOP_ARCH=universal`
+when running `mise desktop-build` and `build:macos-dmg`. Use `x64` for an
+Intel build or `arm64` for an Apple Silicon build. Without this variable,
+the build uses the host architecture. The universal build compiles both native
+capture-helper targets and merges the apps before signing and notarisation.
+
 ### macOS installation
 
-Download `chatto-desktop_<version>_macOS_ARM64.dmg` from the Chatto release.
+Download a macOS disk image from the Chatto release:
+
+- `chatto-desktop_<version>_macOS_ARM64.dmg` for Apple Silicon.
+- `chatto-desktop_<version>_macOS_X64.dmg` for Intel.
+- `chatto-desktop_<version>_macOS_UNIVERSAL.dmg` for both architectures.
+
 Open the disk image and drag **Chatto** to **Applications**. Eject the
 disk image, then open the app from Applications. Release disk images and apps
 are Developer ID signed and notarised. The ZIP download remains available.
 
+Automatic updates install the universal app on both architectures.
 Open **App Preferences → Updates** to check, select Stable or Beta, and restart
 to install. The native **Updates** menu provides the same actions.
 Registrations, sessions, and preferences remain in the existing profile.

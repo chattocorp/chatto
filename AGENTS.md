@@ -17,10 +17,10 @@ under development:
   uses the root pnpm workspace and has its own version, CI job, and npm release.
   Keep its public APIs and runtime independent of Chatto and Authling.
 - **Shared framework code** is application-neutral event-sourcing, JetStream
-  client, embedded NATS, data-cryptography, and configuration-loading
-  machinery intended for consumption by both products. The independently
-  versioned but unstable modules live under `pkg/events/`,
-  `pkg/jetstreamutil/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
+  client, background job, embedded NATS, data-cryptography, and
+  configuration-loading machinery intended for consumption by both products.
+  The independently versioned but unstable modules live under `pkg/events/`,
+  `pkg/jetstreamutil/`, `pkg/jobs/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
   `pkg/appconfig/`.
 
 Authling is in this repository temporarily. It provides the second application
@@ -107,6 +107,9 @@ frontends use it. See ADR-111.
 - [pkg/jetstreamutil/AGENTS.md](pkg/jetstreamutil/AGENTS.md) — shared
   JetStream client helpers: key-value leader reads, retried provisioning, and
   conflict classification.
+- [pkg/jobs/AGENTS.md](pkg/jobs/AGENTS.md) — shared durable job queue and
+  effect adapter: job facts, worker, retries, job view, retention, and module
+  boundary.
 - [pkg/natsruntime/AGENTS.md](pkg/natsruntime/AGENTS.md) — shared embedded-NATS
   lifecycle module boundary and verification rules.
 - [pkg/datacrypto/AGENTS.md](pkg/datacrypto/AGENTS.md) — shared authenticated
@@ -236,7 +239,7 @@ Never leave a dev stack running in a detached or yielded terminal session.
   or an adjacent `.license` file says otherwise.
 - Runling, ChattoBot, Authling, and `@chatto/client` use Apache-2.0.
 - Apache-2.0 applies to the independently versioned shared framework modules
-  under `pkg/events/`, `pkg/jetstreamutil/`, `pkg/natsruntime/`,
+  under `pkg/events/`, `pkg/jetstreamutil/`, `pkg/jobs/`, `pkg/natsruntime/`,
   `pkg/datacrypto/`, and `pkg/appconfig/`, the framework-neutral
   `packages/translatto` runtime, plus explicit integration and documentation
   surfaces such as the standalone frontend source and image, public
@@ -248,11 +251,28 @@ Never leave a dev stack running in a detached or yielded terminal session.
 
 ## Issues, Commits, And PRs
 
+- When you mention a GitHub issue or PR in a chat reply, write a Markdown
+  link, for example `[#123](https://github.com/chattocorp/chatto/issues/123)`.
+  Use `/pull/` for PRs. The terminal does not make a bare `#123` into a link.
+  In issue and PR bodies, a bare `#123` is sufficient. Milestone descriptions
+  do not make `#123` into a link, so use full links there too.
+
 - Releasable packages use Sweet Release. Add a note with
   `mise x -- sweet change <package-path>` for user-visible changes in each
   affected release unit. Chatto, its client, frontend, and desktop share the
   root note directory. See `CONTRIBUTING.md` and `docs/RELEASING.md`.
+  If a change amends an existing unreleased note in the same release unit,
+  you may update that note or combine the notes and remove duplicates. Describe the
+  final behavior and preserve required upgrade actions and the release type
+  needed for the combined change. Do not rewrite published release notes.
 
+- Do not hard-wrap Markdown prose in Sweet Release notes. Keep each paragraph
+  and each list item on one source line. Use line breaks only for Markdown
+  structure, such as separate paragraphs, list items, headings, and code blocks.
+
+- Use [chatto-code-review](.agents/skills/chatto-code-review/SKILL.md) for
+  every review of a Chatto change, including self-review and branch and PR
+  review.
 - Every review that includes `apps/frontend/` must use
   [chatto-frontend-review](.agents/skills/chatto-frontend-review/SKILL.md).
   This includes self-review, branch and PR review, and architecture review.

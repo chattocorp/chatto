@@ -26,6 +26,7 @@ func validCheckEnvironment(t *testing.T) {
 	t.Helper()
 	cleanCheckEnvironment(t)
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_URL", "http://localhost:4000")
 	for _, name := range []string{"CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "CHATTO_CORE_SECRET_KEY", "CHATTO_CORE_ASSETS_SIGNING_SECRET"} {
 		t.Setenv(name, strings.Repeat("ab", 32))
 	}
@@ -39,6 +40,8 @@ func TestCheckConfigDiagnostics(t *testing.T) {
 		{"removed TOML", "[livekit]\nwebhook_url='private-sentinel'", "", "configure webhook.urls in LiveKit"},
 		{"removed provider", "[[auth.providers]]\nprovider_options={secret='private-sentinel'}", "", "remove this unused setting"},
 		{"alias TOML", "[livekit]\ninstance_id='private-sentinel'", "", "use livekit.server_id"},
+		{"account quota TOML", "[limits]\nmax_users=0", "", "use core.accounts.max_users"},
+		{"account quota ENV", "", "CHATTO_LIMITS_MAX_USERS", "use CHATTO_CORE_ACCOUNTS_MAX_USERS"},
 		{"video limit TOML", "[video]\nmax_upload_size='private-sentinel'", "", "core.assets.max_upload_size"},
 		{"video limit ENV", "", "CHATTO_VIDEO_MAX_UPLOAD_SIZE", "CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE"},
 		{"bootstrap alias", "[[bootstrap.users]]\ninstance_role='private-sentinel'", "", "bootstrap.users[].server_role"},

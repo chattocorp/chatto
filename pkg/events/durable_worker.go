@@ -104,6 +104,16 @@ func TerminateDelivery(reason string, err error) error {
 	return &terminateDeliveryError{err: err, reason: reason}
 }
 
+// TerminationReason reports whether err was created by TerminateDelivery and
+// returns its reason. Applications that run a DurableDeliveryHandler outside a
+// DurableWorker use it to keep the same non-retryable classification.
+func TerminationReason(err error) (string, bool) {
+	if terminateErr, ok := errors.AsType[*terminateDeliveryError](err); ok {
+		return terminateErr.reason, true
+	}
+	return "", false
+}
+
 // Options returns the worker's effective, default-resolved options as fixed
 // at construction. It exists so applications can assert their own
 // option-mapping helpers pass delivery knobs through unchanged.

@@ -43,7 +43,7 @@
       "password_min_bytes": "Hasło jest za krótkie",
       "password_max": "Hasło jest za długie",
       "username_min": "Musi zawierać co najmniej 2 znaki",
-      "username_max": "Musi mieć maksymalnie 32 znaki",
+      "username_max": "Musi mieć maksymalnie {max} znaki",
       "username_charset": "Tylko litery, cyfry, kropki, myślniki, podkreślenia",
       "username_end_alphanumeric": "Musi kończyć się literą lub cyfrą",
       "username_no_consecutive_periods": "Niedozwolone są następujące po sobie kropki",

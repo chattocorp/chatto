@@ -6,7 +6,8 @@ const config: StorybookConfig = {
   core: {
     allowedHosts: process.env.PASEO_URL ? [new URL(process.env.PASEO_URL).hostname] : undefined
   },
-  stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|ts|svelte)'],
+  // Help .mdx files use MDsveX, not Storybook's React-based documentation format.
+  stories: ['../src/**/*.stories.mdx', '../src/**/*.stories.@(js|ts|svelte)'],
   addons: [
     '@storybook/addon-svelte-csf',
     '@storybook/addon-docs',

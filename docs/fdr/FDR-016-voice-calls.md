@@ -194,7 +194,8 @@ Rooms support real-time voice conversations with optional camera video and scree
   menu keeps picture-in-picture active. Failed requests show an error without
   interrupting the call. Browsers without page-controlled picture-in-picture
   still show the user menu, with this action omitted.
-- While the viewer is in a call, a compact joined pill above the lower-left current-user card provides the active call room link plus mute, camera, screen-share, and leave controls. It matches the user card width and remains visible when the call sidebar is open. Both toolbars place the microphone before the camera.
+- While the viewer is in a call, the app header shows a compact joined pill group for the active room link plus mute, camera, screen-share, and leave. The group has a dark background and an inset rim that follows the UI depth setting. Enabled media uses the success colour; leave uses the danger colour. The room name is in the link's tooltip and accessible label. The controls remain available when the viewer changes rooms or servers, or opens the call sidebar. Both toolbars share the media controls and place the microphone before the camera.
+- One app session can connect to only one call across its registered servers. Joining another call leaves the previous call first. Concurrent join requests run in order; a failed join does not block later requests. This limit does not coordinate separate browser tabs or devices.
 - While the viewer is connected to a call, supported browsers request a screen wake lock so the display does not automatically dim or lock. The lock is released when the call ends and requested again when the app returns to the foreground. Browsers that do not support or grant wake locks continue the call without this enhancement; a wake lock does not prevent mobile operating systems from suspending an app that the user backgrounds or manually locks.
 - Other rooms with an active call replace the normal room/DM icon with the same accent phone icon and animated pulse twin used by the call tab so members know there's a conversation happening; clicking that icon opens the room with the call tab selected.
 - Message author names show a compact call presence icon when the author is in the current room's active call: phone for voice-only participants, video camera when the viewer has joined the LiveKit call and can see an active camera track.
@@ -235,6 +236,26 @@ Rooms support real-time voice conversations with optional camera video and scree
 **Decision:** The frontend listens for `RoomEvent.TrackSubscribed` and calls `track.attach()` to wire LiveKit audio into a hidden `<audio>` element. On leave or `TrackUnsubscribed`, it calls `track.detach()`.
 **Why:** LiveKit delivers audio data over WebRTC, but the browser doesn't autoplay it without an attached element. Without explicit attach, the UI looks like everything works — participant rings even animate — but nobody hears anything. The pattern lives in `apps/frontend/src/lib/state/voiceCall.svelte.ts`; any refactor that touches LiveKit subscription handling needs to keep the `track.attach()` / `track.detach()` calls intact.
 **Tradeoff:** A subtle requirement that's easy to miss when refactoring; the skill warns explicitly.
+
+The frontend writes remote audio diagnostics at Debug level with the
+`[call-audio]` prefix. It records participant and subscription events, playback
+status, and classified subscription and encryption failures. Every ten seconds,
+it records audio publication state, receiver and media-element state, and a
+limited set of receive counters. Compare successive counters to distinguish
+missing delivery from a decoding or playback problem. Missing statistics do
+not by themselves prove a failure.
+
+The first entry records the LiveKit client version. Call, participant, session,
+publication, receiver, and RTP stream numbers are temporary
+aliases. These entries exclude names, account IDs, raw SDK IDs, error messages,
+device IDs, addresses, tokens, SDP, and audio content. Collection stops when the
+call is cleaned up, and late statistics are discarded. Repeated errors are
+limited to one entry per category and alias every ten seconds. The diagnostics
+do not change subscriptions or playback and do not send data to another service.
+For a call report, enable Debug or Verbose messages in the browser console,
+preserve the log before leaving, filter for `[call-audio]`, and copy those
+entries. Other browser and SDK logs can contain
+private data and are outside this filter's privacy guarantees.
 
 ### 5. Voice activity fills the identity row
 

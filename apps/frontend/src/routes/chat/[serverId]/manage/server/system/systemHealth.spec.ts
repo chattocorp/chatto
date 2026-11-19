@@ -21,6 +21,11 @@ function projection(overrides: Partial<AdminSystemInfo['projections'][number]> =
     failed: false,
     failedSequence: '0',
     failure: '',
+    stalled: false,
+    pendingSeconds: null,
+    currentOperation: '',
+    currentOperationSeconds: null,
+    lastCommitAt: null,
     entryCount: 1,
     estimatedBytes: 1,
     averageEntryBytes: 1,
@@ -145,6 +150,26 @@ describe('systemHealthChecks', () => {
       count: 2
     });
     expect(overallHealth(systemHealthChecks(snapshot))).toBe('critical');
+  });
+
+  it('reports stalled projections as a warning, below failed projections', () => {
+    const stalled = info({
+      projections: [
+        projection({ lag: 4 }),
+        projection({ key: 'search', lag: 2, stalled: true, pendingSeconds: 400 })
+      ]
+    });
+    const check = systemHealthChecks(stalled).find((c) => c.id === 'projections');
+    expect(check).toEqual({
+      id: 'projections',
+      status: 'warning',
+      detail: { kind: 'projections_stalled', count: 1 }
+    });
+
+    const failedAndStalled = info({
+      projections: [projection({ failed: true }), projection({ key: 'search', stalled: true })]
+    });
+    expect(statusOf(failedAndStalled).projections).toBe('critical');
   });
 
   it('keeps projection lag and consumer backlog as details of an ok status', () => {

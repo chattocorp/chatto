@@ -43,7 +43,7 @@
       "password_min_bytes": "הסיסמה קצרה מדי",
       "password_max": "הסיסמה ארוכה מדי",
       "username_min": "חייב להיות בן 2 תווים לפחות",
-      "username_max": "חייב להיות באורך של 32 תווים לכל היותר",
+      "username_max": "חייב להיות באורך של {max} תווים לכל היותר",
       "username_charset": "רק אותיות, מספרים, נקודות, מקפים, קווים תחתונים",
       "username_end_alphanumeric": "חייב להסתיים באות או מספר",
       "username_no_consecutive_periods": "אין תקופות רצופות",

@@ -7,12 +7,98 @@ import {
   DefaultResourceLoader,
   ModelRuntime,
   SessionManager,
-  SettingsManager
+  SettingsManager,
+  type McpTransportFactory
 } from '@earendil-works/pi-coding-agent';
 import { EXA_MCP_URL, mcpExtension, memoryLockExtension, mcpServers } from './mcp.ts';
 import { mcpFixture } from './mcp.fixture.ts';
 import { parseSettings } from './settings.ts';
 import { createAgentSession as createRunlingSession } from 'runling';
+import { adminOnlyBatch } from './authorization.ts';
+
+test.each([
+  { authors: ['admin'], expectedAdmin: true },
+  { authors: ['reader'], expectedAdmin: false },
+  { authors: ['admin', 'reader'], expectedAdmin: false },
+  { authors: [], expectedAdmin: false },
+  { authors: [''], expectedAdmin: false },
+  { authors: ['admin', 'other-admin'], expectedAdmin: true }
+])('MCP enforces current batch authority for $authors', async ({ authors, expectedAdmin }) => {
+  await mkdir(resolve('../../.context'), { recursive: true });
+  const directory = await mkdtemp(resolve('../../.context/botto-mcp-access-'));
+  const settings = parseSettings(
+    '[chatto]\nurl="https://example.com"\napi_key="unused"\n[agent]\nmodel="test/model"\n[mcp.servers.github]\ncommand="unused"\ntools=["issue_read"]\nadmin_tools=["issue_write"]',
+    'botto.toml'
+  );
+  const privileged = adminOnlyBatch(authors, ['admin', 'other-admin']);
+  expect(privileged).toBe(expectedAdmin);
+  const call = vi.fn(async () => ({ content: [] }));
+  const transport = mcpFixture(
+    ['issue_read', 'issue_write', 'new_write'].map((name) => ({
+      name,
+      inputSchema: { type: 'object' }
+    })),
+    call
+  );
+  const modelRuntime = await ModelRuntime.create({
+    authPath: join(directory, 'auth.json'),
+    modelsPath: null,
+    refreshOnCreate: false,
+    allowModelNetwork: false
+  });
+  const settingsManager = SettingsManager.inMemory();
+  const loader = new DefaultResourceLoader({
+    cwd: directory,
+    agentDir: directory,
+    settingsManager,
+    noExtensions: true,
+    noSkills: true,
+    noPromptTemplates: true,
+    noThemes: true,
+    noContextFiles: true,
+    extensionFactories: [mcpExtension(settings, undefined, () => transport, privileged)]
+  });
+  await loader.reload();
+  const { session } = await createAgentSession({
+    cwd: directory,
+    agentDir: directory,
+    modelRuntime,
+    settingsManager,
+    resourceLoader: loader,
+    sessionManager: SessionManager.inMemory(directory),
+    noTools: 'builtin'
+  });
+  try {
+    await session.bindExtensions({});
+    const expected = [
+      'mcp__github__issue_read',
+      ...(privileged ? ['mcp__github__issue_write'] : [])
+    ];
+    await vi.waitFor(() => expect(session.getActiveToolNames().sort()).toEqual(expected));
+    for (const name of ['issue_read', 'issue_write', 'new_write']) {
+      const toolName = `mcp__github__${name}`;
+      const result = await session.extensionRunner.emitToolCall({
+        type: 'tool_call',
+        toolCallId: name,
+        toolName,
+        input: {}
+      });
+      if (expected.includes(toolName)) {
+        expect(result?.block).not.toBe(true);
+        const tool = session.agent.state.tools.find((tool) => tool.name === toolName)!;
+        await tool.execute(name, {}, new AbortController().signal);
+      } else {
+        expect(result?.block).toBe(true);
+        expect(session.agent.state.tools.some((tool) => tool.name === toolName)).toBe(false);
+      }
+    }
+    expect(call).toHaveBeenCalledTimes(expected.length);
+  } finally {
+    await session.extensionRunner.emit({ type: 'session_shutdown', reason: 'quit' });
+    session.dispose();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -20,14 +106,14 @@ test('Runling starts native MCP extensions and awaits their shutdown without a m
   await mkdir(resolve('../../.context'), { recursive: true });
   const directory = await mkdtemp(resolve('../../.context/botto-runling-mcp-'));
   const settings = parseSettings(
-    '[chatto]\nurl="https://example.com"\napi_key="unused"\nmcp=true\n[agent]\nmodel="anthropic/claude-sonnet-4-6"',
+    '[chatto]\nurl="https://example.com"\napi_key="unused"\n[agent]\nmodel="anthropic/claude-sonnet-4-6"\n[mcp.servers.custom]\nurl="https://example.com/mcp"',
     'botto.toml'
   );
   const transport = mcpFixture([{ name: 'read', inputSchema: { type: 'object' } }], async () => ({
     content: []
   }));
   const close = vi.spyOn(transport, 'close');
-  const create = vi.fn(() => transport);
+  const create = vi.fn<McpTransportFactory>(() => transport);
   try {
     const session = await createRunlingSession({
       cwd: directory,
@@ -48,6 +134,7 @@ test('Runling starts native MCP extensions and awaits their shutdown without a m
     });
     try {
       await vi.waitFor(() => expect(create).toHaveBeenCalledOnce());
+      expect(create.mock.calls[0]?.[0]).toMatchObject({ name: 'custom' });
       expect(close).not.toHaveBeenCalled();
     } finally {
       await session.dispose();

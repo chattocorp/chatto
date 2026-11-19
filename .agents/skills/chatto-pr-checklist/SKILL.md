@@ -10,8 +10,19 @@ Review the complete branch diff against the target branch.
 - Check tests for the changed behavior. Add missing coverage within the task.
 - Check the documentation listed in root `AGENTS.md`. Update affected records
   and public docs within the task.
+- Review Sweet notes using
+  [Writing change notes](../../../CONTRIBUTING.md#writing-change-notes):
+  describe the result for the reader and required upgrade actions, with one
+  short entry per meaningful change rather than implementation instructions.
+  An amendment may update an existing unreleased note in the same release
+  unit, or combine notes and remove duplicates. Check that the combined note
+  preserves required upgrade actions and the appropriate release type.
+- Review the code with
+  [chatto-code-review](../chatto-code-review/SKILL.md).
 - For public API or protocol changes, use
   [chatto-api-compatibility](../chatto-api-compatibility/SKILL.md).
+- For Chatto release PRs, run the
+  [chatto-release-checklist](../chatto-release-checklist/SKILL.md).
 - For frontend changes, use
   [chatto-frontend-review](../chatto-frontend-review/SKILL.md).
 - Follow root `AGENTS.md` for commit titles, PR status, and issue links.

@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "このページの内容",
+    "design": {
+      "welcome": "Chattoの使い方を知りましょう。",
+      "explore": "もっと詳しく",
+      "reference": "書式の早見表",
+      "reference_hint": "例を選ぶと、エディターで試せます。",
+      "question": "次の通話には誰が参加しますか？"
+    },
+    "overview": "概要",
+    "intro": "チャットとサーバー管理のための短いガイドです。",
+    "users": "メンバー向け",
+    "admins": "管理者向け",
+    "example": "ここで試す",
+    "example_hint": "この例はこのページ内だけで動作します。メッセージは送信されません。",
+    "input": "メッセージの本文",
+    "preview": "プレビュー",
+    "sample": "**皆さん**、こんにちは！",
+    "conversations": {
+      "title": "Chattoの使い方",
+      "description": "スレッド、未読のアクティビティ、通知、接続の問題について説明します。"
+    },
+    "formatting": {
+      "title": "メッセージの書式",
+      "description": "強調とインラインコードを使いましょう。"
+    },
+    "bots": {
+      "title": "ボット",
+      "description": "API アカウントを作成し、そのアカウントで実行できる内容を正確に制御します"
+    },
+    "phone": {
+      "title": "スマートフォンにChattoをインストール",
+      "description": "Chattoをホーム画面に追加して通知を有効にします。"
+    }
+  }
+}

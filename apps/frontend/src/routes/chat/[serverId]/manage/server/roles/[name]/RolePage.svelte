@@ -1,20 +1,26 @@
 <!-- @component Role management frame with routed Role, Members, and Permissions sections. -->
 <script lang="ts">
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { nextOffset } from '$lib/query/pagination';
   import { goto } from '$app/navigation';
   import { captureMutationCompletion, completeMutation } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createRoleAPI, type RoleDetails, type UpdateRoleInput } from '@chatto/client/api/roles';
+  import {
+    roleCatalogSupportsProtection,
+    createRoleAPI,
+    type RoleDetails,
+    type UpdateRoleInput
+  } from '@chatto/client/api/roles';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { UserList } from '$lib/components/admin';
   import {
     Panel,
     Hint,
     PaneContent,
-    LoadingFog,
+    LoadingDots,
     PaneHeader,
     PageTitle,
     TabNav,
@@ -52,11 +58,10 @@
   };
 
   const roleQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const targetRoleName = roleName;
     return {
-      queryKey: adminQueryKeys.role(serverId, connection, targetRoleName),
+      queryKey: adminQueryKeys.role(serverScope, targetRoleName),
       queryFn: ({ signal }) => connection.getAPI(createRoleAPI).getRole(targetRoleName, { signal })
     };
   });
@@ -70,13 +75,24 @@
   const activeSection = $derived(section === 'role' && !canManageRoles ? 'members' : section);
   const canViewMembers = $derived(canAssignRoles || (canManageRoles && role?.name === 'everyone'));
   const canViewSection = $derived(activeSection === 'members' ? canViewMembers : canManageRoles);
+  // Older servers omit the protection flag on their built-in owner role.
+  const catalogQuery = createQuery(() => {
+    const connection = serverScope.connection;
+    return {
+      queryKey: adminQueryKeys.roleCatalog(serverScope),
+      enabled: activeSection === 'role' && canManageRoles,
+      queryFn: ({ signal }) => connection.getAPI(createRoleAPI).listAdminRoles({ signal })
+    };
+  });
+  const showShieldSetting = $derived(roleCatalogSupportsProtection(catalogQuery.data));
+
   let scrollContainer = $state<HTMLDivElement>();
   let metadataPanel = $state<{ hasChanges(): boolean }>();
   const membersQuery = createInfiniteQuery(() => {
     const connection = serverScope.connection;
     const name = roleName;
     return {
-      queryKey: adminQueryKeys.roleMembers(serverScope.serverId, connection, name),
+      queryKey: adminQueryKeys.roleMembers(serverScope, name),
       enabled: activeSection === 'members' && canViewMembers && name !== 'everyone',
       queryFn: ({ pageParam, signal }) =>
         connection
@@ -84,7 +100,7 @@
           .listMembers(name, { limit: 20, offset: pageParam }, { signal }),
       initialPageParam: 0,
       getNextPageParam: (lastPage, _pages, offset) =>
-        lastPage.hasMore && lastPage.users.length > 0 ? offset + lastPage.users.length : undefined
+        nextOffset(lastPage.hasMore, lastPage.users.length, offset)
     };
   });
   const roleUsers = $derived.by(() => {
@@ -110,7 +126,7 @@
     queryClient.setQueryData<RoleDetails>(variables.queryKey, (current) =>
       current ? { ...current, role: updatedRole } : current
     );
-    invalidatePermissionTiers(variables.serverId, variables.connection);
+    invalidatePermissionTiers(variables);
   }
 
   const metadataMutation = createMutation(() => ({
@@ -121,12 +137,12 @@
     }
   }));
 
-  const pingableMutation = createMutation(() => ({
+  const settingMutation = createMutation(() => ({
     mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
     onSuccess: (updatedRole, variables) => {
       updateRoleSnapshot(variables, updatedRole);
       if (isCurrentRole(variables)) {
-        toast.success(updatedRole.pingable ? 'Role pings enabled' : 'Role pings disabled');
+        toast.success(m('common.saved'));
       }
     }
   }));
@@ -137,7 +153,7 @@
         () => variables.api.deleteRole(variables.roleName),
         variables.canComplete,
         () => {
-          removeDeletedRoleQueries(variables.serverId, variables.connection, variables.roleName);
+          removeDeletedRoleQueries(variables, variables.roleName);
           void goto(
             resolve('/chat/[serverId]/manage/server/roles', {
               serverId: serverIdToSegment(variables.serverId)
@@ -155,14 +171,14 @@
     return {
       ...snapshot,
       roleName: targetRole.name,
-      queryKey: adminQueryKeys.role(snapshot.serverId, snapshot.connection, targetRole.name),
+      queryKey: adminQueryKeys.role(snapshot, targetRole.name),
       api: snapshot.connection.getAPI(createRoleAPI),
       canComplete: captureMutationCompletion(serverScope)
     };
   }
 
   function saveMetadata(displayName: string, description: string): void {
-    if (!role || savingPingable) return;
+    if (!role || savingSetting) return;
     metadataMutation.mutate({
       ...mutationScope(role),
       input: {
@@ -173,20 +189,21 @@
     });
   }
 
-  async function savePingable(nextPingable: boolean): Promise<boolean> {
-    if (!role || role.name === 'everyone' || saving) return false;
-    if (nextPingable === role.pingable) return true;
+  async function saveSetting(
+    field: 'pingable' | 'requiresShieldMode',
+    checked: boolean
+  ): Promise<boolean> {
+    if (!role || saving || savingSetting) return false;
+    if (checked === role[field]) return true;
     const variables = {
       ...mutationScope(role),
       input: {
         name: role.name,
-        displayName: role.displayName,
-        description: role.description,
-        pingable: nextPingable
+        [field]: checked
       }
     };
     try {
-      await pingableMutation.mutateAsync(variables);
+      await settingMutation.mutateAsync(variables);
       return isCurrentRole(variables);
     } catch {
       return false;
@@ -233,8 +250,8 @@
   });
 
   const saving = $derived(metadataMutation.isPending && isCurrentRole(metadataMutation.variables));
-  const savingPingable = $derived(
-    pingableMutation.isPending && isCurrentRole(pingableMutation.variables)
+  const savingSetting = $derived(
+    settingMutation.isPending && isCurrentRole(settingMutation.variables)
   );
   const deleting = $derived(deleteMutation.isPending && isCurrentRole(deleteMutation.variables));
   const error = $derived.by(() => {
@@ -244,8 +261,8 @@
     if (metadataMutation.isError && isCurrentRole(metadataMutation.variables)) {
       return errorMessage(metadataMutation.error, m('admin.permissions.update_role_failed'));
     }
-    if (pingableMutation.isError && isCurrentRole(pingableMutation.variables)) {
-      return errorMessage(pingableMutation.error, m('admin.permissions.update_ping_failed'));
+    if (settingMutation.isError && isCurrentRole(settingMutation.variables)) {
+      return errorMessage(settingMutation.error, m('admin.permissions.update_role_failed'));
     }
     if (deleteMutation.isError && isCurrentRole(deleteMutation.variables)) {
       return errorMessage(deleteMutation.error, m('admin.permissions.delete_role_failed'));
@@ -258,7 +275,7 @@
   {#if role}
     <span class="block truncate">{role.displayName}</span>
   {:else}
-    <LoadingFog class="h-4 w-28" label={m('admin.permissions.loading_role')} />
+    <LoadingDots class="h-4 w-28" label={m('admin.permissions.loading_role')} />
   {/if}
 {/snippet}
 
@@ -289,7 +306,7 @@
   <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
       {#if loading}
-        <LoadingFog class="h-40 w-full" label={m('admin.permissions.loading_role')} />
+        <LoadingDots class="h-40 w-full" label={m('admin.permissions.loading_role')} />
       {:else if !role}
         {#if roleQuery.error}
           <FormError error={errorMessage(roleQuery.error)} />
@@ -307,9 +324,11 @@
             bind:this={metadataPanel}
             {role}
             {saving}
-            {savingPingable}
+            {savingSetting}
             onSaveMetadata={saveMetadata}
-            onSavePingable={savePingable}
+            {showShieldSetting}
+            onSavePingable={(checked) => saveSetting('pingable', checked)}
+            onSaveShield={(checked) => saveSetting('requiresShieldMode', checked)}
             onDelete={() => (deleteConfirmRoleName = role.name)}
           />
         {/key}

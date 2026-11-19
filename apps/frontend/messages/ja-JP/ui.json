@@ -1,5 +1,6 @@
 {
   "ui": {
+    "help": "ヘルプ",
     "toggle_sidebar": "サイドバーの切り替え",
     "notifications": "通知",
     "open_quick_switcher": "クイックスイッチャーを開く",

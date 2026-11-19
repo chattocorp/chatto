@@ -57,7 +57,7 @@ func (s *RoomTimelineReadModel) ListReactionUsers(ctx context.Context, actorID, 
 	return interactionUserPage(nil, limit, offset), nil
 }
 
-// ListThreadParticipants returns the root author and distinct authors of current
+// ListThreadParticipants returns distinct authors of current
 // visible replies, excluding erased users and matching thread summaries.
 func (s *RoomTimelineReadModel) ListThreadParticipants(ctx context.Context, actorID, roomID, rootID string, limit, offset int) (*InteractionUserPage, error) {
 	_, kind, err := s.core.requireThreadMessageReader(ctx, actorID, roomID, rootID)

@@ -33,9 +33,10 @@
     "slow_mode_bypassed": "Sakte modus: {interval} (du er unntatt).",
     "slow_mode_rejected": "Sakte modus er aktiv. Vent før du sender en ny melding.",
     "threads_encouraged": "Tråder anbefales i dette rommet.",
-    "recent_thread_confirm_title": "Fortsette i den forrige tråden?",
-    "recent_thread_confirm_body": "Den forrige meldingen din har allerede en tråd. Hvor skal denne meldingen publiseres?",
+    "recent_thread_confirm_title": "Fortsette i den nyeste tråden?",
+    "recent_thread_confirm_body": "Den nyeste meldingen i dette rommet har en tråd. Hvor vil du publisere denne meldingen?",
     "post_as_new_message": "Publiser som ny melding",
+    "start_new_thread": "Start en ny tråd",
     "continue_in_thread": "Fortsett i tråden",
     "edit_failed": "Kunne ikke redigere meldingen",
     "edit_empty": "Meldingen kan ikke være tom",
@@ -48,10 +49,13 @@
       "video_disabled": "Videoopplasting er deaktivert på denne serveren.",
       "prepare_failed": "Kunne ikke klargjøre vedlegget",
       "too_many": "Du kan legge ved opptil {max} filer per melding. Ekstra filer ble ikke lagt til.",
-      "too_large": "{filename} er for stor ({size}). Maksimum er {limit}."
+      "too_large": "{filename} er for stor ({size}). Maksimum er {limit}.",
+      "compress_failed": "Kunne ikke komprimere videoen nok. Prøv et annet format eller en kortere video.",
+      "compressing": "Komprimerer video… {percentage} %"
     },
     "format": {
       "underline": "Understreking",
+      "strikethrough": "Gjennomstreking",
       "bold": "Fet",
       "italic": "Kursiv",
       "inline_code": "Innebygd kode",

@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "Eksperimenti",
+      "title": "Eksperimentālās funkcijas",
+      "new_message_header": "Jauna ziņojuma galvene"
+    },
     "desktop": {
       "title": "Atjauninājumi",
       "subtitle": "Šīs instalācijas atjauninājumi",
@@ -50,7 +55,8 @@
         "composer": "Izvēlieties ziņojumu redaktoru un ziņojumu sūtīšanas veidu.",
         "voice": "Iestatiet mikrofonu, skaļruņus un zvanu preferences.",
         "system": "Pārbaudiet servera stāvokli, krātuvi un fona uzdevumus.",
-        "event_log": "Pārlūkojiet servera notikumus un izpētiet izmaiņas."
+        "event_log": "Pārlūkojiet servera notikumus un izpētiet izmaiņas.",
+        "jobs": "Skatiet fona uzdevumus un atkārtojiet neizdevušos uzdevumus."
       },
       "title": "Pārskats",
       "shield_notice": "Lai izmantotu papildu atļaujas šajā serverī, aktivizējiet privileģēto režīmu ar vairoga pogu blakus savam vārdam."
@@ -540,9 +546,9 @@
           "body": "Pirms atvienojat {provider}, iestatiet citu šī servera atbalstītu pierakstīšanās metodi."
         },
         "fresh_auth_modal": {
-          "title": "Apstipriniet paroli",
-          "body": "Pirms {provider} saistīšanas ievadiet savu pašreizējo paroli.",
-          "action": "Turpināt"
+          "title": "Saistīt {provider}?",
+          "body": "Pēc saistīšanas varēsiet izmantot {provider}, lai pierakstītos Chatto. Lai turpinātu, ievadiet savu pašreizējo Chatto paroli.",
+          "password": "Chatto parole"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Apstipriniet paroli",

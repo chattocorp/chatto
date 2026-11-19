@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Privilegierten Modus aktivieren",
       "disable": "Privilegierten Modus deaktivieren",
+      "select_roles": "Wähle die Rollen aus, die du für 15 Minuten aktivieren möchtest.",
       "confirmation": "Damit aktivierst du für 15 Minuten die zusätzlichen Berechtigungen, die dir auf diesem Server zugewiesen sind."
     },
     "notifications": {
@@ -74,7 +75,11 @@
       "thread_views_description": "Gefolgte Threads und von dir gestartete Threads werden auf diesem Server möglicherweise nicht getrennt angezeigt.",
       "independent_slow_mode_title": "Unabhängiger langsamer Modus ist nicht verfügbar",
       "independent_slow_mode_description": "Dieser Server verwendet eine gemeinsame Wartezeit für Kanalnachrichten und Thread-Antworten.",
-      "upgrade": "Bitte den Serveradministrator, für volle Unterstützung auf {version} oder neuer zu aktualisieren."
+      "upgrade": "Bitte den Serveradministrator, für volle Unterstützung auf {version} oder neuer zu aktualisieren.",
+      "background_jobs_title": "Hintergrundaufträge sind nicht verfügbar",
+      "background_jobs_description": "Dieser Server kann Hintergrundaufträge in den Servereinstellungen weder anzeigen noch wiederholen.",
+      "shield_role_selection_title": "Rollenauswahl im privilegierten Modus",
+      "shield_role_selection_description": "Dieser Server aktiviert alle verfügbaren Berechtigungen gemeinsam."
     },
     "server_gutter": {
       "move_up": "Nach oben verschieben",
@@ -186,7 +191,17 @@
       "system": "System",
       "back_to_server": "Zurück zum Server",
       "invites": "Einladungen",
-      "registration": "Registrierung"
+      "registration": "Registrierung",
+      "jobs": "Aufträge"
+    },
+    "owner_welcome": {
+      "title": "Dein Server ist bereit",
+      "intro": "Du bist der Eigentümer dieses Servers. Zum Schutz deines Kontos bleiben deine Eigentümerberechtigungen im normalen Gebrauch deaktiviert.",
+      "shield_active": "Der privilegierte Modus ist für die nächsten 15 Minuten aktiv. Du kannst deinen Server jetzt einrichten. Später aktivierst du ihn wieder mit der Schild-Schaltfläche neben deinem Namen.",
+      "shield_inactive": "Aktiviere den privilegierten Modus mit der Schild-Schaltfläche neben deinem Namen, um deinen Server einzurichten. Er bleibt 15 Minuten aktiv.",
+      "shield_failed": "Der privilegierte Modus konnte nicht aktiviert werden.",
+      "next_steps": "Nächste Schritte",
+      "continue_setup": "Einrichtung fortsetzen"
     }
   }
 }

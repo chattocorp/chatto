@@ -1,0 +1,107 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+Du kannst Chatto-Nachrichten mit Markdown formatieren. Zum Beispiel wird `**hallo**` als **hallo** angezeigt. Tippe die Formatierungszeichen selbst oder markiere Text und verwende die Formatierungsleiste.
+
+## Editor und Sendetastenkürzel auswählen
+
+Öffne <a href={resolve('/chat/preferences/composer')}>App-Einstellungen → Nachrichten verfassen</a> und wähle **Markdown**, um den Quelltext zu bearbeiten. Wähle **Visuell**, wenn du lieber mit formatiertem Text arbeitest. Die Formatierungsleiste steht in beiden Editoren zur Verfügung.
+
+Die Einstellung **Nachrichten senden mit** bestimmt die Funktion der Eingabetaste:
+
+- **Return:** Die Eingabetaste sendet die Nachricht. Strg+Eingabe fügt eine neue Zeile ein, auf einem Mac Command+Eingabe.
+- **Cmd/Strg+Return:** Strg+Eingabe sendet die Nachricht, auf einem Mac Command+Eingabe. Die Eingabetaste fügt eine neue Zeile ein.
+
+Lass zwischen Absätzen eine Leerzeile.
+
+## Fett, kursiv, unterstrichen und durchgestrichen
+
+Setze Formatierungszeichen auf beide Seiten des Textes:
+
+- `**fett**` für fett
+- `*kursiv*` für kursiv
+- `__unterstrichen__` für unterstrichen
+- `~~durchgestrichen~~` für durchgestrichen
+
+<MarkdownSample source={"Bitte prüfe das **vor Freitag**.\nDer Termin ist *vorläufig*.\n__Freigabe erforderlich__ vor der Veröffentlichung.\nDer alte Termin war ~~Donnerstag~~."} />
+
+In Chatto bedeutet `__Text__` unterstrichen. Wenn du in einem anderen Markdown-Werkzeug doppelte Unterstriche für Fettdruck verwendest, nimm hier stattdessen doppelte Sternchen.
+
+Markiere Text und drücke Strg+B, Strg+I oder Strg+U für fett, kursiv oder unterstrichen. Auf einem Mac verwendest du Command statt Strg. Die Schaltflächen der Leiste führen dieselben Aktionen aus.
+
+Setze keine Leerzeichen zwischen die Zeichen und den Text: `**wichtig**` funktioniert; `** wichtig **` wird nicht fett dargestellt.
+
+## Überschriften und Listen
+
+Beginne eine Überschrift mit `#`-Zeichen und einem Leerzeichen. Beginne jeden Aufzählungspunkt mit `- ` und jeden nummerierten Punkt mit einer Zahl und einem Punkt, zum Beispiel `1. `.
+
+<MarkdownSample source={"## Checkliste zur Veröffentlichung\n\nBevor wir anfangen:\n- Version bestätigen.\n- Supportteam informieren.\n\nDanach:\n1. Update bereitstellen.\n2. Statusseite prüfen.\n3. Ergebnis hier posten."} />
+
+Die Schaltfläche **Überschrift** fügt eine Überschrift der zweiten Ebene (`##`) ein. Du kannst Überschriften von `#` bis `######` selbst eingeben.
+
+Mit **Einrücken** ordnest du einen Listenpunkt dem vorherigen unter. Mit **Ausrücken** verschiebst du ihn zurück. Lass nach der Liste eine Leerzeile, um einen Absatz zu beginnen.
+
+## Zitate
+
+Beginne jede zitierte Zeile mit `>` und einem Leerzeichen. Lass nach dem Zitat eine Leerzeile, bevor du deine Antwort schreibst.
+
+<MarkdownSample source={"> Können wir die Veröffentlichung auf Freitag verschieben?\n\nJa. Die letzte Prüfung ist am Donnerstagnachmittag."} />
+
+Ein eingegebenes Zitat enthält keinen Link zur ursprünglichen Nachricht. Verwende die Antwortfunktion der Nachricht, um in einem Thread darauf zu antworten.
+
+## Code
+
+Setze je ein Backtick vor und hinter einen kurzen Befehl, Dateinamen oder Bezeichner. Formatierungszeichen in Inline-Code erscheinen so, wie du sie eingegeben hast.
+
+<MarkdownSample source={"Führe zuerst `git status` aus.\nDie Einstellung heisst `send_mode`.\nSchreibe `**hallo**`, um hallo fett darzustellen."} />
+
+Für mehrere Zeilen setzt du drei Backticks auf eine Zeile vor dem Code und drei auf eine Zeile danach. Für Syntaxhervorhebung ergänzt du direkt nach den öffnenden Backticks eine Sprache, etwa `js`, `json` oder `bash`.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+Die Schaltfläche **Codeblock** fügt die öffnenden und schliessenden Backticks ein. Ohne die abschliessende Zeile wird der Rest der Nachricht Teil des Codeblocks. Um ein Backtick in Inline-Code anzuzeigen, setze zwei Backticks um den Text.
+
+## Links
+
+Eine eingefügte Webadresse wird zu einem Link. Um statt der Adresse einen Text anzuzeigen, setze den Text in eckige Klammern und die Adresse in runde Klammern:
+
+```text
+Lies die [Versionshinweise](https://example.com/releases).
+```
+
+Setze kein Leerzeichen zwischen `]` und `(`. Um einen Raum zu verlinken oder eine Person zu erwähnen, wähle sie aus den Vorschlägen des Editors.
+
+## Fussnoten
+
+Setze eine Referenz wie `[^window]` hinter den Text, den du erläutern möchtest. Schreibe auf einer eigenen Zeile `[^window]:`, gefolgt von der Anmerkung. Die Bezeichner müssen übereinstimmen.
+
+<MarkdownSample source={"Das Wartungsfenster dauert 30 Minuten.[^window]\n\n[^window]: Die meisten Server sind weniger als fünf Minuten nicht erreichbar."} />
+
+Du kannst auch den Cursor hinter den betreffenden Text setzen und **Fussnote einfügen** in der Leiste wählen. Fussnoten lassen sich nicht in Inline-Code oder Codeblöcken einfügen.
+
+## Tabellen
+
+Trenne Spalten mit `|` und setze eine Zeile mit Bindestrichen unter die Spaltenüberschriften. Mit `---:` richtest du eine Spalte rechts aus, mit `:---:` zentrierst du sie.
+
+<MarkdownSample source={"| Umgebung | Version |\n| --- | ---: |\n| Test | 0.5 |\n| Produktion | 0.4 |"} />
+
+Bearbeite Tabellen im Markdown-Editor. Der visuelle Editor hat keine Funktion zum Bearbeiten von Tabellen.
+
+## Eine vollständige Nachricht ausprobieren
+
+Bearbeite die Nachricht unten, um die Formatierung auszuprobieren. Die Vorschau aktualisiert sich beim Tippen. Du kannst zwischen Markdown und visuellem Editor wechseln. Deine Eingaben werden an keinen Raum gesendet.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Veröffentlichung am Freitag\n\nBitte schliesst die Prüfung **vor 14:00 Uhr** ab.\n\n1. Führt `git status` aus.\n2. Prüft die Versionshinweise.\n3. Antwortet in diesem Thread, wenn ihr fertig seid.\n\n> Was tun, wenn eine Prüfung fehlschlägt?\n\nPostet den Fehler hier, bevor ihr fortfahrt."} />
+</div>
+
+## Wenn die Formatierung nicht stimmt
+
+- **Die Zeichen bleiben sichtbar.** Prüfe, ob beide Enden übereinstimmen und direkt innerhalb der öffnenden oder schliessenden Zeichen kein Leerzeichen steht. In Code sind sichtbare Zeichen beabsichtigt.
+- **Der Rest der Nachricht sieht wie Code aus.** Setze die drei schliessenden Backticks auf eine eigene Zeile.
+- **Eine Überschrift oder Liste bleibt einfacher Text.** Setze nach `##`, `-` oder `1.` ein Leerzeichen und beginne auf einer neuen Zeile.
+- **Du möchtest die Satzzeichen selbst anzeigen.** Setze einen Backslash vor ein Formatierungszeichen, etwa `\*nicht kursiv\*`, oder verwende Inline-Code für ein wörtliches Beispiel.
+- **HTML erscheint als Text.** Chatto akzeptiert kein rohes HTML zur Nachrichtenformatierung. Verwende Markdown statt Tags wie `<b>` oder `<span>`.

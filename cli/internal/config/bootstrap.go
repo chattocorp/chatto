@@ -16,7 +16,7 @@ type BootstrapConfig struct {
 // BootstrapUser describes a user to create on startup in bootstrap-tag builds.
 type BootstrapUser struct {
 	Login        string `toml:"login" comment:"Required. The user's login (username)."`
-	DisplayName  string `toml:"display_name,commented" comment:"Defaults to Login if empty."`
+	DisplayName  string `toml:"display_name,commented" comment:"Defaults to the first 32 characters of the login."`
 	Email        string `toml:"email,commented" comment:"Optional. If set, added as a verified email."`
 	Password     string `toml:"password,commented" comment:"Optional. Required to log in via password; safe in plaintext because bootstrap-tag builds only."`
 	ServerRole   string `toml:"server_role,commented" comment:"Optional: owner | admin | moderator."`
@@ -38,7 +38,7 @@ func (u BootstrapUser) RoleOrDefault() string {
 type BootstrapBot struct {
 	Bio                string   `toml:"bio,commented" comment:"Optional public Markdown bio. Applied only on first boot."`
 	Login              string   `toml:"login" comment:"Required. The bot's login name."`
-	DisplayName        string   `toml:"display_name,commented" comment:"Defaults to Login if empty."`
+	DisplayName        string   `toml:"display_name,commented" comment:"Defaults to the first 32 characters of the login."`
 	OwnerLogin         string   `toml:"owner_login" comment:"Required. Login name of a bootstrapped human owner."`
 	APIKeyName         string   `toml:"api_key_name,commented" comment:"Optional display name for the initial API key."`
 	CredentialFile     string   `toml:"credential_file" comment:"Required. File that receives the show-once API key with mode 0600."`

@@ -16,6 +16,7 @@
   import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
   import PasswordSettings from './PasswordSettings.svelte';
   import VerifiedEmailSettings from './VerifiedEmailSettings.svelte';
+  import SettingsColumns from '$lib/components/settings/SettingsColumns.svelte';
 
   const serverScope = useServerScope();
   const currentUser = $derived(serverScope.store.currentUser);
@@ -36,50 +37,55 @@
   <PaneHeader title={m('settings.account.title')} subtitle={m('settings.account.subtitle')} />
 
   <PaneContent>
-    <div class="flex flex-col gap-6">
-      <Panel title={m('settings.account.info_title')} icon="iconify icon-[uil--info-circle]">
-        <dl class="flex max-w-md flex-col gap-3 text-sm">
-          <div class="flex items-center justify-between">
-            <dt class="text-muted">{m('common.user_id')}</dt>
-            <dd class="font-mono">{serverScope.store.accountId}</dd>
-          </div>
-          <div class="flex items-center justify-between">
-            <dt class="text-muted">{m('settings.account.username')}</dt>
-            <dd class="font-mono">{currentUser.user?.login}</dd>
-          </div>
-          <div class="flex items-center justify-between">
-            <dt class="text-muted">{m('settings.account.display_name')}</dt>
-            <dd>
-              <AccountName name={currentUser.user?.displayName ?? ''} identity={currentUser.user} />
-            </dd>
-          </div>
-        </dl>
-      </Panel>
-
-      <PasswordSettings
-        {currentUser}
-        directLoginEnabled={serverScope.store.serverInfo.directLoginEnabled}
-        getAccountAPI={accountAPI}
-        onPasswordSet={() =>
-          queryClient.invalidateQueries({
-            queryKey: settingsQueryKeys.externalIdentities(
-              serverScope.serverId,
-              serverScope.connection,
-              serverScope.store.accountId ?? ''
-            )
-          })}
-      />
-      {#key serverScope.store.accountId ?? ''}
-        <VerifiedEmailSettings />
-      {/key}
-      <ExternalIdentitySettings {currentUser} {accountSettingsPath} />
-      <DeleteAccountSection
-        canDeleteAccount={accountDeletionAvailabilityWithFallback(
-          currentUser.user?.actions?.deleteAccount,
-          currentUser.user?.viewerCanDeleteAccount ?? false
-        ) === AccountDeletionAvailability.ALLOWED}
-        getAccountAPI={accountAPI}
-      />
-    </div>
+    <SettingsColumns>
+      {#snippet start()}
+        <Panel title={m('settings.account.info_title')} icon="iconify icon-[uil--info-circle]">
+          <dl class="flex max-w-md flex-col gap-3 text-sm">
+            <div class="flex items-center justify-between">
+              <dt class="text-muted">{m('common.user_id')}</dt>
+              <dd class="font-mono">{serverScope.store.accountId}</dd>
+            </div>
+            <div class="flex items-center justify-between">
+              <dt class="text-muted">{m('settings.account.username')}</dt>
+              <dd class="font-mono">{currentUser.user?.login}</dd>
+            </div>
+            <div class="flex items-center justify-between">
+              <dt class="text-muted">{m('settings.account.display_name')}</dt>
+              <dd>
+                <AccountName
+                  name={currentUser.user?.displayName ?? ''}
+                  identity={currentUser.user}
+                />
+              </dd>
+            </div>
+          </dl>
+        </Panel>
+        {#key serverScope.store.accountId ?? ''}
+          <VerifiedEmailSettings />
+        {/key}
+        <ExternalIdentitySettings {currentUser} {accountSettingsPath} />
+      {/snippet}
+      {#snippet end()}
+        <PasswordSettings
+          {currentUser}
+          directLoginEnabled={serverScope.store.serverInfo.directLoginEnabled}
+          getAccountAPI={accountAPI}
+          onPasswordSet={() =>
+            queryClient.invalidateQueries({
+              queryKey: settingsQueryKeys.externalIdentities(
+                serverScope,
+                serverScope.store.accountId ?? ''
+              )
+            })}
+        />
+        <DeleteAccountSection
+          canDeleteAccount={accountDeletionAvailabilityWithFallback(
+            currentUser.user?.actions?.deleteAccount,
+            currentUser.user?.viewerCanDeleteAccount ?? false
+          ) === AccountDeletionAvailability.ALLOWED}
+          getAccountAPI={accountAPI}
+        />
+      {/snippet}
+    </SettingsColumns>
   </PaneContent>
 </div>

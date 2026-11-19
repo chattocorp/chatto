@@ -498,23 +498,19 @@ func (s *notificationDecisionSnapshot) roomPermissionAllowed(userID, roomID, gro
 		scopes = append(scopes, permissionScopeTarget{scope: ScopeServer, level: LevelServer})
 	}
 
-	nearest := func(subject string) (TraceEntry, bool) {
-		for _, target := range scopes {
-			decision := s.rbac.GetDecision(target.scope, target.id, subject, permission)
-			if decision != DecisionNone {
-				return TraceEntry{Level: target.level, RoleName: subject, Decision: decision, ObjectID: target.objectID()}, true
-			}
-		}
-		return TraceEntry{}, false
+	nearest := func(subject string, allows bool) TraceEntry {
+		entry, _ := nearestSubjectDecision(scopes, subject, allows, func(target permissionScopeTarget) DecisionKind {
+			return s.rbac.GetDecision(target.scope, target.id, subject, permission)
+		})
+		return entry
 	}
-
 	var decisions applicablePermissionDecisions
 	for _, subject := range append([]string{userID}, s.rbac.GetUserRoles(userID)...) {
-		if entry, ok := nearest(subject); ok {
+		if entry := nearest(subject, subject == userID || !s.rbac.RoleRequiresShieldMode(subject)); entry.Decision != "" {
 			decisions.named = append(decisions.named, entry)
 		}
 	}
-	if entry, ok := nearest(RoleEveryone); ok {
+	if entry := nearest(RoleEveryone, true); entry.Decision != "" {
 		decisions.everyone = &entry
 	}
 	decision, _, _ := resolveApplicablePermissionDecisions(decisions)

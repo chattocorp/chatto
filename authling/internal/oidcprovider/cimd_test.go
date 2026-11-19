@@ -13,6 +13,9 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"github.com/chattocorp/chatto/authling/internal/config"
+	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
 )
 
 func cimdTestResponse(request *http.Request, cacheControl string) *http.Response {
@@ -336,5 +339,157 @@ func TestCIMDBodyEOFDoesNotHideCancellation(t *testing.T) {
 	}
 	if len(resolver.slots) != 0 || len(resolver.cache) != 0 {
 		t.Fatal("canceled body retained resources")
+	}
+}
+
+func TestResolveForRefreshAvoidsCIMDFetch(t *testing.T) {
+	fetches := 0
+	cimd := newCIMDTestResolver(t, func(request *http.Request) (*http.Response, error) {
+		fetches++
+		return cimdTestResponse(request, "max-age=60"), nil
+	})
+	cfg := config.Config{OIDC: config.OIDCConfig{AllowUnregisteredClients: true, Resources: []config.OIDCResourceConfig{{URI: "https://api.example"}}, Clients: []config.OIDCClientConfig{{ID: "configured", RedirectURIs: []string{"https://app.example/callback"}}}}}
+	resolver := NewResolver(cfg, cimd)
+	client, err := resolver.ResolveForRefresh(t.Context(), "https://client.example/uncached")
+	if err != nil || fetches != 0 || client.Source != ClientSourceCIMD || client.AuthMethod() != liboidc.AuthMethodNone || !client.RefreshAllowed {
+		t.Fatal("uncached CIMD refresh client")
+	}
+	if _, err := cimd.Resolve(t.Context(), "https://client.example/cached"); err != nil || fetches != 1 {
+		t.Fatal("cache fill")
+	}
+	// The cached document did not declare refresh_token, so current policy denies refresh.
+	if client, err := resolver.ResolveForRefresh(t.Context(), "https://client.example/cached"); err != nil || fetches != 1 || client.RefreshAllowed {
+		t.Fatal("cached CIMD refresh client")
+	}
+	if client, err := resolver.ResolveForRefresh(t.Context(), "configured"); err != nil || client.Source != ClientSourceConfigured {
+		t.Fatal("configured refresh client")
+	}
+	for _, id := range []string{"https://api.example", "unknown", "https://user@client.example/"} {
+		if _, err := resolver.ResolveForRefresh(t.Context(), id); err == nil {
+			t.Fatalf("%s resolved", id)
+		}
+	}
+	cfg.OIDC.AllowUnregisteredClients = false
+	if _, err := NewResolver(cfg, cimd).ResolveForRefresh(t.Context(), "https://client.example/uncached"); err == nil {
+		t.Fatal("CIMD refresh after CIMD was disabled")
+	}
+	if fetches != 1 {
+		t.Fatal("refresh resolution fetched CIMD")
+	}
+}
+
+func TestCheckGrantCapacity(t *testing.T) {
+	long := func(n int) string { return "https://api.example/" + strings.Repeat("a", n) }
+	fits := config.Config{OIDC: config.OIDCConfig{AllowUnregisteredClients: true, Resources: []config.OIDCResourceConfig{{URI: long(1000), AllowCIMD: true}}, Clients: []config.OIDCClientConfig{{ID: "a", Name: "App", Resources: []string{long(1000), long(1001)}}}}}
+	if err := CheckGrantCapacity(fits); err != nil {
+		t.Fatal(err)
+	}
+	for name, cfg := range map[string]config.Config{
+		"configured": {OIDC: config.OIDCConfig{Clients: []config.OIDCClientConfig{{ID: "a", Name: "App", Resources: []string{long(2000), long(2001)}}}}},
+		"cimd":       {OIDC: config.OIDCConfig{AllowUnregisteredClients: true, Resources: []config.OIDCResourceConfig{{URI: long(1600), AllowCIMD: true}, {URI: long(1601), AllowCIMD: true}}}},
+	} {
+		if CheckGrantCapacity(cfg) == nil {
+			t.Fatalf("%s: oversized grant metadata accepted", name)
+		}
+	}
+}
+
+func TestCIMDAcceptsPlainHTTPOnlyOnLoopbackHosts(t *testing.T) {
+	for _, raw := range []string{"http://localhost:4000/client.json", "http://127.0.0.1/client.json", "http://[::1]:8080/client.json", "http://chatto.localhost/oauth/client.json"} {
+		if _, err := validateClientIdentifierURL(raw); err != nil {
+			t.Fatalf("loopback client identifier %q was rejected: %v", raw, err)
+		}
+	}
+	if !isCIMDClientID("HTTP://localhost/client.json") || isCIMDClientID("chatto-web") {
+		t.Fatal("CIMD client identifier form was not recognized")
+	}
+}
+
+func TestCIMDPlainHTTPRequiresLoopbackAddresses(t *testing.T) {
+	loopbackOnly := context.WithValue(t.Context(), cimdLoopbackOnlyContextKey{}, true)
+	trustedPrivate := map[string]struct{}{"10.0.0.1": {}}
+	if _, err := resolveCIMDAddresses(t.Context(), "10.0.0.1", true, trustedPrivate, nil); err != nil {
+		t.Fatalf("HTTPS lookup of a trusted private address: %v", err)
+	}
+	if _, err := resolveCIMDAddresses(loopbackOnly, "10.0.0.1", true, trustedPrivate, nil); err == nil {
+		t.Fatal("plain-HTTP lookup accepted a non-loopback address")
+	}
+	if _, err := resolveCIMDAddresses(loopbackOnly, "127.0.0.1", true, nil, nil); err != nil {
+		t.Fatalf("plain-HTTP lookup of a loopback address: %v", err)
+	}
+	if _, err := resolveCIMDAddresses(loopbackOnly, "127.0.0.1", false, nil, nil); err == nil {
+		t.Fatal("plain-HTTP lookup bypassed the loopback destination policy")
+	}
+}
+
+func TestCIMDResolvesPlainHTTPDocumentOnLoopback(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		origin := "http://" + r.Host
+		_, _ = fmt.Fprintf(w, `{"client_id":%q,"client_uri":%q,"redirect_uris":[%q],"token_endpoint_auth_method":"none"}`, origin+r.URL.Path, origin+"/", origin+"/callback")
+	}))
+	defer server.Close()
+	clientID := server.URL + "/client.json"
+
+	resolver, err := NewCIMDResolver("http://localhost:8090", nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := resolver.Resolve(t.Context(), clientID)
+	if err != nil {
+		t.Fatalf("loopback plain-HTTP CIMD: %v", err)
+	}
+	if !client.Development || len(client.Redirects) != 1 || client.Redirects[0] != server.URL+"/callback" {
+		t.Fatalf("resolved client = %+v", client)
+	}
+
+	production, err := NewCIMDResolver("https://auth.example", nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := production.Resolve(t.Context(), clientID); err == nil {
+		t.Fatal("non-loopback issuer fetched a loopback plain-HTTP CIMD document")
+	}
+}
+
+func TestCIMDClassifiesIPv4LiteralsAsIPv4(t *testing.T) {
+	addresses, err := resolveCIMDAddresses(t.Context(), "8.8.8.8", false, nil, nil)
+	if err != nil {
+		t.Fatalf("public IPv4 literal was rejected: %v", err)
+	}
+	if len(addresses) != 1 || !addresses[0].Is4() {
+		t.Fatalf("resolved addresses = %v, want one IPv4 address", addresses)
+	}
+	for _, host := range []string{"10.0.0.1", "127.0.0.1", "192.0.2.1", "::ffff:10.0.0.1", "::ffff:127.0.0.1", "::ffff:192.0.2.1"} {
+		if _, err := resolveCIMDAddresses(t.Context(), host, false, nil, nil); err == nil {
+			t.Fatalf("special-use address %s was accepted", host)
+		}
+	}
+	loopbackOnly := context.WithValue(t.Context(), cimdLoopbackOnlyContextKey{}, true)
+	if _, err := resolveCIMDAddresses(loopbackOnly, "8.8.8.8", false, nil, nil); err == nil {
+		t.Fatal("plain-HTTP lookup accepted a public IPv4 address")
+	}
+}
+
+// A configured client can use a loopback HTTP URL as its ID, as a local
+// relying party that also publishes CIMD does. Configuration takes
+// precedence, so Authling must not fetch that URL.
+func TestConfiguredLoopbackURLClientTakesPrecedenceOverCIMD(t *testing.T) {
+	fetches := 0
+	cimd := newCIMDTestResolver(t, func(request *http.Request) (*http.Response, error) {
+		fetches++
+		return cimdTestResponse(request, "max-age=60"), nil
+	})
+	id := "http://localhost:4000/oauth/client-metadata.json"
+	cfg := config.Config{OIDC: config.OIDCConfig{AllowUnregisteredClients: true, Clients: []config.OIDCClientConfig{{ID: id, RedirectURIs: []string{"http://localhost:4000/callback"}}}}}
+	resolver := NewResolver(cfg, cimd)
+	for _, resolve := range []func(context.Context, string) (*Client, error){resolver.Resolve, resolver.ResolveForRefresh} {
+		client, err := resolve(t.Context(), id)
+		if err != nil || client.Source != ClientSourceConfigured {
+			t.Fatalf("configured loopback URL client = %+v, %v", client, err)
+		}
+	}
+	if fetches != 0 {
+		t.Fatal("configured client was fetched as CIMD")
 	}
 }

@@ -134,8 +134,7 @@ describe('PermissionMatrix', () => {
       .click();
     await settle();
     const key = adminQueryKeys.permissionTier(
-      'server-test',
-      { queryScope: 'permission-matrix-test' },
+      { serverId: 'server-test', connection: { queryScope: 'permission-matrix-test' } },
       null,
       null
     );
@@ -196,7 +195,11 @@ describe('PermissionMatrix', () => {
     const help = page.getByTestId('permission-help');
     await expect.element(help).toHaveTextContent('Create new rooms');
     await expect.element(help).toHaveTextContent('At Room group scope');
-    await expect.element(help).toHaveTextContent('Needs privileged mode');
+    await expect
+      .element(help)
+      .not.toHaveTextContent(
+        'When granted directly to an account, this permission requires Shield Mode.'
+      );
     expect(container.querySelector('[data-testid="permission-name"]')?.hasAttribute('title')).toBe(
       false
     );
@@ -566,7 +569,10 @@ describe('PermissionMatrix', () => {
 
   it('invalidates cached user matrices after a role permission changes', async () => {
     const connection = { queryScope: 'permission-matrix-test' };
-    const userPermissionKey = adminQueryKeys.userPermissions('server-test', connection, 'member-1');
+    const userPermissionKey = adminQueryKeys.userPermissions(
+      { serverId: 'server-test', connection },
+      'member-1'
+    );
     queryClient.setQueryData(userPermissionKey, { effective: 'stale' });
     const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();

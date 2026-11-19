@@ -19,7 +19,7 @@
   let { botId }: { botId: string } = $props();
   const scope = useServerScope();
   const query = createQuery(() => ({
-    queryKey: [...settingsQueryKeys.bot(scope.serverId, scope.connection, botId), 'outbound'],
+    queryKey: [...settingsQueryKeys.bot(scope, botId), 'outbound'],
     queryFn: ({ signal }) =>
       scope.connection.getAPI(createBotAPI).listOutboundWebhooks(botId, signal),
     refetchInterval: 5000

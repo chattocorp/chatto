@@ -349,11 +349,12 @@ func (x *User) Clone() *User {
 
 // Role describes a named permission subject. Position controls display order, not authorization.
 type Role struct {
-	Name        string // Unique identifier, lowercase + dashes only, e.g., "owner", "moderator", "content-reviewer"
-	DisplayName string // Human-readable name, e.g., "Owner", "Moderator", "Content Reviewer"
-	Description string
-	Position    int32 // Display/order position; not an authorization rank.
-	Pingable    bool  // Whether messages can ping users assigned to this role.
+	Name               string // Unique identifier, lowercase + dashes only, e.g., "owner", "moderator", "content-reviewer"
+	DisplayName        string // Human-readable name, e.g., "Owner", "Moderator", "Content Reviewer"
+	Description        string
+	Position           int32 // Display/order position; not an authorization rank.
+	Pingable           bool  // Whether messages can ping users assigned to this role.
+	RequiresShieldMode bool  // Grants require selection in Shield Mode. Denies remain effective.
 }
 
 // GetName returns the field value, or its zero value for a nil receiver.

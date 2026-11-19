@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "Eksperimentoj",
+      "title": "Eksperimentaj funkcioj",
+      "new_message_header": "Nova mesaĝokapo"
+    },
     "desktop": {
       "title": "Ĝisdatigoj",
       "subtitle": "Ĝisdatigoj por ĉi tiu instalaĵo",
@@ -50,7 +55,8 @@
         "composer": "Elektu vian mesaĝredaktilon kaj kiel vi sendas mesaĝojn.",
         "voice": "Agordu vian mikrofonon, laŭtparolilojn kaj alvokajn preferojn.",
         "system": "Kontrolu servilan staton, stokadon kaj fonajn taskojn.",
-        "event_log": "Esploru servilajn eventojn kaj ekzamenu ŝanĝojn."
+        "event_log": "Esploru servilajn eventojn kaj ekzamenu ŝanĝojn.",
+        "jobs": "Vidu fonajn taskojn kaj reprovu malsukcesajn taskojn."
       },
       "title": "Superrigardo",
       "shield_notice": "Por uzi viajn aldonajn permesojn en ĉi tiu servilo, aktivigu la privilegian reĝimon per la ŝilda butono apud via nomo."
@@ -540,9 +546,9 @@
           "body": "Agordu alian ensalutmetodon subtenatan de ĉi tiu servilo antaŭ ol malkonekti {provider}."
         },
         "fresh_auth_modal": {
-          "title": "Konfirmu pasvorton",
-          "body": "Enigu vian nunan pasvorton antaŭ ligi {provider}.",
-          "action": "Daŭrigu"
+          "title": "Ĉu ligi {provider}?",
+          "body": "Post la ligado vi povos ensaluti en Chatto per {provider}. Enigu vian nunan pasvorton de Chatto por daŭrigi.",
+          "password": "Pasvorto de Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Konfirmu pasvorton",

@@ -14,6 +14,7 @@
       "clear_confirm_title": "ルームのお知らせを削除しますか？",
       "clear_confirm_description": "ルームの全員に対して、公開中のお知らせが直ちに削除されます。未保存の変更は公開されません。",
       "empty": "お知らせはまだ公開されていません。",
+      "load_failed": "お知らせを読み込めませんでした。",
       "edit": "お知らせを編集"
     },
     "information": {
@@ -21,7 +22,12 @@
       "created": "作成日時",
       "title": "ルーム情報",
       "basic": "概要",
-      "pinned_messages": "ピン留めされたメッセージ"
+      "pinned_messages": "ピン留めされたメッセージ",
+      "threads": "スレッド",
+      "slow_mode": "低速モード",
+      "channel_slow_mode": "チャンネルの低速モード",
+      "thread_slow_mode": "スレッドの低速モード",
+      "slow_mode_off": "オフ"
     },
     "create": {
       "title": "新しいルームを作成する",

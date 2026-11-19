@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "本页内容",
+    "design": {
+      "welcome": "熟悉 Chatto 的使用方法。",
+      "explore": "继续探索",
+      "reference": "格式速查",
+      "reference_hint": "选择示例，在编辑器中试试。",
+      "question": "谁会参加下一次通话？"
+    },
+    "overview": "概览",
+    "intro": "聊天和服务器管理的简短指南。",
+    "users": "面向成员",
+    "admins": "面向管理员",
+    "example": "在这里试试",
+    "example_hint": "此示例仅在当前页面运行，不会发送消息。",
+    "input": "消息文本",
+    "preview": "预览",
+    "sample": "**大家**好！",
+    "conversations": {
+      "title": "使用 Chatto",
+      "description": "了解讨论串、未读动态、通知和连接问题。"
+    },
+    "formatting": {
+      "title": "设置消息格式",
+      "description": "添加强调和行内代码。"
+    },
+    "bots": {
+      "title": "机器人",
+      "description": "创建 API 帐户并准确控制他们可以执行的操作"
+    },
+    "phone": {
+      "title": "在手机上安装 Chatto",
+      "description": "将 Chatto 添加到主屏幕并启用通知。"
+    }
+  }
+}

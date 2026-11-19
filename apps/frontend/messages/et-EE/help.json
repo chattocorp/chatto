@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "Sellel lehel",
+    "design": {
+      "welcome": "Tutvuge rakendusega Chatto.",
+      "explore": "Avastage veel",
+      "reference": "Vormindus lühidalt",
+      "reference_hint": "Valige näide, et seda redaktoris proovida.",
+      "question": "Kes liitub järgmise kõnega?"
+    },
+    "overview": "Ülevaade",
+    "intro": "Lühijuhendid vestlemiseks ja serveri haldamiseks.",
+    "users": "Liikmetele",
+    "admins": "Administraatoritele",
+    "example": "Proovige siin",
+    "example_hint": "See näide jääb sellele lehele. See ei saada sõnumit.",
+    "input": "Sõnumi tekst",
+    "preview": "Eelvaade",
+    "sample": "Tere **kõigile**!",
+    "conversations": {
+      "title": "Chatto kasutamine",
+      "description": "Lõimed, lugemata tegevused, teavitused ja ühendusprobleemid."
+    },
+    "formatting": {
+      "title": "Sõnumi vormindamine",
+      "description": "Lisage rõhutusi ja tekstisisest koodi."
+    },
+    "bots": {
+      "title": "Botid",
+      "description": "Looge API kontosid ja kontrollige täpselt, mida nad saavad teha"
+    },
+    "phone": {
+      "title": "Chatto installimine telefoni",
+      "description": "Lisage Chatto avakuvale ja lubage teavitused."
+    }
+  }
+}

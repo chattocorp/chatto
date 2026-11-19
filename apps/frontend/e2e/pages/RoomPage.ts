@@ -54,9 +54,9 @@ export class RoomPage {
     return this.page.getByRole('button', { name: 'Send message' });
   }
 
-  /** The destination prompt shown after a recent authored message gained a thread. */
-  get recentThreadConfirmationDialog(): Locator {
-    return this.page.getByRole('dialog', { name: 'Continue your previous thread?' });
+  /** The destination prompt shown when the newest room root has a thread. */
+  get latestThreadConfirmationDialog(): Locator {
+    return this.page.getByRole('dialog', { name: 'Continue the latest thread?' });
   }
 
   /** Video attachment preview in the composer (shown when a video file is staged) */
@@ -208,7 +208,7 @@ export class RoomPage {
   }
 
   /**
-   * Send a new root message when the composer asks whether a recent thread
+   * Send a new root message when the composer asks whether the latest thread
    * should receive it instead. This asserts that the safeguard was shown.
    */
   async sendNewRootAfterThread(text: string): Promise<MessageComponent> {
@@ -217,11 +217,11 @@ export class RoomPage {
     await this.dismissAutocompleteIfOpen(this.messageInput);
     await this.messageInput.press('Control+Enter');
 
-    await expect(this.recentThreadConfirmationDialog).toBeVisible({
+    await expect(this.latestThreadConfirmationDialog).toBeVisible({
       timeout: TIMEOUTS.UI_FAST
     });
-    await this.recentThreadConfirmationDialog
-      .getByRole('button', { name: 'Post as new message' })
+    await this.latestThreadConfirmationDialog
+      .getByRole('button', { name: /^(Post as new message|Start a new thread)$/ })
       .click();
 
     const message = this.getMessage(text);

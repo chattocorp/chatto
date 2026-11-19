@@ -1,0 +1,82 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Atbildes un pavedieni
+
+Pie ziņojuma izvēlieties **Atbildēt pavedienā**, lai atbilde paliktu pie tās pašas
+sarunas. Lai sāktu pavedienu ar jaunu ziņojumu, pirms nosūtīšanas redaktorā
+izvēlieties **Publicēt kā pavedienu**. Telpa paliek atvērta; izvēlieties ziņojuma
+pavediena saiti, lai atvērtu pavedienu.
+
+Atvērtam pavedienam ir sava adrese. Nokopējiet pārlūka adresi, lai to kopīgotu ar
+cilvēku, kam ir piekļuve telpai. Aizverot pavedienu, jūs atgriežaties telpā;
+sekošana sarunai netiek pārtraukta.
+
+<p>Ja vēlaties atbildes rakstīšanas laikā redzēt arī telpu, atveriet
+<a href={resolve('/chat/preferences/appearance')}>Lietotnes preferences → Izskats</a>
+un iestatījumam <strong>Pavediena rūts</strong> izvēlieties <strong>Blakus</strong>.
+Ja nepietiek vietas, Chatto rāda pavedienu virs telpas.</p>
+
+## Sarunu izsekošana
+
+Izvēlieties **Sekojiet pavedienam**, lai saruna paliktu jūsu sarakstā **Pavedieni**.
+Varat sekot pavedienam, tajā neko nepublicējot.
+
+Sadaļā **Pavedieni** skats **Sekotās** rāda pavedienus, kuriem sekojat. **Mani** rāda
+tos, kurus sākāt jūs un kuriem joprojām sekojat. Pārtraucot sekošanu, pavediens
+pazūd no abiem skatiem. Izvēlieties **Nelasīts**, lai atrastu sarunas ar atbildēm,
+kuras vēl neesat izlasījis.
+
+Meklēšanas lauks pārbauda ziņojumus un atbildes pavedienos, kuriem sekojat,
+tostarp tiešo ziņojumu pavedienos. Meklējiet vārdus, frāzi pēdiņās vai autoru ar
+`from:username`. Meklēšana ir pieejama, ja serveris to atbalsta un tā ir iespējota.
+
+## Pārvietošanās starp telpām un nelasītajām darbībām
+
+Nospiediet **Ctrl+K** vai **Command+K** Mac datorā, lai atvērtu ātro pārslēdzēju.
+Meklējiet tajā, lai pārietu starp telpām un serveriem, neizmantojot sānjoslu.
+
+Nospiediet **Alt+Shift+Down** vai **Option+Shift+Down** Mac datorā, lai pārietu uz
+nākamo nelasīto avotu visos serveros, kuros esat pierakstījies. Chatto vispirms
+atver svarīgos paziņojumus, tad citus paziņojumus un pēc tam telpas ar nelasītā
+satura punktiem. Pašreizējais ziņojuma melnraksts saglabājas.
+
+Zvans lietotnes galvenē atver visu serveru paziņojumus, kuros esat pierakstījies.
+Lasot telpu vai pavedienu, paziņojumi tiek atzīmēti kā lasīti tikai līdz redzamajiem
+ziņojumiem. Atverot vecāku ziņojumu, jaunākas atbildes netiek atzīmētas kā lasītas.
+
+Lai skatītu pieejamos īsinājumtaustiņus, nospiediet **Ctrl+Shift+K** vai
+**Command+Shift+K** Mac datorā.
+
+## Paziņojumu izvēle
+
+Atveriet sava servera **Paziņojumu** iestatījumus, lai mainītu brīdinājumus par
+pieminēšanu, atbildēm, reakcijām un citām darbībām. Katrs iestatījums var attiekties
+uz visu serveri, telpu grupu vai vienu telpu.
+
+- **Mantot** izmanto telpu grupas vai servera iestatījumu.
+- **Izslēgts** šim darbības veidam neveido ne paziņojumu, ne nelasītā satura punktu.
+- **Nelasīta satura punkts** atzīmē telpu, neveidojot paziņojumu.
+- **Paziņojums lietotnē** pievieno ierakstu paziņojumu centram.
+- **Pašpiegādes paziņojums** ļauj saņemt brīdinājumu arī ierīcē, kurā esat iespējojis
+  paziņojumus.
+
+Piemēram, jaunajiem telpas ziņojumiem izvēlieties **Nelasīta satura punkts**, bet tiešai
+pieminēšanai — **Pašpiegādes paziņojums**, ja vēlaties pārbaudīt vispārējo sarunu sev
+piemērotā laikā.
+
+<p>Push paziņojumiem vajadzīga arī ierīces atļauja. Telefonā izpildiet norādījumus
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Chatto instalēšana telefonā</a>,
+lai instalētu lietotni un iespējotu paziņojumus. Telefona paziņojumu iestatījumi
+nosaka, vai bloķēšanas ekrānā tiek rādīti vārdi un ziņojumu priekšskatījumi.</p>
+
+## Ja savienojums pārtrūkst
+
+Jau ielādētie ziņojumi paliek redzami, taču Chatto vajadzīgs savienojums ar serveri,
+lai ielādētu citus ziņojumus vai nosūtītu atbildi. Kad savienojums atjaunojas,
+lietotne ielādē izlaistos atjauninājumus.
+
+Ja nosūtīšana neizdodas, melnraksts paliek redaktorā. Tas netiek ievietots
+automātiskas nosūtīšanas rindā: pārbaudiet savienojumu un nosūtiet vēlreiz.
+Chatto instalēšana telefonā nepadara tērzēšanas vēsturi pieejamu bezsaistē.

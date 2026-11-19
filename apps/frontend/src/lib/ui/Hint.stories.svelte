@@ -67,3 +67,22 @@
     </Hint>
   </div>
 </Story>
+
+<Story
+  name="Plain"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'A plain hint has no box. Use it for a short note below a form or an action.'
+      }
+    }
+  }}
+>
+  <div class="flex w-80 flex-col gap-3">
+    <Hint plain icon="icon-[uil--shield-check]">
+      Your provider asks you to approve this sign-in.
+    </Hint>
+    <Hint plain tone="warning">This link expires in ten minutes.</Hint>
+  </div>
+</Story>

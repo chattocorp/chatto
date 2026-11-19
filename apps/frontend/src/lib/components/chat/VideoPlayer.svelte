@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import type { VideoProcessingStatus } from '@chatto/client/timeline/messageAttachments';
   import { fullscreenVideo } from '$lib/state/globals.svelte';
   import VideoProcessingPlaceholder from './VideoProcessingPlaceholder.svelte';
@@ -14,7 +14,7 @@
     positiveVideoDimension as positiveDimension,
     videoFrameStyle
   } from '$lib/media/videoFrame';
-  import { LoadingFog } from '$lib/ui';
+  import { LoadingFog, PreviewToolbar } from '$lib/ui';
 
   import 'vidstack/player/styles/default/theme.css';
   import 'vidstack/player/styles/default/layouts/video.css';
@@ -58,7 +58,9 @@
     viewer = false,
     onPlaybackChange,
     onMediaError,
-    onPosterError
+    onPosterError,
+    actions,
+    onOpen
   }: {
     status: VideoProcessingStatus;
     variants?: Variant[];
@@ -81,6 +83,10 @@
     onPlaybackChange?: (active: boolean) => void;
     onMediaError?: () => void | Promise<string | null>;
     onPosterError?: () => void;
+    /** Permission-gated management actions below the player. */
+    actions?: Snippet;
+    /** Open a converted GIF in the attachment viewer from its preview canvas. */
+    onOpen?: () => void;
   } = $props();
 
   // Existing processed videos can carry stale encoded dimensions. Once the
@@ -222,15 +228,6 @@
         fullscreenFallbackSource,
         refreshSource
       );
-
-      // Request native fullscreen on the overlay after Svelte renders it.
-      // tick() preserves the user activation from this click event.
-      tick().then(() => {
-        document
-          .querySelector('.fullscreen-overlay')
-          ?.requestFullscreen()
-          .catch(() => {});
-      });
     }
 
     // Use capture phase so we intercept before Vidstack's internal handler.
@@ -304,22 +301,46 @@
 
 {#if (status === 'COMPLETED' && playbackSource) || status === 'PENDING' || status === 'PROCESSING'}
   <!-- Keep the same frame while loading, processing, and player registration change. -->
-  <div class={['my-1.5 preview-frame', !viewer && 'preview-media-frame']} style={frameStyle}>
+  <div
+    class={[
+      'my-1.5 preview-frame',
+      viewer ? 'flex min-h-0 flex-col' : 'preview-media-frame',
+      actions && 'min-w-14'
+    ]}
+    style={frameStyle}
+  >
     {#if status === 'COMPLETED' && selectedVariant && autoLoop}
-      <!-- Converted GIFs use native video for reliable autoplay and looping. -->
-      <video
-        autoplay
-        loop
-        muted
-        playsinline
-        data-autoloop
-        onerror={handlePlayerError}
-        onloadedmetadata={handleVideoMetadata}
-        class="block h-full w-full preview-content object-contain"
-        aria-describedby={describedBy}
-      >
-        <source src={selectedVariant.url} type="video/mp4" onerror={onMediaError} />
-      </video>
+      {#snippet loopPreview()}
+        <!-- Converted GIFs use native video for reliable autoplay and looping. -->
+        <video
+          autoplay
+          loop
+          muted
+          playsinline
+          data-autoloop
+          onerror={handlePlayerError}
+          onloadedmetadata={handleVideoMetadata}
+          style:max-width={autoLoop && actions ? 'var(--preview-media-width)' : undefined}
+          class="mx-auto block h-full w-full preview-content object-contain"
+          aria-describedby={describedBy}
+        >
+          <source src={selectedVariant.url} type="video/mp4" onerror={onMediaError} />
+        </video>
+      {/snippet}
+      {#if onOpen}
+        <button
+          type="button"
+          class="mx-auto block h-full w-full cursor-pointer preview-content"
+          style:max-width={actions ? 'var(--preview-media-width)' : undefined}
+          aria-label={m('room.attachment.view_label', { filename })}
+          aria-describedby={describedBy}
+          onclick={onOpen}
+        >
+          {@render loopPreview()}
+        </button>
+      {:else}
+        {@render loopPreview()}
+      {/if}
     {:else if status === 'COMPLETED' && elementsReady}
       <!-- Read the prop only on use: a rerun attachment would lose its playback state. -->
       <media-player
@@ -329,7 +350,7 @@
         stream-type="on-demand"
         playsinline
         onerror={handlePlayerError}
-        class="block h-full w-full preview-content"
+        class={['block h-full w-full preview-content', viewer ? 'min-h-0' : 'min-h-32']}
         aria-describedby={describedBy}
       >
         <media-provider>
@@ -343,67 +364,68 @@
           {/if}
         </media-provider>
         <media-video-layout></media-video-layout>
-        <!-- Vidstack's compact layout omits PiP; use its native button beside casting. -->
-        <media-controls class="vds-controls preview-pip-controls">
-          <media-tooltip class="vds-tooltip">
-            <media-tooltip-trigger>
-              <media-pip-button
-                class="vds-pip-button vds-button preview-pip-button"
-                aria-label={m('voice.picture_in_picture')}
-              >
-                <span
-                  class="iconify icon-[mdi--picture-in-picture-bottom-right] size-6"
-                  aria-hidden="true"
-                ></span>
-              </media-pip-button>
-            </media-tooltip-trigger>
-            <media-tooltip-content class="vds-tooltip-content" placement="bottom">
-              {m('voice.picture_in_picture')}
-            </media-tooltip-content>
-          </media-tooltip>
-        </media-controls>
+        <!-- Vidstack's compact layout omits PiP; retain it beside the top controls. -->
+        <media-pip-button
+          class="compact-pip vds-button"
+          aria-label={m('voice.picture_in_picture')}
+          title={m('voice.picture_in_picture')}
+        >
+          <span class="icon-[mdi--picture-in-picture-bottom-right] text-xl" aria-hidden="true"
+          ></span>
+        </media-pip-button>
       </media-player>
     {:else if status === 'COMPLETED'}
-      <LoadingFog class="h-full w-full" />
+      <LoadingFog class={autoLoop ? 'h-full w-full' : 'h-full min-h-32 w-full'} />
     {:else}
       <VideoProcessingPlaceholder
         label={status === 'PENDING' ? m('media.video_queued') : m('media.video_processing')}
       />
     {/if}
+    {#if actions}<PreviewToolbar>{@render actions()}</PreviewToolbar>{/if}
   </div>
 {:else if status === 'FAILED'}
-  <div class="my-1.5 flex items-center gap-3 preview-frame px-4 py-3" style={frameStyle}>
-    <span aria-hidden="true" class="iconify icon-[uil--exclamation-triangle] text-lg text-danger"
-    ></span>
-    <div class="text-sm text-muted">
-      {m('media.video_processing_failed')}
-      {#if failureMessage}
-        <span class="block text-xs text-muted/70">{failureMessage}</span>
-      {/if}
+  <div class="my-1.5 preview-frame" style={frameStyle}>
+    <div class="flex items-center gap-3 px-4 py-3">
+      <span aria-hidden="true" class="iconify icon-[uil--exclamation-triangle] text-lg text-danger"
+      ></span>
+      <div class="text-sm text-muted">
+        {m('media.video_processing_failed')}
+        {#if failureMessage}
+          <span class="block text-xs text-muted/70">{failureMessage}</span>
+        {/if}
+      </div>
     </div>
+    {#if actions}<PreviewToolbar>{@render actions()}</PreviewToolbar>{/if}
   </div>
 {:else}
-  <div class="my-1.5 flex items-center gap-2 preview-frame px-3 py-2">
-    <span aria-hidden="true" class="iconify icon-[uil--video] text-lg text-muted"></span>
-    <span class="text-sm">{filename}</span>
+  <div class="my-1.5 preview-frame" style={frameStyle}>
+    <div class="flex items-center gap-2 px-3 py-2">
+      <span aria-hidden="true" class="iconify icon-[uil--video] text-lg text-muted"></span>
+      <span class="text-sm">{filename}</span>
+    </div>
+    {#if actions}<PreviewToolbar>{@render actions()}</PreviewToolbar>{/if}
   </div>
 {/if}
 
 <style>
-  /* Vidstack's runtime layout attributes need selectors beyond Tailwind utilities. */
-  :global(media-video-layout:not([data-sm])) ~ .preview-pip-controls {
+  /* Vidstack creates its layout and state attributes outside Svelte markup. */
+  .compact-pip {
     display: none;
   }
 
-  .preview-pip-controls {
-    --media-button-size: var(--video-sm-button-size, 36px);
-  }
-
-  .preview-pip-button {
+  :global(
+      media-player[data-can-pip][data-controls][data-started]:has(
+          media-video-layout[data-size='sm']
+        )
+    )
+    .compact-pip {
+    display: flex;
     position: absolute;
-    top: 4px;
-    left: calc(var(--video-sm-button-size, 36px) + 12px);
-    pointer-events: auto;
+    /* Match Vidstack's compact row: 2px padding, 36px buttons, 2.5px gaps. */
+    --media-button-size: var(--video-sm-button-size, 36px);
+    top: 2px;
+    inset-inline-end: calc(var(--video-sm-button-size, 36px) + 7px);
+    z-index: 10;
   }
 
   /* Hide menus from Vidstack's default layout — not useful for embedded chat videos. */

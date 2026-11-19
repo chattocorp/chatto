@@ -23,9 +23,17 @@ export default {
   ignoreBinaries: ['mise', 'playwright'],
   ignoreDependencies: ['gemoji'],
   workspaces: {
+    ci: {
+      // Runling loads the console configuration and workflows by path.
+      entry: ['runling.config.ts', 'workflows/*.ts']
+    },
     '.': {
       // The lifecycle tests launch the fixture in a child process.
-      entry: ['tools/*.mjs', 'tools/fixtures/paseo-lifecycle.mjs'],
+      entry: [
+        'tools/*.mjs',
+        'tools/slack/test-slack-markdown.mjs',
+        'tools/fixtures/paseo-lifecycle.mjs'
+      ],
       project: ['tools/**/*.mjs'],
       // These commands come from mise, the operating system, or Paseo.
       ignoreBinaries: ['go', 'buf', 'gofmt', 'traefik', 'paseo', 'python3'],
@@ -41,6 +49,9 @@ export default {
         'playwright.compat.config.ts',
         'e2e/remote-compatibility.compat.ts',
         'scripts/*.mjs',
+        // Knip does not trace the stylesheet import in the root Svelte layout.
+        // The stylesheets import fonts, Tailwind, and the Iconify plugin.
+        'src/app.css',
         // Svelte template imports and ambient Window declarations are not traced by Knip.
         'src/lib/components/messages/EntityLinkMenu.svelte',
         'src/lib/desktop/bridge.ts'
@@ -49,7 +60,7 @@ export default {
         '.storybook/**/*.{css,js,ts}',
         'e2e/**/*.ts',
         'scripts/**/*.mjs',
-        'src/**/*.{js,ts,svelte}'
+        'src/**/*.{css,js,ts,svelte}'
       ],
       ignoreDependencies: ['@iconify/json', 'svelte2tsx'],
       ignoreIssues: {

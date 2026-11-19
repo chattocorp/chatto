@@ -46,11 +46,10 @@
   let selectedUser = $state<User | null>(null);
   const searchDebounce = useDebounce();
   const usersQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const search = activeSearch;
     return {
-      queryKey: directoryQueryKeys.users(serverId, connection, search, SEARCH_LIMIT),
+      queryKey: directoryQueryKeys.users(serverScope, search, SEARCH_LIMIT),
       queryFn: ({ signal }) =>
         connection.getAPI(createMemberDirectoryAPI).listUsers(search, SEARCH_LIMIT, 0, { signal }),
       enabled: search.length > 0

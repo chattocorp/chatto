@@ -26,6 +26,26 @@ func withoutGenerationUseGrace(c *ChattoCore) {
 	c.generationUseGraceOverride = &grace
 }
 
+// Both the renewable session and its access token use the same absolute cap.
+func TestCreateBearerSessionWithFractionalLifetime(t *testing.T) {
+	ns, _ := testutil.StartNATS(t)
+	cfg := testCoreConfig()
+	cfg.AuthTokenTTL = time.Millisecond
+	c := startReplica(t, ns, cfg)
+	ctx := testContext(t)
+	user, err := c.CreateUser(ctx, SystemActorID, "short-session", "Short session", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := c.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !session.AccessTokenExpiresAt.Equal(session.SessionExpiresAt) {
+		t.Fatalf("access expiry %v differs from session expiry %v", session.AccessTokenExpiresAt, session.SessionExpiresAt)
+	}
+}
+
 func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testing.T) {
 	ns, _ := testutil.StartNATS(t)
 	first := startReplica(t, ns, testCoreConfig())

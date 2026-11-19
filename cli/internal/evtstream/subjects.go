@@ -206,6 +206,7 @@ const (
 	EventRBACRoleCreated            = "role_created"
 	EventRBACRoleDisplayNameChanged = "role_display_name_changed"
 	EventRBACRoleDescriptionChanged = "role_description_changed"
+	EventRBACRoleProtectionChanged  = "role_protection_changed"
 	EventRBACRolePingableChanged    = "role_pingable_changed"
 	EventRBACRoleDeleted            = "role_deleted"
 	EventRBACRolesReordered         = "roles_reordered"
@@ -496,6 +497,8 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventRBACRoleDisplayNameChanged
 	case *evtv1.Event_RbacRoleDescriptionChanged:
 		return EventRBACRoleDescriptionChanged
+	case *evtv1.Event_RbacRoleProtectionChanged:
+		return EventRBACRoleProtectionChanged
 	case *evtv1.Event_RbacRolePingableChanged:
 		return EventRBACRolePingableChanged
 	case *evtv1.Event_AuthorizationFenceAdvanced:

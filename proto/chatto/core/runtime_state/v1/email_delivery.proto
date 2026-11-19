@@ -1,0 +1,17 @@
+syntax = "proto3";
+package chatto.core.runtime_state.v1;
+
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+
+// EmailDelivery is encrypted before storage in the expiring runtime record.
+message EmailDelivery {
+  string to = 1;
+  string subject = 2;
+  string body = 3;
+}
+
+// SealedEmailDelivery binds ciphertext to its runtime key through associated data.
+message SealedEmailDelivery {
+  bytes nonce = 1;
+  bytes ciphertext = 2;
+}

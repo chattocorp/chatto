@@ -1,7 +1,7 @@
 # FDR-041: Transactional Email Delivery
 
 **Status:** Active
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-11-17
 
 ## Overview
 
@@ -9,7 +9,10 @@ Chatto sends transactional email for account registration, email-address verific
 
 ## Behavior
 
-- Local-account registration, email-address verification, and password-reset flows use the selected transactional email transport without changing their user-facing workflow.
+- Local-account registration, email-address verification, and password-reset requests accept mail into a durable queue. Success means queue acceptance, not transport or recipient delivery.
+- Accepted mail survives process restart. Transport failures retry with increasing delays until the original code or reset-link expiry. Queueing does not extend that expiry or refund a delivery limit.
+- The Jobs page shows mail attempts and safe failure categories without addresses, codes, reset links, or message content. Expired jobs cannot be retried.
+- A crash after transport acceptance can cause a duplicate. Mail content is encrypted while it waits and is removed after transport acceptance or expiry.
 - Existing SMTP configuration continues to work unchanged. Operators select JMAP explicitly and configure an HTTPS JMAP session URL, bearer token, and sender address.
 - JMAP uses an available sending identity matching the configured sender and a Drafts mailbox. Operators can explicitly select the account, identity, or Drafts mailbox when automatic selection is unsuitable. Chatto requests removal of the temporary draft after submission and records a safe operator warning if that cleanup fails.
 - A successful JMAP request means the JMAP server accepted the submission. Chatto does not claim final delivery to every recipient.
@@ -46,6 +49,6 @@ Chatto sends transactional email for account registration, email-address verific
 
 ## Related
 
-- **ADRs:** None
+- **ADRs:** [ADR-123](../adr/ADR-123-durable-background-jobs.md)
 - **FDRs:** FDR-018 (Account Lifecycle), FDR-023 (Authentication & Sessions)
 - **Issues:** [#1440](https://github.com/chattocorp/chatto/issues/1440), [#1454](https://github.com/chattocorp/chatto/issues/1454)

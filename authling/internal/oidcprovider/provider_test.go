@@ -331,8 +331,12 @@ func TestValidateCIMDEnforcesPublicCodeClientProfile(t *testing.T) {
 		{"client secret", func(d *cimdDocument) { d.TokenEndpointAuthMethod = "client_secret_basic" }},
 		{"redirect fragment", func(d *cimdDocument) { d.RedirectURIs = []string{"https://client.example/callback#stolen"} }},
 		{"redirect downgrade", func(d *cimdDocument) { d.RedirectURIs = []string{"http://client.example/callback"} }},
+		// Configured clients may register loopback HTTP redirects on any issuer.
+		// Self-asserted CIMD clients may not, unless the issuer is loopback.
+		{"loopback redirect downgrade", func(d *cimdDocument) { d.RedirectURIs = []string{"http://localhost:5173/callback"} }},
 		{"implicit grant", func(d *cimdDocument) { d.GrantTypes = []string{"implicit"} }},
 		{"foreign client URI", func(d *cimdDocument) { d.ClientURI = "https://attacker.example/" }},
+		{"client URI downgrade", func(d *cimdDocument) { d.ClientURI = "http://client.example/" }},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -347,7 +351,7 @@ func TestValidateCIMDEnforcesPublicCodeClientProfile(t *testing.T) {
 }
 
 func TestCIMDRejectsSpecialUseNetworksAndUnsafeIdentifiers(t *testing.T) {
-	for _, raw := range []string{"http://client.example/client.json", "https://client.example/", "https://client.example/../metadata", "https://client.example/%2e./metadata", "https://client.example/meta%2fdata", "https://user@client.example/metadata", "https://client.example/metadata?variant=1"} {
+	for _, raw := range []string{"http://client.example/client.json", "http://localhost/", "http://8.8.8.8/client.json", "http://localhost.example/client.json", "https://client.example/", "https://client.example/../metadata", "https://client.example/%2e./metadata", "https://client.example/meta%2fdata", "https://user@client.example/metadata", "https://client.example/metadata?variant=1"} {
 		if _, err := validateClientIdentifierURL(raw); err == nil {
 			t.Fatalf("unsafe client identifier %q was accepted", raw)
 		}

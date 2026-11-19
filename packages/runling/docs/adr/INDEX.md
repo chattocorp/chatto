@@ -18,3 +18,5 @@ These records belong to Runling and use independent numbering. See the
 | ADR-011 | [In-process hosting and keyed batching](ADR-011-hosting-and-batching.md)                       | Accepted                       | 2026-10-26 |
 | ADR-012 | [Router-controlled workflow reactivation](ADR-012-router-controlled-reactivation.md)           | Accepted                       | 2026-10-27 |
 | ADR-013 | [Source exports in the workspace](ADR-013-source-workspace-exports.md)                         | Accepted                       | 2026-10-27 |
+| ADR-014 | [Explicit ownership of Docker resources](ADR-014-managed-docker-resources.md)                  | Accepted                       | 2026-11-09 |
+| ADR-015 | [Paged console output](ADR-015-paged-console-output.md)                                        | Accepted                       | 2026-11-09 |

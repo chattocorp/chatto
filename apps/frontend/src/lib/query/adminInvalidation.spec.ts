@@ -12,16 +12,17 @@ import { queryClient } from './queryClient';
 
 const connection = { queryScope: 'admin-invalidation-test' };
 const serverId = 'server-1';
-const tierKey = adminQueryKeys.permissionTiers(serverId, connection);
-const catalogKey = adminQueryKeys.roleCatalog(serverId, connection);
-const roleKey = adminQueryKeys.rolePermissions(serverId, connection, 'moderator');
-const membersKey = adminQueryKeys.roleMembers(serverId, connection, 'moderator');
-const roleDetailsKey = adminQueryKeys.role(serverId, connection, 'moderator');
-const userKey = adminQueryKeys.userPermissions(serverId, connection, 'user-1');
-const roomKey = adminQueryKeys.room(serverId, connection, 'room-1');
-const groupKey = adminQueryKeys.roomGroup(serverId, connection, 'group-1');
-const roomPermissionsKey = adminQueryKeys.permissionTier(serverId, connection, 'room-1', null);
-const groupPermissionsKey = adminQueryKeys.permissionTier(serverId, connection, null, 'group-1');
+const scope = { serverId, connection };
+const tierKey = adminQueryKeys.permissionTiers(scope);
+const catalogKey = adminQueryKeys.roleCatalog(scope);
+const roleKey = adminQueryKeys.rolePermissions(scope, 'moderator');
+const membersKey = adminQueryKeys.roleMembers(scope, 'moderator');
+const roleDetailsKey = adminQueryKeys.role(scope, 'moderator');
+const userKey = adminQueryKeys.userPermissions(scope, 'user-1');
+const roomKey = adminQueryKeys.room(scope, 'room-1');
+const groupKey = adminQueryKeys.roomGroup(scope, 'group-1');
+const roomPermissionsKey = adminQueryKeys.permissionTier(scope, 'room-1', null);
+const groupPermissionsKey = adminQueryKeys.permissionTier(scope, null, 'group-1');
 
 beforeEach(() => {
   queryClient.clear();
@@ -39,7 +40,7 @@ beforeEach(() => {
 
 describe('admin room-layout query invalidation', () => {
   it('invalidates only the named room and group snapshots', () => {
-    invalidateAdminRoomLayoutQueries(serverId, connection, 'room-1', 'group-1');
+    invalidateAdminRoomLayoutQueries(scope, 'room-1', 'group-1');
 
     expect(queryClient.getQueryState(roomKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(groupKey)?.isInvalidated).toBe(true);
@@ -47,8 +48,8 @@ describe('admin room-layout query invalidation', () => {
   });
 
   it('synchronously purges removed room and group snapshots', () => {
-    purgeAdminRoomQuery(serverId, connection, 'room-1');
-    purgeAdminRoomGroupQuery(serverId, connection, 'group-1');
+    purgeAdminRoomQuery(scope, 'room-1');
+    purgeAdminRoomGroupQuery(scope, 'group-1');
 
     expect(queryClient.getQueryData(roomKey)).toBeNull();
     expect(queryClient.getQueryData(groupKey)).toBeNull();
@@ -61,7 +62,7 @@ describe('admin room-layout query invalidation', () => {
 
 describe('admin role query invalidation', () => {
   it('invalidates role listings after metadata or membership changes', () => {
-    invalidatePermissionTiers(serverId, connection);
+    invalidatePermissionTiers(scope);
 
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(catalogKey)?.isInvalidated).toBe(true);
@@ -70,7 +71,7 @@ describe('admin role query invalidation', () => {
   });
 
   it('invalidates role counts, details, and derived user matrices after permission changes', () => {
-    invalidateRolePermissionDependents(serverId, connection, 'moderator');
+    invalidateRolePermissionDependents(scope, 'moderator');
 
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(catalogKey)?.isInvalidated).toBe(true);
@@ -79,7 +80,7 @@ describe('admin role query invalidation', () => {
   });
 
   it('removes a deleted role matrix and invalidates every derived cache', () => {
-    removeDeletedRoleQueries(serverId, connection, 'moderator');
+    removeDeletedRoleQueries(scope, 'moderator');
 
     expect(queryClient.getQueryData(roleKey)).toBeUndefined();
     expect(queryClient.getQueryData(roleDetailsKey)).toBeUndefined();

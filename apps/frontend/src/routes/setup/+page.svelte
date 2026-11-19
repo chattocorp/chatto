@@ -1,9 +1,12 @@
 <script lang="ts">
+  import { MAX_LOGIN_LENGTH } from '$lib/validation/login';
   import { passwordValidationError } from '$lib/passwordValidation';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { completeServerSetup } from '$lib/api/setup';
+  import { signInWithPassword } from '$lib/auth/passwordSignIn';
+  import { markOwnerOnboardingPending } from '$lib/state/ownerOnboarding';
   import { getPublicServerInfo } from '@chatto/client/api/server';
   import { m } from '$lib/i18n/messages';
   import chattoIcon from '$lib/assets/chatto-icon.png';
@@ -26,6 +29,25 @@
       ? m('common.validation.passwords_match')
       : undefined
   );
+
+  /**
+   * Sign in with the new owner credentials through the normal password login.
+   * Setup never mints a session itself. If sign-in fails, the installer can
+   * still sign in on the login page.
+   */
+  async function signInAsOwner() {
+    const credentials = { login, password };
+    password = '';
+    passwordConfirmation = '';
+    try {
+      await signInWithPassword(credentials.login, credentials.password, m('auth.login.failed'));
+      const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');
+      if (await completeOriginAuthentication({ resumeReturnNavigation: false })) return;
+      await goto(resolve('/chat'));
+    } catch {
+      await goto(resolve('/login'), { invalidateAll: true });
+    }
+  }
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
@@ -50,10 +72,8 @@
         displayName,
         password
       });
-      password = '';
-      passwordConfirmation = '';
-      // Use normal sign-in; setup never mints a second kind of session.
-      await goto(resolve('/login'), { invalidateAll: true });
+      markOwnerOnboardingPending();
+      await signInAsOwner();
     } catch (cause) {
       // A failed response can follow a committed batch. Re-read discovery
       // before offering a retry, and retain ordinary sign-in as recovery.
@@ -165,7 +185,7 @@
                   label={m('common.username')}
                   bind:value={login}
                   autocomplete="username"
-                  maxlength={32}
+                  maxlength={MAX_LOGIN_LENGTH}
                   required
                   disabled={busy}
                 />

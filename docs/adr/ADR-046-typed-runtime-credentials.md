@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-30
 
-**Updated:** 2026-08-26
+**Updated:** 2026-11-10
 
 **Status:** Partially superseded
 
@@ -59,7 +59,7 @@ The credential types are:
 Fresh-auth metadata, auth generation, source, request metadata, explicit
 expiry, validation, and revocation eligibility belong to the typed runtime
 credential record. HTTP edge code may still extract credentials differently from
-`Authorization` headers and signed browser cookies, but both presentations must
+`Authorization` headers and opaque browser cookies, but both presentations must
 normalize to the same validated runtime-credential result before user context,
 logout, audit, realtime subscription, CSRF binding, or session-termination
 behavior is applied. Request context carries the presentation kind plus the
@@ -85,15 +85,14 @@ The migration completed at the 0.5 compatibility boundary:
    `chatto_auth_<slot>` cookies. Retain the signed and optionally encrypted
    `chatto_session` cookie only for short-lived browser-flow state. Retired
    signed-session fields such as `user_id` and `cookie_session_id` are never
-   accepted as authentication inputs. During 0.5 only, a dedicated same-origin
-   migration route can read the immediately previous typed
-   `runtime_credential_id` field and move its existing handle to SCS.
+   accepted as authentication inputs. Version 0.6 also rejects the retired
+   `runtime_credential_id` field. The 0.5 migration route is removed.
 5. Keep cookie renewal, revocation, logout audit, live session termination, and
    auth-context injection on the shared credential path once the presentation
    channel has been checked.
 6. Stop reading, refreshing, revoking, or scanning legacy `cookie_session.*`
    records in 0.5. Any remaining records are inert and disappear through their
-   existing TTL. The 0.5 bridge does not read this older storage shape.
+   existing TTL.
 
 ## Consequences
 
@@ -112,10 +111,9 @@ story. Creating or resuming a first-party session uses the same typed runtime
 credential model. The origin browser presents a cookie credential, while a
 programmatic client can use the bearer presentation.
 
-The 0.5 cutoff keeps active typed browser sessions from 0.4 through a one-time
-automatic migration. Browsers that carry the older `cookie_session.*` shape
-must sign in again. After migration, every active
-browser session follows typed validation and explicit revocation rules.
+Version 0.6 removes the one-time migration of typed browser sessions from
+0.4. Users whose browsers still have only the retired signed-session fields
+must sign in again. Existing SCS cookie sessions keep their normal lifecycle.
 Cookie records use explicit expiry plus stable-handle renewal, while bearer
 access records use fixed expiry and a stable `renewable_session.*` authority.
 User-wide cleanup covers both

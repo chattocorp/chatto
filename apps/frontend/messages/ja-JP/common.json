@@ -43,7 +43,7 @@
       "password_min_bytes": "パスワードが短すぎます",
       "password_max": "パスワードが長すぎます",
       "username_min": "少なくとも 2 文字である必要があります",
-      "username_max": "最大 32 文字である必要があります",
+      "username_max": "最大 {max} 文字である必要があります",
       "username_charset": "文字、数字、ドット、ダッシュ、アンダースコアのみ",
       "username_end_alphanumeric": "文字または数字で終わる必要があります",
       "username_no_consecutive_periods": "連続した期間は許可されません",

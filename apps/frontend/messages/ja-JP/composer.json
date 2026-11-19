@@ -33,9 +33,10 @@
     "slow_mode_bypassed": "低速モード：{interval}（あなたは対象外です）。",
     "slow_mode_rejected": "低速モードが有効です。次のメッセージを送信するまでお待ちください。",
     "threads_encouraged": "このルームではスレッドの使用が推奨されています。",
-    "recent_thread_confirm_title": "前のスレッドを続けますか？",
-    "recent_thread_confirm_body": "前のメッセージにはすでにスレッドがあります。このメッセージをどこに投稿しますか？",
+    "recent_thread_confirm_title": "最新のスレッドを続けますか？",
+    "recent_thread_confirm_body": "このルームの最新のメッセージにはスレッドがあります。このメッセージをどこに投稿しますか？",
     "post_as_new_message": "新しいメッセージとして投稿",
+    "start_new_thread": "新しいスレッドを開始",
     "continue_in_thread": "スレッドで続ける",
     "edit_failed": "メッセージの編集に失敗しました",
     "edit_empty": "メッセージを空にすることはできません",
@@ -48,10 +49,13 @@
       "video_disabled": "このサーバーでは動画のアップロードが無効になっています。",
       "prepare_failed": "添付ファイルの準備に失敗しました",
       "too_many": "1件のメッセージに添付できるファイルは{max}個までです。超過分のファイルは追加されませんでした。",
-      "too_large": "{filename} は大きすぎます ({size})。上限は {limit} です。"
+      "too_large": "{filename} は大きすぎます ({size})。上限は {limit} です。",
+      "compress_failed": "動画を制限内に圧縮できませんでした。別の形式または短い動画をお試しください。",
+      "compressing": "動画を圧縮中… {percentage}%"
     },
     "format": {
       "underline": "下線",
+      "strikethrough": "取り消し線",
       "bold": "太字",
       "italic": "斜体",
       "inline_code": "インラインコード",

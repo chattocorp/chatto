@@ -100,6 +100,27 @@ server versions. Follow its upgrade recommendation if one appears.
 
 </Steps>
 
+## Browser cookie upgrades in 0.6
+
+Chatto 0.6 removes `POST /auth/browser/session/migrate`. Browsers that still
+have only a Chatto 0.4 session cookie must sign in again. Existing Chatto 0.5
+browser sessions keep their normal login, renewal, logout, and realtime behavior.
+
+## Shield Mode role selection in 0.6
+
+Direct account grants apply without Shield Mode. To activate grants from
+protected roles, read `privileged_mode.role_selection.available_roles` from
+`ViewerService.GetViewer`. Send one or more selected names in the `role_names`
+field of `ViewerService.ActivatePrivilegedRoles`. An empty list of available
+roles means the user has no roles to activate.
+
+Clients without a role picker can continue to call
+`ViewerService.ActivatePrivilegedMode` to select all assigned protected roles
+when starting an activation. A retry during the active window keeps the
+original selection and deadline, even if role assignments have changed.
+Deactivate before choosing a different set of roles. See
+[Privileged mode](/guides/operations/permissions/#privileged-mode).
+
 ## Migrate from 0.4 to 0.5
 
 This migration starts from **0.4.26**, the last stable 0.4 release. It describes
@@ -116,6 +137,7 @@ to a mix of 0.4 and 0.5 servers. See the
 
 | Area | What changed | What to do |
 | ---- | ------------ | ---------- |
+| Thread participants | Participant previews, counts, and `ListThreadParticipants` contain distinct current reply authors. | To show all thread participants, add the root message author and remove duplicates. The root author is first in the preview if they have a current reply, so the preview is sufficient to adjust the total count. |
 | Direct messages | `StartDM` rejects new conversations with more than two distinct participants, including the caller, with `INVALID_ARGUMENT`. Existing group DMs remain accessible. | Use a channel room for new group conversations. User pages use `/chat/<server>/user/<userId>`; old one-to-one DM URLs redirect there. |
 | Realtime | 0.5 accepts only protocol 4. The protocol 1 frames, such as `hello`, `subscribe_events`, `ping`, and `error`, are removed. | Send one `RealtimeSubscribe` with protocol version `4`. Handle `snapshot`, `event`, `caught_up`, `heartbeat`, and `close`. See [Realtime](/guides/integrations/realtime-protocol/). |
 | Human sessions | Access tokens are short-lived. A rotating refresh credential renews them. 0.5 rejects bearer tokens from 0.4. | Sign in again once. Store `refresh_token` and renew at `/oauth/token` before `expires_in` ends. `CreateExternalIdentityAccountResponse` also returns these fields. A browser client on a different origin must use OAuth. See [Chatto API](/guides/integrations/chatto-api/). |

@@ -1131,6 +1131,7 @@ func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 	if redirectURL := approveResp["redirectUrl"]; !strings.HasPrefix(redirectURL, "https://client.example/servers/callback?") || !strings.Contains(redirectURL, "code=") || !strings.Contains(redirectURL, "state=state123") {
 		t.Fatalf("unexpected approve redirectUrl %q", redirectURL)
 	}
+	requireOAuthIssuer(t, approveResp["redirectUrl"], "https://chatto.example")
 	cookies = mergeCookies(cookies, approveW.Result().Cookies())
 
 	consented, err := s.core.HasOAuthClientConsent(context.Background(), user.Id, testOAuthClientID, "https://client.example")
@@ -1150,6 +1151,20 @@ func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 	}
 	if location := secondW.Header().Get("Location"); !strings.HasPrefix(location, "https://client.example/servers/callback?") || !strings.Contains(location, "code=") {
 		t.Fatalf("second authorize did not mint code directly, Location=%q", location)
+	}
+	requireOAuthIssuer(t, secondW.Header().Get("Location"), "https://chatto.example")
+}
+
+// requireOAuthIssuer fails the test unless the authorization response URL
+// carries exactly the expected `iss` parameter.
+func requireOAuthIssuer(t *testing.T, responseURL, want string) {
+	t.Helper()
+	parsed, err := url.Parse(responseURL)
+	if err != nil {
+		t.Fatalf("parse authorization response: %v", err)
+	}
+	if got := parsed.Query()["iss"]; len(got) != 1 || got[0] != want {
+		t.Fatalf("authorization response iss = %q, want %q", got, want)
 	}
 }
 
@@ -1632,7 +1647,7 @@ func TestOfficialMCPClientCompletesChattoOAuthAndDiscoversTools(t *testing.T) {
 	for _, tool := range tools.Tools {
 		upgradedTools = append(upgradedTools, tool.Name)
 	}
-	if !slices.Equal(upgradedTools, []string{"get_current_user", "get_server_info", "list_rooms", "post_message"}) {
+	if !slices.Equal(upgradedTools, []string{"add_reaction", "delete_message", "get_current_user", "get_server_info", "list_rooms", "post_message", "remove_reaction", "send_direct_message", "update_message"}) {
 		t.Fatalf("upgraded tool catalog = %v", upgradedTools)
 	}
 }
@@ -1673,6 +1688,7 @@ func TestOAuthConsentDenyRedirectsAccessDenied(t *testing.T) {
 	if !strings.HasPrefix(redirectURL, "https://client.example/servers/callback?") || !strings.Contains(redirectURL, "error=access_denied") || !strings.Contains(redirectURL, "state=deny-state") || strings.Contains(redirectURL, "code=") {
 		t.Fatalf("unexpected deny redirectUrl %q", redirectURL)
 	}
+	requireOAuthIssuer(t, redirectURL, "https://chatto.example")
 	consented, err := s.core.HasOAuthClientConsent(context.Background(), user.Id, testOAuthClientID, "https://client.example")
 	if err != nil {
 		t.Fatalf("HasOAuthClientConsent: %v", err)
@@ -1934,8 +1950,9 @@ func TestCookiePresentedCredentialRejectsRetiredSignedSessionFields(t *testing.T
 
 	s.router.GET("/test/retired-cookie-session", func(c *gin.Context) {
 		session := sessions.Default(c)
-		session.Set(retiredSessionKeyUserID, "Ulegacy")
-		session.Set(retiredSessionKeyCredentialID, "cht_CSlegacy")
+		session.Set("runtime_credential_id", "legacy-handle")
+		session.Set("user_id", "Ulegacy")
+		session.Set("cookie_session_id", "cht_CSlegacy")
 		if err := session.Save(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1945,7 +1962,7 @@ func TestCookiePresentedCredentialRejectsRetiredSignedSessionFields(t *testing.T
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "retired signed-session fields authenticated"})
 			return
 		}
-		if session.Get(retiredSessionKeyUserID) == nil || session.Get(retiredSessionKeyCredentialID) == nil {
+		if session.Get("user_id") == nil || session.Get("cookie_session_id") == nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "validation mutated retired signed-session fields"})
 			return
 		}

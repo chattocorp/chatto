@@ -41,6 +41,8 @@ questions are not promises of future behavior.
 - [Event sources](event-sources.md): external inputs, retained state, and reloads.
 - [Webhook routing](webhook-routing.md): HTTP delivery, run handles, and run registration.
 - [Timeouts](timeouts.md): deadlines and cancellation.
+- [Docker containers](docker.md): disposable commands, services, output, and cleanup.
+- [Git working trees](git.md): private source-file manifests and local changes.
 - [Server logs](server-logs.md): operational events.
 
 Keep examples and API details in these guides. Update the relevant FDR when

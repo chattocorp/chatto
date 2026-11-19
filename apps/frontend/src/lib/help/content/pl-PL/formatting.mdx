@@ -1,0 +1,135 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+Możesz formatować wiadomości Chatto za pomocą Markdown. Na przykład `**cześć**`
+wyświetla się jako **cześć**. Wpisz znaczniki samodzielnie albo zaznacz tekst i użyj paska formatowania.
+
+## Wybierz edytor i skrót wysyłania
+
+Otwórz <a href={resolve('/chat/preferences/composer')}>Preferencje aplikacji → Tworzenie wiadomości</a>
+i wybierz **Markdown**, aby edytować tekst źródłowy. Wybierz **Wizualny**, jeśli wolisz
+pracować ze sformatowanym tekstem. Pasek formatowania jest dostępny w obu edytorach.
+
+Ustawienie **Wysyłaj wiadomości za pomocą** kontroluje klawisz Enter:
+
+- **Return:** Enter wysyła wiadomość. Ctrl+Enter wstawia nowy wiersz, a na Macu robi to Command+Enter.
+- **Cmd/Ctrl+Return:** Ctrl+Enter wysyła wiadomość, a na Macu robi to Command+Enter.
+  Enter wstawia nowy wiersz.
+
+Zostaw pusty wiersz między akapitami.
+
+## Pogrubienie, kursywa, podkreślenie i przekreślenie
+
+Umieść znaczniki po obu stronach tekstu:
+
+- `**pogrubienie**` dla pogrubienia
+- `*kursywa*` dla kursywy
+- `__podkreślenie__` dla podkreślenia
+- `~~przekreślenie~~` dla przekreślenia
+
+<MarkdownSample source={"Sprawdź to **przed piątkiem**.\nData jest *wstępna*.\n__Wymagana akceptacja__ przed wydaniem.\nPoprzedni termin to ~~czwartek~~."} />
+
+W Chatto `__tekst__` oznacza podkreślenie. Jeśli w innym narzędziu Markdown używasz
+podwójnych podkreślników do pogrubienia, tutaj użyj podwójnych gwiazdek.
+
+Zaznacz tekst i naciśnij Ctrl+B, Ctrl+I lub Ctrl+U, aby go pogrubić, pochylić lub podkreślić.
+Na Macu użyj Command zamiast Ctrl. Przyciski paska wykonują te same działania.
+
+Nie wstawiaj spacji między znacznikami a tekstem: `**ważne**` działa;
+`** ważne **` nie stosuje pogrubienia.
+
+## Nagłówki i listy
+
+Zacznij nagłówek od znaków `#` i spacji. Każdy punkt listy zacznij od `- `, a każdy
+numerowany element od liczby i kropki, na przykład `1. `.
+
+<MarkdownSample source={"## Lista kontrolna wydania\n\nZanim zaczniemy:\n- Potwierdź wersję.\n- Powiadom zespół wsparcia.\n\nNastępnie:\n1. Wdróż aktualizację.\n2. Sprawdź stronę stanu.\n3. Opublikuj tutaj wynik."} />
+
+Przycisk **Nagłówek** wstawia nagłówek drugiego poziomu (`##`). Możesz samodzielnie
+wpisać poziomy od `#` do `######`.
+
+Użyj **Zwiększ wcięcie**, aby zagnieździć element pod poprzednim. Użyj **Zmniejsz wcięcie**,
+aby cofnąć go na poprzedni poziom. Zostaw pusty wiersz po liście, aby zacząć akapit.
+
+## Cytaty
+
+Każdy cytowany wiersz zacznij od `>` i spacji. Zostaw pusty wiersz po cytacie, zanim
+napiszesz odpowiedź.
+
+<MarkdownSample source={"> Czy możemy przenieść wydanie na piątek?\n\nTak. Końcowy przegląd odbędzie się w czwartek po południu."} />
+
+Wpisanie cytatu nie łączy go z oryginalną wiadomością. Aby odpowiedzieć na nią w wątku,
+użyj jej akcji odpowiedzi.
+
+## Kod
+
+Użyj pojedynczego odwróconego apostrofu po obu stronach krótkiego polecenia, nazwy pliku
+lub identyfikatora. Znaczniki formatowania wewnątrz kodu w wierszu pojawiają się tak, jak je wpiszesz.
+
+<MarkdownSample source={"Zanim zaczniesz, uruchom `git status`.\nUstawienie nazywa się `send_mode`.\nWpisz `**cześć**`, aby pogrubić cześć."} />
+
+Dla kilku wierszy umieść trzy odwrócone apostrofy w wierszu przed kodem i trzy w wierszu
+po nim. Dodaj nazwę języka zaraz po znacznikach otwierających, aby włączyć podświetlanie
+składni, na przykład `js`, `json` lub `bash`.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+Przycisk **Blok kodu** wstawia znaczniki otwierające i zamykające. Bez wiersza zamykającego
+reszta wiadomości staje się częścią bloku. Aby pokazać odwrócony apostrof wewnątrz kodu
+w wierszu, otocz tekst dwoma takimi znakami.
+
+## Linki
+
+Wklejony adres internetowy staje się linkiem. Aby pokazać etykietę zamiast adresu,
+umieść ją w nawiasach kwadratowych, a adres w okrągłych:
+
+```text
+Przeczytaj [informacje o wydaniu](https://example.com/releases).
+```
+
+Nie wstawiaj spacji między `]` a `(`. Aby podać link do pokoju lub wspomnieć kogoś w
+Chatto, wybierz pokój lub osobę z podpowiedzi edytora.
+
+## Przypisy
+
+Umieść odwołanie, na przykład `[^window]`, po tekście, do którego chcesz dodać przypis.
+W osobnym wierszu wpisz `[^window]:` i treść przypisu. Etykiety muszą być takie same.
+
+<MarkdownSample source={"Okno konserwacji trwa 30 minut.[^window]\n\n[^window]: Większość serwerów będzie niedostępna przez mniej niż pięć minut."} />
+
+Możesz też ustawić kursor po odpowiednim tekście i wybrać **Wstaw przypis** na pasku.
+Przypisów nie można wstawiać wewnątrz kodu w wierszu ani bloku kodu.
+
+## Tabele
+
+Oddzielaj kolumny znakiem `|` i umieść wiersz kresek pod nagłówkami.
+Użyj `---:`, aby wyrównać kolumnę do prawej, lub `:---:`, aby ją wyśrodkować.
+
+<MarkdownSample source={"| Środowisko | Wersja |\n| --- | ---: |\n| Testowe | 0.5 |\n| Produkcyjne | 0.4 |"} />
+
+Edytuj tabele w edytorze Markdown. Edytor Wizualny nie ma narzędzia do edycji tabel.
+
+## Wypróbuj całą wiadomość
+
+Edytuj poniższą wiadomość, aby wypróbować formatowanie. Podgląd zmienia się podczas
+pisania. Możesz przełączać między edytorami Markdown i Wizualnym. Nic, co tu wpiszesz,
+nie jest wysyłane do pokoju.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Piątkowe wydanie\n\nZakończ przegląd **przed 14:00**.\n\n1. Uruchom `git status`.\n2. Sprawdź informacje o wydaniu.\n3. Odpowiedz w tym wątku, gdy będziesz gotowy.\n\n> Co zrobić, jeśli sprawdzenie się nie powiedzie?\n\nOpublikuj tutaj błąd, zanim przejdziesz dalej."} />
+</div>
+
+## Gdy formatowanie wygląda nieprawidłowo
+
+- **Znaczniki nadal są widoczne.** Sprawdź, czy oba końce pasują i czy tuż wewnątrz
+  znaczników nie ma spacji. W kodzie widoczne znaczniki są zamierzone.
+- **Reszta wiadomości wygląda jak kod.** Umieść trzy zamykające odwrócone apostrofy w osobnym wierszu.
+- **Nagłówek lub lista pozostaje zwykłym tekstem.** Dodaj spację po `##`, `-` lub `1.`
+  i zacznij w nowym wierszu.
+- **Chcesz pokazać sam znak interpunkcyjny.** Umieść ukośnik odwrotny przed znacznikiem,
+  jak w `\*bez kursywy\*`, albo użyj kodu w wierszu do dosłownego przykładu.
+- **HTML pojawia się jako tekst.** Chatto nie przyjmuje surowego HTML do formatowania
+  wiadomości. Używaj Markdown zamiast znaczników takich jak `<b>` czy `<span>`.

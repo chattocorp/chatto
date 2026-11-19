@@ -30,6 +30,12 @@
   let pdfOpen = $state(false);
   const archiveDescription =
     'Project files and reference material for the next release.\n\nIncludes source files, illustrations, and notes from the design review.';
+  let textOpen = $state(false);
+  const textSource =
+    '# Server log\n\n  Indented line\twith a tab\n<em>Literal markup</em>\n' +
+    'A long log entry '.repeat(40) +
+    '\n' +
+    Array.from({ length: 50 }, (_, i) => `Line ${i + 1}: ready`).join('\n');
   let markdownOpen = $state(false);
   const markdownSource =
     '# Project review\n\nA **rendered Markdown** attachment.\n\n' +
@@ -172,6 +178,36 @@
         serverId="story"
         url={pdfUrl}
         busy={false}
+        onpreview={() => {}}
+        onerror={async () => null}
+      />
+    </AttachmentModal>
+  {/if}
+</Story>
+
+<Story name="Text document" asChild>
+  <button class="btn-action" onclick={() => (textOpen = true)}>Open text</button>
+  {#if textOpen}
+    <AttachmentModal
+      filename="console.txt"
+      contentType="text/plain"
+      size={2048}
+      downloadUrl={'data:text/plain;charset=utf-8,' + encodeURIComponent(textSource)}
+      ondownload={() => {}}
+      onclose={() => (textOpen = false)}
+    >
+      <AttachmentPreview
+        item={{
+          id: 'text',
+          filename: 'console.txt',
+          contentType: 'text/plain',
+          width: 0,
+          height: 0
+        }}
+        serverId="story"
+        url={null}
+        busy={false}
+        textContent={textSource}
         onpreview={() => {}}
         onerror={async () => null}
       />

@@ -445,8 +445,8 @@ func TestAssetCleanupDurableConsumerProcessesAcrossReplicas(t *testing.T) {
 	secondCtx, cancelSecond := context.WithCancel(context.Background())
 	firstDone := make(chan error, 1)
 	secondDone := make(chan error, 1)
-	go func() { firstDone <- first.assetModel.Run(firstCtx) }()
-	go func() { secondDone <- second.assetModel.Run(secondCtx) }()
+	go func() { firstDone <- runWithEffectJobs(firstCtx, first, first.assetModel.Run) }()
+	go func() { secondDone <- runWithEffectJobs(secondCtx, second, second.assetModel.Run) }()
 	t.Cleanup(func() {
 		cancelFirst()
 		cancelSecond()

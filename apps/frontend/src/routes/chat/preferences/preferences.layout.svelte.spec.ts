@@ -1,3 +1,4 @@
+import '../../../app.css';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import AppPreferencesLayout from './+layout.svelte';
@@ -50,6 +51,9 @@ describe('App Preferences layout', () => {
     expect(container.querySelector('[data-testid="server-sidebar"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="current-user-identity-card"]')).toBeNull();
     await expect.element(getByRole('heading', { name: 'Settings' })).toBeVisible();
+    const exit = getByRole('link', { name: 'Back', exact: true });
+    await expect.element(exit).toBeVisible();
+    await expect.element(exit).toHaveAttribute('href', '/');
     expect(container.querySelectorAll('[data-testid="room-group-section"]')).toHaveLength(1);
     await expect
       .element(getByRole('button', { name: 'App preferences' }))
@@ -97,6 +101,7 @@ describe('App Preferences layout', () => {
   it.each([
     ['/chat/preferences', '/chat/remote.example.com/settings/overview'],
     ['/chat/preferences/appearance', '/chat/remote.example.com/settings/appearance'],
+    ['/chat/preferences/experiments', '/chat/remote.example.com/settings/experiments'],
     ['/chat/preferences/language', '/chat/remote.example.com/settings/language'],
     ['/chat/preferences/composer', '/chat/remote.example.com/settings/composer'],
     ['/chat/preferences/desktop', '/chat/remote.example.com/settings/desktop']

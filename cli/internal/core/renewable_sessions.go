@@ -91,11 +91,14 @@ type RenewableSession struct {
 	// responses, and refresh rotates again instead of revoking. Nil means that the record predates
 	// this tracking, or that a replica without it rewrote the record; refresh
 	// then treats every stale generation outside exact recovery as reuse.
-	UsedGeneration          *uint64   `json:"used_generation,omitempty"`
-	FreshAuthAt             time.Time `json:"fresh_auth_at,omitzero"`
-	FreshAuthMethod         string    `json:"fresh_auth_method,omitempty"`
-	FreshAuthSource         string    `json:"fresh_auth_source,omitempty"`
-	PrivilegedModeExpiresAt time.Time `json:"privileged_mode_expires_at,omitzero"`
+	UsedGeneration  *uint64   `json:"used_generation,omitempty"`
+	FreshAuthAt     time.Time `json:"fresh_auth_at,omitzero"`
+	FreshAuthMethod string    `json:"fresh_auth_method,omitempty"`
+	FreshAuthSource string    `json:"fresh_auth_source,omitempty"`
+	// A separate storage field keeps older replicas from treating a partial
+	// selection as permission to activate every role.
+	PrivilegedModeExpiresAt time.Time `json:"selected_roles_expire_at,omitzero"`
+	PrivilegedRoles         []string  `json:"privileged_roles,omitempty"`
 }
 
 func (c *ChattoCore) bearerAccessTokenTTL() time.Duration {
@@ -307,7 +310,7 @@ func (c *ChattoCore) createBearerSessionForGrant(ctx context.Context, userID, cl
 		return BearerSessionCredentials{}, fmt.Errorf("marshal renewable session: %w", err)
 	}
 	sessionKey := c.renewableSessionKey(sessionID)
-	if _, err := c.storage.runtimeStateKV.Create(ctx, sessionKey, value, jetstream.KeyTTL(session.ExpiresAt.Sub(now))); err != nil {
+	if _, err := c.storage.runtimeStateKV.Create(ctx, sessionKey, value, jetstream.KeyTTL(runtimeStateRetention(session.ExpiresAt.Sub(now)))); err != nil {
 		return BearerSessionCredentials{}, fmt.Errorf("store renewable session: %w", err)
 	}
 	credentials := c.credentialsForGeneration(sessionID, session, now)
@@ -367,7 +370,7 @@ func (c *ChattoCore) createAccessTokenRecord(ctx context.Context, sessionID stri
 	if err != nil {
 		return fmt.Errorf("marshal bearer access token: %w", err)
 	}
-	if _, err := c.storage.runtimeStateKV.Create(ctx, c.authTokenKey(token), value, jetstream.KeyTTL(ttl)); err != nil {
+	if _, err := c.storage.runtimeStateKV.Create(ctx, c.authTokenKey(token), value, jetstream.KeyTTL(runtimeStateRetention(ttl))); err != nil {
 		if !jetstreamutil.IsSequenceConflict(err) {
 			return fmt.Errorf("store bearer access token: %w", err)
 		}

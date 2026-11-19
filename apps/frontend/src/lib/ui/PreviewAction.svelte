@@ -22,7 +22,7 @@ Other native button attributes pass through unchanged.
 <button
   type="button"
   {...attributes}
-  class="btn-secondary attachment-action-button"
+  class="attachment-action-button"
   aria-label={label}
   title={label}
   onclick={(event) => {

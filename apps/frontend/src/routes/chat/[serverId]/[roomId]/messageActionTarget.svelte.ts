@@ -123,6 +123,14 @@ export class MessageActionTarget {
     this.messageEvent?.canReplyInThread ?? this.permissions.canPostInThread
   );
 
+  /** Existing threads take precedence over flat replies when thread replies are allowed. */
+  readonly #preferThreadReply = $derived(
+    this.#in.threadingMode !== RoomThreadingMode.DISABLED &&
+      (this.hasThread ||
+        this.#in.threadingMode === RoomThreadingMode.ENCOURAGED ||
+        this.#in.threadingMode === RoomThreadingMode.REQUIRED)
+  );
+
   /** The behavior that every message action surface shares for this message. */
   readonly action = $derived.by(() => {
     const { roomId, permalinkThreadRootEventId, messageStore, threadingMode, onOpenThread } =
@@ -143,14 +151,15 @@ export class MessageActionTarget {
             ? this.#canReplyInThread
             : this.isRootMessage && threadingMode === RoomThreadingMode.REQUIRED
               ? canThread
-              : this.isRootMessage && threadingMode === RoomThreadingMode.ENCOURAGED
+              : this.isRootMessage && this.#preferThreadReply
                 ? canThread || canPost
                 : canPost;
 
     const canSecondaryRoomReply =
       this.isRootMessage &&
       !this.isInThreadPane &&
-      threadingMode === RoomThreadingMode.ENCOURAGED &&
+      threadingMode !== RoomThreadingMode.REQUIRED &&
+      this.#preferThreadReply &&
       canThread &&
       canPost;
     const canUseThread = this.isEcho
@@ -266,9 +275,7 @@ export class MessageActionTarget {
     if (
       this.isRootMessage &&
       (threadingMode === RoomThreadingMode.REQUIRED ||
-        (threadingMode === RoomThreadingMode.ENCOURAGED &&
-          this.#canReplyInThread &&
-          !!onOpenThread))
+        (this.#preferThreadReply && this.#canReplyInThread && !!onOpenThread))
     ) {
       this.#startReplyInThread(quote);
       return;

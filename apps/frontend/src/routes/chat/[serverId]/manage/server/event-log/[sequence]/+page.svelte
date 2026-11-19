@@ -5,7 +5,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createAdminEventLogAPI } from '$lib/api/adminEventLog';
-  import { Panel, Hint, PaneContent, Pill, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
+  import { Panel, Hint, PaneContent, Pill, LoadingDots, PaneHeader, PageTitle } from '$lib/ui';
   import { JsonCode } from '$lib/ui/code';
   import {
     formatDateTime as formatDateTimeUtil,
@@ -23,11 +23,10 @@
   const sequence = $derived(page.params.sequence!);
   const activeServerId = serverScope.serverId;
   const entryQuery = createQuery(() => {
-    const serverId = activeServerId;
     const activeConnection = serverScope.connection;
     const eventSequence = sequence;
     return {
-      queryKey: adminQueryKeys.event(serverId, activeConnection, eventSequence),
+      queryKey: adminQueryKeys.event(serverScope, eventSequence),
       queryFn: ({ signal }) =>
         activeConnection.getAPI(createAdminEventLogAPI).getEvent(eventSequence, { signal })
     };
@@ -56,7 +55,7 @@
   <PaneContent>
     <div class="flex min-h-0 flex-col gap-6">
       {#if entryQuery.isPending}
-        <LoadingFog class="h-40 w-full" label={m('admin.event_log.loading_event')} />
+        <LoadingDots class="h-40 w-full" label={m('admin.event_log.loading_event')} />
       {:else if entryQuery.error}
         <Hint tone="danger">
           {errorMessage(entryQuery.error, m('admin.event_log.unavailable'))}

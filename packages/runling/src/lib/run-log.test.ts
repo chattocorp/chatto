@@ -1,6 +1,94 @@
 import { expect, test } from 'vitest';
 import type { RunlingEvent } from 'runling';
 import { activityLogRows, logTime, logTreeRows, nextLogFollow, runLogRows } from './run-log.ts';
+import { buildTimeline, findActivity } from './timeline.ts';
+
+test('activity projections retain own output without ancestor copies', () => {
+  const events: RunlingEvent[] = [
+    { type: 'step.started', id: 'root', label: 'Tests', timestamp: 0 },
+    { type: 'step.started', id: 'go', label: 'Go tests', activityId: 'root', timestamp: 1 },
+    { type: 'step.started', id: 'web', label: 'Web tests', activityId: 'root', timestamp: 2 },
+    {
+      type: 'command.started',
+      id: 'docker-go',
+      command: 'docker run go',
+      activityId: 'go',
+      timestamp: 3
+    },
+    {
+      type: 'command.started',
+      id: 'docker-web',
+      command: 'docker run web',
+      activityId: 'web',
+      timestamp: 4
+    }
+  ];
+  const record = (activityId: string, message: string, sourceId?: string) =>
+    events.push({
+      type: 'log',
+      level: 'info',
+      depth: 2,
+      color: 'blue',
+      timestamp: events.length,
+      activityId,
+      message,
+      ...(sourceId ? { source: 'command' as const, sourceId } : {})
+    });
+  record('go', 'Installing');
+  record('go', '\u001b[32mok package-a\u001b[0m', 'docker-go');
+  record('web', 'PASS component', 'docker-web');
+  record('go', 'ok package-b', 'docker-go');
+  record('go', 'ok package-b', 'docker-go');
+
+  const before = structuredClone(events);
+  const live = buildTimeline(events, 'running');
+  const goLogs = ['Installing', '\u001b[32mok package-a\u001b[0m', 'ok package-b', 'ok package-b'];
+  expect(findActivity(live, 'go')?.logs).toEqual(['Installing']);
+  expect(findActivity(live, 'web')?.logs).toEqual([]);
+  expect(findActivity(live, 'root')?.logs).toEqual([]);
+  expect(findActivity(live, 'docker-go')?.logs).toEqual(goLogs.slice(1));
+  expect(events).toEqual(before);
+
+  events.push(
+    {
+      type: 'command.finished',
+      id: 'docker-go',
+      status: 'completed',
+      durationMs: 20,
+      output: { stdout: '', stderr: '' },
+      timestamp: 23
+    },
+    {
+      type: 'command.finished',
+      id: 'docker-web',
+      status: 'failed',
+      durationMs: 20,
+      output: { stdout: 'Test summary', stderr: 'Assertion failed' },
+      timestamp: 24
+    }
+  );
+  record('go', 'Finished');
+  events.push({
+    type: 'step.finished',
+    id: 'web',
+    status: 'failed',
+    durationMs: 24,
+    error: 'Exit code 1',
+    timestamp: 26
+  });
+  const replay: RunlingEvent[] = JSON.parse(JSON.stringify(events));
+  const tree = buildTimeline(replay, 'failed');
+  expect(findActivity(tree, 'go')?.logs).toEqual(['Installing', 'Finished']);
+  expect(findActivity(tree, 'web')?.logs).toEqual(['Exit code 1']);
+  const rows = activityLogRows(replay, 'failed');
+  expect(rows.find((row) => row.summary?.node.id === 'go')?.summary?.logs).toEqual([
+    'Installing',
+    'Finished'
+  ]);
+  expect(rows.find((row) => row.summary?.node.id === 'web')?.summary?.logs).toEqual(
+    findActivity(tree, 'web')?.logs
+  );
+});
 
 test('compact activities retain one stable row through completion and keep fields in details', () => {
   const events: RunlingEvent[] = [

@@ -24,7 +24,7 @@
   import EmojiAutocomplete from './EmojiAutocomplete.svelte';
   import MentionAutocomplete from './MentionAutocomplete.svelte';
   import RoomAutocomplete from './RoomAutocomplete.svelte';
-  import { buildRoomLinkURL } from '$lib/chatLinks';
+  import { roomLinkSources } from './roomLinkSources';
   import ComposerLinkPreview from './ComposerLinkPreview.svelte';
   import ComposerAttachmentPreviews from './ComposerAttachmentPreviews.svelte';
   import ComposerFormattingToolbar from './ComposerFormattingToolbar.svelte';
@@ -59,7 +59,7 @@
     showCreateThread = false,
     createThreadRequired = false,
     createThreadDefault = false,
-    getRecentThreadRootCandidate = () => null,
+    getLatestThreadRootCandidate = () => null,
     threadsEncouraged = false,
     mentionPriorityUserIds,
     inputStatus
@@ -144,7 +144,7 @@
     getCanCreateThread: () => showCreateThread,
     getCreateThreadRequired: () => createThreadRequired,
     getCreateThreadDefault: () => createThreadDefault,
-    getRecentThreadRootCandidate: () => getRecentThreadRootCandidate(),
+    getLatestThreadRootCandidate: () => getLatestThreadRootCandidate(),
     getAutoFocus: () => autoFocus,
     getComposerSendMode: () => userPreferences.composerSendMode,
     getPlaceholder: () => placeholder,
@@ -330,9 +330,8 @@
           <RoomAutocomplete
             bind:this={composer.autocomplete.roomRef}
             query={composer.autocomplete.room.query}
-            rooms={stores.roomList.rooms}
-            onSelect={(roomId) =>
-              composer.autocomplete.selectRoom(buildRoomLinkURL(serverScope.serverId, roomId))}
+            sources={roomLinkSources(serverScope.serverId)}
+            onSelect={(url) => composer.autocomplete.selectRoom(url)}
             onClose={() => composer.autocomplete.closeRoom()}
           />
         {/if}
@@ -466,11 +465,13 @@
     {/snippet}
     {#snippet secondaryActions()}
       <Button variant="secondary" onclick={() => composer.postAsNewRoot()}>
-        {m('composer.post_as_new_message')}
+        {composer.pendingThreadDestinationConfirmation?.post.createThread
+          ? m('composer.start_new_thread')
+          : m('composer.post_as_new_message')}
       </Button>
     {/snippet}
     {#snippet primaryAction()}
-      <Button defaultAction variant="action" onclick={() => composer.postInRecentThread()}>
+      <Button defaultAction variant="action" onclick={() => composer.postInLatestThread()}>
         <span aria-hidden="true" class="iconify icon-[uil--comment-alt-lines]"></span>
         {m('composer.continue_in_thread')}
       </Button>

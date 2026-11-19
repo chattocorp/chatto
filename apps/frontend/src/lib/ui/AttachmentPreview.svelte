@@ -8,6 +8,8 @@ component on selection changes so playback and consent cannot cross items.
   import { m } from '$lib/i18n/messages';
   import ZoomableImage from './ZoomableImage.svelte';
   import LoadingFog from './LoadingFog.svelte';
+  import LoadingDots from './LoadingDots.svelte';
+  import ScrollFader from './ScrollFader.svelte';
   import MarkdownHtml from './MarkdownHtml.svelte';
   import type { MessageAttachmentView } from '@chatto/client/timeline/messageAttachments';
   import { isHtmlAttachment } from '@chatto/client/timeline/messageAttachments';
@@ -19,6 +21,7 @@ component on selection changes so playback and consent cannot cross items.
     url,
     busy,
     markdownHtml = null,
+    textContent = null,
     zoomable = false,
     pdfViewerEnabled = typeof navigator !== 'undefined' && navigator.pdfViewerEnabled === true,
     onpreview,
@@ -30,6 +33,8 @@ component on selection changes so playback and consent cannot cross items.
     busy: boolean;
     /** Audited Markdown renderer output; null means no document is ready. */
     markdownHtml?: string | null;
+    /** Original document text, rendered without interpreting markup. Null means not ready. */
+    textContent?: string | null;
     /** Static image previews can use the viewer's zoom surface. */
     zoomable?: boolean;
     /** Native PDF capability, supplied by the owner or detected in the browser. */
@@ -51,6 +56,17 @@ component on selection changes so playback and consent cannot cross items.
       <MarkdownHtml html={markdownHtml} />
     </div>
   </section>
+{:else if textContent !== null}
+  <ScrollFader
+    top
+    bottom
+    class="h-full min-h-0 w-full"
+    scrollClass="p-4"
+    role="region"
+    aria-label={m('room.attachment.html_viewer.preview_title', { filename: item.filename })}
+  >
+    <pre class="m-0 font-mono wrap-anywhere whitespace-pre-wrap" dir="auto">{textContent}</pre>
+  </ScrollFader>
 {:else if html && !url}
   <div class="flex max-h-full flex-col items-center gap-3 overflow-y-auto p-4 text-center">
     <button
@@ -150,7 +166,7 @@ component on selection changes so playback and consent cannot cross items.
     }}>{item.filename}</audio
   >
 {:else if busy}
-  <LoadingFog class="h-full min-h-32 w-full" />
+  <LoadingDots class="h-full min-h-32 w-full" />
 {:else}
   <div class="flex flex-col items-center gap-3 p-4 text-center text-muted">
     <span class="iconify icon-[uil--file-alt] text-4xl" aria-hidden="true"></span>

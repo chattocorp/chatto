@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "På den här sidan",
+    "design": {
+      "welcome": "Hitta rätt i Chatto.",
+      "explore": "Upptäck mer",
+      "reference": "Formatering i korthet",
+      "reference_hint": "Välj ett exempel för att prova det i redigeraren.",
+      "question": "Vem är med på nästa samtal?"
+    },
+    "overview": "Översikt",
+    "intro": "Korta guider för chatt och serveradministration.",
+    "users": "För medlemmar",
+    "admins": "För administratörer",
+    "example": "Prova här",
+    "example_hint": "Det här exemplet stannar på sidan. Inget meddelande skickas.",
+    "input": "Meddelandetext",
+    "preview": "Förhandsvisning",
+    "sample": "Hej **allihop**!",
+    "conversations": {
+      "title": "Använd Chatto",
+      "description": "Trådar, oläst aktivitet, aviseringar och anslutningsproblem."
+    },
+    "formatting": {
+      "title": "Formatera ett meddelande",
+      "description": "Lägg till betoning och kod i texten."
+    },
+    "bots": {
+      "title": "Bots",
+      "description": "Skapa API-konton och kontrollera exakt vad de kan göra"
+    },
+    "phone": {
+      "title": "Installera Chatto på telefonen",
+      "description": "Lägg till Chatto på hemskärmen och aktivera aviseringar."
+    }
+  }
+}

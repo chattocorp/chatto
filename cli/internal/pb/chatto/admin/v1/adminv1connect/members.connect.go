@@ -76,7 +76,7 @@ type AdminUserServiceClient interface {
 	// Gets server member rows for multiple users. Requires admin.view-users.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
 	// Gets explicit roles and current assignment limits for one human user.
-	// Requires role.assign, with privileged mode active for human sessions;
+	// Requires effective role.assign;
 	// admin.view-users is not required. Returns NOT_FOUND for an unknown or
 	// deleted user, and FAILED_PRECONDITION for a bot account.
 	GetUserRoleAssignments(context.Context, *connect.Request[v1.GetUserRoleAssignmentsRequest]) (*connect.Response[v1.GetUserRoleAssignmentsResponse], error)
@@ -253,7 +253,7 @@ type AdminUserServiceHandler interface {
 	// Gets server member rows for multiple users. Requires admin.view-users.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
 	// Gets explicit roles and current assignment limits for one human user.
-	// Requires role.assign, with privileged mode active for human sessions;
+	// Requires effective role.assign;
 	// admin.view-users is not required. Returns NOT_FOUND for an unknown or
 	// deleted user, and FAILED_PRECONDITION for a bot account.
 	GetUserRoleAssignments(context.Context, *connect.Request[v1.GetUserRoleAssignmentsRequest]) (*connect.Response[v1.GetUserRoleAssignmentsResponse], error)

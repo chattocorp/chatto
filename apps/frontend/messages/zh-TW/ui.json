@@ -1,5 +1,6 @@
 {
   "ui": {
+    "help": "說明",
     "toggle_sidebar": "切換側邊欄",
     "notifications": "通知",
     "open_quick_switcher": "開啟快速切換器",

@@ -1,0 +1,218 @@
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-svelte';
+import { Code, ConnectError } from '@connectrpc/connect';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
+import { queryClient } from '$lib/query/client';
+import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
+import { adminQueryKeys } from '$lib/query/admin';
+import { JobRetryAvailability, JobStatus, type AdminJob } from '$lib/api/adminJobs';
+import { toast } from '$lib/ui/toast';
+import JobPage from './+page.svelte';
+
+const mocks = vi.hoisted(() => ({
+  getJob: vi.fn(),
+  retryJob: vi.fn(),
+  deleteJob: vi.fn(),
+  goto: vi.fn(),
+  id: 'job-1'
+}));
+vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
+vi.mock('$lib/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('$app/state', () => ({
+  page: {
+    get params() {
+      return { id: mocks.id };
+    }
+  }
+}));
+vi.mock('$app/navigation', () => ({
+  goto: mocks.goto,
+  pushState: vi.fn(),
+  replaceState: vi.fn(),
+  preloadData: vi.fn(),
+  invalidate: vi.fn(),
+  invalidateAll: vi.fn()
+}));
+vi.mock('$app/paths', () => ({
+  base: '',
+  assets: '',
+  resolve: (path: string, params?: Record<string, string>) =>
+    path.replace('[serverId]', params?.serverId ?? '')
+}));
+vi.mock(
+  '$lib/state/server/scope.svelte',
+  async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
+);
+
+beforeAll(() => loadLocaleMessages('en-GB'));
+beforeEach(() => {
+  queryClient.clear();
+  vi.resetAllMocks();
+  mocks.id = 'job-1';
+  createTestServerScope({ api: mocks });
+});
+afterEach(() => queryClient.clear());
+
+function job(changes: Partial<AdminJob> = {}): AdminJob {
+  return {
+    id: 'job-1',
+    type: 'webhook',
+    status: JobStatus.FAILED,
+    attempts: 5,
+    maxAttempts: 5,
+    failure: 'transport_error',
+    retry: JobRetryAvailability.ALLOWED,
+    version: 'a'.repeat(64),
+    createdAt: new Date('2026-11-10T12:00:00Z'),
+    updatedAt: new Date('2026-11-10T12:10:00Z'),
+    nextAttemptAt: null,
+    ...changes
+  };
+}
+
+const queued = { status: JobStatus.QUEUED, retry: JobRetryAvailability.NOT_FAILED };
+
+describe('job details', () => {
+  it('shows safe details and a missing job', async () => {
+    mocks.getJob.mockResolvedValueOnce(job());
+    const screen = render(JobPage);
+    await expect.element(screen.getByRole('heading', { name: 'Webhook delivery' })).toBeVisible();
+    await expect.element(screen.getByText('transport_error')).toBeVisible();
+    await expect.element(screen.getByText('5 / 5')).toBeVisible();
+    await expect.element(screen.getByText('job-1')).toBeVisible();
+    screen.unmount();
+
+    mocks.getJob.mockResolvedValueOnce(null);
+    const missing = render(JobPage);
+    await expect.element(missing.getByText('This job no longer exists.')).toBeVisible();
+  });
+
+  it('shows the attempt count alone when the job has no attempt limit', async () => {
+    mocks.getJob.mockResolvedValue(job({ attempts: 7, maxAttempts: undefined }));
+    const screen = render(JobPage);
+    await expect.element(screen.getByText('7', { exact: true })).toBeVisible();
+    expect(screen.container.textContent).not.toContain('7 /');
+  });
+
+  it.each([
+    [
+      'expired',
+      { retry: JobRetryAvailability.EXPIRED },
+      'This job has expired and cannot be retried.'
+    ],
+    ['unknown', { retry: undefined }, 'This action is currently unavailable.'],
+    ['versionless', { version: '' }, 'This action is currently unavailable.']
+  ])('disables retry for %s retry availability', async (_name, changes, hint) => {
+    mocks.getJob.mockResolvedValue(job(changes));
+    const screen = render(JobPage);
+    await expect.element(screen.getByText(hint)).toBeVisible();
+    await expect.element(screen.getByRole('button', { name: 'Try Again' })).toBeDisabled();
+  });
+
+  it('retries the rendered budget and hides retry while queued', async () => {
+    mocks.getJob.mockResolvedValueOnce(job()).mockResolvedValue(job(queued));
+    mocks.retryJob.mockResolvedValue(job(queued));
+    const screen = render(JobPage);
+    await screen.getByRole('button', { name: 'Try Again' }).click();
+    await expect.element(screen.getByText('Queued', { exact: true })).toBeVisible();
+    await expect
+      .poll(() => screen.container.querySelector('button[type="button"]')?.textContent ?? '')
+      .not.toContain('Try Again');
+    expect(mocks.retryJob).toHaveBeenCalledExactlyOnceWith('job-1', 'a'.repeat(64));
+  });
+
+  it('reloads the job after a stale retry and echoes the new version', async () => {
+    mocks.getJob
+      .mockResolvedValueOnce(job())
+      .mockResolvedValueOnce(job({ version: 'b'.repeat(64), failure: 'new_failure' }))
+      .mockResolvedValue(job({ ...queued, version: 'b'.repeat(64) }));
+    mocks.retryJob
+      // The server rejects an action on a changed job with this code and an
+      // English diagnostic text.
+      .mockRejectedValueOnce(new ConnectError('job cannot be retried', Code.FailedPrecondition))
+      .mockResolvedValue(job(queued));
+    const screen = render(JobPage);
+    await screen.getByRole('button', { name: 'Try Again' }).click();
+    await expect.element(screen.getByText('new_failure')).toBeVisible();
+    // The toast is the localized message, not the server text.
+    expect(toast.error).toHaveBeenCalledExactlyOnceWith('Could not retry this job.');
+    await expect.element(screen.getByRole('button', { name: 'Try Again' })).toBeEnabled();
+    await screen.getByRole('button', { name: 'Try Again' }).click();
+    await expect.element(screen.getByText('Queued', { exact: true })).toBeVisible();
+    expect(mocks.retryJob).toHaveBeenNthCalledWith(1, 'job-1', 'a'.repeat(64));
+    expect(mocks.retryJob).toHaveBeenNthCalledWith(2, 'job-1', 'b'.repeat(64));
+  });
+
+  it('deletes a failed job after confirmation and returns to the job list', async () => {
+    mocks.getJob.mockResolvedValue(job({ retry: JobRetryAvailability.EXPIRED }));
+    mocks.deleteJob.mockResolvedValue(undefined);
+    const screen = render(JobPage);
+    // An expired job cannot be retried, but it can be deleted.
+    await expect.element(screen.getByRole('button', { name: 'Try Again' })).toBeDisabled();
+    await screen.getByRole('button', { name: 'Delete' }).click();
+    const dialog = screen.getByRole('dialog');
+    await expect.element(dialog.getByText('Delete this job?')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Delete' }).click();
+    await expect
+      .poll(() => mocks.goto.mock.calls)
+      .toEqual([['/chat/-/manage/server/jobs', { replaceState: true }]]);
+    expect(mocks.deleteJob).toHaveBeenCalledExactlyOnceWith('job-1', 'a'.repeat(64));
+  });
+
+  it('keeps the job when the deletion is cancelled', async () => {
+    mocks.getJob.mockResolvedValue(job());
+    const screen = render(JobPage);
+    await screen.getByRole('button', { name: 'Delete' }).click();
+    await screen.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+    await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+    expect(mocks.deleteJob).not.toHaveBeenCalled();
+    expect(mocks.goto).not.toHaveBeenCalled();
+    await expect.element(screen.getByText('transport_error')).toBeVisible();
+  });
+
+  it('stays on the reloaded job after a rejected delete', async () => {
+    mocks.getJob.mockResolvedValueOnce(job()).mockResolvedValue(job(queued));
+    mocks.deleteJob.mockRejectedValue(new ConnectError('changed', Code.FailedPrecondition));
+    const screen = render(JobPage);
+    await screen.getByRole('button', { name: 'Delete' }).click();
+    await screen.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+    await expect.element(screen.getByText('Queued', { exact: true })).toBeVisible();
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('offers no delete for a job that is not failed', async () => {
+    mocks.getJob.mockResolvedValue(job(queued));
+    const screen = render(JobPage);
+    await expect.element(screen.getByText('Queued', { exact: true })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Delete' }).query()).toBeNull();
+  });
+
+  it('does not restore job data when a retry finishes after an authority reset', async () => {
+    const scope = createTestServerScope({ api: mocks });
+    mocks.getJob.mockResolvedValue(job({ failure: 'private_failure' }));
+    let resolveRetry!: (value: AdminJob) => void;
+    mocks.retryJob.mockImplementation(
+      () =>
+        new Promise<AdminJob>((resolve) => {
+          resolveRetry = resolve;
+        })
+    );
+    const screen = render(JobPage);
+    await screen.getByRole('button', { name: 'Try Again' }).click();
+    mocks.getJob.mockRejectedValue(new ConnectError('denied', Code.PermissionDenied));
+    removeRegisteredAdminQueries(scope.serverId);
+    resolveRetry(job({ ...queued, failure: 'private_failure' }));
+    await expect.poll(() => screen.container.textContent?.includes('private_failure')).toBe(false);
+    await expect
+      .poll(() =>
+        queryClient.getQueryData(
+          adminQueryKeys.job(
+            { serverId: scope.serverId, connection: scope.scope.connection },
+            'job-1'
+          )
+        )
+      )
+      .toBeUndefined();
+  });
+});

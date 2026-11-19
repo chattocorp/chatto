@@ -128,40 +128,50 @@ The parent controls the SVG timeline. Offscreen and hidden frames pause work.
 
 <svelte:document onvisibilitychange={syncPlayback} />
 
-<div class="group/preview relative h-full w-full" style:--preview-toolbar-inset="0px">
-  <iframe
-    title={alt}
-    sandbox="allow-same-origin"
-    srcdoc={SVG_ANIMATION_FRAME_DOCUMENT}
-    tabindex="-1"
-    aria-hidden="true"
-    class="pointer-events-none absolute inset-0 h-full w-full border-0 [color-scheme:normal]"
-    {@attach content}
-    {@attach observe}
-  ></iframe>
-  {#if onopen}
-    <button
-      type="button"
-      class="rendered-image absolute inset-0 h-full w-full cursor-zoom-in focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action"
-      aria-label={m('ui.image_modal.open_larger')}
-      aria-describedby={descriptionId}
-      disabled={!ready}
-      onclick={onopen}
-    ></button>
-  {/if}
+<div class="flex h-full w-full flex-col">
+  <div
+    class={[
+      'relative w-full',
+      viewerControls ? 'min-h-0 flex-1' : 'max-h-[min(30rem,60vh)] min-h-11'
+    ]}
+    style:aspect-ratio={viewerControls ? undefined : `${width} / ${height}`}
+  >
+    <iframe
+      title={alt}
+      sandbox="allow-same-origin"
+      srcdoc={SVG_ANIMATION_FRAME_DOCUMENT}
+      tabindex="-1"
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0 h-full w-full border-0 [color-scheme:normal]"
+      {@attach content}
+      {@attach observe}
+    ></iframe>
+    {#if onopen}
+      <button
+        type="button"
+        class="rendered-image absolute inset-0 h-full w-full cursor-zoom-in focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action"
+        aria-label={m('ui.image_modal.open_larger')}
+        aria-describedby={descriptionId}
+        disabled={!ready}
+        onclick={onopen}
+      ></button>
+    {/if}
+  </div>
   <span id={descriptionId} class="sr-only">{alt}</span>
   <div {@attach placeControls}>
-    <PreviewToolbar layout={viewerControls ? 'row' : 'overlay'}>
-      <PreviewAction
-        label={m('ui.image_modal.pause_animation')}
-        aria-pressed={paused}
-        icon={paused ? 'icon-[uil--play]' : 'icon-[uil--pause]'}
-        disabled={!ready}
-        onclick={() => {
-          paused = !paused;
-          syncPlayback();
-        }}
-      />
+    <PreviewToolbar layout={viewerControls ? 'row' : 'footer'}>
+      {#snippet viewing()}
+        <PreviewAction
+          label={m('ui.image_modal.pause_animation')}
+          aria-pressed={paused}
+          icon={paused ? 'icon-[uil--play]' : 'icon-[uil--pause]'}
+          disabled={!ready}
+          onclick={() => {
+            paused = !paused;
+            syncPlayback();
+          }}
+        />
+      {/snippet}
     </PreviewToolbar>
   </div>
 </div>

@@ -1016,13 +1016,13 @@ func TestAuthRoutes_BrowserSessionRenewalKeepsHandleAndExtendsWindow(t *testing.
 	}
 }
 
-func TestAuthRoutes_MigratesPreviousBrowserCookieOnce(t *testing.T) {
+func TestAuthRoutes_RejectsPreviousBrowserCookie(t *testing.T) {
 	var legacySessionID string
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(server *HTTPServer) {
 		server.router.Use(server.csrfMiddleware())
 		server.router.GET("/test/set-legacy-browser-cookie", func(c *gin.Context) {
 			session := sessions.Default(c)
-			session.Set(sessionKeyRuntimeCredentialID, legacySessionID)
+			session.Set("runtime_credential_id", legacySessionID)
 			if err := session.Save(); err != nil {
 				c.Status(http.StatusInternalServerError)
 				return
@@ -1040,13 +1040,6 @@ func TestAuthRoutes_MigratesPreviousBrowserCookieOnce(t *testing.T) {
 				return
 			}
 			c.JSON(http.StatusOK, gin.H{"userId": credential.auth.UserID})
-		})
-		server.router.GET("/test/legacy-browser-cookie", func(c *gin.Context) {
-			if _, ok := legacyCookieSessionID(sessions.Default(c)); ok {
-				c.Status(http.StatusOK)
-				return
-			}
-			c.Status(http.StatusNoContent)
 		})
 	})
 	ctx := testContext(t)
@@ -1067,19 +1060,6 @@ func TestAuthRoutes_MigratesPreviousBrowserCookieOnce(t *testing.T) {
 	if seedResponse.StatusCode != http.StatusNoContent {
 		t.Fatalf("set legacy browser cookie status = %d, want 204", seedResponse.StatusCode)
 	}
-	requestURL, err := url.Parse(ts.URL + "/auth/browser/session/migrate")
-	if err != nil {
-		t.Fatalf("Parse migration URL: %v", err)
-	}
-	staleCookieName, err := newBrowserSessionCookieName()
-	if err != nil {
-		t.Fatalf("newBrowserSessionCookieName: %v", err)
-	}
-	client.Jar.SetCookies(requestURL, []*http.Cookie{{
-		Name:  staleCookieName,
-		Value: "revoked-handle",
-		Path:  "/",
-	}})
 	beforeResponse, err := client.Get(ts.URL + "/test/browser-user")
 	if err != nil {
 		t.Fatalf("check legacy browser cookie: %v", err)
@@ -1089,89 +1069,19 @@ func TestAuthRoutes_MigratesPreviousBrowserCookieOnce(t *testing.T) {
 		t.Fatalf("ordinary authentication accepted legacy cookie with status %d", beforeResponse.StatusCode)
 	}
 
-	migrateResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/session/migrate", []byte("{}"))
+	response, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/session/migrate", []byte("{}"))
 	if err != nil {
-		t.Fatalf("migrate legacy browser cookie: %v", err)
+		t.Fatalf("request removed migration route: %v", err)
 	}
-	migrateResponse.Body.Close()
-	if migrateResponse.StatusCode != http.StatusNoContent {
-		t.Fatalf("migrate legacy browser cookie status = %d, want 204", migrateResponse.StatusCode)
-	}
-	if cacheControl := migrateResponse.Header.Get("Cache-Control"); !strings.Contains(cacheControl, "no-store") {
-		t.Fatalf("migration Cache-Control = %q, want no-store", cacheControl)
-	}
-
-	var migratedHandle, csrfToken string
-	authCookieCount := 0
-	for _, cookie := range client.Jar.Cookies(migrateResponse.Request.URL) {
-		switch {
-		case isBrowserSessionCookieName(cookie.Name):
-			authCookieCount++
-			migratedHandle = cookie.Value
-		case cookie.Name == csrfCookieName:
-			csrfToken = cookie.Value
-		}
-	}
-	if authCookieCount != 1 || migratedHandle != legacySessionID || csrfToken == "" {
-		t.Fatalf("migrated browser cookies: count=%d handle=%q csrf=%t", authCookieCount, migratedHandle, csrfToken != "")
-	}
-
-	afterResponse, err := client.Get(ts.URL + "/test/browser-user")
-	if err != nil {
-		t.Fatalf("check migrated browser cookie: %v", err)
-	}
-	defer afterResponse.Body.Close()
-	if afterResponse.StatusCode != http.StatusOK {
-		t.Fatalf("migrated browser authentication status = %d, want 200", afterResponse.StatusCode)
-	}
-	var afterBody struct {
-		UserID string `json:"userId"`
-	}
-	if err := json.NewDecoder(afterResponse.Body).Decode(&afterBody); err != nil {
-		t.Fatalf("decode migrated browser user: %v", err)
-	}
-	if afterBody.UserID != user.GetId() {
-		t.Fatalf("migrated browser user = %q, want %q", afterBody.UserID, user.GetId())
-	}
-
-	legacyResponse, err := client.Get(ts.URL + "/test/legacy-browser-cookie")
-	if err != nil {
-		t.Fatalf("check retired legacy cookie field: %v", err)
-	}
-	legacyResponse.Body.Close()
-	if legacyResponse.StatusCode != http.StatusNoContent {
-		t.Fatalf("legacy authentication field remains after migration: status %d", legacyResponse.StatusCode)
-	}
-
-	retryResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/session/migrate", []byte("{}"))
-	if err != nil {
-		t.Fatalf("retry legacy browser migration: %v", err)
-	}
-	retryResponse.Body.Close()
-	if retryResponse.StatusCode != http.StatusNoContent {
-		t.Fatalf("retry legacy browser migration status = %d, want 204", retryResponse.StatusCode)
-	}
-}
-
-func TestAuthRoutes_BrowserSessionMigrationRequiresSameOriginProof(t *testing.T) {
-	ts, client, _ := setupTestHTTPServer(t)
-	req, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/browser/session/migrate", strings.NewReader("{}"))
-	if err != nil {
-		t.Fatalf("NewRequest: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
-	req.Header.Set("Origin", "https://attacker.example")
-	response, err := client.Do(req)
-	if err != nil {
-		t.Fatalf("cross-origin migration: %v", err)
-	}
-	response.Body.Close()
-	if response.StatusCode != http.StatusForbidden {
-		t.Fatalf("cross-origin migration status = %d, want 403", response.StatusCode)
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusNotFound {
+		t.Fatalf("removed migration route status = %d, want 404", response.StatusCode)
 	}
 	if cookies := response.Header.Values("Set-Cookie"); len(cookies) != 0 {
-		t.Fatalf("cross-origin migration Set-Cookie = %v, want none", cookies)
+		t.Fatalf("removed migration route Set-Cookie = %v, want none", cookies)
+	}
+	if isCSRFExemptUnsafePath("/auth/browser/session/migrate") {
+		t.Fatal("removed migration route is exempt from CSRF protection")
 	}
 }
 
@@ -2160,7 +2070,7 @@ func TestAuthRoutes_Register_SendsRegistrationEmail(t *testing.T) {
 	if regexp.MustCompile(`\b\d{6}\b`).FindString(email.Body) == "" {
 		t.Errorf("Expected email body to contain six-digit registration code, got: %s", email.Body)
 	}
-	if !strings.Contains(email.Body, "This code will expire in 30 minutes.") {
+	if !strings.Contains(email.Body, "This code expires 30 minutes after the request.") {
 		t.Errorf("Expected email body to mention 30-minute expiration, got: %s", email.Body)
 	}
 	if strings.Contains(email.Body, "/register/complete") {
@@ -2187,7 +2097,7 @@ func TestAuthRoutes_Register_EmailUsesConfiguredOTPExpiration(t *testing.T) {
 	if msg == nil {
 		t.Fatal("Expected registration email to be sent")
 	}
-	if !strings.Contains(msg.Body, "This code will expire in 45 minutes.") {
+	if !strings.Contains(msg.Body, "This code expires 45 minutes after the request.") {
 		t.Fatalf("Expected email body to mention configured 45-minute expiration, got: %s", msg.Body)
 	}
 	if strings.Contains(msg.Body, "30 minutes") {
@@ -2473,7 +2383,7 @@ func TestAuthRoutes_RegisterComplete_InvalidLogin(t *testing.T) {
 	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
 
-	for i, login := range []string{"a", "alice."} {
+	for i, login := range []string{"a", "alice.", strings.Repeat("a", 65)} {
 		t.Run(login, func(t *testing.T) {
 			token, err := chattoCore.CreateRegistrationToken(ctx, fmt.Sprintf("invalid-%d@example.com", i))
 			if err != nil {
@@ -2930,7 +2840,7 @@ func TestAuthRoutes_EmailVerification_EmailUsesConfiguredOTPExpiration(t *testin
 	if msg == nil {
 		t.Fatal("Expected verification email to be sent")
 	}
-	if !strings.Contains(msg.Body, "This code will expire in 2 hours.") {
+	if !strings.Contains(msg.Body, "This code expires 2 hours after the request.") {
 		t.Fatalf("Expected email body to mention configured 2-hour expiration, got: %s", msg.Body)
 	}
 	if strings.Contains(msg.Body, "30 minutes") {
@@ -3097,11 +3007,13 @@ func TestAuthRoutes_RegisterComplete_ThenLogin(t *testing.T) {
 	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
 
+	login := strings.Repeat("a", 64)
+
 	// Register via two-step flow
 	token, _ := chattoCore.CreateRegistrationToken(ctx, "logintest@example.com")
 	reqBody := map[string]string{
 		"token":                token,
-		"login":                "logintest",
+		"login":                login,
 		"password":             "password123",
 		"passwordConfirmation": "password123",
 	}
@@ -3126,7 +3038,7 @@ func TestAuthRoutes_RegisterComplete_ThenLogin(t *testing.T) {
 
 	// Log in with the same credentials
 	loginBody := map[string]string{
-		"login":    "logintest",
+		"login":    login,
 		"password": "password123",
 	}
 	body, _ = json.Marshal(loginBody)
@@ -3155,8 +3067,8 @@ func TestAuthRoutes_RegisterComplete_ThenLogin(t *testing.T) {
 	if !ok {
 		t.Fatal("Expected user object")
 	}
-	if user["login"] != "logintest" {
-		t.Errorf("Expected login logintest, got %v", user["login"])
+	if user["login"] != login {
+		t.Error("Sign-in did not return the full login")
 	}
 }
 

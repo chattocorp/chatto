@@ -11,7 +11,7 @@ specific license is declared.
 
 Apache-2.0 exceptions are used where permissive reuse is intentional. These
 include the independently versioned `pkg/events`, `pkg/jetstreamutil`,
-`pkg/natsruntime`, `pkg/datacrypto`, and `pkg/appconfig` shared framework
+`pkg/jobs`, `pkg/natsruntime`, `pkg/datacrypto`, and `pkg/appconfig` shared framework
 modules, the
 framework-neutral `packages/translatto` internationalisation runtime, the
 standalone frontend source and image, public protocol/API definitions,
@@ -37,7 +37,7 @@ See [authling/LICENSE](authling/LICENSE).
 ## Source access and earlier versions
 
 The license switch applies from the commit that introduces
-[ADR-123](docs/adr/ADR-123-product-license-boundaries.md) and to subsequent
+[ADR-126](docs/adr/ADR-126-product-license-boundaries.md) and to subsequent
 releases that contain it. Earlier releases retain their existing license
 grants. The switch does not withdraw earlier AGPL or MIT permissions.
 Third-party code and assets retain their own licenses and notices.

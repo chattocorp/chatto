@@ -23,7 +23,7 @@ polls the cache briefly after a change. See FDR-042.
     ConfirmDialog,
     EmptyState,
     Hint,
-    LoadingFog,
+    LoadingDots,
     PaneContent,
     PageTitle,
     PaneHeader,
@@ -55,7 +55,7 @@ polls the cache briefly after a change. See FDR-042.
   let deleteTarget = $state<DeleteVariables | null>(null);
 
   const neighborsQuery = createQuery(() => ({
-    queryKey: adminQueryKeys.neighbors(serverScope.serverId, serverScope.connection),
+    queryKey: adminQueryKeys.neighbors(serverScope),
     queryFn: ({ signal }) => serverScope.connection.getAPI(createNeighborAPI).list({ signal })
   }));
 
@@ -179,7 +179,7 @@ polls the cache briefly after a change. See FDR-042.
     return {
       serverId,
       connection,
-      queryKey: adminQueryKeys.neighbors(serverId, connection)
+      queryKey: adminQueryKeys.neighbors(serverScope)
     };
   }
 
@@ -247,7 +247,7 @@ polls the cache briefly after a change. See FDR-042.
         {/if}
 
         {#if neighborsQuery.isPending && neighbors.length === 0}
-          <LoadingFog class="h-40 w-full" />
+          <LoadingDots class="h-40 w-full" />
         {:else if neighbors.length === 0}
           <EmptyState icon="icon-[uil--server-connection]" title={m('admin.neighbors.empty')} />
         {:else}

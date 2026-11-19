@@ -16,7 +16,8 @@ const baseCatalogModules = import.meta.glob<TranslationDocument>(
     '../../../messages/en-GB/*.json',
     '!../../../messages/en-GB/admin.json',
     '!../../../messages/en-GB/rbac.json',
-    '!../../../messages/en-GB/server_settings.json'
+    '!../../../messages/en-GB/server_settings.json',
+    '!../../../messages/en-GB/help.json'
   ],
   { eager: true, import: 'default' }
 );
@@ -25,9 +26,9 @@ const lazyCatalogLoaders = import.meta.glob<TranslationDocument>(
   { import: 'default' }
 );
 // Vite requires literal glob patterns. The boundary tests keep these patterns
-// aligned with managementCatalogSections, including the eager exclusions above.
-const managementBaseLoaders = import.meta.glob<TranslationDocument>(
-  '../../../messages/en-GB/{admin,rbac,server_settings}.json',
+// aligned with the management and help boundaries, including the eager exclusions above.
+const routeBaseLoaders = import.meta.glob<TranslationDocument>(
+  '../../../messages/en-GB/{admin,rbac,server_settings,help}.json',
   { import: 'default' }
 );
 
@@ -42,7 +43,7 @@ for (const [path, catalog] of Object.entries(baseCatalogModules)) {
   };
 }
 
-for (const [path, loader] of Object.entries({ ...lazyCatalogLoaders, ...managementBaseLoaders })) {
+for (const [path, loader] of Object.entries({ ...lazyCatalogLoaders, ...routeBaseLoaders })) {
   const { locale, section } = catalogCoordinates(path);
   catalogLoaders[section] ??= {};
   catalogLoaders[section][locale] ??= loader;
@@ -51,7 +52,7 @@ for (const [path, loader] of Object.entries({ ...lazyCatalogLoaders, ...manageme
 for (const section of catalogSections) {
   if (
     !catalogLoaders[section]?.[baseLocale] ||
-    (!isManagementCatalogSection(section) && !initialBaseCatalogs[section])
+    (!isManagementCatalogSection(section) && section !== 'help' && !initialBaseCatalogs[section])
   ) {
     throw new Error(`Missing ${baseLocale} catalog section "${section}"`);
   }

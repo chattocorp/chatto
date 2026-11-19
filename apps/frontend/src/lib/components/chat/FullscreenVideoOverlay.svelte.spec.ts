@@ -1,13 +1,22 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { fullscreenVideo } from '$lib/state/globals.svelte';
 import FullscreenVideoOverlay from './FullscreenVideoOverlay.svelte';
 
 afterEach(() => {
   fullscreenVideo.close();
+  vi.restoreAllMocks();
 });
 
 describe('FullscreenVideoOverlay', () => {
+  it('requests native fullscreen when the lazily mounted overlay is ready', async () => {
+    const request = vi.spyOn(HTMLElement.prototype, 'requestFullscreen').mockResolvedValue();
+    fullscreenVideo.open('https://chat.example.test/clip.mp4', null, 0);
+    const { container } = render(FullscreenVideoOverlay);
+    await expect.poll(() => request.mock.calls.length).toBe(1);
+    expect(request.mock.contexts[0]).toBe(container.querySelector('.fullscreen-overlay'));
+  });
+
   it('keeps the close button inside iOS safe areas', async () => {
     fullscreenVideo.open('https://chat.example.test/clip.mp4', null, 0);
     const { container } = render(FullscreenVideoOverlay);

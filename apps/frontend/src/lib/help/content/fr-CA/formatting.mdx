@@ -1,0 +1,107 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+Vous pouvez mettre en forme les messages Chatto avec Markdown. Par exemple, `**bonjour**` s'affiche comme **bonjour**. Saisissez les marques de mise en forme, ou sélectionnez du texte et utilisez la barre d'outils.
+
+## Choisir l'éditeur et le raccourci d'envoi
+
+Ouvrez <a href={resolve('/chat/preferences/composer')}>Préférences de l’application → Rédaction</a> et choisissez **Markdown** pour modifier le texte source. Choisissez **Visuel** si vous préférez travailler avec du texte mis en forme. La barre de mise en forme est disponible dans les deux éditeurs.
+
+Le paramètre **Envoyer les messages avec** contrôle la touche Entrée :
+
+- **Retour :** Entrée envoie le message. Ctrl+Entrée insère une nouvelle ligne, ou Commande+Entrée sur Mac.
+- **Cmd/Ctrl+Retour :** Ctrl+Entrée envoie le message, ou Commande+Entrée sur Mac. Entrée insère une nouvelle ligne.
+
+Laissez une ligne vide entre les paragraphes.
+
+## Gras, italique, souligné et barré
+
+Placez les marques de mise en forme de chaque côté du texte :
+
+- `**gras**` pour le gras
+- `*italique*` pour l'italique
+- `__souligné__` pour le soulignement
+- `~~barré~~` pour le texte barré
+
+<MarkdownSample source={"Veuillez vérifier ceci **avant vendredi**.\nLa date est *provisoire*.\n__Approbation requise__ avant publication.\nL'ancienne échéance était ~~jeudi~~."} />
+
+Dans Chatto, `__texte__` signifie souligné. Si vous utilisez deux traits de soulignement pour le gras dans un autre outil Markdown, utilisez ici deux astérisques.
+
+Sélectionnez du texte et appuyez sur Ctrl+B, Ctrl+I ou Ctrl+U pour le gras, l'italique ou le soulignement. Sur Mac, utilisez Commande au lieu de Ctrl. Les boutons de la barre effectuent les mêmes actions.
+
+Ne mettez pas d'espace entre les marques et le texte : `**important**` fonctionne ; `** important **` n'applique pas le gras.
+
+## Titres et listes
+
+Commencez un titre par des caractères `#` suivis d'un espace. Commencez chaque puce par `- `, ou chaque élément numéroté par un nombre et un point, par exemple `1. `.
+
+<MarkdownSample source={"## Liste de vérification de la version\n\nAvant de commencer :\n- Confirmer la version.\n- Prévenir l'équipe d'assistance.\n\nEnsuite :\n1. Déployer la mise à jour.\n2. Vérifier la page d'état.\n3. Publier le résultat ici."} />
+
+Le bouton **Titre** insère un titre de niveau deux (`##`). Vous pouvez saisir vous-même les niveaux de `#` à `######`.
+
+Utilisez **Augmenter le retrait** pour imbriquer un élément sous le précédent. Utilisez **Diminuer le retrait** pour le remettre au niveau supérieur. Laissez une ligne vide après la liste pour commencer un paragraphe.
+
+## Citations
+
+Commencez chaque ligne citée par `>` et un espace. Laissez une ligne vide après la citation avant de rédiger votre réponse.
+
+<MarkdownSample source={"> Peut-on reporter la publication à vendredi ?\n\nOui. La dernière vérification est prévue jeudi après-midi."} />
+
+Saisir une citation ne crée pas de lien vers le message d'origine. Pour répondre à ce message dans un fil, utilisez son action de réponse.
+
+## Code
+
+Placez un accent grave de chaque côté d'une commande courte, d'un nom de fichier ou d'un identifiant. Les marques de mise en forme dans le code en ligne s'affichent telles quelles.
+
+<MarkdownSample source={"Exécutez `git status` avant de commencer.\nLe paramètre s'appelle `send_mode`.\nSaisissez `**bonjour**` pour mettre bonjour en gras."} />
+
+Pour plusieurs lignes, placez trois accents graves sur une ligne avant le code et trois sur une ligne après. Ajoutez le nom d'un langage immédiatement après les accents d'ouverture pour la coloration syntaxique, par exemple `js`, `json` ou `bash`.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+Le bouton **Bloc de code** insère les accents graves d'ouverture et de fermeture. Sans la ligne de fermeture, le reste du message fait partie du bloc. Pour afficher un accent grave dans du code en ligne, entourez le texte de deux accents graves.
+
+## Liens
+
+Une adresse web collée devient un lien. Pour afficher un libellé à la place de l'adresse, placez le libellé entre crochets et l'adresse entre parenthèses :
+
+```text
+Lisez les [notes de version](https://example.com/releases).
+```
+
+Ne mettez pas d'espace entre `]` et `(`. Pour créer un lien vers un salon ou mentionner une personne dans Chatto, sélectionnez-les dans les suggestions de l'éditeur.
+
+## Notes de bas de page
+
+Placez une référence comme `[^window]` après le texte à annoter. Sur une autre ligne, écrivez `[^window]:` suivi de la note. Les identifiants doivent correspondre.
+
+<MarkdownSample source={"La plage de maintenance dure 30 minutes.[^window]\n\n[^window]: La plupart des serveurs seront indisponibles moins de cinq minutes."} />
+
+Vous pouvez aussi placer le curseur après le texte concerné et sélectionner **Insérer une note de bas de page** dans la barre. Les notes ne peuvent pas être insérées dans du code en ligne ou un bloc de code.
+
+## Tableaux
+
+Séparez les colonnes par `|` et placez une ligne de tirets sous les en-têtes. Utilisez `---:` pour aligner une colonne à droite, ou `:---:` pour la centrer.
+
+<MarkdownSample source={"| Environnement | Version |\n| --- | ---: |\n| Test | 0.5 |\n| Production | 0.4 |"} />
+
+Modifiez les tableaux dans l'éditeur Markdown. L'éditeur visuel n'a pas de commande de modification des tableaux.
+
+## Essayer un message complet
+
+Modifiez le message ci-dessous pour essayer la mise en forme. L'aperçu se met à jour pendant la saisie. Vous pouvez passer entre les éditeurs Markdown et visuel. Rien de ce que vous saisissez ici n'est envoyé à un salon.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Publication de vendredi\n\nVeuillez terminer la vérification **avant 14 h**.\n\n1. Exécutez `git status`.\n2. Vérifiez les notes de version.\n3. Répondez dans ce fil quand vous êtes prêts.\n\n> Et si une vérification échoue ?\n\nPubliez l'erreur ici avant de continuer."} />
+</div>
+
+## Si la mise en forme ne convient pas
+
+- **Les marques restent visibles.** Vérifiez que les deux extrémités correspondent et qu'aucun espace ne se trouve juste après la marque d'ouverture ou avant celle de fermeture. Dans le code, les marques visibles sont voulues.
+- **Le reste du message ressemble à du code.** Placez les trois accents graves de fermeture sur leur propre ligne.
+- **Un titre ou une liste reste en texte brut.** Mettez un espace après `##`, `-` ou `1.` et commencez sur une nouvelle ligne.
+- **Vous voulez afficher la ponctuation elle-même.** Placez une barre oblique inverse avant une marque, comme `\*pas en italique\*`, ou utilisez du code en ligne pour un exemple littéral.
+- **Le HTML apparaît comme du texte.** Chatto n'accepte pas le HTML brut pour la mise en forme. Utilisez Markdown plutôt que des balises comme `<b>` ou `<span>`.

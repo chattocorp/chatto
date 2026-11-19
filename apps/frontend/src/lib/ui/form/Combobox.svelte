@@ -3,7 +3,7 @@
   import type { ClassValue } from 'svelte/elements';
   import { m } from '$lib/i18n/messages';
   import FloatingPopover from '$lib/ui/FloatingPopover.svelte';
-  import LoadingFog from '$lib/ui/LoadingFog.svelte';
+  import LoadingDots from '$lib/ui/LoadingDots.svelte';
   import FormField from './FormField.svelte';
 
   let {
@@ -330,7 +330,7 @@
         </button>
       {/each}
     {:else if loading}
-      <LoadingFog class="m-2 h-10" label={m('ui.combobox.loading')} />
+      <LoadingDots class="m-2 h-10" label={m('ui.combobox.loading')} />
     {:else}
       <div class="px-3 py-2 text-sm text-muted">{emptyMessage}</div>
     {/if}

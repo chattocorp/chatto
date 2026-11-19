@@ -165,8 +165,9 @@ Access and membership changes discard cached matches and fence older reads.
 ### Requests
 
 A server and a stateless `Api` have the same request helpers. Each
-request has a ten-second timeout and is not automatically retried; a failed write can
-still have reached the server.
+request has a ten-second timeout. A read that fails on the network is repeated
+up to two times within this timeout. A write is not automatically retried; a
+failed write can still have reached the server.
 
 | Helper                                             | Does                                                                        |
 | -------------------------------------------------- | --------------------------------------------------------------------------- |
@@ -337,9 +338,16 @@ host's public OAuth client ID, and a literal loopback HTTP callback URL
 or the built-in `chatto://desktop/servers/callback?mode=popup` callback. The
 host opens the returned authorization URL in the system browser and receives
 the callback. The helpers use S256 PKCE, transaction state, exact callback
-validation, an optional issuer check, and a bounded token exchange. Keep the
+validation, a required issuer check, and a bounded token exchange. Keep the
 flow and callback in memory. Never log their code or verifier. The host owns
 the loopback listener, cancellation, consent UI, and client metadata document.
+
+A host with a different callback, such as a web frontend, uses the same module
+directly: `randomOAuthValue` and `pkceCodeChallenge` for the PKCE values,
+`isExpectedOAuthIssuer` for the `iss` parameter of the response, and
+`exchangeAuthorizationCode` for the token exchange. Always check the issuer
+before the exchange. A client that signs in to more than one server otherwise
+lets a malicious server receive the code of a different server.
 
 Pass returned credentials through `persistedBearerSession`, combine them with
 `emptyServerSession()`, and supply the session to `registry.addServer`.

@@ -7,7 +7,7 @@ import { ServerInfoState, serverDisplayName } from './state.js';
 function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {
   return {
     name: 'Acme',
-    version: '0.5.0',
+    version: '0.6.0',
     authorizeUrl: '/oauth/authorize',
     directRegistrationEnabled: false,
     directLoginEnabled: false,
@@ -42,7 +42,7 @@ describe('ServerInfoState.init()', () => {
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
-    expect(state.version).toBe('0.5.0');
+    expect(state.version).toBe('0.6.0');
     expect(state.isSupportedVersion).toBe(true);
     expect(state.lastDiscoveredAt).not.toBeNull();
     expect(state.compatibility.status).toBe('supported');
@@ -295,11 +295,23 @@ describe('ServerInfoState.compatibilityProblem', () => {
     );
     expect(state.limitedFeatures).toEqual([]);
     await state.init();
-    expect(state.limitedFeatures).toEqual(['threadViews', 'independentSlowMode']);
+    expect(state.limitedFeatures).toEqual([
+      'threadViews',
+      'independentSlowMode',
+      'backgroundJobs',
+      'shieldRoleSelection'
+    ]);
     version = '0.5.0-beta.16';
     await state.init();
-    expect(state.limitedFeatures).toEqual(['independentSlowMode']);
+    expect(state.limitedFeatures).toEqual([
+      'independentSlowMode',
+      'backgroundJobs',
+      'shieldRoleSelection'
+    ]);
     version = '0.5.0-beta.18';
+    await state.init();
+    expect(state.limitedFeatures).toEqual(['backgroundJobs', 'shieldRoleSelection']);
+    version = '0.6.0';
     await state.init();
     expect(state.limitedFeatures).toEqual([]);
   });

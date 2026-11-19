@@ -7,7 +7,7 @@ import {
  * Collect the IDs of the other users who take part in a thread.
  *
  * The result contains the authors of the loaded thread messages and the
- * root's participant list. The server limits that list to 50 users, but it
+ * root's reply-author preview. The server limits that list to 12 users, but it
  * also includes authors of replies outside the loaded window. The result
  * never contains the viewer. The composer ranks these users first
  * in @mention autocomplete.

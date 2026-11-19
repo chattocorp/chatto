@@ -89,6 +89,10 @@ func (c *ChattoCore) RealtimeCursorForSequence(userID string, sequence uint64) (
 // sequences, including facts that do not change its resources. Other projections
 // and asynchronous effects are not part of this barrier. The server caps the
 // wait even if the caller provides no deadline.
+//
+// An expired cursor satisfies the barrier at once: its boundary is older than
+// the cursor lifetime or the retained EVT history, so this replica is already
+// past it. Only replay must reject expired cursors.
 func (c *ChattoCore) WaitForRealtimeCursor(ctx context.Context, userID, cursor string) error {
 	ctx, cancel := context.WithTimeout(ctx, realtimeCursorWaitTimeout)
 	defer cancel()
@@ -101,6 +105,9 @@ func (c *ChattoCore) WaitForRealtimeCursor(ctx context.Context, userID, cursor s
 		return fmt.Errorf("read EVT stream info: %w", err)
 	}
 	sequence, err := c.resolveRealtimeCursorAt(userID, strings.TrimSpace(cursor), identity, info.State.FirstSeq, info.State.LastSeq, time.Now())
+	if errors.Is(err, ErrRealtimeCursorExpired) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}

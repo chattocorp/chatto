@@ -92,7 +92,7 @@ Accessible thread read states in first-seen request order.
 
 ### ListThreadParticipants
 
-Lists the root author and distinct authors of non-retracted replies,
+Lists distinct authors of non-retracted replies,
 excluding erased users. Each author appears once. Requires the same
 membership and message-read access as GetThreadEvents.
 
@@ -117,8 +117,7 @@ Request a complete thread participant collection, ordered by user ID ascending.
 
 #### Result: ListThreadParticipantsResponse
 
-A page of distinct thread authors. A thread without replies includes its
-root author unless that user has been erased.
+A page of distinct reply authors. A thread without replies has no participants.
 
 | Field | Type | Description |
 | --- | --- | --- |

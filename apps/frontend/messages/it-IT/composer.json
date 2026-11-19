@@ -33,9 +33,10 @@
     "slow_mode_bypassed": "Modalità lenta: {interval} (sei esente).",
     "slow_mode_rejected": "La modalità lenta è attiva. Attendi prima di inviare un altro messaggio.",
     "threads_encouraged": "In questa stanza è consigliato usare i thread.",
-    "recent_thread_confirm_title": "Continuare nel thread precedente?",
-    "recent_thread_confirm_body": "Il tuo messaggio precedente ha già un thread. Dove vuoi pubblicare questo messaggio?",
+    "recent_thread_confirm_title": "Continuare nell’ultimo thread?",
+    "recent_thread_confirm_body": "L’ultimo messaggio in questa stanza ha un thread. Dove vuoi pubblicare questo messaggio?",
     "post_as_new_message": "Pubblica come nuovo messaggio",
+    "start_new_thread": "Avvia un nuovo thread",
     "continue_in_thread": "Continua nel thread",
     "edit_failed": "Impossibile modificare il messaggio",
     "edit_empty": "Il messaggio non può essere vuoto",
@@ -48,10 +49,13 @@
       "video_disabled": "Il caricamento di video è disattivato su questo server.",
       "prepare_failed": "Impossibile preparare l'allegato",
       "too_many": "Puoi allegare fino a {max} file per messaggio. I file aggiuntivi non sono stati aggiunti.",
-      "too_large": "{filename} è troppo grande ({size}). Il massimo è {limit}."
+      "too_large": "{filename} è troppo grande ({size}). Il massimo è {limit}.",
+      "compress_failed": "Impossibile comprimere abbastanza il video. Prova un altro formato o un video più breve.",
+      "compressing": "Compressione video… {percentage}%"
     },
     "format": {
       "underline": "Sottolineato",
+      "strikethrough": "Barrato",
       "bold": "Grassetto",
       "italic": "Corsivo",
       "inline_code": "Codice in linea",

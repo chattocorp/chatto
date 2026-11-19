@@ -10,7 +10,7 @@ Apache-2.0 like the other shared modules.
 ## Context
 
 The repository-default and product-license statements below are superseded
-by [ADR-123](ADR-123-product-license-boundaries.md). The shared modules remain
+by [ADR-126](ADR-126-product-license-boundaries.md). The shared modules remain
 Apache-2.0.
 
 ADR-056, ADR-058, ADR-060, and ADR-061 establish `pkg/events`,
@@ -30,8 +30,8 @@ can be established before outside contributions make a later change harder.
 
 ## Decision
 
-License the complete `pkg/events`, `pkg/jetstreamutil`, `pkg/natsruntime`,
-`pkg/datacrypto`, and `pkg/appconfig` modules under the Apache License 2.0. This includes their
+License the complete `pkg/events`, `pkg/jetstreamutil`, `pkg/jobs`,
+`pkg/natsruntime`, `pkg/datacrypto`, and `pkg/appconfig` modules under the Apache License 2.0. This includes their
 source, tests, documentation, module metadata, and standalone license files.
 
 The modules remain independently versioned, pre-1.0 incubation surfaces with

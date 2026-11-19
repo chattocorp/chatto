@@ -1,5 +1,6 @@
 export { default as AccessDenied } from './AccessDenied.svelte';
 export { default as AppHeader } from './AppHeader.svelte';
+export { default as ActivityIndicator } from './ActivityIndicator.svelte';
 export { default as ActivityListRow } from './ActivityListRow.svelte';
 export { default as BottomSheet } from './BottomSheet.svelte';
 export { default as ChoiceRow } from './ChoiceRow.svelte';
@@ -62,3 +63,5 @@ export {
   type MenuContext,
   type MenuPresentation
 } from './menuContext.svelte';
+
+export { default as AttachmentActions } from './AttachmentActions.svelte';

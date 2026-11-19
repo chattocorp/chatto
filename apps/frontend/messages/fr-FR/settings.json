@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "Expériences",
+      "title": "Fonctionnalités expérimentales",
+      "new_message_header": "Nouvel en-tête de message"
+    },
     "desktop": {
       "title": "Mises à jour",
       "subtitle": "Mises à jour de cette installation",
@@ -50,7 +55,8 @@
         "composer": "Choisissez votre éditeur et le mode d’envoi des messages.",
         "voice": "Configurez votre microphone, vos haut-parleurs et vos préférences d’appel.",
         "system": "Vérifiez l’état du serveur, le stockage et les tâches en arrière-plan.",
-        "event_log": "Explorez les événements du serveur et examinez les changements."
+        "event_log": "Explorez les événements du serveur et examinez les changements.",
+        "jobs": "Consultez les tâches en arrière-plan et relancez celles qui ont échoué."
       },
       "title": "Vue d’ensemble",
       "shield_notice": "Pour utiliser vos autorisations supplémentaires sur ce serveur, activez le mode privilégié avec le bouton en forme de bouclier à côté de votre nom."
@@ -540,9 +546,9 @@
           "body": "Configurez une autre méthode de connexion prise en charge par ce serveur avant de déconnecter {provider}."
         },
         "fresh_auth_modal": {
-          "title": "Confirmer le mot de passe",
-          "body": "Entrez votre mot de passe actuel avant de lier {provider}.",
-          "action": "Continuer"
+          "title": "Lier {provider} ?",
+          "body": "Une fois le lien établi, vous pourrez utiliser {provider} pour vous connecter à Chatto. Saisissez votre mot de passe Chatto actuel pour continuer.",
+          "password": "Mot de passe Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Confirmer le mot de passe",

@@ -1,5 +1,7 @@
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import { mdsvex } from 'mdsvex';
+import { helpHeadings } from './scripts/help-headings.js';
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -52,7 +54,17 @@ function gitShortHash() {
 const config = {
   // Consult https://svelte.dev/docs/kit/integrations
   // for more information about preprocessors
-  preprocess: vitePreprocess(),
+  extensions: ['.svelte', '.mdx'],
+  preprocess: [
+    vitePreprocess(),
+    // Preserve quotes in inline Svelte expressions and literal technical examples.
+    mdsvex({
+      extensions: ['.mdx'],
+      highlight: false,
+      smartypants: false,
+      remarkPlugins: [helpHeadings]
+    })
+  ],
   kit: {
     adapter: adapter({
       fallback: '200.html',

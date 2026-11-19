@@ -230,7 +230,9 @@ normal canonical response. The wait targets exactly the requested EVT sequence
 in `ServerContentView`, not the current tails of all projectors. The view
 consumes every `evt.>` sequence, including facts that do not change its resources.
 A lagging replica waits for at most 10 seconds or the caller's earlier deadline.
-A timeout returns `DEADLINE_EXCEEDED` before the handler runs. This is a lower
+A timeout returns `DEADLINE_EXCEEDED` before the handler runs. An expired
+cursor satisfies the barrier at once, because its position is older than the
+cursor lifetime or the retained EVT history. This is a lower
 bound, not a historical read, and does not cover asynchronous effects.
 
 DM threads use the same semantic realtime events and ConnectRPC thread
@@ -332,9 +334,10 @@ after failed reads use full current-value recovery. Projection and
 authorization generations reject superseded permission reads. The server
 cancels authorized work at the session's privilege deadline and sends a
 reconnecting `PRIVILEGED_MODE_EXPIRED` close. It does not write a live event
-after that deadline. The periodic credential check sends the same close when
-another connection of the session ends privileged mode. The client then reads
-effective permissions and rooms with privileged mode inactive. See
+after that deadline. At subscription and during periodic credential checks, the
+server sends the same close if the session's activation deadline or selected
+roles changed. The client then reads effective permissions and rooms for the
+current session. See
 [ADR-096](../adr/ADR-096-session-scoped-privileged-mode.md) and
 [ADR-105](../adr/ADR-105-privileged-mode-gates-owner-override.md).
 
@@ -404,7 +407,7 @@ safe fallback. Neither path advances the cursor past the fact.
 `live.evt.>` per Chatto process. It classifies subjects before decoding, waits
 for `ServerContentView` once for content facts, and fans immutable decoded
 events into count- and byte-bounded session queues. Sessions of one user with
-the same privileged-mode state share room-visibility state. The hub makes each
+the same activation state and selected protected roles share room-visibility state. The hub makes each
 membership, read, and visibility decision with that fixed state (ADR-105).
 There are no per-client NATS or JetStream consumers.
 
@@ -635,8 +638,7 @@ origin rejects its viewer and no loaded data remains, the chat root starts
 origin sign-in and keeps the current page as the return path.
 
 `CurrentUserState` owns the complete account and one pending account request for
-each server. Route loading and recovery use that owner. Cookie migration and
-transient retries are request policy, with no separate account cache. The
+each server. Route loading and recovery use that owner. Transient retries are request policy, with no separate account cache. The
 registry checks identity changes before it publishes the response. Account
 reset, newer live viewer data, and store disposal reject older responses.
 HTTP commands proceed independently of realtime catch-up. The composer

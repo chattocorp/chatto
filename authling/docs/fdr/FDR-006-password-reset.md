@@ -1,7 +1,7 @@
 # FDR-006: Password Reset
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-11-17
 
 ## Overview
 
@@ -31,6 +31,10 @@ email claim, and OpenID Connect `sub` remain unchanged.
   The event contains only the account ID and current credential event ID; its
   envelope ID is the opaque recovery request identifier. Requests for absent
   accounts cannot produce an account-scoped event.
+- Request success means durable mail acceptance. SMTP failures retry in the
+  background until the original flow expiry, including after process restart.
+  Accepted work keeps its delivery budget. A crash after SMTP acceptance can
+  cause a duplicate. Mail content is encrypted until delivery or expiry.
 - A flow and its code expire after 15 minutes. Five incorrect code attempts
   exhaust the challenge. Delivery is limited per normalized address and
   globally, and SMTP and password-completion concurrency are bounded.
@@ -50,6 +54,10 @@ email claim, and OpenID Connect `sub` remain unchanged.
 - Previously issued OIDC ID and access tokens are not revoked. They expire
   after five minutes, and relying-party sessions remain under the relying
   party's control.
+
+- All account refresh families are invalidated by the password change.
+  Durable app grants remain active, so applications can authorize again without
+  another consent decision. New tokens use current account claims. See [FDR-010](FDR-010-oidc-authorization-grants.md).
 
 ## Design Decisions
 

@@ -31,6 +31,11 @@
     height: 0,
     url: null
   };
+  const textSource =
+    '# Server log\n\n  Indented line\twith a tab\n<em>This is literal text.</em>\n' +
+    'A long log entry '.repeat(40) +
+    '\n' +
+    Array.from({ length: 50 }, (_, i) => `Line ${i + 1}: ready`).join('\n');
   const pdf = {
     id: 'pdf',
     filename: 'Report.pdf',
@@ -88,6 +93,20 @@
       serverId="story"
       url={null}
       busy={false}
+      onpreview={() => {}}
+      onerror={async () => null}
+    />
+  </div>
+</Story>
+
+<Story name="Plain text" asChild>
+  <div class="h-80">
+    <AttachmentPreview
+      item={{ id: 'text', filename: 'console.txt', contentType: 'text/plain', width: 0, height: 0 }}
+      serverId="story"
+      url={null}
+      busy={false}
+      textContent={textSource}
       onpreview={() => {}}
       onerror={async () => null}
     />

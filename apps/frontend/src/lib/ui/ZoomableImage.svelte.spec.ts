@@ -65,6 +65,15 @@ describe('ZoomableImage', () => {
     await expect.element(decrease).toBeEnabled();
   });
 
+  it('allows Fit when wheel zoom rounds to 100%', async () => {
+    const view = await mount();
+    view.stage.dispatchEvent(new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
+    await expect.element(view.query.getByText('100%')).toBeVisible();
+    await expect.element(view.query.getByRole('button', { name: 'Fit' })).toBeEnabled();
+    await view.query.getByRole('button', { name: 'Fit' }).click();
+    expect(view.layer.style.transform).toBe('translate(0px, 0px) scale(1)');
+  });
+
   it('steps beyond 400% to 1600%, disables the limit, and returns to Fit', async () => {
     const view = await mount();
     const controls = view.query.container.querySelector('output')!.parentElement!;

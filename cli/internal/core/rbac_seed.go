@@ -48,25 +48,28 @@ func (c *ChattoCore) seedDefaultRBAC(ctx context.Context) error {
 func defaultRBACRoles() map[string]*readmodel.Role {
 	return map[string]*readmodel.Role{
 		RoleOwner: {
-			Name:        RoleOwner,
-			DisplayName: "Owner",
-			Description: "Full server control",
-			Position:    PositionOwner,
-			Pingable:    false,
+			Name:               RoleOwner,
+			RequiresShieldMode: true,
+			DisplayName:        "Owner",
+			Description:        "Full server control",
+			Position:           PositionOwner,
+			Pingable:           false,
 		},
 		RoleAdmin: {
-			Name:        RoleAdmin,
-			DisplayName: "Admin",
-			Description: "Full administrative access to the server",
-			Position:    PositionAdmin,
-			Pingable:    false,
+			Name:               RoleAdmin,
+			RequiresShieldMode: true,
+			DisplayName:        "Admin",
+			Description:        "Full administrative access to the server",
+			Position:           PositionAdmin,
+			Pingable:           false,
 		},
 		RoleModerator: {
-			Name:        RoleModerator,
-			Description: "Moderate messages and room membership",
-			DisplayName: "Moderator",
-			Position:    PositionModerator,
-			Pingable:    true,
+			Name:               RoleModerator,
+			RequiresShieldMode: true,
+			Description:        "Moderate messages and room membership",
+			DisplayName:        "Moderator",
+			Position:           PositionModerator,
+			Pingable:           true,
 		},
 		RoleEveryone: {
 			Name:        RoleEveryone,
@@ -117,11 +120,12 @@ func rbacSeedEntries(roles map[string]*readmodel.Role, assignments []rbacSeedAss
 		role := roles[name]
 		event := newEvent(SystemActorID, &evtv1.Event{CreatedAt: createdAt, Event: &evtv1.Event_RbacRoleCreated{
 			RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{
-				RoleName:    role.GetName(),
-				DisplayName: role.GetDisplayName(),
-				Description: role.GetDescription(),
-				Rank:        role.GetPosition(),
-				Pingable:    role.GetPingable(),
+				RoleName:           role.GetName(),
+				DisplayName:        role.GetDisplayName(),
+				Description:        role.GetDescription(),
+				Rank:               role.GetPosition(),
+				Pingable:           role.GetPingable(),
+				RequiresShieldMode: role.RequiresShieldMode,
 			},
 		}})
 		entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})

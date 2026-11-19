@@ -205,6 +205,7 @@ vi.mock('$lib/navigation/readActions', () => ({
 
 vi.mock('$lib/auth/reauth', () => ({
   startRemoteReauthentication: mocks.startRemoteReauthentication,
+  cancelServerOAuthFlow: vi.fn(),
   beginOriginReauthentication: mocks.beginOriginReauthentication
 }));
 

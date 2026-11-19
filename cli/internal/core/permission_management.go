@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
@@ -48,15 +49,16 @@ type TierPermissions struct {
 }
 
 type TierRole struct {
-	RoleName         string
-	DisplayName      string
-	Description      string
-	IsSystem         bool
-	Position         int32
-	Pingable         bool
-	Override         TierPermissions
-	InheritedAllows  []string
-	InheritedDenials []string
+	RoleName           string
+	DisplayName        string
+	Description        string
+	IsSystem           bool
+	Position           int32
+	Pingable           bool
+	RequiresShieldMode bool
+	Override           TierPermissions
+	InheritedAllows    []string
+	InheritedDenials   []string
 }
 
 type TierRoles struct {
@@ -544,12 +546,13 @@ func (c *ChattoCore) buildTierRoles(ctx context.Context, scope PermissionScope, 
 
 func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions, scope PermissionScope, roomID, groupID string) (*TierRole, error) {
 	out := &TierRole{
-		RoleName:    role.Name,
-		DisplayName: role.DisplayName,
-		Description: role.Description,
-		IsSystem:    role.IsSystem,
-		Position:    role.Position,
-		Pingable:    role.Pingable,
+		RoleName:           role.Name,
+		DisplayName:        role.DisplayName,
+		Description:        role.Description,
+		IsSystem:           role.IsSystem,
+		Position:           role.Position,
+		Pingable:           role.Pingable,
+		RequiresShieldMode: role.RequiresShieldMode,
 	}
 
 	serverGrants, err := c.GetServerRolePermissions(ctx, role.Name)
@@ -714,15 +717,7 @@ func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID stri
 	userID := user.GetId()
 	applicable := matrixApplicablePermissions()
 	bot := user.GetIsBot()
-	if bot {
-		filtered := applicable[:0]
-		for _, permission := range applicable {
-			if botPermissionDelegable(Permission(permission)) {
-				filtered = append(filtered, permission)
-			}
-		}
-		applicable = filtered
-	}
+
 	var (
 		scopes []PermissionMatrixScope
 		err    error
@@ -750,11 +745,13 @@ func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID stri
 			}
 			if ok {
 				if bot {
-					allowed, err := c.botOwnerAllowsAtMatrixScope(ctx, user.GetBotOwnerUserId(), perm, scope)
+					_, id, _ := strings.Cut(scope.ID, ":")
+					target := PermissionTargetScope{Kind: scope.Kind, ID: id}
+					ownerAllows, err := c.botOwnerAllowsGrant(ctx, user.GetBotOwnerUserId(), perm, target)
 					if err != nil {
 						return nil, err
 					}
-					cell.AllowPermitted = &allowed
+					cell.AllowPermitted = &ownerAllows
 				}
 				cells = append(cells, cell)
 			}
@@ -769,23 +766,25 @@ func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID stri
 	}, nil
 }
 
-func (c *ChattoCore) botOwnerAllowsAtMatrixScope(ctx context.Context, ownerID string, perm Permission, scope PermissionMatrixScope) (bool, error) {
-	var (
-		decision DecisionKind
-		err      error
-	)
-	switch scope.Kind {
+// botOwnerAllowsGrant checks the owner's assigned permissions at the target
+// scope, including grants from protected roles in any Shield Mode state.
+func (c *ChattoCore) botOwnerAllowsGrant(ctx context.Context, ownerID string, perm Permission, target PermissionTargetScope) (bool, error) {
+	kind, roomID, groupID := KindChannel, "", ""
+	switch target.Kind {
 	case MatrixScopeServer:
-		decision, err = c.PermResolver().resolveEntitlement(ctx, ownerID, KindChannel, "", "", perm)
 	case MatrixScopeDM:
-		decision, err = c.PermResolver().resolveEntitlement(ctx, ownerID, KindDM, "", "", perm)
+		kind = KindDM
 	case MatrixScopeGroup:
-		decision, err = c.PermResolver().resolveEntitlement(ctx, ownerID, KindChannel, "", scopeRefID(scope.ID, "group:"), perm)
+		groupID = target.ID
 	case MatrixScopeRoom:
-		decision, err = c.PermResolver().resolveEntitlement(ctx, ownerID, KindChannel, scopeRefID(scope.ID, "room:"), "", perm)
+		roomID = target.ID
 	default:
-		return false, fmt.Errorf("%w: unknown scope kind %q", ErrInvalidArgument, scope.Kind)
+		return false, fmt.Errorf("%w: unknown scope kind %q", ErrInvalidArgument, target.Kind)
 	}
+	resolver := c.PermResolver()
+	decision, err := resolver.resolveInContentView(ctx, func(readCtx context.Context) (DecisionKind, error) {
+		return resolver.resolveEntitlementWithGroup(readCtx, ownerID, kind, roomID, groupID, perm)
+	})
 	return decision == DecisionAllow, err
 }
 
@@ -804,22 +803,23 @@ func matrixApplicablePermissions() []string {
 }
 
 func (c *ChattoCore) buildMatrixScopes(ctx context.Context, includeDM bool) ([]PermissionMatrixScope, error) {
-	return c.buildMatrixScopesVisibleTo(ctx, includeDM)
+	return c.buildMatrixScopesVisibleTo(ctx, includeDM, nil)
 }
 
-// buildBotMatrixScopes limits bot configuration room metadata to rooms visible
-// through the normal directory policy to both the owner and the managing
-// caller. Group metadata follows that policy's complete group layout so empty
-// groups remain configurable, including for group-scoped room.create grants.
+// The editor sees rooms visible to their session. Check a different owner's
+// room access with all assigned roles, as for the bot's permission ceiling.
 func (c *ChattoCore) buildBotMatrixScopes(ctx context.Context, ownerID, actorID string, includeDM bool) ([]PermissionMatrixScope, error) {
-	viewerIDs := []string{ownerID}
-	if actorID != ownerID {
-		viewerIDs = append(viewerIDs, actorID)
-	}
-	return c.buildMatrixScopesVisibleTo(ctx, includeDM, viewerIDs...)
+	ownerCtx := withRoleEntitlement(ctx, ownerID)
+	return c.buildMatrixScopesVisibleTo(ctx, includeDM, func(roomID string) (bool, error) {
+		visible, err := c.CanSeeRoom(ctx, actorID, KindChannel, roomID)
+		if err != nil || !visible || actorID == ownerID {
+			return visible, err
+		}
+		return c.CanSeeRoom(ownerCtx, ownerID, KindChannel, roomID)
+	})
 }
 
-func (c *ChattoCore) buildMatrixScopesVisibleTo(ctx context.Context, includeDM bool, viewerIDs ...string) ([]PermissionMatrixScope, error) {
+func (c *ChattoCore) buildMatrixScopesVisibleTo(ctx context.Context, includeDM bool, canSeeRoom func(string) (bool, error)) ([]PermissionMatrixScope, error) {
 	scopes := []PermissionMatrixScope{{
 		ID:    "server",
 		Label: "Server",
@@ -844,19 +844,14 @@ func (c *ChattoCore) buildMatrixScopesVisibleTo(ctx context.Context, includeDM b
 			if room.GetArchived() {
 				continue
 			}
-			visible := true
-			for _, viewerID := range viewerIDs {
-				canSee, err := c.CanSeeRoom(ctx, viewerID, KindChannel, room.Id)
+			if canSeeRoom != nil {
+				visible, err := canSeeRoom(room.Id)
 				if err != nil {
 					return nil, fmt.Errorf("check room visibility: %w", err)
 				}
-				if !canSee {
-					visible = false
-					break
+				if !visible {
+					continue
 				}
-			}
-			if !visible {
-				continue
 			}
 			roomsByGroup[group.Id] = append(roomsByGroup[group.Id], matrixRoomLite{
 				ID:   room.Id,

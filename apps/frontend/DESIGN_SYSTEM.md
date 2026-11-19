@@ -13,7 +13,8 @@ Before changing visible UI:
 1. Inspect the relevant Storybook category and the nearest equivalent product
    surface.
 2. Prefer an established Svelte component.
-3. If no component fits, prefer a semantic utility from `src/app.css`.
+3. If no component fits, prefer a semantic utility from the
+   [design-system stylesheets](#stylesheets).
 4. Use raw Tailwind utilities for local layout and responsive composition.
 5. Add or extend a primitive when the same visual or interaction recipe would
    otherwise be repeated.
@@ -174,12 +175,17 @@ The 48 px server frame has a corner radius 2 px larger than the 44 px logo's
 | Compact nested row                          | `surface-box`                                                                          | A panel nested inside another panel                           |
 | Status or scope label                       | `Pill`; `ToggleChip` when independently interactive                                    | One-off colored badges                                        |
 | Inline contextual notice                    | `Hint`                                                                                 | A panel used as an alert                                      |
+| Short note below a form or action           | `Hint` with `plain`                                                                    | A boxed `Hint` or hand-styled muted paragraph                 |
 | Transient feedback                          | `toast`                                                                                | Persistent inline copy that disappears automatically          |
 | Empty collection or search result           | `EmptyState`                                                                           | Bespoke centered placeholder markup                           |
-| Loading content                             | `LoadingFog` sized to the content area                                                 | Rows shaped like future content                               |
-| Loading conversation timeline               | `LoadingDots` at the bottom of the timeline                                            | `LoadingFog` without a stable content size                    |
+| Loading content                             | `LoadingDots` sized to the content area                                                | Rows shaped like future content; `LoadingFog` on non-media    |
+| Loading conversation timeline               | `LoadingDots` at the bottom of the timeline                                            | A fixed-height placeholder block                              |
 | Loading image                               | A stable image frame with `LoadingFog` until load, then the existing fallback on error | An image with no reserved size                                |
 | Part or its data failed to load             | `LoadRetry` in place of the part                                                       | A hand-built message and Retry button                         |
+
+`LoadRetry` also retries without the user while the tab is visible. Set
+`autoRetry` to false when another attempt cannot repair the failure, such as
+a server error that is not a network error.
 
 `TextInput` and `Select` accept `labelHidden` when the surrounding context
 already names the control, for example a policy column in a table row. The
@@ -245,8 +251,8 @@ uses separators; 3D adds narrow gaps, softly rounded segment corners, and faint
 individual highlights. These changes follow the animated depth preference.
 Do not add `btn` or local bevels to its segments. The default height is
 48 px, aligned with the composer and user card. Use `compact` for a 28 px
-secondary row with 15 px icons and a smaller corner radius, such as the call controls above the user card
-or the composer formatting bar. Use `gaps={false}` for a continuous surface with separators and square inner
+secondary row with 15 px icons and a smaller corner radius, such as the
+composer formatting bar. Use `gaps={false}` for a continuous surface with separators and square inner
 corners in every depth mode. The composer and user-card control rows use a 4 px gap above their main surface.
 The composer uses this variant for three groups: inline text styles, block
 formats, and lists with indentation. Only the groups have gaps between them. Formatting buttons use `aria-pressed` for the
@@ -413,17 +419,18 @@ Follow these defaults:
 - Render loading, error, and empty states inside the panel whose content they
   replace. A single full-page availability state may use one untitled panel
   because there are no peer sections to distinguish.
-- Use one `LoadingFog` block for a pending content area. Give it a size that
-  keeps the surrounding layout stable. A soft highlight sweeps across each block,
-  and the block has an accessible busy state. It fades in briefly and leaves as
-  soon as content is ready. When the user requests less motion, the highlight
-  stops and the fade is removed.
+- Use one `LoadingDots` element for a pending content area. Give it a size that
+  keeps the surrounding layout stable; the dots stay in its centre. The element
+  has an accessible busy state. The dots appear after a short delay, so fast
+  loads do not show them. When the user requests less motion, the dots stay
+  still.
+- Use `LoadingFog` only for pending media: images, video, and link preview
+  images. It fills the reserved media frame, and a soft highlight sweeps across
+  it. When the user requests less motion, the highlight stops.
 - Use `LoadingDots` in the centre of the server sidebar while its first view
   loads. Keep the server header and current-user footer in place.
 - A conversation timeline grows from the bottom and has no stable size to
-  reserve. Use `LoadingDots` at the bottom of a pending timeline instead of
-  `LoadingFog`. The dots appear after a short delay, so fast loads do not
-  show them. When the user requests less motion, the dots stay still.
+  reserve. Put `LoadingDots` at the bottom of a pending timeline.
 - Use `fillHeight` on both `PaneContent` and the single primary `Panel` when a
   dense table or editor should consume the remaining pane height. Ordinary
   forms and document-like pages should remain content-sized.
@@ -465,6 +472,12 @@ state ownership, not the visual treatment of their forms.
   operate as one group. It is not a substitute for the page-level panel frame.
 - Stack independent settings panels with the standard `gap-6`, and never nest
   one `Panel` inside another.
+- Use `SettingsColumns` from `$lib/components/settings` for a page with two or
+  more short form panels. It puts the panels in two columns when the content
+  column is at least 48rem wide, and in one column when it is narrower. Put
+  related panels in the same column. Keep a wide panel, such as a table or a
+  matrix, outside `SettingsColumns`, so that it spans the content column. A
+  page with one panel does not use it.
 
 ## Semantic Color Language
 
@@ -496,6 +509,11 @@ the design-system guardrail.
 
 Focused form fields use the action colour for their border without an additional
 glow. Invalid fields follow the same treatment with the error-coloured border.
+
+Form field labels use the body text size with medium weight. Field descriptions
+and validation messages are one step smaller (`text-sm`). The required marker is
+a small muted asterisk. Do not enlarge field text for one surface with a
+font-size override; change the field components instead.
 
 Compact filled controls pair each tone with its `on-*` foreground token.
 Prominent action, success, warning, and danger buttons use dedicated fills with
@@ -550,7 +568,7 @@ details** for normal and highlighted rows, including a narrow layout.
 
 **Inset Frame** is the canonical name in the [glossary](../../docs/GLOSSARY.md#ui).
 It is a raised rim around recessed content, shared by context menus, palettes,
-dialog trays, and preview cards. Its two primitives in `src/app.css` are the source of truth:
+dialog trays, and preview cards. Its two primitives in `src/styles/content.css` are the source of truth:
 
 - `inset-frame` owns the depth-aware 1px `text/10` border, 8px outer corners, `surface` fill,
   depth-aware lighting, text color, and default 4px rim.
@@ -601,15 +619,35 @@ line breaks. Load missing hover-card metadata only on hover, focus, or touch
 long-press. Loading indicators and fetched titles belong in the floating card
 or touch sheet. Composer preview requests keep their existing flow.
 
-Known Chatto entities use the borderless `inline-link-pill` utility.
+### Inline pills
+
+Use the `inline-pill` utilities for compact actions inside text, including
+entity links, message links, and timestamp buttons. Use `Pill` for status labels
+and `ToggleChip` for selection controls. Ordinary URLs remain text links.
+
+The utilities work with native links and buttons, including generated Markdown
+DOM. Keep navigation, menus, and timestamp dialogs with their existing owners.
+Do not add a Svelte wrapper solely to apply these styles.
+
+| Utility                   | Contract                                                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------- |
+| `inline-pill`             | Shell, baseline alignment, regular text weight, shared radius, theme fill, and hover feedback. |
+| `inline-pill-main`        | Raised label with 1px vertical padding. Required inside the shell.                             |
+| `inline-pill-icon`        | Muted icon beside the label, at 85% of the text size.                                          |
+| `inline-pill-meta`        | Optional secondary segment, limited to 40% of the pill width.                                  |
+| `inline-pill-icon-image`  | Image-sized icon slot. Combine with `inline-pill-icon`.                                        |
+| `inline-pill-main-image`  | Label inset for a server image. Combine with `inline-pill-main`.                               |
+| `inline-pill-main-avatar` | Label inset for a circular avatar. Combine with `inline-pill-main`.                            |
+
+The shell uses a borderless surface.
 It uses a `surface-emphasized` fill, regular `text` foreground, and a brighter
 surface on hover. Do not add decorative borders, rings, or Inset Frame outlines.
 Keep keyboard focus visible. The lighter label has a shadow against the dark
 backing. The main section has 1px of vertical padding and uses the surrounding
 text size. Icons and metadata use 85% of that size.
 
-Entity pills use `link-pill-icon`, `link-pill-main`, and optional
-`link-pill-meta` sections. The icon sits beside the title. Metadata sits on
+Entity pills use `inline-pill-icon`, `inline-pill-main`, and optional
+`inline-pill-meta` sections. The icon sits beside the title. Metadata sits on
 the dark backing and stays within 40% of the pill. Room and user metadata
 identifies the server only when it differs from the rendering server.
 Message metadata identifies the room when known. Do not repeat the title
@@ -618,11 +656,18 @@ as metadata. Pills fit the available width without stretching past their content
 Entity avatars and server icons have a 1px inset without an image border.
 Avatars stay circular; use `UserAvatar` with `mutedPlaceholder`.
 Pill corners and compact server icons use the shared 6px
-`--inline-link-radius`. Use logical layout properties for RTL.
+`--inline-pill-radius`. Use logical layout properties for RTL.
 Use the same treatment in messages and visual-composer previews. Composer
 pill widgets are limited to recognised Chatto entity and message links. Other
 URLs stay directly editable as text.
-See **Messages/Entity links** and **Messages/Web links** in Storybook.
+Keep timestamp labels on one line. Their owner can use `max-w-none` to preserve
+the full date and time. Other labels use `min-w-0 truncate` inside the main
+section. See **UI/Inline pills** for the shared treatment, real consumers,
+metadata, images, narrow widths, and larger text. Use Storybook's theme and
+direction controls to check light, dark, LTR, and RTL variants.
+See **Messages/Entity links** and **Messages/Web links** for feature examples.
+
+### Preview frames
 
 Use this family for message code blocks, images, files, audio/video attachments, OpenGraph
 cards, social embeds, linked messages, composer previews, and hover cards.
@@ -653,20 +698,24 @@ or contact a third party merely to demonstrate the frame. These utilities do
 not change preview fetch, consent, or content-warning behavior.
 
 Use `PreviewToolbar` and `PreviewAction` for image, link, social-post, and video
-preview actions. The toolbar forms a visor across the top inside the frame rim,
-with the theme's `surface` colour at 50% opacity. Its positioned parent uses
-`group/preview`. Mouse hover and keyboard focus reveal the toolbar. Touch
-devices keep it visible. Only visible controls intercept pointer input; the rest
-of the visor lets clicks reach the links and media below it.
-When the positioned parent is the content canvas inside the rim, set
-`--preview-toolbar-inset: 0px` on that parent so the visor meets the canvas edges.
-Use `layout="row"` for file and audio actions that stay in the normal layout.
-The card owns action permissions, callbacks, and confirmation dialogs.
-`PreviewAction` uses the same `icon-action-emphasis` utility as standard icon
-controls: hover and visible keyboard focus use the full-intensity `text-top`
-colour. Disabled controls do not brighten. Keep this rule in the shared utility;
-do not add colour overrides at call sites. Preview actions keep a neutral tone,
-including the delete icon. Delete confirmations retain their destructive tone.
+preview actions. The default toolbar is a row below the content, inside the
+frame rim. It stays visible and reserves its own space. It must not cover links,
+images, or playback controls. Use `layout="row"` for file and audio actions that
+share a row with content, and for viewer controls. Keep the canvas aspect ratio
+independent of the toolbar height. Video playback controls, including Cast, PiP,
+and fullscreen, stay inside the player. Video previews have no separate viewer opener.
+Attachment description/delete actions stay visible in the footer on all devices.
+Do not render a footer without permitted actions.
+Use `AttachmentActions` for direct description and delete icons. Keep all actions
+accessible in the footer; narrow rows can wrap. Pass viewing and playback
+actions through the toolbar's `viewing` snippet, at the start of the row.
+Keep permission-gated description and delete actions at the end. These sides
+follow text direction, so RTL layouts mirror the groups. The card owns permissions,
+callbacks, and confirmation dialogs.
+`PreviewAction` uses the shared `icon-action-feedback` utility: icons are muted
+at rest and brighten on hover or keyboard focus. Touch input uses larger targets.
+Preview actions keep a neutral tone, including the delete icon. Delete
+confirmations retain their destructive tone.
 
 Link hover cards use one native link around their image, text, and destination
 footer. Use the same navigation rules as their trigger. Keep the card open
@@ -674,7 +723,7 @@ while it has keyboard focus; Escape closes it and returns focus to the trigger.
 Do not use `role="tooltip"` for this interactive surface or nest links inside it.
 
 `preview-code` composes the frame and scrollable inset for posted code and the
-visual composer. Keep its geometry in `app.css`, rather than separate editor
+visual composer. Keep its geometry in `src/styles/content.css`, rather than separate editor
 and message recipes. `code-frame` adds the artifact layout to this primitive;
 the thin header holds the language, copy action, and Source/Render controls.
 Source and rendered panels use `preview-content`. Visual fences show only their
@@ -694,7 +743,7 @@ use a `preview-content` row inside `preview-frame`, like posted preview cards.
 
 Full-size attachment viewers, live call tiles, avatars, and server icons keep
 their dedicated primitives. Plain Markdown images use the preview frame through
-`prose.css`; images already inside preview frames are excluded from that rule.
+`src/styles/prose.css`; images already inside preview frames are excluded from that rule.
 
 Use **UI/Preview frames** in Storybook to check the family, aspect ratios,
 composer rows, loading/failure states, depth settings, and narrow RTL layouts.
@@ -731,29 +780,28 @@ so the rim does not change the media proportions.
 ### Shared Depth Utilities
 
 `surface-raised` owns the gradient and lit-edge recipe. `surface-lowered` owns
-inset shadows. Both live in `src/app.css` and set depth only: they do not set
+inset shadows. Both live in `src/styles/controls.css` and set depth only: they do not set
 colour, radius, layout, outer elevation, or interaction states. Use one depth
 primitive per surface. Semantic utilities set the strength and add the rest of
 the component treatment. Feature components should use those semantic utilities
 instead of adding local gradients or arbitrary inset shadows.
 
-| Utility                               | Use                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `surface-raised`                      | Base raised finish. Semantic utilities set `--lighting-*` strength.                                                                                                                                                                                                                                                                                                                                                                   |
-| `surface-lowered`                     | Base recessed finish. Semantic utilities set `--lowered-shadow` and `--lowered-edge`.                                                                                                                                                                                                                                                                                                                                                 |
-| `control-raised`                      | Buttons and Select fields; shared shell lighting with disabled-state handling and no cast shadow. Semantic utilities supply fill changes for press feedback.                                                                                                                                                                                                                                                                          |
-| `option-depth`                        | Quiet checkbox and radio rows; removes depth when disabled.                                                                                                                                                                                                                                                                                                                                                                           |
-| `control-well`                        | Empty checkbox and radio indicators.                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `selection-indicator`                 | Soft lighting on selected checkbox and radio indicators, without a drop shadow.                                                                                                                                                                                                                                                                                                                                                       |
-| `shell-surface`                       | User card and call participant cards; soft rim with no button elevation or pressed finish.                                                                                                                                                                                                                                                                                                                                            |
-| `shell-action`                        | Standalone native buttons in the bottom row, such as Start call. Uses the same surface and 48 px minimum height as the composer and user card, with hover, focus, pressed, and disabled states.                                                                                                                                                                                                                                       |
-| `chat-input-surface`                  | Composer and sidebar search fields; the same quiet raised `shell-surface` finish as the user card.                                                                                                                                                                                                                                                                                                                                    |
-| `shell-lighting`                      | Shared quiet finish for shell surfaces and raised controls. Also lights server gutter artwork without changing the image or intercepting clicks.                                                                                                                                                                                                                                                                                      |
-| `floating-frame`                      | Lit panel, dialog, and menu frames.                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `floating-inset`                      | Recessed content inside those frames.                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `sheet-frame`                         | Touch dialog and menu frames; uses shared depth, shell radius, and safe-area spacing.                                                                                                                                                                                                                                                                                                                                                 |
-| `app-frame-shell` / `app-frame-inset` | Desktop app frame with a flat fill and no depth highlight on its outer edge. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. Higher contrast settings strengthen the edge in both themes. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
-| `accent-swatch`                       | Palette samples with their own colour gradient and shared lit edges.                                                                                                                                                                                                                                                                                                                                                                  |
+| Utility               | Use                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `surface-raised`      | Base raised finish. Semantic utilities set `--lighting-*` strength.                                                                                                                                                                                                                                                                                                                                                                                            |
+| `surface-lowered`     | Base recessed finish. Semantic utilities set `--lowered-shadow` and `--lowered-edge`.                                                                                                                                                                                                                                                                                                                                                                          |
+| `control-raised`      | Buttons and Select fields; shared shell lighting with disabled-state handling and no cast shadow. Semantic utilities supply fill changes for press feedback.                                                                                                                                                                                                                                                                                                   |
+| `option-depth`        | Quiet checkbox and radio rows; removes depth when disabled. Empty indicators in these rows use `surface-lowered`.                                                                                                                                                                                                                                                                                                                                              |
+| `selection-indicator` | Soft lighting on selected checkbox and radio indicators, without a drop shadow.                                                                                                                                                                                                                                                                                                                                                                                |
+| `shell-surface`       | User card and call participant cards; soft rim with no button elevation or pressed finish.                                                                                                                                                                                                                                                                                                                                                                     |
+| `shell-action`        | Standalone native buttons in the bottom row, such as Start call. Uses the same surface and 48 px minimum height as the composer and user card, with hover, focus, pressed, and disabled states.                                                                                                                                                                                                                                                                |
+| `chat-input-surface`  | Composer and sidebar search fields; the same quiet raised `shell-surface` finish as the user card.                                                                                                                                                                                                                                                                                                                                                             |
+| `shell-lighting`      | Shared quiet finish for shell surfaces and raised controls. Also lights server gutter artwork without changing the image or intercepting clicks.                                                                                                                                                                                                                                                                                                               |
+| `floating-frame`      | Lit panel, dialog, and menu frames.                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `floating-inset`      | Recessed content inside those frames.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `sheet-frame`         | Touch dialog and menu frames; uses shared depth, shell radius, and safe-area spacing.                                                                                                                                                                                                                                                                                                                                                                          |
+| `app-frame-inset`     | Desktop app frame. The outer frame uses a flat `bg-surface` fill with no depth highlight on its edge. Light mode raises the content area with a light upper/left edge, dark lower/right edge, and soft outer shadow. Dark mode keeps the recessed content edge and inset shadow. Higher contrast settings strengthen the edge in both themes. No full-window gradient. The inset overlay passes pointer input through to the panes. Mobile stays edge-to-edge. |
+| `accent-swatch`       | Palette samples with their own colour gradient and shared lit edges.                                                                                                                                                                                                                                                                                                                                                                                           |
 
 The shared `--shell-*` theme tokens soften shell bevels in light mode with a
 cleaner top highlight, less lower shading, and a small edge blur. Dark mode
@@ -984,11 +1032,35 @@ margin, flex behavior, or responsive visibility. Do not use `!` overrides to
 change a component's color, density, radius, typography, or interaction state.
 If a legitimate variant is missing, add it to the component and its story.
 
+### Stylesheets
+
+`src/app.css` is the entry point. It loads Tailwind and imports the
+design-system stylesheets in `src/styles/` in a fixed order. A later file can
+override an earlier one, so do not change the order.
+
+| File                   | Contents                                                                |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `prose.css`            | Markdown content                                                        |
+| `composer.css`         | Composer editor content                                                 |
+| `view-transitions.css` | View transitions                                                        |
+| `foundation.css`       | Fonts, motion tokens, registered properties, Iconify, custom variants   |
+| `themes.css`           | Light and dark themes, accent colours, surface tones                    |
+| `tokens.css`           | Tailwind `@theme` tokens                                                |
+| `layout.css`           | Pane pages, panels, data tables, selectable lists                       |
+| `controls.css`         | Surface depth, buttons, pill buttons, sliders, inputs, choices          |
+| `content.css`          | Links, inline pills, Inset Frame, previews, attachments, code frames    |
+| `actions.css`          | Message rows, icon actions, sidebar items, feedback, loading indicators |
+| `shell.css`            | App shell, composer surface, server gutter, floating frames, menus      |
+| `base.css`             | Base element styles and global interaction states                       |
+
+Put a new utility in the file for its area. `scripts/check-design-system.mjs`
+reads all of them through the imports of `src/app.css`.
+
 Do not add a Svelte `<style>` block for ordinary component styling. Scoped CSS
 is appropriate for keyframes, pseudo-elements, browser-specific behavior, or
 third-party content that cannot be expressed clearly with established
 utilities. Before adding one, prefer a named utility or narrowly scoped global
-recipe in `src/app.css` when the behavior is reusable. The reviewed exception
+recipe in `src/styles/` when the behavior is reusable. The reviewed exception
 list lives in `scripts/check-design-system.mjs`; adding to it requires a comment
 in the component explaining why Tailwind or a semantic utility is insufficient.
 
@@ -1065,7 +1137,7 @@ buttons:
 
 ## Shape, Type, And Motion
 
-Hover, focus, and action-reveal feedback use these tokens from `src/app.css`:
+Hover, focus, and action-reveal feedback use these tokens from `src/styles/foundation.css`:
 
 | Token                             | Default    | Purpose                                                       |
 | --------------------------------- | ---------- | ------------------------------------------------------------- |
@@ -1268,6 +1340,16 @@ remain visible while collapsed. Room headers use this option for active calls.
 When a call is active, the collapsed header keeps the call button visible
 beside the three-dot button. It uses the same active-call colour and pulse as
 the expanded toolbar.
+
+Call controls use `PillButtonGroup` in the app header. `app-call-bar` sets a
+30 px height, with 18 px glyphs; comfortable density uses a 36 px height. In narrow
+windows, the segment width reduces to 28 px so all call actions fit. Darker
+neutral buttons separate the group from global navigation.
+`app-call-frame` uses the shared inset surface around the group. Its rim
+and inset lighting follow the depth setting and disappear at zero depth.
+The shared pill utilities supply the tabbed segments and depth lighting. Enabled media uses
+`pill-button-success`; hang-up uses `pill-button-danger`. Keep room names in
+the link's accessible label and tooltip. The bar fits the existing header height.
 
 The app header and room header hide in narrow touch-capable windows while the shared
 viewport detector reports an open software keyboard. They return when it

@@ -18,7 +18,9 @@
     args: {
       role: everyone,
       saving: false,
-      savingPingable: false,
+      savingSetting: false,
+      showShieldSetting: true,
+      onSaveShield: async () => true,
       onSaveMetadata: () => {},
       onSavePingable: async () => true,
       onDelete: () => {}

@@ -297,7 +297,7 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
   /**
    * Desired username. Ignored when choose_username is externally managed;
    * the server assigns a name from the verified provider claim in that case.
-   * Otherwise, it must contain 2 to 32 characters and use a valid username format.
+   * Otherwise, it must meet the server requirements for username length and format.
    *
    * @generated from field: string login = 2;
    */
@@ -305,7 +305,7 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
 
   /**
    * Desired display name. When omitted, the server uses a valid provider hint
-   * and otherwise falls back to the assigned username.
+   * and otherwise uses the first 32 characters of the assigned username.
    *
    * @generated from field: string display_name = 3;
    */

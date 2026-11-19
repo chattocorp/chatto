@@ -3,6 +3,7 @@
   import AppHeader from './AppHeader.svelte';
   import PaneHeader from './PaneHeader.svelte';
   import { DesktopUpdates } from '$lib/desktop/updates.svelte';
+  import VoiceCallPanelStoryHarness from '$lib/components/voice/VoiceCallPanelStoryHarness.svelte';
 
   const { Story } = defineMeta({
     title: 'UI/App header',
@@ -30,6 +31,18 @@
 <Story name="Update ready" asChild>
   <div class="max-w-4xl bg-background">
     <AppHeader {updates} />
+  </div>
+</Story>
+
+<Story name="Active call" asChild>
+  <div class="flex h-96 max-w-4xl flex-col bg-background">
+    <VoiceCallPanelStoryHarness withAppHeader scenario="voice" />
+  </div>
+</Story>
+
+<Story name="Active call in a narrow header" asChild>
+  <div class="flex h-96 w-80 flex-col bg-background">
+    <VoiceCallPanelStoryHarness withAppHeader scenario="voice" />
   </div>
 </Story>
 

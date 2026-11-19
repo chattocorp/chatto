@@ -100,7 +100,8 @@ vi.mock('$app/state', () => ({
 }));
 
 vi.mock('$lib/auth/reauth', () => ({
-  startRemoteReauthentication: vi.fn()
+  startRemoteReauthentication: vi.fn(),
+  cancelServerOAuthFlow: vi.fn()
 }));
 
 vi.mock('$lib/auth/returnNavigation', () => ({

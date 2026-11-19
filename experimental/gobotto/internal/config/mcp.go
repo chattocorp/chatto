@@ -8,7 +8,8 @@ import (
 )
 
 // MCP configures operator-selected remote capabilities. Missing configuration
-// disables MCP. Only explicitly listed tools are exposed to conversations.
+// disables additional MCP servers. The connected Chatto catalog is automatic;
+// other servers expose only explicitly listed tools.
 type MCP struct {
 	Servers map[string]MCPServer `toml:"servers"`
 }

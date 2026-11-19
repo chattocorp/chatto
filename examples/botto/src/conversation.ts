@@ -1,11 +1,10 @@
-/** Serialize parent turns while ordinary child tasks keep a conversation execution alive. */
+/** Serialize conversation turns and retain their Runling run identity. */
 import { randomUUID } from 'node:crypto';
-import { createNotifier, task, Type, type TaskContext } from 'runling';
+import { task, Type, type TaskContext } from 'runling';
 import type { EventSourceContext, RunHandle } from 'runling/web';
-import { Subagents } from './delegate.ts';
 import { DEFAULT_INBOX } from './settings.ts';
 
-type Turn = (ctx: TaskContext, children: Subagents) => Promise<void>;
+type Turn = (ctx: TaskContext) => Promise<void>;
 interface Work {
   run: Turn;
   done: ReturnType<typeof Promise.withResolvers<void>>;
@@ -14,9 +13,7 @@ interface Work {
 interface Owner {
   handle: RunHandle;
   queue: Work[];
-  changed: ReturnType<typeof createNotifier>;
   accepting: boolean;
-  children?: Subagents;
 }
 
 // Only verified source work can create callbacks. Console steering and saved
@@ -25,7 +22,7 @@ const tickets = new Map<string, Owner>();
 const active = new Map<string, Owner>();
 const admissions = new WeakMap<EventSourceContext, number>();
 
-/** Ends when parent turns, child work, and completion delivery are all finished. */
+/** Ends when all accepted conversation turns are finished. */
 export const conversation = task(
   {
     name: 'Botto conversation',
@@ -39,8 +36,6 @@ export const conversation = task(
       const owner = tickets.get(ticket);
       if (!owner || owner.handle.id !== ctx.run?.id) continue;
       tickets.delete(ticket);
-      const children = new Subagents(ctx, () => owner.changed.notify());
-      owner.children = children;
       let current: Work | undefined;
       try {
         while (true) {
@@ -48,7 +43,7 @@ export const conversation = task(
           current = owner.queue.shift();
           if (current) {
             try {
-              await current.run(ctx, children);
+              await current.run(ctx);
             } catch (error) {
               current.failure = { error };
               throw new Error('Conversation turn failed');
@@ -58,19 +53,12 @@ export const conversation = task(
             current = undefined;
             continue;
           }
-          const complete = children.takeCompletion();
-          if (complete) {
-            await complete();
-            continue;
-          }
-          if (!children.busy) break;
-          await owner.changed.wait({ signal: ctx.signal });
+          break;
         }
       } finally {
         // Stop admission before yielding for cleanup. A racing batch waits for
         // this execution to close, then reactivates the same retained run.
         owner.accepting = false;
-        await children.close();
         current?.done.reject(current.failure?.error ?? new Error('Conversation turn failed'));
         for (const work of owner.queue.splice(0))
           work.done.reject(new Error('Conversation closed before the turn completed'));
@@ -81,7 +69,7 @@ export const conversation = task(
   }
 );
 
-/** Resolve after this batch, not after its children. Parent transcript access stays serial. */
+/** Resolve after the turn and root cleanup. Transcript access stays serial. */
 export async function runTurn(
   source: EventSourceContext,
   key: string,
@@ -113,7 +101,7 @@ export async function runTurn(
     }
     if (!started) throw new Error('Conversation was not registered');
     const handle: RunHandle = started;
-    owner = { handle, queue: [], changed: createNotifier(), accepting: true };
+    owner = { handle, queue: [], accepting: true };
     active.set(handle.id, owner);
     const owned = owner;
     const stop = () => handle.cancel();
@@ -143,20 +131,19 @@ export async function runTurn(
       throw error;
     } finally {
       tickets.delete(ticket);
-      if (!owner.children?.busy) await handle.finished;
+      await handle.finished;
     }
     source.signal.throwIfAborted();
     return;
   }
   const work = makeWork(callback);
   owner.queue.push(work);
-  owner.changed.notify();
   await work.done.promise;
-  if (!owner.children?.busy) await owner.handle.finished;
+  await owner.handle.finished;
   source.signal.throwIfAborted();
 }
 
-/** Source failures also stop children between batches, before the Chatto client closes. */
+/** Stop active conversation work before the Chatto client closes. */
 export async function closeConversations(source: EventSourceContext): Promise<void> {
   const owned = source.runs().filter((run) => active.has(run.id));
   for (const run of owned) run.cancel();

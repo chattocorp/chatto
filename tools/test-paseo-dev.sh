@@ -11,6 +11,9 @@ scratch=$(mktemp -d "$PWD/.context/test-paseo-dev.XXXXXX")
 trap 'rm -rf "$scratch"' EXIT
 mkdir "$scratch/bin"
 
+# Keep host workspace settings out of the isolated port cases.
+unset GEORDI_PORT
+
 # Check actual mise evaluation of defaults and launcher overrides.
 env -u CONDUCTOR_PORT -u CHATTO_DEV_CHATTO_PORT_OVERRIDE -u CHATTO_DEV_NATS_PORT_OVERRIDE \
 	-u CHATTO_DEV_SMTP_PORT_OVERRIDE -u CHATTO_DEV_LIVEKIT_URL_OVERRIDE \
@@ -24,6 +27,11 @@ env CONDUCTOR_PORT=45000 CHATTO_DEV_CHATTO_PORT_OVERRIDE=53001 \
 	CHATTO_DEV_NATS_PORT_OVERRIDE=0 CHATTO_DEV_CHATTO_URL_OVERRIDE=https://dev--test.example.com \
 	CHATTO_DEV_SMTP_PORT_OVERRIDE=53009 CHATTO_DEV_LIVEKIT_URL_OVERRIDE=wss://livekit--test.example.com \
 	mise env --json >"$scratch/paseo.json"
+env -u CHATTO_DEV_CHATTO_PORT_OVERRIDE -u CHATTO_DEV_NATS_PORT_OVERRIDE \
+	-u CHATTO_DEV_SMTP_PORT_OVERRIDE -u CHATTO_DEV_LIVEKIT_URL_OVERRIDE \
+	-u CHATTO_DEV_CHATTO_URL_OVERRIDE -u CHATTO_DEV_WORKSPACE \
+	GEORDI_PORT=46000 CONDUCTOR_PORT=45000 \
+	mise env --json >"$scratch/geordi.json"
 python3 - "$scratch" <<'PY'
 import json
 import os
@@ -35,6 +43,7 @@ root = Path(sys.argv[1])
 for name, port, nats, url in (
     ("default", "4000", "4004", "http://chatto.local.localhost:4000"),
     ("conductor", "45000", "45004", "http://chatto.ws45000.localhost:45000"),
+    ("geordi", "46000", "46004", "http://chatto.ws46000.localhost:46000"),
     ("paseo", "53001", "0", "https://dev--test.example.com"),
 ):
     data = json.loads((root / f"{name}.json").read_text())
@@ -45,7 +54,7 @@ for name, port, nats, url in (
         assert data["CHATTO_DEV_SMTP_PORT"] == "53009"
         assert data["CHATTO_DEV_LIVEKIT_URL"] == "wss://livekit--test.example.com"
     else:
-        base = 4000 if name == "default" else 45000
+        base = {"default": 4000, "conductor": 45000, "geordi": 46000}[name]
         assert data["CHATTO_DEV_SMTP_PORT"] == str(base + 8)
         assert data["CHATTO_DEV_LIVEKIT_URL"] == f"ws://localhost:{base + 5}"
 # Resolved values from a parent mise process must not override a new Conductor block.

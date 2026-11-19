@@ -21,7 +21,7 @@ subset and implementation limits.
   resource APIs through the configured operator socket. It creates new channels.
   Repeating the same immutable import with its local journal resumes it.
 - `--validate-only` checks the archive and destination over the local operator
-  socket without server writes. Invalid references,
+  socket without server writes. Before creating any records, the importer checks new usernames, including prefixes and suffixes, against the destination login length limit. Invalid references,
   invalid history, missing files, and file integrity failures stop validation.
 - `chatto operator export PATH` will produce a readable archive at a consistent
   source cut and refuse an existing output destination.

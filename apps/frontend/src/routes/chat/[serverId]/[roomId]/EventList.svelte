@@ -43,8 +43,8 @@
   } from './timelineSelection';
   import { findLastEditableMessage } from './lastEditableMessage';
   import { LoadingDots, LoadRetry, ScrollFader } from '$lib/ui';
-  import { errorMessage } from '$lib/utils/errorMessage';
-  import { Code, isConnectCode } from '@chatto/client/api/connect';
+  import { loadErrorMessage } from '$lib/utils/errorMessage';
+  import { Code, isConnectCode, isNetworkError } from '@chatto/client/api/connect';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '@chatto/client/room/messages/MessagesStore';
   import { formatDayLabel, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -212,13 +212,22 @@
   // Apply display settings after structural filtering, retaining the original
   // window for unread boundaries and pagination through entirely hidden pages.
   const activityFilteredEvents = $derived(
-    showMembershipEvents
-      ? timelineEvents
-      : timelineEvents.filter(
-          (event) =>
-            event.event?.kind !== TimelineEventKind.UserJoinedRoom &&
-            event.event?.kind !== TimelineEventKind.UserLeftRoom
-        )
+    timelineEvents.filter((event) => {
+      switch (event.event?.kind) {
+        case TimelineEventKind.UserJoinedRoom:
+        case TimelineEventKind.UserLeftRoom:
+          // SystemEventGroup omits membership activity without a visible actor.
+          return showMembershipEvents && !!event.actor && !event.actor.deleted;
+        case TimelineEventKind.RoomCreated:
+        case TimelineEventKind.RoomUpdated:
+        case TimelineEventKind.RoomDeleted:
+          // SystemEvent renders no row for these events. They must not own
+          // date headers or break message groups when a message is deleted.
+          return false;
+        default:
+          return true;
+      }
+    })
   );
   let filteredEvents = $derived(
     showTombstones ? activityFilteredEvents : visibleTombstoneEvents(activityFilteredEvents)
@@ -1040,7 +1049,8 @@
         <!-- A failed read left no window; see retryLoad. -->
         <LoadRetry
           onretry={retryLoad}
-          message={errorMessage(loadError, m('room.timeline.load_failed'))}
+          message={loadErrorMessage(loadError, m('room.timeline.load_failed'))}
+          autoRetry={isNetworkError(loadError)}
         />
       {:else if virtualItems.length === 0}
         <div class="flex flex-1 items-center justify-center">

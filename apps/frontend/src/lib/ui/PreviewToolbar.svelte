@@ -1,23 +1,41 @@
 <!-- @component
-Groups preview actions in a top visor, or an inline row for file and audio cards.
-Overlay mode requires a positioned parent with group/preview.
-Hover and focus reveal the visor; touch devices keep it visible.
+Groups preview actions below the content on the frame rim.
+Viewing actions sit at the start; management actions sit at the end.
+Use the inline row for file, audio, and viewer controls. Actions stay visible.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
   let {
     children,
-    layout = 'overlay'
+    viewing,
+    layout = 'footer'
   }: {
-    children: Snippet;
-    /** Inline rows remain in the card's normal layout. */
-    layout?: 'overlay' | 'row';
+    /** Permission-gated management actions, aligned to the end. */
+    children?: Snippet;
+    /** Viewing and playback actions available to any reader, aligned to the start. */
+    viewing?: Snippet;
+    /** Footer rows sit below the canvas; inline rows share space with card content. */
+    layout?: 'footer' | 'row';
   } = $props();
 </script>
 
 <div
-  class={layout === 'overlay' ? 'preview-toolbar' : 'flex max-w-full flex-wrap items-center gap-1'}
+  class={layout === 'footer'
+    ? 'preview-toolbar'
+    : 'flex max-w-full flex-wrap items-center gap-x-3 gap-y-1'}
 >
-  {@render children()}
+  {#if viewing}
+    <div class="flex max-w-full flex-wrap items-center gap-1 empty:hidden" data-preview-viewing>
+      {@render viewing()}
+    </div>
+  {/if}
+  {#if children}
+    <div
+      class="ms-auto flex max-w-full flex-wrap items-center gap-1 empty:hidden"
+      data-preview-management
+    >
+      {@render children()}
+    </div>
+  {/if}
 </div>

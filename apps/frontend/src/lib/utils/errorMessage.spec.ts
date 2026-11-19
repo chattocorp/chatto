@@ -2,7 +2,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StaleResponseError } from '@chatto/client/api/connect';
 import { toast } from '$lib/ui/toast';
-import { errorMessage, toastError } from './errorMessage';
+import { errorMessage, loadErrorMessage, toastError } from './errorMessage';
 
 describe('errorMessage', () => {
   it.each([
@@ -14,6 +14,12 @@ describe('errorMessage', () => {
     [Code.Aborted, 'This changed while you were editing it. Reload the page, then try again.']
   ])('localizes code %s instead of showing server text', (code, expected) => {
     expect(errorMessage(new ConnectError('internal detail', code), 'Fallback')).toBe(expected);
+  });
+
+  it('localizes a fetch failure that Connect wraps as an unknown error', () => {
+    const error = ConnectError.from(new TypeError('Failed to fetch'));
+    expect(error.code).toBe(Code.Unknown);
+    expect(errorMessage(error, 'Fallback')).toBe('Network error. Please try again.');
   });
 
   it.each([
@@ -52,6 +58,23 @@ describe('errorMessage', () => {
 
   it('uses the generic message when no fallback is given', () => {
     expect(errorMessage(undefined)).toBe('Something went wrong');
+  });
+});
+
+describe('loadErrorMessage', () => {
+  it.each([Code.InvalidArgument, Code.FailedPrecondition, Code.ResourceExhausted])(
+    'uses the fallback instead of server text for code %s',
+    (code) => {
+      expect(loadErrorMessage(new ConnectError('cursor detail', code), 'Fallback')).toBe(
+        'Fallback'
+      );
+    }
+  );
+
+  it('localizes access and network codes like errorMessage', () => {
+    expect(loadErrorMessage(new ConnectError('detail', Code.Unavailable), 'Fallback')).toBe(
+      'Network error. Please try again.'
+    );
   });
 });
 

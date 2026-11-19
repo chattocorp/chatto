@@ -51,7 +51,7 @@ export const AdminUserService = {
     },
     /**
      * Gets explicit roles and current assignment limits for one human user.
-     * Requires role.assign, with privileged mode active for human sessions;
+     * Requires effective role.assign;
      * admin.view-users is not required. Returns NOT_FOUND for an unknown or
      * deleted user, and FAILED_PRECONDITION for a bot account.
      *

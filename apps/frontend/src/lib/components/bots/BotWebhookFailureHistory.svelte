@@ -7,16 +7,12 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import BotWebhookFailureDetails from './BotWebhookFailureDetails.svelte';
   import { Button } from '$lib/ui/form';
-  import { LoadingFog } from '$lib/ui';
+  import { LoadingDots } from '$lib/ui';
 
   let { botId, webhookId }: { botId: string; webhookId: string } = $props();
   const scope = useServerScope();
   const query = createInfiniteQuery(() => ({
-    queryKey: [
-      ...settingsQueryKeys.bot(scope.serverId, scope.connection, botId),
-      'failures',
-      webhookId
-    ],
+    queryKey: [...settingsQueryKeys.bot(scope, botId), 'failures', webhookId],
     initialPageParam: '',
     refetchInterval: 30000,
     queryFn: ({ pageParam, signal }) =>
@@ -35,7 +31,7 @@
     <p role="alert">{m('settings.bots.outbound.load_error')}</p>
     <Button variant="secondary" onclick={() => query.refetch()}>{m('common.retry')}</Button>
   {:else if query.isPending}
-    <LoadingFog class="h-24 w-full" />
+    <LoadingDots class="h-24 w-full" />
   {:else if failures.length === 0}
     <p class="text-muted">{m('settings.bots.outbound.no_failures')}</p>
   {/if}

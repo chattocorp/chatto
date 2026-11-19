@@ -340,7 +340,7 @@ func (m *RoomModel) threadMetadata(rootEventID string) *ThreadMetadata {
 }
 
 // threadRootAuthorID reads the displayed author, including mapped import authors.
-// The thread projection excludes erased authors when it composes participants.
+// The thread preview puts this author first only if they have replied.
 func (m *RoomModel) threadRootAuthorID(rootEventID string) string {
 	entry, ok := m.timelineEntry(rootEventID)
 	if !ok || !entry.IsMessagePost() || entry.InThreadEventID != "" || entry.EchoOfEventID != "" {

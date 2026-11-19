@@ -88,6 +88,14 @@ test('development server serves the app from outside the repository', async () =
     const html = await response!.text();
     expect(response!.status, html + output).toBe(200);
     expect(html).toContain('<html');
+    // Missing assets exercise the console's error component even when the caller has a
+    // different directory depth. SvelteKit's external fallback resolves from the caller cwd.
+    const missing = await fetch(`http://127.0.0.1:${address.port}/favicon.ico`, {
+      headers: { accept: 'text/html' }
+    });
+    const missingHtml = await missing.text();
+    expect(missing.status, missingHtml + output).toBe(404);
+    expect(missingHtml).toContain('Page not found');
   } finally {
     server.kill('SIGTERM');
     await closed;

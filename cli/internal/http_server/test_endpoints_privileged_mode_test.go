@@ -40,8 +40,12 @@ func TestPrivilegedModeDeadlineEndpoint(t *testing.T) {
 	for _, body := range []string{`{}`, `{"remainingMs":0}`, `{"remainingMs":60001}`, `{"remainingMs":-1}`, `{`} {
 		post(body, http.StatusBadRequest)
 	}
-	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "deadline-test", "Deadline Test", "password123"); err != nil {
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "deadline-test", "Deadline Test", "password123")
+	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator); err != nil {
+		t.Fatal(err)
 	}
 	env.login(t, "deadline-test", "password123")
 	var sessionID string
@@ -55,7 +59,7 @@ func TestPrivilegedModeDeadlineEndpoint(t *testing.T) {
 		t.Fatal("login did not return a cookie session")
 	}
 	post(`{"remainingMs":5000}`, http.StatusConflict)
-	if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, true); err != nil {
+	if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, core.ActivateAllPrivilegedRoles); err != nil {
 		t.Fatalf("activate: %v", err)
 	}
 	deadline := post(`{"remainingMs":5000}`, http.StatusOK)
@@ -70,7 +74,7 @@ func TestPrivilegedModeDeadlineEndpoint(t *testing.T) {
 		t.Fatal("stored deadline does not match the endpoint response")
 	}
 	post(`{"remainingMs":60000}`, http.StatusConflict)
-	if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, false); err != nil {
+	if _, err := env.core.SetCookiePrivilegedMode(env.ctx, sessionID, core.DeactivatePrivilegedMode); err != nil {
 		t.Fatalf("deactivate: %v", err)
 	}
 	post(`{"remainingMs":5000}`, http.StatusConflict)

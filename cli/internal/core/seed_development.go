@@ -257,7 +257,6 @@ func (c *ChattoCore) SeedData(ctx context.Context, o SeedOptions) (*SeedResult, 
 }
 
 // seedName adapts library-generated text to Chatto's login/channel alphabet.
-// Leave room for numeric collision suffixes within the 32-character login cap.
 func seedName(value string) string {
 	name := strings.Trim(seedNameSeparators.ReplaceAllString(strings.ToLower(value), "-"), "-")
 	if len(name) > 24 {
@@ -281,7 +280,11 @@ func (c *ChattoCore) createSeedUser(ctx context.Context, base, displayName strin
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		user, err := c.CreateUser(ctx, SystemActorID, seedNameCandidate(base, attempt), displayName, "")
+		login := c.loginCandidate(base[:min(len(base), c.LoginLengthLimit())], attempt+1)
+		if login == "" {
+			break
+		}
+		user, err := c.CreateUser(ctx, SystemActorID, login, displayName, "")
 		if !errors.Is(err, ErrLoginAlreadyTaken) && !errors.Is(err, ErrUsernameBlocked) {
 			return user, err
 		}

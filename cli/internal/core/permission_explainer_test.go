@@ -29,7 +29,7 @@ func TestPermissionExplainer_PrivilegedModeAgreesWithResolver(t *testing.T) {
 		{"another user", "inspector", time.Now().Add(time.Hour), DecisionDeny},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			requestCtx := authctx.WithCredential(ctx, authctx.RuntimeCredential{Kind: authctx.RuntimeCredentialKindBearerToken, UserID: tc.credentialUser, Handle: "explanation-session", PrivilegedModeExpiresAt: tc.deadline})
+			requestCtx := authctx.WithCredential(ctx, authctx.RuntimeCredential{Kind: authctx.RuntimeCredentialKindBearerToken, UserID: tc.credentialUser, Handle: "explanation-session", PrivilegedRoles: []string{RoleAdmin}, PrivilegedModeExpiresAt: tc.deadline})
 			for _, perm := range []Permission{PermServerManage, PermServerManageNeighbors} {
 				exp, err := c.PermResolver().ExplainServerPermission(requestCtx, user.Id, perm)
 				if err != nil {

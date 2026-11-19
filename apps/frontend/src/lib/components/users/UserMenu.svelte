@@ -19,7 +19,7 @@ The optional extraActions snippet passes host-owned commands into the menu.
   import type { ComponentProps } from 'svelte';
   import type UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import type { UserMenuState } from './UserMenuState.svelte';
-  import { ContextMenu, LoadingFog, LoadRetry } from '$lib/ui';
+  import { ContextMenu, LoadingDots, LoadRetry } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   type MenuProps = ComponentProps<typeof UserContextMenu>;
@@ -53,7 +53,7 @@ The optional extraActions snippet passes host-owned commands into the menu.
     {#if failed}
       <LoadRetry onretry={() => (attempt += 1)} />
     {:else}
-      <LoadingFog class="m-2 h-28 w-64 max-w-full" />
+      <LoadingDots class="m-2 h-28 w-64 max-w-full" />
     {/if}
   </ContextMenu>
 {/snippet}

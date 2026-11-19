@@ -86,6 +86,7 @@ func TestReadConfig_EmailOTPFromTOML(t *testing.T) {
 
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 4000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -142,6 +143,7 @@ func TestReadConfig_EmailOTPFromEnv(t *testing.T) {
 	t.Cleanup(func() { os.Chdir(originalDir) })
 
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_URL", "http://localhost:4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
@@ -183,7 +185,7 @@ func TestReadConfig_EmailOTPFromEnv(t *testing.T) {
 func TestChattoConfig_Validate_EmailOTP(t *testing.T) {
 	base := func() ChattoConfig {
 		return ChattoConfig{
-			Webserver: WebserverConfig{Port: 4000, CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+			Webserver: WebserverConfig{URL: "http://localhost:4000", Port: 4000, CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
 			Core:      CoreConfig{SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", Assets: AssetsConfig{SigningSecret: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"}},
 		}
 	}
@@ -393,6 +395,28 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 		}}
 		if err := cfg.Validate(); err != nil {
 			t.Fatalf("Validate() unexpected error = %v", err)
+		}
+	})
+
+	t.Run("atproto needs no client and rejects client settings", func(t *testing.T) {
+		for _, tc := range []struct {
+			name     string
+			provider AuthProviderConfig
+			valid    bool
+		}{
+			{"minimal", AuthProviderConfig{ID: "bsky", Type: AuthProviderTypeATProto, ManageUsernames: true}, true},
+			{"client id", AuthProviderConfig{ID: "bsky", Type: AuthProviderTypeATProto, ClientID: "id"}, false},
+			{"client secret", AuthProviderConfig{ID: "bsky", Type: AuthProviderTypeATProto, ClientSecret: "secret"}, false},
+			{"scopes", AuthProviderConfig{ID: "bsky", Type: AuthProviderTypeATProto, Scopes: []string{"transition:generic"}}, false},
+			{"groups", AuthProviderConfig{ID: "bsky", Type: AuthProviderTypeATProto, AllowedGroups: []string{"staff"}}, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				cfg := baseConfig()
+				cfg.Auth.Providers = []AuthProviderConfig{tc.provider}
+				if err := cfg.Validate(); (err == nil) != tc.valid {
+					t.Fatalf("Validate() = %v, valid %v", err, tc.valid)
+				}
+			})
 		}
 	})
 

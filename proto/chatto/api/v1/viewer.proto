@@ -23,7 +23,7 @@ enum TimeFormat {
 message UserSettings {
   // Optional IANA timezone override. Absent means no choice has been recorded.
   // Empty means the user explicitly chose the browser's local timezone.
-  // Both use browser-local time; only absence permits automatic device reporting.
+  // Both use browser-local time. Save a named zone only after an explicit user choice.
   optional string timezone = 1;
   // Preferred time format.
   TimeFormat time_format = 2;
@@ -78,13 +78,20 @@ message ServerViewerState {
 
 // State of explicit privileged-mode activation for this authenticated session.
 message PrivilegedModeState {
-  // Whether the user has an elevation-required permission entitlement. This
-  // includes owner entitlement and explicit allows at any supported scope.
+  // Whether the user has an assigned protected role.
   bool available = 1;
-  // Whether elevated permissions are effective for this session now.
+  // Whether protected roles have been activated for this session now.
   bool active = 2;
   // Absolute activation deadline. Present only while privileged mode is active.
   google.protobuf.Timestamp expires_at = 3;
+  // Present when this server supports selective activation, even when no roles are available.
+  PrivilegedRoleSelection role_selection = 4;
+}
+
+// Protected roles that the caller can select for this session.
+message PrivilegedRoleSelection {
+  // Assigned protected roles. An empty list means there are no roles to activate.
+  repeated string available_roles = 1;
 }
 
 // Request for the authenticated viewer snapshot.
@@ -107,7 +114,7 @@ message GetViewerResponse {
   PrivilegedModeState privileged_mode = 7;
 }
 
-// Request to activate all currently entitled elevation-required permissions.
+// Request to activate all assigned protected roles.
 message ActivatePrivilegedModeRequest {}
 
 // Result of activating privileged mode for the current session.
@@ -120,7 +127,23 @@ message ActivatePrivilegedModeResponse {
   ServerViewerPermissions viewer_permissions = 3;
 }
 
-// Request to deactivate all elevation-required permissions for this session.
+// Request to activate grants from specific protected roles.
+message ActivatePrivilegedRolesRequest {
+  // One or more assigned protected roles. An empty selection returns INVALID_ARGUMENT for an eligible user.
+  repeated string role_names = 1;
+}
+
+// Result of activating privileged mode for the current session.
+message ActivatePrivilegedRolesResponse {
+  // Current privileged-mode state after activation.
+  PrivilegedModeState privileged_mode = 1;
+  // Permission-derived capabilities that are effective after activation.
+  ViewerCapabilities capabilities = 2;
+  // Effective server permission decisions after activation.
+  ServerViewerPermissions viewer_permissions = 3;
+}
+
+// Request to deactivate all selected protected roles for this session.
 message DeactivatePrivilegedModeRequest {}
 
 // Result of deactivating privileged mode for the current session.
@@ -138,11 +161,21 @@ service ViewerService {
   // Returns the current authenticated viewer. This RPC requires a logged-in
   // user; unauthenticated callers receive an UNAUTHENTICATED error.
   rpc GetViewer(GetViewerRequest) returns (GetViewerResponse);
-  // Activates elevation-required permissions for a fixed, non-sliding window.
-  // Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
-  // permission entitlement.
+  // Starts a window of up to 15 minutes with all currently assigned protected roles.
+  // During an active window, a retry keeps the stored selection and deadline,
+  // even if all selected roles have been revoked. Deactivate to change the selection.
+  // Returns FAILED_PRECONDITION for a bot or when starting a new activation
+  // without any assigned protected roles.
   rpc ActivatePrivilegedMode(ActivatePrivilegedModeRequest) returns (ActivatePrivilegedModeResponse);
-  // Deactivates elevation-required permissions immediately. Returns
+  // Activates the selected protected roles for up to 15 minutes.
+  // Each request, including a retry, returns FAILED_PRECONDITION for a bot or
+  // a caller with no assigned protected roles. Otherwise an empty selection
+  // returns INVALID_ARGUMENT, and an unavailable role returns PERMISSION_DENIED.
+  // During an active window, a retry with the same eligible selection keeps the
+  // deadline. A different eligible selection returns INVALID_ARGUMENT. Deactivate
+  // before changing the selection. A rejected retry preserves the selection and deadline.
+  rpc ActivatePrivilegedRoles(ActivatePrivilegedRolesRequest) returns (ActivatePrivilegedRolesResponse);
+  // Deactivates the selected protected roles immediately. Returns
   // FAILED_PRECONDITION when the caller is a bot.
   rpc DeactivatePrivilegedMode(DeactivatePrivilegedModeRequest) returns (DeactivatePrivilegedModeResponse);
 }

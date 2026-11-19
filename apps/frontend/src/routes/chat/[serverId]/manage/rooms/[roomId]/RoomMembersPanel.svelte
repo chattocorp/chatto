@@ -13,7 +13,7 @@
   import type { DirectoryMember } from '@chatto/client/api/memberDirectory';
   import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
   import { createRoomCommandAPI } from '@chatto/client/api/rooms';
-  import { DataTable, LoadingFog, Panel, ConfirmDialog, Hint } from '$lib/ui';
+  import { DataTable, LoadingDots, Panel, ConfirmDialog, Hint } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { Button, Combobox } from '$lib/ui/form';
   import { useProjectionEvent } from '$lib/hooks';
@@ -68,10 +68,9 @@
 
   const membersQuery = createInfiniteQuery(() => {
     const connection = serverScope.connection;
-    const targetServerId = serverScope.serverId;
     const targetRoomId = roomId;
     return {
-      queryKey: directoryQueryKeys.roomMembers(targetServerId, connection, targetRoomId),
+      queryKey: directoryQueryKeys.roomMembers(serverScope, targetRoomId),
       queryFn: async ({ pageParam, signal }) => {
         const page = await connection
           .getAPI(createMemberDirectoryAPI)
@@ -88,13 +87,11 @@
 
   const eligibleMembersQuery = createQuery(() => {
     const connection = serverScope.connection;
-    const targetServerId = serverScope.serverId;
     const targetRoomId = roomId;
     const search = activeDirectorySearch;
     return {
       queryKey: directoryQueryKeys.eligibleRoomMembers(
-        targetServerId,
-        connection,
+        serverScope,
         targetRoomId,
         search,
         ELIGIBLE_ROOM_MEMBER_LIMIT
@@ -168,11 +165,11 @@
   useProjectionEvent((event) => {
     if (event.resource?.case === 'rooms') {
       if (event.resource.value.rooms.some((room) => room.room?.id === roomId)) {
-        void invalidateRoomMemberQueries(serverScope.serverId, serverScope.connection, roomId);
+        void invalidateRoomMemberQueries(serverScope, roomId);
       } else {
         session.invalidate();
         clearLocalState();
-        purgeRoomMemberQueries(serverScope.serverId, serverScope.connection, roomId);
+        purgeRoomMemberQueries(serverScope, roomId);
       }
       return;
     }
@@ -233,8 +230,8 @@
   }
 
   async function reconcileMembership(target: MemberMutationScope): Promise<void> {
-    await invalidateRoomMemberQueries(target.serverId, target.connection, target.roomId);
-    void invalidateEligibleRoomMemberQueries(target.serverId, target.connection, target.roomId);
+    await invalidateRoomMemberQueries(target, target.roomId);
+    void invalidateEligibleRoomMemberQueries(target, target.roomId);
   }
 
   async function addSelectedMember(event: SubmitEvent): Promise<void> {
@@ -247,8 +244,7 @@
       if (!isCurrentTarget(target)) return;
       queryClient.setQueryData<DirectoryMember[]>(
         directoryQueryKeys.eligibleRoomMembers(
-          target.serverId,
-          target.connection,
+          target,
           target.roomId,
           activeDirectorySearch,
           ELIGIBLE_ROOM_MEMBER_LIMIT
@@ -380,7 +376,7 @@
   {/if}
 
   {#if loading && members.length === 0}
-    <LoadingFog class="m-5 h-32" label={m('admin.members.loading')} />
+    <LoadingDots class="m-5 h-32" label={m('admin.members.loading')} />
   {:else}
     <DataTable
       items={members}

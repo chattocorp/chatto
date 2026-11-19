@@ -11,6 +11,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
+	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1/adminv1connect"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/stretchr/testify/require"
@@ -60,7 +62,11 @@ func TestResourceUpdateMaskCoverage(t *testing.T) {
 				request.Set(maskField, protoreflect.ValueOfMessage((&fieldmaskpb.FieldMask{Paths: []string{"*"}}).ProtoReflect()))
 				require.NoError(t, applyUpdateMask(request))
 				mask := request.Get(maskField).Message().Interface().(*fieldmaskpb.FieldMask)
-				require.Equal(t, strings.Fields(spec.fields), mask.Paths)
+				want := strings.Fields(spec.fields)
+				if desc.FullName() == "chatto.admin.v1.UpdateRoleRequest" {
+					want = []string{"display_name", "description", "pingable"}
+				}
+				require.Equal(t, want, mask.Paths)
 				request.Set(maskField, protoreflect.ValueOfMessage((&fieldmaskpb.FieldMask{}).ProtoReflect()))
 				requireConnectCode(t, applyUpdateMask(request), connect.CodeInvalidArgument)
 			}
@@ -112,6 +118,39 @@ func TestUpdateMaskSelectionAndIsolation(t *testing.T) {
 	}
 	_, err = normalizeUpdateMask(&apiv1.UpdateRoomRequest{RoomId: "room", UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"room_id"}}})
 	requireConnectCode(t, err, connect.CodeInvalidArgument)
+}
+
+// An older binary client sends the wildcard without the protection field.
+func TestRoleWildcardPreservesProtection(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	require.NoError(t, env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoleManage))
+	mux := http.NewServeMux()
+	for _, handler := range env.api.Handlers() {
+		mux.Handle(handler.ServicePath, handler.Handler)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.ServeHTTP(w, r.WithContext(withCaller(r.Context(), env.viewer)))
+	}))
+	t.Cleanup(server.Close)
+	client := adminv1connect.NewAdminRoleServiceClient(server.Client(), server.URL)
+	_, err := client.CreateRole(env.ctx, connect.NewRequest(&adminv1.CreateRoleRequest{
+		Name: "protected", DisplayName: "Protected", RequiresShieldMode: true,
+	}))
+	require.NoError(t, err)
+	wildcard := &fieldmaskpb.FieldMask{Paths: []string{"*"}}
+	for _, name := range []string{"protected", core.RoleOwner} {
+		result, err := client.UpdateRole(env.ctx, connect.NewRequest(&adminv1.UpdateRoleRequest{
+			Name: name, DisplayName: new("Renamed"), UpdateMask: wildcard,
+		}))
+		require.NoError(t, err)
+		require.True(t, result.Msg.Role.Role.RequiresShieldMode)
+		require.Equal(t, "Renamed", result.Msg.Role.Role.DisplayName)
+	}
+	result, err := client.UpdateRole(env.ctx, connect.NewRequest(&adminv1.UpdateRoleRequest{
+		Name: "protected", DisplayName: new("Renamed"), UpdateMask: wildcard, RequiresShieldMode: new(false),
+	}))
+	require.NoError(t, err)
+	require.False(t, result.Msg.Role.Role.RequiresShieldMode)
 }
 
 // Exercise ProtoJSON and mounted interceptors: null becomes absence, while the

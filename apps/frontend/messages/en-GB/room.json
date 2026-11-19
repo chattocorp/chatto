@@ -14,6 +14,7 @@
       "clear_confirm_title": "Clear room notice?",
       "clear_confirm_description": "This immediately removes the active notice for everyone in the room. Your unsaved edits will not be published.",
       "empty": "No notice has been published.",
+      "load_failed": "Could not load the notice.",
       "edit": "Edit notice"
     },
     "information": {
@@ -21,7 +22,12 @@
       "created": "Created",
       "title": "Room information",
       "basic": "General",
-      "pinned_messages": "Pinned messages"
+      "pinned_messages": "Pinned messages",
+      "threads": "Threads",
+      "slow_mode": "Slow Mode",
+      "channel_slow_mode": "Channel Slow Mode",
+      "thread_slow_mode": "Thread Slow Mode",
+      "slow_mode_off": "Off"
     },
     "create": {
       "title": "Create a New Room",
@@ -176,7 +182,7 @@
       "unarchived": "unarchived the room",
       "call_started": "started a call in this room",
       "call_ended": "The active call has ended",
-      "threading_mode_changed": "changed threading mode to {mode}",
+      "threading_mode_changed": "changed Threading Mode to {mode}",
       "and": "and",
       "other_people_count": {
         "one": "other",

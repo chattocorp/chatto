@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "Experimentos",
+      "title": "Funcionalidades experimentais",
+      "new_message_header": "Novo cabeçalho de mensagem"
+    },
     "desktop": {
       "title": "Atualizações",
       "subtitle": "Atualizações desta instalação",
@@ -50,7 +55,8 @@
         "composer": "Escolha seu editor e como enviar mensagens.",
         "voice": "Configure seu microfone, alto-falantes e preferências de chamadas.",
         "system": "Verifique a integridade do servidor, o armazenamento e as tarefas em segundo plano.",
-        "event_log": "Explore os eventos do servidor e investigue alterações."
+        "event_log": "Explore os eventos do servidor e investigue alterações.",
+        "jobs": "Veja as tarefas em segundo plano e tente novamente as que falharam."
       },
       "title": "Visão geral",
       "shield_notice": "Para usar suas permissões adicionais neste servidor, ative o modo privilegiado com o botão de escudo ao lado do seu nome."
@@ -540,9 +546,9 @@
           "body": "Configure outro método de login compatível com este servidor antes de desconectar {provider}."
         },
         "fresh_auth_modal": {
-          "title": "Confirmar senha",
-          "body": "Digite sua senha atual antes de vincular {provider}.",
-          "action": "Continuar"
+          "title": "Vincular {provider}?",
+          "body": "Após vincular {provider}, você poderá usar esse serviço para entrar no Chatto. Digite sua senha atual do Chatto para continuar.",
+          "password": "Senha do Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Confirmar senha",

@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Ativar modo privilegiado",
       "disable": "Desativar modo privilegiado",
+      "select_roles": "Escolha as funções que deseja ativar por 15 minutos.",
       "confirmation": "Por 15 minutos, isso ativa as permissões adicionais atribuídas a você neste servidor."
     },
     "notifications": {
@@ -74,7 +75,11 @@
       "thread_views_description": "Os tópicos seguidos e os que você iniciou podem não ser listados separadamente neste servidor.",
       "independent_slow_mode_title": "O modo lento independente não está disponível",
       "independent_slow_mode_description": "Este servidor usa um único intervalo de espera para mensagens do canal e respostas nas conversas.",
-      "upgrade": "Para obter suporte completo, peça ao administrador do servidor para atualizar para {version} ou posterior."
+      "upgrade": "Para obter suporte completo, peça ao administrador do servidor para atualizar para {version} ou posterior.",
+      "background_jobs_title": "As tarefas em segundo plano não estão disponíveis",
+      "background_jobs_description": "Este servidor não pode mostrar nem tentar novamente tarefas em segundo plano nas configurações do servidor.",
+      "shield_role_selection_title": "Seleção de funções no modo privilegiado",
+      "shield_role_selection_description": "Este servidor ativa todos os privilégios disponíveis ao mesmo tempo."
     },
     "server_gutter": {
       "move_up": "Mover para cima",
@@ -186,7 +191,17 @@
       "system": "Sistema",
       "back_to_server": "Retornar ao servidor",
       "invites": "Convites",
-      "registration": "Cadastro"
+      "registration": "Cadastro",
+      "jobs": "Tarefas"
+    },
+    "owner_welcome": {
+      "title": "Seu servidor está pronto",
+      "intro": "Você é o proprietário deste servidor. Para proteger sua conta, suas permissões de proprietário ficam desativadas durante o uso normal.",
+      "shield_active": "O modo privilegiado está ativo pelos próximos 15 minutos, então você pode configurar seu servidor agora. Para ativá-lo de novo depois, use o botão de escudo ao lado do seu nome.",
+      "shield_inactive": "Para configurar seu servidor, ative o modo privilegiado com o botão de escudo ao lado do seu nome. Ele fica ativo por 15 minutos.",
+      "shield_failed": "Não foi possível ativar o modo privilegiado.",
+      "next_steps": "Próximos passos",
+      "continue_setup": "Continuar a configuração"
     }
   }
 }

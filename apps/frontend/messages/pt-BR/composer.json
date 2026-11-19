@@ -33,9 +33,10 @@
     "slow_mode_bypassed": "Modo lento: {interval} (você está isento).",
     "slow_mode_rejected": "O modo lento está ativo. Aguarde antes de enviar outra mensagem.",
     "threads_encouraged": "O uso de tópicos é recomendado nesta sala.",
-    "recent_thread_confirm_title": "Continuar no tópico anterior?",
-    "recent_thread_confirm_body": "Sua mensagem anterior já tem um tópico. Onde você quer publicar esta mensagem?",
+    "recent_thread_confirm_title": "Continuar no tópico mais recente?",
+    "recent_thread_confirm_body": "A mensagem mais recente desta sala tem um tópico. Onde você quer publicar esta mensagem?",
     "post_as_new_message": "Publicar como nova mensagem",
+    "start_new_thread": "Iniciar um novo tópico",
     "continue_in_thread": "Continuar no tópico",
     "edit_failed": "Falha ao editar mensagem",
     "edit_empty": "A mensagem não pode ficar vazia",
@@ -48,10 +49,13 @@
       "video_disabled": "Envios de vídeo estão desativados neste servidor.",
       "prepare_failed": "Falha ao preparar o anexo",
       "too_many": "Você pode anexar até {max} arquivos por mensagem. Os arquivos extras não foram adicionados.",
-      "too_large": "{filename} é grande demais ({size}). O máximo é {limit}."
+      "too_large": "{filename} é grande demais ({size}). O máximo é {limit}.",
+      "compress_failed": "Não foi possível comprimir o vídeo o suficiente. Tente outro formato ou um vídeo mais curto.",
+      "compressing": "Comprimindo vídeo… {percentage}%"
     },
     "format": {
       "underline": "Sublinhado",
+      "strikethrough": "Tachado",
       "bold": "Negrito",
       "italic": "Itálico",
       "inline_code": "Código em linha",

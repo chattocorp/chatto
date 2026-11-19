@@ -1,14 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
+import { takeOwnerOnboarding } from '$lib/state/ownerOnboarding';
 import SetupPage from './+page.svelte';
 
-const mocks = vi.hoisted(() => ({ complete: vi.fn(), discovery: vi.fn(), goto: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  complete: vi.fn(),
+  discovery: vi.fn(),
+  goto: vi.fn(),
+  signIn: vi.fn(),
+  completeAuthentication: vi.fn()
+}));
 // Page titles are tested separately from this page's partial route/server fixtures.
 vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$lib/api/setup', () => ({ completeServerSetup: mocks.complete }));
 vi.mock('@chatto/client/api/server', () => ({ getPublicServerInfo: mocks.discovery }));
+vi.mock('$lib/auth/passwordSignIn', () => ({ signInWithPassword: mocks.signIn }));
+vi.mock('$lib/auth/originAuthentication', () => ({
+  completeOriginAuthentication: mocks.completeAuthentication
+}));
 vi.mock('$app/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$app/navigation')>()),
   goto: mocks.goto
@@ -46,6 +57,41 @@ describe('first-run wizard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.discovery.mockResolvedValue({ setupRequired: true });
+    mocks.signIn.mockResolvedValue(undefined);
+    mocks.completeAuthentication.mockResolvedValue(false);
+    takeOwnerOnboarding();
+  });
+
+  async function submitValidForm(view: Awaited<ReturnType<typeof renderSetup>>) {
+    await view.getByLabelText('Server name').fill('Community');
+    await view.getByLabelText('Username', { exact: true }).fill('founder');
+    await view.getByLabelText('Display name').fill('Founder');
+    await view.getByLabelText('Password', { exact: true }).fill('password123');
+    await view.getByLabelText('Confirm Password', { exact: true }).fill('password123');
+    await view.getByRole('button', { name: 'Finish setup' }).click();
+  }
+
+  it('signs the new owner in and requests the owner welcome', async () => {
+    mocks.complete.mockResolvedValue(undefined);
+    const view = renderSetup();
+    await submitValidForm(view);
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat'));
+    expect(mocks.signIn).toHaveBeenCalledWith('founder', 'password123', expect.any(String));
+    expect(mocks.completeAuthentication).toHaveBeenCalledWith({ resumeReturnNavigation: false });
+    expect(takeOwnerOnboarding()).toBe(true);
+  });
+
+  it('keeps the owner welcome for a manual sign-in when the automatic sign-in fails', async () => {
+    mocks.complete.mockResolvedValue(undefined);
+    mocks.signIn.mockRejectedValue(new Error('Sign-in failed'));
+    const view = renderSetup();
+    await submitValidForm(view);
+    await vi.waitFor(() =>
+      expect(mocks.goto).toHaveBeenCalledWith('/login', { invalidateAll: true })
+    );
+    expect(mocks.completeAuthentication).not.toHaveBeenCalled();
+    // The installer's manual sign-in in this tab still receives the welcome.
+    expect(takeOwnerOnboarding()).toBe(true);
   });
 
   it('welcomes the installer with a navigable link to the form', async () => {
@@ -114,7 +160,7 @@ describe('first-run wizard', () => {
       displayName: 'Founder',
       password: 'password123'
     });
-    expect(mocks.goto).toHaveBeenCalledWith('/login', { invalidateAll: true });
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalledWith('/chat'));
   });
 
   it.each(['a'.repeat(73), 'a'.repeat(128), '😀'.repeat(18) + 'a', '😀'.repeat(32)])(

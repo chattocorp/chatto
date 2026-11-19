@@ -548,13 +548,13 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 	})
 
 	t.Run("owner and admin can post in announcements, moderator and regular member cannot", func(t *testing.T) {
-		// Owners can post without privileged mode through their explicit grant.
+		// The explicit room grant on owner also requires selecting the protected role.
 		canOwner, err := core.CanPostMessage(withPrivilegedModeEvaluation(ctx, user.Id, false), user.Id, KindChannel, annRoom.Id)
 		if err != nil {
 			t.Fatalf("CanPostMessage (owner) failed: %v", err)
 		}
-		if !canOwner {
-			t.Error("Owner should be able to post in announcements room")
+		if canOwner {
+			t.Error("Inactive owner role granted announcements posting")
 		}
 
 		admin, err := core.CreateUser(ctx, SystemActorID, "ann-admin", "Announcements Admin", "password")

@@ -43,7 +43,7 @@
       "password_min_bytes": "Parool on liiga lühike",
       "password_max": "Parool on liiga pikk",
       "username_min": "Peab olema vähemalt 2 tähemärki",
-      "username_max": "Peab olema kuni 32 tähemärki",
+      "username_max": "Peab olema kuni {max} tähemärki",
       "username_charset": "Ainult tähed, numbrid, punktid, sidekriipsud, allkriipsud",
       "username_end_alphanumeric": "Peab lõppema tähe või numbriga",
       "username_no_consecutive_periods": "Järjestikused perioodid pole lubatud",

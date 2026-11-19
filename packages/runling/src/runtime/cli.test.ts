@@ -26,6 +26,16 @@ function harness() {
 }
 
 describe('CLI commands', () => {
+  test('accepts explicit plain output without changing workflow input', async () => {
+    const h = harness();
+    await h.parse(['run', 'workflow.ts', '--plain']);
+    expect(h.run).toHaveBeenCalledWith('workflow.ts', '', {
+      json: false,
+      verbose: false,
+      plain: true
+    });
+  });
+
   test('does not expose the removed resume command', async () => {
     const h = harness();
     await expect(h.parse(['resume', 'bright-foxes-1234'])).rejects.toThrow();

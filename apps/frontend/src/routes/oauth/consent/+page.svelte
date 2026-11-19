@@ -6,7 +6,7 @@
   import { LOOPBACK_OAUTH_CLIENT_ID } from '$lib/auth/loopbackClient';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
-  import { Hint, LoadingFog, PageTitle } from '$lib/ui';
+  import { Hint, LoadingDots, PageTitle } from '$lib/ui';
   import { Button, FormError } from '$lib/ui/form';
   import { onMount } from 'svelte';
 
@@ -173,7 +173,7 @@
 <AuthLayout compact title={m('auth.oauth.heading')}>
   <div class="flex flex-col gap-5">
     {#if loading}
-      <LoadingFog class="h-48 w-full" />
+      <LoadingDots class="h-48 w-full" />
     {:else if request}
       <div class="flex flex-col gap-4">
         <div class="text-center">
@@ -215,6 +215,15 @@
                 ></span>
                 <span>{m('auth.oauth.allow_mcp_identity')}</span>
               </li>
+              {#if request.scopes.includes('chatto:profile:read')}
+                <li class="flex gap-2">
+                  <span
+                    aria-hidden="true"
+                    class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
+                  ></span>
+                  <span>{m('auth.oauth.allow_users_read')}</span>
+                </li>
+              {/if}
               {#if request.scopes.includes('chatto:rooms:read')}
                 <li class="flex gap-2">
                   <span
@@ -248,7 +257,10 @@
                     aria-hidden="true"
                     class="iconify mt-0.5 icon-[mdi--check] shrink-0 text-action"
                   ></span>
-                  <span>{m('auth.oauth.allow_messages_write')}</span>
+                  <span>
+                    {m('auth.oauth.allow_messages_write')}
+                    {m('auth.oauth.allow_reactions_write')}
+                  </span>
                 </li>
               {/if}
             {/if}

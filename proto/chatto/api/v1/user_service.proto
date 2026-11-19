@@ -81,7 +81,7 @@ message UpdateUserProfileRequest {
   // digits, period, underscore, and hyphen, starting with a letter or digit.
   optional string login = 3 [(buf.validate.field).string = {
     min_len: 2
-    max_len: 32
+    max_len: 254
   }];
   // New Markdown biography, when changing it. Empty clears the bio.
   optional string bio = 4 [(buf.validate.field).string.max_len = 1000];

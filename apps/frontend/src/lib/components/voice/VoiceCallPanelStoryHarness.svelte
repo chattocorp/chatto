@@ -10,6 +10,9 @@
   import { type RegisteredServer } from '@chatto/client/server/registry';
   import { provideServerScope } from '$lib/state/server/scope.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
+  import { provideAppUiState } from '$lib/state/appUi.svelte';
+  import { AppHeader } from '$lib/ui';
+  import AppCallControls from './AppCallControls.svelte';
 
   type VoiceCallPanelProps = {
     roomId: string;
@@ -20,6 +23,7 @@
   let {
     layout = 'stage',
     withPaneHeader = false,
+    withAppHeader = false,
     scenario = 'screen',
     animateVoice = false,
     initiallyMuted = false,
@@ -30,6 +34,8 @@
     layout?: 'sidebar' | 'stage';
     /** Render the actual room pane to exercise its fullscreen header. */
     withPaneHeader?: boolean;
+    /** Show the app-wide controls with the same connected-call fixture. */
+    withAppHeader?: boolean;
     scenario?: 'screen' | 'screen-voice' | 'screen-single-secondary' | 'camera' | 'voice' | 'idle';
     animateVoice?: boolean;
     initiallyMuted?: boolean;
@@ -42,6 +48,7 @@
   } = $props();
 
   const roomId = 'storybook-call-room';
+  provideAppUiState();
   const storybookServerId = 'storybook-call-server';
   provideUserProfiles();
   const getScopedServerId = () => serverRegistry.originServer?.id ?? storybookServerId;
@@ -312,6 +319,14 @@
     };
   });
 </script>
+
+{#if withAppHeader}
+  <AppHeader>
+    {#snippet callControls(activeStore)}
+      <AppCallControls {activeStore} />
+    {/snippet}
+  </AppHeader>
+{/if}
 
 {#if playableMedia}
   <button

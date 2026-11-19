@@ -318,7 +318,9 @@ func enumerateStreams(ctx context.Context, js jetstream.JetStream) ([]string, er
 // captured snapshots. EVT captures the durable consumer floor first,
 // RUNTIME_STATE captures read/visibility boundaries, and NOTIFICATIONS captures
 // deterministic derived lifecycle facts last. A handoff racing the snapshots
-// is therefore either present or replayable after restore.
+// is therefore either present or replayable after restore. JOBS follows the
+// same rule for job handoffs from EVT and NOTIFICATIONS: it is captured after
+// its sources, so an accepted job is present or its source delivers again.
 func orderBackupStreams(names []string) {
 	priority := func(name string) int {
 		switch name {
@@ -326,7 +328,7 @@ func orderBackupStreams(names []string) {
 			return 0
 		case natsresources.KeyValueStream(natsresources.RuntimeState):
 			return 1
-		case natsresources.Notifications:
+		case natsresources.Notifications, natsresources.Jobs:
 			return 2
 		default:
 			return 1

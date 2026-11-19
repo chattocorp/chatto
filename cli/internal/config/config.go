@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/mail"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -21,6 +22,7 @@ type ChattoConfig struct {
 	General         GeneralConfig         `toml:"general"`
 	Owners          OwnersConfig          `toml:"owners" comment:"Email addresses that confer owner status."`
 	Webserver       WebserverConfig       `toml:"webserver"`
+	Frontend        FrontendConfig        `toml:"frontend,commented" comment:"Bundled frontend settings. The standalone frontend and the desktop app ignore them."`
 	Metrics         MetricsConfig         `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Exporter        ExporterConfig        `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
 	MCP             MCPConfig             `toml:"mcp,commented" comment:"Experimental MCP integration on the public HTTP server. Disabled by default."`
@@ -30,7 +32,6 @@ type ChattoConfig struct {
 	OperatorAPI     OperatorAPIConfig     `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
 	Core            CoreConfig            `toml:"core" comment:"Core service configuration."`
 	Auth            AuthConfig            `toml:"auth" comment:"Authentication configuration."`
-	Limits          LimitsConfig          `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
 	Email           EmailConfig           `toml:"email" comment:"Transactional email transport configuration. SMTP is the default transport."`
 	SMTP            SMTPConfig            `toml:"smtp" comment:"SMTP configuration for transactional emails."`
 	Push            PushConfig            `toml:"push,commented" comment:"Web Push notification configuration."`
@@ -39,6 +40,11 @@ type ChattoConfig struct {
 	LiveKit         LiveKitConfig         `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
 	NATS            NATSConfig            `toml:"nats"`
 	Bootstrap       BootstrapConfig       `toml:"bootstrap,commented" comment:"Dev/E2E-only: users, bots, and server data auto-created on first startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
+
+	// LegacyLimits is read only for compatibility with older configurations.
+	LegacyLimits *struct {
+		MaxUsers *int `toml:"max_users" env:"CHATTO_LIMITS_MAX_USERS"`
+	} `toml:"limits,omitempty" env:",init"`
 }
 
 // ApplyDefaults fills derived config values that are safe to compute from other
@@ -173,10 +179,8 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, "exporter.s3_timeout must not be negative")
 		}
 	}
-	if c.MCP.Enabled {
-		if strings.TrimSpace(c.Webserver.URL) == "" {
-			errs = append(errs, "webserver.url is required when MCP is enabled")
-		}
+	if port := c.SearchProvider.Health.Port; port < 0 || port > 65535 {
+		errs = append(errs, "search_provider.health.port must be between 0 and 65535")
 	}
 	if c.SearchProvider.Enabled || strings.TrimSpace(c.SearchProvider.Directory) != "" || c.SearchProvider.Languages != nil {
 		searchDirectory := filepath.Clean(c.SearchProvider.DirectoryOrDefault())
@@ -248,7 +252,9 @@ func (c *ChattoConfig) Validate() error {
 		}
 		configuredOriginByRequestHost[requestHost] = origin
 	}
-	if c.Webserver.URL != "" {
+	if strings.TrimSpace(c.Webserver.URL) == "" {
+		errs = append(errs, "webserver.url is required")
+	} else {
 		if err := validateAbsoluteHTTPURL("webserver.url", c.Webserver.URL); err != nil {
 			errs = append(errs, err.Error())
 		} else {
@@ -306,9 +312,6 @@ func (c *ChattoConfig) Validate() error {
 	mappedRoleProviders := make(map[string]string)
 	for i, provider := range c.Auth.Providers {
 		prefix := fmt.Sprintf("auth.providers[%d]", i)
-		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when auth providers are configured")
-		}
 		if provider.ID == "" {
 			errs = append(errs, prefix+".id is required")
 		} else if strings.ContainsAny(provider.ID, "/?#") || strings.TrimSpace(provider.ID) != provider.ID {
@@ -319,13 +322,24 @@ func (c *ChattoConfig) Validate() error {
 			seenProviderIDs[provider.ID] = struct{}{}
 		}
 		if !IsAllowedAuthProviderType(provider.Type) {
-			errs = append(errs, prefix+".type must be one of: oidc, github, gitlab, google, discord")
+			errs = append(errs, prefix+".type must be one of: oidc, github, gitlab, google, discord, atproto")
 		}
-		if provider.ClientID == "" {
-			errs = append(errs, prefix+".client_id is required")
-		}
-		if provider.ClientSecret == "" && provider.Type != AuthProviderTypeOpenIDConnect {
-			errs = append(errs, prefix+".client_secret is required")
+		if provider.Type == AuthProviderTypeATProto {
+			// The server publishes its own client metadata and requests only
+			// identity, so operators configure no client or scopes.
+			if provider.ClientID != "" || provider.ClientSecret != "" {
+				errs = append(errs, prefix+": atproto providers do not use client_id or client_secret")
+			}
+			if len(provider.Scopes) > 0 || provider.RequestEmail != nil {
+				errs = append(errs, prefix+": atproto providers do not support scopes or request_email")
+			}
+		} else {
+			if provider.ClientID == "" {
+				errs = append(errs, prefix+".client_id is required")
+			}
+			if provider.ClientSecret == "" && provider.Type != AuthProviderTypeOpenIDConnect {
+				errs = append(errs, prefix+".client_secret is required")
+			}
 		}
 		if method := provider.TokenEndpointAuthMethod; method != "" {
 			if provider.Type != AuthProviderTypeOpenIDConnect {
@@ -424,9 +438,6 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, "smtp.tls must be one of: mandatory, opportunistic, implicit")
 		}
 		if c.SMTP.Enabled {
-			if c.Webserver.URL == "" {
-				errs = append(errs, "webserver.url is required when SMTP is enabled")
-			}
 			if c.SMTP.Host == "" {
 				errs = append(errs, "smtp.host is required when SMTP is enabled")
 			}
@@ -438,9 +449,6 @@ func (c *ChattoConfig) Validate() error {
 			}
 		}
 	case EmailTransportJMAP:
-		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when JMAP email is enabled")
-		}
 		if c.Email.JMAP.SessionURL == "" {
 			errs = append(errs, "email.jmap.session_url is required when email.transport is jmap")
 		} else if err := validateAbsoluteHTTPSURL("email.jmap.session_url", c.Email.JMAP.SessionURL); err != nil {
@@ -460,9 +468,6 @@ func (c *ChattoConfig) Validate() error {
 
 	// Push notification configuration
 	if c.Push.Enabled {
-		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when push is enabled")
-		}
 		if c.Push.VAPIDPublicKey == "" {
 			errs = append(errs, "push.vapid_public_key is required when push is enabled")
 		}
@@ -476,9 +481,6 @@ func (c *ChattoConfig) Validate() error {
 
 	// LiveKit configuration
 	if c.LiveKit.Enabled {
-		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when LiveKit is enabled")
-		}
 		if c.LiveKit.URL == "" {
 			errs = append(errs, "livekit.url is required when LiveKit is enabled")
 		}
@@ -490,9 +492,12 @@ func (c *ChattoConfig) Validate() error {
 		}
 	}
 
-	// Limits configuration: must be -1 (unlimited) or non-negative.
-	if c.Limits.MaxUsers != nil && *c.Limits.MaxUsers < -1 {
-		errs = append(errs, "limits.max_users must be -1 (unlimited) or a non-negative integer")
+	// Account policy bounds.
+	if max := c.Core.Accounts.MaxLoginLengthOrDefault(); max < 2 || max > LoginLengthCeiling {
+		errs = append(errs, fmt.Sprintf("core.accounts.max_login_length must be between 2 and %d", LoginLengthCeiling))
+	}
+	if c.Core.Accounts.MaxUsers != nil && *c.Core.Accounts.MaxUsers < -1 {
+		errs = append(errs, "core.accounts.max_users must be -1 (unlimited) or a non-negative integer")
 	}
 
 	// Projection snapshot retention and process-local EVT read cache limits.
@@ -557,6 +562,16 @@ func ReadConfig(configPath string) (ChattoConfig, error) {
 	if err != nil {
 		return ChattoConfig{}, err
 	}
+
+	// Environment overrides TOML. Within each source, the canonical name wins.
+	if cfg.LegacyLimits != nil && cfg.LegacyLimits.MaxUsers != nil {
+		_, legacyEnv := os.LookupEnv("CHATTO_LIMITS_MAX_USERS")
+		_, canonicalEnv := os.LookupEnv("CHATTO_CORE_ACCOUNTS_MAX_USERS")
+		if cfg.Core.Accounts.MaxUsers == nil || (legacyEnv && !canonicalEnv) {
+			cfg.Core.Accounts.MaxUsers = cfg.LegacyLimits.MaxUsers
+		}
+	}
+	cfg.LegacyLimits = nil
 
 	// Apply Chatto-specific compatibility environment variables that cannot be
 	// represented by fixed struct tags.

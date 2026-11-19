@@ -28,7 +28,7 @@ Roles, and Permissions pages through `memberDetailContext`.
   import {
     Hint,
     PaneContent,
-    LoadingFog,
+    LoadingDots,
     PaneHeader,
     PageTitle,
     TabNav,
@@ -71,7 +71,7 @@ Roles, and Permissions pages through `memberDetailContext`.
     const targetUserId = userId;
     const removed = removedMember?.serverId === serverId && removedMember.userId === targetUserId;
     return {
-      queryKey: adminQueryKeys.member(serverId, connection, targetUserId),
+      queryKey: adminQueryKeys.member(serverScope, targetUserId),
       queryFn: ({ signal }) =>
         connection.getAPI(createAdminUserManagementAPI).getMember(targetUserId, { signal }),
       enabled: !!serverId && !!targetUserId && !removed
@@ -103,7 +103,7 @@ Roles, and Permissions pages through `memberDetailContext`.
       toast.success(m('admin.member_delete.success'));
       removeAdminUserQueries(target.serverId, target.userId);
       void queryClient.invalidateQueries({
-        queryKey: adminQueryKeys.membersRoot(target.serverId, target.connection)
+        queryKey: adminQueryKeys.membersRoot(target)
       });
       await goto(backHref);
     },
@@ -140,7 +140,7 @@ Roles, and Permissions pages through `memberDetailContext`.
       return {
         ...snapshot,
         userId,
-        queryKey: adminQueryKeys.member(snapshot.serverId, snapshot.connection, userId),
+        queryKey: adminQueryKeys.member(snapshot, userId),
         api: snapshot.connection.getAPI(createAdminUserManagementAPI)
       };
     },
@@ -153,13 +153,13 @@ Roles, and Permissions pages through `memberDetailContext`.
     },
     invalidateMemberLists(target) {
       const filters = {
-        queryKey: adminQueryKeys.membersRoot(target.serverId, target.connection)
+        queryKey: adminQueryKeys.membersRoot(target)
       };
       void queryClient.cancelQueries(filters).then(() => queryClient.invalidateQueries(filters));
     },
     invalidateRole(target, roleName) {
       void queryClient.invalidateQueries({
-        queryKey: adminQueryKeys.roleMembers(target.serverId, target.connection, roleName),
+        queryKey: adminQueryKeys.roleMembers(target, roleName),
         exact: true
       });
     }
@@ -210,7 +210,7 @@ Roles, and Permissions pages through `memberDetailContext`.
   {#if member}
     <AccountName name={member.displayName} identity={member} />
   {:else}
-    <LoadingFog class="h-4 w-28" label={m('admin.members.loading_member')} />
+    <LoadingDots class="h-4 w-28" label={m('admin.members.loading_member')} />
   {/if}
 {/snippet}
 
@@ -236,7 +236,7 @@ Roles, and Permissions pages through `memberDetailContext`.
   <PaneContent fillHeight={isPermissionsSection}>
     <div class={['flex flex-col gap-6', isPermissionsSection && 'min-h-0 flex-1']}>
       {#if loading}
-        <LoadingFog class="h-40 w-full" label={m('admin.members.loading_member')} />
+        <LoadingDots class="h-40 w-full" label={m('admin.members.loading_member')} />
       {:else if !details || !member}
         <Hint tone="danger">{m('admin.members.not_found')}</Hint>
       {:else}

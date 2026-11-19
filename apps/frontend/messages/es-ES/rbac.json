@@ -23,6 +23,7 @@
       "display_name_too_long": "El nombre para mostrar debe tener 64 caracteres o menos",
       "description": "Descripción",
       "description_placeholder": "Descripción opcional para este rol",
+      "require_shield": "Requerir modo privilegiado",
       "pingable": "Permitir que las personas hagan ping a este rol",
       "pingable_description": "Los roles a los que se puede hacer ping aparecen en @ autocompletar y notifican a los miembros de la sala asignados."
     },
@@ -129,8 +130,6 @@
         "open": "Acerca de {permission}",
         "category": "Categoría",
         "scopes": "Configurable para",
-        "privileged": "Requiere el modo privilegiado",
-        "privileged_detail": "Las cuentas deben activar el modo privilegiado para usar este permiso.",
         "includes": "Incluye",
         "included_by": "Incluido en"
       }

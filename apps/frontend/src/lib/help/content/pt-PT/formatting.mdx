@@ -1,0 +1,136 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+Pode formatar mensagens do Chatto com Markdown. Por exemplo, `**olá**` aparece
+como **olá**. Escreva as marcas de formatação ou selecione o texto e use a barra de ferramentas.
+
+## Escolha o editor e o atalho de envio
+
+Abra <a href={resolve('/chat/preferences/composer')}>Preferências da aplicação → Composição</a>
+e escolha **Markdown** para editar o texto-fonte. Escolha **Visual** se preferir trabalhar
+com texto formatado. A barra de formatação está disponível nos dois editores.
+
+A configuração **Enviar mensagens com** controla a tecla Enter:
+
+- **Enter:** Enter envia a mensagem. Ctrl+Enter insere uma linha, ou Command+Enter num Mac.
+- **Cmd/Ctrl+Enter:** Ctrl+Enter envia a mensagem, ou Command+Enter num Mac.
+  Enter insere uma linha.
+
+Deixe uma linha em branco entre os parágrafos.
+
+## Negrito, itálico, sublinhado e rasurado
+
+Coloque marcas de formatação dos dois lados do texto:
+
+- `**negrito**` para negrito
+- `*itálico*` para itálico
+- `__sublinhado__` para sublinhado
+- `~~rasurado~~` para rasurado
+
+<MarkdownSample source={"Reveja isto **antes de sexta-feira**.\nA data é *provisória*.\n__Aprovação necessária__ antes do lançamento.\nO prazo anterior era ~~quinta-feira~~."} />
+
+No Chatto, `__texto__` significa sublinhado. Se usa dois sublinhados para negrito
+noutra ferramenta Markdown, use dois asteriscos aqui.
+
+Selecione texto e prima Ctrl+B, Ctrl+I ou Ctrl+U para negrito, itálico ou sublinhado.
+Num Mac, use Command em vez de Ctrl. Os botões da barra fazem as mesmas ações.
+
+Não coloque espaços entre as marcas e o texto: `**importante**` funciona;
+`** importante **` não aplica negrito.
+
+## Títulos e listas
+
+Comece um título com caracteres `#` seguidos de um espaço. Comece cada item com `- `,
+ou cada item numerado com um número e um ponto, como `1. `.
+
+<MarkdownSample source={"## Lista de lançamento\n\nAntes de começar:\n- Confirme a versão.\n- Avise a equipa de apoio.\n\nDepois:\n1. Implemente a atualização.\n2. Verifique a página de estado.\n3. Publique o resultado aqui."} />
+
+O botão **Cabeçalho** insere um título de nível dois (`##`). Pode escrever títulos
+com níveis de `#` até `######`.
+
+Use **Aumentar avanço** para colocar um item da lista dentro do anterior. Use
+**Diminuir avanço** para devolvê-lo ao nível anterior. Deixe uma linha em branco
+depois da lista para começar um parágrafo.
+
+## Citações
+
+Comece cada linha citada com `>` e um espaço. Deixe uma linha em branco depois da
+citação antes de escrever a sua resposta.
+
+<MarkdownSample source={"> Podemos mover o lançamento para sexta-feira?\n\nSim. A revisão final é na quinta-feira à tarde."} />
+
+Escrever uma citação não a associa à mensagem original. Para responder àquela mensagem
+num tópico, use a ação de resposta da mensagem.
+
+## Código
+
+Use um acento grave de cada lado de um comando curto, nome de ficheiro ou identificador.
+As marcas de formatação dentro de código em linha aparecem como foram escritas.
+
+<MarkdownSample source={"Execute `git status` antes de começar.\nA definição chama-se `send_mode`.\nEscreva `**olá**` para pôr olá a negrito."} />
+
+Para várias linhas, coloque três acentos graves numa linha antes do código e três
+numa linha depois. Adicione o nome da linguagem logo após os acentos de abertura
+para realçar a sintaxe, como `js`, `json` ou `bash`.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+O botão **Bloco de código** insere os acentos graves de abertura e fecho.
+Sem a linha de fecho, o resto da mensagem passa a fazer parte do bloco.
+Para mostrar um acento grave dentro de código em linha, use dois em volta do texto.
+
+## Ligações
+
+Um endereço web colado transforma-se numa ligação. Para mostrar um rótulo em vez do endereço,
+coloque o rótulo entre parênteses retos e o endereço entre parênteses:
+
+```text
+Leia as [notas da versão](https://example.com/releases).
+```
+
+Não coloque espaço entre `]` e `(`. Para criar uma ligação para uma sala ou mencionar alguém no
+Chatto, selecione a sala ou a pessoa nas sugestões do editor.
+
+## Notas de rodapé
+
+Coloque uma referência como `[^window]` depois do texto que deseja anotar. Noutra
+linha, escreva `[^window]:` seguido da nota. Os rótulos devem ser iguais.
+
+<MarkdownSample source={"A janela de manutenção é de 30 minutos.[^window]\n\n[^window]: A maioria dos servidores ficará indisponível por menos de cinco minutos."} />
+
+Também pode colocar o cursor depois do texto relevante e selecionar **Inserir nota de rodapé**
+na barra. Notas de rodapé não podem ser inseridas dentro de código em linha ou blocos de código.
+
+## Tabelas
+
+Separe colunas com `|` e coloque uma linha de traços abaixo dos cabeçalhos.
+Use `---:` para alinhar uma coluna à direita, ou `:---:` para centrá-la.
+
+<MarkdownSample source={"| Ambiente | Versão |\n| --- | ---: |\n| Teste | 0.5 |\n| Produção | 0.4 |"} />
+
+Edite tabelas no editor Markdown. O editor Visual não tem um controlo de edição de tabelas.
+
+## Experimente uma mensagem completa
+
+Edite a mensagem abaixo para experimentar a formatação. A pré-visualização muda enquanto escreve.
+Pode alternar entre Markdown e Visual. Nada que escrever aqui é enviado a uma sala.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Lançamento de sexta-feira\n\nTermine a revisão **antes das 14:00**.\n\n1. Execute `git status`.\n2. Verifique as notas da versão.\n3. Responda neste tópico quando estiver pronto.\n\n> E se uma verificação falhar?\n\nPublique o erro aqui antes de continuar."} />
+</div>
+
+## Quando a formatação não fica certa
+
+- **As marcas continuam visíveis.** Verifique se as duas extremidades correspondem e
+  se não há espaços logo dentro das marcas de abertura ou fecho. Dentro de código,
+  as marcas visíveis são intencionais.
+- **O resto da mensagem parece código.** Coloque os três acentos graves de fecho numa linha separada.
+- **Um título ou uma lista continua como texto simples.** Coloque um espaço depois de
+  `##`, `-` ou `1.` e comece numa linha nova.
+- **Pretende a própria pontuação.** Coloque uma barra invertida antes da marca de
+  formatação, como em `\*sem itálico\*`, ou use código em linha para um exemplo literal.
+- **O HTML aparece como texto.** O Chatto não aceita HTML bruto como formatação de
+  mensagens. Use Markdown em vez de etiquetas como `<b>` ou `<span>`.

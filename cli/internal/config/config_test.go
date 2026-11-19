@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -23,13 +24,17 @@ func TestLocalDevelopmentConfig(t *testing.T) {
 	if got := cfg.SearchProvider.DirectoryOrDefault(); got != "./data/search" {
 		t.Errorf("search provider directory = %q, want %q", got, "./data/search")
 	}
-	// The development users come from the file. TestBot and the Authling
-	// provider depend on workspace ports, so the mise tasks add them.
+	// The development users and the AT Protocol provider come from the file.
+	// TestBot and the Authling provider depend on workspace ports, so the mise
+	// tasks add them.
 	if len(cfg.Bootstrap.Users) != 2 || cfg.Bootstrap.Users[0].Login != "alice" || cfg.Bootstrap.Users[0].ServerRole != "owner" || cfg.Bootstrap.Users[1].Login != "bob" {
 		t.Fatalf("bootstrap users = %#v, want alice (owner) and bob", cfg.Bootstrap.Users)
 	}
-	if len(cfg.Bootstrap.Bots) != 0 || len(cfg.Auth.Providers) != 0 {
-		t.Fatalf("bootstrap bots = %#v, auth providers = %#v; want none in the file", cfg.Bootstrap.Bots, cfg.Auth.Providers)
+	if len(cfg.Bootstrap.Bots) != 0 {
+		t.Fatalf("bootstrap bots = %#v; want none in the file", cfg.Bootstrap.Bots)
+	}
+	if len(cfg.Auth.Providers) != 1 || cfg.Auth.Providers[0].Type != AuthProviderTypeATProto {
+		t.Fatalf("auth providers = %#v; want only the atproto provider", cfg.Auth.Providers)
 	}
 	// `mise dev` runs without Mailpit and LiveKit; `mise dev-full` enables both.
 	if cfg.SMTP.Enabled || cfg.LiveKit.Enabled {
@@ -51,6 +56,7 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 
 	// Set required env vars
 	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_URL", "http://localhost:4000")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET", "000102030405060708090a0b0c0d0e0f")
 	t.Setenv("CHATTO_WEBSERVER_API_COMPRESSION", "false")
@@ -61,6 +67,10 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	t.Setenv("CHATTO_SEARCH_PROVIDER_ENABLED", "true")
 	t.Setenv("CHATTO_SEARCH_PROVIDER_DIRECTORY", "./custom-search")
 	t.Setenv("CHATTO_SEARCH_PROVIDER_LANGUAGES", "de,en,cjk")
+	t.Setenv("CHATTO_SEARCH_PROVIDER_HEALTH_ENABLED", "true")
+	t.Setenv("CHATTO_SEARCH_PROVIDER_HEALTH_BIND_ADDRESS", "0.0.0.0")
+	t.Setenv("CHATTO_SEARCH_PROVIDER_HEALTH_PORT", "9191")
+	t.Setenv("CHATTO_SEARCH_PROVIDER_HEALTH_DIAGNOSTICS", "true")
 
 	// ReadConfig should succeed even without chatto.toml
 	cfg, err := ReadConfig("")
@@ -99,6 +109,10 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	if got := cfg.SearchProvider.LanguagesOrDefault(); !slices.Equal(got, []string{"cjk", "de", "en"}) {
 		t.Errorf("search provider languages = %v", got)
 	}
+	health := cfg.SearchProvider.Health
+	if !health.Enabled || !health.Diagnostics || health.BindAddressOrDefault() != "0.0.0.0" || health.PortOrDefault() != 9191 {
+		t.Errorf("search provider health = %+v", health)
+	}
 }
 
 func TestReadConfig_AllowsUnknownTOMLFieldsForCompatibility(t *testing.T) {
@@ -113,6 +127,7 @@ enabled = false
 ttl = "invalid-obsolete-value"
 
 [webserver]
+url = "http://localhost:4000"
 port = 4000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -145,6 +160,7 @@ func TestReadConfig_WithConfigFile(t *testing.T) {
 	// Write a minimal config file
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -214,6 +230,7 @@ func TestReadConfig_EnvOverridesFile(t *testing.T) {
 	// Write a config file with port 5000
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -252,6 +269,7 @@ func TestReadConfig_ValidatesEnvOverrides(t *testing.T) {
 			name: "required secret overridden by env must be valid hex",
 			config: `
 [webserver]
+url = "http://localhost:4000"
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -308,9 +326,23 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	}
 }
 
+func TestReadConfig_RequiresWebserverURL(t *testing.T) {
+	for _, raw := range []string{"", " ", "\t\n"} {
+		t.Run(fmt.Sprintf("%q", raw), func(t *testing.T) {
+			validCheckEnvironment(t)
+			t.Chdir(t.TempDir())
+			t.Setenv("CHATTO_WEBSERVER_URL", raw)
+			if _, err := ReadConfig(""); err == nil || !strings.Contains(err.Error(), "webserver.url is required") {
+				t.Fatalf("ReadConfig() = %v, want missing webserver.url error", err)
+			}
+		})
+	}
+}
+
 func validTestConfig() ChattoConfig {
 	return ChattoConfig{
 		Webserver: WebserverConfig{
+			URL:                 "http://localhost:4000",
 			Port:                4000,
 			CookieSigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		},
@@ -387,11 +419,23 @@ func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
 	}
 }
 
+func TestChattoConfig_Validate_RequiresWebserverURL(t *testing.T) {
+	for _, raw := range []string{"", " ", "\t\n"} {
+		t.Run(fmt.Sprintf("%q", raw), func(t *testing.T) {
+			cfg := validTestConfig()
+			cfg.Webserver.URL = raw
+			if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "webserver.url is required") {
+				t.Fatalf("Validate() = %v, want missing webserver.url error", err)
+			}
+		})
+	}
+}
+
 func TestChattoConfig_Validate_MCPRequiresPublicWebserverURL(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.Webserver.URL = ""
 	cfg.MCP.Enabled = true
-	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "webserver.url is required when MCP is enabled") {
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "webserver.url is required") {
 		t.Fatalf("Validate() = %v, want missing webserver.url error", err)
 	}
 }
@@ -508,6 +552,7 @@ func TestReadConfig_DeprecatedServerAliases(t *testing.T) {
 
 	configContent := `
 [webserver]
+url = "http://localhost:4000"
 port = 4000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 

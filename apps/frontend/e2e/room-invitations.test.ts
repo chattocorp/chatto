@@ -272,23 +272,13 @@ for (const answer of ['accept', 'decline'] as const) {
         await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
         await expect(dialog).not.toBeVisible();
 
-        await senderPage.getByTestId('privileged-mode-toggle').click();
-        await senderPage
-          .getByRole('dialog', { name: 'Enable privileged mode' })
-          .getByRole('button', { name: 'Enable privileged mode' })
-          .click();
-        await expect(
-          senderPage.getByRole('button', { name: 'Disable privileged mode' })
-        ).toBeEnabled();
+        // The sender's direct room grant applies without Shield Mode.
+        await expect(senderPage.getByTestId('privileged-mode-toggle')).not.toBeVisible();
         await connectPost(senderPage, 'chatto.api.v1.RoomService/RemoveUser', {
           roomId,
           userId: recipient.id,
           reason: 'Invitation regression test'
         });
-        await senderPage.getByRole('button', { name: 'Disable privileged mode' }).click();
-        await expect(
-          senderPage.getByRole('button', { name: 'Enable privileged mode' })
-        ).toBeEnabled();
 
         // The same query must find the removed member without reloading the sender.
         await senderRoom.click({ button: 'right' });

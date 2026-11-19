@@ -1,7 +1,7 @@
 # EUPL migration
 
 Updated on 2026-11-09. The maintainer authorized implementation after merging
-`origin/main`. [ADR-123](../adr/ADR-123-product-license-boundaries.md) records
+`origin/main`. [ADR-126](../adr/ADR-126-product-license-boundaries.md) records
 the accepted repository-wide decision.
 
 ## Implemented boundary
@@ -15,7 +15,7 @@ the accepted repository-wide decision.
 
 [REUSE.toml](../../REUSE.toml) and explicit file metadata define the exact
 boundary. [LICENSING.md](../../LICENSING.md) describes source access and
-earlier grants. The switch applies from the commit introducing ADR-123 and
+earlier grants. The switch applies from the commit introducing ADR-126 and
 to releases that contain it. Previous releases retain their grants.
 
 ## HEIC result

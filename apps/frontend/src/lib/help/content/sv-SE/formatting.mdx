@@ -1,0 +1,107 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+Du kan formatera Chatto-meddelanden med Markdown. Till exempel visas `**hej**` som **hej**. Skriv formateringstecknen själv, eller markera text och använd formateringsverktygsfältet.
+
+## Välj redigerare och kortkommando för att skicka
+
+Öppna <a href={resolve('/chat/preferences/composer')}>Appinställningar → Skriva meddelanden</a> och välj **Markdown** för att redigera källtexten. Välj **Visuell** om du föredrar formaterad text. Formateringsverktygsfältet finns i båda redigerarna.
+
+Inställningen **Skicka meddelanden med** styr Enter-tangenten:
+
+- **Retur:** Enter skickar meddelandet. Ctrl+Enter infogar en ny rad, eller Command+Enter på Mac.
+- **Cmd/Ctrl+Retur:** Ctrl+Enter skickar meddelandet, eller Command+Enter på Mac. Enter infogar en ny rad.
+
+Lämna en tom rad mellan stycken.
+
+## Fetstil, kursiv, understrykning och genomstrykning
+
+Sätt formateringstecken på båda sidor om texten:
+
+- `**fetstil**` för fetstil
+- `*kursiv*` för kursiv
+- `__understruket__` för understrykning
+- `~~genomstruket~~` för genomstrykning
+
+<MarkdownSample source={"Granska detta **före fredag**.\nDatumet är *preliminärt*.\n__Godkännande krävs__ före publicering.\nDen gamla tidsfristen var ~~torsdag~~."} />
+
+I Chatto betyder `__text__` understrykning. Om du använder dubbla understreck för fetstil i ett annat Markdown-verktyg ska du använda dubbla asterisker här.
+
+Markera text och tryck på Ctrl+B, Ctrl+I eller Ctrl+U för fetstil, kursiv eller understrykning. Använd Command i stället för Ctrl på Mac. Verktygsfältets knappar utför samma åtgärder.
+
+Sätt inte mellanslag mellan tecknen och texten: `**viktigt**` fungerar; `** viktigt **` ger inte fetstil.
+
+## Rubriker och listor
+
+Börja en rubrik med `#`-tecken följda av ett mellanslag. Börja varje punkt med `- `, eller varje numrerad post med en siffra och en punkt, som `1. `.
+
+<MarkdownSample source={"## Checklista för lansering\n\nInnan vi börjar:\n- Bekräfta versionen.\n- Meddela supportteamet.\n\nSedan:\n1. Driftsätt uppdateringen.\n2. Kontrollera statussidan.\n3. Publicera resultatet här."} />
+
+Knappen **Rubrik** infogar en rubrik på nivå två (`##`). Du kan själv skriva rubriknivåer från `#` till `######`.
+
+Använd **Öka indrag** för att lägga en listpost under den föregående. Använd **Minska indrag** för att flytta tillbaka den. Lämna en tom rad efter listan för att börja ett stycke.
+
+## Citat
+
+Börja varje citerad rad med `>` och ett mellanslag. Lämna en tom rad efter citatet innan du skriver ditt svar.
+
+<MarkdownSample source={"> Kan vi flytta lanseringen till fredag?\n\nJa. Den sista granskningen är på torsdag eftermiddag."} />
+
+Ett skrivet citat länkar inte till ursprungsmeddelandet. Använd meddelandets svarsåtgärd för att svara i en tråd.
+
+## Kod
+
+Sätt en grav accent på varje sida om ett kort kommando, filnamn eller en identifierare. Formateringstecken i inlinekod visas som de skrivits.
+
+<MarkdownSample source={"Kör `git status` innan du börjar.\nInställningen heter `send_mode`.\nSkriv `**hej**` för att göra hej fetstilt."} />
+
+För flera rader sätter du tre grava accenter på en rad före koden och tre på en rad efter. Lägg till ett språknamn direkt efter de inledande accenterna för syntaxmarkering, som `js`, `json` eller `bash`.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+Knappen **Kodblock** infogar de inledande och avslutande accenterna. Utan den avslutande raden blir resten av meddelandet en del av kodblocket. För att visa en grav accent i inlinekod omger du texten med två grava accenter.
+
+## Länkar
+
+En inklistrad webbadress blir en länk. Om du vill visa en etikett i stället för adressen sätter du etiketten inom hakparenteser och adressen inom parenteser:
+
+```text
+Läs [versionsinformationen](https://example.com/releases).
+```
+
+Sätt inte mellanslag mellan `]` och `(`. Välj ett rum eller en person från redigerarens förslag för att länka till rummet eller nämna personen i Chatto.
+
+## Fotnoter
+
+Sätt en referens som `[^window]` efter texten du vill kommentera. Skriv `[^window]:` följt av kommentaren på en egen rad. Etiketterna måste vara lika.
+
+<MarkdownSample source={"Underhållsfönstret är 30 minuter.[^window]\n\n[^window]: De flesta servrar kommer att vara otillgängliga i mindre än fem minuter."} />
+
+Du kan också sätta markören efter texten och välja **Infoga fotnot** i verktygsfältet. Fotnoter kan inte infogas i inlinekod eller kodblock.
+
+## Tabeller
+
+Skilj kolumner med `|` och lägg en rad bindestreck under kolumnrubrikerna. Använd `---:` för högerjustering av en kolumn, eller `:---:` för centrering.
+
+<MarkdownSample source={"| Miljö | Version |\n| --- | ---: |\n| Test | 0.5 |\n| Produktion | 0.4 |"} />
+
+Redigera tabeller i Markdown-redigeraren. Den visuella redigeraren har inget verktyg för att redigera tabeller.
+
+## Prova ett helt meddelande
+
+Ändra meddelandet nedan för att prova formateringen. Förhandsvisningen uppdateras medan du skriver. Du kan växla mellan Markdown och den visuella redigeraren. Inget du skriver här skickas till ett rum.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Fredagens lansering\n\nSlutför granskningen **före 14:00**.\n\n1. Kör `git status`.\n2. Kontrollera versionsinformationen.\n3. Svara i den här tråden när du är klar.\n\n> Vad händer om en kontroll misslyckas?\n\nPublicera felet här innan du fortsätter."} />
+</div>
+
+## När formateringen inte ser rätt ut
+
+- **Tecknen syns fortfarande.** Kontrollera att båda ändarna matchar och att det inte finns något mellanslag precis innanför de inledande eller avslutande tecknen. I kod är synliga tecken avsiktliga.
+- **Resten av meddelandet ser ut som kod.** Sätt de tre avslutande grava accenterna på en egen rad.
+- **En rubrik eller lista förblir vanlig text.** Sätt ett mellanslag efter `##`, `-` eller `1.` och börja på en ny rad.
+- **Du vill visa själva skiljetecknen.** Sätt ett omvänt snedstreck före ett formateringstecken, som `\*inte kursiv\*`, eller använd inlinekod för ett bokstavligt exempel.
+- **HTML visas som text.** Chatto accepterar inte rå HTML för meddelandeformatering. Använd Markdown i stället för taggar som `<b>` eller `<span>`.

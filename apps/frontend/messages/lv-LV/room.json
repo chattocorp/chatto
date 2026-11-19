@@ -14,6 +14,7 @@
       "clear_confirm_title": "Notīrīt telpas paziņojumu?",
       "clear_confirm_description": "Tas nekavējoties noņem aktīvo paziņojumu visiem telpā. Jūsu nesaglabātās izmaiņas netiks publicētas.",
       "empty": "Neviens paziņojums nav publicēts.",
+      "load_failed": "Neizdevās ielādēt paziņojumu.",
       "edit": "Rediģēt paziņojumu"
     },
     "information": {
@@ -21,7 +22,12 @@
       "created": "Izveidota",
       "title": "Informācija par istabu",
       "basic": "Vispārīgi",
-      "pinned_messages": "Piespraustie ziņojumi"
+      "pinned_messages": "Piespraustie ziņojumi",
+      "threads": "Pavedieni",
+      "slow_mode": "Lēnais režīms",
+      "channel_slow_mode": "Kanāla lēnais režīms",
+      "thread_slow_mode": "Pavedienu lēnais režīms",
+      "slow_mode_off": "Izslēgts"
     },
     "create": {
       "title": "Izveidojiet jaunu istabu",

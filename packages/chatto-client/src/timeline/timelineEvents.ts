@@ -46,7 +46,9 @@ export type MessagePostedPayload = {
   threadSlowModeNextPostAt?: string | null;
   replyCount: number;
   lastReplyAt?: string | null;
+  /** Number of distinct current reply authors, excluding erased users. */
   threadParticipantCount?: number;
+  /** Reply-author preview; the root author is first only if they replied. */
   threadParticipants: UserAvatarUserView[];
   viewerIsFollowingThread?: boolean | null;
   viewerHasUnreadThread?: boolean | null;

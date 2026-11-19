@@ -228,6 +228,16 @@ func (s *HTTPServer) setupOIDCRoutes() {
 		s.handleProviderStart(c, providerRuntime)
 	})
 
+	auth.GET("providers/:providerID"+atprotoClientMetadataPath, func(c *gin.Context) {
+		providerRuntime := configured[c.Param("providerID")]
+		if providerRuntime == nil || providerRuntime.atproto == nil || providerRuntime.atproto.loopback {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		c.Header("Cache-Control", "public, max-age=300")
+		c.JSON(http.StatusOK, providerRuntime.atproto.clientMetadata("Chatto", configuredWebserverOrigin(s.config.Webserver.URL)))
+	})
+
 	auth.GET("providers/:providerID/callback", func(c *gin.Context) {
 		providerRuntime := configured[c.Param("providerID")]
 		if providerRuntime == nil {
@@ -250,6 +260,26 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authProviderRuntime) {
 	session := sessions.Default(c)
+
+	// AT Protocol needs the handle first. Ask for it on the handle page, and
+	// show an unknown handle there again, before any link token is consumed.
+	var atprotoAuthURL, atprotoState string
+	var atprotoErr error
+	if providerRuntime.atproto != nil {
+		hint := strings.TrimSpace(c.Query("login_hint"))
+		if hint == "" {
+			c.Redirect(http.StatusSeeOther, atprotoHandlePageURL(c.Request.URL, "", ""))
+			return
+		}
+		atprotoAuthURL, atprotoState, atprotoErr = providerRuntime.atproto.authURL(c.Request.Context(), session, providerRuntime.config.ID, hint)
+		if errors.Is(atprotoErr, errATProtoIdentityNotFound) {
+			log.Warn("Failed to begin atproto auth", "provider_id", providerRuntime.config.ID, "identity_not_found", true)
+			_ = session.Save()
+			c.Redirect(http.StatusSeeOther, atprotoHandlePageURL(c.Request.URL, "atproto_identity_not_found", hint))
+			return
+		}
+	}
+
 	intent := c.Query("intent")
 	linkStartRedirect := ""
 	if intent == "link" {
@@ -298,7 +328,17 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 	session.Set(providerSessionKey(providerRuntime.config.ID, "state"), state)
 
 	var authURL string
-	if providerRuntime.config.Type == config.AuthProviderTypeOpenIDConnect {
+	if providerRuntime.atproto != nil {
+		// AT Protocol's pushed request chose the state above.
+		if atprotoErr != nil {
+			log.Warn("Failed to begin atproto auth", "provider_id", providerRuntime.config.ID, "identity_not_found", false)
+			_ = session.Save()
+			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_failed"))
+			return
+		}
+		authURL = atprotoAuthURL
+		session.Set(providerSessionKey(providerRuntime.config.ID, "state"), atprotoState)
+	} else if providerRuntime.config.Type == config.AuthProviderTypeOpenIDConnect {
 		if !providerRuntime.ensureOIDC(c) {
 			return
 		}
@@ -348,6 +388,9 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 }
 
 func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *authProviderRuntime) {
+	if s.forwardATProtoLoopbackCallback(c, providerRuntime) {
+		return
+	}
 	session := sessions.Default(c)
 	ctx := c.Request.Context()
 
@@ -503,6 +546,8 @@ type authProviderRuntime struct {
 	httpClient *http.Client
 	oidc       *oidcProvider
 	goth       goth.Provider
+	// atproto is set for AT Protocol providers (FDR-058).
+	atproto *atprotoProvider
 	// discordOAuth2 exchanges Discord codes. Goth's Discord session ignores
 	// the provider client and would use http.DefaultClient without a timeout.
 	discordOAuth2 *oauth2.Config
@@ -550,6 +595,12 @@ func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackUR
 			RedirectURL:  callbackURL,
 			Endpoint:     endpoints.Discord,
 		}
+	case config.AuthProviderTypeATProto:
+		provider, err := newATProtoProvider(callbackURL)
+		if err != nil {
+			return nil, err
+		}
+		runtime.atproto = provider
 	default:
 		return nil, fmt.Errorf("unsupported auth provider type %q", providerConfig.Type)
 	}
@@ -612,6 +663,7 @@ func deleteProviderExchangeState(session sessions.Session, providerID string) {
 	session.Delete(providerSessionKey(providerID, "code_verifier"))
 	session.Delete(providerSessionKey(providerID, "nonce"))
 	session.Delete(providerSessionKey(providerID, "session"))
+	session.Delete(providerSessionKey(providerID, "atproto_request"))
 }
 
 func (r *authProviderRuntime) ensureOIDC(c *gin.Context) bool {
@@ -629,6 +681,9 @@ func (r *authProviderRuntime) ensureOIDC(c *gin.Context) bool {
 func (r *authProviderRuntime) resolveIdentity(c *gin.Context, session sessions.Session) (resolvedProviderIdentity, error) {
 	if r.config.Type == config.AuthProviderTypeOpenIDConnect {
 		return r.resolveOIDCIdentity(c, session)
+	}
+	if r.atproto != nil {
+		return r.resolveATProtoIdentity(c, session)
 	}
 	return r.resolveGothIdentity(c, session)
 }
@@ -973,6 +1028,19 @@ func fetchGitHubVerifiedPrimaryEmail(ctx context.Context, client *http.Client, a
 
 func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, invitationID string) {
 	ctx := c.Request.Context()
+	returnPath := providerReturnPath(session, "/")
+	// A sign-in popup hands the confirmation to the window that opened it. That
+	// window shows the confirmation and keeps its own return navigation.
+	popup := isProviderPopupCallback(returnPath)
+	if !providerConfig.AutoProvisionOrDefault() {
+		if popup {
+			c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "error", "external_identity_unlinked"))
+			return
+		}
+		c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
+		return
+	}
+
 	flow := core.PendingExternalIdentityFlow{
 		ProviderID:       providerConfig.ID,
 		ProviderType:     providerConfig.Type,
@@ -986,18 +1054,25 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		DisplayNameHint:  identity.displayNameHint,
 		Groups:           mappedGroups(providerConfig.GroupRoleMappings(), identity.groups.Groups),
 		GroupsKnown:      identity.groups.Known,
-		RedirectPath:     providerReturnPath(session, "/"),
+		RedirectPath:     returnPath,
+		InvitationID:     invitationID,
 	}
-
-	if !providerConfig.AutoProvisionOrDefault() {
-		c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
-		return
+	if popup {
+		// The opening window owns the destination after account creation.
+		flow.RedirectPath = "/"
 	}
-	flow.InvitationID = invitationID
 	token, err := s.core.CreatePendingExternalIdentityCreateFlow(ctx, flow)
 	if err != nil {
 		log.Error("Failed to create pending external identity flow", "provider_id", providerConfig.ID, "provider_type", providerConfig.Type, "error", err)
+		if popup {
+			c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "error", "provider_failed"))
+			return
+		}
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+		return
+	}
+	if popup {
+		c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "external_identity", token))
 		return
 	}
 	if s.core.InvitationRequired() && invitationID == "" {
@@ -1005,6 +1080,29 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		return
 	}
 	c.Redirect(http.StatusTemporaryRedirect, "/sso/confirm?token="+url.QueryEscape(token))
+}
+
+// isProviderPopupCallback reports whether returnPath is the frontend callback
+// of a provider sign-in popup (`/servers/callback?mode=provider&state=...`).
+func isProviderPopupCallback(returnPath string) bool {
+	u, err := url.Parse(returnPath)
+	if err != nil || u.IsAbs() || u.Host != "" {
+		return false
+	}
+	q := u.Query()
+	return u.Path == "/servers/callback" && q.Get("mode") == "provider" && q.Get("state") != ""
+}
+
+// withQueryParam returns path with one query parameter set.
+func withQueryParam(path, name, value string) string {
+	u, err := url.Parse(path)
+	if err != nil {
+		return path
+	}
+	q := u.Query()
+	q.Set(name, value)
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func providerReturnPath(session sessions.Session, fallback string) string {
@@ -1064,7 +1162,7 @@ func loginHint(value string) string {
 				lastDot = false
 			}
 		}
-		if b.Len() >= 32 {
+		if b.Len() >= core.MaxLoginLength {
 			break
 		}
 	}

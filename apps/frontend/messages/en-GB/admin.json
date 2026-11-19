@@ -276,9 +276,9 @@
         "visibility_help": "Use a Universal room for news that all members must get, such as announcements. Members cannot leave a Universal room, but they can mute it. If you turn Universal off, the members who joined before stay in the room.",
         "slow_mode_subtitle": "Limit how often each member can post in this room.",
         "slow_mode_interval": "Minimum time between posts",
-        "channel_slow_mode_interval": "Channel slow mode",
-        "thread_slow_mode_interval": "Thread slow mode",
-        "independent_slow_mode_help": "Channel slow mode limits new root messages per member. Thread slow mode limits each member separately in each thread. The root starts both timers for its author. Members with room.manage or message.manage permission are exempt. Edits and reactions do not change the timers.",
+        "channel_slow_mode_interval": "Channel Slow Mode",
+        "thread_slow_mode_interval": "Thread Slow Mode",
+        "independent_slow_mode_help": "Channel Slow Mode limits new root messages per member. Thread Slow Mode limits each member separately in each thread. The root starts both timers for its author. Members with room.manage or message.manage permission are exempt. Edits and reactions do not change the timers.",
         "slow_mode_help": "One timer covers messages, thread replies, and attachments. Members with the room.manage or message.manage permission are exempt. While members wait, they can still write drafts, edit their messages, and add reactions.",
         "threading_title": "Threading Mode",
         "threading_subtitle": "Choose how conversations in this room use threads.",
@@ -426,6 +426,10 @@
         "projections_failed_count": {
           "one": "{count} projection failed",
           "other": "{count} projections failed"
+        },
+        "projections_stalled_count": {
+          "one": "{count} projection stalled",
+          "other": "{count} projections stalled"
         },
         "projections_catching_up_count": {
           "one": "{count} projection catching up",
@@ -591,6 +595,38 @@
         "revoked": "Revoked",
         "used": "Used"
       }
+    },
+    "jobs": {
+      "title": "Jobs",
+      "subtitle": "View background jobs, and retry or delete failed jobs.",
+      "load_failed": "Could not load jobs.",
+      "retry_failed": "Could not retry this job.",
+      "delete_failed": "Could not delete this job.",
+      "delete_title": "Delete this job?",
+      "delete_message": "The work of this job is abandoned. You cannot retry it later.",
+      "webhook": "Webhook delivery",
+      "media": "Media processing",
+      "asset_cleanup": "File cleanup",
+      "call_key_cleanup": "Call key deletion",
+      "push_subscription_cleanup": "Push subscription cleanup",
+      "user_key_shredding": "Account key deletion",
+      "notification_alert": "Notification alert",
+      "email": "Email",
+      "queued": "Queued",
+      "running": "Running",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "empty": "No jobs yet",
+      "attempts": "Attempts",
+      "updated": "Updated",
+      "next_attempt": "Next attempt",
+      "expired": "This job has expired and cannot be retried.",
+      "job": "Job",
+      "created": "Created",
+      "details": "Details",
+      "detail_subtitle": "Status, attempts, and the last failure reason of this job.",
+      "not_found": "This job no longer exists.",
+      "all": "All"
     }
   }
 }

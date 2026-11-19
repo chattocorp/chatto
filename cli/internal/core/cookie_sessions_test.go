@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"sync"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -88,6 +90,40 @@ func TestChattoCore_CreateAndValidateCookieSession(t *testing.T) {
 	}
 }
 
+func TestCookieSessionWritesDuringFinalFractionalSecond(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	now := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+	deadline := now.Add(time.Hour)
+	record, err := json.Marshal(AuthTokenData{UserID: "member", Kind: AuthTokenKindFirstPartySession,
+		Presentation: AuthTokenPresentationCookie, CreatedAt: now, ExpiresAt: deadline})
+	require.NoError(t, err)
+	// Supply the logical write time directly, independently of JetStream's clock.
+	lastInstant := deadline.Add(-time.Nanosecond)
+	t.Run("create", func(t *testing.T) {
+		require.NoError(t, c.CreateCookieSessionValue(ctx, "late-create", record, lastInstant))
+	})
+	t.Run("update", func(t *testing.T) {
+		require.NoError(t, c.CreateCookieSessionValue(ctx, "late-update", record, now))
+		entry, err := c.LoadCookieSessionValue(ctx, "late-update", now)
+		require.NoError(t, err)
+		require.NoError(t, c.UpdateCookieSessionValue(ctx, "late-update", record, entry.Revision, lastInstant))
+		_, err = c.LoadCookieSessionValue(ctx, "late-update", deadline)
+		require.ErrorIs(t, err, ErrCookieSessionNotFound)
+	})
+}
+
+func TestRuntimeStateRetentionRoundsUpToWholeSeconds(t *testing.T) {
+	for _, tc := range []struct{ remaining, retention time.Duration }{
+		{time.Nanosecond, time.Second},
+		{time.Second, time.Second},
+		{time.Second + time.Nanosecond, 2 * time.Second},
+		{time.Duration(math.MaxInt64), time.Duration(math.MaxInt64).Truncate(time.Second)},
+	} {
+		require.Equal(t, tc.retention, runtimeStateRetention(tc.remaining))
+	}
+}
+
 func TestChattoCore_ValidatingCookieSessionDoesNotRewriteRuntimeState(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -114,131 +150,6 @@ func TestChattoCore_ValidatingCookieSessionDoesNotRewriteRuntimeState(t *testing
 	}
 	if after.Revision() != before.Revision() {
 		t.Fatalf("cookie validation changed revision from %d to %d", before.Revision(), after.Revision())
-	}
-}
-
-func TestChattoCore_MigrateLegacyCookieSessionAddsExpiryOnce(t *testing.T) {
-	core, _ := setupTestCore(t)
-	core.config.AuthTokenTTL = 4 * time.Hour
-	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "legacy-cookie-user", "Legacy Cookie User", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	authGeneration, err := core.CurrentAuthGeneration(ctx, user.GetId())
-	if err != nil {
-		t.Fatalf("CurrentAuthGeneration: %v", err)
-	}
-
-	now := time.Now().UTC().Truncate(time.Millisecond)
-	sessionID := NewAuthToken()
-	legacy := AuthTokenData{
-		UserID:          user.GetId(),
-		Kind:            AuthTokenKindFirstPartySession,
-		Presentation:    AuthTokenPresentationCookie,
-		Source:          "password_login",
-		CreatedAt:       now.Add(-time.Hour),
-		AuthGeneration:  authGeneration,
-		FreshAuthAt:     now.Add(-time.Hour),
-		FreshAuthMethod: "password",
-		FreshAuthSource: "password_login",
-	}
-	value, err := json.Marshal(legacy)
-	if err != nil {
-		t.Fatalf("marshal legacy cookie session: %v", err)
-	}
-	key := core.authTokenKey(sessionID)
-	if _, err := core.storage.runtimeStateKV.Create(ctx, key, value, jetstream.KeyTTL(3*time.Hour)); err != nil {
-		t.Fatalf("store legacy cookie session: %v", err)
-	}
-
-	const callers = 8
-	results := make(chan *runtimestatev1.CookieSession, callers)
-	errs := make(chan error, callers)
-	var wait sync.WaitGroup
-	for range callers {
-		wait.Go(func() {
-			record, migrateErr := core.MigrateLegacyCookieSession(ctx, sessionID, now)
-			results <- record
-			errs <- migrateErr
-		})
-	}
-	wait.Wait()
-	close(results)
-	close(errs)
-	for migrateErr := range errs {
-		if migrateErr != nil {
-			t.Fatalf("MigrateLegacyCookieSession: %v", migrateErr)
-		}
-	}
-	wantExpiry := now.Add(4 * time.Hour)
-	for record := range results {
-		if record.GetUserId() != user.GetId() || !record.GetExpiresAt().AsTime().Equal(wantExpiry) {
-			t.Fatalf("migrated cookie session = %#v, want user %q and expiry %v", record, user.GetId(), wantExpiry)
-		}
-	}
-
-	storedEntry, err := core.storage.runtimeStateKV.Get(ctx, key)
-	if err != nil {
-		t.Fatalf("get migrated cookie session: %v", err)
-	}
-	var stored AuthTokenData
-	if err := json.Unmarshal(storedEntry.Value(), &stored); err != nil {
-		t.Fatalf("unmarshal migrated cookie session: %v", err)
-	}
-	if !stored.ExpiresAt.Equal(wantExpiry) || !stored.CreatedAt.Equal(legacy.CreatedAt) || !stored.FreshAuthAt.Equal(legacy.FreshAuthAt) {
-		t.Fatalf("migrated cookie session changed preserved fields: %#v", stored)
-	}
-	assertRuntimeKVHasTTL(t, core, key)
-	if _, err := core.ValidateCookieCredential(ctx, sessionID); err != nil {
-		t.Fatalf("ValidateCookieCredential: %v", err)
-	}
-
-	retried, err := core.MigrateLegacyCookieSession(ctx, sessionID, now.Add(time.Hour))
-	if err != nil {
-		t.Fatalf("MigrateLegacyCookieSession retry: %v", err)
-	}
-	if !retried.GetExpiresAt().AsTime().Equal(wantExpiry) {
-		t.Fatalf("retry extended expiry to %v, want %v", retried.GetExpiresAt(), wantExpiry)
-	}
-}
-
-func TestChattoCore_MigrateLegacyCookieSessionRejectsRevokedAuthority(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "revoked-legacy-cookie-user", "Revoked Legacy Cookie User", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	authGeneration, err := core.CurrentAuthGeneration(ctx, user.GetId())
-	if err != nil {
-		t.Fatalf("CurrentAuthGeneration: %v", err)
-	}
-	if err := core.SetPasswordHash(ctx, user.GetId(), "newpassword456"); err != nil {
-		t.Fatalf("SetPasswordHash: %v", err)
-	}
-	now := time.Now()
-	sessionID := NewAuthToken()
-	value, err := json.Marshal(AuthTokenData{
-		UserID:         user.GetId(),
-		Kind:           AuthTokenKindFirstPartySession,
-		Presentation:   AuthTokenPresentationCookie,
-		CreatedAt:      now,
-		AuthGeneration: authGeneration,
-	})
-	if err != nil {
-		t.Fatalf("marshal legacy cookie session: %v", err)
-	}
-	key := core.authTokenKey(sessionID)
-	if _, err := core.storage.runtimeStateKV.Create(ctx, key, value, jetstream.KeyTTL(time.Hour)); err != nil {
-		t.Fatalf("store legacy cookie session: %v", err)
-	}
-
-	if _, err := core.MigrateLegacyCookieSession(ctx, sessionID, now); !errors.Is(err, ErrCookieSessionNotFound) {
-		t.Fatalf("MigrateLegacyCookieSession err = %v, want ErrCookieSessionNotFound", err)
-	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) {
-		t.Fatalf("revoked legacy cookie session still stored: %v", err)
 	}
 }
 
@@ -320,40 +231,51 @@ func TestChattoCore_LogoutDeleteFencesConcurrentCookieRenewal(t *testing.T) {
 }
 
 func TestChattoCore_CookieSessionExplicitExpiryIsAuthoritative(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "cookie-expiry-user", "Cookie Expiry User", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	sessionID, _, err := core.CreateCookieSession(ctx, user.Id, "password_login")
-	if err != nil {
-		t.Fatalf("CreateCookieSession: %v", err)
-	}
-
-	key := core.authTokenKey(sessionID)
-	entry, err := core.storage.runtimeStateKV.Get(ctx, key)
-	if err != nil {
-		t.Fatalf("get cookie session: %v", err)
-	}
-	var data AuthTokenData
-	if err := json.Unmarshal(entry.Value(), &data); err != nil {
-		t.Fatalf("unmarshal cookie session: %v", err)
-	}
-	data.ExpiresAt = time.Now().Add(-time.Minute)
-	value, err := json.Marshal(data)
-	if err != nil {
-		t.Fatalf("marshal expired cookie session: %v", err)
-	}
-	if _, err := core.storage.runtimeStateKV.Update(ctx, key, value, entry.Revision()); err != nil {
-		t.Fatalf("store expired cookie session: %v", err)
-	}
-
-	if err := core.MarkCookieSessionFresh(ctx, sessionID, "password", "current_password"); !errors.Is(err, ErrCookieSessionNotFound) {
-		t.Fatalf("MarkCookieSessionFresh err = %v, want ErrCookieSessionNotFound", err)
-	}
-	if _, err := core.ValidateCookieCredential(ctx, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
-		t.Fatalf("ValidateCookieCredential err = %v, want ErrCookieSessionNotFound", err)
+	for name, expiry := range map[string]time.Time{
+		"missing": {},
+		"expired": time.Now().Add(-time.Minute),
+	} {
+		t.Run(name, func(t *testing.T) {
+			for operation, check := range map[string]func(*ChattoCore, context.Context, string) error{
+				"validate": func(core *ChattoCore, ctx context.Context, sessionID string) error {
+					_, err := core.ValidateCookieCredential(ctx, sessionID)
+					return err
+				},
+				"renew": func(core *ChattoCore, ctx context.Context, sessionID string) error {
+					_, _, err := core.RenewCookieSession(ctx, sessionID, time.Now())
+					return err
+				},
+				"fresh auth": func(core *ChattoCore, ctx context.Context, sessionID string) error {
+					return core.MarkCookieSessionFresh(ctx, sessionID, "password", "current_password")
+				},
+			} {
+				t.Run(operation, func(t *testing.T) {
+					core, _ := setupTestCore(t)
+					ctx := testContext(t)
+					user, err := core.CreateUser(ctx, SystemActorID, "cookie-expiry-user", "Cookie Expiry User", "password123")
+					if err != nil {
+						t.Fatalf("CreateUser: %v", err)
+					}
+					data, err := core.NewCookieSessionData(ctx, user.Id, "password_login")
+					if err != nil {
+						t.Fatalf("NewCookieSessionData: %v", err)
+					}
+					data.ExpiresAt = expiry
+					value, err := json.Marshal(data)
+					if err != nil {
+						t.Fatalf("marshal cookie session: %v", err)
+					}
+					sessionID := NewAuthToken()
+					// Physical retention must not make a missing or expired security deadline valid.
+					if _, err := core.storage.runtimeStateKV.Create(ctx, core.authTokenKey(sessionID), value, jetstream.KeyTTL(time.Hour)); err != nil {
+						t.Fatalf("store cookie session: %v", err)
+					}
+					if err := check(core, ctx, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
+						t.Fatalf("%s err = %v, want ErrCookieSessionNotFound", operation, err)
+					}
+				})
+			}
+		})
 	}
 }
 

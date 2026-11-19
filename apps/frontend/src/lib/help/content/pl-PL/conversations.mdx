@@ -1,0 +1,76 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Odpowiedzi i wątki
+
+Użyj **Odpowiedz w wątku** przy wiadomości, aby zachować odpowiedź w tej samej rozmowie.
+Aby rozpocząć wątek nową wiadomością, przed wysłaniem wybierz w edytorze **Opublikuj jako
+wątek**. Pokój pozostaje otwarty; wybierz odnośnik do wątku przy wiadomości, aby go otworzyć.
+
+Otwarty wątek ma własny adres. Skopiuj adres z przeglądarki, aby udostępnić go komuś,
+kto ma dostęp do pokoju. Zamknięcie wątku przenosi cię do pokoju; nie przestajesz przez
+to obserwować rozmowy.
+
+<p>Jeśli chcesz widzieć pokój podczas odpowiadania, otwórz
+<a href={resolve('/chat/preferences/appearance')}>Preferencje aplikacji → Wygląd</a>
+i ustaw <strong>Panel wątku</strong> na <strong>Obok siebie</strong>. Gdy miejsca jest
+za mało, Chatto pokazuje wątek nad pokojem.</p>
+
+## Obserwuj rozmowy
+
+Wybierz **Obserwuj wątek**, aby zachować rozmowę na liście **Wątki**. Możesz obserwować
+wątek bez publikowania w nim wiadomości.
+
+W sekcji **Wątki** widok **Obserwowane** pokazuje wątki, które obserwujesz. **Moje**
+pokazuje te, które rozpocząłeś i nadal obserwujesz. Zaprzestanie obserwowania usuwa
+wątek z obu widoków. Wybierz **Nieprzeczytane**, aby znaleźć rozmowy z nieprzeczytanymi odpowiedziami.
+
+Pole wyszukiwania sprawdza wiadomości i odpowiedzi w obserwowanych wątkach, także
+w wiadomościach bezpośrednich. Szukaj słów, frazy w cudzysłowie lub autora za pomocą
+`from:username`. Wyszukiwanie jest dostępne, jeśli serwer je obsługuje i ma je włączone.
+
+## Przechodź między pokojami i nieprzeczytaną aktywnością
+
+Naciśnij **Ctrl+K**, lub **Command+K** na Macu, aby otworzyć szybki przełącznik.
+Wyszukuj w nim pokoje i serwery bez przeglądania paska bocznego.
+
+Naciśnij **Alt+Shift+Down**, lub **Option+Shift+Down** na Macu, aby przejść do następnego
+nieprzeczytanego źródła na serwerach, na których jesteś zalogowany. Chatto prowadzi
+najpierw do ważnych powiadomień, potem do pozostałych, a następnie do pokojów z kropkami
+nieprzeczytanej aktywności. Bieżący szkic wiadomości pozostaje na miejscu.
+
+Dzwonek w nagłówku otwiera powiadomienia ze wszystkich serwerów, na których jesteś
+zalogowany. Czytanie pokoju lub wątku oznacza powiadomienia jako przeczytane tylko do
+widocznych wiadomości. Otwarcie starszej wiadomości nie oznacza nowszych odpowiedzi jako przeczytanych.
+
+Aby zobaczyć dostępne skróty klawiaturowe, naciśnij **Ctrl+Shift+K**, lub **Command+Shift+K** na Macu.
+
+## Wybierz, o czym dostajesz powiadomienia
+
+Otwórz ustawienia **Powiadomienia** serwera, aby zmienić alerty dla wzmianek, odpowiedzi,
+reakcji i innych działań. Każde ustawienie może dotyczyć całego serwera, grupy pokojów
+lub jednego pokoju.
+
+- **Dziedzicz** używa ustawienia grupy pokojów lub serwera.
+- **Wyłączone** nie tworzy powiadomienia ani kropki dla danego rodzaju aktywności.
+- **Kropka nieprzeczytanej treści** oznacza pokój bez tworzenia powiadomienia.
+- **Powiadomienie w aplikacji** dodaje wpis do centrum powiadomień.
+- **Powiadomienie push** pozwala także na alert na urządzeniu, na którym włączyłeś powiadomienia.
+
+Na przykład wybierz **Kropka nieprzeczytanej treści** dla nowych wiadomości w pokoju i
+**Powiadomienie push** dla bezpośrednich wzmianek, jeśli chcesz czytać ogólny czat we własnym tempie.
+
+<p>Alerty push wymagają też zgody urządzenia. Na telefonie skorzystaj z poradnika
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Zainstaluj Chatto na telefonie</a>,
+aby zainstalować aplikację i włączyć powiadomienia. Ustawienia powiadomień telefonu
+kontrolują wyświetlanie nazw i podglądów wiadomości na ekranie blokady.</p>
+
+## Gdy połączenie zostanie przerwane
+
+Załadowane wiadomości pozostają widoczne, ale Chatto potrzebuje połączenia z serwerem,
+aby wczytać kolejne lub wysłać odpowiedź. Po odzyskaniu połączenia pobiera brakujące aktualizacje.
+
+Jeśli wysyłanie się nie powiedzie, szkic pozostaje w edytorze. Nie trafia do kolejki
+automatycznej wysyłki: sprawdź połączenie i wyślij go ponownie. Instalacja Chatto na
+telefonie nie udostępnia historii czatu offline.

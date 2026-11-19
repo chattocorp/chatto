@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 // ============================================================================
@@ -27,6 +29,13 @@ import (
 // It provides a unified API for spaces, users, rooms, and messages,
 // managing current JetStream resources internally.
 type ChattoCore struct {
+	jobs                *jobqueue.Queue
+	jobConsumers        map[string]jetstream.Consumer // JOBS consumer of each job type.
+	mediaSourceConsumer jetstream.Consumer
+	mediaJobHandler     func(context.Context, string, string) error
+	mediaJobConcurrency int
+	effectJobs          map[string]*jobqueue.Effect // Registered during construction; read-only after Run starts.
+
 	botWebhooks               *botWebhookModel
 	nc                        *nats.Conn
 	js                        jetstream.JetStream
@@ -112,6 +121,9 @@ type ChattoCore struct {
 	// operator-facing diagnostics, so lifecycle and admin surfaces cannot
 	// drift into separate hand-maintained lists.
 	projections []projectionRegistration
+	// projectionEstimates holds the keys of projections whose admin memory
+	// estimate runs now. See boundedProjectionEstimate.
+	projectionEstimates sync.Map
 
 	// bootDone is closed by Run once all projection startup hooks and
 	// boot-time mutations (ensureChannelRoomsAreInAGroup) have
@@ -222,6 +234,8 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.notificationMaterializer.Run(gctx) })
 	g.Go(func() error { return c.notificationAlertDelivery.run(gctx) })
 	g.Go(func() error { return c.botWebhooks.run(gctx) })
+	g.Go(func() error { return c.runJobs(gctx) })
+	g.Go(func() error { return c.runMediaJobSource(gctx) })
 	g.Go(func() error { return c.pushSubscriptionCleanup.Run(gctx) })
 	g.Go(func() error { return c.presenceModel.Run(gctx) })
 	g.Go(func() error { return c.myEventsModel.Run(gctx) })

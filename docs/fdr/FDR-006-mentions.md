@@ -1,7 +1,7 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-11-02
+**Last reviewed:** 2026-11-11
 
 ## Overview
 
@@ -16,7 +16,7 @@ the message body.
 - Matching is fuzzy against room-member logins, room-member display names, the virtual handles `all` and `here`, and pingable role names. Prefix matches rank higher than substring matches.
 - While the room list loads, autocomplete combines loaded members with server search results.
 - In a thread composer, thread participants rank above other matching members. An exact login or display-name match ranks first. The current user does not get this priority. Tab completion uses the same order as the popup.
-- Tab cycles through all available fuzzy matches without changing the draft. Shift+Tab cycles backwards. When only one match remains, Tab inserts it with a trailing space. Enter or a click confirms the highlighted match with a trailing space without sending the message. The space can be removed with Backspace. Space remains available for typing and closes the suggestions.
+- Arrow keys move the selection. Tab, Shift+Tab, Enter, or a click confirms the highlighted match with a trailing space without sending the message. The space can be removed with Backspace. Space remains available for typing and closes the suggestions.
 - `@username` mentions select that human or bot account when it is a current
   room member. Universal room implicit members count as room members;
   notification policy still decides whether to create an occurrence.

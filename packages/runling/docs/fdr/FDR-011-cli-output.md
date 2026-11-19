@@ -1,7 +1,7 @@
 # FDR-011: CLI run details and final output
 
 **Status:** Experimental
-**Last reviewed:** 2026-10-15
+**Last reviewed:** 2026-11-10
 
 ## Overview
 
@@ -26,6 +26,25 @@ from the answer and use the journal to inspect intermediate replies.
 - Normal output shows the run reference at startup, task and step progress,
   and agent activity, including tool use. Agent reasoning summaries can appear
   as part of this activity. `--verbose` also shows debug logs.
+- Interactive terminals show a small live task panel below the log area. It shows
+  task nesting, input waits, failures, and elapsed time. Failures and active
+  child tasks take priority when selecting branches for the available space.
+  Selected branches retain their ancestors and appear in a stable, parent-first
+  tree, with siblings in creation order. A parent
+  with active children is not assumed to be waiting. Log lines identify their
+  owning task, including output from child commands. Complete logs remain in
+  normal scrollback and the journal.
+- CI, redirected stdout or stderr, JSON mode, `--plain`, `TERM=dumb`, disabled
+  colors, and small terminals use ordinary log output. The live renderer loads
+  only when it can be used. Renderer setup failure also uses ordinary logs.
+- Resizing redraws the panel at the new dimensions. A terminal that becomes
+  too small pauses the panel; enlarging it resumes the panel. Existing reflowed
+  content is not erased, so an old panel can remain in scrollback.
+- The panel does not change terminal input mode or use an alternate screen.
+  Completion and cancellation restore the terminal's normal scroll region.
+- The interactive display ends with task counts and up to eight task duration
+  rows: failures and unfinished tasks first, then the three slowest completions.
+  The journal retains the complete task history.
 - At completion, the command shows accumulated token usage when tokens were
   used, the duration, and the journal path when the journal was saved.
 - After these details, a successful run prints its non-null root result once.

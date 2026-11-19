@@ -55,6 +55,12 @@
     };
   }
 
+  /** The overlay loads lazily; request fullscreen only after its DOM node exists. */
+  function enterFullscreen(node: HTMLElement) {
+    // Keep the full-window overlay usable if the browser declines native fullscreen.
+    void node.requestFullscreen?.().catch(() => {});
+  }
+
   function close() {
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {});
@@ -70,8 +76,21 @@
   }
 </script>
 
+<!-- Capture Escape before room shortcuts, including while the player loads or
+     when native fullscreen is unavailable. Native fullscreen exit also uses
+     handleFullscreenChange when the browser consumes the key itself. -->
+<svelte:window
+  onkeydowncapture={(event) => {
+    if (event.key !== 'Escape' || !fullscreenVideo.isOpen) return;
+    event.preventDefault();
+    event.stopPropagation();
+    close();
+  }}
+/>
+
 {#if fullscreenVideo.isOpen && fullscreenVideo.source && elementsReady}
   <div
+    {@attach enterFullscreen}
     class="fullscreen-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-black"
     role="dialog"
     aria-modal="true"

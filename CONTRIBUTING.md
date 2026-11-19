@@ -539,6 +539,47 @@ only while the Runling bot of `mise dev-full` runs.
 
 Use `alice` when you need server administration access.
 
+## CI Job Selection
+
+CI selects product jobs from the changed paths. Pull requests use the complete
+PR diff; pushes use the exact before and after commits. The `changes` job
+matches the paths against the filters in `.github/workflows/ci.yml`.
+`tools/ci-select-jobs.mjs` combines the filter results into the job outputs.
+
+- Sweet notes in any `.sweet/` directory and generated `CHANGELOG.md` files
+  do not select product jobs or Authling image builds. Release preparation
+  still runs for Sweet notes on `main`.
+- Chatto checks have two groups. Go sources, protobufs, Docker files, and
+  frontend build settings select the server tests and Go lint. Frontend
+  sources, workspace packages, protobufs, and Docker files select the
+  workspace type checks, lint, and unit tests. A change in one of the two
+  groups selects the browser tests.
+- Ordinary frontend source, translations, and tests do not select the Go
+  jobs or native desktop packaging.
+- Desktop shell files, the frontend desktop bridge, and desktop test scripts
+  select the full desktop platform matrix.
+- Frontend build settings, scripts and static assets, shared client packages,
+  and protobufs select one desktop build for each operating system in a pull
+  request: Linux, Linux arm64, macOS, and Windows. The macOS Intel and
+  universal builds and the native capture helper test run after the merge.
+- Shared build and dependency configuration selects all products. Release
+  version files and package manifests still select their product checks.
+- A release pull request that changes only release files selects no product
+  jobs. The checks ran on `main` before, and run again on `main` after the
+  merge, before CI makes a tag. If you push another change to a release
+  branch, CI selects jobs as for an ordinary pull request.
+- `NOTICE`, `LICENSES/`, the Sweet Release configuration, and the workflows
+  that do not run product jobs select no product jobs.
+- Workflow/tooling checks, license checks, and PR formatting checks run
+  independently of product selection.
+
+A pull request that changes the workflow selects all jobs. Thus, its CI run
+cannot show a filter that selects too few jobs. When you change the filters
+or the selection rules, add a case to `tools/ci-selection.test.mjs`, then run
+`mise lint-actions` and `node --test tools/ci-selection.test.mjs`. When you
+add a version file to a `.sweet.yml` manifest, add it to the `non-release`
+filter. Inspect the **Select jobs** step in CI to see the selection of a run.
+
 ## Repository Tooling Tests
 
 Run `mise test-repo-tooling` to test repository checks, release policy,
@@ -547,6 +588,10 @@ import tooling. The task installs workspace dependencies and discovers
 `tools/*.test.mjs` files automatically. It runs Node test files one at a time,
 then runs the launcher shell test and the Python suites through
 `mise test-interchange` and `mise test-slack`.
+
+Slack scripts, tests, documentation, and Slack-specific assets are in
+`tools/slack/`. The Slack task also checks converted Markdown with the
+frontend's Markdown engine and link policy.
 
 CI and `mise test` use this same task. Add new Node tooling tests as
 `tools/<name>.test.mjs` so both commands include them. The focused tasks, such
@@ -638,3 +683,36 @@ Inspect pending notes with `mise x -- sweet status`. In a clean checkout, run
 `mise x -- sweet bump <package-path>` to preview a release and inspect the diff.
 This changes files but does not commit or publish them. See
 [the release guide](docs/RELEASING.md) for tag names, publication, and limits.
+
+### Writing change notes
+
+Write each Sweet note as a changelog entry for the affected reader: a member,
+administrator, operator, or integration author.
+
+- Describe what the reader will notice after the upgrade. Use “Reply now opens
+  the existing thread” rather than an implementation instruction such as
+  “Route replies into threads”.
+- For a fix, name the problem the reader experienced. For example: “Fixed
+  thread suggestions pointing to old conversations while browsing history.”
+- Use one note per meaningful change, usually one or two short sentences.
+  Group supporting changes, such as a button label, with the behavior they
+  support when that detail is useful.
+- If a change amends an existing unreleased note in the same release unit,
+  you can update that note or combine the notes and remove duplicates. Describe
+  the final behavior. Preserve required upgrade actions and the release type
+  needed for the combined change. Do not rewrite published release notes.
+- Include conditions only when readers need them to understand the change.
+  Always state required upgrade actions.
+- Keep implementation details, test results, and exhaustive exceptions in the
+  PR or decision record.
+- Describe the final behavior. Do not list each correction made while the
+  feature was developed.
+
+For example:
+
+> When the latest room message has a thread, Chatto now asks whether you want
+> to continue it or start a new conversation. Replies to a specific message
+> keep their chosen destination.
+
+Before you commit a note, ask: “Does this help the reader understand what
+changed for them after upgrading?” Shorten or omit text that does not.

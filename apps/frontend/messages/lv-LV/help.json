@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "Šajā lapā",
+    "design": {
+      "welcome": "Iepazīstiet Chatto.",
+      "explore": "Uzziniet vairāk",
+      "reference": "Formatēšana īsumā",
+      "reference_hint": "Izvēlieties piemēru, lai to izmēģinātu redaktorā.",
+      "question": "Kurš pievienosies nākamajam zvanam?"
+    },
+    "overview": "Pārskats",
+    "intro": "Īsas pamācības sarunām un servera pārvaldībai.",
+    "users": "Dalībniekiem",
+    "admins": "Administratoriem",
+    "example": "Izmēģiniet šeit",
+    "example_hint": "Šis piemērs paliek šajā lapā. Tas nesūta ziņojumu.",
+    "input": "Ziņojuma teksts",
+    "preview": "Priekšskatījums",
+    "sample": "Sveiki **visiem**!",
+    "conversations": {
+      "title": "Chatto lietošana",
+      "description": "Pavedieni, nelasītās aktivitātes, paziņojumi un savienojuma problēmas."
+    },
+    "formatting": {
+      "title": "Ziņojuma formatēšana",
+      "description": "Pievienojiet izcēlumu un kodu tekstā."
+    },
+    "bots": {
+      "title": "Boti",
+      "description": "Izveidojiet API kontus un precīzi kontrolējiet, ko tie var darīt"
+    },
+    "phone": {
+      "title": "Instalējiet Chatto tālrunī",
+      "description": "Pievienojiet Chatto sākuma ekrānam un ieslēdziet paziņojumus."
+    }
+  }
+}

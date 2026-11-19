@@ -550,7 +550,7 @@ func TestRuntimeAuthRecordsOmitZeroOptionalTimes(t *testing.T) {
 		{
 			name:   "auth token",
 			value:  AuthTokenData{UserID: "user", CreatedAt: time.Unix(1, 0).UTC()},
-			keys:   []string{"expires_at", "fresh_auth_at", "privileged_mode_expires_at"},
+			keys:   []string{"expires_at", "fresh_auth_at", "selected_roles_expire_at", "privileged_mode_expires_at"},
 			legacy: `{"user_id":"user","created_at":"1970-01-01T00:00:01Z","expires_at":"0001-01-01T00:00:00Z","fresh_auth_at":"0001-01-01T00:00:00Z","privileged_mode_expires_at":"0001-01-01T00:00:00Z"}`,
 			decode: func(t *testing.T, data []byte) []time.Time {
 				var record AuthTokenData
@@ -563,7 +563,7 @@ func TestRuntimeAuthRecordsOmitZeroOptionalTimes(t *testing.T) {
 		{
 			name:   "renewable session",
 			value:  RenewableSession{UserID: "user", CreatedAt: time.Unix(1, 0).UTC(), ExpiresAt: time.Unix(2, 0).UTC()},
-			keys:   []string{"last_rotated_at", "fresh_auth_at", "privileged_mode_expires_at"},
+			keys:   []string{"last_rotated_at", "fresh_auth_at", "selected_roles_expire_at", "privileged_mode_expires_at"},
 			legacy: `{"user_id":"user","kind":"","created_at":"1970-01-01T00:00:01Z","expires_at":"1970-01-01T00:00:02Z","auth_generation":0,"current_generation":0,"last_rotated_at":"0001-01-01T00:00:00Z","fresh_auth_at":"0001-01-01T00:00:00Z","privileged_mode_expires_at":"0001-01-01T00:00:00Z"}`,
 			decode: func(t *testing.T, data []byte) []time.Time {
 				var record RenewableSession

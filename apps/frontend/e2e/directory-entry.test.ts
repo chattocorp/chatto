@@ -2,8 +2,16 @@ import { test, expect } from './setup';
 
 test('first-run lookup remembers sources and modal lookup opens sign-in', async ({ page }) => {
   const queries: string[] = [];
-  await page.route('**/chatto.discovery.v1.ServerDiscoveryService/GetServer', (route) => {
-    if (new URL(route.request().url()).origin !== 'https://known.example')
+  await page.route('**/chatto.discovery.v1.ServerDiscoveryService/GetServer?*', (route) => {
+    expect(route.request().method()).toBe('GET');
+    const url = new URL(route.request().url());
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      connect: 'v1',
+      encoding: 'json',
+      message: '{}'
+    });
+    expect(route.request().postData()).toBeNull();
+    if (url.origin !== 'https://known.example')
       return route.fulfill({ status: 404, body: 'Not found' });
     return route.fulfill({
       json: {
@@ -13,7 +21,7 @@ test('first-run lookup remembers sources and modal lookup opens sign-in', async 
     });
   });
   await page.route(
-    '**/chatto.discovery.v1.ServerDiscoveryService/ListNeighborhoodServers',
+    '**/chatto.discovery.v1.ServerDiscoveryService/ListNeighborhoodServers?*',
     (route) => {
       queries.push(new URL(route.request().url()).origin);
       return route.fulfill({
@@ -79,7 +87,7 @@ test('a server-hosted frontend retains its origin and local sign-in entry', asyn
 
 test('a static frontend starts at the directory without registering its host', async ({ page }) => {
   // Serve the normal static app shell, but provide no Chatto discovery API.
-  await page.route('**/chatto.discovery.v1.ServerDiscoveryService/GetServer', (route) =>
+  await page.route('**/chatto.discovery.v1.ServerDiscoveryService/GetServer?*', (route) =>
     route.fulfill({ status: 404, body: 'Not found' })
   );
   await page.goto('/');

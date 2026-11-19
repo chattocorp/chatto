@@ -1,3 +1,4 @@
+import { EditorView } from '@codemirror/view';
 import '../../../app.css';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cdp, page, userEvent } from 'vitest/browser';
@@ -5,6 +6,7 @@ import type {} from '@vitest/browser-playwright';
 import { render } from 'vitest-browser-svelte';
 import { createRawSnippet, flushSync, tick, type ComponentProps } from 'svelte';
 import { loadEditor } from './loadEditor';
+import { latestThreadRootCandidate } from '../../../routes/chat/[serverId]/[roomId]/latestThreadRoot';
 import { SvelteMap } from 'svelte/reactivity';
 import MessageComposer, { type MessageComposerApi } from './MessageComposer.svelte';
 import ReplyFocusTestHarness from './ReplyFocusTestHarness.svelte';
@@ -416,6 +418,24 @@ describe('MessageComposer', () => {
         }
       }
     });
+    vi.spyOn(serverRegistry, 'servers', 'get').mockReturnValue([
+      {
+        id: 'test-instance',
+        url: 'https://rooms.example.test',
+        name: 'Rooms',
+        iconUrl: null,
+        token: null,
+        userId: null,
+        userLogin: null,
+        userDisplayName: null,
+        userAvatarUrl: null,
+        reauthRequiredAt: null,
+        addedAt: 1
+      }
+    ]);
+    vi.spyOn(serverRegistry, 'tryGetStore');
+    // This component fixture supplies the store surface used by the catalogue and link pills.
+    vi.mocked(serverRegistry.tryGetStore, { partial: true }).mockReturnValue(server.scope.store);
     userPreferences.composerEditor = 'visual';
     userPreferences.composerSendMode = 'modifier-enter';
     userPreferences.composerFormattingToolbarVisible = false;
@@ -761,7 +781,11 @@ describe('MessageComposer', () => {
       // Ignore visual-editor decorations; assert the actual editable text.
       const content = editor.cloneNode(true) as HTMLElement;
       content.querySelectorAll('.ProseMirror-widget').forEach((node) => node.remove());
-      expect(content.textContent).toBe(key === ' ' ? '#designteam ' : url + ' ');
+      const text =
+        kind === 'markdown'
+          ? EditorView.findFromDOM(editor)?.state.doc.toString()
+          : content.textContent;
+      expect(text).toBe(key === ' ' ? '#designteam ' : url + ' ');
     });
 
     it.each([
@@ -772,7 +796,7 @@ describe('MessageComposer', () => {
       ['markdown', ':fre'],
       ['visual', ':fre']
     ] as const)(
-      'cycles every fuzzy match in %s for %s without editing or sending',
+      'navigates fuzzy matches with arrows and confirms with Tab in %s for %s',
       async (kind, query) => {
         userPreferences.composerEditor = kind;
         roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
@@ -791,7 +815,7 @@ describe('MessageComposer', () => {
             members: []
           });
         }
-        const { container } = renderMessageComposer({ roomId: 'fuzzy-tab-cycle' });
+        const { container } = renderMessageComposer({ roomId: 'fuzzy-tab-selection' });
         const editor = await findEditor(container);
         await typeEditorKeys(editor, query);
         await vi.waitFor(() =>
@@ -801,13 +825,17 @@ describe('MessageComposer', () => {
           (item) => item.textContent
         );
         for (let index = 1; index <= labels.length; index++) {
-          await pressEditorKey(editor, 'Tab');
+          await pressEditorKey(editor, 'ArrowDown');
           expect(container.querySelector('.menu-item-active')?.textContent).toBe(
             labels[index % labels.length]
           );
           expect(editor.textContent).toBe(query);
           expect(document.activeElement).toBe(editor);
         }
+        await pressEditorKey(editor, 'Tab');
+        expect(container.querySelector('.menu-item-active')).toBeNull();
+        expect(editor.textContent).not.toBe(query);
+        expect(document.activeElement).toBe(editor);
         expect(mutationMock).not.toHaveBeenCalled();
       }
     );
@@ -1395,7 +1423,7 @@ describe('MessageComposer', () => {
       expect(editor.textContent).toBe('Unchanged draft');
     });
 
-    it('cycles mention highlights with Tab before confirming with Enter', async () => {
+    it('moves mention highlights with arrows before confirming with Tab', async () => {
       roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
       const { container } = renderMessageComposer({ roomId: 'markdown-tab-mention' });
       const editor = await findEditor(container);
@@ -1404,13 +1432,13 @@ describe('MessageComposer', () => {
         expect(container.querySelector('[data-testid="mention-autocomplete"]')).toBeTruthy()
       );
 
-      await userEvent.keyboard('{Tab}');
+      await userEvent.keyboard('{ArrowDown}');
       await vi.waitFor(() => expect(editor.textContent).toBe('@ali'));
       expect(container.querySelector('.menu-item-active')?.textContent).toContain('@alicia');
       expect(document.activeElement).toBe(editor);
-      await userEvent.keyboard('{Tab}');
+      await userEvent.keyboard('{ArrowDown}');
       expect(container.querySelector('.menu-item-active')?.textContent).toContain('@alice');
-      await userEvent.keyboard('{Enter}');
+      await userEvent.keyboard('{Tab}');
       await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
       expect(document.activeElement).toBe(editor);
       expect(mutationMock).not.toHaveBeenCalled();
@@ -1432,7 +1460,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(handles()).toEqual(['@alice', '@alicia']));
     });
 
-    it('cycles through mentions in their priority order', async () => {
+    it('navigates mentions in their priority order and confirms with Tab', async () => {
       roomStateMock.members = [roomMember('alice'), roomMember('alicia')];
       const { container } = renderMessageComposer({
         roomId: 'markdown-priority-mention',
@@ -1449,10 +1477,10 @@ describe('MessageComposer', () => {
       ].map((element) => element.textContent);
       expect(handles).toEqual(['@alicia', '@alice']);
 
-      await userEvent.keyboard('{Tab}');
+      await userEvent.keyboard('{ArrowDown}');
       expect(editor.textContent).toBe('@ali');
       expect(container.querySelector('.menu-item-active')?.textContent).toContain('@alice');
-      await userEvent.keyboard('{Enter}');
+      await userEvent.keyboard('{Tab}');
       await vi.waitFor(() => expect(editor.textContent).toBe('@alice '));
     });
 
@@ -3697,7 +3725,8 @@ describe('MessageComposer', () => {
 
     it.each([
       { label: 'Bold', tag: 'strong', text: 'bold', markdown: '**bold**' },
-      { label: 'Underline', tag: 'u', text: 'underlined', markdown: '__underlined__' }
+      { label: 'Underline', tag: 'u', text: 'underlined', markdown: '__underlined__' },
+      { label: 'Strikethrough', tag: 's', text: 'deleted', markdown: '~~deleted~~' }
     ])(
       'posts markdown after the $label composer formatting button is applied',
       async ({ label, tag, text, markdown }) => {
@@ -4653,17 +4682,50 @@ describe('MessageComposer', () => {
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'true');
     });
 
-    it('offers a recent thread before upload and routes the draft into it', async () => {
+    it('checks the latest thread age when sending a draft left open past 30 minutes', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-11-09T12:29:00Z'));
+      const root = postedMessageEvent('previous-root');
+      root.createdAt = '2026-11-09T12:00:00Z';
+      const events = [{ ...root, event: { ...root.event, threadExists: true } }];
+      const getLatestThreadRootCandidate = vi.fn(() =>
+        latestThreadRootCandidate(events, 'room_456')
+      );
+      const { container, getByRole } = renderMessageComposer({
+        roomId: 'room_456',
+        getLatestThreadRootCandidate
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'a new topic after a break');
+      expect(getLatestThreadRootCandidate).not.toHaveBeenCalled();
+
+      vi.setSystemTime(new Date('2026-11-09T12:30:00.001Z'));
+      await userEvent.click(
+        q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+      );
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(getLatestThreadRootCandidate).toHaveBeenCalledOnce();
+      await expect
+        .element(getByRole('dialog', { name: 'Continue the latest thread?' }))
+        .not.toBeInTheDocument();
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        body: 'a new topic after a break',
+        threadRootEventId: null
+      });
+    });
+
+    it('offers the latest thread before upload and routes the draft into it', async () => {
       const onMessageSent = vi.fn();
       const onThreadMessageSent = vi.fn();
-      const getRecentThreadRootCandidate = vi.fn(() => ({
+      const getLatestThreadRootCandidate = vi.fn(() => ({
         threadRootEventId: 'previous-root'
       }));
       const { container, getByRole } = renderMessageComposer({
         roomId: 'room_456',
         showCreateThread: true,
         createThreadDefault: true,
-        getRecentThreadRootCandidate,
+        getLatestThreadRootCandidate,
         onMessageSent,
         onThreadMessageSent
       });
@@ -4674,7 +4736,7 @@ describe('MessageComposer', () => {
       );
 
       await expect
-        .element(getByRole('dialog', { name: 'Continue your previous thread?' }))
+        .element(getByRole('dialog', { name: 'Continue the latest thread?' }))
         .toBeInTheDocument();
       expect(mutationMock).not.toHaveBeenCalled();
       await userEvent.click(getByRole('button', { name: 'Continue in thread' }));
@@ -4692,35 +4754,43 @@ describe('MessageComposer', () => {
       );
     });
 
-    it('keeps the prepared root unchanged when the user confirms a new message', async () => {
-      const onMessageSent = vi.fn();
-      const { container, getByRole } = renderMessageComposer({
-        roomId: 'room_456',
-        showCreateThread: true,
-        createThreadDefault: true,
-        getRecentThreadRootCandidate: () => ({ threadRootEventId: 'previous-root' }),
-        onMessageSent
-      });
-      const editor = await findEditor(container);
-      await typeInEditor(editor, 'a distinct topic');
-      await userEvent.click(
-        q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
-      );
-      await userEvent.click(getByRole('button', { name: 'Post as new message' }));
+    it.each([
+      { createThreadDefault: true, createThreadRequired: false, label: 'Start a new thread' },
+      { createThreadDefault: false, createThreadRequired: true, label: 'Start a new thread' },
+      { createThreadDefault: false, createThreadRequired: false, label: 'Post as new message' }
+    ])(
+      'keeps the prepared root unchanged with destination label $label and required=$createThreadRequired',
+      async ({ createThreadDefault, createThreadRequired, label }) => {
+        const onMessageSent = vi.fn();
+        const { container, getByRole } = renderMessageComposer({
+          roomId: 'room_456',
+          showCreateThread: true,
+          createThreadDefault,
+          createThreadRequired,
+          getLatestThreadRootCandidate: () => ({ threadRootEventId: 'previous-root' }),
+          onMessageSent
+        });
+        const editor = await findEditor(container);
+        await typeInEditor(editor, 'a distinct topic');
+        await userEvent.click(
+          q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+        );
+        await userEvent.click(getByRole('button', { name: label }));
 
-      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
-        body: 'a distinct topic',
-        threadRootEventId: null,
-        createThread: true
-      });
-      expect(onMessageSent).toHaveBeenCalledOnce();
-    });
+        await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+        expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+          body: 'a distinct topic',
+          threadRootEventId: null,
+          createThread: createThreadDefault || createThreadRequired
+        });
+        expect(onMessageSent).toHaveBeenCalledOnce();
+      }
+    );
 
     it('keeps the draft and attachments untouched when the destination choice is cancelled', async () => {
       const { container, getByRole } = renderMessageComposer({
         roomId: 'room_456',
-        getRecentThreadRootCandidate: () => ({ threadRootEventId: 'previous-root' })
+        getLatestThreadRootCandidate: () => ({ threadRootEventId: 'previous-root' })
       });
       const editor = await findEditor(container);
       const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
@@ -4731,7 +4801,7 @@ describe('MessageComposer', () => {
         q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
       );
 
-      const dialog = getByRole('dialog', { name: 'Continue your previous thread?' });
+      const dialog = getByRole('dialog', { name: 'Continue the latest thread?' });
       await expect.element(dialog).toBeInTheDocument();
       expect(mutationMock).not.toHaveBeenCalled();
 
@@ -4742,6 +4812,52 @@ describe('MessageComposer', () => {
       await expect.poll(() => q(container, 'img')).toBeTruthy();
       expect(mutationMock).not.toHaveBeenCalled();
       expect(file.name).toBe('paste.png');
+    });
+
+    it.each(['previous-root', 'older-root'])(
+      'preserves an explicit room reply to %s without suggesting the latest thread',
+      async (replyTarget) => {
+        roomStateMock.replyState!.startReply(replyTarget, 'Reply target', 'excerpt');
+        const getLatestThreadRootCandidate = vi.fn(() => ({
+          threadRootEventId: 'previous-root'
+        }));
+        const { container, getByRole } = renderMessageComposer({
+          roomId: 'room_456',
+          getLatestThreadRootCandidate
+        });
+        const editor = await findEditor(container);
+        await typeInEditor(editor, 'reply to the selected message');
+        await userEvent.click(
+          q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+        );
+        await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+        expect(getLatestThreadRootCandidate).not.toHaveBeenCalled();
+        await expect
+          .element(getByRole('dialog', { name: 'Continue the latest thread?' }))
+          .not.toBeInTheDocument();
+        expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+          threadRootEventId: null,
+          inReplyTo: replyTarget,
+          createThread: false
+        });
+      }
+    );
+
+    it('does not offer another destination when sending inside a thread', async () => {
+      const getLatestThreadRootCandidate = vi.fn(() => ({ threadRootEventId: 'other-thread' }));
+      const { container } = renderMessageComposer({
+        roomId: 'room_456',
+        inThread: 'current-thread',
+        getLatestThreadRootCandidate
+      });
+      const editor = await findEditor(container, 'thread-reply-input');
+      await typeInEditor(editor, 'stay in this thread');
+      await userEvent.click(
+        q(container, 'button[aria-label="Send: Send message"]') as HTMLButtonElement
+      );
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(getLatestThreadRootCandidate).not.toHaveBeenCalled();
+      expect(mutationMock.mock.calls[0][1].input.threadRootEventId).toBe('current-thread');
     });
 
     it('keeps Required thread creation visible, locked on, and reactive to policy changes', async () => {

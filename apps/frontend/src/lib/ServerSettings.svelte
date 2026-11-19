@@ -20,7 +20,7 @@
   import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 
-  import { Panel, Hint, LoadingFog } from '$lib/ui';
+  import { Panel, Hint, LoadingDots } from '$lib/ui';
   import { TextInput, TextArea, Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/dom/dropZone.svelte';
@@ -40,10 +40,9 @@
   type AssetVariables = SettingsMutationScope & { operation: AssetOperation; file?: File };
 
   const settingsQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     return {
-      queryKey: adminQueryKeys.serverSettings(serverId, connection),
+      queryKey: adminQueryKeys.serverSettings(serverScope),
       queryFn: ({ signal }) => getAuthenticatedServerState(connection.apiConfig, { signal }),
       refetchOnMount: 'always' as const
     };
@@ -101,7 +100,7 @@
     const snapshot = session.snapshot();
     return {
       ...snapshot,
-      queryKey: adminQueryKeys.serverSettings(snapshot.serverId, snapshot.connection)
+      queryKey: adminQueryKeys.serverSettings(snapshot)
     };
   }
 
@@ -277,7 +276,7 @@
 </script>
 
 {#if loading}
-  <LoadingFog class="h-64 w-full" label={m('server_settings.loading')} />
+  <LoadingDots class="h-64 w-full" label={m('server_settings.loading')} />
 {:else if loaded}
   <div class="flex flex-col gap-6">
     <!-- Server Details Form -->

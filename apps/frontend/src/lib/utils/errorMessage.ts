@@ -1,5 +1,5 @@
 import { Code, ConnectError } from '@connectrpc/connect';
-import { StaleResponseError } from '@chatto/client/api/connect';
+import { isNetworkError, StaleResponseError } from '@chatto/client/api/connect';
 import { m } from '$lib/i18n/messages';
 import { toast } from '$lib/ui/toast';
 
@@ -30,6 +30,7 @@ const SERVER_MESSAGE_CODES = new Set([
  */
 export function errorMessage(error: unknown, fallback: string = m('common.error.generic')): string {
   if (error instanceof ConnectError) {
+    if (isNetworkError(error)) return m('common.error.network');
     switch (error.code) {
       case Code.PermissionDenied:
         return m('common.error.permission_denied');
@@ -37,9 +38,6 @@ export function errorMessage(error: unknown, fallback: string = m('common.error.
         return m('common.error.not_found');
       case Code.Unauthenticated:
         return m('common.error.unauthenticated');
-      case Code.Unavailable:
-      case Code.DeadlineExceeded:
-        return m('common.error.network');
       case Code.Aborted:
         return m('common.error.conflict');
     }
@@ -48,6 +46,17 @@ export function errorMessage(error: unknown, fallback: string = m('common.error.
   }
   if (error instanceof Error && error.message) return error.message;
   return fallback;
+}
+
+/**
+ * Convert a failed read into a message for the user. Use it for load and
+ * retry states. It works like {@link errorMessage}, but always shows
+ * `fallback` for validation and limit codes: the user did not submit input,
+ * so the server text of a failed read is diagnostic and not guidance.
+ */
+export function loadErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ConnectError && SERVER_MESSAGE_CODES.has(error.code)) return fallback;
+  return errorMessage(error, fallback);
 }
 
 /**

@@ -142,9 +142,11 @@ in the active server store so browser Back can restore the current search.
                       {/if}
                     </a>
                     {#if result.createdAt}
+                      {@const timestamp = formatTimestamp(result.createdAt)}
                       <span class="text-xs text-muted" aria-hidden="true">·</span>
                       <a
                         class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
+                        title={timestamp}
                         href={buildMessageLinkPath(
                           serverId,
                           result.roomId,
@@ -152,7 +154,7 @@ in the active server store so browser Back can restore the current search.
                           result.threadRootEventId
                         )}
                       >
-                        <time datetime={result.createdAt}>{formatTimestamp(result.createdAt)}</time>
+                        <time datetime={result.createdAt}>{timestamp}</time>
                       </a>
                     {/if}
                   {/snippet}

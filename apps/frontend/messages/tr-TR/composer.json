@@ -33,9 +33,10 @@
     "slow_mode_bypassed": "Yavaş mod: {interval} (muafsınız).",
     "slow_mode_rejected": "Yavaş mod etkin. Başka bir mesaj göndermeden önce bekleyin.",
     "threads_encouraged": "Bu odada konuların kullanılması teşvik edilir.",
-    "recent_thread_confirm_title": "Önceki ileti dizinize devam edilsin mi?",
-    "recent_thread_confirm_body": "Önceki mesajınızın zaten bir ileti dizisi var. Bu mesaj nereye gönderilsin?",
+    "recent_thread_confirm_title": "En son ileti dizisinde devam edilsin mi?",
+    "recent_thread_confirm_body": "Bu odadaki en son mesajın bir ileti dizisi var. Bu mesajı nereye göndermek istersiniz?",
     "post_as_new_message": "Yeni mesaj olarak gönder",
+    "start_new_thread": "Yeni bir ileti dizisi başlat",
     "continue_in_thread": "İleti dizisinde devam et",
     "edit_failed": "Mesaj düzenlenemedi",
     "edit_empty": "Mesaj boş olamaz",
@@ -48,10 +49,13 @@
       "video_disabled": "Bu sunucuda video yüklemeleri devre dışı.",
       "prepare_failed": "Ek hazırlanamadı",
       "too_many": "Her mesaja en fazla {max} dosya ekleyebilirsiniz. Fazladan dosyalar eklenmedi.",
-      "too_large": "{filename} çok büyük ({size}). En fazla {limit} olabilir."
+      "too_large": "{filename} çok büyük ({size}). En fazla {limit} olabilir.",
+      "compress_failed": "Video yeterince sıkıştırılamadı. Başka bir biçim veya daha kısa bir video deneyin.",
+      "compressing": "Video sıkıştırılıyor… %{percentage}"
     },
     "format": {
       "underline": "Altı çizili",
+      "strikethrough": "Üstü çizili",
       "bold": "Kalın",
       "italic": "italik",
       "inline_code": "Satır içi kod",

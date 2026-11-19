@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "Experimente",
+      "title": "Experimentelle Funktionen",
+      "new_message_header": "Neue Nachrichtenkopfzeile"
+    },
     "desktop": {
       "title": "Updates",
       "subtitle": "Updates für diese Installation",
@@ -50,7 +55,8 @@
         "composer": "Wähle deinen Nachrichteneditor und wie du Nachrichten sendest.",
         "voice": "Richte Mikrofon, Lautsprecher und Anrufeinstellungen ein.",
         "system": "Prüfe Serverzustand, Speicher und Hintergrundaufgaben.",
-        "event_log": "Sieh dir Serverereignisse an und untersuche Änderungen."
+        "event_log": "Sieh dir Serverereignisse an und untersuche Änderungen.",
+        "jobs": "Sieh dir Hintergrundaufträge an und wiederhole fehlgeschlagene Aufträge."
       },
       "title": "Übersicht",
       "shield_notice": "Aktiviere den privilegierten Modus mit der Schild-Schaltfläche neben deinem Namen, um deine zusätzlichen Berechtigungen auf diesem Server zu nutzen."
@@ -540,9 +546,9 @@
           "body": "Richte eine weitere von diesem Server unterstützte Anmeldemethode ein, bevor du {provider} trennst."
         },
         "fresh_auth_modal": {
-          "title": "Passwort bestätigen",
-          "body": "Gib dein aktuelles Passwort ein, bevor du {provider} verknüpfst.",
-          "action": "Weiter"
+          "title": "{provider} verknüpfen?",
+          "body": "Nach der Verknüpfung kannst du dich mit {provider} bei Chatto anmelden. Gib dein aktuelles Chatto-Passwort ein, um fortzufahren.",
+          "password": "Chatto-Passwort"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Passwort bestätigen",

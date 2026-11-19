@@ -190,12 +190,15 @@ export function wrapMessageTimestamps(
       const rendered = formatDateTime(date, settings, locale);
       const button = doc.createElement('button');
       button.type = 'button';
-      button.className = 'message-timestamp';
+      button.className = 'message-timestamp inline-pill';
       button.setAttribute('data-timestamp-epoch', String(token.epochSeconds));
       button.setAttribute('aria-haspopup', 'dialog');
 
+      const label = doc.createElement('span');
+      label.className = 'inline-pill-main';
+
       const icon = doc.createElement('span');
-      icon.className = 'message-timestamp-icon iconify icon-[uil--clock]';
+      icon.className = 'inline-pill-icon message-timestamp-icon iconify icon-[uil--clock]';
       icon.setAttribute('aria-hidden', 'true');
 
       const time = doc.createElement('time');
@@ -203,8 +206,8 @@ export function wrapMessageTimestamps(
       time.setAttribute('title', iso);
       time.textContent = rendered;
 
-      button.appendChild(icon);
-      button.appendChild(time);
+      label.append(icon, time);
+      button.appendChild(label);
       fragments.push(button);
       lastIndex = match.index + match[0].length;
     }

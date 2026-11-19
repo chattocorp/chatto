@@ -26,6 +26,7 @@
     permalinkThreadRootEventId = null,
     eventKind = 'message',
     eventKinds = {},
+    eventDates = {},
     scrollToEventId,
     onComplete,
     isLoading = false,
@@ -51,7 +52,21 @@
     permalinkThreadRootEventId?: string | null;
     eventKind?: 'message' | 'join' | 'leave';
     /** Override individual rows for mixed activity and message windows. */
-    eventKinds?: Record<string, 'message' | 'join' | 'leave' | 'deleted'>;
+    eventKinds?: Record<
+      string,
+      | 'message'
+      | 'join'
+      | 'leave'
+      | 'deleted'
+      | 'update'
+      | 'create'
+      | 'room-delete'
+      | 'deleted-join'
+      | 'missing-join'
+      | 'missing-leave'
+    >;
+    /** Override timestamps for calendar-day boundary tests. */
+    eventDates?: Record<string, string>;
     scrollToEventId: string | null;
     onComplete?: () => void;
     isLoading?: boolean;
@@ -92,23 +107,41 @@
       const kind = eventKinds[id] ?? eventKind;
       const base = {
         id,
-        createdAt: `2026-06-17T10:47:${String(index).padStart(2, '0')}Z`,
+        createdAt: eventDates[id] ?? `2026-06-17T10:47:${String(index).padStart(2, '0')}Z`,
         actorId: `user-${id}`,
         actor: {
           id: `user-${id}`,
           login: id,
           displayName: `User ${id}`,
-          deleted: false,
+          deleted: kind === 'deleted-join',
           avatarUrl: null,
           presenceStatus: PresenceStatus.OFFLINE
         }
       };
-      if (kind === 'join' || kind === 'leave') {
+      if (kind === 'update' || kind === 'create' || kind === 'room-delete') {
+        const eventKind =
+          kind === 'update'
+            ? TimelineEventKind.RoomUpdated
+            : kind === 'create'
+              ? TimelineEventKind.RoomCreated
+              : TimelineEventKind.RoomDeleted;
+        return { ...base, event: { kind: eventKind, roomId } };
+      }
+      if (
+        kind === 'join' ||
+        kind === 'leave' ||
+        kind === 'deleted-join' ||
+        kind === 'missing-join' ||
+        kind === 'missing-leave'
+      ) {
         return {
           ...base,
+          actor: kind === 'missing-join' || kind === 'missing-leave' ? null : base.actor,
           event: {
             kind:
-              kind === 'join' ? TimelineEventKind.UserJoinedRoom : TimelineEventKind.UserLeftRoom,
+              kind === 'leave' || kind === 'missing-leave'
+                ? TimelineEventKind.UserLeftRoom
+                : TimelineEventKind.UserJoinedRoom,
             roomId
           }
         } as unknown as TimelineEventView;

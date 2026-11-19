@@ -59,6 +59,42 @@ async function openQuickSwitcher(page: Page): Promise<Locator> {
 test.describe('message search', () => {
   test.describe.configure({ timeout: 60_000 });
 
+  test('keeps the author and a shortened date on one line in the narrow search sidebar', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    const user = await createAndLoginTestUser(page);
+    await page.goto('/chat/preferences/experiments');
+    await page.getByText('New message header', { exact: true }).click();
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await roomPage.sendMessage('Sidebar timestamp example');
+    await page.getByRole('button', { name: 'Search in this room', exact: true }).click();
+
+    const input = page.getByTestId('room-search-query');
+    const result = page.locator('[data-room-search-result-id]', {
+      hasText: 'Sidebar timestamp example'
+    });
+    await expect(async () => {
+      await input.fill('Sidebar timestamp example');
+      await input.press('Enter');
+      await expect(result).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    }).toPass({ timeout: TIMEOUTS.POLLING_EXTENDED, intervals: [...POLLING_INTERVALS] });
+
+    const date = result.locator('time');
+    await expect(result).toHaveAttribute('title', (await date.innerText()).trim());
+    const author = await result.getByText(user.displayName, { exact: true }).boundingBox();
+    const timestamp = await date.boundingBox();
+    const row = await result.boundingBox();
+    expect(row!.width).toBeLessThanOrEqual(256);
+    expect(author!.width).toBeGreaterThan(16);
+    expect(timestamp!.width).toBeGreaterThan(0);
+    expect(timestamp!.y).toBeLessThan(author!.y + author!.height);
+    expect(timestamp!.x + timestamp!.width).toBeLessThanOrEqual(row!.x + row!.width);
+    expect(await date.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  });
+
   test('room search takes focus on desktop open but not after reload', async ({
     page,
     chatPage

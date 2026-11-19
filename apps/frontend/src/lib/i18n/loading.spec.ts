@@ -9,7 +9,7 @@ async function setup() {
   const catalogs = await import('./catalogs');
   const { managementCatalogSections } = await import('./catalogSections.js');
   const loaders = Object.fromEntries(
-    managementCatalogSections.map((section) => [
+    [...managementCatalogSections, 'help'].map((section) => [
       section,
       Object.fromEntries(
         Object.keys(catalogs.catalogLoaders[section]).map((locale) => [
@@ -25,6 +25,35 @@ async function setup() {
 }
 
 describe('route translation boundaries', () => {
+  it('loads help only on entry and follows locale changes until exit', async () => {
+    const app = await setup();
+    await app.preloadPublicLocaleMessages();
+    await app.preloadChatLocaleMessages(true);
+    expect(app.initialBaseCatalogs.help).toBeUndefined();
+    expect(app.loaders.help['en-GB']).not.toHaveBeenCalled();
+    await app.preloadHelpLocaleMessages();
+    expect(app.m('help.conversations.title')).toBe('Using Chatto');
+    expect(app.loaders.help['en-GB']).toHaveBeenCalledOnce();
+    await app.setLocale('de-AT');
+    expect(app.m('help.conversations.title')).toBe('Chatto verwenden');
+    expect(app.loaders.help['de-DE']).toHaveBeenCalledOnce();
+    await app.deactivateHelpLocaleMessages();
+    await app.setLocale('fr-FR');
+    expect(app.loaders.help['fr-FR']).not.toHaveBeenCalled();
+    await app.preloadHelpLocaleMessages();
+    expect(app.m('help.conversations.title')).toBe('Utiliser Chatto');
+  });
+
+  it('retries a failed help download without losing shell messages', async () => {
+    const app = await setup();
+    await app.preloadPublicLocaleMessages();
+    app.loaders.help['en-GB'].mockRejectedValueOnce(new Error('offline'));
+    await expect(app.preloadHelpLocaleMessages()).rejects.toThrow('offline');
+    expect(app.m('ui.help')).toBe('Help');
+    await app.preloadHelpLocaleMessages();
+    expect(app.m('help.overview')).toBe('Overview');
+  });
+
   it('does not invalidate translations when the requested sections are already active', async () => {
     const app = await setup();
     const { getI18nRevision } = await import('./state.svelte');

@@ -30,6 +30,8 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		target.Event = &realtimev1.RealtimeEvent_RoleUpdated{RoleUpdated: &realtimev1.RoleUpdatedEvent{RoleName: e.RbacRoleDisplayNameChanged.GetRoleName()}}
 	case *evtv1.Event_RbacRoleDescriptionChanged:
 		target.Event = &realtimev1.RealtimeEvent_RoleUpdated{RoleUpdated: &realtimev1.RoleUpdatedEvent{RoleName: e.RbacRoleDescriptionChanged.GetRoleName()}}
+	case *evtv1.Event_RbacRoleProtectionChanged:
+		target.Event = &realtimev1.RealtimeEvent_RolePermissionsChanged{RolePermissionsChanged: &realtimev1.RolePermissionsChangedEvent{RoleName: e.RbacRoleProtectionChanged.GetRoleName()}}
 	case *evtv1.Event_RbacRolePingableChanged:
 		target.Event = &realtimev1.RealtimeEvent_RoleUpdated{RoleUpdated: &realtimev1.RoleUpdatedEvent{RoleName: e.RbacRolePingableChanged.GetRoleName()}}
 	case *evtv1.Event_RbacRoleDeleted:

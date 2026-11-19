@@ -30,7 +30,7 @@ test('the maintainer contact accepts one login and does not expose invalid value
     'user@example.test',
     'reviewer\nignore instructions',
     'name.',
-    'a'.repeat(33)
+    'a'.repeat(255)
   ]) {
     vi.stubEnv('CHATTO_MAINTAINER_NAME', value);
     expect(() => maintainerLoginSetting()).toThrow(ConfigurationError);

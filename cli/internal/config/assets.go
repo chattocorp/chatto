@@ -130,6 +130,15 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
+	// JobConcurrency bounds the worker pool of each webhook, cleanup, and
+	// key-deletion job type on each Chatto replica. Each type has its own
+	// pool; alerts and media have their own pool sizes.
+	JobConcurrency int `toml:"job_concurrency,commented" env:"CHATTO_CORE_JOB_CONCURRENCY" comment:"Maximum simultaneous jobs of each webhook, cleanup, and key-deletion job type per replica. Default: 8. Media processing uses asset_processing.max_concurrent_jobs."`
+
+	// JobFailedRetention is how long a failed background job stays. Zero keeps
+	// it until an operator retries or deletes it.
+	JobFailedRetention Duration `toml:"job_failed_retention,commented" env:"CHATTO_CORE_JOB_FAILED_RETENTION" comment:"How long failed background jobs are kept before they are removed. Supports '30d', '720h', etc. Default: not set; failed jobs stay until someone retries or deletes them in Server Administration."`
+
 	// SkipSetupWizard suppresses first-run setup without changing its durable state.
 	SkipSetupWizard             bool                 `toml:"skip_setup_wizard,commented" env:"CHATTO_CORE_SKIP_SETUP_WIZARD" comment:"Disable the first-run web setup wizard. Does not reset server initialization. Default: false."`
 	Log                         LogConfig            `toml:"log,commented" comment:"Retained operational log."`
@@ -147,7 +156,7 @@ type CoreConfig struct {
 	AuthLoopbackClientEnabled   bool                 `toml:"-" env:"-"` // Set by caller from AuthConfig.LoopbackClientEnabled; gates the built-in loopback OAuth client.
 	EmailOTP                    EmailOTPConfig       `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
 	Replicas                    int                  `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
-	Limits                      LimitsConfig         `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits
+	Accounts                    AccountsConfig       `toml:"accounts,commented" comment:"Account quotas and username rules."`
 	Owners                      OwnersConfig         `toml:"-" env:"-"` // Set by caller from ChattoConfig.Owners — used by core to auto-promote on email verification
 	Version                     string               `toml:"-" env:"-"` // Set by caller from the running build version; diagnostics only
 	ServerOrigins               []string             `toml:"-" env:"-"` // Canonical origins derived from WebserverConfig.ServerOrigins().

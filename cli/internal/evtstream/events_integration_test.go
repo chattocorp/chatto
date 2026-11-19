@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/encoding/protowire"
@@ -122,11 +123,18 @@ func recreateTestStream(t *testing.T, ctx context.Context, js jetstream.JetStrea
 			t.Fatalf("remove deleted stream directory: %v", err)
 		}
 	}
-	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
-		Name:               "EVT_TEST",
-		Subjects:           []string{SubjectRoot + ">"},
-		Storage:            jetstream.FileStorage,
-		AllowAtomicPublish: true,
+	// The server can still be removing the old store when the create request
+	// arrives. It then reports a store creation error, which is safe to retry.
+	stream, err := jetstreamutil.CreateJetStreamResourceWithRetry(ctx, jetstreamutil.JetStreamResourceRetryPolicy{
+		MaxAttempts: 20,
+		RetryDelay:  50 * time.Millisecond,
+	}, func(ctx context.Context) (jetstream.Stream, error) {
+		return js.CreateStream(ctx, jetstream.StreamConfig{
+			Name:               "EVT_TEST",
+			Subjects:           []string{SubjectRoot + ">"},
+			Storage:            jetstream.FileStorage,
+			AllowAtomicPublish: true,
+		})
 	})
 	if err != nil {
 		t.Fatalf("recreate stream: %v", err)

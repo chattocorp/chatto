@@ -79,7 +79,7 @@ describe('SystemEvent', () => {
 
     const { container } = render(SystemEvent, { props: { event } });
 
-    expect(container.textContent).toContain('Alice changed threading mode to Encouraged');
+    expect(container.textContent).toContain('Alice changed Threading Mode to Encouraged');
   });
 
   it('renders an unknown threading mode as Disabled', () => {
@@ -92,7 +92,7 @@ describe('SystemEvent', () => {
 
     const { container } = render(SystemEvent, { props: { event } });
 
-    expect(container.textContent).toContain('Alice changed threading mode to Disabled');
+    expect(container.textContent).toContain('Alice changed Threading Mode to Disabled');
   });
 
   it('renders an actionable call-start event while its call is active', async () => {

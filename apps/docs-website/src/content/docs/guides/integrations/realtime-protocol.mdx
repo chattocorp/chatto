@@ -196,7 +196,8 @@ The server waits until its content includes that event before it runs the
 request. This prevents stale reads from another replica. All authenticated
 unary procedures accept the header. The server waits for at most 10 seconds
 or your earlier deadline. A timeout returns `DEADLINE_EXCEEDED` and does not
-run the operation. The response can contain newer content. The header does not
+run the operation. An expired cursor needs no wait, and the request runs at
+once. The response can contain newer content. The header does not
 wait for notifications, search indexing, or other asynchronous work.
 
 Save the event cursor only after the read succeeds. If a new snapshot starts,

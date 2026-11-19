@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "Na této stránce",
+    "design": {
+      "welcome": "Zorientujte se v Chatto.",
+      "explore": "Objevte více",
+      "reference": "Formátování v kostce",
+      "reference_hint": "Vyberte příklad a vyzkoušejte ho v editoru.",
+      "question": "Kdo se připojí k příštímu hovoru?"
+    },
+    "overview": "Přehled",
+    "intro": "Krátké návody pro chat a správu serveru.",
+    "users": "Pro členy",
+    "admins": "Pro správce",
+    "example": "Vyzkoušejte zde",
+    "example_hint": "Tento příklad zůstává na této stránce. Neodesílá zprávy.",
+    "input": "Text zprávy",
+    "preview": "Náhled",
+    "sample": "Ahoj **všem**!",
+    "conversations": {
+      "title": "Používání Chatto",
+      "description": "Vlákna, nepřečtená aktivita, oznámení a potíže s připojením."
+    },
+    "formatting": {
+      "title": "Formátování zprávy",
+      "description": "Přidejte zvýraznění a kód v textu."
+    },
+    "bots": {
+      "title": "Boti",
+      "description": "Vytvářejte účty API a řiďte, co přesně mohou dělat"
+    },
+    "phone": {
+      "title": "Nainstalujte si Chatto do telefonu",
+      "description": "Přidejte si Chatto na domovskou obrazovku a zapněte oznámení."
+    }
+  }
+}

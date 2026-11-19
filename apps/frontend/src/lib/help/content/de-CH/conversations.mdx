@@ -1,0 +1,53 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Antworten und Threads
+
+Wähle bei einer Nachricht **Im Thread antworten**, damit deine Antwort bei der Unterhaltung bleibt. Um mit einer neuen Nachricht einen Thread zu beginnen, wähle vor dem Senden **Als Thread posten** im Editor. Der Raum bleibt geöffnet. Öffne den Thread über den Thread-Link an der Nachricht.
+
+Ein geöffneter Thread hat eine eigene Adresse. Kopiere die Adresse aus dem Browser, um ihn mit jemandem zu teilen, der Zugriff auf den Raum hat. Wenn du den Thread schliesst, kehrst du zum Raum zurück. Du folgst der Unterhaltung weiterhin.
+
+<p>Wenn du den Raum beim Antworten sehen möchtest, öffne
+<a href={resolve('/chat/preferences/appearance')}>App-Einstellungen → Erscheinungsbild</a>
+und stelle <strong>Thread-Bereich</strong> auf <strong>Nebeneinander</strong>. Reicht der Platz nicht aus, zeigt Chatto den Thread über dem Raum an.</p>
+
+## Unterhaltungen verfolgen
+
+Wähle **Thread folgen**, um eine Unterhaltung in deiner Liste **Threads** zu behalten. Du kannst einem Thread folgen, ohne darin zu schreiben.
+
+Unter **Threads** zeigt **Gefolgt** die Threads, denen du folgst. **Meine** zeigt die Threads, die du begonnen hast und denen du noch folgst. Wenn du einem Thread nicht mehr folgst, verschwindet er aus beiden Ansichten. Wähle **Ungelesen**, um Unterhaltungen mit ungelesenen Antworten zu finden.
+
+Das Suchfeld durchsucht Nachrichten und Antworten in den Threads, denen du folgst, einschliesslich Direktnachrichten-Threads. Suche nach Wörtern, einer Wortgruppe in Anführungszeichen oder mit `from:username` nach einem Autor. Die Suche ist verfügbar, wenn dein Server sie unterstützt und aktiviert hat.
+
+## Zwischen Räumen und ungelesenen Aktivitäten wechseln
+
+Drücke **Strg+K**, auf einem Mac **Command+K**, um den Schnellwechsel zu öffnen. Suche dort nach Räumen und Servern, statt durch die Seitenleiste zu navigieren.
+
+Drücke **Alt+Umschalt+Pfeil nach unten**, auf einem Mac **Option+Umschalt+Pfeil nach unten**, um zur nächsten ungelesenen Quelle auf deinen angemeldeten Servern zu wechseln. Chatto öffnet zuerst wichtige Benachrichtigungen, dann andere Benachrichtigungen und danach Räume mit Ungelesen-Punkten. Dein aktueller Nachrichtenentwurf bleibt erhalten.
+
+Die Glocke in der Kopfzeile öffnet Benachrichtigungen von allen Servern, bei denen du angemeldet bist. Beim Lesen eines Raums oder Threads werden Benachrichtigungen nur bis zu den sichtbaren Nachrichten als gelesen markiert. Wenn du eine ältere Nachricht öffnest, werden neuere Antworten nicht als gelesen markiert.
+
+Drücke **Strg+Umschalt+K**, auf einem Mac **Command+Umschalt+K**, um die verfügbaren Tastenkürzel anzuzeigen.
+
+## Benachrichtigungen auswählen
+
+Öffne die **Benachrichtigungen**-Einstellungen deines Servers, um Hinweise für Erwähnungen, Antworten, Reaktionen und andere Aktivitäten zu ändern. Jede Einstellung kann für den gesamten Server, eine Raumgruppe oder einen einzelnen Raum gelten.
+
+- **Vererben** übernimmt die Einstellung der Raumgruppe oder des Servers.
+- **Aus** erzeugt für diese Aktivität weder eine Benachrichtigung noch einen Ungelesen-Punkt.
+- **Ungelesen-Punkt** markiert den Raum, ohne eine Benachrichtigung zu erzeugen.
+- **In-App-Benachrichtigung** fügt einen Eintrag im Benachrichtigungszentrum hinzu.
+- **Push-Benachrichtigung** erlaubt zusätzlich einen Hinweis auf einem Gerät, auf dem du Benachrichtigungen aktiviert hast.
+
+Wähle zum Beispiel **Ungelesen-Punkt** für neue Raumnachrichten und **Push-Benachrichtigung** für direkte Erwähnungen, wenn du allgemeine Unterhaltungen in deinem eigenen Tempo lesen möchtest.
+
+<p>Push-Benachrichtigungen benötigen auch die Erlaubnis des Geräts. Folge auf dem Handy der Anleitung
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Chatto auf deinem Handy installieren</a>,
+um die App zu installieren und Benachrichtigungen zu aktivieren. Die Benachrichtigungseinstellungen deines Handys bestimmen, ob Namen und Nachrichtenvorschauen auf dem Sperrbildschirm erscheinen.</p>
+
+## Wenn die Verbindung abbricht
+
+Bereits geladene Nachrichten bleiben sichtbar. Zum Laden weiterer Nachrichten oder zum Senden einer Antwort benötigt Chatto eine Serververbindung. Sobald die Verbindung wieder da ist, lädt Chatto die verpassten Änderungen.
+
+Wenn das Senden fehlschlägt, bleibt dein Entwurf im Editor. Er wird nicht automatisch später gesendet: Prüfe die Verbindung und sende ihn erneut. Die Installation auf deinem Handy macht deinen Chatverlauf nicht offline verfügbar.

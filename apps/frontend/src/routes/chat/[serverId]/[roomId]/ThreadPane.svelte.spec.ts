@@ -393,6 +393,41 @@ describe('ThreadPane', () => {
     });
   });
 
+  it.each([false, true])(
+    'adds the root author once to the header (has replied: %s)',
+    async (hasReplied) => {
+      const root = participantRoot(hasReplied ? ['nickk', 'hmans'] : ['hmans']);
+      root.actor = {
+        id: 'nickk',
+        login: 'nickk',
+        displayName: 'nickk',
+        presenceStatus: PresenceStatus.OFFLINE
+      };
+      root.actorId = 'nickk';
+      mocks.threadStore!.threadEvents = [root];
+      const rendered = render(ThreadPane, { props: threadProps });
+      const group = rendered.getByRole('group', { name: 'Thread participants (2)' });
+      await expect.element(group).toBeVisible();
+      expect(group.element().querySelectorAll('button')).toHaveLength(2);
+    }
+  );
+
+  it('omits an erased root author from the header', async () => {
+    const root = participantRoot(['hmans']);
+    root.actor = {
+      id: 'nickk',
+      login: '',
+      displayName: '',
+      presenceStatus: PresenceStatus.OFFLINE,
+      deleted: true
+    };
+    mocks.threadStore!.threadEvents = [root];
+    const rendered = render(ThreadPane, { props: threadProps });
+    await expect
+      .element(rendered.getByRole('group', { name: 'Thread participants (1)' }))
+      .toBeVisible();
+  });
+
   it('shows participant summary updates and opens profiles from the header', async () => {
     const onOpenProfile = vi.fn();
     const rendered = render(ThreadPane, { props: { ...threadProps, onOpenProfile } });

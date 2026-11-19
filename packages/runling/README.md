@@ -97,8 +97,18 @@ task waits for a message, the console shows "Waiting for a message". See
 - Workflows are TypeScript functions with input and result schemas
 - Embeds the Pi SDK for easy peasy agent/LLM integration
 - Automatic monitoring of token usage and cost
+- Optional [Docker operations](docs/docker.md) for image builds, disposable commands, and services,
+  with live output, cancellation, and explicit resource cleanup
+- Private [Git worktree manifests](docs/git.md) for selecting current source files
 
 ## Run references
+
+On an interactive terminal, `runling run` shows a live task panel and task-labelled
+logs. CI and redirected output keep ordinary log lines. Use `--plain` to disable
+the panel explicitly. The panel adapts to terminal resizing and pauses when space is too small.
+It shows task nesting, input waits, and failures, then prints task counts and
+a short duration summary.
+JSON output, workflow messages, and the complete journal keep their existing behavior.
 
 Each run started by `runling serve` or `runling run` has a readable reference such as
 `brave-otters-4821`. The console shows it in the run list and provides a copy

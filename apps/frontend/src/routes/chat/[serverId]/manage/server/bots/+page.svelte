@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { MAX_LOGIN_LENGTH } from '$lib/validation/login';
   import { errorMessage } from '$lib/utils/errorMessage';
+  import { flattenUniquePages, nextOffset } from '$lib/query/pagination';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -10,7 +12,7 @@
     Panel,
     FormDialog,
     Hint,
-    LoadingFog,
+    LoadingDots,
     PageTitle,
     PaneContent,
     PaneHeader
@@ -43,33 +45,27 @@
   });
 
   const botsQuery = createInfiniteQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const search = activeSearch;
     return {
-      queryKey: settingsQueryKeys.bots(serverId, connection, search),
+      queryKey: settingsQueryKeys.bots(serverScope, search),
       queryFn: ({ pageParam, signal }) =>
         connection
           .getAPI(createBotAPI)
           .listBots({ search: search || null, limit: PAGE_SIZE, offset: pageParam }, { signal }),
       initialPageParam: 0,
-      getNextPageParam: (lastPage, _pages, lastPageParam) =>
-        lastPage.hasMore && lastPage.bots.length > 0
-          ? lastPageParam + lastPage.bots.length
-          : undefined
+      getNextPageParam: (lastPage, _pages, offset) =>
+        nextOffset(lastPage.hasMore, lastPage.bots.length, offset)
     };
   });
 
-  const bots = $derived.by(() => {
-    const seen = new SvelteSet<string>();
-    return (botsQuery.data?.pages ?? []).flatMap((page) =>
-      page.bots.filter((bot) => {
-        if (seen.has(bot.id)) return false;
-        seen.add(bot.id);
-        return true;
-      })
-    );
-  });
+  const bots = $derived(
+    flattenUniquePages(
+      botsQuery.data,
+      (page) => page.bots,
+      (bot) => bot.id
+    )
+  );
   const totalCount = $derived(botsQuery.data?.pages.at(-1)?.totalCount ?? bots.length);
   const ownerUserIds = $derived.by(() => {
     const ids = new SvelteSet<string>();
@@ -77,11 +73,10 @@
     return [...ids];
   });
   const ownersQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const userIds = ownerUserIds;
     return {
-      queryKey: [...settingsQueryKeys.botsRoot(serverId, connection), 'owners', userIds],
+      queryKey: [...settingsQueryKeys.botsRoot(serverScope), 'owners', userIds],
       queryFn: async () => {
         const api = connection.getAPI(createUserAPI);
         const batches = [];
@@ -107,7 +102,7 @@
   const botLoginSchema = z
     .string()
     .min(2, m('common.validation.username_min'))
-    .max(32, m('common.validation.username_max'))
+    .max(MAX_LOGIN_LENGTH, m('common.validation.username_max', { max: MAX_LOGIN_LENGTH }))
     .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, m('common.validation.username_charset'))
     .refine((value) => !value.endsWith('.'), m('common.validation.username_end_alphanumeric'));
   const normalizedCreateLogin = $derived(createLogin.trim());
@@ -139,7 +134,6 @@
 
   async function createBot() {
     if (!canCreateBots || !normalizedCreateLogin || createLoginError) return;
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     createLoading = true;
     createError = null;
@@ -155,7 +149,7 @@
       apiKeyVisible = true;
       toast.success(m('settings.bots.created'));
       void queryClient.invalidateQueries({
-        queryKey: settingsQueryKeys.botsRoot(serverId, connection)
+        queryKey: settingsQueryKeys.botsRoot(serverScope)
       });
     } catch (error) {
       if (!componentActive) return;
@@ -263,7 +257,7 @@
                   viewerSettings={serverScope.store.currentUser.user?.settings}
                 />
               {:else if ownersQuery.isPending}
-                <LoadingFog class="h-5 w-28" />
+                <LoadingDots class="h-5 w-28" />
               {:else}
                 <span class="text-muted">{m('common.unknown')}</span>
               {/if}
@@ -290,7 +284,7 @@
     id="bot-login"
     label={m('settings.bots.username')}
     error={createLoginError}
-    maxlength={32}
+    maxlength={MAX_LOGIN_LENGTH}
     required
     autofocus
     bind:value={createLogin}

@@ -25,7 +25,7 @@ The owner applies and saves changes.
   } = $props();
   const groupName = $props.id();
 
-  // Mirror the base contrast tokens in app.css for each theme.
+  // Mirror the base contrast tokens in src/styles/themes.css for each theme.
   const sample = $derived(
     theme === 'dark'
       ? {

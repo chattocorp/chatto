@@ -34,3 +34,42 @@ for (const [key, chunk] of Object.entries(manifest)) {
   }
 }
 console.log(`i18n: ${management.size} management payloads stay lazy, including en-GB  PASS`);
+
+// Help must remain separate even from management and the English shell.
+const help = new Set(
+  Object.keys(manifest).filter((key) => /^translatto-.+-help$/.test(manifest[key].name))
+);
+for (const locale of readdirSync(messages)) {
+  assert.ok(
+    [...help].some((key) => manifest[key].name === `translatto-${locale}-help`),
+    `${locale} must have a separate help translation payload`
+  );
+}
+for (const [key, chunk] of Object.entries(manifest)) {
+  for (const imported of chunk.imports ?? []) {
+    assert.ok(
+      !help.has(imported) || help.has(key),
+      `${chunk.file} statically imports help translations from ${manifest[imported].file}`
+    );
+  }
+}
+console.log(`i18n: ${help.size} help payloads stay lazy, including en-GB  PASS`);
+
+// Every authored article must be a dynamic entry, never part of another route's
+// static graph. The build also compiles documents in languages not visited in tests.
+const content = new URL('../src/lib/help/content/', import.meta.url);
+const articleKeys = new Set();
+for (const locale of readdirSync(content)) {
+  for (const file of readdirSync(new URL(`${locale}/`, content))) {
+    if (!file.endsWith('.mdx')) continue;
+    const key = `src/lib/help/content/${locale}/${file}`;
+    assert.ok(manifest[key]?.isDynamicEntry, `${key} must stay independently lazy`);
+    articleKeys.add(key);
+  }
+}
+for (const chunk of Object.values(manifest)) {
+  for (const imported of chunk.imports ?? []) {
+    assert.ok(!articleKeys.has(imported), `${chunk.file} statically imports ${imported}`);
+  }
+}
+console.log(`help: ${articleKeys.size} compiled articles stay lazy  PASS`);

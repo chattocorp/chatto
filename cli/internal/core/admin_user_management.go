@@ -19,12 +19,13 @@ type AdminMemberListInput struct {
 }
 
 type AdminMemberRoleSummary struct {
-	Name        string
-	DisplayName string
-	Description string
-	IsSystem    bool
-	Position    int32
-	Pingable    bool
+	Name               string
+	DisplayName        string
+	Description        string
+	IsSystem           bool
+	Position           int32
+	Pingable           bool
+	RequiresShieldMode bool
 }
 
 type AdminMember struct {
@@ -450,12 +451,13 @@ func adminMemberRoleSummaries(roles []RoleWithPermissions) []AdminMemberRoleSumm
 	out := make([]AdminMemberRoleSummary, 0, len(roles))
 	for _, role := range roles {
 		out = append(out, AdminMemberRoleSummary{
-			Name:        role.Name,
-			DisplayName: role.DisplayName,
-			Description: role.Description,
-			IsSystem:    role.IsSystem,
-			Position:    role.Position,
-			Pingable:    role.Pingable,
+			Name:               role.Name,
+			DisplayName:        role.DisplayName,
+			Description:        role.Description,
+			IsSystem:           role.IsSystem,
+			Position:           role.Position,
+			Pingable:           role.Pingable,
+			RequiresShieldMode: role.RequiresShieldMode,
 		})
 	}
 	return out

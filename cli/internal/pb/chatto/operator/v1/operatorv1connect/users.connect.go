@@ -78,6 +78,9 @@ const (
 	// OperatorUserServiceUnlinkUserExternalIdentityProcedure is the fully-qualified name of the
 	// OperatorUserService's UnlinkUserExternalIdentity RPC.
 	OperatorUserServiceUnlinkUserExternalIdentityProcedure = "/chatto.operator.v1.OperatorUserService/UnlinkUserExternalIdentity"
+	// OperatorUserServiceGetLoginPolicyProcedure is the fully-qualified name of the
+	// OperatorUserService's GetLoginPolicy RPC.
+	OperatorUserServiceGetLoginPolicyProcedure = "/chatto.operator.v1.OperatorUserService/GetLoginPolicy"
 )
 
 // OperatorUserServiceClient is a client for the chatto.operator.v1.OperatorUserService service.
@@ -113,6 +116,8 @@ type OperatorUserServiceClient interface {
 	LinkUserExternalIdentity(context.Context, *connect.Request[v1.LinkUserExternalIdentityRequest]) (*connect.Response[v1.LinkUserExternalIdentityResponse], error)
 	// Removes a link, or returns FAILED_PRECONDITION for the last configured method.
 	UnlinkUserExternalIdentity(context.Context, *connect.Request[v1.UnlinkUserExternalIdentityRequest]) (*connect.Response[v1.UnlinkUserExternalIdentityResponse], error)
+	// Returns the effective login policy for this server.
+	GetLoginPolicy(context.Context, *connect.Request[v1.GetLoginPolicyRequest]) (*connect.Response[v1.GetLoginPolicyResponse], error)
 }
 
 // NewOperatorUserServiceClient constructs a client for the chatto.operator.v1.OperatorUserService
@@ -216,6 +221,12 @@ func NewOperatorUserServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(operatorUserServiceMethods.ByName("UnlinkUserExternalIdentity")),
 			connect.WithClientOptions(opts...),
 		),
+		getLoginPolicy: connect.NewClient[v1.GetLoginPolicyRequest, v1.GetLoginPolicyResponse](
+			httpClient,
+			baseURL+OperatorUserServiceGetLoginPolicyProcedure,
+			connect.WithSchema(operatorUserServiceMethods.ByName("GetLoginPolicy")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -236,6 +247,7 @@ type operatorUserServiceClient struct {
 	listUserExternalIdentities *connect.Client[v1.ListUserExternalIdentitiesRequest, v1.ListUserExternalIdentitiesResponse]
 	linkUserExternalIdentity   *connect.Client[v1.LinkUserExternalIdentityRequest, v1.LinkUserExternalIdentityResponse]
 	unlinkUserExternalIdentity *connect.Client[v1.UnlinkUserExternalIdentityRequest, v1.UnlinkUserExternalIdentityResponse]
+	getLoginPolicy             *connect.Client[v1.GetLoginPolicyRequest, v1.GetLoginPolicyResponse]
 }
 
 // CreateUser calls chatto.operator.v1.OperatorUserService.CreateUser.
@@ -315,6 +327,11 @@ func (c *operatorUserServiceClient) UnlinkUserExternalIdentity(ctx context.Conte
 	return c.unlinkUserExternalIdentity.CallUnary(ctx, req)
 }
 
+// GetLoginPolicy calls chatto.operator.v1.OperatorUserService.GetLoginPolicy.
+func (c *operatorUserServiceClient) GetLoginPolicy(ctx context.Context, req *connect.Request[v1.GetLoginPolicyRequest]) (*connect.Response[v1.GetLoginPolicyResponse], error) {
+	return c.getLoginPolicy.CallUnary(ctx, req)
+}
+
 // OperatorUserServiceHandler is an implementation of the chatto.operator.v1.OperatorUserService
 // service.
 type OperatorUserServiceHandler interface {
@@ -349,6 +366,8 @@ type OperatorUserServiceHandler interface {
 	LinkUserExternalIdentity(context.Context, *connect.Request[v1.LinkUserExternalIdentityRequest]) (*connect.Response[v1.LinkUserExternalIdentityResponse], error)
 	// Removes a link, or returns FAILED_PRECONDITION for the last configured method.
 	UnlinkUserExternalIdentity(context.Context, *connect.Request[v1.UnlinkUserExternalIdentityRequest]) (*connect.Response[v1.UnlinkUserExternalIdentityResponse], error)
+	// Returns the effective login policy for this server.
+	GetLoginPolicy(context.Context, *connect.Request[v1.GetLoginPolicyRequest]) (*connect.Response[v1.GetLoginPolicyResponse], error)
 }
 
 // NewOperatorUserServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -448,6 +467,12 @@ func NewOperatorUserServiceHandler(svc OperatorUserServiceHandler, opts ...conne
 		connect.WithSchema(operatorUserServiceMethods.ByName("UnlinkUserExternalIdentity")),
 		connect.WithHandlerOptions(opts...),
 	)
+	operatorUserServiceGetLoginPolicyHandler := connect.NewUnaryHandler(
+		OperatorUserServiceGetLoginPolicyProcedure,
+		svc.GetLoginPolicy,
+		connect.WithSchema(operatorUserServiceMethods.ByName("GetLoginPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.operator.v1.OperatorUserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OperatorUserServiceCreateUserProcedure:
@@ -480,6 +505,8 @@ func NewOperatorUserServiceHandler(svc OperatorUserServiceHandler, opts ...conne
 			operatorUserServiceLinkUserExternalIdentityHandler.ServeHTTP(w, r)
 		case OperatorUserServiceUnlinkUserExternalIdentityProcedure:
 			operatorUserServiceUnlinkUserExternalIdentityHandler.ServeHTTP(w, r)
+		case OperatorUserServiceGetLoginPolicyProcedure:
+			operatorUserServiceGetLoginPolicyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -547,4 +574,8 @@ func (UnimplementedOperatorUserServiceHandler) LinkUserExternalIdentity(context.
 
 func (UnimplementedOperatorUserServiceHandler) UnlinkUserExternalIdentity(context.Context, *connect.Request[v1.UnlinkUserExternalIdentityRequest]) (*connect.Response[v1.UnlinkUserExternalIdentityResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorUserService.UnlinkUserExternalIdentity is not implemented"))
+}
+
+func (UnimplementedOperatorUserServiceHandler) GetLoginPolicy(context.Context, *connect.Request[v1.GetLoginPolicyRequest]) (*connect.Response[v1.GetLoginPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.operator.v1.OperatorUserService.GetLoginPolicy is not implemented"))
 }

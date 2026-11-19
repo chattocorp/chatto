@@ -36,9 +36,11 @@ type Role struct {
 	// Display/order position.
 	Position int32 `protobuf:"varint,5,opt,name=position,proto3" json:"position,omitempty"`
 	// Whether messages may notify users assigned to this role.
-	Pingable      bool `protobuf:"varint,6,opt,name=pingable,proto3" json:"pingable,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Pingable bool `protobuf:"varint,6,opt,name=pingable,proto3" json:"pingable,omitempty"`
+	// Grants from this role require explicit selection in Shield Mode.
+	RequiresShieldMode bool `protobuf:"varint,7,opt,name=requires_shield_mode,json=requiresShieldMode,proto3" json:"requires_shield_mode,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Role) Reset() {
@@ -109,6 +111,13 @@ func (x *Role) GetPosition() int32 {
 func (x *Role) GetPingable() bool {
 	if x != nil {
 		return x.Pingable
+	}
+	return false
+}
+
+func (x *Role) GetRequiresShieldMode() bool {
+	if x != nil {
+		return x.RequiresShieldMode
 	}
 	return false
 }
@@ -385,14 +394,15 @@ var File_chatto_api_v1_roles_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_roles_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/roles.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xb4\x01\n" +
+	"\x19chatto/api/v1/roles.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xe6\x01\n" +
 	"\x04Role\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1b\n" +
 	"\tis_system\x18\x04 \x01(\bR\bisSystem\x12\x1a\n" +
 	"\bposition\x18\x05 \x01(\x05R\bposition\x12\x1a\n" +
-	"\bpingable\x18\x06 \x01(\bR\bpingable\"\x12\n" +
+	"\bpingable\x18\x06 \x01(\bR\bpingable\x120\n" +
+	"\x14requires_shield_mode\x18\a \x01(\bR\x12requiresShieldMode\"\x12\n" +
 	"\x10ListRolesRequest\">\n" +
 	"\x11ListRolesResponse\x12)\n" +
 	"\x05roles\x18\x01 \x03(\v2\x13.chatto.api.v1.RoleR\x05roles\"-\n" +

@@ -33,9 +33,10 @@
     "slow_mode_bypassed": "Malrapida reĝimo: {interval} (vi estas esceptita).",
     "slow_mode_rejected": "Malrapida reĝimo estas aktiva. Atendu antaŭ ol sendi alian mesaĝon.",
     "threads_encouraged": "Fadenoj estas instigitaj en ĉi tiu ĉambro.",
-    "recent_thread_confirm_title": "Ĉu daŭrigi vian antaŭan fadenon?",
-    "recent_thread_confirm_body": "Via antaŭa mesaĝo jam havas fadenon. Kien ĉi tiu mesaĝo estu afiŝita?",
+    "recent_thread_confirm_title": "Ĉu daŭrigi la plej novan fadenon?",
+    "recent_thread_confirm_body": "La plej nova mesaĝo en ĉi tiu ĉambro havas fadenon. Kien vi volas afiŝi ĉi tiun mesaĝon?",
     "post_as_new_message": "Afiŝi kiel novan mesaĝon",
+    "start_new_thread": "Komenci novan fadenon",
     "continue_in_thread": "Daŭrigi en la fadeno",
     "edit_failed": "Malsukcesis redakti mesaĝon",
     "edit_empty": "Mesaĝo ne povas esti malplena",
@@ -48,10 +49,13 @@
       "video_disabled": "Alŝutoj de videoj estas malŝaltitaj en ĉi tiu servilo.",
       "prepare_failed": "Malsukcesis prepari kunsendaĵon",
       "too_many": "Vi povas aldoni ĝis {max} dosierojn al ĉiu mesaĝo. Kromaj dosieroj ne estis aldonitaj.",
-      "too_large": "{filename} estas tro granda ({size}). La maksimumo estas {limit}."
+      "too_large": "{filename} estas tro granda ({size}). La maksimumo estas {limit}.",
+      "compress_failed": "Ne eblis sufiĉe kunpremi la filmeton. Provu alian formaton aŭ pli mallongan filmeton.",
+      "compressing": "Kunpremado de filmeto… {percentage}%"
     },
     "format": {
       "underline": "Substrekita",
+      "strikethrough": "Trastreko",
       "bold": "Grasa",
       "italic": "Kursiva",
       "inline_code": "Enlinia kodo",

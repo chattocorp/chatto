@@ -7,7 +7,7 @@ const sourceRoot = resolve(frontendRoot, 'src');
 const appCssPath = resolve(sourceRoot, 'app.css');
 
 // Each allowlisted <style> block must open with a comment that explains why
-// Tailwind or a semantic utility from src/app.css is insufficient.
+// Tailwind or a semantic utility from the design-system stylesheets is insufficient.
 const styleBlockAllowlist = new Set([
   'src/lib/components/chat/FullscreenVideoOverlay.svelte',
   'src/lib/components/chat/VideoPlayer.svelte',
@@ -156,7 +156,23 @@ async function sourceFiles(directory) {
 }
 
 const failures = [];
-const appCss = await readFile(appCssPath, 'utf8');
+// src/app.css imports the design-system stylesheets in src/styles/. Inline
+// them in import order so the checks below see the complete stylesheet.
+const appCss = await inlineLocalImports(appCssPath);
+
+/** Returns a stylesheet with its relative `@import` rules replaced by the imported files. */
+async function inlineLocalImports(path) {
+  const css = await readFile(path, 'utf8');
+  const parts = [];
+  let last = 0;
+  for (const match of css.matchAll(/^@import\s+['"](\.{1,2}\/[^'"]+)['"];$/gm)) {
+    parts.push(css.slice(last, match.index));
+    parts.push(await inlineLocalImports(resolve(path, '..', match[1])));
+    last = match.index + match[0].length;
+  }
+  parts.push(css.slice(last));
+  return parts.join('');
+}
 
 // These variants must compose the Inset Frame, not grow independent surface recipes.
 const insetConsumers = {
@@ -164,6 +180,7 @@ const insetConsumers = {
   'preview-frame': 'inset-frame',
   'menu-section': 'inset-content',
   'menu-section-sm': 'inset-content',
+  'panel-inset': 'inset-content',
   'preview-content': 'inset-content'
 };
 for (const [consumer, primitive] of Object.entries(insetConsumers)) {

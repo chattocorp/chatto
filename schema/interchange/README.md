@@ -4,7 +4,7 @@
 history. It is not a raw EVT dump or a server backup. Use
 `chatto operator import PATH --validate-only` to check the archive and destination
 through the operator socket. Omit the flag to import. Export is not implemented
-yet. The [Slack converter](../../tools/slack-export.md) produces this format;
+yet. The [Slack converter](../../tools/slack/slack-export.md) produces this format;
 the legacy direct Slack importer remains available for existing runs.
 
 Start with the [converter guide](../../docs/interchange/converter-guide.md),

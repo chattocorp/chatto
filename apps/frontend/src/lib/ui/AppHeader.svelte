@@ -13,13 +13,45 @@
   import MotdContent from '$lib/ui/MotdContent.svelte';
   import { SERVER_SETTINGS_ROOT_ROUTE } from '$lib/navigation/settingsRoutes';
   import { desktopUpdates, type DesktopUpdates } from '$lib/desktop/updates.svelte';
+  import type { Snippet } from 'svelte';
+  import type { ServerStateStore } from '@chatto/client/server/store';
 
-  let { updates = desktopUpdates }: { updates?: DesktopUpdates } = $props();
+  let {
+    updates = desktopUpdates,
+    callControls
+  }: {
+    updates?: DesktopUpdates;
+    /** App-owned controls for the connected call, independent of navigation. */
+    callControls?: Snippet<[ServerStateStore]>;
+  } = $props();
 
-  // MOTD follows the active server; the connection-lost icon below stays
-  // bound to the origin store since it reflects the SPA host's own connection.
+  // The MOTD and the connection warning follow the active server. Without a
+  // server in the URL, the active server is the origin.
   const motd = $derived(serverRegistry.tryGetStore(getActiveServer())?.serverInfo.motd);
-  const originStore = $derived(serverRegistry.tryGetStore(serverRegistry.originServer?.id ?? ''));
+  // A server without a signed-in user has no connection to warn about.
+  const connectionWarning = $derived.by(() => {
+    const serverId = getActiveServer();
+    if (!serverRegistry.getServer(serverId)) return null;
+    if (!serverRegistry.tryGetStore(serverId)?.currentUser.user) return null;
+    const connection = serverConnectionManager.getClient(serverId);
+    if (!connection.showConnectionLostIcon) return null;
+    return {
+      urgent: connection.showConnectionLostBanner,
+      // API requests can fail while the realtime connection is open.
+      label:
+        connection.status === 'connected'
+          ? m('chat.server_gutter.connection_unavailable')
+          : m('ui.realtime_paused')
+    };
+  });
+  // Call controls follow their owner, even when navigation selects another server.
+  const activeCallStore = $derived.by(() => {
+    for (const server of serverRegistry.servers) {
+      const store = serverRegistry.tryGetStore(server.id);
+      if (store && serverUi(store).voiceCall.connected) return store;
+    }
+    return null;
+  });
 
   /** A server's notification counts without viewed ones; zero without a store. */
   function attentionCounts(serverId: string) {
@@ -62,10 +94,10 @@
 
 <!-- WebKit extends the solid background of a sticky header into its top system bar. -->
 <header
-  class="app-header sticky top-0 flex keyboard-hide-mobile h-[var(--app-header-height)] shrink-0 items-center justify-between gap-2 bg-surface p-2 text-muted desktop-presentation:text-sm"
+  class="app-header @container sticky top-0 flex keyboard-hide-mobile h-[var(--app-header-height)] shrink-0 items-center justify-between gap-1 overflow-x-auto bg-surface px-2 text-muted sm:gap-3 desktop-presentation:text-sm"
 >
   <!-- Leading: global navigation, notifications, and client-wide actions -->
-  <div class="flex items-center gap-3">
+  <div class="flex shrink-0 items-center gap-3">
     <!-- Sidebar toggle - 44px tap target for mobile accessibility -->
     <button
       type="button"
@@ -127,31 +159,37 @@
       <span class="iconify icon-[uil--setting] text-lg" aria-hidden="true"></span>
     </a>
 
-    <!-- Connection lost indicator: only show when an authenticated server has lost connection.
-         Skip the origin server if the user isn't authenticated (no WebSocket expected). -->
-    {#if originStore?.currentUser.user && serverConnectionManager.originClient.showConnectionLostIcon}
+    <!-- Connection warning of the active server: a failed realtime attempt or
+         API requests that fail on the network. -->
+    {#if connectionWarning}
       <span
         class={[
           'iconify icon-[uil--wifi-slash] text-lg',
-          serverConnectionManager.originClient.showConnectionLostBanner
-            ? 'text-warning'
-            : 'animate-pulse'
+          connectionWarning.urgent ? 'text-warning' : 'animate-pulse'
         ]}
         role="img"
-        aria-label={m('ui.realtime_paused')}
-        title={m('ui.realtime_paused')}
+        aria-label={connectionWarning.label}
+        title={connectionWarning.label}
       ></span>
     {/if}
   </div>
+
+  {#if activeCallStore && callControls}
+    <div class="shrink-0">
+      {#key activeCallStore}
+        {@render callControls(activeCallStore)}
+      {/key}
+    </div>
+  {/if}
 
   <!-- MOTD -->
   {#if motd}
     <MotdContent {motd} onclick={() => pushState('', { modal: { type: 'motd', motd } })} />
   {:else}
-    <span class="flex-1"></span>
+    <span class={['flex-1', activeCallStore && callControls && 'max-sm:hidden']}></span>
   {/if}
 
-  <!-- Client version and About action -->
+  <!-- Client version, About, and Help actions -->
   <div class="flex shrink-0 items-center gap-3">
     {#if updates.status?.status === 'ready'}
       <a
@@ -178,6 +216,14 @@
         <span class="iconify icon-[uil--info-circle] text-lg" aria-hidden="true"></span>
       </button>
     {/if}
+    <a
+      href={resolve('/help')}
+      class="app-header-icon"
+      aria-label={m('ui.help')}
+      title={m('ui.help')}
+    >
+      <span class="iconify icon-[uil--question-circle] text-lg" aria-hidden="true"></span>
+    </a>
   </div>
 </header>
 

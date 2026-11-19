@@ -3,12 +3,14 @@
     name = $bindable(),
     displayName = $bindable(),
     description = $bindable(),
+    requiresShieldMode = $bindable(),
     pingable = $bindable(),
     onSubmit
   }: {
     name: string;
     displayName: string;
     description: string;
+    requiresShieldMode: boolean;
     pingable: boolean;
     onSubmit: () => void;
   } = $props();
@@ -17,6 +19,7 @@
     name = 'moderator';
     displayName = 'Moderator';
     description = 'Helps moderate the server';
+    requiresShieldMode = true;
     pingable = true;
     onSubmit();
   }
@@ -30,6 +33,7 @@
   data-name={name}
   data-display-name={displayName}
   data-description={description}
+  data-shield={requiresShieldMode}
   data-pingable={pingable}
   onclick={submit}>Create role</button
 >

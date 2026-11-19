@@ -1,0 +1,107 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+Je kunt Chatto-berichten opmaken met Markdown. `**hallo**` wordt bijvoorbeeld **hallo**. Typ de opmaaktekens zelf of selecteer tekst en gebruik de opmaakbalk.
+
+## Je editor en verzendsneltoets kiezen
+
+Open <a href={resolve('/chat/preferences/composer')}>Appvoorkeuren → Berichten opstellen</a> en kies **Markdown** om de brontekst te bewerken. Kies **Visueel** als je liever met opgemaakte tekst werkt. De opmaakbalk is in beide editors beschikbaar.
+
+De instelling **Berichten verzenden met** bepaalt wat Enter doet:
+
+- **Return:** Enter verstuurt het bericht. Ctrl+Enter voegt een nieuwe regel in, of Command+Enter op een Mac.
+- **Cmd/Ctrl+Return:** Ctrl+Enter verstuurt het bericht, of Command+Enter op een Mac. Enter voegt een nieuwe regel in.
+
+Laat een lege regel tussen alinea's.
+
+## Vet, cursief, onderstreept en doorgestreept
+
+Zet opmaaktekens aan beide kanten van de tekst:
+
+- `**vet**` voor vet
+- `*cursief*` voor cursief
+- `__onderstreept__` voor onderstreept
+- `~~doorgestreept~~` voor doorgestreept
+
+<MarkdownSample source={"Controleer dit **vóór vrijdag**.\nDe datum is *voorlopig*.\n__Goedkeuring nodig__ vóór publicatie.\nDe oude deadline was ~~donderdag~~."} />
+
+In Chatto betekent `__tekst__` onderstreept. Gebruik je in een ander Markdown-programma dubbele underscores voor vet, gebruik dan hier dubbele sterretjes.
+
+Selecteer tekst en druk op Ctrl+B, Ctrl+I of Ctrl+U voor vet, cursief of onderstreept. Gebruik op een Mac Command in plaats van Ctrl. De knoppen in de balk voeren dezelfde acties uit.
+
+Zet geen spaties tussen de tekens en de tekst: `**belangrijk**` werkt; `** belangrijk **` wordt niet vet.
+
+## Koppen en lijsten
+
+Begin een kop met `#`-tekens gevolgd door een spatie. Begin elk opsommingsteken met `- `, of elk genummerd item met een getal en een punt, zoals `1. `.
+
+<MarkdownSample source={"## Releasechecklist\n\nVoordat we beginnen:\n- Bevestig de versie.\n- Informeer het supportteam.\n\nDaarna:\n1. Rol de update uit.\n2. Controleer de statuspagina.\n3. Plaats het resultaat hier."} />
+
+De knop **Kop** voegt een kop van niveau twee (`##`) in. Je kunt zelf kopniveaus van `#` tot `######` typen.
+
+Gebruik **Meer inspringen** om een lijstitem onder het vorige item te plaatsen. Gebruik **Minder inspringen** om het terug te verplaatsen. Laat na de lijst een lege regel om een alinea te beginnen.
+
+## Citaten
+
+Begin elke geciteerde regel met `>` en een spatie. Laat na het citaat een lege regel voordat je je antwoord schrijft.
+
+<MarkdownSample source={"> Kunnen we de release naar vrijdag verplaatsen?\n\nJa. De laatste controle is donderdagmiddag."} />
+
+Een citaat typen maakt geen link naar het oorspronkelijke bericht. Gebruik de antwoordactie van dat bericht om er in een thread op te antwoorden.
+
+## Code
+
+Zet één backtick aan elke kant van een korte opdracht, bestandsnaam of identifier. Opmaaktekens in inlinecode verschijnen zoals je ze typt.
+
+<MarkdownSample source={"Voer `git status` uit voordat je begint.\nDe instelling heet `send_mode`.\nTyp `**hallo**` om hallo vet te maken."} />
+
+Voor meerdere regels zet je drie backticks op een regel vóór de code en drie op een regel erna. Zet direct na de openingsbackticks een taalnaam voor syntaxiskleuring, zoals `js`, `json` of `bash`.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+De knop **Codeblok** voegt de openings- en sluitingsbackticks in. Zonder de sluitingsregel wordt de rest van het bericht onderdeel van het codeblok. Gebruik twee backticks rond de tekst om een backtick in inlinecode te tonen.
+
+## Links
+
+Een geplakt webadres wordt een link. Wil je een label tonen in plaats van het adres, zet dan het label tussen vierkante haakjes en het adres tussen ronde haakjes:
+
+```text
+Lees de [releaseopmerkingen](https://example.com/releases).
+```
+
+Zet geen spatie tussen `]` en `(`. Selecteer een ruimte of persoon uit de suggesties van de editor om die in Chatto te linken of te vermelden.
+
+## Voetnoten
+
+Zet een verwijzing zoals `[^window]` achter de tekst die je wilt toelichten. Schrijf op een aparte regel `[^window]:` gevolgd door de toelichting. De labels moeten overeenkomen.
+
+<MarkdownSample source={"Het onderhoudsvenster duurt 30 minuten.[^window]\n\n[^window]: De meeste servers zijn minder dan vijf minuten niet beschikbaar."} />
+
+Je kunt ook de cursor achter de betreffende tekst zetten en **Voetnoot invoegen** in de balk kiezen. Je kunt geen voetnoten invoegen in inlinecode of een codeblok.
+
+## Tabellen
+
+Scheid kolommen met `|` en zet een rij streepjes onder de kolomkoppen. Gebruik `---:` om een kolom rechts uit te lijnen, of `:---:` om die te centreren.
+
+<MarkdownSample source={"| Omgeving | Versie |\n| --- | ---: |\n| Test | 0.5 |\n| Productie | 0.4 |"} />
+
+Bewerk tabellen in de Markdown-editor. De visuele editor heeft geen functie om tabellen te bewerken.
+
+## Een volledig bericht proberen
+
+Bewerk het bericht hieronder om de opmaak te proberen. Het voorbeeld wordt bijgewerkt terwijl je typt. Je kunt wisselen tussen de Markdown- en visuele editor. Niets wat je hier invoert wordt naar een ruimte verstuurd.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Release op vrijdag\n\nRond de controle **vóór 14:00** af.\n\n1. Voer `git status` uit.\n2. Controleer de releaseopmerkingen.\n3. Antwoord in deze thread als je klaar bent.\n\n> Wat als een controle mislukt?\n\nPlaats de fout hier voordat je verdergaat."} />
+</div>
+
+## Als de opmaak niet klopt
+
+- **De tekens blijven zichtbaar.** Controleer of beide kanten overeenkomen en of er geen spatie direct binnen de openings- of sluitingstekens staat. In code zijn zichtbare tekens de bedoeling.
+- **De rest van het bericht ziet eruit als code.** Zet de drie sluitingsbackticks op een eigen regel.
+- **Een kop of lijst blijft gewone tekst.** Zet een spatie na `##`, `-` of `1.` en begin op een nieuwe regel.
+- **Je wilt de leestekens zelf tonen.** Zet een backslash vóór een opmaakteken, zoals `\*niet cursief\*`, of gebruik inlinecode voor een letterlijk voorbeeld.
+- **HTML verschijnt als tekst.** Chatto accepteert geen ruwe HTML voor berichtopmaak. Gebruik Markdown in plaats van tags zoals `<b>` of `<span>`.

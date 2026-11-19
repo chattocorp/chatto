@@ -91,6 +91,12 @@ can remain disabled.
 
 Chatto sends email for registration codes, email verification, and password
 reset. Configure a transport before you invite members. SMTP is the default.
+
+Mail requests return after the background queue accepts the message. If mail
+does not arrive, check email jobs on the Jobs page for retry status and failure
+categories. Temporary transport failures retry until the original code or reset
+link expires. Fix the transport and request a new code or link if it has expired.
+A restart after transport acceptance can cause a duplicate message.
 Use JMAP only when your mail provider supports JMAP submission with a bearer
 token.
 
@@ -183,8 +189,7 @@ account creation. Each code permits one account and expires after seven days.
 
 Grant `user.manage-invites` to administrators who manage all codes. Grant
 `user.invite` only to members who can issue and revoke their own codes. The
-**Server Admin → Invites** page provides these actions. Invitation managers need
-privileged mode; members who manage only their own codes do not.
+**Server Admin → Invites** page provides these actions. Managers who receive this permission through a protected role must select that role in Shield Mode.
 
 A code grants admission to anyone who has it. Do not put codes in logs or URLs.
 Keep `core.secret_key` stable on all replicas and after a restore. A change makes

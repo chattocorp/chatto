@@ -1,0 +1,77 @@
+<script>
+  import { resolve } from '$app/paths';
+</script>
+
+## Risposte e discussioni
+
+Usa **Rispondi nel thread** su un messaggio per mantenere la risposta nella
+stessa conversazione. Per iniziare una discussione con un nuovo messaggio, seleziona
+**Pubblica come thread** nell'editor prima di inviarlo. La stanza rimane aperta;
+seleziona il collegamento alla discussione nel messaggio per aprirla.
+
+Una discussione aperta ha un proprio indirizzo. Copia l'indirizzo del browser per
+condividerla con chi ha accesso alla stanza. Chiudere una discussione ti riporta alla
+stanza; non smetti di seguire la conversazione.
+
+<p>Se preferisci tenere visibile la stanza mentre rispondi, apri
+<a href={resolve('/chat/preferences/appearance')}>Preferenze dell'app → Aspetto</a>
+e imposta <strong>Pannello della discussione</strong> su <strong>Affiancato</strong>.
+Quando lo spazio non basta, Chatto mostra la discussione sopra la stanza.</p>
+
+## Segui le conversazioni
+
+Seleziona **Segui il filo** per mantenere una conversazione nell'elenco
+**Discussioni**. Puoi seguire una discussione senza pubblicare messaggi.
+
+In **Discussioni**, **Seguite** mostra quelle che segui. **Le mie** mostra quelle che
+hai iniziato e che segui ancora. Smettere di seguire una discussione la rimuove da
+entrambe le viste. Seleziona **Non letto** per trovare conversazioni con risposte non ancora lette.
+
+Il campo di ricerca cerca messaggi e risposte nelle discussioni che segui, incluse
+quelle dei messaggi diretti. Cerca parole, una frase tra virgolette o un autore con
+`from:username`. La ricerca è disponibile se il server la supporta e la abilita.
+
+## Passa tra stanze e attività non lette
+
+Premi **Ctrl+K**, o **Command+K** su un Mac, per aprire il selettore rapido. Cerca
+qui per passare tra stanze e server senza scorrere la barra laterale.
+
+Premi **Alt+Shift+Down**, o **Option+Shift+Down** su un Mac, per passare alla prossima
+fonte non letta tra i server a cui hai effettuato l'accesso. Chatto ti porta prima alle
+notifiche importanti, poi alle altre notifiche e infine alle stanze con indicatori
+di messaggi non letti. La bozza del messaggio attuale rimane al suo posto.
+
+La campanella nell'intestazione apre le notifiche di tutti i server a cui hai effettuato
+l'accesso. Leggere una stanza o una discussione segna come lette le notifiche solo fino
+ai messaggi visibili. Aprire un vecchio messaggio non segna come lette le risposte più recenti.
+
+Per vedere le scorciatoie disponibili, premi **Ctrl+Shift+K**, o **Command+Shift+K** su un Mac.
+
+## Scegli quali attività generano notifiche
+
+Apri le impostazioni **Notifiche** del server per cambiare gli avvisi per menzioni,
+risposte, reazioni e altre attività. Ogni impostazione può valere per l'intero server,
+un gruppo di stanze o una stanza.
+
+- **Eredita** usa l'impostazione del gruppo di stanze o del server.
+- **Disattivato** non crea notifiche né indicatori di non letto per quell'attività.
+- **Punto dei contenuti non letti** contrassegna la stanza senza creare una notifica.
+- **Notifica nell’app** aggiunge una voce al centro notifiche.
+- **Notifica push** consente anche un avviso su un dispositivo dove hai abilitato le notifiche.
+
+Per esempio, usa **Punto dei contenuti non letti** per i nuovi messaggi della stanza e
+**Notifica push** per le menzioni dirette se vuoi leggere la chat generale quando preferisci.
+
+<p>Anche gli avvisi push richiedono il permesso del dispositivo. Sul telefono, segui
+<a href={resolve('/help/[topic]', { topic: 'phone' })}>Installare Chatto sul telefono</a>
+per installare l'app e abilitare le notifiche. Le impostazioni del telefono controllano
+se nomi e anteprime dei messaggi compaiono nella schermata di blocco.</p>
+
+## Quando la connessione si interrompe
+
+I messaggi già caricati rimangono visibili, ma Chatto deve connettersi al server per
+caricarne altri o inviare una risposta. Quando la connessione torna, carica gli aggiornamenti mancanti.
+
+Se l'invio fallisce, la bozza rimane nell'editor. Non viene messa in coda per l'invio
+automatico: controlla la connessione e inviala di nuovo. Installare Chatto sul telefono
+non rende la cronologia delle chat disponibile offline.

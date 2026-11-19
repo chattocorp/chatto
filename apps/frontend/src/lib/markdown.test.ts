@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { renderInlineMarkdown, renderMarkdown } from './markdown';
 import {
   canHighlightCodeLanguage,
+  CODE_LANGUAGE_OPTIONS,
   ensureCodeLanguageLoaded,
   isCodeLanguageLoaded,
   lowlight
@@ -139,7 +140,7 @@ describe('renderMarkdown', () => {
       expect(renderInlineMarkdown(source)).toBe(expected);
       expect(await renderMarkdown(source)).toBe(`<p>${expected}</p>\n`);
       const url = 'https://example.com/:wave::skin-tone-4:';
-      expect(await renderMarkdown(url)).toContain(`>${url}</a>`);
+      expect(await renderMarkdown(url)).toContain(`>${url.slice(0, -1)}</a>:`);
     });
 
     it('requires Unicode word boundaries without blocking punctuation or adjacent tags', async () => {
@@ -217,7 +218,7 @@ describe('renderMarkdown', () => {
         'https://example.com/:wave: <https://example.com/:heart:> ' +
           '[:+1:](https://example.com/:wave: ":heart:")'
       );
-      expect(html).toContain('>https://example.com/:wave:</a>');
+      expect(html).toContain('>https://example.com/:wave</a>:');
       expect(html).toContain('>https://example.com/:heart:</a>');
       expect(html).toContain('href="https://example.com/:wave:"');
       expect(html).toContain('title=":heart:"');
@@ -470,6 +471,27 @@ describe('renderMarkdown', () => {
   });
 
   describe('emphasis at word boundaries', () => {
+    it.each(['مرحبا', 'שלום', 'привіт', 'привет', '中文', '日本語', 'e\u0301', '𐐀𐐨'])(
+      'formats Unicode words and combining marks: %s',
+      async (word) => {
+        const html = await renderMarkdown(`**${word}** *${word}* __${word}__`);
+        expect(html).toContain(`<strong>${word}</strong>`);
+        expect(html).toContain(`<em>${word}</em>`);
+        expect(html).toContain(`<u>${word}</u>`);
+        expect(renderInlineMarkdown(`**${word}**`)).toContain(`<strong>${word}</strong>`);
+      }
+    );
+
+    it.each(['مرحبا', 'שלום', 'привет', '日本語', 'e\u0301', '𐐀𐐨'])(
+      'keeps punctuation around emphasized Unicode words: %s',
+      async (word) => {
+        const html = await renderMarkdown(`*...${word}:* **${word}:** **${word}**`);
+        expect(html).toContain(`<em>...${word}:</em>`);
+        expect(html).toContain(`<strong>${word}:</strong>`);
+        expect(html).toContain(`<strong>${word}</strong>`);
+      }
+    );
+
     it('renders `*italic*` as italic', async () => {
       const html = await renderMarkdown('*italic*');
       expect(html).toContain('<em>italic</em>');
@@ -559,6 +581,36 @@ describe('renderMarkdown', () => {
   });
 
   describe('emphasis suppressed when not at word boundaries', () => {
+    it.each(['имя_поля_значение', '字*中*字', 'e\u0301*mot*e\u0301', '𐐀*𐐨*𐐀'])(
+      'keeps Unicode intraword markers literal: %s',
+      async (source) => {
+        const html = await renderMarkdown(source);
+        expect(html).toContain(source);
+        expect(html).not.toContain('<em>');
+      }
+    );
+
+    it.each(['*(x)*', '_(ツ)_/¯', '*(ツ)*'])(
+      'keeps parenthesized single-glyph faces literal: %s',
+      async (source) => {
+        const html = await renderMarkdown(source);
+        expect(html).toContain(source);
+        expect(html).not.toContain('<em>');
+      }
+    );
+
+    it('does not mistake parenthesized words for single-glyph faces', async () => {
+      const html = await renderMarkdown('*(hello)* *(日本語)*');
+      expect(html).toContain('<em>(hello)</em>');
+      expect(html).toContain('<em>(日本語)</em>');
+    });
+
+    it('allows explicit double-marker formatting around single-glyph faces', async () => {
+      const html = await renderMarkdown('**(ツ)** __(x)__');
+      expect(html).toContain('<strong>(ツ)</strong>');
+      expect(html).toContain('<u>(x)</u>');
+    });
+
     it('does not italicize underscores between punctuation', async () => {
       const html = await renderMarkdown('_(ツ)_/¯');
       expect(html).toContain('_(ツ)_/¯');
@@ -607,6 +659,33 @@ describe('renderMarkdown', () => {
   });
 
   describe('code blocks', () => {
+    it('loads Odin on demand and highlights its syntax without changing source', async () => {
+      expect(isCodeLanguageLoaded('odin')).toBe(false);
+      expect(CODE_LANGUAGE_OPTIONS).toContainEqual({ value: 'odin', label: 'ODIN' });
+      const source = [
+        'package main',
+        'import "core:fmt"',
+        '// Compose an audio graph',
+        'voice :: proc(freq: f32) -> f32 {',
+        '    return lowpass(sine(freq), 440.0)',
+        '}'
+      ].join('\n');
+
+      const html = await renderMarkdown('```odin\n' + source + '\n```');
+
+      expect(isCodeLanguageLoaded('odin')).toBe(true);
+      expect(html).toContain('data-language="odin"');
+      expect(html).toContain('language-odin');
+      expect(html).toContain('<span class="hljs-keyword">proc</span>');
+      expect(html).toContain('<span class="hljs-type">f32</span>');
+      expect(html).toContain('<span class="hljs-number">440.0</span>');
+      expect(html).toContain('<span class="hljs-string">&quot;core:fmt&quot;</span>');
+      expect(html).toContain('<span class="hljs-comment">// Compose an audio graph</span>');
+      expect(html).toContain(
+        `data-copy-source="${source.replaceAll('"', '&quot;').replaceAll('>', '&gt;')}\n"`
+      );
+    });
+
     it.each(['```js\nconst x = 1;\n```', '    indented code'])(
       'makes the code scroller keyboard focusable: %s',
       async (source) => {
@@ -687,6 +766,34 @@ describe('renderMarkdown', () => {
 });
 
 describe('automatic links', () => {
+  it.each([
+    'https://example.com/',
+    'http://example.com:8080/',
+    'https://example.com/chat/-/R123456789abcde',
+    'https://example.com/chat/-/user/U123456789abcde',
+    'https://example.com/chat/-/R123456789abcde/m/Eabc123DEF456gh',
+    'www.example.com/'
+  ])('leaves a following colon outside the automatic link: %s', async (url) => {
+    const href = url.startsWith('www.') ? `https://${url}` : url;
+    for (const suffix of [':', ': next', ':!', ':: next']) {
+      const source = `${url}${suffix}`;
+      for (const html of [await renderMarkdown(source), renderInlineMarkdown(source)]) {
+        expect(html).toContain(`data-content-href="${href}"`);
+        expect(html).toContain(`>${url}</a>${suffix}`);
+        expect(html).toContain('data-entity-autolink');
+      }
+    }
+  });
+
+  it('keeps colons within URLs and in explicit destinations', async () => {
+    for (const url of ['https://example.com:8080/a:b?q=c:d#e:f', 'www.example.com/a:b']) {
+      expect(await renderMarkdown(url)).toContain(`>${url}</a>`);
+    }
+    for (const source of ['[label](https://example.com/a:)', '<https://example.com/a:>']) {
+      expect(await renderMarkdown(source)).toContain('data-content-href="https://example.com/a:"');
+    }
+  });
+
   it.each([
     'path/www.example.com',
     '@www.example.com',

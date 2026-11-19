@@ -5,7 +5,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import { PageTitle, LoadingFog } from '$lib/ui';
+  import { PageTitle, LoadingDots } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import MessageContent from '$lib/components/MessageContent.svelte';
   import type { RoomsListItem } from '$lib/state/server/navigation';
@@ -82,7 +82,7 @@
       {/if}
 
       {#await serverUi(stores).roomDirectory.loadJoinPreview(room.id)}
-        <LoadingFog class="mt-6 h-20 w-full" label={m('room.join.member_preview_label')} />
+        <LoadingDots class="mt-6 h-20 w-full" label={m('room.join.member_preview_label')} />
       {:then preview}
         {#if preview}
           <div

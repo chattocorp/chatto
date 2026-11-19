@@ -77,7 +77,7 @@ describe('public server discovery', () => {
     ]);
     const { url, headers } = sentRequest();
     expect(url).toBe(
-      'https://chat.example.test/api/connect/chatto.discovery.v1.ServerDiscoveryService/ListNeighborhoodServers'
+      'https://chat.example.test/api/connect/chatto.discovery.v1.ServerDiscoveryService/ListNeighborhoodServers?connect=v1&encoding=json&message=%7B%7D'
     );
     expect(headers.get('Connect-Timeout-Ms')).toBe('10000');
     expect(headers.has('Authorization')).toBe(false);
@@ -116,9 +116,12 @@ describe('public server discovery', () => {
 
     const { url, headers } = sentRequest();
     expect(url).toBe(
-      'https://chat.example.test/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer'
+      'https://chat.example.test/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer?connect=v1&encoding=json&message=%7B%7D'
     );
-    expect(headers.get('Content-Type')).toBe('application/json');
+    expect(sentRequest().init?.method).toBe('GET');
+    expect(sentRequest().init?.body).toBeNull();
+    expect(headers.has('Content-Type')).toBe(false);
+    expect(headers.has('Authorization')).toBe(false);
     expect(headers.get('Connect-Timeout-Ms')).toBe('10000');
     expect(info).toEqual({
       setupRequired: false,
@@ -175,7 +178,8 @@ describe('public server discovery', () => {
       locale: 'de-AT',
       introducedAfterVersion: '0.5.0-beta.17'
     });
-    expect(await new Response(sentRequest().init?.body).json()).toEqual({
+    expect(sentRequest().init?.method).toBe('GET');
+    expect(JSON.parse(new URL(sentRequest().url).searchParams.get('message')!)).toEqual({
       locale: 'de-AT',
       introducedAfterVersion: '0.5.0-beta.17'
     });

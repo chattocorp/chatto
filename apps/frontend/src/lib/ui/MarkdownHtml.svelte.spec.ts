@@ -317,6 +317,18 @@ describe('Mermaid previews', () => {
         )
       )
     );
+    // Load the shared diagram geometry before testing remounts. Cold rows can
+    // finish loading only on the return trip and legitimately change height.
+    const preview = render(MarkdownHtml, { html: html[0] });
+    await expect
+      .poll(
+        () =>
+          [...preview.container.querySelectorAll('img')].filter((image) => image.naturalWidth > 0)
+            .length,
+        { timeout: 5000 }
+      )
+      .toBe(3);
+    await preview.unmount();
     const { container } = render(DiagramTimelineTestHarness, { html });
     const scroller = container.querySelector<HTMLElement>('[data-testid="diagram-timeline"]')!;
     await expect.poll(() => scroller.querySelectorAll('img').length).toBeGreaterThanOrEqual(3);
@@ -327,8 +339,9 @@ describe('Mermaid previews', () => {
       await new Promise(requestAnimationFrame);
     }
     expect(scroller.scrollTop).toBeGreaterThan(1500);
-    // Initial loads can grow rows on the first pass. Base the return distance
-    // on the actual position; the regression is corrections on revisiting rows.
+    expect(scroller.querySelector('[data-diagram-row="0"]')).toBeNull();
+    // Base the return distance on the position after the virtualizer measures
+    // the rows. Check each frame for corrections while those rows remount.
     const returnFrames = Math.ceil(scroller.scrollTop / 12);
     for (let frame = 0; frame < returnFrames; frame++) {
       scroller.scrollTop -= 12;
@@ -337,6 +350,7 @@ describe('Mermaid previews', () => {
       expect(Math.abs(scroller.scrollTop - requested)).toBeLessThan(2);
     }
     expect(scroller.scrollTop).toBe(0);
+    expect(scroller.querySelector('[data-diagram-row="0"]')).not.toBeNull();
   });
 
   it.each(['svg', 'small svg', 'mermaid'])(

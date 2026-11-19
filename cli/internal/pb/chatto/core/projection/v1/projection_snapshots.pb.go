@@ -4915,14 +4915,15 @@ func (x *UserSnapshot) GetDeactivated() bool {
 
 // RoleSnapshot stores role state for projection restore.
 type RoleSnapshot struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                                  // Unique identifier, lowercase + dashes only, e.g., "owner", "moderator", "content-reviewer"
-	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"` // Human-readable name, e.g., "Owner", "Moderator", "Content Reviewer"
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Position      int32                  `protobuf:"varint,4,opt,name=position,proto3" json:"position,omitempty"` // Display/order position; not an authorization rank.
-	Pingable      bool                   `protobuf:"varint,5,opt,name=pingable,proto3" json:"pingable,omitempty"` // Whether messages can ping users assigned to this role.
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Name               string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                                  // Unique identifier, lowercase + dashes only, e.g., "owner", "moderator", "content-reviewer"
+	DisplayName        string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"` // Human-readable name, e.g., "Owner", "Moderator", "Content Reviewer"
+	Description        string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Position           int32                  `protobuf:"varint,4,opt,name=position,proto3" json:"position,omitempty"` // Display/order position; not an authorization rank.
+	RequiresShieldMode bool                   `protobuf:"varint,6,opt,name=requires_shield_mode,json=requiresShieldMode,proto3" json:"requires_shield_mode,omitempty"`
+	Pingable           bool                   `protobuf:"varint,5,opt,name=pingable,proto3" json:"pingable,omitempty"` // Whether messages can ping users assigned to this role.
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *RoleSnapshot) Reset() {
@@ -4981,6 +4982,13 @@ func (x *RoleSnapshot) GetPosition() int32 {
 		return x.Position
 	}
 	return 0
+}
+
+func (x *RoleSnapshot) GetRequiresShieldMode() bool {
+	if x != nil {
+		return x.RequiresShieldMode
+	}
+	return false
 }
 
 func (x *RoleSnapshot) GetPingable() bool {
@@ -5560,12 +5568,13 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x06is_bot\x18\a \x01(\bR\x05isBot\x12)\n" +
 	"\x11bot_owner_user_id\x18\b \x01(\tR\x0ebotOwnerUserId\x12 \n" +
 	"\vdeactivated\x18\n" +
-	" \x01(\bR\vdeactivated\"\x9f\x01\n" +
+	" \x01(\bR\vdeactivated\"\xd1\x01\n" +
 	"\fRoleSnapshot\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1a\n" +
-	"\bposition\x18\x04 \x01(\x05R\bposition\x12\x1a\n" +
+	"\bposition\x18\x04 \x01(\x05R\bposition\x120\n" +
+	"\x14requires_shield_mode\x18\x06 \x01(\bR\x12requiresShieldMode\x12\x1a\n" +
 	"\bpingable\x18\x05 \x01(\bR\bpingable\"\x8a\x02\n" +
 	"\x11RoomGroupSnapshot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +

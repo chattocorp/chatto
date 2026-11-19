@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "實驗",
+      "title": "實驗性功能",
+      "new_message_header": "新版訊息標頭"
+    },
     "desktop": {
       "title": "更新",
       "subtitle": "此安裝的更新",
@@ -50,7 +55,8 @@
         "composer": "選擇訊息編輯器和傳送訊息的方式。",
         "voice": "設定麥克風、喇叭和通話偏好。",
         "system": "檢查伺服器狀態、儲存空間和背景工作。",
-        "event_log": "瀏覽伺服器事件並調查變更。"
+        "event_log": "瀏覽伺服器事件並調查變更。",
+        "jobs": "檢視背景工作並重試失敗的工作。"
       },
       "title": "總覽",
       "shield_notice": "若要使用你在此伺服器上的額外權限，請使用名稱旁的盾牌按鈕啟用特權模式。"
@@ -540,9 +546,9 @@
           "body": "中斷與 {provider} 的連結前，請先設定此伺服器支援的其他登入方式。"
         },
         "fresh_auth_modal": {
-          "title": "確認密碼",
-          "body": "連結 {provider} 前，請輸入目前密碼。",
-          "action": "繼續"
+          "title": "連結 {provider}？",
+          "body": "連結後，你可以使用 {provider} 登入 Chatto。請輸入你目前的 Chatto 密碼以繼續。",
+          "password": "Chatto 密碼"
         },
         "disconnect_fresh_auth_modal": {
           "title": "確認密碼",

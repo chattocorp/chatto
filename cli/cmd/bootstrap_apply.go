@@ -143,7 +143,7 @@ func applyBootstrapBot(ctx context.Context, logger *log.Logger, c *core.ChattoCo
 
 	displayName := spec.DisplayName
 	if displayName == "" {
-		displayName = spec.Login
+		displayName = core.LoginDisplayName(spec.Login)
 	}
 	bot, err := c.CreateBotWithAPIKeyName(ctx, owner.GetId(), spec.Login, displayName, spec.APIKeyName)
 	if err != nil {
@@ -291,7 +291,7 @@ func applyBootstrapUser(ctx context.Context, logger *log.Logger, c *core.ChattoC
 
 	displayName := u.DisplayName
 	if displayName == "" {
-		displayName = u.Login
+		displayName = core.LoginDisplayName(u.Login)
 	}
 
 	user, err := c.CreateUser(ctx, "system", u.Login, displayName, u.Password)

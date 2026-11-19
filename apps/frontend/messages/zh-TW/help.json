@@ -1,0 +1,37 @@
+{
+  "help": {
+    "contents": "本頁內容",
+    "design": {
+      "welcome": "熟悉 Chatto 的使用方式。",
+      "explore": "繼續探索",
+      "reference": "格式速查",
+      "reference_hint": "選擇範例，在編輯器中試試。",
+      "question": "誰會參加下一次通話？"
+    },
+    "overview": "總覽",
+    "intro": "聊天與伺服器管理的簡短指南。",
+    "users": "適用於成員",
+    "admins": "適用於管理員",
+    "example": "在這裡試試",
+    "example_hint": "此範例只在目前頁面運作，不會傳送訊息。",
+    "input": "訊息文字",
+    "preview": "預覽",
+    "sample": "**大家**好！",
+    "conversations": {
+      "title": "使用 Chatto",
+      "description": "瞭解討論串、未讀動態、通知和連線問題。"
+    },
+    "formatting": {
+      "title": "設定訊息格式",
+      "description": "加入強調與行內程式碼。"
+    },
+    "bots": {
+      "title": "機器人",
+      "description": "建立 API 帳戶並準確控制他們可以執行的操作"
+    },
+    "phone": {
+      "title": "在手機上安裝 Chatto",
+      "description": "將 Chatto 加入主畫面並啟用通知。"
+    }
+  }
+}

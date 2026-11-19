@@ -312,7 +312,7 @@ describe('server member detail queries', () => {
 
     expect(api.updateUserProfile).toHaveBeenCalledWith('alice', { login: 'renamed' });
     const cached = queryClient.getQueryData<AdminMemberDetails>(
-      adminQueryKeys.member('server-1', server.scope.connection, 'alice')
+      adminQueryKeys.member(server.scope, 'alice')
     );
     expect(cached?.member?.login).toBe('renamed');
   });
@@ -323,7 +323,7 @@ describe('server member detail queries', () => {
     setInput(rendered.container.querySelector('#member-login') as HTMLInputElement, 'renamed');
     // A realtime admin refresh delivers the member's own display-name change.
     queryClient.setQueryData(
-      adminQueryKeys.member('server-1', server.scope.connection, 'alice'),
+      adminQueryKeys.member(server.scope, 'alice'),
       details(member('alice', { displayName: 'Changed Elsewhere' }))
     );
     flushSync();
@@ -347,7 +347,7 @@ describe('server member detail queries', () => {
     await vi.waitFor(() => expect(api.uploadAvatar).toHaveBeenCalledWith('alice', file));
     await settle();
     const cached = queryClient.getQueryData<AdminMemberDetails>(
-      adminQueryKeys.member('server-1', server.scope.connection, 'alice')
+      adminQueryKeys.member(server.scope, 'alice')
     );
     expect(cached?.member?.avatarUrl).toBe('/avatar.webp');
   });
@@ -378,11 +378,7 @@ describe('server member detail queries', () => {
   });
 
   it('updates roles and invalidates the related permission snapshots', async () => {
-    const userPermissionsKey = adminQueryKeys.userPermissions(
-      'server-1',
-      server.scope.connection,
-      'alice'
-    );
+    const userPermissionsKey = adminQueryKeys.userPermissions(server.scope, 'alice');
     queryClient.setQueryData(userPermissionsKey, { marker: true });
     const rendered = renderSection('roles');
     await settle();
@@ -416,7 +412,7 @@ describe('server member detail queries', () => {
     await vi.waitFor(() => expect(api.assignRole).toHaveBeenCalledTimes(2));
     await vi.waitFor(() => {
       const bob = queryClient.getQueryData<AdminMemberDetails>(
-        adminQueryKeys.member('server-1', server.scope.connection, 'bob')
+        adminQueryKeys.member(server.scope, 'bob')
       );
       expect(bob?.member?.roles).toContain('admin');
     });
@@ -453,7 +449,7 @@ describe('server member detail queries', () => {
     await settle();
 
     const bob = queryClient.getQueryData<AdminMemberDetails>(
-      adminQueryKeys.member('server-1', server.scope.connection, 'bob')
+      adminQueryKeys.member(server.scope, 'bob')
     );
     expect(bob?.member?.login).toBe('bob');
     expect(rendered.container.textContent).toContain('BOB');

@@ -32,7 +32,11 @@ describe('PermissionHelpDialog', () => {
     await expect.element(help).toHaveTextContent('Post messages and thread replies, and start DMs');
     await expect.element(help).toHaveTextContent('To stop all posting');
     await expect.element(help).toHaveTextContent('Can be set for Server, Group, Room, DM');
-    await expect.element(help).not.toHaveTextContent('Needs privileged mode');
+    await expect
+      .element(help)
+      .not.toHaveTextContent(
+        'When granted directly to an account, this permission requires Shield Mode.'
+      );
   });
 
   it('lists only configurable related permissions and switches to them', async () => {
@@ -52,10 +56,14 @@ describe('PermissionHelpDialog', () => {
     await expect.element(help).toHaveTextContent('Included in message.post');
   });
 
-  it('marks permissions that need privileged mode', async () => {
+  it('shows no per-permission Shield Mode requirement', async () => {
     const help = openHelp('message.manage');
 
-    await expect.element(help).toHaveTextContent('Needs privileged mode');
+    await expect
+      .element(help)
+      .not.toHaveTextContent(
+        'When granted directly to an account, this permission requires Shield Mode.'
+      );
   });
 
   it('shows only the category for a permission from a newer server', async () => {

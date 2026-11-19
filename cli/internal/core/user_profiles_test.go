@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/stretchr/testify/require"
 )
 
 // TestChattoCore_CreateUser_DisplayNameTooLong tests that oversized display names are rejected.
@@ -303,6 +304,27 @@ func TestChattoCore_UpdateUserLoginReleasesOldMentionHandle(t *testing.T) {
 	if _, err := core.CreateServerRole(ctx, SystemActorID, "oldhandle", "Old Handle", ""); err != nil {
 		t.Fatalf("CreateServerRole with released login: %v", err)
 	}
+}
+
+func TestLowerLoginLimit(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	login := strings.Repeat("a", 64)
+	user, err := c.CreateUser(ctx, SystemActorID, login, LoginDisplayName(login), "password123")
+	require.NoError(t, err)
+	require.Equal(t, strings.Repeat("a", MaxDisplayNameLength), user.DisplayName)
+
+	c.config.Accounts.MaxLoginLength = new(2)
+	_, err = c.VerifyPassword(ctx, login, "password123")
+	require.NoError(t, err)
+	_, err = c.AdminUpdateUserProfile(ctx, user.Id, &login, new("New name"), nil)
+	require.NoError(t, err)
+	_, err = c.AdminUpdateUserLogin(ctx, user.Id, "abc")
+	require.ErrorIs(t, err, ErrLoginTooLong)
+	_, err = c.AdminUpdateUserLogin(ctx, user.Id, "ab")
+	require.NoError(t, err)
+	_, err = c.SuggestProviderUsername("ab")
+	require.ErrorIs(t, err, ErrLoginAlreadyTaken)
 }
 
 func TestChattoCore_UpdateUserLogin(t *testing.T) {

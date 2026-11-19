@@ -14,6 +14,7 @@
       "clear_confirm_title": "¿Borrar el aviso de la sala?",
       "clear_confirm_description": "Esto elimina de inmediato el aviso activo para todos los miembros de la sala. Tus cambios sin guardar no se publicarán.",
       "empty": "No se ha publicado ningún aviso.",
+      "load_failed": "No se ha podido cargar el aviso.",
       "edit": "Editar aviso"
     },
     "information": {
@@ -21,7 +22,12 @@
       "created": "Creada",
       "title": "Información de la sala",
       "basic": "General",
-      "pinned_messages": "Mensajes fijados"
+      "pinned_messages": "Mensajes fijados",
+      "threads": "Temas",
+      "slow_mode": "Modo lento",
+      "channel_slow_mode": "Modo lento del canal",
+      "thread_slow_mode": "Modo lento de los hilos",
+      "slow_mode_off": "Desactivado"
     },
     "create": {
       "title": "Crear una Nueva Sala",

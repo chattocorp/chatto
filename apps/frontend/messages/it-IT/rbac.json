@@ -23,6 +23,7 @@
       "display_name_too_long": "Il nome visualizzato deve contenere al massimo 64 caratteri",
       "description": "Descrizione",
       "description_placeholder": "Descrizione facoltativa per questo ruolo",
+      "require_shield": "Richiedi la modalità privilegiata",
       "pingable": "Consenti alle persone di eseguire il ping di questo ruolo",
       "pingable_description": "I ruoli pingabili vengono visualizzati nel completamento automatico @ e avvisano i membri della stanza assegnata."
     },
@@ -129,8 +130,6 @@
         "open": "Informazioni su {permission}",
         "category": "Categoria",
         "scopes": "Impostabile per",
-        "privileged": "Richiede la modalità privilegiata",
-        "privileged_detail": "Gli account devono attivare la modalità privilegiata per usare questa autorizzazione.",
         "includes": "Include",
         "included_by": "Inclusa in"
       }

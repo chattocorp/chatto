@@ -7,15 +7,23 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/chattocorp/chatto/authling/internal/config"
 	mail "github.com/wneessen/go-mail"
 )
 
 // Message is one plain-text transactional email.
-type Message struct{ To, Subject, Body string }
+type Message struct {
+	To      string `json:"to"`
+	Subject string `json:"subject"`
+	Body    string `json:"body"`
+	// ExpiresAt bounds queued delivery without extending the workflow lifetime.
+	ExpiresAt time.Time `json:"expires_at"`
+}
 
-// Sender is the delivery seam used by account registration.
+// Sender accepts mail. QueueSender persists it for delivery; Mailer submits it
+// to SMTP. Workflow services receive QueueSender in the production runtime.
 type Sender interface {
 	SendContext(context.Context, Message) error
 }

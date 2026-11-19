@@ -43,7 +43,7 @@
       "password_min_bytes": "Le mot de passe est trop court",
       "password_max": "Le mot de passe est trop long",
       "username_min": "Doit contenir au moins 2 caractères",
-      "username_max": "Doit contenir au maximum 32 caractères",
+      "username_max": "Doit contenir au maximum {max} caractères",
       "username_charset": "Uniquement les lettres, chiffres, points, tirets, traits de soulignement",
       "username_end_alphanumeric": "Doit se terminer par une lettre ou un chiffre",
       "username_no_consecutive_periods": "Aucune période consécutive autorisée",

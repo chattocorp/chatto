@@ -1,11 +1,13 @@
 import { OAuthPopupError } from '$lib/oauth/popupError';
-import { openAuthorizationWindow, type AuthorizationWindow } from './authorizationWindow';
+import {
+  authorizationWindowFeatures,
+  openAuthorizationWindow,
+  type AuthorizationWindow
+} from './authorizationWindow';
 
 export const OAUTH_POPUP_RESPONSE_TYPE = 'chatto:oauth-popup-response';
 
 const OAUTH_POPUP_CHANNEL_PREFIX = 'chatto:oauth-popup:';
-const POPUP_WIDTH = 520;
-const POPUP_HEIGHT = 600;
 const POPUP_POLL_INTERVAL_MS = 250;
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -14,9 +16,16 @@ export type OAuthPopupResponse = {
   state: string;
   /** Provider sign-in established an origin cookie session; verify it with the server. */
   completed?: boolean;
+  /**
+   * Provider sign-in found no account and the user may create one. The opening
+   * window confirms the new account with this short-lived token.
+   */
+  externalIdentityToken?: string;
   code?: string;
   error?: string;
   errorDescription?: string;
+  /** The `iss` parameter of the callback: the server that sent the response. */
+  iss?: string;
 };
 
 /** Return the same-origin channel used by one popup authorization transaction. */
@@ -34,10 +43,14 @@ export function isOAuthPopupResponse(value: unknown): value is OAuthPopupRespons
 /** Build the response envelope from an OAuth callback URL. */
 export function oauthPopupResponseFromURL(url: URL): OAuthPopupResponse | null {
   const state = url.searchParams.get('state');
-  if (!state) return null;
+  // More than one issuer makes the source of the response ambiguous.
+  if (!state || url.searchParams.getAll('iss').length > 1) return null;
 
   if (url.searchParams.get('mode') === 'provider' && !url.searchParams.has('error')) {
-    return { type: OAUTH_POPUP_RESPONSE_TYPE, state, completed: true };
+    const externalIdentityToken = url.searchParams.get('external_identity');
+    return externalIdentityToken
+      ? { type: OAUTH_POPUP_RESPONSE_TYPE, state, externalIdentityToken }
+      : { type: OAUTH_POPUP_RESPONSE_TYPE, state, completed: true };
   }
 
   const code = url.searchParams.get('code') ?? undefined;
@@ -49,23 +62,39 @@ export function oauthPopupResponseFromURL(url: URL): OAuthPopupResponse | null {
     state,
     code,
     error,
-    errorDescription: url.searchParams.get('error_description') ?? undefined
+    errorDescription: url.searchParams.get('error_description') ?? undefined,
+    iss: url.searchParams.get('iss') ?? undefined
   };
 }
 
 export { OAuthPopupError } from './popupError';
 
 export type OAuthPopup = {
+  /**
+   * The callback response of this transaction. Rejects with `OAuthPopupError`
+   * when the person closes the window (`cancelled`) or the attempt times out.
+   */
   response: Promise<OAuthPopupResponse>;
-  navigate(url: string): void;
+  /** Send the window to the authorization URL. */
+  navigate(url: string): Promise<void>;
+  /** Close the window. A pending `response` then rejects as `cancelled`. */
   close(): void;
+  /** Stop waiting and reject `response` as cancelled. */
+  cancel(): void;
 };
 
-/** Open an OAuth popup while a user gesture is active. */
+/**
+ * Open an OAuth popup while a user gesture is active, and wait for the
+ * callback response of the transaction `state`. Call it before any `await`,
+ * or the browser can block the window.
+ *
+ * @throws OAuthPopupError with reason `blocked` when the browser blocks the window.
+ */
 export function openOAuthPopup(state: string): OAuthPopup {
+  const frameName = `chatto-oauth-${state.slice(0, 12)}`;
   const authorizationWindow = openAuthorizationWindow(
-    `chatto-oauth-${state.slice(0, 12)}`,
-    popupFeatures(window)
+    frameName,
+    authorizationWindowFeatures(window)
   );
   if (!authorizationWindow)
     throw new OAuthPopupError('The sign-in window could not be opened.', 'blocked');
@@ -74,35 +103,30 @@ export function openOAuthPopup(state: string): OAuthPopup {
     typeof BroadcastChannel === 'undefined'
       ? null
       : new BroadcastChannel(oauthPopupChannelName(state));
+  // The callback returns through BroadcastChannel, so the untrusted remote
+  // page does not need a reference capable of navigating the main client.
   if (channel) authorizationWindow.detachOpener();
 
-  return {
-    response: waitForPopupResponse(authorizationWindow, state, channel),
-    navigate: (url) => {
-      void authorizationWindow.navigate(url);
-    },
-    close: () => {
-      void authorizationWindow.close();
-    }
-  };
-}
-
-function popupFeatures(owner: Window): string {
-  const left = Math.max(0, Math.round(owner.screenX + (owner.outerWidth - POPUP_WIDTH) / 2));
-  const top = Math.max(0, Math.round(owner.screenY + (owner.outerHeight - POPUP_HEIGHT) / 2));
-  return `popup,width=${POPUP_WIDTH},height=${POPUP_HEIGHT},left=${left},top=${top}`;
+  return waitForPopupResponse(authorizationWindow, state, channel, frameName);
 }
 
 function waitForPopupResponse(
   authorizationWindow: AuthorizationWindow,
   state: string,
-  channel: BroadcastChannel | null
-): Promise<OAuthPopupResponse> {
-  return new Promise((resolve, reject) => {
+  channel: BroadcastChannel | null,
+  frameName: string
+): OAuthPopup {
+  // An installed web app can launch an independent browser tab. Its window
+  // handle can report closed even while the launch page is still visible.
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches;
+  let navigationStarted = false;
+  let cancel = () => {};
+  const response = new Promise<OAuthPopupResponse>((resolve, reject) => {
     let settled = false;
 
     const cleanup = () => {
       window.removeEventListener('message', handleWindowMessage);
+      unsubscribeClosed?.();
       channel?.close();
       window.clearInterval(closePoll);
       window.clearTimeout(timeout);
@@ -112,7 +136,7 @@ function waitForPopupResponse(
       if (settled || response.state !== state) return;
       settled = true;
       cleanup();
-      void authorizationWindow.close();
+      void closeAuthorizationWindow(authorizationWindow);
       resolve(response);
     };
 
@@ -120,13 +144,14 @@ function waitForPopupResponse(
       if (settled) return;
       settled = true;
       cleanup();
-      void authorizationWindow.close();
+      void closeAuthorizationWindow(authorizationWindow);
       reject(new OAuthPopupError(message, reason));
     };
 
     const handleWindowMessage = (event: MessageEvent) => {
       if (
         event.origin !== window.location.origin ||
+        !authorizationWindow.messageSource ||
         event.source !== authorizationWindow.messageSource
       )
         return;
@@ -140,14 +165,55 @@ function waitForPopupResponse(
       };
     }
 
-    const closePoll = window.setInterval(async () => {
-      if (await authorizationWindow.isClosed()) {
-        fail('The sign-in window was closed before authorization completed.', 'cancelled');
-      }
-    }, POPUP_POLL_INTERVAL_MS);
+    cancel = () => fail('The sign-in attempt was cancelled.', 'cancelled');
+
+    const unsubscribeClosed = window.chattoDesktop?.onAuthorizationWindowClosed?.((closedName) => {
+      if (closedName === frameName) cancel();
+    });
+
+    let polling = false;
+    const closePoll = unsubscribeClosed
+      ? undefined
+      : window.setInterval(async () => {
+          if (polling || settled) return;
+          polling = true;
+          try {
+            if (!(await authorizationWindow.isClosed())) return;
+            if (channel && (navigationStarted || standalone)) {
+              // A provider page with `Cross-Origin-Opener-Policy: same-origin`, such as
+              // Bluesky's, cuts the link to this window. The window handle then reports
+              // `closed` although the user is still signing in. With a channel, keep
+              // waiting for the result; the user can cancel the wait instead.
+              window.clearInterval(closePoll);
+              return;
+            }
+            fail('The sign-in window was closed before authorization completed.', 'cancelled');
+          } catch {
+            fail('The sign-in window could not be inspected.');
+          } finally {
+            polling = false;
+          }
+        }, POPUP_POLL_INTERVAL_MS);
     const timeout = window.setTimeout(
       () => fail('The sign-in attempt timed out.'),
       POPUP_TIMEOUT_MS
     );
   });
+  return {
+    response,
+    cancel,
+    close: cancel,
+    navigate(url) {
+      navigationStarted = true;
+      return authorizationWindow.navigate(url);
+    }
+  };
+}
+
+async function closeAuthorizationWindow(authorizationWindow: AuthorizationWindow): Promise<void> {
+  try {
+    await authorizationWindow.close();
+  } catch {
+    // Closing is best-effort after the flow has already completed or failed.
+  }
 }

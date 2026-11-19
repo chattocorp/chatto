@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
+	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 )
@@ -25,6 +26,7 @@ func (s *pushNotificationService) SendTestNotification(ctx context.Context, _ *c
 		if errors.Is(err, core.ErrPushTestNotificationRateLimited) {
 			return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("test push notification rate limit exceeded"))
 		}
+		log.WithPrefix("push").Warn("Push test failed", "stage", "admission", "user_id", caller.UserID)
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("push notification could not be delivered"))
 	}
 

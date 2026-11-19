@@ -24,7 +24,7 @@ function localeCatalogChunkName(moduleId: string): string | null {
   if (!catalogSections.includes(section as (typeof catalogSections)[number])) return null;
 
   const boundary = catalogBoundary(section as (typeof catalogSections)[number]);
-  if (locale === 'en-GB' && boundary !== 'management') return null;
+  if (locale === 'en-GB' && boundary !== 'management' && boundary !== 'help') return null;
   return `translatto-${locale}-${boundary}`;
 }
 

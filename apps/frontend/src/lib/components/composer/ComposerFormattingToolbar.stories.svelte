@@ -26,6 +26,7 @@
     bold: true,
     italic: false,
     underline: true,
+    strikethrough: true,
     inlineCode: false,
     heading: false,
     bulletList: false,

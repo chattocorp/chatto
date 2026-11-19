@@ -214,6 +214,7 @@ test.describe('Bot account lifecycle', () => {
         async () => {
           if (active) {
             await page.getByRole('button', { name: 'Enable privileged mode' }).click();
+            await page.getByRole('dialog').getByText('owner', { exact: true }).click();
             await page
               .getByRole('dialog', { name: 'Enable privileged mode' })
               .getByRole('button', { name: 'Enable privileged mode' })

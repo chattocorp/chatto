@@ -77,7 +77,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
 	isBot := options.isBot
-	if err := ValidateLogin(login); err != nil {
+	if err := ValidateLogin(login, c.LoginLengthLimit()); err != nil {
 		return nil, err
 	}
 	if isBot {
@@ -113,7 +113,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	// Enforce server-wide user limit at signup as a UX gate so people don't sign up
 	// only to be blocked when adding their first verified sign-in factor. The
 	// factor-add checks remain the race-safe hard gate.
-	if max := c.config.Limits.MaxUsersOrDefault(); max >= 0 {
+	if max := c.config.Accounts.MaxUsersOrDefault(); max >= 0 {
 		count, err := c.CountUserLimitAccounts(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to count verified accounts: %w", err)
@@ -347,12 +347,12 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		if err := c.requireLoginMentionHandleAvailable(login); err != nil {
 			return err
 		}
-		if isBot && c.config.Limits.MaxUsersOrDefault() >= 0 {
+		if isBot && c.config.Accounts.MaxUsersOrDefault() >= 0 {
 			count, err := c.CountUserLimitAccounts(ctx)
 			if err != nil {
 				return err
 			}
-			if count >= c.config.Limits.MaxUsersOrDefault() {
+			if count >= c.config.Accounts.MaxUsersOrDefault() {
 				return ErrLimitExceeded
 			}
 		}
@@ -366,7 +366,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 				return ErrExternalIdentityAlreadyClaimed
 			}
 		}
-		if (len(creationEmails) > 0 || options.external != nil) && c.config.Limits.MaxUsersOrDefault() >= 0 {
+		if (len(creationEmails) > 0 || options.external != nil) && c.config.Accounts.MaxUsersOrDefault() >= 0 {
 			if err := c.requireVerifiedAccountCapacity(ctx, ""); err != nil {
 				return err
 			}
@@ -528,7 +528,7 @@ var ErrUsernameBlocked = fmt.Errorf("this username is not available")
 // result is advisory; account creation remains the race-safe authority.
 func (c *ChattoCore) IsLoginAvailable(login string) bool {
 	login = strings.TrimSpace(login)
-	return ValidateLogin(login) == nil &&
+	return ValidateLogin(login, c.LoginLengthLimit()) == nil &&
 		!c.configModel.IsUsernameBlocked(login) &&
 		!c.loginConflictsWithMentionHandle(login) &&
 		!c.userModel.loginExists(login)

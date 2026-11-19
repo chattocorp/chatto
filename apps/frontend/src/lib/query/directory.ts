@@ -1,32 +1,23 @@
-import type { ServerConnection } from '@chatto/client/server/serverConnection';
-import { serverSessionQueryRoot } from './keys';
+import { serverSessionQueryRoot, type QueryKeyScope } from './keys';
 
-type DirectoryQueryConnection = Pick<ServerConnection, 'queryScope'>;
-
-function directoryRoot(serverId: string, connection: DirectoryQueryConnection) {
-  return [...serverSessionQueryRoot(serverId, connection), 'directory'] as const;
+function directoryRoot(scope: QueryKeyScope) {
+  return [...serverSessionQueryRoot(scope), 'directory'] as const;
 }
 
 export const directoryQueryKeys = {
   root: directoryRoot,
-  users(serverId: string, connection: DirectoryQueryConnection, search: string, limit: number) {
-    return [...directoryRoot(serverId, connection), 'users', { search, limit }] as const;
+  users(scope: QueryKeyScope, search: string, limit: number) {
+    return [...directoryRoot(scope), 'users', { search, limit }] as const;
   },
-  room(serverId: string, connection: DirectoryQueryConnection, roomId: string) {
-    return [...directoryRoot(serverId, connection), 'room', roomId] as const;
+  room(scope: QueryKeyScope, roomId: string) {
+    return [...directoryRoot(scope), 'room', roomId] as const;
   },
-  roomMembers(serverId: string, connection: DirectoryQueryConnection, roomId: string) {
-    return [...directoryQueryKeys.room(serverId, connection, roomId), 'members'] as const;
+  roomMembers(scope: QueryKeyScope, roomId: string) {
+    return [...directoryQueryKeys.room(scope, roomId), 'members'] as const;
   },
-  eligibleRoomMembers(
-    serverId: string,
-    connection: DirectoryQueryConnection,
-    roomId: string,
-    search: string,
-    limit: number
-  ) {
+  eligibleRoomMembers(scope: QueryKeyScope, roomId: string, search: string, limit: number) {
     return [
-      ...directoryQueryKeys.room(serverId, connection, roomId),
+      ...directoryQueryKeys.room(scope, roomId),
       'eligible-members',
       { search, limit }
     ] as const;

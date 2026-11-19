@@ -29,7 +29,11 @@ export interface RunActivity {
 export interface RunSummary extends JournalRunSummary {
   activity?: RunActivity | null;
 }
-export type RunDetail = JournalRunDetail & { activity?: RunActivity | null };
+export type RunDetail = JournalRunDetail & {
+  activity?: RunActivity | null;
+  /** Last recorded event time, including output excluded from console metadata. */
+  lastEventAt?: number;
+};
 
 /** Extend a server-owned history in place; journal records contain only the new execution. */
 export function continueRun(previous: RunDetail, next: RunDetail): RunDetail {
@@ -65,6 +69,7 @@ export function applyRecord(run: RunDetail, record: RunRecord): RunDetail {
       ...run,
       ...(record.event.type === 'run.title' ? { title: record.event.title } : {}),
       events: [...run.events, record.event],
+      lastEventAt: record.event.timestamp,
       usage: record.event.type === 'usage.updated' ? runUsage(run, record.event.usage) : run.usage
     };
   }

@@ -42,13 +42,27 @@ export function configureMarkdownLinks(markdown: MarkdownIt): void {
   linkify.set({ fuzzyLink: false, fuzzyEmail: false });
   linkify.add('//', null);
   linkify.add('ftp:', null);
+  linkify.add('http:', {
+    validate(text, position, self) {
+      // Keep the library's URL grammar, but leave sentence colons outside links.
+      // HTTPS uses this validator through linkify-it's built-in schema alias.
+      self.re.http ??= new RegExp(
+        `^//${self.re.src_auth}${self.re.src_host_port_strict}${self.re.src_path}`,
+        'i'
+      );
+      const match = self.re.http.exec(text.slice(position));
+      return match ? match[0].replace(/:+$/, '').length : 0;
+    }
+  });
   linkify.add('www.', {
     validate(text, position, self) {
       // Reuse the library's host, port, and path grammar, including known TLDs.
       const start = position - 4;
       const offset = Math.max(0, start - 1);
       const match = self.re.link_no_ip_fuzzy.exec(text.slice(offset));
-      return match && offset + match.index + match[1].length === start ? match[2].length - 4 : 0;
+      return match && offset + match.index + match[1].length === start
+        ? match[2].replace(/:+$/, '').length - 4
+        : 0;
     },
     normalize(match) {
       match.url = `https://${match.raw}`;

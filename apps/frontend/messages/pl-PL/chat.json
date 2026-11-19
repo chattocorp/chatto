@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Włącz tryb uprzywilejowany",
       "disable": "Wyłącz tryb uprzywilejowany",
+      "select_roles": "Wybierz role, które chcesz włączyć na 15 minut.",
       "confirmation": "Na 15 minut włączy to dodatkowe uprawnienia przypisane do ciebie na tym serwerze."
     },
     "notifications": {
@@ -72,9 +73,13 @@
       "requires": "Wymaga wersji {version} lub nowszej",
       "thread_views_title": "Widoki wątków mają ograniczoną obsługę",
       "thread_views_description": "Obserwowane wątki i wątki rozpoczęte przez Ciebie mogą nie być wyświetlane oddzielnie na tym serwerze.",
-      "independent_slow_mode_title": "Niezależny tryb spowolniony jest niedostępny",
+      "independent_slow_mode_title": "Niezależny tryb powolny jest niedostępny",
       "independent_slow_mode_description": "Ten serwer używa wspólnego czasu oczekiwania dla wiadomości kanału i odpowiedzi w wątkach.",
-      "upgrade": "Aby uzyskać pełną obsługę, poproś administratora serwera o aktualizację do wersji {version} lub nowszej."
+      "upgrade": "Aby uzyskać pełną obsługę, poproś administratora serwera o aktualizację do wersji {version} lub nowszej.",
+      "background_jobs_title": "Zadania w tle są niedostępne",
+      "background_jobs_description": "Ten serwer nie może wyświetlać ani ponawiać zadań w tle w ustawieniach serwera.",
+      "shield_role_selection_title": "Wybór ról w trybie uprzywilejowanym",
+      "shield_role_selection_description": "Ten serwer aktywuje wszystkie dostępne uprawnienia jednocześnie."
     },
     "server_gutter": {
       "move_up": "Przesuń w górę",
@@ -192,7 +197,17 @@
       "system": "System",
       "back_to_server": "Wróć do serwera",
       "invites": "Zaproszenia",
-      "registration": "Rejestracja"
+      "registration": "Rejestracja",
+      "jobs": "Zadania"
+    },
+    "owner_welcome": {
+      "title": "Twój serwer jest gotowy",
+      "intro": "Jesteś właścicielem tego serwera. Aby chronić Twoje konto, uprawnienia właściciela pozostają wyłączone podczas zwykłego użytkowania.",
+      "shield_active": "Tryb uprzywilejowany jest włączony przez następne 15 minut, więc możesz teraz skonfigurować serwer. Aby włączyć go ponownie później, użyj przycisku tarczy obok swojego imienia.",
+      "shield_inactive": "Aby skonfigurować serwer, włącz tryb uprzywilejowany przyciskiem tarczy obok swojego imienia. Pozostaje włączony przez 15 minut.",
+      "shield_failed": "Nie udało się włączyć trybu uprzywilejowanego.",
+      "next_steps": "Następne kroki",
+      "continue_setup": "Kontynuuj konfigurację"
     }
   }
 }

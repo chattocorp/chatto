@@ -14,6 +14,7 @@
       "clear_confirm_title": "Oda duyurusu temizlensin mi?",
       "clear_confirm_description": "Bu işlem etkin duyuruyu odadaki herkes için hemen kaldırır. Kaydedilmemiş değişiklikleriniz yayımlanmaz.",
       "empty": "Henüz bir duyuru yayımlanmadı.",
+      "load_failed": "Duyuru yüklenemedi.",
       "edit": "Duyuruyu düzenle"
     },
     "information": {
@@ -21,7 +22,12 @@
       "created": "Oluşturuldu",
       "title": "Oda bilgileri",
       "basic": "Genel",
-      "pinned_messages": "Sabitlenmiş mesajlar"
+      "pinned_messages": "Sabitlenmiş mesajlar",
+      "threads": "Konular",
+      "slow_mode": "Yavaş mod",
+      "channel_slow_mode": "Kanal yavaş modu",
+      "thread_slow_mode": "Konu yavaş modu",
+      "slow_mode_off": "Kapalı"
     },
     "create": {
       "title": "Yeni Oda Oluştur",

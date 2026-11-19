@@ -1,4 +1,5 @@
 packages:
+  - ci
   - apps/*
   - examples/*
   - packages/*

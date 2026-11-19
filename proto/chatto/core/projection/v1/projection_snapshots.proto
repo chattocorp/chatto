@@ -597,6 +597,7 @@ message RoleSnapshot {
   string display_name = 2; // Human-readable name, e.g., "Owner", "Moderator", "Content Reviewer"
   string description = 3;
   int32 position = 4; // Display/order position; not an authorization rank.
+  bool requires_shield_mode = 6;
   bool pingable = 5; // Whether messages can ping users assigned to this role.
 }
 

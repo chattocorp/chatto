@@ -1,0 +1,13 @@
+{
+  "$comment": "Every Chatto job type. The server (cli/internal/core/job_types_test.go) checks that this list matches jobTypes(). The frontend (apps/frontend/src/routes/chat/[serverId]/manage/server/jobs/jobPresentation.test.ts) checks that each type has a label. See the chatto-jobs-implementation skill.",
+  "types": [
+    "asset_cleanup",
+    "call_key_cleanup",
+    "email",
+    "media",
+    "notification_alert",
+    "push_subscription_cleanup",
+    "user_key_shredding",
+    "webhook"
+  ]
+}

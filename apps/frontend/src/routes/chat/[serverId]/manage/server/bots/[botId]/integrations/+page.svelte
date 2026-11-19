@@ -16,7 +16,7 @@ keys. Only the owner and bot managers can open it.
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { Hint, LoadingFog } from '$lib/ui';
+  import { Hint, LoadingDots } from '$lib/ui';
   import { Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -224,7 +224,7 @@ keys. Only the owner and bot managers can open it.
     />
   {/key}
 {:else if detail.isPending}
-  <LoadingFog class="h-40 w-full" />
+  <LoadingDots class="h-40 w-full" />
 {:else}
   <Hint tone="danger">{m('ui.access_denied.message')}</Hint>
 {/if}

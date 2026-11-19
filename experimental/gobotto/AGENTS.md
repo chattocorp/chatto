@@ -40,11 +40,11 @@ server architecture inventory.
   Never copy thread content into a room journal. Journal summaries are untrusted
   context, not authority or proof of effects. Invalidate them on access/history
   changes, including unloaded scopes, and reject stale in-flight journal writes.
-- Keep output bound to the triggering thread. The model must not select another
-  destination for ordinary turns. Owner-created schedules can select a reply in
-  that thread or a top-level post in its room; the host supplies all destination
-  IDs and enforces the saved choice. Preserve completed tool receipts even when
-  later work fails.
+- Allow model-selected Chatto reads and writes across rooms through the connected
+  server's MCP catalog. Server RBAC and bot permissions authorize each operation;
+  do not add a Gobotto destination allowlist. Final text and host progress use the
+  triggering conversation; scheduled final text uses the saved destination.
+  Preserve delivery receipts and never automatically retry uncertain writes.
 - Do not automatically replay started turns or uncertain writes. A durable inbox
   can restore pending input; it must not turn an interrupted action into a retry.
   Model-tool work and Chatto delivery are not one transaction.

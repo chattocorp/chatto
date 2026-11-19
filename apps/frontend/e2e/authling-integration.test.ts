@@ -85,7 +85,7 @@ test('Desktop registration through SSO stays in one window and returns to the cl
     await expect(popup).toHaveURL(/\/register\?redirect=/);
     await popup.getByRole('link', { name: 'Continue with Authling' }).click();
     await popup.getByRole('button', { name: 'Authorize' }).click();
-    await expect(popup.getByRole('heading', { name: 'Confirm Sign-In' })).toBeVisible();
+    await expect(popup.getByRole('heading', { name: /^Join / })).toBeVisible();
     await popup.getByLabel('Username').fill('desktop-sso-user');
     await popup.getByRole('button', { name: 'Create Account' }).click();
     await expect(popup.getByRole('button', { name: 'Allow Access' })).toBeVisible();
@@ -134,15 +134,16 @@ test('transfers an editable Authling profile into a new Chatto account', async (
   await popup.getByLabel('Email address').fill(email);
   await popup.getByLabel('Password').fill(password);
   await popup.getByRole('button', { name: 'Sign in' }).click();
-  await popup.getByRole('button', { name: 'Authorize' }).click();
-
-  await expect(popup.getByRole('heading', { name: 'Confirm Sign-In' })).toBeVisible();
-  await expect(popup.getByLabel('Username')).toHaveValue(preferredUsername);
-  await expect(popup.getByLabel('Display Name')).toHaveValue(authlingName);
-  await popup.getByLabel('Display Name').fill(chattoName);
   const closed = popup.waitForEvent('close');
-  await popup.getByRole('button', { name: 'Create Account' }).click();
+  await popup.getByRole('button', { name: 'Authorize' }).click();
+  // The popup hands the new account to the window that opened it (FDR-023).
   await closed;
+
+  await expect(page.getByRole('heading', { name: /^Join / })).toBeVisible();
+  await expect(page.getByLabel('Username')).toHaveValue(preferredUsername);
+  await expect(page.getByLabel('Display Name')).toHaveValue(authlingName);
+  await page.getByLabel('Display Name').fill(chattoName);
+  await page.getByRole('button', { name: 'Create Account' }).click();
   await page.waitForURL(routes.patterns.chatRedirect);
 
   await page.goto(routes.settings);

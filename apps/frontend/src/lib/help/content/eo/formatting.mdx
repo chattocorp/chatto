@@ -1,0 +1,107 @@
+<script>
+  import { resolve } from '$app/paths';
+  import FormattingExample from '$lib/help/FormattingExample.svelte';
+  import MarkdownSample from '$lib/help/MarkdownSample.svelte';
+</script>
+
+Vi povas formati Chatto-mesaĝojn per Markdown. Ekzemple, `**saluton**` aperas kiel **saluton**. Tajpu la formatajn signojn mem, aŭ elektu tekston kaj uzu la formatan ilobreton.
+
+## Elekti redaktilon kaj sendan klavkombinon
+
+Malfermu <a href={resolve('/chat/preferences/composer')}>Aplikaj preferoj → Mesaĝverkilo</a> kaj elektu **Markdown** por redakti la fontotekston. Elektu **Vida** se vi preferas labori kun formatita teksto. La formata ilobreto disponeblas en ambaŭ redaktiloj.
+
+La agordo **Sendi mesaĝojn per** regas la enigoklavon:
+
+- **Enigo:** Enter sendas la mesaĝon. Ctrl+Enter enmetas novan linion, aŭ Command+Enter ĉe Mac.
+- **Cmd/Ctrl+Enigo:** Ctrl+Enter sendas la mesaĝon, aŭ Command+Enter ĉe Mac. Enter enmetas novan linion.
+
+Lasu malplenan linion inter alineoj.
+
+## Grasa, kursiva, substrekita kaj trastrekita teksto
+
+Metu formatajn signojn ambaŭflanke de la teksto:
+
+- `**grasa**` por grasa teksto
+- `*kursiva*` por kursiva teksto
+- `__substrekita__` por substreko
+- `~~trastrekita~~` por trastreko
+
+<MarkdownSample source={"Bonvolu kontroli ĉi tion **antaŭ vendredo**.\nLa dato estas *provizora*.\n__Aprobo necesas__ antaŭ publikigo.\nLa malnova limdato estis ~~ĵaŭdo~~."} />
+
+En Chatto, `__teksto__` signifas substreki. Se vi uzas duoblajn substrekojn por grasa teksto en alia Markdown-ilo, uzu ĉi tie duoblajn asteriskojn anstataŭe.
+
+Elektu tekston kaj premu Ctrl+B, Ctrl+I aŭ Ctrl+U por grasa, kursiva aŭ substrekita teksto. Ĉe Mac uzu Command anstataŭ Ctrl. La butonoj de la ilobreto faras la samajn agojn.
+
+Ne metu spacetojn inter la signoj kaj la teksto: `**grava**` funkcias; `** grava **` ne grasigas la tekston.
+
+## Titoloj kaj listoj
+
+Komencu titolon per signoj `#` sekvataj de spaceto. Komencu ĉiun listpunkton per `- `, aŭ ĉiun numeritan eron per nombro kaj punkto, ekzemple `1. `.
+
+<MarkdownSample source={"## Eldona kontrollisto\n\nAntaŭ ol komenci:\n- Konfirmu la version.\n- Informu la subtenan teamon.\n\nPoste:\n1. Deploju la ĝisdatigon.\n2. Kontrolu la statopaĝon.\n3. Afiŝu la rezulton ĉi tie."} />
+
+La butono **Titolo** enmetas dunivelan titolon (`##`). Vi povas mem tajpi titolojn de `#` ĝis `######`.
+
+Uzu **Pligrandigi deŝovon** por nestigi listeron sub la antaŭa ero. Uzu **Malpligrandigi deŝovon** por movi ĝin reen. Lasu malplenan linion post la listo por komenci alineon.
+
+## Citaĵoj
+
+Komencu ĉiun cititan linion per `>` kaj spaceto. Lasu malplenan linion post la citaĵo antaŭ ol skribi vian respondon.
+
+<MarkdownSample source={"> Ĉu ni povas movi la eldonon al vendredo?\n\nJes. La fina kontrolo okazos ĵaŭde posttagmeze."} />
+
+Tajpi citaĵon ne ligas ĝin al la originala mesaĝo. Por respondi al tiu mesaĝo en fadeno, uzu ĝian respondan agon.
+
+## Kodo
+
+Metu unu gravan akcenton ĉiuflanke de mallonga komando, dosiernomo aŭ identigilo. Formataj signoj ene de enlinia kodo aperas kiel tajpitaj.
+
+<MarkdownSample source={"Rulu `git status` antaŭ ol komenci.\nLa agordo nomiĝas `send_mode`.\nTajpu `**saluton**` por grasigi saluton."} />
+
+Por pluraj linioj, metu tri gravajn akcentojn sur linion antaŭ la kodo kaj tri sur linion post ĝi. Aldonu lingvonomon tuj post la komencaj akcentoj por sintaksa kolorigo, ekzemple `js`, `json` aŭ `bash`.
+
+<MarkdownSample source={"```js\nconst release = '0.5';\nconsole.log(release);\n```"} />
+
+La butono **Kodbloko** enmetas la komencajn kaj finajn akcentojn. Sen la fina linio, la resto de la mesaĝo fariĝas parto de la kodbloko. Por montri gravan akcenton ene de enlinia kodo, metu du akcentojn ĉirkaŭ la tekston.
+
+## Ligiloj
+
+Algluita retadreso fariĝas ligilo. Por montri etikedon anstataŭ la adreson, metu la etikedon inter rektajn krampojn kaj la adreson inter rondajn krampojn:
+
+```text
+Legu la [eldonajn notojn](https://example.com/releases).
+```
+
+Ne metu spaceton inter `]` kaj `(`. Por ligi ĉambron aŭ mencii personon en Chatto, elektu ilin el la sugestoj de la redaktilo.
+
+## Piednotoj
+
+Metu referencon kiel `[^window]` post la teksto, kiun vi volas klarigi. Sur aparta linio, skribu `[^window]:` sekvatan de la noto. La etikedoj devas kongrui.
+
+<MarkdownSample source={"La prizorga periodo daŭras 30 minutojn.[^window]\n\n[^window]: Plej multaj serviloj estos neatingeblaj dum malpli ol kvin minutoj."} />
+
+Vi povas ankaŭ meti la kursoron post la koncerna teksto kaj elekti **Enmeti piednoton** en la ilobreto. Piednotoj ne povas esti enmetitaj en enlinian kodon aŭ kodblokon.
+
+## Tabeloj
+
+Apartigu kolumnojn per `|` kaj metu vicon da streketoj sub la kolumnajn titolojn. Uzu `---:` por dekstre aligi kolumnon, aŭ `:---:` por centrigi ĝin.
+
+<MarkdownSample source={"| Medio | Versio |\n| --- | ---: |\n| Testo | 0.5 |\n| Produktado | 0.4 |"} />
+
+Redaktu tabelojn en la Markdown-redaktilo. La vida redaktilo ne havas regilon por redakti tabelojn.
+
+## Provi kompletan mesaĝon
+
+Redaktu la suban mesaĝon por provi la formatadon. La antaŭrigardo ĝisdatiĝas dum vi tajpas. Vi povas ŝanĝi inter la Markdown-redaktilo kaj la vida redaktilo. Nenio, kion vi enigas ĉi tie, estas sendita al ĉambro.
+
+<div class="my-10">
+  <FormattingExample showReference={false} initialValue={"## Vendreda eldono\n\nBonvolu fini la kontrolon **antaŭ 14:00**.\n\n1. Rulu `git status`.\n2. Kontrolu la eldonajn notojn.\n3. Respondu en ĉi tiu fadeno kiam vi pretas.\n\n> Kio se kontrolo malsukcesas?\n\nAfiŝu la eraron ĉi tie antaŭ ol daŭrigi."} />
+</div>
+
+## Kiam la formato ne aspektas ĝuste
+
+- **La signoj ankoraŭ videblas.** Kontrolu, ke ambaŭ finoj kongruas kaj ke ne estas spaceto tuj interne de la komencaj aŭ finaj signoj. En kodo, videblaj signoj estas intencaj.
+- **La resto de la mesaĝo aspektas kiel kodo.** Metu la tri finajn gravajn akcentojn sur propran linion.
+- **Titolo aŭ listo restas simpla teksto.** Metu spaceton post `##`, `-` aŭ `1.`, kaj komencu sur nova linio.
+- **Vi volas montri la interpunkcion mem.** Metu inversan oblikvon antaŭ formata signo, kiel `\*ne kursiva\*`, aŭ uzu enlinian kodon por laŭvorta ekzemplo.
+- **HTML aperas kiel teksto.** Chatto ne akceptas krudan HTML por mesaĝa formatado. Uzu Markdown anstataŭ etikedojn kiel `<b>` aŭ `<span>`.

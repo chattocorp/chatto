@@ -6,7 +6,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
 -->
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { SvelteSet } from 'svelte/reactivity';
+  import { flattenUniquePages } from '$lib/query/pagination';
   import { Code, ConnectError } from '@chatto/client/api/connect';
   import { createReactionAPI } from '@chatto/client/api/reactions';
   import { createUserAPI, type UserSummary } from '@chatto/client/api/users';
@@ -20,7 +20,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
   import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { Dialog, LoadingFog } from '$lib/ui';
+  import { Dialog, LoadingDots } from '$lib/ui';
   import { Button } from '$lib/ui/form';
 
   const PAGE_SIZE = 50;
@@ -70,7 +70,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
     const emoji = activeEmoji;
     return {
       queryKey: [
-        ...serverSessionQueryRoot(serverScope.serverId, connection),
+        ...serverSessionQueryRoot(serverScope),
         'message-reaction-users',
         roomId,
         messageEventId,
@@ -103,18 +103,13 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
     };
   });
 
-  const rows = $derived.by(() => {
-    const seen = new SvelteSet<string>();
-    return (usersQuery.data?.pages ?? []).flatMap((page) =>
-      page.emoji === activeEmoji
-        ? page.rows.filter((row) => {
-            if (seen.has(row.id)) return false;
-            seen.add(row.id);
-            return true;
-          })
-        : []
-    );
-  });
+  const rows = $derived(
+    flattenUniquePages(
+      usersQuery.data,
+      (page) => (page.emoji === activeEmoji ? page.rows : []),
+      (row) => row.id
+    )
+  );
   const accessLost = $derived(
     usersQuery.error instanceof ConnectError &&
       [Code.PermissionDenied, Code.NotFound, Code.Unauthenticated].includes(usersQuery.error.code)
@@ -195,7 +190,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
       data-testid="reaction-details-panel"
     >
       {#if usersQuery.isPending}
-        <LoadingFog class="h-24 w-full" />
+        <LoadingDots class="h-24 w-full" />
       {:else if accessLost || (usersQuery.isError && !usersQuery.isFetchNextPageError)}
         <div class="flex flex-col items-center gap-3 py-6 text-center" role="alert">
           <p>{m(accessLost ? 'common.error.generic' : 'common.error.network')}</p>
@@ -247,7 +242,7 @@ emoji is queried. The responsive dialog owns dismissal and scroll containment.
                 {m('common.retry')}
               </Button>
             {:else}
-              <LoadingFog class="h-10 w-full" />
+              <LoadingDots class="h-10 w-full" />
             {/if}
           </div>
         {/if}

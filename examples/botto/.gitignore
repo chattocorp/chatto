@@ -2,3 +2,4 @@
 .runling/
 .env
 botto.toml
+*.pem

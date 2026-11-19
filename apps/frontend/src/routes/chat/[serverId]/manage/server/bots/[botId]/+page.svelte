@@ -18,7 +18,7 @@ owner reassignment and deletion actions.
     type UpdateUserProfileInput,
     type UserSummary
   } from '@chatto/client/api/users';
-  import { CopyId, Panel, ConfirmDialog, FormDialog, Hint, LoadingFog } from '$lib/ui';
+  import { CopyId, Panel, ConfirmDialog, FormDialog, Hint, LoadingDots } from '$lib/ui';
   import BotProfileSection from '$lib/components/bots/BotProfileSection.svelte';
   import AvatarEditor from '$lib/components/users/AvatarEditor.svelte';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
@@ -41,15 +41,10 @@ owner reassignment and deletion actions.
   const canReassignOwner = $derived(serverScope.store.permissions.canManageBots);
 
   const ownerQuery = createQuery(() => {
-    const serverId = serverScope.serverId;
     const connection = serverScope.connection;
     const ownerUserId = bot?.ownerUserId ?? '';
     return {
-      queryKey: [
-        ...settingsQueryKeys.bot(serverId, connection, detail.botId),
-        'owner',
-        ownerUserId
-      ],
+      queryKey: [...settingsQueryKeys.bot(serverScope, detail.botId), 'owner', ownerUserId],
       queryFn: () => connection.getAPI(createUserAPI).batchGetUsers([ownerUserId]),
       enabled: !!ownerUserId
     };
@@ -127,11 +122,7 @@ owner reassignment and deletion actions.
       if (!detail.isCurrentTarget(mutationTarget)) return;
       detail.cacheBot(reassigned);
       void queryClient.invalidateQueries({
-        queryKey: adminQueryKeys.userPermissions(
-          serverScope.serverId,
-          serverScope.connection,
-          bot.id
-        ),
+        queryKey: adminQueryKeys.userPermissions(serverScope, bot.id),
         exact: true
       });
       reassignVisible = false;
@@ -152,7 +143,7 @@ owner reassignment and deletion actions.
       await botAPI().deleteBot(bot.id);
       if (!detail.isCurrentTarget(mutationTarget)) return;
       queryClient.removeQueries({
-        queryKey: settingsQueryKeys.bot(serverScope.serverId, serverScope.connection, bot.id),
+        queryKey: settingsQueryKeys.bot(serverScope, bot.id),
         exact: true
       });
       detail.refreshBot();
@@ -207,7 +198,7 @@ owner reassignment and deletion actions.
               viewerSettings={serverScope.store.currentUser.user?.settings}
             />
           {:else if ownerQuery.isPending}
-            <LoadingFog class="h-5 w-28" />
+            <LoadingDots class="h-5 w-28" />
           {:else}
             <span class="text-muted">{m('common.unknown')}</span>
           {/if}
@@ -227,7 +218,7 @@ owner reassignment and deletion actions.
     {/key}
   {/if}
 {:else if detail.isPending}
-  <LoadingFog class="h-40 w-full" />
+  <LoadingDots class="h-40 w-full" />
 {/if}
 
 <FormDialog

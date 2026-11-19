@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Ŝalti privilegian reĝimon",
       "disable": "Malŝalti privilegian reĝimon",
+      "select_roles": "Elektu la rolojn por aktivigi dum 15 minutoj.",
       "confirmation": "Dum 15 minutoj tio ŝaltas la aldonajn permesojn asignitajn al vi en ĉi tiu servilo."
     },
     "notifications": {
@@ -74,7 +75,11 @@
       "thread_views_description": "Sekvataj fadenoj kaj fadenoj, kiujn vi komencis, eble ne estas listigitaj aparte en ĉi tiu servilo.",
       "independent_slow_mode_title": "Sendependa malrapida reĝimo ne disponeblas",
       "independent_slow_mode_description": "Ĉi tiu servilo uzas unu komunan atendotempon por kanalaj mesaĝoj kaj respondoj en fadenoj.",
-      "upgrade": "Por plena subteno, petu la servilan administranton ĝisdatigi al {version} aŭ pli nova versio."
+      "upgrade": "Por plena subteno, petu la servilan administranton ĝisdatigi al {version} aŭ pli nova versio.",
+      "background_jobs_title": "Fonaj taskoj ne disponeblas",
+      "background_jobs_description": "Ĉi tiu servilo ne povas montri aŭ reprovi fonajn taskojn en la servilaj agordoj.",
+      "shield_role_selection_title": "Elekto de roloj en privilegia reĝimo",
+      "shield_role_selection_description": "Ĉi tiu servilo aktivigas ĉiujn disponeblajn privilegiojn samtempe."
     },
     "server_gutter": {
       "move_up": "Movi supren",
@@ -186,7 +191,17 @@
       "system": "Sistemo",
       "back_to_server": "Reiru al Servilo",
       "invites": "Invitoj",
-      "registration": "Registrado"
+      "registration": "Registrado",
+      "jobs": "Taskoj"
+    },
+    "owner_welcome": {
+      "title": "Via servilo estas preta",
+      "intro": "Vi estas la posedanto de ĉi tiu servilo. Por protekti vian konton, viaj posedantaj permesoj restas malŝaltitaj dum ordinara uzo.",
+      "shield_active": "La privilegia reĝimo estas ŝaltita dum la venontaj 15 minutoj, do vi povas agordi vian servilon nun. Por denove ŝalti ĝin poste, uzu la ŝildan butonon apud via nomo.",
+      "shield_inactive": "Por agordi vian servilon, aktivigu la privilegian reĝimon per la ŝilda butono apud via nomo. Ĝi restas ŝaltita dum 15 minutoj.",
+      "shield_failed": "Ne eblis aktivigi la privilegian reĝimon.",
+      "next_steps": "Sekvaj paŝoj",
+      "continue_setup": "Daŭrigi agordadon"
     }
   }
 }

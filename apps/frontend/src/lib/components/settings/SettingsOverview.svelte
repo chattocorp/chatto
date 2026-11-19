@@ -1,10 +1,9 @@
 <!-- @component Settings destination cards shared by server settings and signed-out app preferences. -->
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import { m } from '$lib/i18n/messages';
   import type { SettingsNavGroup } from '$lib/navigation/settingsNav';
   import { Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
-  import SettingsCardArtwork from './SettingsCardArtwork.svelte';
+  import DestinationCard from './DestinationCard.svelte';
 
   let {
     groups,
@@ -35,27 +34,7 @@
               class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
             >
               {#each group.items as item (item.href)}
-                <a
-                  href={resolve(item.href as '/')}
-                  aria-label={item.label}
-                  aria-describedby={`${item.href}-description`}
-                  class="group hover-lift-group min-w-0 cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
-                >
-                  <!-- Keep the link's hover area fixed while its visual surface lifts. -->
-                  <div class="flex h-full hover-lift flex-row inset-frame sm:flex-col">
-                    <div class="w-24 shrink-0 overflow-hidden inset-content sm:w-auto">
-                      <SettingsCardArtwork href={item.href} icon={item.icon} />
-                    </div>
-                    <div class="flex min-w-0 flex-1 flex-col gap-2 p-3">
-                      <span class="text-base font-bold tracking-tight text-text-top"
-                        >{item.label}</span
-                      >
-                      <p id={`${item.href}-description`} class="text-sm text-muted sm:min-h-[3lh]">
-                        {item.description}
-                      </p>
-                    </div>
-                  </div>
-                </a>
+                <DestinationCard {...item} />
               {/each}
             </nav>
           </section>

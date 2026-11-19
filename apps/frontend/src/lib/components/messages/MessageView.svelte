@@ -6,6 +6,8 @@ their own contextual metadata and actions while this component keeps message
 identity, body rendering, and row geometry consistent.
 -->
 <script lang="ts">
+  import { experimentalFeatures } from '$lib/state/experimentalFeatures.svelte';
+  import ExperimentalMessageHeader from './ExperimentalMessageHeader.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import { getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
@@ -17,7 +19,7 @@ identity, body rendering, and row geometry consistent.
   import type { TimeFormatSettings } from '$lib/utils/formatTime';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
-  import { LoadingFog } from '$lib/ui';
+  import { LoadingDots } from '$lib/ui';
   import MessageContent from '$lib/components/MessageContent.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -60,6 +62,7 @@ identity, body rendering, and row geometry consistent.
     prelude,
     authorSuffix,
     headerMeta,
+    timelineClock = false,
     afterBody,
     actions
   }: {
@@ -104,6 +107,8 @@ identity, body rendering, and row geometry consistent.
     prelude?: Snippet;
     authorSuffix?: Snippet;
     headerMeta?: Snippet;
+    /** Keep the timeline clock visible and subdued in the experimental header. */
+    timelineClock?: boolean;
     afterBody?: Snippet;
     actions?: Snippet;
   } = $props();
@@ -185,42 +190,54 @@ identity, body rendering, and row geometry consistent.
       {@render prelude?.()}
 
       {#if !compact}
-        <div class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+        {#snippet author(identity: Snippet<[UserAvatarUserView]>, fallbackClass: string)}
           {#if actor && !actor.deleted}
+            {#snippet authorLabel()}
+              {@render identity(actor)}
+              <UserCustomStatusBadge status={customStatus} />
+              {@render authorSuffix?.()}
+            {/snippet}
             {#if actorInteractive}
               <button
                 type="button"
-                class="inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1.5 leading-tight font-semibold hover:underline"
+                class="inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1.5 leading-tight font-semibold"
                 onclick={onActorClick}
                 ontouchstart={onActorTouchStart}
                 oncontextmenu={onActorContextMenu}
               >
-                <AccountName name={displayName} identity={actor} badgeSize="md" />
-                <UserCustomStatusBadge status={customStatus} />
-                {@render authorSuffix?.()}
+                {@render authorLabel()}
               </button>
             {:else}
               <strong
                 class="inline-flex max-w-full min-w-0 items-center gap-1.5 leading-tight font-semibold"
               >
-                <AccountName name={displayName} identity={actor} badgeSize="md" />
-                <UserCustomStatusBadge status={customStatus} />
-                {@render authorSuffix?.()}
+                {@render authorLabel()}
               </strong>
             {/if}
           {:else if authorLoading && !actor?.deleted}
-            <LoadingFog class="h-4 w-24 shrink-0" />
+            <LoadingDots class="h-4 w-24 shrink-0" />
           {:else if actor?.deleted || (missingActorIsDeleted && !authorLoading)}
-            <strong class="shrink-0 leading-tight font-semibold text-muted">
+            <strong class={[fallbackClass, 'leading-tight font-semibold text-muted']}>
               <DeletedUserLabel />
             </strong>
           {:else}
-            <strong class="shrink-0 leading-tight font-semibold text-muted"
+            <strong class={[fallbackClass, 'leading-tight font-semibold text-muted']}
               ><bdi>{displayName}</bdi></strong
             >
           {/if}
-          {@render headerMeta?.()}
-        </div>
+        {/snippet}
+
+        {#if experimentalFeatures.newMessageHeader.enabled}
+          <ExperimentalMessageHeader {author} {displayName} {headerMeta} {timelineClock} />
+        {:else}
+          {#snippet accountName(resolvedActor: UserAvatarUserView)}
+            <AccountName name={displayName} identity={resolvedActor} badgeSize="md" />
+          {/snippet}
+          <div class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+            {@render author(accountName, 'shrink-0')}
+            {@render headerMeta?.()}
+          </div>
+        {/if}
       {/if}
 
       {#if deleted}

@@ -174,7 +174,11 @@ it('visually hides the redundant filter label and focuses the filter with Cmd/Ct
 it('locks inherited binary grants and only clears direct grants', () => {
   const onCycle = vi.fn();
   const { container } = render(SubjectPermissionsMatrix, {
-    props: { data, onCycle, decisionMode: 'binary' }
+    props: {
+      data,
+      onCycle,
+      decisionMode: 'binary'
+    }
   });
 
   const inheritedAllow = container.querySelector(
@@ -208,7 +212,7 @@ it('locks inherited binary grants and only clears direct grants', () => {
   expect(container.querySelector('[class~="icon-[uil--times]"]')).toBeNull();
 });
 
-it('renders an ungrantable binary permission as a non-interactive locked cell', () => {
+it('locks an ungrantable binary permission', () => {
   const onCycle = vi.fn();
   const { container } = render(SubjectPermissionsMatrix, {
     props: {

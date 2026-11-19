@@ -11,6 +11,7 @@
   import ServerHeader from './ServerHeader.svelte';
   import ServerBanner from './ServerBanner.svelte';
   import ServerSubscriptionMarker from './ServerSubscriptionMarker.svelte';
+  import OwnerWelcomeDialog from './OwnerWelcomeDialog.svelte';
   import SettingsSidebar from '$lib/components/settings/SettingsSidebar.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { getSettingsNavGroups } from '$lib/navigation/settingsNav';
@@ -81,7 +82,11 @@
 
   // Admin navigation items - filtered based on permissions
   const adminNavItems = $derived(
-    getAdminNavItems({ serverSegment, permissions: activeStore.permissions })
+    getAdminNavItems({
+      serverSegment,
+      permissions: activeStore.permissions,
+      limitedFeatures: activeStore.serverInfo.limitedFeatures
+    })
   );
   const managedRoom = $derived(
     page.params.roomId
@@ -129,6 +134,7 @@
 </script>
 
 <ServerSubscriptionMarker />
+<OwnerWelcomeDialog />
 <!-- Sidebar -->
 <ServerSidebar>
   {#if isServerSettingsMode}
@@ -138,47 +144,50 @@
       groups={settingsNavGroups}
       backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
     />
-  {:else if !serverData}
-    <ServerHeader serverName={activeStore.serverInfo.name} />
-    <LoadingDots class="min-h-0 flex-1 items-center" />
   {:else}
-    <!-- Server header - fixed at top -->
-    <ServerHeader serverName={serverName ?? ''} />
+    <!-- One header for both states, so an open server menu survives loading. -->
+    <ServerHeader
+      serverId={serverScope.serverId}
+      serverName={serverName ?? activeStore.serverInfo.name}
+    />
+    {#if !serverData}
+      <LoadingDots class="min-h-0 flex-1 items-center" />
+    {:else}
+      <!-- Scrollable area for room list sidebar -->
+      <ScrollFader top bottom>
+        {#if bannerUrl}
+          <ServerBanner url={bannerUrl} />
+        {/if}
 
-    <!-- Scrollable area for room list sidebar -->
-    <ScrollFader top bottom>
-      {#if bannerUrl}
-        <ServerBanner url={bannerUrl} />
-      {/if}
-
-      <nav class="sidebar-nav p-2">
-        <a
-          href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
-          aria-current={isHomeActive ? 'page' : undefined}
-          class="sidebar-item"
-        >
-          <span aria-hidden="true" class="iconify sidebar-icon icon-[uil--estate]"></span>
-          {m('chat.overview.title')}
-        </a>
-        {#if messageSearchAvailable}
-          <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- searchHref is resolved above -->
+        <nav class="sidebar-nav p-2">
           <a
-            href={searchHref}
-            aria-current={isSearchActive ? 'page' : undefined}
+            href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
+            aria-current={isHomeActive ? 'page' : undefined}
             class="sidebar-item"
           >
-            <span class="iconify sidebar-icon icon-[uil--search]" aria-hidden="true"></span>
-            {m('search.action')}
+            <span aria-hidden="true" class="iconify sidebar-icon icon-[uil--estate]"></span>
+            {m('chat.overview.title')}
           </a>
-        {/if}
-        <MyThreadsNavItem active={isMyThreadsActive} />
-      </nav>
+          {#if messageSearchAvailable}
+            <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- searchHref is resolved above -->
+            <a
+              href={searchHref}
+              aria-current={isSearchActive ? 'page' : undefined}
+              class="sidebar-item"
+            >
+              <span class="iconify sidebar-icon icon-[uil--search]" aria-hidden="true"></span>
+              {m('search.action')}
+            </a>
+          {/if}
+          <MyThreadsNavItem active={isMyThreadsActive} />
+        </nav>
 
-      <hr class="border-border" />
+        <hr class="border-border" />
 
-      <!-- Room List - always visible to server members (shows rooms user has joined) -->
-      <RoomList canReorderGroups={activeStore.permissions.canManageRooms} />
-    </ScrollFader>
+        <!-- Room List - always visible to server members (shows rooms user has joined) -->
+        <RoomList canReorderGroups={activeStore.permissions.canManageRooms} />
+      </ScrollFader>
+    {/if}
   {/if}
 </ServerSidebar>
 

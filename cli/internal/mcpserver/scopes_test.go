@@ -38,7 +38,7 @@ func TestMCPParsedScopeGuard(t *testing.T) {
 		allowed bool
 	}{
 		{"get_server_info", true}, {"get_current_user", true}, {"list_rooms", true},
-		{"post_message", false}, {"search_messages", false}, {"new_unmapped_tool", false},
+		{"get_user", false}, {"add_reaction", false}, {"remove_reaction", false}, {"post_message", false}, {"search_messages", false}, {"new_unmapped_tool", false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			called := false
@@ -106,12 +106,23 @@ func TestMCPGrantSubsets(t *testing.T) {
 		{"join_room", config.MCPRoomsWriteScope},
 		{"list_room_messages", config.MCPMessagesReadScope}, {"list_rooms", config.MCPRoomsReadScope},
 		{"post_message", config.MCPMessagesWriteScope},
+		{"get_user", config.MCPProfileReadScope}, {"add_reaction", config.MCPMessagesWriteScope}, {"remove_reaction", config.MCPMessagesWriteScope},
+		{"get_message", config.MCPMessagesReadScope},
+		{"update_message", config.MCPMessagesWriteScope},
+		{"delete_message", config.MCPMessagesWriteScope},
+		{"send_direct_message", config.MCPMessagesWriteScope},
 		{"leave_room", config.MCPRoomsWriteScope},
 	}
 	allScopes := config.MCPOAuthScopes()
 	for mask := 1; mask < 1<<len(allScopes); mask++ {
 		t.Run(fmt.Sprint(mask), func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			defer cancel()
 			if _, err := c.JoinRoom(ctx, user.GetId(), core.KindChannel, user.GetId(), room.GetId()); err != nil {
+				t.Fatal(err)
+			}
+			posted, err := c.Messages().PostMessage(ctx, core.MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "Reaction target"})
+			if err != nil {
 				t.Fatal(err)
 			}
 			var scopes []string
@@ -170,8 +181,21 @@ func TestMCPGrantSubsets(t *testing.T) {
 				if tool.scope != "" && tool.name != "list_rooms" {
 					args["room_id"] = room.GetId()
 				}
-				if tool.name == "post_message" {
+				if tool.name == "post_message" || tool.name == "update_message" {
 					args["body"] = "Scope test"
+				}
+				if tool.name == "get_message" || tool.name == "update_message" || tool.name == "delete_message" {
+					args["message_id"] = posted.Event.Id
+				}
+				if tool.name == "send_direct_message" {
+					args = map[string]any{"user_id": user.Id, "body": "Note to self"}
+				}
+				if tool.name == "get_user" {
+					args = map[string]any{"user_id": user.Id}
+				}
+				if tool.name == "add_reaction" || tool.name == "remove_reaction" {
+					args["message_id"] = posted.Event.Id
+					args["emoji"] = "thumbsup"
 				}
 				response := request("tools/call", tool.name, args)
 				if tool.scope != "" && !slices.Contains(scopes, tool.scope) {
@@ -211,6 +235,8 @@ func TestMCPGrantSubsets(t *testing.T) {
 		})
 	}
 	t.Run("scope does not grant RBAC permission", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
 		grant, err := c.CreateOAuthBearerSessionForClientGrant(ctx, user.GetId(), "https://client.example/metadata.json", "https://chat.example/mcp", []string{config.MCPRoomsWriteScope}, generation)
 		if err != nil {
 			t.Fatal(err)
