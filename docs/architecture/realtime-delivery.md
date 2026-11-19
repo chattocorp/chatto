@@ -230,7 +230,9 @@ normal canonical response. The wait targets exactly the requested EVT sequence
 in `ServerContentView`, not the current tails of all projectors. The view
 consumes every `evt.>` sequence, including facts that do not change its resources.
 A lagging replica waits for at most 10 seconds or the caller's earlier deadline.
-A timeout returns `DEADLINE_EXCEEDED` before the handler runs. This is a lower
+A timeout returns `DEADLINE_EXCEEDED` before the handler runs. An expired
+cursor satisfies the barrier at once, because its position is older than the
+cursor lifetime or the retained EVT history. This is a lower
 bound, not a historical read, and does not cover asynchronous effects.
 
 DM threads use the same semantic realtime events and ConnectRPC thread

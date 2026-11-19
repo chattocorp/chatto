@@ -14,6 +14,7 @@
       "clear_confirm_title": "Cancellare l’avviso della stanza?",
       "clear_confirm_description": "Questo rimuove subito l’avviso attivo per tutti nella stanza. Le tue modifiche non salvate non verranno pubblicate.",
       "empty": "Non è stato pubblicato alcun avviso.",
+      "load_failed": "Impossibile caricare l’avviso.",
       "edit": "Modifica avviso"
     },
     "information": {

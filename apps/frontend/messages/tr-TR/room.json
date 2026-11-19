@@ -14,6 +14,7 @@
       "clear_confirm_title": "Oda duyurusu temizlensin mi?",
       "clear_confirm_description": "Bu işlem etkin duyuruyu odadaki herkes için hemen kaldırır. Kaydedilmemiş değişiklikleriniz yayımlanmaz.",
       "empty": "Henüz bir duyuru yayımlanmadı.",
+      "load_failed": "Duyuru yüklenemedi.",
       "edit": "Duyuruyu düzenle"
     },
     "information": {

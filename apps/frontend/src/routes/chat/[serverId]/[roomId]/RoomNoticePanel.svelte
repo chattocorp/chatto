@@ -13,7 +13,7 @@
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { ConfirmDialog, EmptyState, FormDialog, LoadingDots, LoadRetry } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
-  import { errorMessage } from '$lib/utils/errorMessage';
+  import { errorMessage, loadErrorMessage } from '$lib/utils/errorMessage';
   import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
 
   let {
@@ -102,7 +102,7 @@
     <div class="flex flex-col gap-3 px-2 py-3">
       {#if store.error}
         <LoadRetry
-          message={errorMessage(store.error)}
+          message={loadErrorMessage(store.error, m('room.notice.load_failed'))}
           autoRetry={isNetworkError(store.error)}
           onretry={() => store.refresh()}
         />

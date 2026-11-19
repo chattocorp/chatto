@@ -14,6 +14,7 @@
       "clear_confirm_title": "Kamermededeling wissen?",
       "clear_confirm_description": "Dit verwijdert de actieve mededeling onmiddellijk voor iedereen in de kamer. Je niet-opgeslagen wijzigingen worden niet gepubliceerd.",
       "empty": "Er is geen mededeling gepubliceerd.",
+      "load_failed": "Kan de mededeling niet laden.",
       "edit": "Mededeling bewerken"
     },
     "information": {

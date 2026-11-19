@@ -25,8 +25,8 @@ func withRealtimeMinimum(c *core.ChattoCore, next http.Handler) http.Handler {
 		if err != nil {
 			f := classifyToolError(err, "")
 			status := http.StatusServiceUnavailable
-			if errors.Is(err, core.ErrRealtimeCursorInvalid) || errors.Is(err, core.ErrRealtimeCursorExpired) {
-				f = failure("invalid_argument", "Realtime minimum cursor is invalid or expired; refresh the realtime boundary.", "fix_arguments", "after_change")
+			if errors.Is(err, core.ErrRealtimeCursorInvalid) {
+				f = failure("invalid_argument", "Realtime minimum cursor is invalid; refresh the realtime boundary.", "fix_arguments", "after_change")
 				status = http.StatusBadRequest
 			}
 			writeHTTPFailure(w, status, f)
