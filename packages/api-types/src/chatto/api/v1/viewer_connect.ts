@@ -27,10 +27,11 @@ export const ViewerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Activates all currently assigned protected roles for 15 minutes.
-     * Deactivate before changing the selection. Repeated activation keeps the deadline.
-     * Returns FAILED_PRECONDITION when the caller is a bot or has no assigned
-     * protected role.
+     * Starts a window of up to 15 minutes with all currently assigned protected roles.
+     * During an active window, a retry keeps the stored selection and deadline,
+     * even if all selected roles have been revoked. Deactivate to change the selection.
+     * Returns FAILED_PRECONDITION for a bot or when starting a new activation
+     * without any assigned protected roles.
      *
      * @generated from rpc chatto.api.v1.ViewerService.ActivatePrivilegedMode
      */
