@@ -51,6 +51,40 @@ it('shows the login between the display name and timestamp when the experiment i
   await expect.element(login).not.toBeInTheDocument();
 });
 
+it('truncates the username first and keeps the timestamp on the header line', async () => {
+  const displayName = 'Alexandra Montgomery-Westfield';
+  const login = 'alexandra.westfield';
+  const headerMeta = createRawSnippet(() => ({ render: () => '<time>12:11 PM</time>' }));
+  const view = render(MessageViewTestHarness, {
+    ...props,
+    actor: { ...actor, login, displayName, customStatus: undefined },
+    displayName,
+    headerMeta
+  });
+  try {
+    flushSync(() => (experimentalFeatures.newMessageHeader.enabled = true));
+    const name = view.getByText(displayName, { exact: true }).element();
+    const handle = view.getByText(`@${login}`, { exact: true }).element();
+    const dot = view.getByText('·', { exact: true }).element();
+    const time = view.getByText('12:11 PM').element();
+    const row = view.getByRole('article').element() as HTMLElement;
+    for (const width of [520, 390, 320]) {
+      row.style.width = `${width}px`;
+      expect(handle.scrollWidth).toBeGreaterThan(handle.clientWidth);
+      if (width === 520) expect(name.scrollWidth).toBe(name.clientWidth);
+      const bounds = name.getBoundingClientRect();
+      for (const item of [handle, dot, time]) {
+        const rect = item.getBoundingClientRect();
+        expect(rect.top).toBeLessThan(bounds.bottom);
+        expect(rect.bottom).toBeGreaterThan(bounds.top);
+        expect(rect.right).toBeLessThanOrEqual(row.getBoundingClientRect().right);
+      }
+    }
+  } finally {
+    flushSync(() => (experimentalFeatures.newMessageHeader.enabled = false));
+  }
+});
+
 describe('message author custom status', () => {
   it.each([false, true])(
     'shows an emoji with accessible hover text (clickable: %s)',

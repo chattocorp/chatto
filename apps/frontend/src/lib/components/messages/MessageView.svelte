@@ -112,6 +112,7 @@ identity, body rendering, and row geometry consistent.
   const actorInteractive = $derived(
     actor !== null && (!!onActorClick || !!onActorContextMenu || !!onActorTouchStart)
   );
+  const newHeader = $derived(experimentalFeatures.newMessageHeader.enabled);
   // Read the current profile so retained messages follow status changes and clears.
   const customStatus = $derived(
     actor && !actor.deleted && !authorLoading && !compact
@@ -186,12 +187,19 @@ identity, body rendering, and row geometry consistent.
       {@render prelude?.()}
 
       {#if !compact}
-        <div class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+        <div
+          class={[
+            'flex min-w-0 items-baseline gap-x-2',
+            newHeader ? 'whitespace-nowrap' : 'flex-wrap gap-y-1'
+          ]}
+        >
           {#if actor && !actor.deleted}
             {#snippet authorLabel()}
               <AccountName name={displayName} identity={actor} badgeSize="md" />
-              {#if experimentalFeatures.newMessageHeader.enabled && actor.login}
-                <bdi dir="ltr" class="min-w-0 truncate font-normal text-muted">@{actor.login}</bdi>
+              {#if newHeader && actor.login}
+                <bdi dir="ltr" class="min-w-[4ch] flex-[1_1_0px] truncate font-normal text-muted"
+                  >@{actor.login}</bdi
+                >
               {/if}
               <UserCustomStatusBadge status={customStatus} />
               {@render authorSuffix?.()}
@@ -216,17 +224,25 @@ identity, body rendering, and row geometry consistent.
           {:else if authorLoading && !actor?.deleted}
             <LoadingDots class="h-4 w-24 shrink-0" />
           {:else if actor?.deleted || (missingActorIsDeleted && !authorLoading)}
-            <strong class="shrink-0 leading-tight font-semibold text-muted">
+            <strong
+              class={[
+                newHeader ? 'min-w-0 truncate' : 'shrink-0',
+                'leading-tight font-semibold text-muted'
+              ]}
+            >
               <DeletedUserLabel />
             </strong>
           {:else}
-            <strong class="shrink-0 leading-tight font-semibold text-muted"
-              ><bdi>{displayName}</bdi></strong
+            <strong
+              class={[
+                newHeader ? 'min-w-0 truncate' : 'shrink-0',
+                'leading-tight font-semibold text-muted'
+              ]}><bdi>{displayName}</bdi></strong
             >
           {/if}
-          {#if experimentalFeatures.newMessageHeader.enabled && headerMeta}
-            <span class="contents [&>*]:[font-size:inherit]">
-              <span aria-hidden="true" class="text-muted/60 only:hidden">·</span>
+          {#if newHeader && headerMeta}
+            <span class="contents [&>*]:[font-size:inherit] [&>:last-child]:shrink-0">
+              <span aria-hidden="true" class="shrink-0 text-muted/60 only:hidden">·</span>
               {@render headerMeta()}
             </span>
           {:else}
