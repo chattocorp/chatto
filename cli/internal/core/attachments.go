@@ -593,35 +593,38 @@ func (c *MediaModel) DeleteAttachmentFromStorage(ctx context.Context, attachment
 		return fmt.Errorf("attachment is nil")
 	}
 
-	deleteErr := c.deleteAttachmentBinary(ctx, attachment)
-	_, cacheErr := c.DeleteCachedResizesForAttachment(ctx, attachment.Id)
+	cachePrefixes := attachmentCachePrefixes(attachment.Id)
+	if attachment.Storage == nil {
+		deleteErr := c.deleteAttachmentBinaryByID(ctx, attachment.Id)
+		_, cacheErr := c.deleteCachedResizesForPrefixes(ctx, cachePrefixes)
+		return errors.Join(deleteErr, cacheErr)
+	}
+	return c.deleteStoredAsset(ctx, attachment.Storage, cachePrefixes)
+}
+
+// deleteStoredAsset removes the exact backend object and cached sizes selected
+// by the caller. Both steps tolerate redelivery after partial cleanup.
+func (c *MediaModel) deleteStoredAsset(ctx context.Context, storage *evtv1.DeprecatedAsset, cachePrefixes []string) error {
+	deleteErr := c.deleteStoredObject(ctx, storage)
+	_, cacheErr := c.deleteCachedResizesForPrefixes(ctx, cachePrefixes)
 	return errors.Join(deleteErr, cacheErr)
 }
 
-func (c *MediaModel) deleteAttachmentBinary(ctx context.Context, attachment *evtv1.Attachment) error {
-	if attachment.Storage == nil {
-		return c.deleteAttachmentBinaryByID(ctx, attachment.Id)
-	}
-	switch storage := attachment.Storage.Asset.(type) {
-	case *evtv1.DeprecatedAsset_Nats:
-		store, err := c.GetAttachmentsStore(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get attachments store: %w", err)
+func (c *MediaModel) deleteStoredObject(ctx context.Context, storage *evtv1.DeprecatedAsset) error {
+	switch {
+	case storage.GetNats() != nil:
+		if err := c.storage.serverAssets.Delete(ctx, storage.GetNats().GetKey()); err != nil && !errors.Is(err, jetstream.ErrObjectNotFound) {
+			return fmt.Errorf("delete NATS object: %w", err)
 		}
-		if err := store.Delete(ctx, storage.Nats.Key); err != nil && !errors.Is(err, jetstream.ErrObjectNotFound) {
-			return fmt.Errorf("failed to delete attachment from NATS: %w", err)
-		}
-		c.logger.Debug("Deleted NATS attachment", "attachment_id", attachment.Id, "key", storage.Nats.Key)
-	case *evtv1.DeprecatedAsset_S3:
+	case storage.GetS3() != nil:
 		if c.s3Client == nil {
 			return fmt.Errorf("S3 client not configured")
 		}
-		if err := c.s3Client.DeleteObjectFromBucket(ctx, storage.S3.GetBucket(), storage.S3.Key); err != nil {
-			return fmt.Errorf("failed to delete S3 attachment: %w", err)
+		if err := c.s3Client.DeleteObjectFromBucket(ctx, storage.GetS3().GetBucket(), storage.GetS3().GetKey()); err != nil {
+			return fmt.Errorf("delete S3 object: %w", err)
 		}
-		c.logger.Debug("Deleted S3 attachment", "attachment_id", attachment.Id, "s3_key", storage.S3.Key)
 	default:
-		return fmt.Errorf("attachment %s has unknown storage backend", attachment.Id)
+		return fmt.Errorf("unknown asset storage backend")
 	}
 	return nil
 }
@@ -915,12 +918,11 @@ func (c *MediaModel) StoreCachedResize(ctx context.Context, key string, data []b
 // cache namespaces; older room-kind prefixes
 // remain unaddressable and expire after seven days.
 func (c *MediaModel) DeleteCachedResizesForAttachment(ctx context.Context, attachmentID string) (int, error) {
-	prefixes := []string{
-		AttachmentDerivativeCacheResource,
-		AttachmentSignResource,
-		attachmentLegacyStableCacheResource,
-	}
-	return c.deleteCachedResizesForPrefixes(ctx, attachmentID, prefixes...)
+	return c.deleteCachedResizesForPrefixes(ctx, attachmentCachePrefixes(attachmentID))
+}
+
+func attachmentCachePrefixes(id string) []string {
+	return resizeCachePrefixes(id, AttachmentDerivativeCacheResource, AttachmentSignResource, attachmentLegacyStableCacheResource)
 }
 
 // DeleteCachedResizesForServerAsset deletes all cached resizes for a server
@@ -932,21 +934,25 @@ func (c *MediaModel) DeleteCachedResizesForServerAsset(ctx context.Context, asse
 // DeleteCachedResizesForKey deletes all cached resizes for a given prefix and asset key.
 // Returns the number of deleted cache entries and any error encountered.
 func (c *MediaModel) DeleteCachedResizesForKey(ctx context.Context, prefix, assetKey string) (int, error) {
-	return c.deleteCachedResizesForPrefixes(ctx, assetKey, prefix)
+	return c.deleteCachedResizesForPrefixes(ctx, resizeCachePrefixes(assetKey, prefix))
+}
+
+func resizeCachePrefixes(assetKey string, resources ...string) []string {
+	if assetKey == "" {
+		return nil
+	}
+	var prefixes []string
+	for _, resource := range resources {
+		if resource != "" {
+			prefixes = append(prefixes, resource+"."+assetKey+".")
+		}
+	}
+	return prefixes
 }
 
 // deleteCachedResizesForPrefixes lists the shared cache once for all namespaces.
 // A failed deletion does not prevent attempts for the remaining matching entries.
-func (c *MediaModel) deleteCachedResizesForPrefixes(ctx context.Context, assetKey string, prefixes ...string) (int, error) {
-	if assetKey == "" {
-		return 0, nil
-	}
-	keyPrefixes := make([]string, 0, len(prefixes))
-	for _, prefix := range prefixes {
-		if prefix != "" {
-			keyPrefixes = append(keyPrefixes, fmt.Sprintf("%s.%s.", prefix, assetKey))
-		}
-	}
+func (c *MediaModel) deleteCachedResizesForPrefixes(ctx context.Context, keyPrefixes []string) (int, error) {
 	if len(keyPrefixes) == 0 {
 		return 0, nil
 	}

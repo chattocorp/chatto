@@ -73,23 +73,16 @@ func (c *ChattoCore) cleanupRetiredBranding(ctx context.Context, delivery events
 	if !valid || id != asset.GetId() {
 		return events.TerminateDelivery("invalid branding asset", errors.New("invalid storage key"))
 	}
-	switch {
-	case asset.GetNats() != nil:
-		err = c.storage.serverAssets.Delete(ctx, key)
-		if err != nil && !errors.Is(err, jetstream.ErrObjectNotFound) {
-			return err
+	storage := assetStorageFromAsset(asset)
+	if s3 := storage.GetS3(); s3 != nil {
+		if namespaced {
+			return events.TerminateDelivery("invalid branding asset", errors.New("invalid S3 server asset key"))
 		}
-	case asset.GetS3() != nil && !namespaced:
-		if c.s3Client == nil {
-			return errors.New("S3 storage unavailable")
-		}
-		if err := c.s3Client.DeleteObjectFromBucket(ctx, asset.GetS3().GetBucket(), S3KeyServerAsset(id)); err != nil {
-			return err
-		}
-	default:
-		return events.TerminateDelivery("invalid branding asset", errors.New("unknown storage"))
+		// The EVT record stores the logical ID for server images in S3.
+		// Resolve the physical key on our copy of its storage reference.
+		s3.Key = S3KeyServerAsset(id)
 	}
-	return c.deleteCachedResizesForServerAsset(ctx, key, "branding", "server")
+	return c.mediaModel.deleteStoredAsset(ctx, storage, serverAssetCachePrefixes(key))
 }
 
 // previousBrandingAsset folds the matching set and clear facts strictly before

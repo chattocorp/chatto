@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
 	"io"
 	"strings"
 
@@ -376,22 +375,22 @@ func (c *ChattoCore) deleteAsset(ctx context.Context, asset *evtv1.DeprecatedAss
 	c.deleteCachedResizesForServerAsset(ctx, assetIDFromAsset(asset), assetType, ownerID)
 }
 
-func (c *ChattoCore) deleteCachedResizesForServerAsset(ctx context.Context, assetID, assetType, ownerID string) error {
-	assetKeys := []string{assetID}
-	if logicalID, namespaced, ok := serverAssetRequestKey(assetID); ok {
+// serverAssetCachePrefixes includes the flat and public/ keys used to serve
+// the same server image across storage layout changes.
+func serverAssetCachePrefixes(key string) []string {
+	prefixes := resizeCachePrefixes(key, ServerAssetSignResource)
+	if id, namespaced, ok := serverAssetRequestKey(key); ok {
+		alias := PublicServerAssetObjectKey(id)
 		if namespaced {
-			assetKeys = append(assetKeys, logicalID)
-		} else {
-			assetKeys = append(assetKeys, PublicServerAssetObjectKey(logicalID))
+			alias = id
 		}
+		prefixes = append(prefixes, resizeCachePrefixes(alias, ServerAssetSignResource)...)
 	}
-	deletedCount := 0
-	var cacheErr error
-	for _, assetKey := range assetKeys {
-		count, err := c.mediaModel.DeleteCachedResizesForServerAsset(ctx, assetKey)
-		deletedCount += count
-		cacheErr = errors.Join(cacheErr, err)
-	}
+	return prefixes
+}
+
+func (c *ChattoCore) deleteCachedResizesForServerAsset(ctx context.Context, assetID, assetType, ownerID string) {
+	deletedCount, cacheErr := c.mediaModel.deleteCachedResizesForPrefixes(ctx, serverAssetCachePrefixes(assetID))
 	if cacheErr != nil {
 		c.logger.Warn("Failed to delete cached resizes for server asset",
 			"asset_id", assetID,
@@ -405,5 +404,4 @@ func (c *ChattoCore) deleteCachedResizesForServerAsset(ctx context.Context, asse
 			"owner_id", ownerID,
 			"deleted_count", deletedCount)
 	}
-	return cacheErr
 }

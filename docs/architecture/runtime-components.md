@@ -249,7 +249,8 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   the account batch. A conflict rebuilds the batch with the current policy.
   The [branding cleanup worker](../../cli/internal/core/branding_cleanup.go)
   consumes logo and banner changes. It reads the previous image from EVT
-  history and removes that image and its cached sizes through JOBS.
+  history. Branding and upload cleanup jobs share the storage deletion code.
+  Each selects its own object key and cache namespaces.
 - **`NotificationPolicyModel` / `NotificationOccurrenceModel` /
   `NotificationProjection` / `NotificationMaterializer` /
   `NotificationDecisionProjection` / `NotificationAlertDelivery`**

@@ -150,6 +150,12 @@ func TestServerBrandingCleanupDeletesS3Object(t *testing.T) {
 	logo, err := core.uploadServerAsset(ctx, []byte("logo"), "logo")
 	require.NoError(t, err)
 	key := S3KeyServerAsset(logo.GetId())
+	// The same logical key in the upload namespace is outside branding cleanup.
+	uploadKey := S3KeyAttachment(logo.GetId())
+	_, err = storage.PutObjectFromBytes(ctx, uploadKey, []byte("upload"), "text/plain")
+	require.NoError(t, err)
+	uploadCache := ImageCacheKey(AttachmentSignResource, logo.GetId(), 32, 32, "cover")
+	require.NoError(t, core.StoreCachedResize(ctx, uploadCache, []byte("upload-cache")))
 	_, err = storage.StatObject(ctx, key)
 	require.NoError(t, err)
 	require.NoError(t, core.SetServerLogo(ctx, "admin", logo))
@@ -160,6 +166,11 @@ func TestServerBrandingCleanupDeletesS3Object(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond)
 	_, err = storage.StatObject(ctx, key)
 	require.True(t, IsNoSuchKeyError(err), "expected deleted S3 object, got %v", err)
+	_, err = storage.StatObject(ctx, uploadKey)
+	require.NoError(t, err)
+	data, err := core.GetCachedResize(ctx, uploadCache)
+	require.NoError(t, err)
+	require.Equal(t, []byte("upload-cache"), data)
 }
 
 func TestBrandingCleanupRejectsMismatchedStorageKey(t *testing.T) {
