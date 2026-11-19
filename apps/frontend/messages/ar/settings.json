@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "تجارب",
       "title": "ميزات تجريبية",
       "new_message_header": "ترويسة رسالة جديدة"
     },

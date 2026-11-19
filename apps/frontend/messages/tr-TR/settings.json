@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "Deneyler",
       "title": "Deneysel özellikler",
       "new_message_header": "Yeni ileti başlığı"
     },

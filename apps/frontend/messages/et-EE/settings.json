@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "Katsed",
       "title": "Katsefunktsioonid",
       "new_message_header": "Uus sõnumipäis"
     },

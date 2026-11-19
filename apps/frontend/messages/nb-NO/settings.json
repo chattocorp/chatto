@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "Eksperimenter",
       "title": "Eksperimentelle funksjoner",
       "new_message_header": "Ny meldingsoverskrift"
     },

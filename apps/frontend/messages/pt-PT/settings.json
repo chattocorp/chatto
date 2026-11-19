@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "Experiências",
       "title": "Funcionalidades experimentais",
       "new_message_header": "Novo cabeçalho de mensagem"
     },

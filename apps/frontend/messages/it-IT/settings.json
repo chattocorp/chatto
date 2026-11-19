@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "Esperimenti",
       "title": "Funzioni sperimentali",
       "new_message_header": "Nuova intestazione del messaggio"
     },

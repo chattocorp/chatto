@@ -224,7 +224,14 @@ identity, body rendering, and row geometry consistent.
               ><bdi>{displayName}</bdi></strong
             >
           {/if}
-          {@render headerMeta?.()}
+          {#if experimentalFeatures.newMessageHeader.enabled && headerMeta}
+            <span class="contents [&>*]:[font-size:inherit]">
+              <span aria-hidden="true" class="text-muted/60 only:hidden">·</span>
+              {@render headerMeta()}
+            </span>
+          {:else}
+            {@render headerMeta?.()}
+          {/if}
         </div>
       {/if}
 

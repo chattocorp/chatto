@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "Experimente",
       "title": "Experimentelle Funktionen",
       "new_message_header": "Neue Nachrichtenkopfzeile"
     },

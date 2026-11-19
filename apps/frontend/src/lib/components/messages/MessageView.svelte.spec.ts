@@ -21,7 +21,9 @@ const props = { eventId: 'message', actor, displayName: 'Message author', body: 
 afterEach(() => vi.useRealTimers());
 
 it('shows the login between the display name and timestamp when the experiment is enabled', async () => {
-  const headerMeta = createRawSnippet(() => ({ render: () => '<time>12:34</time>' }));
+  const headerMeta = createRawSnippet(() => ({
+    render: () => '<time class="text-xs">12:34</time>'
+  }));
   const view = render(MessageViewTestHarness, { ...props, headerMeta });
   const author = view.getByText(props.displayName, { exact: true });
   const time = view.getByText('12:34');
@@ -31,6 +33,12 @@ it('shows the login between the display name and timestamp when the experiment i
   try {
     flushSync(() => (experimentalFeatures.newMessageHeader.enabled = true));
     await expect.element(login).toBeVisible();
+    await expect
+      .element(view.getByText('·', { exact: true }))
+      .toHaveAttribute('aria-hidden', 'true');
+    expect(getComputedStyle(time.element()).fontSize).toBe(
+      getComputedStyle(author.element()).fontSize
+    );
     const nameBounds = author.element().getBoundingClientRect();
     const loginBounds = login.element().getBoundingClientRect();
     const timeBounds = time.element().getBoundingClientRect();

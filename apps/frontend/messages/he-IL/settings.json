@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "ניסויים",
       "title": "תכונות ניסיוניות",
       "new_message_header": "כותרת הודעה חדשה"
     },

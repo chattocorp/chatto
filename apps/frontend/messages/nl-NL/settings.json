@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "Experimenten",
       "title": "Experimentele functies",
       "new_message_header": "Nieuwe berichtkop"
     },

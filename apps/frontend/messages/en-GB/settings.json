@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "Experiments",
       "title": "Experimental Features",
       "new_message_header": "New message header"
     },

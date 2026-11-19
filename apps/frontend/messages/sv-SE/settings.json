@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "Experiment",
       "title": "Experimentella funktioner",
       "new_message_header": "Ny meddelanderubrik"
     },

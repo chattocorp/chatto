@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "Eksperimenti",
       "title": "Eksperimentālās funkcijas",
       "new_message_header": "Jauna ziņojuma galvene"
     },

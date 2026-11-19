@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "實驗",
       "title": "實驗性功能",
       "new_message_header": "新版訊息標頭"
     },

@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "Eksperimentoj",
       "title": "Eksperimentaj funkcioj",
       "new_message_header": "Nova mesaĝokapo"
     },

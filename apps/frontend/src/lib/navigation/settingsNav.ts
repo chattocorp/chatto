@@ -137,5 +137,13 @@ export function getAppPreferenceNavItems(serverSegment?: string): SettingsNavIte
       icon: 'iconify icon-[uil--desktop]'
     });
 
+  appPreferenceNavItems.push({
+    href: serverSegment
+      ? resolve('/chat/[serverId]/settings/experiments', { serverId: serverSegment })
+      : resolve('/chat/preferences/experiments'),
+    label: m('settings.experiments.nav'),
+    description: m('settings.experiments.title'),
+    icon: 'iconify icon-[uil--flask]'
+  });
   return appPreferenceNavItems;
 }

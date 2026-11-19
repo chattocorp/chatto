@@ -15,9 +15,9 @@ test.describe('App and User Preferences', () => {
     context
   }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.appPreferencesAppearance);
+    await page.goto(routes.appPreferencesExperiments);
     const other = await context.newPage();
-    await other.goto(routes.appPreferencesAppearance);
+    await other.goto(routes.appPreferencesExperiments);
     const toggle = page.getByRole('checkbox', { name: 'New message header' });
     const otherToggle = other.getByRole('checkbox', { name: 'New message header' });
     await expect(otherToggle).not.toBeChecked();

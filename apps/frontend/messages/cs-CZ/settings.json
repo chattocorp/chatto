@@ -1,6 +1,7 @@
 {
   "settings": {
     "experiments": {
+      "nav": "Experimenty",
       "title": "Experimentální funkce",
       "new_message_header": "Nové záhlaví zprávy"
     },
