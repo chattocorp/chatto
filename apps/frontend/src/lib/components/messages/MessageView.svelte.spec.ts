@@ -58,6 +58,7 @@ it('truncates the username first and keeps the timestamp on the header line', as
   const view = render(MessageViewTestHarness, {
     ...props,
     actor: { ...actor, login, displayName, customStatus: undefined },
+    timelineClock: true,
     displayName,
     headerMeta
   });
@@ -65,7 +66,7 @@ it('truncates the username first and keeps the timestamp on the header line', as
     flushSync(() => (experimentalFeatures.newMessageHeader.enabled = true));
     const name = view.getByText(displayName, { exact: true }).element();
     const handle = view.getByText(`@${login}`, { exact: true }).element();
-    const dot = view.getByText('·', { exact: true }).element();
+
     const time = view.getByText('12:11 PM').element();
     const row = view.getByRole('article').element() as HTMLElement;
     for (const width of [520, 390, 320, 520]) {
@@ -82,12 +83,13 @@ it('truncates the username first and keeps the timestamp on the header line', as
         );
       }
       const bounds = name.getBoundingClientRect();
-      for (const item of [dot, time]) {
-        const rect = item.getBoundingClientRect();
-        expect(rect.top).toBeLessThan(bounds.bottom);
-        expect(rect.bottom).toBeGreaterThan(bounds.top);
-        expect(rect.right).toBeLessThanOrEqual(row.getBoundingClientRect().right);
-      }
+      const clock = time.getBoundingClientRect();
+      expect(clock.top).toBeLessThan(bounds.bottom);
+      expect(clock.bottom).toBeGreaterThan(bounds.top);
+      expect(clock.right).toBeCloseTo(
+        row.querySelector('.message-content-stack')!.getBoundingClientRect().right,
+        0
+      );
     }
   } finally {
     flushSync(() => (experimentalFeatures.newMessageHeader.enabled = false));

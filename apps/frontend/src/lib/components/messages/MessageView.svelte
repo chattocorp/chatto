@@ -62,6 +62,7 @@ identity, body rendering, and row geometry consistent.
     prelude,
     authorSuffix,
     headerMeta,
+    timelineClock = false,
     afterBody,
     actions
   }: {
@@ -106,6 +107,8 @@ identity, body rendering, and row geometry consistent.
     prelude?: Snippet;
     authorSuffix?: Snippet;
     headerMeta?: Snippet;
+    /** Align the timeline clock at the inline end when the experimental header is active. */
+    timelineClock?: boolean;
     afterBody?: Snippet;
     actions?: Snippet;
   } = $props();
@@ -241,8 +244,15 @@ identity, body rendering, and row geometry consistent.
             >
           {/if}
           {#if newHeader && headerMeta}
-            <span class="contents [&>*]:[font-size:inherit] [&>time]:truncate">
-              <span aria-hidden="true" class="shrink-0 text-muted/60 only:hidden">·</span>
+            <span
+              class={[
+                '[&>*]:[font-size:inherit]',
+                timelineClock ? 'ms-auto shrink-0' : 'contents [&>time]:truncate'
+              ]}
+            >
+              {#if !timelineClock}
+                <span aria-hidden="true" class="shrink-0 text-muted/60 only:hidden">·</span>
+              {/if}
               {@render headerMeta()}
             </span>
           {:else}
