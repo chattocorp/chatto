@@ -328,7 +328,6 @@ reaction projection and read behavior.
 | `evt.config.{subject}.server_motd_changed` | `ServerMotdChangedEvent` |
 | `evt.config.{subject}.server_blocked_usernames_changed` | `ServerBlockedUsernamesChangedEvent` |
 | `evt.config.server.server_registration_admission_changed` | `ServerRegistrationAdmissionChangedEvent`; selects open or invitation-only account creation |
-| `evt.config.server.server_branding_asset_retired` | `ServerBrandingAssetRetiredEvent`; records the old asset for cleanup in the same transaction as the pointer change |
 | `evt.config.{subject}.server_logo_set` | `ServerLogoSetEvent` |
 | `evt.config.{subject}.server_logo_cleared` | `ServerLogoClearedEvent` |
 | `evt.config.{subject}.server_banner_set` | `ServerBannerSetEvent` |

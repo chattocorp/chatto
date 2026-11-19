@@ -128,15 +128,7 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind s
 		default:
 			change.Event = &evtv1.Event_ServerBannerCleared{ServerBannerCleared: &evtv1.ServerBannerClearedEvent{}}
 		}
-		facts := []*evtv1.Event{newEvent(actorID, &change)}
-		// Uploads allocate a fresh object per image. A metadata-only change
-		// that retains the same object does not release its bytes.
-		if old != nil && ServerAssetDeliveryKey(old) != ServerAssetDeliveryKey(asset) {
-			facts = append(facts, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerBrandingAssetRetired{
-				ServerBrandingAssetRetired: &evtv1.ServerBrandingAssetRetiredEvent{Asset: old},
-			}}))
-		}
-		return facts, nil
+		return []*evtv1.Event{newEvent(actorID, &change)}, nil
 	})
 }
 

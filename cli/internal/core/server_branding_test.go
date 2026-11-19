@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"slices"
 	"testing"
 	"time"
 
@@ -66,7 +67,7 @@ func TestChattoCore_ServerBrandingUsesConfigEvents(t *testing.T) {
 
 // Stop the writing replica after the config transaction commits and before
 // its source can hand off to JOBS. The survivor runs normal core services.
-func TestServerBrandingCleanupAfterWriterCrash(t *testing.T) {
+func TestServerBrandingCleanupDelayedAtoBtoCAfterWriterCrash(t *testing.T) {
 	ns, conn := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := testCoreConfig()
@@ -90,24 +91,28 @@ func TestServerBrandingCleanupAfterWriterCrash(t *testing.T) {
 		}
 		return asset
 	}
-	old, current, banner := upload("logo"), upload("logo"), upload("banner")
+	old, middle, current, banner := upload("logo"), upload("logo"), upload("logo"), upload("banner")
+	before := eventStreamMsgCount(t, first)
 	if err := first.SetServerLogo(ctx, "admin", old); err != nil {
 		t.Fatal(err)
 	}
 	if err := first.SetServerBanner(ctx, "admin", banner); err != nil {
 		t.Fatal(err)
 	}
+	require.NoError(t, first.SetServerLogo(ctx, "admin", middle))
 	if err := first.SetServerLogo(ctx, "admin", current); err != nil {
 		t.Fatal(err)
 	}
 	if err := first.DeleteServerBanner(ctx, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	for _, asset := range []*evtv1.AssetRecord{old, banner} {
+	for _, asset := range []*evtv1.AssetRecord{old, middle, banner} {
 		if _, err := first.storage.serverAssets.GetInfo(ctx, asset.GetNats().GetKey()); err != nil {
 			t.Fatalf("writer removed retired object before handoff: %v", err)
 		}
 	}
+	// Three logo sets, one banner set and one banner clear are the entire history.
+	require.Equal(t, before+5, eventStreamMsgCount(t, first))
 	// For the banner, leave the storage state of an interrupted cleanup
 	// that deleted the binary before it could delete cached sizes.
 	require.NoError(t, first.storage.serverAssets.Delete(ctx, banner.GetNats().GetKey()))
@@ -117,9 +122,9 @@ func TestServerBrandingCleanupAfterWriterCrash(t *testing.T) {
 	second := startReplica(t, ns, cfg)
 	require.Eventually(t, func() bool {
 		jobs := jobsOfType(t, ctx, second, jobTypeBrandingCleanup)
-		return len(jobs) == 2 && jobs[0].Status == jobqueue.Succeeded && jobs[1].Status == jobqueue.Succeeded
+		return len(jobs) == 5 && !slices.ContainsFunc(jobs, func(job jobqueue.Job) bool { return job.Status != jobqueue.Succeeded })
 	}, 5*time.Second, 10*time.Millisecond)
-	for _, asset := range []*evtv1.AssetRecord{old, banner} {
+	for _, asset := range []*evtv1.AssetRecord{old, middle, banner} {
 		waitForAssetObjectDeleted(t, ctx, second.storage.serverAssets, asset.GetNats().GetKey())
 	}
 	got, err := second.GetServerLogo(ctx)
@@ -129,7 +134,7 @@ func TestServerBrandingCleanupAfterWriterCrash(t *testing.T) {
 	if data, err := second.storage.serverAssets.GetBytes(ctx, current.GetNats().GetKey()); err != nil || !bytes.Equal(data, []byte("logo")) {
 		t.Fatalf("surviving logo = %q, %v", data, err)
 	}
-	for _, asset := range []*evtv1.AssetRecord{old, current, banner} {
+	for _, asset := range []*evtv1.AssetRecord{old, middle, current, banner} {
 		for _, key := range []string{asset.GetId(), asset.GetNats().GetKey()} {
 			data, err := second.GetCachedResize(ctx, ImageCacheKey(ServerAssetSignResource, key, 64, 64, "cover"))
 			if err != nil || (data != nil) != (asset == current) {
@@ -151,7 +156,7 @@ func TestServerBrandingCleanupDeletesS3Object(t *testing.T) {
 	require.NoError(t, core.DeleteServerLogo(ctx, "admin"))
 	require.Eventually(t, func() bool {
 		jobs := jobsOfType(t, ctx, core, jobTypeBrandingCleanup)
-		return len(jobs) == 1 && jobs[0].Status == jobqueue.Succeeded
+		return len(jobs) == 2 && jobs[0].Status == jobqueue.Succeeded && jobs[1].Status == jobqueue.Succeeded
 	}, 5*time.Second, 10*time.Millisecond)
 	_, err = storage.StatObject(ctx, key)
 	require.True(t, IsNoSuchKeyError(err), "expected deleted S3 object, got %v", err)
@@ -171,7 +176,7 @@ func TestBrandingCleanupRejectsMismatchedStorageKey(t *testing.T) {
 	require.NoError(t, core.DeleteServerBanner(ctx, "admin"))
 	require.Eventually(t, func() bool {
 		jobs := jobsOfType(t, ctx, core, jobTypeBrandingCleanup)
-		return len(jobs) == 1 && jobs[0].Status == jobqueue.Failed && jobs[0].Attempts == 1
+		return slices.ContainsFunc(jobs, func(job jobqueue.Job) bool { return job.Status == jobqueue.Failed && job.Attempts == 1 })
 	}, 5*time.Second, 10*time.Millisecond)
 	data, err := core.storage.serverAssets.GetBytes(ctx, logo.GetNats().GetKey())
 	require.NoError(t, err)
