@@ -618,6 +618,7 @@
       "delete_message": "Šī uzdevuma darbs tiek atmests. Vēlāk jūs to nevarēsiet atkārtot.",
       "webhook": "Tīmekļa aizķeres piegāde",
       "media": "Multivides apstrāde",
+      "branding_cleanup": "Servera logotipu un reklāmkarogu tīrīšana",
       "asset_cleanup": "Failu tīrīšana",
       "call_key_cleanup": "Zvanu atslēgu dzēšana",
       "push_subscription_cleanup": "Push abonementu tīrīšana",

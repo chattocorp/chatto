@@ -93,13 +93,13 @@ func (c *ChattoCore) uploadServerAsset(ctx context.Context, webpData []byte, kin
 }
 
 // SetServerLogo atomically points the instance at a new logo asset using
-// optimistic locking, and cleans up the prior asset on success.
+// optimistic locking. The same transaction requests cleanup of the prior asset.
 func (c *ChattoCore) SetServerLogo(ctx context.Context, actorID string, asset *evtv1.AssetRecord) error {
 	return c.setServerBrandingAsset(ctx, actorID, "logo", asset)
 }
 
 // SetServerBanner atomically points the instance at a new banner asset
-// using optimistic locking, and cleans up the prior asset on success.
+// using optimistic locking. The same transaction requests cleanup of the prior asset.
 func (c *ChattoCore) SetServerBanner(ctx context.Context, actorID string, asset *evtv1.AssetRecord) error {
 	return c.setServerBrandingAsset(ctx, actorID, "banner", asset)
 }
@@ -111,39 +111,25 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind s
 	if c.configModel == nil {
 		return fmt.Errorf("config model not configured")
 	}
-	if asset == nil {
-		return c.deleteServerBrandingAsset(ctx, actorID, kind)
-	}
-
-	var oldAsset *evtv1.AssetRecord
-	changed := false
-	err := c.configModel.updateSubject(ctx, ConfigSubjectServer, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
-		oldAsset = c.projectedServerBrandingAsset(kind)
-		if assetRecordsEqual(oldAsset, asset) {
-			changed = false
+	return c.configModel.updateSubject(ctx, ConfigSubjectServer, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
+		old := c.projectedServerBrandingAsset(kind)
+		if assetRecordsEqual(old, asset) {
 			return nil, nil
 		}
-		changed = true
-		if kind == "logo" {
-			return []*evtv1.Event{newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerLogoSet{
-				ServerLogoSet: &evtv1.ServerLogoSetEvent{Asset: cloneAssetRecord(asset)},
-			}})}, nil
+
+		var change evtv1.Event
+		switch {
+		case kind == "logo" && asset != nil:
+			change.Event = &evtv1.Event_ServerLogoSet{ServerLogoSet: &evtv1.ServerLogoSetEvent{Asset: cloneAssetRecord(asset)}}
+		case kind == "logo":
+			change.Event = &evtv1.Event_ServerLogoCleared{ServerLogoCleared: &evtv1.ServerLogoClearedEvent{}}
+		case asset != nil:
+			change.Event = &evtv1.Event_ServerBannerSet{ServerBannerSet: &evtv1.ServerBannerSetEvent{Asset: cloneAssetRecord(asset)}}
+		default:
+			change.Event = &evtv1.Event_ServerBannerCleared{ServerBannerCleared: &evtv1.ServerBannerClearedEvent{}}
 		}
-		return []*evtv1.Event{newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerBannerSet{
-			ServerBannerSet: &evtv1.ServerBannerSetEvent{Asset: cloneAssetRecord(asset)},
-		}})}, nil
+		return []*evtv1.Event{newEvent(actorID, &change)}, nil
 	})
-	if err != nil {
-		return fmt.Errorf("failed to store %s: %w", kind, err)
-	}
-	if !changed {
-		return nil
-	}
-	if oldAsset != nil {
-		c.deleteAsset(ctx, assetStorageFromAsset(oldAsset), kind, "server")
-	}
-	c.logger.Info("Updated server "+kind, "asset_id", asset.GetId())
-	return nil
 }
 
 // GetServerLogo returns the asset reference for the server's current
@@ -219,50 +205,16 @@ func (c *ChattoCore) serverAssetURL(asset *evtv1.AssetRecord, width, height *int
 	return fmt.Sprintf("/assets/server/%s", assetKey)
 }
 
-// DeleteServerLogo clears the server's logo pointer and object-store asset.
+// DeleteServerLogo clears the server's logo and requests cleanup of its stored image.
 // No-op when no logo is set.
 func (c *ChattoCore) DeleteServerLogo(ctx context.Context, actorID string) error {
-	return c.deleteServerBrandingAsset(ctx, actorID, "logo")
+	return c.setServerBrandingAsset(ctx, actorID, "logo", nil)
 }
 
 // DeleteServerBanner clears the server's banner. No-op when no banner
 // is set.
 func (c *ChattoCore) DeleteServerBanner(ctx context.Context, actorID string) error {
-	return c.deleteServerBrandingAsset(ctx, actorID, "banner")
-}
-
-func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, kind string) error {
-	if c.configModel == nil {
-		return fmt.Errorf("config model not configured")
-	}
-
-	var asset *evtv1.AssetRecord
-	changed := false
-	err := c.configModel.updateSubject(ctx, ConfigSubjectServer, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
-		asset = c.projectedServerBrandingAsset(kind)
-		if asset == nil {
-			changed = false
-			return nil, nil
-		}
-		changed = true
-		if kind == "logo" {
-			return []*evtv1.Event{newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerLogoCleared{
-				ServerLogoCleared: &evtv1.ServerLogoClearedEvent{},
-			}})}, nil
-		}
-		return []*evtv1.Event{newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_ServerBannerCleared{
-			ServerBannerCleared: &evtv1.ServerBannerClearedEvent{},
-		}})}, nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to delete %s: %w", kind, err)
-	}
-	if !changed {
-		return nil
-	}
-	c.deleteAsset(ctx, assetStorageFromAsset(asset), kind, "server")
-	c.logger.Info("Deleted server " + kind)
-	return nil
+	return c.setServerBrandingAsset(ctx, actorID, "banner", nil)
 }
 
 // assetIDFromAsset extracts the asset ID from a NATS- or S3-backed asset

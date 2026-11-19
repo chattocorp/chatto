@@ -13,6 +13,7 @@ import (
 // Job types of durable effects that start from one retained stream message.
 // The names are persisted in job facts and JOBS subjects.
 const (
+	jobTypeBrandingCleanup           = "branding_cleanup"
 	jobTypeAssetCleanup              = "asset_cleanup"
 	jobTypeCallKeyCleanup            = "call_key_cleanup"
 	jobTypePushSubscriptionCleanup   = "push_subscription_cleanup"
@@ -23,7 +24,7 @@ const (
 // effectJobTypes lists the effect types that use the configured job
 // concurrency. Notification alerts have their own pool size.
 func effectJobTypes() []string {
-	return []string{jobTypeAssetCleanup, jobTypeCallKeyCleanup, jobTypePushSubscriptionCleanup, jobTypeUserKeyShredding}
+	return []string{jobTypeAssetCleanup, jobTypeBrandingCleanup, jobTypeCallKeyCleanup, jobTypePushSubscriptionCleanup, jobTypeUserKeyShredding}
 }
 
 // newEffectJob moves one existing durable effect consumer onto the job queue

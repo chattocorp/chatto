@@ -247,6 +247,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   in this aggregate. Self-service account creation reads the current admission
   under stream-wide EVT OCC and commits any required invitation redemption in
   the account batch. A conflict rebuilds the batch with the current policy.
+  The [branding cleanup worker](../../cli/internal/core/branding_cleanup.go)
+  consumes logo and banner changes. It reads the previous image from EVT
+  history. Branding and upload cleanup jobs share the storage deletion code.
+  Each selects its own object key and cache namespaces.
 - **`NotificationPolicyModel` / `NotificationOccurrenceModel` /
   `NotificationProjection` / `NotificationMaterializer` /
   `NotificationDecisionProjection` / `NotificationAlertDelivery`**

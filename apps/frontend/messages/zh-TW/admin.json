@@ -594,6 +594,7 @@
       "delete_message": "此工作的作業將被捨棄。你之後無法重試。",
       "webhook": "Webhook 傳送",
       "media": "媒體處理",
+      "branding_cleanup": "清理伺服器標誌和橫幅",
       "asset_cleanup": "檔案清理",
       "call_key_cleanup": "刪除通話金鑰",
       "push_subscription_cleanup": "清理推播訂閱",
