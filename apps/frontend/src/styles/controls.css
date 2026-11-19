@@ -58,11 +58,6 @@
   @apply inset-shadow-[var(--lowered-shadow),var(--lowered-edge)];
 }
 
-/* Empty checkbox and radio indicators share one recessed well. */
-@utility control-well {
-  @apply surface-lowered;
-}
-
 /* Small selected indicators need a softer finish than full-size action buttons. */
 @utility selection-indicator {
   @apply surface-raised;
@@ -669,7 +664,7 @@
 }
 
 @utility checkbox-box {
-  @apply control-well;
+  @apply surface-lowered;
   @apply grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 border-muted bg-transparent text-transparent;
   @apply transition-[background-color,border-color,color] feedback-quick;
 }
@@ -696,7 +691,7 @@
 }
 
 @utility choice-indicator {
-  @apply control-well;
+  @apply surface-lowered;
   @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-muted transition-colors feedback-quick;
 }
 

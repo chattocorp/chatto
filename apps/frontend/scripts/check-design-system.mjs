@@ -180,6 +180,7 @@ const insetConsumers = {
   'preview-frame': 'inset-frame',
   'menu-section': 'inset-content',
   'menu-section-sm': 'inset-content',
+  'panel-inset': 'inset-content',
   'preview-content': 'inset-content'
 };
 for (const [consumer, primitive] of Object.entries(insetConsumers)) {
