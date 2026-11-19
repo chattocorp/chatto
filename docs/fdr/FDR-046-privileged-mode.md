@@ -94,7 +94,7 @@ state. The client uses the returned effective grants only as UI hints.
 **Why:** A hidden client action is not an authorization boundary. Other API
 clients must follow the same rule.
 
-**Tradeoff:** A client that sends an empty activation request activates all protected roles the user holds at that time.
+**Tradeoff:** The legacy activation command selects all assigned protected roles when it starts a window. A retry during that window keeps the stored selection and deadline, even if the user’s assigned roles have changed.
 
 ### 3. Use one fixed session window
 

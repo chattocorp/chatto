@@ -848,7 +848,7 @@ func TestMCPHandlerAppliesOwnerPrivilegedModeGate(t *testing.T) {
 		t.Fatal("owner MCP session listed a room that only the owner override allows")
 	}
 	// Resource-bound MCP tokens cannot activate privileged mode.
-	if _, err := chattoCore.SetBearerPrivilegedMode(ctx, credentials.AccessToken, true); !errors.Is(err, core.ErrAuthTokenNotFound) {
+	if _, err := chattoCore.SetBearerPrivilegedMode(ctx, credentials.AccessToken, core.ActivateAllPrivilegedRoles); !errors.Is(err, core.ErrAuthTokenNotFound) {
 		t.Fatalf("SetBearerPrivilegedMode error = %v, want ErrAuthTokenNotFound", err)
 	}
 }

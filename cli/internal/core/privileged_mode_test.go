@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/authctx"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPermissionResolver_PrivilegedModeGatesElevatedHumanPermissions(t *testing.T) {
@@ -128,23 +129,26 @@ func TestChattoCore_BearerPrivilegedModeUsesRenewableSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	if err := chatto.AssignServerRole(ctx, SystemActorID, user.Id, RoleModerator); err != nil {
+		t.Fatal(err)
+	}
 	credentials, err := chatto.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
 	if err != nil {
 		t.Fatalf("CreateBearerSessionWithSource: %v", err)
 	}
 
-	deadline, err := chatto.SetBearerPrivilegedMode(ctx, credentials.AccessToken, true)
+	deadline, err := chatto.SetBearerPrivilegedMode(ctx, credentials.AccessToken, ActivateAllPrivilegedRoles)
 	if err != nil {
 		t.Fatalf("SetBearerPrivilegedMode(active): %v", err)
 	}
-	if remaining := time.Until(deadline); remaining <= 0 || remaining > PrivilegedModeWindow {
+	if remaining := time.Until(deadline.ExpiresAt); remaining <= 0 || remaining > PrivilegedModeWindow {
 		t.Fatalf("activation remaining = %v, want within (0, %v]", remaining, PrivilegedModeWindow)
 	}
 	validated, err := chatto.ValidatePublicBearerCredential(ctx, credentials.AccessToken)
 	if err != nil {
 		t.Fatalf("ValidatePublicBearerCredential: %v", err)
 	}
-	if !validated.PrivilegedModeExpiresAt.Equal(deadline) {
+	if !validated.PrivilegedModeExpiresAt.Equal(deadline.ExpiresAt) {
 		t.Fatalf("validated deadline = %v, want %v", validated.PrivilegedModeExpiresAt, deadline)
 	}
 	rotated, err := chatto.RefreshBearerSession(ctx, credentials.RefreshToken, testRefreshRequestIDA, "")
@@ -155,14 +159,14 @@ func TestChattoCore_BearerPrivilegedModeUsesRenewableSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidatePublicBearerCredential(rotated): %v", err)
 	}
-	if !validated.PrivilegedModeExpiresAt.Equal(deadline) {
+	if !validated.PrivilegedModeExpiresAt.Equal(deadline.ExpiresAt) {
 		t.Fatalf("rotated deadline = %v, want %v", validated.PrivilegedModeExpiresAt, deadline)
 	}
-	retried, err := chatto.SetBearerPrivilegedMode(ctx, credentials.AccessToken, true)
-	if err != nil || !retried.Equal(deadline) {
+	retried, err := chatto.SetBearerPrivilegedMode(ctx, credentials.AccessToken, ActivateAllPrivilegedRoles)
+	if err != nil || !retried.ExpiresAt.Equal(deadline.ExpiresAt) {
 		t.Fatalf("idempotent activation = %v, %v; want %v, nil", retried, err, deadline)
 	}
-	if deactivated, err := chatto.SetBearerPrivilegedMode(ctx, credentials.AccessToken, false); err != nil || !deactivated.IsZero() {
+	if deactivated, err := chatto.SetBearerPrivilegedMode(ctx, credentials.AccessToken, DeactivatePrivilegedMode); err != nil || !deactivated.ExpiresAt.IsZero() {
 		t.Fatalf("deactivation = %v, %v; want zero, nil", deactivated, err)
 	}
 	validated, err = chatto.ValidatePublicBearerCredential(ctx, credentials.AccessToken)
@@ -178,11 +182,14 @@ func TestChattoCore_CookiePrivilegedModeRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	if err := chatto.AssignServerRole(ctx, SystemActorID, user.Id, RoleModerator); err != nil {
+		t.Fatal(err)
+	}
 	sessionID, _, err := chatto.CreateCookieSession(ctx, user.Id, "password_login")
 	if err != nil {
 		t.Fatalf("CreateCookieSession: %v", err)
 	}
-	deadline, err := chatto.SetCookiePrivilegedMode(ctx, sessionID, true)
+	deadline, err := chatto.SetCookiePrivilegedMode(ctx, sessionID, ActivateAllPrivilegedRoles)
 	if err != nil {
 		t.Fatalf("SetCookiePrivilegedMode(active): %v", err)
 	}
@@ -190,10 +197,10 @@ func TestChattoCore_CookiePrivilegedModeRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateCookieCredential: %v", err)
 	}
-	if got := validated.GetPrivilegedModeExpiresAt().AsTime(); !got.Equal(deadline) {
+	if got := validated.GetPrivilegedModeExpiresAt().AsTime(); !got.Equal(deadline.ExpiresAt) {
 		t.Fatalf("validated deadline = %v, want %v", got, deadline)
 	}
-	if _, err := chatto.SetCookiePrivilegedMode(ctx, sessionID, false); err != nil {
+	if _, err := chatto.SetCookiePrivilegedMode(ctx, sessionID, DeactivatePrivilegedMode); err != nil {
 		t.Fatalf("SetCookiePrivilegedMode(inactive): %v", err)
 	}
 	validated, err = chatto.ValidateCookieCredential(ctx, sessionID)
@@ -216,7 +223,7 @@ func TestChattoCore_CookiePrivilegedModeRejectsRevokedSession(t *testing.T) {
 	if err := chatto.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
 		t.Fatalf("SetPasswordHash: %v", err)
 	}
-	if _, err := chatto.SetCookiePrivilegedMode(ctx, sessionID, true); !errors.Is(err, ErrCookieSessionNotFound) {
+	if _, err := chatto.SetCookiePrivilegedMode(ctx, sessionID, ActivateAllPrivilegedRoles); !errors.Is(err, ErrCookieSessionNotFound) {
 		t.Fatalf("SetCookiePrivilegedMode error = %v, want ErrCookieSessionNotFound", err)
 	}
 }
@@ -584,6 +591,39 @@ func TestShieldModeRoleProtection(t *testing.T) {
 		}
 	}
 	inactive := authctx.WithCredential(ctx, authctx.RuntimeCredential{Handle: "inactive", Kind: authctx.RuntimeCredentialKindCookieSession, UserID: user.Id})
+	t.Run("room allow leaves the same role's server deny in force until selected", func(t *testing.T) {
+		room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "shield-scope", "")
+		require.NoError(t, err)
+		// A separate allow makes losing the server deny observable.
+		require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, user.Id, PermMessageManage))
+		require.NoError(t, c.DenyServerPermission(ctx, SystemActorID, "helper", PermMessageManage))
+		require.NoError(t, c.GrantRoomPermission(ctx, SystemActorID, room.Id, "helper", PermMessageManage))
+		for _, tc := range []struct {
+			session context.Context
+			want    DecisionKind
+		}{
+			{inactive, DecisionDeny}, {request(user.Id, "restricted"), DecisionDeny}, {request(user.Id, "helper"), DecisionAllow},
+		} {
+			decision, err := c.PermResolver().Resolve(tc.session, user.Id, KindChannel, room.Id, PermMessageManage)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, decision)
+		}
+	})
+	t.Run("including permission on an unselected protected role", func(t *testing.T) {
+		resolve := func(session context.Context, want DecisionKind) {
+			t.Helper()
+			got, err := c.PermResolver().Resolve(session, user.Id, KindChannel, "", PermServerManageNeighbors)
+			require.NoError(t, err)
+			require.Equal(t, want, got)
+		}
+		resolve(inactive, DecisionNone)
+		require.NoError(t, c.GrantServerPermission(ctx, SystemActorID, "helper", PermServerManage))
+		resolve(inactive, DecisionDeny)
+		resolve(request(user.Id, "restricted"), DecisionDeny)
+		resolve(request(user.Id, "helper"), DecisionAllow)
+		require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, user.Id, PermServerManageNeighbors))
+		resolve(inactive, DecisionAllow)
+	})
 	if err := c.GrantUserPermission(ctx, SystemActorID, user.Id, PermServerManage); err != nil {
 		t.Fatal(err)
 	}

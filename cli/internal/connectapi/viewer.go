@@ -46,7 +46,7 @@ func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[apiv1.
 }
 
 func (s *viewerService) ActivatePrivilegedMode(ctx context.Context, _ *connect.Request[apiv1.ActivatePrivilegedModeRequest]) (*connect.Response[apiv1.ActivatePrivilegedModeResponse], error) {
-	result, err := s.activatePrivilegedRoles(ctx, nil, true)
+	result, err := s.activatePrivilegedRoles(ctx, nil, core.ActivateAllPrivilegedRoles)
 	if err != nil {
 		return nil, err
 	}
@@ -54,14 +54,14 @@ func (s *viewerService) ActivatePrivilegedMode(ctx context.Context, _ *connect.R
 }
 
 func (s *viewerService) ActivatePrivilegedRoles(ctx context.Context, req *connect.Request[apiv1.ActivatePrivilegedRolesRequest]) (*connect.Response[apiv1.ActivatePrivilegedRolesResponse], error) {
-	result, err := s.activatePrivilegedRoles(ctx, req.Msg.RoleNames, false)
+	result, err := s.activatePrivilegedRoles(ctx, req.Msg.RoleNames, core.ActivateSelectedPrivilegedRoles)
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(result), nil
 }
 
-func (s *viewerService) activatePrivilegedRoles(ctx context.Context, requested []string, allRoles bool) (*apiv1.ActivatePrivilegedRolesResponse, error) {
+func (s *viewerService) activatePrivilegedRoles(ctx context.Context, requested []string, action core.PrivilegedModeAction) (*apiv1.ActivatePrivilegedRolesResponse, error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -69,21 +69,17 @@ func (s *viewerService) activatePrivilegedRoles(ctx context.Context, requested [
 	if credential, ok := authctx.CredentialForContext(ctx); ok && credential.Kind == authctx.RuntimeCredentialKindBotAPIKey {
 		return nil, core.ErrHumanAccountRequired
 	}
-	roles, selected, err := s.api.core.SelectPrivilegedRoles(caller.UserID, requested, allRoles)
+	activation, err := s.api.setPrivilegedMode(ctx, caller.UserID, action, requested...)
 	if err != nil {
 		return nil, err
 	}
-	deadline, err := s.api.setPrivilegedMode(ctx, caller.UserID, true, selected...)
-	if err != nil {
-		return nil, err
-	}
-	ctx = privilegedModeContext(ctx, deadline, selected...)
+	ctx = privilegedModeContext(ctx, activation.ExpiresAt, activation.Roles...)
 	capabilities, permissions, err := s.api.buildViewerAuthorization(ctx, caller.UserID)
 	if err != nil {
 		return nil, err
 	}
 	return &apiv1.ActivatePrivilegedRolesResponse{
-		PrivilegedMode:    privilegedModeState(deadline, roles...),
+		PrivilegedMode:    privilegedModeState(activation.ExpiresAt, s.api.core.ProtectedRoles(caller.UserID)...),
 		Capabilities:      capabilities,
 		ViewerPermissions: permissions,
 	}, nil
@@ -94,7 +90,7 @@ func (s *viewerService) DeactivatePrivilegedMode(ctx context.Context, _ *connect
 	if err != nil {
 		return nil, err
 	}
-	if _, err := s.api.setPrivilegedMode(ctx, caller.UserID, false); err != nil {
+	if _, err := s.api.setPrivilegedMode(ctx, caller.UserID, core.DeactivatePrivilegedMode); err != nil {
 		return nil, err
 	}
 	roles := s.api.core.ProtectedRoles(caller.UserID)
@@ -120,20 +116,20 @@ func privilegedModeContext(ctx context.Context, deadline time.Time, roles ...str
 	return authctx.WithCredential(ctx, credential)
 }
 
-func (a *API) setPrivilegedMode(ctx context.Context, userID string, active bool, roles ...string) (time.Time, error) {
+func (a *API) setPrivilegedMode(ctx context.Context, userID string, action core.PrivilegedModeAction, roles ...string) (core.PrivilegedModeActivation, error) {
 	credential, ok := authctx.CredentialForContext(ctx)
 	if !ok || credential.UserID != userID {
-		return time.Time{}, core.ErrNotAuthenticated
+		return core.PrivilegedModeActivation{}, core.ErrNotAuthenticated
 	}
 	switch credential.Kind {
 	case authctx.RuntimeCredentialKindBearerToken:
-		return a.core.SetBearerPrivilegedMode(ctx, credential.Handle, active, roles...)
+		return a.core.SetBearerPrivilegedMode(ctx, credential.Handle, action, roles...)
 	case authctx.RuntimeCredentialKindCookieSession:
-		return a.core.SetCookiePrivilegedMode(ctx, credential.Handle, active, roles...)
+		return a.core.SetCookiePrivilegedMode(ctx, credential.Handle, action, roles...)
 	case authctx.RuntimeCredentialKindBotAPIKey:
-		return time.Time{}, core.ErrHumanAccountRequired
+		return core.PrivilegedModeActivation{}, core.ErrHumanAccountRequired
 	default:
-		return time.Time{}, core.ErrNotAuthenticated
+		return core.PrivilegedModeActivation{}, core.ErrNotAuthenticated
 	}
 }
 

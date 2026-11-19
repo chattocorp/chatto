@@ -453,6 +453,28 @@ func TestCallPermissionReconciliationGatesOwnerOverride(t *testing.T) {
 
 }
 
+func TestStoreCallRoleSelectionDuringFinalSecond(t *testing.T) {
+	c, _ := setupTestCore(t)
+	for _, identity := range []string{"member", "companion"} {
+		t.Run(identity, func(t *testing.T) {
+			deadline := time.Now().Add(900 * time.Millisecond)
+			ctx := authctx.WithCredential(testContext(t), authctx.RuntimeCredential{
+				Handle: "session", UserID: "member", Kind: authctx.RuntimeCredentialKindCookieSession,
+				PrivilegedRoles: []string{RoleModerator}, PrivilegedModeExpiresAt: deadline,
+			})
+			ref, err := c.StoreCallRoleSelection(ctx, "room", identity, "member")
+			require.NoError(t, err)
+			require.NotEmpty(t, ref)
+			entry, err := c.storage.runtimeStateKV.Get(ctx, callSelectionKey(ref))
+			require.NoError(t, err)
+			var selection runtimestatev1.CallRoleSelection
+			require.NoError(t, proto.Unmarshal(entry.Value(), &selection))
+			require.Equal(t, []string{RoleModerator}, selection.Roles)
+			require.True(t, deadline.Equal(selection.ExpiresAt.AsTime()))
+		})
+	}
+}
+
 func tokenMetadata(t *testing.T, token *VoiceCallToken) string {
 	t.Helper()
 	parsed, _, err := jwt.NewParser().ParseUnverified(token.Token, jwt.MapClaims{})

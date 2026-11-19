@@ -162,6 +162,57 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	}
 }
 
+func TestViewerLegacyActivationRetryKeepsStoredSelection(t *testing.T) {
+	for _, kind := range []authctx.RuntimeCredentialKind{authctx.RuntimeCredentialKindBearerToken, authctx.RuntimeCredentialKindCookieSession} {
+		t.Run(string(kind), func(t *testing.T) {
+			env := newConnectAPITestEnv(t)
+			user := env.viewer
+			require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator))
+			var handle string
+			if kind == authctx.RuntimeCredentialKindCookieSession {
+				id, _, err := env.core.CreateCookieSession(env.ctx, user.Id, "password_login")
+				require.NoError(t, err)
+				handle = id
+			} else {
+				tokens, err := env.core.CreateBearerSessionWithSource(env.ctx, user.Id, "password_login")
+				require.NoError(t, err)
+				handle = tokens.AccessToken
+			}
+			// Reuse the request credential to exercise a retry even when authentication
+			// preceded the first activation. The persisted session owns the selection.
+			ctx := authctx.WithCredential(withCaller(env.ctx, user), authctx.RuntimeCredential{UserID: user.Id, Handle: handle, Kind: kind})
+			activate := func() *apiv1.ActivatePrivilegedModeResponse {
+				t.Helper()
+				res, err := env.viewerService.ActivatePrivilegedMode(ctx, connect.NewRequest(&apiv1.ActivatePrivilegedModeRequest{}))
+				require.NoError(t, err)
+				return res.Msg
+			}
+			first := activate()
+			require.False(t, apiCapabilityGranted(first.Capabilities.Grants, viewerCapabilityAdminViewSystem))
+			require.NoError(t, env.core.RevokeServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator))
+			retry := activate()
+			require.False(t, retry.PrivilegedMode.Available)
+			require.True(t, proto.Equal(first.PrivilegedMode.ExpiresAt, retry.PrivilegedMode.ExpiresAt))
+			require.NoError(t, env.core.AssignOwnerRole(env.ctx, user.Id))
+			retry = activate()
+			require.Equal(t, []string{core.RoleOwner}, retry.PrivilegedMode.RoleSelection.AvailableRoles)
+			require.True(t, proto.Equal(first.PrivilegedMode.ExpiresAt, retry.PrivilegedMode.ExpiresAt))
+			require.False(t, apiCapabilityGranted(retry.Capabilities.Grants, viewerCapabilityAdminViewSystem))
+			_, err := env.viewerService.ActivatePrivilegedRoles(ctx, connect.NewRequest(&apiv1.ActivatePrivilegedRolesRequest{RoleNames: []string{core.RoleOwner}}))
+			require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
+			if kind == authctx.RuntimeCredentialKindCookieSession {
+				session, err := env.core.ValidateCookieCredential(ctx, handle)
+				require.NoError(t, err)
+				require.Equal(t, []string{core.RoleModerator}, session.PrivilegedRoles)
+			} else {
+				session, err := env.core.ValidatePublicBearerCredential(ctx, handle)
+				require.NoError(t, err)
+				require.Equal(t, []string{core.RoleModerator}, session.PrivilegedRoles)
+			}
+		})
+	}
+}
+
 func TestViewerCanEndShieldModeAfterLastProtectedRoleIsRevoked(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "shield-moderator", "Moderator", "password")

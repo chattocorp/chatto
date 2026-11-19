@@ -116,7 +116,7 @@ size, and total expanded bytes.
 survives restart but is not content/domain history. See
 [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md).
 
-`call_role_selection.{ref}` stores a private `CallRoleSelection` for a call token issued during Shield Mode. The record binds the selected roles to the LiveKit room, participant identity, and Chatto user. Its TTL ends at the issuing session’s activation deadline. Reconciliation checks the stored deadline even if the record still exists. Participants see only the opaque reference.
+`call_role_selection.{ref}` stores a private `CallRoleSelection` for a call token issued during Shield Mode. The record binds the selected roles to the LiveKit room, participant identity, and Chatto user. JetStream retains the record for the remaining activation time rounded up to a whole second. Reconciliation checks the exact session deadline stored in the record. Participants see only the opaque reference.
 
 Private availability uses `presence.{userId}` with a `PresencePreference`
 protobuf and an opaque replacement token. The existing bucket retains one

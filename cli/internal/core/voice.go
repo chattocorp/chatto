@@ -74,7 +74,10 @@ func (c *ChattoCore) StoreCallRoleSelection(ctx context.Context, roomName, ident
 		return "", err
 	}
 	ref := rand.Text()
-	_, err = c.storage.runtimeStateKV.Create(ctx, callSelectionKey(ref), value, jetstream.KeyTTL(ttl))
+	// JetStream stores TTLs in whole seconds. Round retention up so that the
+	// record remains available until the exact deadline checked by callRoles.
+	retention := (ttl + time.Second - 1).Truncate(time.Second)
+	_, err = c.storage.runtimeStateKV.Create(ctx, callSelectionKey(ref), value, jetstream.KeyTTL(retention))
 	if err != nil {
 		return "", fmt.Errorf("store call role selection: %w", err)
 	}
