@@ -241,7 +241,7 @@ identity, body rendering, and row geometry consistent.
             >
           {/if}
           {#if newHeader && headerMeta}
-            <span class="contents [&>*]:[font-size:inherit] [&>:last-child]:shrink-0">
+            <span class="contents [&>*]:[font-size:inherit] [&>time]:truncate">
               <span aria-hidden="true" class="shrink-0 text-muted/60 only:hidden">·</span>
               {@render headerMeta()}
             </span>

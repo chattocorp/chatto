@@ -119,11 +119,13 @@ message presentation. Each message row itself opens the original message.
         {@const message = item.message}
         {@const actor = message ? messageActor(message) : null}
         {#if message}
+          {@const timestamp = formatTimestamp(message)}
           <li>
             <div
               role="link"
               tabindex="0"
               aria-label={`${formatAccountName(actor?.displayName || actor?.login || m('common.unknown'), actor)}: ${message.body || ''}`}
+              title={timestamp || undefined}
               data-room-pin-id={message.id}
               class="group/search-result cursor-pointer selectable-list-item"
               onclick={(pointerEvent) => openPinFromPointer(pointerEvent, message)}
@@ -149,7 +151,7 @@ message presentation. Each message row itself opens the original message.
                           class="text-xs text-muted"
                           datetime={message.createdAt.toDate().toISOString()}
                         >
-                          {formatTimestamp(message)}
+                          {timestamp}
                         </time>
                       {/if}
                     {/snippet}
