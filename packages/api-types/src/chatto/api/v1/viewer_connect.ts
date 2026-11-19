@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ActivatePrivilegedModeRequest, ActivatePrivilegedModeResponse, DeactivatePrivilegedModeRequest, DeactivatePrivilegedModeResponse, GetViewerRequest, GetViewerResponse } from "./viewer_pb.js";
+import { ActivatePrivilegedModeRequest, ActivatePrivilegedModeResponse, ActivatePrivilegedRolesRequest, ActivatePrivilegedRolesResponse, DeactivatePrivilegedModeRequest, DeactivatePrivilegedModeResponse, GetViewerRequest, GetViewerResponse } from "./viewer_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -27,7 +27,8 @@ export const ViewerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Activates elevation-required permissions for a fixed, non-sliding window.
+     * Activates all currently assigned protected roles and eligible direct grants for 15 minutes.
+     * Deactivate before changing the selection. Repeated activation keeps the deadline.
      * Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
      * permission entitlement.
      *
@@ -37,6 +38,19 @@ export const ViewerService = {
       name: "ActivatePrivilegedMode",
       I: ActivatePrivilegedModeRequest,
       O: ActivatePrivilegedModeResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Activates only the selected roles and eligible direct grants for 15 minutes.
+     * Returns PERMISSION_DENIED for an unassigned or unprotected role. Deactivate
+     * before changing the selection. Repeated activation keeps the deadline.
+     *
+     * @generated from rpc chatto.api.v1.ViewerService.ActivatePrivilegedRoles
+     */
+    activatePrivilegedRoles: {
+      name: "ActivatePrivilegedRoles",
+      I: ActivatePrivilegedRolesRequest,
+      O: ActivatePrivilegedRolesResponse,
       kind: MethodKind.Unary,
     },
     /**

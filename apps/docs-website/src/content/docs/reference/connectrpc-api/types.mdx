@@ -101,6 +101,7 @@ Public role metadata used for rendering role mentions, labels, and catalogs.
 | `is_system` | `bool` | Whether this is a built-in role. |
 | `position` | `int32` | Display/order position. |
 | `pingable` | `bool` | Whether messages may notify users assigned to this role. |
+| `requires_shield_mode` | `bool` | Grants from this role require explicit selection in Shield Mode. |
 
 <a id="chatto-api-v1-PresencePreference"></a>
 
@@ -962,9 +963,10 @@ State of explicit privileged-mode activation for this authenticated session.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `available` | `bool` | Whether the user has an elevation-required permission entitlement. This includes owner entitlement and explicit allows at any supported scope. |
+| `available` | `bool` | Whether the user has a protected role or a direct grant that requires elevation. |
 | `active` | `bool` | Whether elevated permissions are effective for this session now. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute activation deadline. Present only while privileged mode is active. |
+| `available_roles` | `repeated string` | Assigned protected roles available for activation. |
 
 <a id="chatto-api-v1-ServerViewerPermissions"></a>
 
@@ -1749,7 +1751,7 @@ the code can use it; it is not bound to an email address or recipient.
 ### Job
 
 Safe administrative job summary. Content, credentials, and internal payloads
-are never returned. Requires server.manage, including privileged mode.
+are never returned. Requires effective server.manage.
 
 | Field | Type | Description |
 | --- | --- | --- |

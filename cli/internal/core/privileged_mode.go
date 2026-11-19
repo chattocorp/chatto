@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/chattocorp/chatto/pkg/jetstreamutil"
@@ -15,10 +16,38 @@ import (
 // Ordinary use does not extend the deadline.
 const PrivilegedModeWindow = 15 * time.Minute
 
+// PrivilegedModeOptions returns this user's available protected roles and
+// whether any role or direct grant can be activated.
+func (c *ChattoCore) PrivilegedModeOptions(userID string) ([]string, bool) {
+	return c.rbacModel.rbac.Projection().PrivilegedModeOptions(userID)
+}
+
+// SelectPrivilegedRoles validates a session activation against current role
+// assignments. The legacy activation command selects all available roles.
+// Every subsequent authorization still resolves current grants and denies.
+func (c *ChattoCore) SelectPrivilegedRoles(userID string, requested []string, allRoles bool) (available, selected []string, err error) {
+	available, eligible := c.PrivilegedModeOptions(userID)
+	if !eligible {
+		return nil, nil, ErrPrivilegedModeUnavailable
+	}
+	if allRoles {
+		return available, available, nil
+	}
+	selected = slices.Clone(requested)
+	slices.Sort(selected)
+	selected = slices.Compact(selected)
+	for _, name := range selected {
+		if _, ok := slices.BinarySearch(available, name); !ok {
+			return nil, nil, ErrPermissionDenied
+		}
+	}
+	return available, selected, nil
+}
+
 // SetBearerPrivilegedMode activates or deactivates privileged mode on the
 // renewable session behind one current public bearer token. Activation is
 // idempotent and does not extend an activation that is already current.
-func (c *ChattoCore) SetBearerPrivilegedMode(ctx context.Context, token string, active bool) (time.Time, error) {
+func (c *ChattoCore) SetBearerPrivilegedMode(ctx context.Context, token string, active bool, roles ...string) (time.Time, error) {
 	credential, err := c.ValidatePublicBearerCredential(ctx, token)
 	if err != nil {
 		return time.Time{}, err
@@ -26,10 +55,10 @@ func (c *ChattoCore) SetBearerPrivilegedMode(ctx context.Context, token string, 
 	if credential.RenewableSessionID == "" {
 		return time.Time{}, ErrAuthTokenNotFound
 	}
-	return c.setRenewableSessionPrivilegedMode(ctx, credential.RenewableSessionID, active, time.Now())
+	return c.setRenewableSessionPrivilegedMode(ctx, credential.RenewableSessionID, active, time.Now(), roles...)
 }
 
-func (c *ChattoCore) setRenewableSessionPrivilegedMode(ctx context.Context, sessionID string, active bool, now time.Time) (time.Time, error) {
+func (c *ChattoCore) setRenewableSessionPrivilegedMode(ctx context.Context, sessionID string, active bool, now time.Time, roles ...string) (time.Time, error) {
 	for range 8 {
 		session, entry, err := c.validateRenewableSession(ctx, sessionID, now)
 		if err != nil {
@@ -39,6 +68,9 @@ func (c *ChattoCore) setRenewableSessionPrivilegedMode(ctx context.Context, sess
 			return time.Time{}, err
 		}
 		if active && now.Before(session.PrivilegedModeExpiresAt) {
+			if !slices.Equal(session.PrivilegedRoles, roles) {
+				return time.Time{}, fmt.Errorf("%w: deactivate before changing selected roles", ErrInvalidArgument)
+			}
 			return session.PrivilegedModeExpiresAt, nil
 		}
 		wasActive := now.Before(session.PrivilegedModeExpiresAt)
@@ -49,6 +81,7 @@ func (c *ChattoCore) setRenewableSessionPrivilegedMode(ctx context.Context, sess
 				deadline = session.ExpiresAt
 			}
 		}
+		session.PrivilegedRoles = roles
 		session.PrivilegedModeExpiresAt = deadline
 		value, err := json.Marshal(session)
 		if err != nil {
@@ -76,7 +109,7 @@ func (c *ChattoCore) setRenewableSessionPrivilegedMode(ctx context.Context, sess
 
 // SetCookiePrivilegedMode activates or deactivates privileged mode on one
 // same-origin browser session. Activation is idempotent and does not slide.
-func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID string, active bool) (time.Time, error) {
+func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID string, active bool, roles ...string) (time.Time, error) {
 	if sessionID == "" {
 		return time.Time{}, ErrCookieSessionNotFound
 	}
@@ -109,6 +142,9 @@ func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID stri
 			return time.Time{}, err
 		}
 		if active && now.Before(tokenData.PrivilegedModeExpiresAt) {
+			if !slices.Equal(tokenData.PrivilegedRoles, roles) {
+				return time.Time{}, fmt.Errorf("%w: deactivate before changing selected roles", ErrInvalidArgument)
+			}
 			return tokenData.PrivilegedModeExpiresAt, nil
 		}
 		wasActive := now.Before(tokenData.PrivilegedModeExpiresAt)
@@ -119,6 +155,7 @@ func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID stri
 				deadline = tokenData.ExpiresAt
 			}
 		}
+		tokenData.PrivilegedRoles = roles
 		tokenData.PrivilegedModeExpiresAt = deadline
 		value, err := json.Marshal(tokenData)
 		if err != nil {

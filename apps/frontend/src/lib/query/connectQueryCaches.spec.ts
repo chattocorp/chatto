@@ -153,6 +153,8 @@ describe('connectQueryCaches', () => {
 
     emit('onUpdate', event({ case: 'roleCreated', value: {} }));
     expect(caches.server.refreshRoles).toHaveBeenCalledWith('S1');
+    emit('onUpdate', event({ case: 'rolePermissionsChanged', value: { roleName: 'moderator' } }));
+    expect(caches.server.refreshRoles).toHaveBeenCalledTimes(2);
     emit('onUpdate', event({ case: 'userProfileChanged', value: { userId: 'U2' } }));
     expect(caches.server.refreshAdmin).toHaveBeenCalledWith('S1');
 

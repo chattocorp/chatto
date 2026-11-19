@@ -195,7 +195,11 @@ describe('PermissionMatrix', () => {
     const help = page.getByTestId('permission-help');
     await expect.element(help).toHaveTextContent('Create new rooms');
     await expect.element(help).toHaveTextContent('At Room group scope');
-    await expect.element(help).toHaveTextContent('Needs privileged mode');
+    await expect
+      .element(help)
+      .toHaveTextContent(
+        'When granted directly to an account, this permission requires Shield Mode.'
+      );
     expect(container.querySelector('[data-testid="permission-name"]')?.hasAttribute('title')).toBe(
       false
     );

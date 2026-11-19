@@ -23,6 +23,7 @@
       "display_name_too_long": "Weergavenaam moet 64 tekens of minder bevatten",
       "description": "Beschrijving",
       "description_placeholder": "Optionele beschrijving voor deze rol",
+      "require_shield": "Bevoorrechte modus vereisen",
       "pingable": "Sta toe dat mensen deze rol pingen",
       "pingable_description": "Pingbare rollen verschijnen in @ autocomplete en stellen toegewezen kamerleden op de hoogte."
     },
@@ -129,8 +130,7 @@
         "open": "Over {permission}",
         "category": "Categorie",
         "scopes": "In te stellen voor",
-        "privileged": "Vereist de bevoorrechte modus",
-        "privileged_detail": "Accounts moeten de bevoorrechte modus inschakelen om dit recht te gebruiken.",
+        "privileged_detail": "Als dit recht rechtstreeks aan een account is toegekend, is de bevoorrechte modus nodig om het te gebruiken.",
         "includes": "Omvat",
         "included_by": "Onderdeel van"
       }

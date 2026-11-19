@@ -52,6 +52,7 @@ func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagn
 		{key: "user_key_shredding", streamName: natsresources.EVT, consumerName: userKeyShreddingConsumerName, required: true},
 		{key: "user_push_subscription_cleanup", streamName: natsresources.EVT, consumerName: pushSubscriptionCleanupConsumerName, required: true},
 		{key: "notification_materializer", streamName: natsresources.EVT, consumerName: notificationWorkerConsumerName, required: true},
+		{key: "notification_role_protection", streamName: natsresources.EVT, consumerName: roleProtectionConsumerName, required: true},
 		{key: "notification_invitations", streamName: natsresources.EVT, consumerName: invitationNotificationConsumerName, required: true},
 		{key: "notification_alert_delivery", streamName: notificationstream.StreamName, consumerName: notificationAlertConsumerName, required: true},
 		{key: "bot_webhook_source", streamName: natsresources.EVT, consumerName: botWebhookSourceConsumer, required: true},

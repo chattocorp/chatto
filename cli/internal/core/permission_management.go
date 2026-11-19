@@ -48,15 +48,16 @@ type TierPermissions struct {
 }
 
 type TierRole struct {
-	RoleName         string
-	DisplayName      string
-	Description      string
-	IsSystem         bool
-	Position         int32
-	Pingable         bool
-	Override         TierPermissions
-	InheritedAllows  []string
-	InheritedDenials []string
+	RoleName           string
+	DisplayName        string
+	Description        string
+	IsSystem           bool
+	Position           int32
+	Pingable           bool
+	RequiresShieldMode bool
+	Override           TierPermissions
+	InheritedAllows    []string
+	InheritedDenials   []string
 }
 
 type TierRoles struct {
@@ -544,12 +545,13 @@ func (c *ChattoCore) buildTierRoles(ctx context.Context, scope PermissionScope, 
 
 func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions, scope PermissionScope, roomID, groupID string) (*TierRole, error) {
 	out := &TierRole{
-		RoleName:    role.Name,
-		DisplayName: role.DisplayName,
-		Description: role.Description,
-		IsSystem:    role.IsSystem,
-		Position:    role.Position,
-		Pingable:    role.Pingable,
+		RoleName:           role.Name,
+		DisplayName:        role.DisplayName,
+		Description:        role.Description,
+		IsSystem:           role.IsSystem,
+		Position:           role.Position,
+		Pingable:           role.Pingable,
+		RequiresShieldMode: role.RequiresShieldMode,
 	}
 
 	serverGrants, err := c.GetServerRolePermissions(ctx, role.Name)

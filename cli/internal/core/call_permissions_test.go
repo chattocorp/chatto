@@ -391,7 +391,7 @@ func TestCallPermissionReconciliationGatesOwnerOverride(t *testing.T) {
 	name := LiveKitRoomName("", KindChannel, room.Id, snapshot.Call.CallID)
 	scan := func(privilegedUntil time.Time) *callPermissionRoomService {
 		t.Helper()
-		metadata, err := json.Marshal(participantMetadata{PrivilegedUntil: privilegedUntilUnix(privilegedUntil)})
+		metadata, err := json.Marshal(participantMetadata{PrivilegedRoles: []string{RoleOwner}, PrivilegedUntil: privilegedUntilUnix(privilegedUntil)})
 		require.NoError(t, err)
 		service := &callPermissionRoomService{fakeLiveKitRoomService: fakeLiveKitRoomService{
 			rooms:        []string{name},

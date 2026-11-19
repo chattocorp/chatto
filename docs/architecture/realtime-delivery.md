@@ -404,7 +404,7 @@ safe fallback. Neither path advances the cursor past the fact.
 `live.evt.>` per Chatto process. It classifies subjects before decoding, waits
 for `ServerContentView` once for content facts, and fans immutable decoded
 events into count- and byte-bounded session queues. Sessions of one user with
-the same privileged-mode state share room-visibility state. The hub makes each
+the same activation state and selected protected roles share room-visibility state. The hub makes each
 membership, read, and visibility decision with that fixed state (ADR-105).
 There are no per-client NATS or JetStream consumers.
 

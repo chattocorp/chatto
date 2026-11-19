@@ -81,7 +81,6 @@ buttons that switch the dialog to that permission.
       </dl>
       {#if metadata?.privileged}
         <Hint icon="icon-[uil--shield]">
-          <span class="font-medium">{m('rbac.permissions.help.privileged')}</span>
           {m('rbac.permissions.help.privileged_detail')}
         </Hint>
       {/if}

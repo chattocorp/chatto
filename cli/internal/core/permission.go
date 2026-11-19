@@ -204,7 +204,7 @@ type PermissionMetadata struct {
 	Category               PermissionCategory
 	Scopes                 []PermissionScope // Scopes where this permission can be configured
 	Includes               []Permission      // Permissions granted by an allow for this permission
-	RequiresPrivilegedMode bool              // Whether a human session must explicitly activate this permission
+	RequiresPrivilegedMode bool              // Whether a direct user grant requires Shield Mode
 }
 
 // allPermissions holds metadata for all permissions. The Chatto client copies

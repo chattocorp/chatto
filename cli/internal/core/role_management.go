@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
 type RoleCatalog struct {
@@ -20,17 +21,19 @@ type RoleDetails struct {
 }
 
 type AdminRoleInput struct {
-	Name        string
-	DisplayName string
-	Description string
-	Pingable    *bool
+	RequiresShieldMode bool
+	Name               string
+	DisplayName        string
+	Description        string
+	Pingable           *bool
 }
 
 type AdminRoleUpdateInput struct {
-	Name        string
-	DisplayName *string
-	Description *string
-	Pingable    *bool
+	RequiresShieldMode *bool
+	Name               string
+	DisplayName        *string
+	Description        *string
+	Pingable           *bool
 }
 
 func (c *ChattoCore) ListServerRolesForUser(ctx context.Context, actorID string) (*RoleCatalog, error) {
@@ -129,32 +132,74 @@ func (c *ChattoCore) AdminCreateServerRole(ctx context.Context, actorID string, 
 	if input.Pingable != nil {
 		pingable = *input.Pingable
 	}
-	return c.CreateServerRole(ctx, actorID, input.Name, input.DisplayName, input.Description, pingable)
+	return c.createServerRole(ctx, actorID, input.Name, input.DisplayName, input.Description, pingable, input.RequiresShieldMode, func() error { return c.requireCanManageAdminRoles(ctx, actorID) })
 }
 
 func (c *ChattoCore) AdminUpdateServerRole(ctx context.Context, actorID string, input AdminRoleUpdateInput) (*RoleWithPermissions, error) {
-	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
-		return nil, err
-	}
-	if input.DisplayName == nil && input.Description == nil && input.Pingable == nil {
-		return nil, fmt.Errorf("%w: provide at least one role field to update", ErrInvalidArgument)
-	}
-	role, err := c.GetServerRole(ctx, input.Name)
+	return c.updateServerRole(ctx, actorID, input, func() error { return c.requireCanManageAdminRoles(ctx, actorID) })
+}
+
+// updateServerRole applies the sparse edit as one batch. Rebuild the changes
+// and check the actor's authority again after a concurrent RBAC edit.
+func (c *ChattoCore) updateServerRole(ctx context.Context, actorID string, input AdminRoleUpdateInput, authorize func() error) (*RoleWithPermissions, error) {
+	name := input.Name
+	_, err := c.appendComputedRBACBatch(ctx, func() ([]evtstream.BatchEntry, error) {
+		if authorize != nil {
+			if err := c.authorizeAtStableInputs(ctx, authorize); err != nil {
+				return nil, err
+			}
+		}
+		if input.DisplayName == nil && input.Description == nil && input.Pingable == nil && input.RequiresShieldMode == nil {
+			return nil, fmt.Errorf("%w: provide at least one role field to update", ErrInvalidArgument)
+		}
+		existing, ok := c.rbacModel.role(name)
+		if !ok {
+			return nil, ErrRoleNotFound
+		}
+		display, description := existing.DisplayName, existing.Description
+		if input.DisplayName != nil {
+			display = *input.DisplayName
+		}
+		if input.Description != nil {
+			description = *input.Description
+		}
+		if err := validateRoleMetadata(display, description); err != nil {
+			return nil, err
+		}
+		var entries []evtstream.BatchEntry
+		add := func(e *evtv1.Event) {
+			e = newEvent(actorID, e)
+			entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(e), Event: e})
+		}
+		if display != existing.DisplayName {
+			add(&evtv1.Event{Event: &evtv1.Event_RbacRoleDisplayNameChanged{
+				RbacRoleDisplayNameChanged: &evtv1.RbacRoleDisplayNameChangedEvent{RoleName: name, DisplayName: display},
+			}})
+		}
+		if description != existing.Description {
+			add(&evtv1.Event{Event: &evtv1.Event_RbacRoleDescriptionChanged{
+				RbacRoleDescriptionChanged: &evtv1.RbacRoleDescriptionChangedEvent{RoleName: name, Description: description},
+			}})
+		}
+		if input.Pingable != nil && *input.Pingable != existing.Pingable {
+			add(&evtv1.Event{Event: &evtv1.Event_RbacRolePingableChanged{
+				RbacRolePingableChanged: &evtv1.RbacRolePingableChangedEvent{RoleName: name, Pingable: *input.Pingable},
+			}})
+		}
+		if input.RequiresShieldMode != nil && *input.RequiresShieldMode != existing.RequiresShieldMode {
+			if name == RoleOwner || name == RoleEveryone {
+				return nil, fmt.Errorf("%w: fixed role protection", ErrInvalidArgument)
+			}
+			add(&evtv1.Event{Event: &evtv1.Event_RbacRoleProtectionChanged{
+				RbacRoleProtectionChanged: &evtv1.RbacRoleProtectionChangedEvent{RoleName: name, RequiresShieldMode: *input.RequiresShieldMode},
+			}})
+		}
+		return entries, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	displayName := role.DisplayName
-	if input.DisplayName != nil {
-		displayName = *input.DisplayName
-	}
-	description := role.Description
-	if input.Description != nil {
-		description = *input.Description
-	}
-	if input.Pingable != nil {
-		return c.UpdateServerRole(ctx, actorID, input.Name, displayName, description, *input.Pingable)
-	}
-	return c.UpdateServerRole(ctx, actorID, input.Name, displayName, description)
+	return c.GetServerRole(ctx, name)
 }
 
 func (c *ChattoCore) AdminDeleteServerRole(ctx context.Context, actorID, roleName string) error {

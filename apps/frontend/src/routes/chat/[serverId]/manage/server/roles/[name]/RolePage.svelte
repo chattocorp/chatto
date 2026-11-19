@@ -8,7 +8,12 @@
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createRoleAPI, type RoleDetails, type UpdateRoleInput } from '@chatto/client/api/roles';
+  import {
+    roleCatalogSupportsProtection,
+    createRoleAPI,
+    type RoleDetails,
+    type UpdateRoleInput
+  } from '@chatto/client/api/roles';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { UserList } from '$lib/components/admin';
   import {
@@ -70,6 +75,17 @@
   const activeSection = $derived(section === 'role' && !canManageRoles ? 'members' : section);
   const canViewMembers = $derived(canAssignRoles || (canManageRoles && role?.name === 'everyone'));
   const canViewSection = $derived(activeSection === 'members' ? canViewMembers : canManageRoles);
+  // Older servers omit the protection flag on their built-in owner role.
+  const catalogQuery = createQuery(() => {
+    const connection = serverScope.connection;
+    return {
+      queryKey: adminQueryKeys.roleCatalog(serverScope),
+      enabled: activeSection === 'role' && canManageRoles,
+      queryFn: ({ signal }) => connection.getAPI(createRoleAPI).listAdminRoles({ signal })
+    };
+  });
+  const showShieldSetting = $derived(roleCatalogSupportsProtection(catalogQuery.data));
+
   let scrollContainer = $state<HTMLDivElement>();
   let metadataPanel = $state<{ hasChanges(): boolean }>();
   const membersQuery = createInfiniteQuery(() => {
@@ -121,12 +137,12 @@
     }
   }));
 
-  const pingableMutation = createMutation(() => ({
+  const settingMutation = createMutation(() => ({
     mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
     onSuccess: (updatedRole, variables) => {
       updateRoleSnapshot(variables, updatedRole);
       if (isCurrentRole(variables)) {
-        toast.success(updatedRole.pingable ? 'Role pings enabled' : 'Role pings disabled');
+        toast.success(m('common.saved'));
       }
     }
   }));
@@ -162,7 +178,7 @@
   }
 
   function saveMetadata(displayName: string, description: string): void {
-    if (!role || savingPingable) return;
+    if (!role || savingSetting) return;
     metadataMutation.mutate({
       ...mutationScope(role),
       input: {
@@ -173,20 +189,21 @@
     });
   }
 
-  async function savePingable(nextPingable: boolean): Promise<boolean> {
-    if (!role || role.name === 'everyone' || saving) return false;
-    if (nextPingable === role.pingable) return true;
+  async function saveSetting(
+    field: 'pingable' | 'requiresShieldMode',
+    checked: boolean
+  ): Promise<boolean> {
+    if (!role || saving || savingSetting) return false;
+    if (checked === role[field]) return true;
     const variables = {
       ...mutationScope(role),
       input: {
         name: role.name,
-        displayName: role.displayName,
-        description: role.description,
-        pingable: nextPingable
+        [field]: checked
       }
     };
     try {
-      await pingableMutation.mutateAsync(variables);
+      await settingMutation.mutateAsync(variables);
       return isCurrentRole(variables);
     } catch {
       return false;
@@ -233,8 +250,8 @@
   });
 
   const saving = $derived(metadataMutation.isPending && isCurrentRole(metadataMutation.variables));
-  const savingPingable = $derived(
-    pingableMutation.isPending && isCurrentRole(pingableMutation.variables)
+  const savingSetting = $derived(
+    settingMutation.isPending && isCurrentRole(settingMutation.variables)
   );
   const deleting = $derived(deleteMutation.isPending && isCurrentRole(deleteMutation.variables));
   const error = $derived.by(() => {
@@ -244,8 +261,8 @@
     if (metadataMutation.isError && isCurrentRole(metadataMutation.variables)) {
       return errorMessage(metadataMutation.error, m('admin.permissions.update_role_failed'));
     }
-    if (pingableMutation.isError && isCurrentRole(pingableMutation.variables)) {
-      return errorMessage(pingableMutation.error, m('admin.permissions.update_ping_failed'));
+    if (settingMutation.isError && isCurrentRole(settingMutation.variables)) {
+      return errorMessage(settingMutation.error, m('admin.permissions.update_role_failed'));
     }
     if (deleteMutation.isError && isCurrentRole(deleteMutation.variables)) {
       return errorMessage(deleteMutation.error, m('admin.permissions.delete_role_failed'));
@@ -307,9 +324,11 @@
             bind:this={metadataPanel}
             {role}
             {saving}
-            {savingPingable}
+            {savingSetting}
             onSaveMetadata={saveMetadata}
-            onSavePingable={savePingable}
+            {showShieldSetting}
+            onSavePingable={(checked) => saveSetting('pingable', checked)}
+            onSaveShield={(checked) => saveSetting('requiresShieldMode', checked)}
             onDelete={() => (deleteConfirmRoleName = role.name)}
           />
         {/key}

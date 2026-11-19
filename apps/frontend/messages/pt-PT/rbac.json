@@ -23,6 +23,7 @@
       "display_name_too_long": "O nome de visualização deve ter 64 caracteres ou menos",
       "description": "Descrição",
       "description_placeholder": "Descrição opcional para esta função",
+      "require_shield": "Exigir o modo privilegiado",
       "pingable": "Permitir que as pessoas façam ping nesta função",
       "pingable_description": "As funções pingáveis aparecem no preenchimento automático @ e notificam os membros atribuídos à sala."
     },
@@ -129,8 +130,7 @@
         "open": "Sobre {permission}",
         "category": "Categoria",
         "scopes": "Configurável para",
-        "privileged": "Requer o modo privilegiado",
-        "privileged_detail": "As contas têm de ativar o modo privilegiado para usar esta permissão.",
+        "privileged_detail": "Quando atribuída diretamente a uma conta, esta permissão exige o modo privilegiado.",
         "includes": "Inclui",
         "included_by": "Incluída em"
       }

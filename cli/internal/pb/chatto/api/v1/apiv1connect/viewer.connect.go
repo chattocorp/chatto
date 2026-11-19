@@ -38,6 +38,9 @@ const (
 	// ViewerServiceActivatePrivilegedModeProcedure is the fully-qualified name of the ViewerService's
 	// ActivatePrivilegedMode RPC.
 	ViewerServiceActivatePrivilegedModeProcedure = "/chatto.api.v1.ViewerService/ActivatePrivilegedMode"
+	// ViewerServiceActivatePrivilegedRolesProcedure is the fully-qualified name of the ViewerService's
+	// ActivatePrivilegedRoles RPC.
+	ViewerServiceActivatePrivilegedRolesProcedure = "/chatto.api.v1.ViewerService/ActivatePrivilegedRoles"
 	// ViewerServiceDeactivatePrivilegedModeProcedure is the fully-qualified name of the ViewerService's
 	// DeactivatePrivilegedMode RPC.
 	ViewerServiceDeactivatePrivilegedModeProcedure = "/chatto.api.v1.ViewerService/DeactivatePrivilegedMode"
@@ -48,10 +51,15 @@ type ViewerServiceClient interface {
 	// Returns the current authenticated viewer. This RPC requires a logged-in
 	// user; unauthenticated callers receive an UNAUTHENTICATED error.
 	GetViewer(context.Context, *connect.Request[v1.GetViewerRequest]) (*connect.Response[v1.GetViewerResponse], error)
-	// Activates elevation-required permissions for a fixed, non-sliding window.
+	// Activates all currently assigned protected roles and eligible direct grants for 15 minutes.
+	// Deactivate before changing the selection. Repeated activation keeps the deadline.
 	// Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
 	// permission entitlement.
 	ActivatePrivilegedMode(context.Context, *connect.Request[v1.ActivatePrivilegedModeRequest]) (*connect.Response[v1.ActivatePrivilegedModeResponse], error)
+	// Activates only the selected roles and eligible direct grants for 15 minutes.
+	// Returns PERMISSION_DENIED for an unassigned or unprotected role. Deactivate
+	// before changing the selection. Repeated activation keeps the deadline.
+	ActivatePrivilegedRoles(context.Context, *connect.Request[v1.ActivatePrivilegedRolesRequest]) (*connect.Response[v1.ActivatePrivilegedRolesResponse], error)
 	// Deactivates elevation-required permissions immediately. Returns
 	// FAILED_PRECONDITION when the caller is a bot.
 	DeactivatePrivilegedMode(context.Context, *connect.Request[v1.DeactivatePrivilegedModeRequest]) (*connect.Response[v1.DeactivatePrivilegedModeResponse], error)
@@ -80,6 +88,12 @@ func NewViewerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(viewerServiceMethods.ByName("ActivatePrivilegedMode")),
 			connect.WithClientOptions(opts...),
 		),
+		activatePrivilegedRoles: connect.NewClient[v1.ActivatePrivilegedRolesRequest, v1.ActivatePrivilegedRolesResponse](
+			httpClient,
+			baseURL+ViewerServiceActivatePrivilegedRolesProcedure,
+			connect.WithSchema(viewerServiceMethods.ByName("ActivatePrivilegedRoles")),
+			connect.WithClientOptions(opts...),
+		),
 		deactivatePrivilegedMode: connect.NewClient[v1.DeactivatePrivilegedModeRequest, v1.DeactivatePrivilegedModeResponse](
 			httpClient,
 			baseURL+ViewerServiceDeactivatePrivilegedModeProcedure,
@@ -93,6 +107,7 @@ func NewViewerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 type viewerServiceClient struct {
 	getViewer                *connect.Client[v1.GetViewerRequest, v1.GetViewerResponse]
 	activatePrivilegedMode   *connect.Client[v1.ActivatePrivilegedModeRequest, v1.ActivatePrivilegedModeResponse]
+	activatePrivilegedRoles  *connect.Client[v1.ActivatePrivilegedRolesRequest, v1.ActivatePrivilegedRolesResponse]
 	deactivatePrivilegedMode *connect.Client[v1.DeactivatePrivilegedModeRequest, v1.DeactivatePrivilegedModeResponse]
 }
 
@@ -106,6 +121,11 @@ func (c *viewerServiceClient) ActivatePrivilegedMode(ctx context.Context, req *c
 	return c.activatePrivilegedMode.CallUnary(ctx, req)
 }
 
+// ActivatePrivilegedRoles calls chatto.api.v1.ViewerService.ActivatePrivilegedRoles.
+func (c *viewerServiceClient) ActivatePrivilegedRoles(ctx context.Context, req *connect.Request[v1.ActivatePrivilegedRolesRequest]) (*connect.Response[v1.ActivatePrivilegedRolesResponse], error) {
+	return c.activatePrivilegedRoles.CallUnary(ctx, req)
+}
+
 // DeactivatePrivilegedMode calls chatto.api.v1.ViewerService.DeactivatePrivilegedMode.
 func (c *viewerServiceClient) DeactivatePrivilegedMode(ctx context.Context, req *connect.Request[v1.DeactivatePrivilegedModeRequest]) (*connect.Response[v1.DeactivatePrivilegedModeResponse], error) {
 	return c.deactivatePrivilegedMode.CallUnary(ctx, req)
@@ -116,10 +136,15 @@ type ViewerServiceHandler interface {
 	// Returns the current authenticated viewer. This RPC requires a logged-in
 	// user; unauthenticated callers receive an UNAUTHENTICATED error.
 	GetViewer(context.Context, *connect.Request[v1.GetViewerRequest]) (*connect.Response[v1.GetViewerResponse], error)
-	// Activates elevation-required permissions for a fixed, non-sliding window.
+	// Activates all currently assigned protected roles and eligible direct grants for 15 minutes.
+	// Deactivate before changing the selection. Repeated activation keeps the deadline.
 	// Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
 	// permission entitlement.
 	ActivatePrivilegedMode(context.Context, *connect.Request[v1.ActivatePrivilegedModeRequest]) (*connect.Response[v1.ActivatePrivilegedModeResponse], error)
+	// Activates only the selected roles and eligible direct grants for 15 minutes.
+	// Returns PERMISSION_DENIED for an unassigned or unprotected role. Deactivate
+	// before changing the selection. Repeated activation keeps the deadline.
+	ActivatePrivilegedRoles(context.Context, *connect.Request[v1.ActivatePrivilegedRolesRequest]) (*connect.Response[v1.ActivatePrivilegedRolesResponse], error)
 	// Deactivates elevation-required permissions immediately. Returns
 	// FAILED_PRECONDITION when the caller is a bot.
 	DeactivatePrivilegedMode(context.Context, *connect.Request[v1.DeactivatePrivilegedModeRequest]) (*connect.Response[v1.DeactivatePrivilegedModeResponse], error)
@@ -144,6 +169,12 @@ func NewViewerServiceHandler(svc ViewerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(viewerServiceMethods.ByName("ActivatePrivilegedMode")),
 		connect.WithHandlerOptions(opts...),
 	)
+	viewerServiceActivatePrivilegedRolesHandler := connect.NewUnaryHandler(
+		ViewerServiceActivatePrivilegedRolesProcedure,
+		svc.ActivatePrivilegedRoles,
+		connect.WithSchema(viewerServiceMethods.ByName("ActivatePrivilegedRoles")),
+		connect.WithHandlerOptions(opts...),
+	)
 	viewerServiceDeactivatePrivilegedModeHandler := connect.NewUnaryHandler(
 		ViewerServiceDeactivatePrivilegedModeProcedure,
 		svc.DeactivatePrivilegedMode,
@@ -156,6 +187,8 @@ func NewViewerServiceHandler(svc ViewerServiceHandler, opts ...connect.HandlerOp
 			viewerServiceGetViewerHandler.ServeHTTP(w, r)
 		case ViewerServiceActivatePrivilegedModeProcedure:
 			viewerServiceActivatePrivilegedModeHandler.ServeHTTP(w, r)
+		case ViewerServiceActivatePrivilegedRolesProcedure:
+			viewerServiceActivatePrivilegedRolesHandler.ServeHTTP(w, r)
 		case ViewerServiceDeactivatePrivilegedModeProcedure:
 			viewerServiceDeactivatePrivilegedModeHandler.ServeHTTP(w, r)
 		default:
@@ -173,6 +206,10 @@ func (UnimplementedViewerServiceHandler) GetViewer(context.Context, *connect.Req
 
 func (UnimplementedViewerServiceHandler) ActivatePrivilegedMode(context.Context, *connect.Request[v1.ActivatePrivilegedModeRequest]) (*connect.Response[v1.ActivatePrivilegedModeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ViewerService.ActivatePrivilegedMode is not implemented"))
+}
+
+func (UnimplementedViewerServiceHandler) ActivatePrivilegedRoles(context.Context, *connect.Request[v1.ActivatePrivilegedRolesRequest]) (*connect.Response[v1.ActivatePrivilegedRolesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ViewerService.ActivatePrivilegedRoles is not implemented"))
 }
 
 func (UnimplementedViewerServiceHandler) DeactivatePrivilegedMode(context.Context, *connect.Request[v1.DeactivatePrivilegedModeRequest]) (*connect.Response[v1.DeactivatePrivilegedModeResponse], error) {

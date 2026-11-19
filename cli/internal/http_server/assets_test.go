@@ -1318,7 +1318,7 @@ func TestAsset_StableURLBearerAppliesOwnerPrivilegedModeGate(t *testing.T) {
 	if status := fetch(); status != http.StatusForbidden {
 		t.Fatalf("owner without privileged mode status = %d, want %d", status, http.StatusForbidden)
 	}
-	if _, err := env.core.SetBearerPrivilegedMode(env.ctx, token, true); err != nil {
+	if _, err := env.core.SetBearerPrivilegedMode(env.ctx, token, true, core.RoleOwner); err != nil {
 		t.Fatalf("Failed to activate privileged mode: %v", err)
 	}
 	if status := fetch(); status != http.StatusOK {

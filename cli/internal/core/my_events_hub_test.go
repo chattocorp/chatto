@@ -945,17 +945,18 @@ func TestMyEventsHubSeparatesOwnerSessionsByPrivilegedMode(t *testing.T) {
 		}
 	}
 
-	session := func(deadline time.Time) context.Context {
+	session := func(deadline time.Time, role string) context.Context {
 		return authctx.WithCredential(ctx, authctx.RuntimeCredential{
 			Kind:                    authctx.RuntimeCredentialKindCookieSession,
 			UserID:                  owner.Id,
 			Handle:                  "hub-owner-session",
+			PrivilegedRoles:         []string{role},
 			PrivilegedModeExpiresAt: deadline,
 		})
 	}
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	privileged, err := core.StreamMyEventsWithOptions(session(time.Now().Add(time.Minute)), owner.Id, StreamMyEventsOptions{})
+	privileged, err := core.StreamMyEventsWithOptions(session(time.Now().Add(time.Minute), RoleOwner), owner.Id, StreamMyEventsOptions{})
 	if err != nil {
 		t.Fatalf("StreamMyEvents privileged: %v", err)
 	}
@@ -968,9 +969,16 @@ func TestMyEventsHubSeparatesOwnerSessionsByPrivilegedMode(t *testing.T) {
 		t.Fatalf("StreamMyEvents unprivileged: %v", err)
 	}
 
+	if err := core.AssignServerRole(ctx, SystemActorID, owner.Id, RoleModerator); err != nil {
+		t.Fatal(err)
+	}
+	limited, err := core.StreamMyEventsWithOptions(session(time.Now().Add(time.Minute), RoleModerator), owner.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	hub := core.myEventsModel.hub
 	hub.mu.Lock()
-	privilegedState := hub.users[myEventsPrincipal{userID: owner.Id, privileged: true}]
+	privilegedState := hub.users[myEventsPrincipal{userID: owner.Id, privileged: true, roles: RoleOwner}]
 	unprivilegedState := hub.users[myEventsPrincipal{userID: owner.Id, privileged: false}]
 	if privilegedState == nil || unprivilegedState == nil || privilegedState == unprivilegedState {
 		hub.mu.Unlock()
@@ -1000,24 +1008,29 @@ func TestMyEventsHubSeparatesOwnerSessionsByPrivilegedMode(t *testing.T) {
 	for _, id := range restrictedIDs {
 		receiveEVTEventByID(t, privileged, id)
 	}
-	timer := time.NewTimer(2 * time.Second)
-	defer timer.Stop()
-	for {
-		select {
-		case envelope, ok := <-unprivileged:
-			if !ok {
-				t.Fatal("unprivileged stream closed")
+	assertRestrictedEventsHidden := func(stream <-chan EventEnvelope) {
+		t.Helper()
+		timer := time.NewTimer(2 * time.Second)
+		defer timer.Stop()
+		for {
+			select {
+			case envelope, ok := <-stream:
+				if !ok {
+					t.Fatal("unprivileged stream closed")
+				}
+				if slices.Contains(restrictedIDs, envelope.ID()) {
+					t.Fatalf("unprivileged owner session received restricted event %s", envelope.ID())
+				}
+				if envelope.ID() == sentinel.Id {
+					return
+				}
+			case <-timer.C:
+				t.Fatal("unprivileged owner session did not receive the sentinel")
 			}
-			if slices.Contains(restrictedIDs, envelope.ID()) {
-				t.Fatalf("unprivileged owner session received restricted event %s", envelope.ID())
-			}
-			if envelope.ID() == sentinel.Id {
-				return
-			}
-		case <-timer.C:
-			t.Fatal("unprivileged owner session did not receive the sentinel")
 		}
 	}
+	assertRestrictedEventsHidden(unprivileged)
+	assertRestrictedEventsHidden(limited)
 }
 
 func receiveEVTEventByID(t *testing.T, stream <-chan EventEnvelope, eventID string) *evtv1.Event {
@@ -1042,5 +1055,5 @@ func receiveEVTEventByID(t *testing.T, stream <-chan EventEnvelope, eventID stri
 // entitledMyEventsPrincipal is the principal of a stream opened without a
 // human credential, which keeps entitlement semantics.
 func entitledMyEventsPrincipal(userID string) myEventsPrincipal {
-	return myEventsPrincipal{userID: userID, privileged: true}
+	return myEventsPrincipal{userID: userID, privileged: true, allRoles: true}
 }

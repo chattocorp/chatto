@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Ŝalti privilegian reĝimon",
       "disable": "Malŝalti privilegian reĝimon",
+      "select_roles": "Elektu la rolojn por aktivigi dum 15 minutoj.",
       "confirmation": "Dum 15 minutoj tio ŝaltas la aldonajn permesojn asignitajn al vi en ĉi tiu servilo."
     },
     "notifications": {

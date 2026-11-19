@@ -23,6 +23,7 @@
       "display_name_too_long": "Görünen ad en fazla 64 karakterden oluşmalıdır",
       "description": "Açıklama",
       "description_placeholder": "Bu rol için isteğe bağlı açıklama",
+      "require_shield": "Ayrıcalıklı modu zorunlu kıl",
       "pingable": "Kullanıcıların bu role ping atmasına izin ver",
       "pingable_description": "Pinglenebilir roller @ otomatik tamamlamada görünür ve atanan oda üyelerine bilgi verir."
     },
@@ -129,8 +130,7 @@
         "open": "{permission} hakkında",
         "category": "Kategori",
         "scopes": "Ayarlanabildiği yerler",
-        "privileged": "Ayrıcalıklı mod gerekir",
-        "privileged_detail": "Bu izni kullanmak için hesapların ayrıcalıklı modu etkinleştirmesi gerekir.",
+        "privileged_detail": "Bu izin doğrudan bir hesaba verildiğinde kullanılması için ayrıcalıklı mod gerekir.",
         "includes": "Kapsadıkları",
         "included_by": "Kapsayan izinler"
       }

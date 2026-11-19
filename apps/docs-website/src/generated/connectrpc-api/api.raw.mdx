@@ -1762,7 +1762,8 @@ Authenticated viewer snapshot needed by application shells.
 
 ### ActivatePrivilegedMode
 
-Activates elevation-required permissions for a fixed, non-sliding window.
+Activates all currently assigned protected roles and eligible direct grants for 15 minutes.
+Deactivate before changing the selection. Repeated activation keeps the deadline.
 Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
 permission entitlement.
 
@@ -1780,6 +1781,42 @@ Request to activate all currently entitled elevation-required permissions.
 <a id="chatto-api-v1-ActivatePrivilegedModeResponse"></a>
 
 #### Result: ActivatePrivilegedModeResponse
+
+Result of activating privileged mode for the current session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `privileged_mode` | [`PrivilegedModeState`](#chatto-api-v1-PrivilegedModeState) | Current privileged-mode state after activation. |
+| `capabilities` | [`ViewerCapabilities`](#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities that are effective after activation. |
+| `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Effective server permission decisions after activation. |
+
+
+<a id="chatto-api-v1-ViewerService-ActivatePrivilegedRoles"></a>
+
+### ActivatePrivilegedRoles
+
+Activates only the selected roles and eligible direct grants for 15 minutes.
+Returns PERMISSION_DENIED for an unassigned or unprotected role. Deactivate
+before changing the selection. Repeated activation keeps the deadline.
+
+```http
+POST /api/connect/chatto.api.v1.ViewerService/ActivatePrivilegedRoles
+```
+
+<a id="chatto-api-v1-ActivatePrivilegedRolesRequest"></a>
+
+#### Input: ActivatePrivilegedRolesRequest
+
+Request to activate grants from specific protected roles.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_names` | `repeated string` | Assigned protected roles. An empty list activates only eligible direct user grants. |
+
+
+<a id="chatto-api-v1-ActivatePrivilegedRolesResponse"></a>
+
+#### Result: ActivatePrivilegedRolesResponse
 
 Result of activating privileged mode for the current session.
 
@@ -5213,6 +5250,7 @@ Public role metadata used for rendering role mentions, labels, and catalogs.
 | `is_system` | `bool` | Whether this is a built-in role. |
 | `position` | `int32` | Display/order position. |
 | `pingable` | `bool` | Whether messages may notify users assigned to this role. |
+| `requires_shield_mode` | `bool` | Grants from this role require explicit selection in Shield Mode. |
 
 
 
@@ -6192,9 +6230,10 @@ State of explicit privileged-mode activation for this authenticated session.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `available` | `bool` | Whether the user has an elevation-required permission entitlement. This includes owner entitlement and explicit allows at any supported scope. |
+| `available` | `bool` | Whether the user has a protected role or a direct grant that requires elevation. |
 | `active` | `bool` | Whether elevated permissions are effective for this session now. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute activation deadline. Present only while privileged mode is active. |
+| `available_roles` | `repeated string` | Assigned protected roles available for activation. |
 
 
 

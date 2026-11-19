@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Lülita privilegeeritud režiim sisse",
       "disable": "Lülita privilegeeritud režiim välja",
+      "select_roles": "Valige rollid, mida soovite 15 minutiks aktiveerida.",
       "confirmation": "See aktiveerib 15 minutiks sulle selles serveris määratud lisaõigused."
     },
     "notifications": {

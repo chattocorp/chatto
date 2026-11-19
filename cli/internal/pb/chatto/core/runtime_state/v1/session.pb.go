@@ -39,6 +39,7 @@ type CookieSession struct {
 	FreshAuthSource string                   `protobuf:"bytes,9,opt,name=fresh_auth_source,json=freshAuthSource,proto3" json:"fresh_auth_source,omitempty"`
 	// Absolute end of the current explicit privileged-mode activation.
 	PrivilegedModeExpiresAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=privileged_mode_expires_at,json=privilegedModeExpiresAt,proto3" json:"privileged_mode_expires_at,omitempty"`
+	PrivilegedRoles         []string               `protobuf:"bytes,11,rep,name=privileged_roles,json=privilegedRoles,proto3" json:"privileged_roles,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -143,11 +144,18 @@ func (x *CookieSession) GetPrivilegedModeExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *CookieSession) GetPrivilegedRoles() []string {
+	if x != nil {
+		return x.PrivilegedRoles
+	}
+	return nil
+}
+
 var File_chatto_core_runtime_state_v1_session_proto protoreflect.FileDescriptor
 
 const file_chatto_core_runtime_state_v1_session_proto_rawDesc = "" +
 	"\n" +
-	"*chatto/core/runtime_state/v1/session.proto\x12\x1cchatto.core.runtime_state.v1\x1a%chatto/core/evt/v1/event_values.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x94\x04\n" +
+	"*chatto/core/runtime_state/v1/session.proto\x12\x1cchatto.core.runtime_state.v1\x1a%chatto/core/evt/v1/event_values.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbf\x04\n" +
 	"\rCookieSession\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x129\n" +
 	"\n" +
@@ -161,7 +169,8 @@ const file_chatto_core_runtime_state_v1_session_proto_rawDesc = "" +
 	"\x11fresh_auth_method\x18\b \x01(\tR\x0ffreshAuthMethod\x12*\n" +
 	"\x11fresh_auth_source\x18\t \x01(\tR\x0ffreshAuthSource\x12W\n" +
 	"\x1aprivileged_mode_expires_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\x17privilegedModeExpiresAtB\x99\x02\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\x17privilegedModeExpiresAt\x12)\n" +
+	"\x10privileged_roles\x18\v \x03(\tR\x0fprivilegedRolesB\x99\x02\n" +
 	" com.chatto.core.runtime_state.v1B\fSessionProtoP\x01ZXgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (

@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Zapnout privilegovaný režim",
       "disable": "Vypnout privilegovaný režim",
+      "select_roles": "Vyberte role, které chcete aktivovat na 15 minut.",
       "confirmation": "Tímto na 15 minut zapnete další oprávnění, která vám byla na tomto serveru přidělena."
     },
     "notifications": {

@@ -110,6 +110,7 @@ const {
     rooms: new Map(),
     viewer: null as null | {
       privilegedMode?: {
+        availableRoles?: string[];
         available: boolean;
         active: boolean;
         expiresAt?: { toDate(): Date };
@@ -269,7 +270,20 @@ describe('CurrentUserBar', () => {
     expect(privilegedModeActions.set).not.toHaveBeenCalled();
 
     await userEvent.click(getByRole('button', { name: 'Enable privileged mode' }).last());
-    expect(privilegedModeActions.set).toHaveBeenCalledWith(true);
+    expect(privilegedModeActions.set).toHaveBeenCalledWith(true, []);
+  });
+
+  it('starts with no roles selected and activates only the checked role', async () => {
+    projectionState.viewer = {
+      privilegedMode: { available: true, active: false, availableRoles: ['owner', 'moderator'] }
+    };
+    const { getByRole, getByText } = render(CurrentUserBarTestHarness);
+    await userEvent.click(getByRole('button', { name: 'Enable privileged mode' }));
+    const confirm = getByRole('button', { name: 'Enable privileged mode' }).last();
+    await expect.element(confirm).toBeDisabled();
+    await userEvent.click(getByText('moderator', { exact: true }));
+    await userEvent.click(confirm);
+    expect(privilegedModeActions.set).toHaveBeenCalledWith(true, ['moderator']);
   });
 
   it('disables active privileged mode without another confirmation', async () => {

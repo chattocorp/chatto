@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Privilegierten Modus aktivieren",
       "disable": "Privilegierten Modus deaktivieren",
+      "select_roles": "Wähle die Rollen aus, die du für 15 Minuten aktivieren möchtest.",
       "confirmation": "Damit aktivierst du für 15 Minuten die zusätzlichen Berechtigungen, die dir auf diesem Server zugewiesen sind."
     },
     "notifications": {

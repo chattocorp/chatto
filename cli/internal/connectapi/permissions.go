@@ -266,12 +266,13 @@ func apiTierRoles(matrix *core.TierRoles) *adminv1.TierRoles {
 			InheritedAllows:  append([]string(nil), role.InheritedAllows...),
 			InheritedDenials: append([]string(nil), role.InheritedDenials...),
 			Role: &apiv1.Role{
-				Name:        role.RoleName,
-				DisplayName: role.DisplayName,
-				Description: role.Description,
-				IsSystem:    role.IsSystem,
-				Position:    role.Position,
-				Pingable:    role.Pingable,
+				Name:               role.RoleName,
+				DisplayName:        role.DisplayName,
+				Description:        role.Description,
+				IsSystem:           role.IsSystem,
+				Position:           role.Position,
+				Pingable:           role.Pingable,
+				RequiresShieldMode: role.RequiresShieldMode,
 			},
 		})
 	}

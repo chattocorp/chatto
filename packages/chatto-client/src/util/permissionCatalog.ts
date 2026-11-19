@@ -34,7 +34,7 @@ export type PermissionDefinition = {
   category: PermissionCategory;
   /** Levels where the permission can be configured, broadest first. */
   scopes: readonly PermissionScope[];
-  /** A human session must enable privileged mode to use this permission. */
+  /** A human session must enable Shield Mode to use a direct account grant of this permission. */
   privileged?: boolean;
   /** Permissions that an allow for this permission also grants. */
   includes?: readonly string[];

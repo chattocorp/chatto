@@ -4,6 +4,8 @@
 
 **Status:** Accepted
 
+> **Amended 2026-11-19.** Role grants now require activation only when the role is protected. Sessions activate the selected roles. The owner override requires selection of `owner`. The permission catalog still controls elevation for direct user grants. See [FDR-046](../fdr/FDR-046-privileged-mode.md).
+
 > **Amended 2026-09-25:** [ADR-105](ADR-105-privileged-mode-gates-owner-override.md)
 > also gates the effective-owner override with privileged mode. Realtime
 > fan-out and notification decisions use the privileged-mode state of the

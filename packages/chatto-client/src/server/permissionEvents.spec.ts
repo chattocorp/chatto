@@ -23,6 +23,9 @@ describe('permission event recipients', () => {
       new RealtimeEvent({
         event: { case: 'roleRevoked', value: { userId: 'alice', roleName: 'helper' } }
       }),
+      new RealtimeEvent({
+        event: { case: 'rolePermissionsChanged', value: { roleName: 'helper' } }
+      }),
       new RealtimeEvent({ event: { case: 'roleDeleted', value: { roleName: 'helper' } } }),
       new RealtimeEvent({
         event: { case: 'rolePermissionsChanged', value: { roleName: 'everyone' } }

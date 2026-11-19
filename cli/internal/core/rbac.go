@@ -35,14 +35,15 @@ var (
 // RoleWithPermissions represents a role with its grants and denials, used by
 // the public API and admin tooling.
 type RoleWithPermissions struct {
-	Name              string
-	DisplayName       string
-	Description       string
-	Permissions       []Permission // Permissions granted (allowed) by this role
-	PermissionDenials []Permission // Permissions denied by this role
-	IsSystem          bool
-	Position          int32 // Display/order position. Everyone=0, Owner=1000.
-	Pingable          bool
+	Name               string
+	DisplayName        string
+	Description        string
+	Permissions        []Permission // Permissions granted (allowed) by this role
+	PermissionDenials  []Permission // Permissions denied by this role
+	IsSystem           bool
+	Position           int32 // Display/order position. Everyone=0, Owner=1000.
+	Pingable           bool
+	RequiresShieldMode bool
 	// Counts is present on authorized administrative catalog reads.
 	Counts *RoleCounts
 }
@@ -463,14 +464,15 @@ func (c *ChattoCore) ListServerRoles(ctx context.Context) ([]RoleWithPermissions
 		denials, _ := c.GetServerRolePermissionDenials(ctx, role.Name)
 
 		result = append(result, RoleWithPermissions{
-			Name:              role.Name,
-			DisplayName:       role.DisplayName,
-			Description:       role.Description,
-			Permissions:       perms,
-			PermissionDenials: denials,
-			IsSystem:          IsSystemRole(role.Name),
-			Position:          role.Position,
-			Pingable:          role.Pingable,
+			Name:               role.Name,
+			DisplayName:        role.DisplayName,
+			Description:        role.Description,
+			Permissions:        perms,
+			PermissionDenials:  denials,
+			IsSystem:           IsSystemRole(role.Name),
+			Position:           role.Position,
+			Pingable:           role.Pingable,
+			RequiresShieldMode: role.RequiresShieldMode,
 		})
 	}
 
@@ -485,6 +487,10 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 	if len(pingableValue) > 0 {
 		pingable = pingableValue[0]
 	}
+	return c.createServerRole(ctx, actorID, name, displayName, description, pingable, false, nil)
+}
+
+func (c *ChattoCore) createServerRole(ctx context.Context, actorID, name, displayName, description string, pingable, protected bool, authorize func() error) (*RoleWithPermissions, error) {
 	if err := ValidateRoleName(name); err != nil {
 		return nil, ErrInvalidRoleName
 	}
@@ -501,6 +507,11 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 	var role *readmodel.Role
 	event := newEvent(actorID, &evtv1.Event{})
 	if _, err := c.appendRBACEventWithMentionableCheck(ctx, event, func() error {
+		if authorize != nil {
+			if err := authorize(); err != nil {
+				return err
+			}
+		}
 		if c.rbacModel.roleExists(name) {
 			return ErrRoleAlreadyExists
 		}
@@ -508,19 +519,21 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 			return err
 		}
 		role = &readmodel.Role{
-			Name:        name,
-			DisplayName: displayName,
-			Description: description,
-			Position:    c.rbacModel.nextAvailablePosition(),
-			Pingable:    pingable,
+			Name:               name,
+			DisplayName:        displayName,
+			Description:        description,
+			Position:           c.rbacModel.nextAvailablePosition(),
+			Pingable:           pingable,
+			RequiresShieldMode: protected,
 		}
 		event.Event = &evtv1.Event_RbacRoleCreated{
 			RbacRoleCreated: &evtv1.RbacRoleCreatedEvent{
-				RoleName:    role.GetName(),
-				DisplayName: role.GetDisplayName(),
-				Description: role.GetDescription(),
-				Rank:        role.GetPosition(),
-				Pingable:    role.GetPingable(),
+				RoleName:           role.GetName(),
+				DisplayName:        role.GetDisplayName(),
+				Description:        role.GetDescription(),
+				Rank:               role.GetPosition(),
+				Pingable:           role.GetPingable(),
+				RequiresShieldMode: role.RequiresShieldMode,
 			},
 		}
 		return nil
@@ -531,125 +544,26 @@ func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displa
 	c.logger.Info("Created role", "name", name, "display_name", displayName, "position", role.GetPosition(), "actor_id", actorID)
 
 	return &RoleWithPermissions{
-		Name:              role.GetName(),
-		DisplayName:       role.GetDisplayName(),
-		Description:       role.GetDescription(),
-		Permissions:       []Permission{},
-		PermissionDenials: []Permission{},
-		IsSystem:          false,
-		Position:          role.GetPosition(),
-		Pingable:          role.GetPingable(),
+		Name:               role.GetName(),
+		DisplayName:        role.GetDisplayName(),
+		Description:        role.GetDescription(),
+		Permissions:        []Permission{},
+		PermissionDenials:  []Permission{},
+		IsSystem:           false,
+		Position:           role.GetPosition(),
+		Pingable:           role.GetPingable(),
+		RequiresShieldMode: role.RequiresShieldMode,
 	}, nil
 }
 
 // UpdateServerRole updates an existing role's metadata.
 // The role name cannot be changed.
 func (c *ChattoCore) UpdateServerRole(ctx context.Context, actorID, name, displayName, description string, pingableValue ...bool) (*RoleWithPermissions, error) {
-	if err := validateRoleMetadata(displayName, description); err != nil {
-		return nil, err
-	}
-
-	var updated *readmodel.Role
-	if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleDisplayNameChanged{
-		RbacRoleDisplayNameChanged: &evtv1.RbacRoleDisplayNameChangedEvent{RoleName: name, DisplayName: displayName},
-	}}), func() error {
-		existing, ok := c.rbacModel.role(name)
-		if !ok {
-			return ErrRoleNotFound
-		}
-		if existing.GetDisplayName() == displayName {
-			updated = existing
-			return errRBACNoop
-		}
-		updated = &readmodel.Role{
-			Name:        existing.GetName(),
-			DisplayName: displayName,
-			Description: existing.GetDescription(),
-			Position:    existing.GetPosition(),
-			Pingable:    existing.GetPingable(),
-		}
-		return nil
-	}); err != nil {
-		if !errors.Is(err, errRBACNoop) {
-			return nil, err
-		}
-	}
-
-	if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleDescriptionChanged{
-		RbacRoleDescriptionChanged: &evtv1.RbacRoleDescriptionChangedEvent{RoleName: name, Description: description},
-	}}), func() error {
-		existing, ok := c.rbacModel.role(name)
-		if !ok {
-			return ErrRoleNotFound
-		}
-		if existing.GetDescription() == description {
-			updated = existing
-			return errRBACNoop
-		}
-		updated = &readmodel.Role{
-			Name:        existing.GetName(),
-			DisplayName: existing.GetDisplayName(),
-			Description: description,
-			Position:    existing.GetPosition(),
-			Pingable:    existing.GetPingable(),
-		}
-		return nil
-	}); err != nil {
-		if !errors.Is(err, errRBACNoop) {
-			return nil, err
-		}
-	}
-
+	input := AdminRoleUpdateInput{Name: name, DisplayName: &displayName, Description: &description}
 	if len(pingableValue) > 0 {
-		pingable := pingableValue[0]
-		if _, err := c.appendRBACEvent(ctx, newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_RbacRolePingableChanged{
-			RbacRolePingableChanged: &evtv1.RbacRolePingableChangedEvent{RoleName: name, Pingable: pingable},
-		}}), func() error {
-			existing, ok := c.rbacModel.role(name)
-			if !ok {
-				return ErrRoleNotFound
-			}
-			if existing.GetPingable() == pingable {
-				updated = existing
-				return errRBACNoop
-			}
-			updated = &readmodel.Role{
-				Name:        existing.GetName(),
-				DisplayName: existing.GetDisplayName(),
-				Description: existing.GetDescription(),
-				Position:    existing.GetPosition(),
-				Pingable:    pingable,
-			}
-			return nil
-		}); err != nil {
-			if !errors.Is(err, errRBACNoop) {
-				return nil, err
-			}
-		}
+		input.Pingable = &pingableValue[0]
 	}
-
-	if updated == nil {
-		existing, ok := c.rbacModel.role(name)
-		if !ok {
-			return nil, ErrRoleNotFound
-		}
-		updated = existing
-	}
-
-	c.logger.Info("Updated role", "name", name, "display_name", displayName, "actor_id", actorID)
-
-	perms, _ := c.GetServerRolePermissions(ctx, name)
-	denials, _ := c.GetServerRolePermissionDenials(ctx, name)
-	return &RoleWithPermissions{
-		Name:              updated.Name,
-		DisplayName:       updated.DisplayName,
-		Description:       updated.Description,
-		Permissions:       perms,
-		PermissionDenials: denials,
-		IsSystem:          IsSystemRole(name),
-		Position:          updated.Position,
-		Pingable:          updated.Pingable,
-	}, nil
+	return c.updateServerRole(ctx, actorID, input, nil)
 }
 
 // GetServerRole returns a single role by name.
@@ -667,14 +581,15 @@ func (c *ChattoCore) GetServerRole(ctx context.Context, name string) (*RoleWithP
 	denials, _ := c.GetServerRolePermissionDenials(ctx, name)
 
 	return &RoleWithPermissions{
-		Name:              role.Name,
-		DisplayName:       role.DisplayName,
-		Description:       role.Description,
-		Permissions:       perms,
-		PermissionDenials: denials,
-		IsSystem:          IsSystemRole(name),
-		Position:          role.Position,
-		Pingable:          role.Pingable,
+		Name:               role.Name,
+		DisplayName:        role.DisplayName,
+		Description:        role.Description,
+		Permissions:        perms,
+		PermissionDenials:  denials,
+		IsSystem:           IsSystemRole(name),
+		Position:           role.Position,
+		Pingable:           role.Pingable,
+		RequiresShieldMode: role.RequiresShieldMode,
 	}, nil
 }
 
@@ -752,14 +667,15 @@ func (c *ChattoCore) ReorderServerRoles(ctx context.Context, actorID string, rol
 		denials, _ := c.GetServerRolePermissionDenials(ctx, role.Name)
 
 		result = append(result, RoleWithPermissions{
-			Name:              role.Name,
-			DisplayName:       role.DisplayName,
-			Description:       role.Description,
-			Permissions:       perms,
-			PermissionDenials: denials,
-			IsSystem:          IsSystemRole(role.Name),
-			Position:          role.Position,
-			Pingable:          role.Pingable,
+			Name:               role.Name,
+			DisplayName:        role.DisplayName,
+			Description:        role.Description,
+			Permissions:        perms,
+			PermissionDenials:  denials,
+			IsSystem:           IsSystemRole(role.Name),
+			Position:           role.Position,
+			Pingable:           role.Pingable,
+			RequiresShieldMode: role.RequiresShieldMode,
 		})
 	}
 

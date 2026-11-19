@@ -33,7 +33,7 @@ var updateMaskSpecs = map[protoreflect.FullName]updateMaskSpec{
 	"chatto.admin.v1.UpdateServerConfigRequest":                              {fields: "server_name description motd welcome_message registration.admission"},
 	"chatto.admin.v1.UpdateBlockedUsernamesRequest":                          {fields: "blocked_usernames"},
 	"chatto.admin.v1.UpdateNeighborRequest":                                  {fields: "origin"},
-	"chatto.admin.v1.UpdateRoleRequest":                                      {fields: "display_name description pingable"},
+	"chatto.admin.v1.UpdateRoleRequest":                                      {fields: "display_name description pingable requires_shield_mode"},
 	"chatto.admin.v1.UpdateRoomGroupRequest":                                 {fields: "name description"},
 	"chatto.admin.v1.UpdateSidebarLinkRequest":                               {fields: "label url"},
 	"chatto.admin.v1.UpdateOAuthClientPolicyRequest":                         {fields: "policy", defaults: map[string]protoreflect.Value{"policy": protoreflect.ValueOfEnum(protoreflect.EnumNumber(adminv1.OauthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT))}},

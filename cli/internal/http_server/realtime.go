@@ -262,7 +262,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 					privilegedUntil, err := s.revalidateRealtimeCredential(ctx)
 					if err == nil {
 						now := time.Now()
-						if now.Before(credential.PrivilegedModeExpiresAt) && !now.Before(privilegedUntil) {
+						if now.Before(credential.PrivilegedModeExpiresAt) && !credential.PrivilegedModeExpiresAt.Equal(privilegedUntil) {
 							// Another connection of this session ended privileged mode.
 							// Reconnect so fan-out stops using the privileged state.
 							terminateRealtimeForPrivilegedModeExpiry(cancel, writeFrame, closePrivilegedModeExpired)

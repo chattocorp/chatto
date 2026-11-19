@@ -401,12 +401,16 @@ export class ServerStateStore {
   }
 
   /** Change privilege activation and reconcile effective viewer permissions in
-   * place. Mutations run in call order; deactivation can proceed while an earlier
+   * place. Pass the selected protected role names when activating. Omit them
+   * to use the server's legacy activation behavior. Mutations run in call order; deactivation can proceed while an earlier
    * projection refresh is pending. Each caller waits for recovery for up to
    * 30 seconds. A recovery timeout keeps sync stale but does not undo a committed
    * mutation or report that the mutation failed. */
-  async setPrivilegedMode(active: boolean): Promise<void> {
-    const change = this.#privilegedModeChanges.then(() => this.changePrivilegedMode(active));
+  async setPrivilegedMode(active: boolean, roleNames?: string[]): Promise<void> {
+    const selected = roleNames?.slice();
+    const change = this.#privilegedModeChanges.then(() =>
+      this.changePrivilegedMode(active, selected)
+    );
     // The caller receives this change's error. A failed change must not block
     // a later deactivation or retry in the queue.
     this.#privilegedModeChanges = change.then(
@@ -417,12 +421,15 @@ export class ServerStateStore {
     await projectionRefreshed;
   }
 
-  private async changePrivilegedMode(active: boolean): Promise<{
+  private async changePrivilegedMode(
+    active: boolean,
+    roleNames?: string[]
+  ): Promise<{
     projectionRefreshed: Promise<boolean>;
   }> {
     if (this.#disposed) throw new Error('privileged-mode update has no active server store');
     const update = active
-      ? await this.#privilegedModeAPI.activate()
+      ? await this.#privilegedModeAPI.activate(roleNames)
       : await this.#privilegedModeAPI.deactivate();
     if (this.#disposed) throw new Error('privileged-mode update has no active server store');
     const viewer = this.projection.viewer?.clone();
@@ -447,6 +454,7 @@ export class ServerStateStore {
     this.applyPrivilegedModeState(
       new PrivilegedModeState({
         available: this.projection.viewer?.privilegedMode?.available ?? false,
+        availableRoles: this.projection.viewer?.privilegedMode?.availableRoles,
         active: false
       })
     );

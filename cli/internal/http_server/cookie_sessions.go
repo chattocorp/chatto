@@ -268,6 +268,7 @@ func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntime
 			Handle:                  selected.token,
 			ExpiresAt:               record.GetExpiresAt().AsTime(),
 			PrivilegedModeExpiresAt: privilegedModeExpiresAt,
+			PrivilegedRoles:         record.PrivilegedRoles,
 		},
 		cookieRecord:      record,
 		presentedSessions: presentedSessions,

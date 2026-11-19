@@ -342,8 +342,7 @@ export class ServerViewerState extends Message<ServerViewerState> {
  */
 export class PrivilegedModeState extends Message<PrivilegedModeState> {
   /**
-   * Whether the user has an elevation-required permission entitlement. This
-   * includes owner entitlement and explicit allows at any supported scope.
+   * Whether the user has a protected role or a direct grant that requires elevation.
    *
    * @generated from field: bool available = 1;
    */
@@ -363,6 +362,13 @@ export class PrivilegedModeState extends Message<PrivilegedModeState> {
    */
   expiresAt?: Timestamp;
 
+  /**
+   * Assigned protected roles available for activation.
+   *
+   * @generated from field: repeated string available_roles = 4;
+   */
+  availableRoles: string[] = [];
+
   constructor(data?: PartialMessage<PrivilegedModeState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -374,6 +380,7 @@ export class PrivilegedModeState extends Message<PrivilegedModeState> {
     { no: 1, name: "available", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "active", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "expires_at", kind: "message", T: Timestamp },
+    { no: 4, name: "available_roles", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PrivilegedModeState {
@@ -586,6 +593,104 @@ export class ActivatePrivilegedModeResponse extends Message<ActivatePrivilegedMo
 
   static equals(a: ActivatePrivilegedModeResponse | PlainMessage<ActivatePrivilegedModeResponse> | undefined, b: ActivatePrivilegedModeResponse | PlainMessage<ActivatePrivilegedModeResponse> | undefined): boolean {
     return proto3.util.equals(ActivatePrivilegedModeResponse, a, b);
+  }
+}
+
+/**
+ * Request to activate grants from specific protected roles.
+ *
+ * @generated from message chatto.api.v1.ActivatePrivilegedRolesRequest
+ */
+export class ActivatePrivilegedRolesRequest extends Message<ActivatePrivilegedRolesRequest> {
+  /**
+   * Assigned protected roles. An empty list activates only eligible direct user grants.
+   *
+   * @generated from field: repeated string role_names = 1;
+   */
+  roleNames: string[] = [];
+
+  constructor(data?: PartialMessage<ActivatePrivilegedRolesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ActivatePrivilegedRolesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "role_names", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ActivatePrivilegedRolesRequest {
+    return new ActivatePrivilegedRolesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ActivatePrivilegedRolesRequest {
+    return new ActivatePrivilegedRolesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ActivatePrivilegedRolesRequest {
+    return new ActivatePrivilegedRolesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ActivatePrivilegedRolesRequest | PlainMessage<ActivatePrivilegedRolesRequest> | undefined, b: ActivatePrivilegedRolesRequest | PlainMessage<ActivatePrivilegedRolesRequest> | undefined): boolean {
+    return proto3.util.equals(ActivatePrivilegedRolesRequest, a, b);
+  }
+}
+
+/**
+ * Result of activating privileged mode for the current session.
+ *
+ * @generated from message chatto.api.v1.ActivatePrivilegedRolesResponse
+ */
+export class ActivatePrivilegedRolesResponse extends Message<ActivatePrivilegedRolesResponse> {
+  /**
+   * Current privileged-mode state after activation.
+   *
+   * @generated from field: chatto.api.v1.PrivilegedModeState privileged_mode = 1;
+   */
+  privilegedMode?: PrivilegedModeState;
+
+  /**
+   * Permission-derived capabilities that are effective after activation.
+   *
+   * @generated from field: chatto.api.v1.ViewerCapabilities capabilities = 2;
+   */
+  capabilities?: ViewerCapabilities;
+
+  /**
+   * Effective server permission decisions after activation.
+   *
+   * @generated from field: chatto.api.v1.ServerViewerPermissions viewer_permissions = 3;
+   */
+  viewerPermissions?: ServerViewerPermissions;
+
+  constructor(data?: PartialMessage<ActivatePrivilegedRolesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ActivatePrivilegedRolesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "privileged_mode", kind: "message", T: PrivilegedModeState },
+    { no: 2, name: "capabilities", kind: "message", T: ViewerCapabilities },
+    { no: 3, name: "viewer_permissions", kind: "message", T: ServerViewerPermissions },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ActivatePrivilegedRolesResponse {
+    return new ActivatePrivilegedRolesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ActivatePrivilegedRolesResponse {
+    return new ActivatePrivilegedRolesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ActivatePrivilegedRolesResponse {
+    return new ActivatePrivilegedRolesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ActivatePrivilegedRolesResponse | PlainMessage<ActivatePrivilegedRolesResponse> | undefined, b: ActivatePrivilegedRolesResponse | PlainMessage<ActivatePrivilegedRolesResponse> | undefined): boolean {
+    return proto3.util.equals(ActivatePrivilegedRolesResponse, a, b);
   }
 }
 

@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"time"
 )
 
 // PermissionExplanation captures the full resolution trace for a single
@@ -81,28 +80,14 @@ func (r *PermissionResolver) explainRoomPermission(ctx context.Context, userID s
 // allows it for userID in ctx; otherwise an owner's ordinary decisions explain
 // the result.
 func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
-	metadata, known := GetPermissionMetadata(perm)
+	_, known := GetPermissionMetadata(perm)
 	if !known {
 		return nil
 	}
 	if isBot, ownerUserID, exists := r.users.isBotAndOwner(userID); exists && isBot {
 		return r.collectBotFullTrace(ctx, userID, ownerUserID, kind, roomID, perm, exp)
 	}
-	privileged := privilegedModeAllows(ctx, userID, time.Now())
-	if err := r.collectHumanFullTrace(ctx, userID, kind, roomID, perm, exp, privileged); err != nil {
-		return err
-	}
-	// Match resolveWithGroup's session gate after collecting the entitlement
-	// trace. Bot owner ceilings call collectHumanFullTrace directly and must
-	// continue to describe entitlement without a human session gate.
-	if exp.State == DecisionAllow && metadata.RequiresPrivilegedMode && !privileged {
-		exp.State = DecisionDeny
-		exp.IncludedBy = ""
-		exp.DecidedAt = LevelServer
-		exp.DecidedByRole = "@privileged-mode"
-		exp.Trace = append([]TraceEntry{{Level: LevelServer, RoleName: exp.DecidedByRole, Decision: DecisionDeny, ObjectID: ObjectIdAny}}, exp.Trace...)
-	}
-	return nil
+	return r.collectHumanFullTrace(ctx, userID, kind, roomID, perm, exp, privilegedRoleAllows(ctx, userID, RoleOwner))
 }
 
 // collectHumanFullTrace explains a human decision. ownerOverride has the same
@@ -133,10 +118,14 @@ func (r *PermissionResolver) collectHumanFullTrace(ctx context.Context, userID s
 			groupID = room.GroupId
 		}
 	}
+	var gated *PermissionExplanation
 	for _, including := range includingPermissions(perm) {
 		included := PermissionExplanation{Permission: including, State: DecisionNone}
 		if err := r.collectFullTraceExact(ctx, userID, kind, roomID, groupID, including, &included); err != nil {
 			return err
+		}
+		if included.DecidedByRole == "@privileged-mode" {
+			gated = &included
 		}
 		if included.State == DecisionAllow {
 			exp.IncludedBy = including
@@ -147,7 +136,14 @@ func (r *PermissionResolver) collectHumanFullTrace(ctx context.Context, userID s
 			return nil
 		}
 	}
-	return r.collectFullTraceExact(ctx, userID, kind, roomID, groupID, perm, exp)
+	err := r.collectFullTraceExact(ctx, userID, kind, roomID, groupID, perm, exp)
+	if err == nil && exp.State == DecisionNone && gated != nil {
+		exp.State = gated.State
+		exp.DecidedAt = gated.DecidedAt
+		exp.DecidedByRole = gated.DecidedByRole
+		exp.Trace = gated.Trace
+	}
+	return err
 }
 
 func (r *PermissionResolver) collectBotFullTrace(ctx context.Context, botUserID, ownerUserID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
@@ -186,7 +182,7 @@ func (r *PermissionResolver) collectBotFullTrace(ctx context.Context, botUserID,
 
 	// The owner ceiling uses entitlement, independent of any human session.
 	ownerExplanation := PermissionExplanation{Permission: perm, State: DecisionNone}
-	if err := r.collectHumanFullTrace(ctx, ownerUserID, kind, roomID, perm, &ownerExplanation, true); err != nil {
+	if err := r.collectHumanFullTrace(withRoleEntitlement(ctx, ownerUserID), ownerUserID, kind, roomID, perm, &ownerExplanation, true); err != nil {
 		return err
 	}
 	if ownerExplanation.State != DecisionAllow {
@@ -233,12 +229,16 @@ func (r *PermissionResolver) collectFullTraceExact(ctx context.Context, userID s
 		return err
 	}
 	exp.Trace = append(exp.Trace, decisions.named...)
+	exp.Trace = append(exp.Trace, decisions.gated...)
 	if decisions.everyone != nil {
 		exp.Trace = append(exp.Trace, *decisions.everyone)
 	}
 	state, winner, decided := resolveApplicablePermissionDecisions(decisions)
 	if decided {
 		exp.State = state
+		if winner.RoleName == "@privileged-mode" {
+			exp.Trace = append([]TraceEntry{winner}, exp.Trace...)
+		}
 		exp.DecidedAt = winner.Level
 		exp.DecidedByRole = winner.RoleName
 	}

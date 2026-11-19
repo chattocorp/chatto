@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Ativar modo privilegiado",
       "disable": "Desativar modo privilegiado",
+      "select_roles": "Selecione as funções que pretende ativar durante 15 minutos.",
       "confirmation": "Durante 15 minutos, isto ativa as permissões adicionais que te foram atribuídas neste servidor."
     },
     "notifications": {

@@ -23,6 +23,7 @@
       "display_name_too_long": "表示名は 64 文字以下である必要があります",
       "description": "説明",
       "description_placeholder": "このロールの説明 (オプション)",
+      "require_shield": "特権モードを必須にする",
       "pingable": "ユーザーがこのロールに ping できるようにします",
       "pingable_description": "Ping 可能なロールが @ オートコンプリートに表示され、割り当てられたルーム メンバーに通知されます。"
     },
@@ -129,8 +130,7 @@
         "open": "{permission} について",
         "category": "カテゴリ",
         "scopes": "設定できる範囲",
-        "privileged": "特権モードが必要",
-        "privileged_detail": "この権限を使うには、アカウントで特権モードを有効にする必要があります。",
+        "privileged_detail": "この権限がアカウントに直接付与された場合、使用するには特権モードが必要です。",
         "includes": "含まれる権限",
         "included_by": "この権限を含む権限"
       }

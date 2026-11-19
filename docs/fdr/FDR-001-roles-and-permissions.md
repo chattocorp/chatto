@@ -53,7 +53,7 @@ shows:
 
 - the short description and a longer explanation of the permission;
 - the category and the scopes where the permission can be set;
-- whether the permission needs privileged mode;
+- whether a direct grant of the permission needs privileged mode;
 - the permissions that it includes, and the permissions that include it.
 
 A related permission is a button that shows the help for that permission. The
@@ -138,7 +138,7 @@ the backend permission catalog. Update both catalogs together.
   gates root-message posting and permits humans and bots to start DMs.
 - Server admins can drag-and-drop to reorder custom roles. System role positions are fixed for ordering consistency.
 - Custom role display names are limited to 80 bytes; descriptions are limited to 500 bytes.
-- Owners are always entitled to all permissions. The owner override becomes effective only while the human session has privileged mode active. Without it, an owner resolves through direct grants, other roles, and `everyone` like any other user. An effective owner has the durable `owner` role; verified users listed in `owners.emails` in `chatto.toml` are materialized into that role at boot or through retryable durable work after verification.
+- Owners are always entitled to all permissions. The owner override becomes effective only while the human session has selected `owner` in Shield Mode. Without it, an owner resolves through direct grants, other roles, and `everyone` like any other user. An effective owner has the durable `owner` role; verified users listed in `owners.emails` in `chatto.toml` are materialized into that role at boot or through retryable durable work after verification.
 - `admin` and every other non-owner role confer only their explicit permission decisions; they have no role-name-based authority.
 - Owner permissions are virtual rather than persisted defaults: fresh servers do not seed editable owner permission rows, and the admin UI shows owner permissions as read-only green checks.
 - RBAC editor and inspection APIs are exposed through ConnectRPC admin services. Admin entry is authenticated, and individual operations keep narrower gates such as `role.manage`, `role.assign`, `user.manage-accounts`, `user.manage-permissions`, or `room.manage`.
@@ -217,7 +217,7 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 
 ### 9. Defaults are one-time initialization, not startup policy
 
-**Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone` and allow it for `admin` and `owner`. Owners can thus post without privileged mode. Do not reset existing permission state during startup. A new permission that
+**Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone` and allow it for `admin` and `owner`. Owners can post there when they select `owner` in Shield Mode or have an independent active grant. Do not reset existing permission state during startup. A new permission that
 gates an existing capability gets a one-time upgrade grant (ADR-113):
 
 - Initialize each missing server-level `everyone` call permission once. Any

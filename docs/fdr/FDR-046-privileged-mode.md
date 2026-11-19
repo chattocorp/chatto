@@ -1,7 +1,7 @@
 # FDR-046: Privileged Mode
 
 **Status:** Active
-**Last reviewed:** 2026-11-13
+**Last reviewed:** 2026-11-19
 
 ## Overview
 
@@ -12,16 +12,14 @@ server session when they need them.
 ## Behavior
 
 - The control appears in the current-user area of the selected server when the
-  user has an elevation-required permission entitlement. This includes owner
-  entitlement and explicit allows at any scope. A deny can still prevent an
-  explicit allow from becoming effective.
+  user has a protected role or a direct grant that requires elevation.
 - Settings Overview shows a notice inside Server configuration when the mode is available but inactive. It directs the user to the shield button beside their name to activate additional permissions. The notice disappears while the mode is active.
 - Activating the mode requires a confirmation. One exception: after first-run
   setup, the client activates the mode for the new owner without a
   confirmation and explains it in a welcome dialog (FDR-047).
-- The mode activates all elevation-required permissions that the user is
-  entitled to use. It does not activate a role and does not add a grant.
-- For an effective owner, the mode also activates the owner override. Without
+- The dialog lists the user's assigned protected roles. The user selects the roles to activate. Direct grants that require elevation also become available during the session window.
+- A protected role contributes its grants only while selected. Its denies always apply during normal permission resolution. Grants from unprotected roles, including `everyone`, apply at their configured scopes.
+- Selecting `owner` activates the owner override. Without
   the mode, an owner has only the permissions of their other roles, direct
   grants, and `everyone`. Thus an owner sees, joins, and reads a restricted
   room only while the mode is active, unless ordinary grants allow it.
@@ -80,7 +78,7 @@ server session when they need them.
 
 ## Elevation-Required Permissions
 
-The initial catalog requires privileged mode for these permissions:
+For direct user grants, the permission catalog requires privileged mode for these permissions:
 
 - `server.manage` and `server.manage-neighbors`
 - `room.create`, `room.manage`, and `room.remove-member`
@@ -90,23 +88,16 @@ The initial catalog requires privileged mode for these permissions:
 - `user.manage-invites`, `user.delete-any`, `user.manage-accounts`, and
   `user.manage-permissions`
 - `bot.manage`
-- owner-only system diagnostics
 
-Ordinary room listing, joining, reading, posting, thread posting, attachments,
-reactions, message echo, `user.delete-self`, and `bot.create` remain active for
-users who have them through roles or grants. An owner who has them only through
-the owner override needs active privileged mode.
+System diagnostics require the selected `owner` role.
 
 ## Design Decisions
 
-### 1. Activate permissions, not roles
+### 1. Select protected roles
 
-**Decision:** The server classifies permissions that require activation.
+A user with effective `role.manage` can change **Require Shield Mode** on a role. The setting is fixed on for `owner` and off for `everyone`. The built-in `admin` and `moderator` roles start protected. Custom roles start unprotected unless the creator enables protection. Existing custom roles start unprotected.
 
-**Why:** Custom roles and direct user grants can provide the same authority as
-the built-in owner, admin, and moderator roles.
-
-**Tradeoff:** The catalog must classify each new dangerous permission.
+Role selection lets a user moderate a room while leaving broader administration or owner access inactive. Each permission check still uses the user's current assignments and the role's current settings.
 
 ### 2. Enforce the mode on the server
 
@@ -116,7 +107,7 @@ state. The client uses the returned effective grants only as UI hints.
 **Why:** A hidden client action is not an authorization boundary. Other API
 clients must follow the same rule.
 
-**Tradeoff:** Old clients cannot use elevated permissions on a new server.
+**Tradeoff:** A client that sends an empty activation request activates all protected roles the user holds at that time.
 
 ### 3. Use one fixed session window
 
@@ -138,7 +129,7 @@ activation. See ADR-105.
 
 **Tradeoff:** On a fresh server, the first owner has only the `owner` role.
 The announcements room denies root posts to `everyone`, so this owner must
-activate the mode to post there, or get the `admin` role or a room allow. MCP
+activate the mode to post there, or receive a direct room allow or an allow through an unprotected role. MCP
 tools cannot activate the mode, so they act without the owner override.
 
 ### 5. Keep runtime authority out of EVT
@@ -170,8 +161,8 @@ gap can remain stale until a later event or full recovery.
 
 ## Compatibility
 
-- A new client with an old server does not show the control.
-- An old client with a new server cannot activate elevated permissions.
+- A client connected to a server without role selection uses that server’s activation dialog.
+- Clients that support selection send the chosen role names to `ActivatePrivilegedRoles`. Servers without this RPC reject the selection. Older replicas cannot use a selective activation to enable the owner override.
 - All replicas must run the new authorization code before an operator relies
   on the gate.
 

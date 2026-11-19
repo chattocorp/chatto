@@ -10,6 +10,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"github.com/chattocorp/chatto/cli/internal/core/subjects"
@@ -850,5 +851,41 @@ func TestRetractionHintsSkipFormerMembers(t *testing.T) {
 	waitForNotificationMaterializer(t, chattoCore)
 	if message, err := hints.NextMsg(300 * time.Millisecond); err == nil {
 		t.Fatalf("a former member received a Badge hint for the room: %s", message.Subject)
+	}
+}
+
+// Role protection can remove ordinary access without changing any permission
+// rows. Stored attention must disappear even when the role later becomes active.
+func TestNotificationCleanupAfterRoleProtection(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := c.CreateUser(ctx, SystemActorID, "shield-author", "Author", "password")
+	require.NoError(t, err)
+	recipient, err := c.CreateUser(ctx, SystemActorID, "shield-reader", "Reader", "password")
+	require.NoError(t, err)
+	room, err := c.CreateRoom(ctx, author.Id, KindChannel, "", "shield-notifications", "")
+	require.NoError(t, err)
+	for _, id := range []string{author.Id, recipient.Id} {
+		_, err = c.JoinRoom(ctx, id, KindChannel, id, room.Id)
+		require.NoError(t, err)
+	}
+	_, err = c.CreateServerRole(ctx, SystemActorID, "readers", "Readers", "")
+	require.NoError(t, err)
+	require.NoError(t, c.AssignServerRole(ctx, SystemActorID, recipient.Id, "readers"))
+	require.NoError(t, c.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead))
+	require.NoError(t, c.GrantUserRoomPermission(ctx, SystemActorID, room.Id, author.Id, PermMessageRead))
+	require.NoError(t, c.GrantRoomPermission(ctx, SystemActorID, room.Id, "readers", PermMessageRead))
+	_, err = c.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, notificationTestSignalRoomMessage, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION)
+	require.NoError(t, err)
+	_, err = c.PostMessage(ctx, KindChannel, room.Id, author.Id, "visible", nil, "", "", nil, false)
+	require.NoError(t, err)
+	require.NoError(t, c.notificationMaterializer.WaitCurrent(ctx))
+	require.Len(t, testNotificationOccurrences(t, c, recipient.Id), 1)
+	require.NoError(t, c.AssignOwnerRole(ctx, author.Id))
+	for _, protected := range []bool{true, false} {
+		_, err = c.AdminUpdateServerRole(ctx, author.Id, AdminRoleUpdateInput{Name: "readers", RequiresShieldMode: &protected})
+		require.NoError(t, err)
+		require.NoError(t, c.notificationMaterializer.WaitCurrent(ctx))
+		require.Empty(t, testNotificationOccurrences(t, c, recipient.Id))
 	}
 }

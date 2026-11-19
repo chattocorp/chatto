@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Enable privileged mode",
       "disable": "Disable privileged mode",
+      "select_roles": "Choose the roles to activate for 15 minutes.",
       "confirmation": "For 15 minutes, this enables the additional permissions assigned to you on this server."
     },
     "notifications": {

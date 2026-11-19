@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "启用特权模式",
       "disable": "停用特权模式",
+      "select_roles": "选择要启用 15 分钟的角色。",
       "confirmation": "这会在 15 分钟内启用你在此服务器上获得的额外权限。"
     },
     "notifications": {

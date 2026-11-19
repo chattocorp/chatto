@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Ayrıcalıklı modu etkinleştir",
       "disable": "Ayrıcalıklı modu devre dışı bırak",
+      "select_roles": "15 dakika boyunca etkinleştirmek istediğiniz rolleri seçin.",
       "confirmation": "Bu işlem, bu sunucuda sana atanmış ek izinleri 15 dakika boyunca etkinleştirir."
     },
     "notifications": {

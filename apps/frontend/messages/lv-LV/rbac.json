@@ -23,6 +23,7 @@
       "display_name_too_long": "Parādāmajam nosaukumam jābūt 64 vai mazāk rakstzīmēm",
       "description": "Apraksts",
       "description_placeholder": "Šīs lomas apraksts pēc izvēles",
+      "require_shield": "Pieprasīt privileģēto režīmu",
       "pingable": "Ļaujiet cilvēkiem piezvanīt šai lomai",
       "pingable_description": "Pingējamās lomas tiek parādītas @ automātiskajā pabeigšanā un informē piešķirtos telpas dalībniekus."
     },
@@ -129,8 +130,7 @@
         "open": "Par atļauju {permission}",
         "category": "Kategorija",
         "scopes": "Var iestatīt",
-        "privileged": "Nepieciešams privileģētais režīms",
-        "privileged_detail": "Lai izmantotu šo atļauju, kontam jāieslēdz privileģētais režīms.",
+        "privileged_detail": "Ja šī atļauja ir piešķirta tieši kontam, tās izmantošanai nepieciešams privileģētais režīms.",
         "includes": "Ietver",
         "included_by": "Ietverta"
       }

@@ -184,6 +184,7 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 		permissions,
 		core.PrivilegedModeDeadline(ctx, caller.UserID),
 		access.CallID,
+		core.PrivilegedRoles(ctx, caller.UserID)...,
 	)
 	if err != nil {
 		return nil, err
@@ -251,6 +252,7 @@ func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, re
 		access.CallID,
 		publisherKind,
 		core.PrivilegedModeDeadline(ctx, caller.UserID),
+		core.PrivilegedRoles(ctx, caller.UserID)...,
 	)
 	if err != nil {
 		return nil, err

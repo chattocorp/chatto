@@ -44,10 +44,13 @@ type participantMetadata struct {
 	CallID        string `json:"callId,omitempty"`
 	PublisherKind string `json:"publisherKind,omitempty"`
 	OwnerIdentity string `json:"ownerIdentity,omitempty"`
+	// PrivilegedRoles records the issuing session’s selection for reconciliation.
+	PrivilegedRoles []string `json:"privilegedRoles,omitempty"`
 	// PrivilegedUntil is the Unix time at which the privileged mode of the
 	// issuing session ends. Zero means inactive. Call reconciliation evaluates
 	// the participant with this state, so the owner override ends with it.
-	PrivilegedUntil int64 `json:"privilegedUntil,omitempty"`
+
+	PrivilegedUntil int64 `json:"selectedRolesUntil,omitempty"`
 }
 
 // privilegedUntilUnix encodes a privileged-mode deadline for participant
@@ -150,7 +153,7 @@ func ParseLiveKitRoomServerID(lkRoomName string) string {
 // PrivilegedModeDeadline.
 // Authorization: Caller must verify current membership and call.join, then
 // pass the resolved publishing permissions.
-func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL string, isBot bool, e2eeKey string, permissions CallPermissions, privilegedUntil time.Time, callID ...string) (*VoiceCallToken, error) {
+func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL string, isBot bool, e2eeKey string, permissions CallPermissions, privilegedUntil time.Time, callID string, roles ...string) (*VoiceCallToken, error) {
 	at := lkauth.NewAccessToken(apiKey, apiSecret)
 	grant := &lkauth.VideoGrant{
 		RoomJoin: true,
@@ -165,11 +168,7 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 		SetName(displayName).
 		SetValidFor(VoiceCallTokenTTL)
 
-	var activeCallID string
-	if len(callID) > 0 {
-		activeCallID = callID[0]
-	}
-	md, err := json.Marshal(participantMetadata{Login: login, AvatarURL: avatarURL, IsBot: isBot, CallID: activeCallID, PrivilegedUntil: privilegedUntilUnix(privilegedUntil)})
+	md, err := json.Marshal(participantMetadata{Login: login, AvatarURL: avatarURL, IsBot: isBot, CallID: callID, PrivilegedRoles: roles, PrivilegedUntil: privilegedUntilUnix(privilegedUntil)})
 	if err != nil {
 		return nil, fmt.Errorf("marshal participant metadata: %w", err)
 	}
@@ -179,7 +178,7 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 	if err != nil {
 		return nil, fmt.Errorf("generate LiveKit token: %w", err)
 	}
-	return &VoiceCallToken{Token: token, E2EEKey: e2eeKey, CallID: activeCallID}, nil
+	return &VoiceCallToken{Token: token, E2EEKey: e2eeKey, CallID: callID}, nil
 }
 
 // GenerateCallMediaPublisherToken creates a publish-only LiveKit credential
@@ -187,7 +186,7 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 // it cannot evict the owner's primary LiveKit connection.
 // privilegedUntil is the privileged-mode deadline of the requesting session.
 // Authorization: Caller must verify room membership and active participation.
-func GenerateCallMediaPublisherToken(apiKey, apiSecret, roomName, publisherIdentity, ownerIdentity, displayName, e2eeKey, callID, publisherKind string, privilegedUntil time.Time) (*VoiceCallToken, error) {
+func GenerateCallMediaPublisherToken(apiKey, apiSecret, roomName, publisherIdentity, ownerIdentity, displayName, e2eeKey, callID, publisherKind string, privilegedUntil time.Time, roles ...string) (*VoiceCallToken, error) {
 	grant := &lkauth.VideoGrant{RoomJoin: true, Room: roomName}
 	grant.SetCanSubscribe(false)
 	grant.SetCanPublishData(false)
@@ -209,6 +208,7 @@ func GenerateCallMediaPublisherToken(apiKey, apiSecret, roomName, publisherIdent
 		PublisherKind:   publisherKind,
 		OwnerIdentity:   ownerIdentity,
 		PrivilegedUntil: privilegedUntilUnix(privilegedUntil),
+		PrivilegedRoles: roles,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal media publisher metadata: %w", err)

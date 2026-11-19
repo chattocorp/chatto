@@ -23,6 +23,7 @@
       "display_name_too_long": "Display name must be 64 characters or less",
       "description": "Description",
       "description_placeholder": "Optional description for this role",
+      "require_shield": "Require Shield Mode",
       "pingable": "Allow people to ping this role",
       "pingable_description": "Pingable roles appear in @ autocomplete and notify assigned room members."
     },
@@ -129,8 +130,7 @@
         "open": "About {permission}",
         "category": "Category",
         "scopes": "Can be set for",
-        "privileged": "Needs privileged mode",
-        "privileged_detail": "Accounts must enable privileged mode to use this permission.",
+        "privileged_detail": "When granted directly to an account, this permission requires Shield Mode.",
         "includes": "Includes",
         "included_by": "Included in"
       }

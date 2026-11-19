@@ -23,6 +23,7 @@
       "display_name_too_long": "Visningsnavnet må være på 64 tegn eller mindre",
       "description": "Beskrivelse",
       "description_placeholder": "Valgfri beskrivelse for denne rollen",
+      "require_shield": "Krev privilegert modus",
       "pingable": "Tillat folk å pinge denne rollen",
       "pingable_description": "Pingbare roller vises i @ autofullføring og varsler tildelte rommedlemmer."
     },
@@ -129,8 +130,7 @@
         "open": "Om {permission}",
         "category": "Kategori",
         "scopes": "Kan angis for",
-        "privileged": "Krever privilegert modus",
-        "privileged_detail": "Kontoer må aktivere privilegert modus for å bruke denne tillatelsen.",
+        "privileged_detail": "Når denne tillatelsen gis direkte til en konto, kreves privilegert modus for å bruke den.",
         "includes": "Omfatter",
         "included_by": "Inngår i"
       }

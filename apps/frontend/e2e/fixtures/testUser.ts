@@ -124,7 +124,9 @@ async function revokeRoleViaConnect(page: Page, userId: string, roleName: string
 
 /** Activate the current test session's elevation-required permissions. */
 export async function activatePrivilegedMode(page: Page): Promise<void> {
-  await connectPost(page, 'chatto.api.v1.ViewerService/ActivatePrivilegedMode');
+  await connectPost(page, 'chatto.api.v1.ViewerService/ActivatePrivilegedRoles', {
+    roleNames: ['owner']
+  });
 }
 
 /**

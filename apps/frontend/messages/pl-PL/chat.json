@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Włącz tryb uprzywilejowany",
       "disable": "Wyłącz tryb uprzywilejowany",
+      "select_roles": "Wybierz role, które chcesz włączyć na 15 minut.",
       "confirmation": "Na 15 minut włączy to dodatkowe uprawnienia przypisane do ciebie na tym serwerze."
     },
     "notifications": {

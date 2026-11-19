@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Aktiver privilegert modus",
       "disable": "Deaktiver privilegert modus",
+      "select_roles": "Velg rollene du vil aktivere i 15 minutter.",
       "confirmation": "I 15 minutter aktiverer dette tilleggstillatelsene du har fått på denne serveren."
     },
     "notifications": {

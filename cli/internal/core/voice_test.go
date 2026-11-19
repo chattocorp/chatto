@@ -493,7 +493,7 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 }
 
 func TestGenerateVoiceCallToken_NoAvatar(t *testing.T) {
-	result, err := GenerateVoiceCallToken("key", "secret", "room", "user1", "User One", "userone", "", false, "e2ee-test-key", CallPermissions{Voice: true, Camera: true, ScreenShare: true}, time.Time{})
+	result, err := GenerateVoiceCallToken("key", "secret", "room", "user1", "User One", "userone", "", false, "e2ee-test-key", CallPermissions{Voice: true, Camera: true, ScreenShare: true}, time.Time{}, "")
 	if err != nil {
 		t.Fatalf("GenerateVoiceCallToken() error = %v", err)
 	}

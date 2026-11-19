@@ -13,7 +13,12 @@ import {
   getViewerStateViaConnect
 } from '../viewer.js';
 import type { ConnectAPIConfig } from '../connect.js';
-import { fakeServer, mockService, receivedContext } from '../../testing/fakeServer.js';
+import {
+  fakeServer,
+  mockService,
+  receivedRequest,
+  receivedContext
+} from '../../testing/fakeServer.js';
 
 const mocks = mockService(ViewerService);
 
@@ -138,6 +143,7 @@ describe('getCurrentUserViaConnect', () => {
         },
         hasVerifiedEmail: true
       },
+      privilegedMode: { available: true, availableRoles: ['moderator'] },
       capabilities: {
         grants: [
           { capability: 'admin.view', granted: true },
@@ -157,6 +163,7 @@ describe('getCurrentUserViaConnect', () => {
 
     const viewer = await getViewerStateViaConnect(config());
 
+    expect(viewer.privilegedMode.availableRoles).toEqual(['moderator']);
     expect(viewer).toEqual(
       expect.objectContaining({
         canViewAdmin: true,
@@ -202,7 +209,7 @@ describe('getCurrentUserViaConnect', () => {
     };
     const viewerPermissions = { permissions: [{ permission: 'invite.create', granted: true }] };
     const refreshedViewer = { privilegedMode: inactive, capabilities: inactiveCapabilities };
-    mocks.activatePrivilegedMode.mockReturnValue({
+    mocks.activatePrivilegedRoles.mockReturnValue({
       privilegedMode: active,
       capabilities: activeCapabilities,
       viewerPermissions
@@ -215,7 +222,7 @@ describe('getCurrentUserViaConnect', () => {
     mocks.getViewer.mockReturnValue(refreshedViewer);
     const api = createPrivilegedModeAPI(config());
 
-    await expect(api.activate()).resolves.toMatchObject({
+    await expect(api.activate(['moderator'])).resolves.toMatchObject({
       privilegedMode: active,
       capabilities: activeCapabilities,
       viewerPermissions
@@ -226,9 +233,57 @@ describe('getCurrentUserViaConnect', () => {
       viewerPermissions
     });
     await expect(api.refresh()).resolves.toMatchObject(refreshedViewer);
-    expect(mocks.activatePrivilegedMode).toHaveBeenCalledOnce();
+    expect(receivedRequest(mocks.activatePrivilegedRoles)?.roleNames).toEqual(['moderator']);
     expect(mocks.deactivatePrivilegedMode).toHaveBeenCalledOnce();
     expect(mocks.getViewer).toHaveBeenCalledOnce();
+  });
+
+  it('requests direct grants only with an explicit empty selection', async () => {
+    mocks.activatePrivilegedRoles.mockReturnValue({
+      privilegedMode: { active: true },
+      capabilities: {},
+      viewerPermissions: {}
+    });
+    await createPrivilegedModeAPI(config()).activate([]);
+    expect(receivedRequest(mocks.activatePrivilegedRoles)?.roleNames).toEqual([]);
+    expect(mocks.activatePrivilegedMode).not.toHaveBeenCalled();
+  });
+
+  it('uses legacy activation only when an empty selection reaches an older server', async () => {
+    mocks.activatePrivilegedRoles.mockImplementation(() => {
+      throw new ConnectError('unknown method', Code.Unimplemented);
+    });
+    mocks.activatePrivilegedMode.mockReturnValue({
+      privilegedMode: { active: true },
+      capabilities: {},
+      viewerPermissions: {}
+    });
+    const api = createPrivilegedModeAPI(config());
+    await expect(api.activate(['moderator'])).rejects.toMatchObject({ code: Code.Unimplemented });
+    expect(mocks.activatePrivilegedMode).not.toHaveBeenCalled();
+    await api.activate([]);
+    expect(mocks.activatePrivilegedMode).toHaveBeenCalledOnce();
+  });
+
+  it('preserves other errors for empty selections', async () => {
+    mocks.activatePrivilegedRoles.mockImplementation(() => {
+      throw new ConnectError('denied', Code.PermissionDenied);
+    });
+    await expect(createPrivilegedModeAPI(config()).activate([])).rejects.toMatchObject({
+      code: Code.PermissionDenied
+    });
+    expect(mocks.activatePrivilegedMode).not.toHaveBeenCalled();
+  });
+
+  it('keeps legacy all-role activation when callers omit the argument', async () => {
+    mocks.activatePrivilegedMode.mockReturnValue({
+      privilegedMode: { active: true },
+      capabilities: {},
+      viewerPermissions: {}
+    });
+    await createPrivilegedModeAPI(config()).activate();
+    expect(mocks.activatePrivilegedMode).toHaveBeenCalledOnce();
+    expect(mocks.activatePrivilegedRoles).not.toHaveBeenCalled();
   });
 
   it('rejects privileged-mode answers without state or permissions', async () => {

@@ -47,9 +47,14 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 			Handle:                  credentials.AccessToken,
 			ExpiresAt:               validated.ExpiresAt,
 			PrivilegedModeExpiresAt: validated.PrivilegedModeExpiresAt,
+			PrivilegedRoles:         validated.PrivilegedRoles,
 		})
 	}
 
+	// The same owner can activate a moderation role without activating owner.
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, owner.Id, core.RoleModerator); err != nil {
+		t.Fatal(err)
+	}
 	unarmed, err := env.viewerService.GetViewer(requestContext(), connect.NewRequest(&apiv1.GetViewerRequest{}))
 	if err != nil {
 		t.Fatalf("GetViewer unarmed: %v", err)
@@ -61,6 +66,41 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 		t.Fatal("unarmed owner has effective system capability")
 	}
 
+	if roles := unarmed.Msg.PrivilegedMode.AvailableRoles; !slices.Equal(roles, []string{core.RoleModerator, core.RoleOwner}) {
+		t.Fatalf("selectable roles = %v", roles)
+	}
+	activateRoles := func(names ...string) (*connect.Response[apiv1.ActivatePrivilegedRolesResponse], error) {
+		return env.viewerService.ActivatePrivilegedRoles(requestContext(), connect.NewRequest(&apiv1.ActivatePrivilegedRolesRequest{RoleNames: names}))
+	}
+	if _, err := activateRoles(core.RoleAdmin); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("unassigned role error = %v", err)
+	}
+	directOnly, err := activateRoles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if apiCapabilityGranted(directOnly.Msg.Capabilities.Grants, viewerCapabilityAdminViewSystem) {
+		t.Fatal("empty role selection activated owner")
+	}
+	if _, err := env.viewerService.DeactivatePrivilegedMode(requestContext(), connect.NewRequest(&apiv1.DeactivatePrivilegedModeRequest{})); err != nil {
+		t.Fatal(err)
+	}
+	moderator, err := activateRoles(core.RoleModerator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if apiCapabilityGranted(moderator.Msg.Capabilities.Grants, viewerCapabilityAdminViewSystem) {
+		t.Fatal("moderator selection activated the owner override")
+	}
+	if can, err := env.core.HasServerPermission(requestContext(), owner.Id, core.PermRoomMemberRemove); err != nil || !can {
+		t.Fatalf("selected moderator grant = %t, %v", can, err)
+	}
+	if can, err := env.core.CanAdminSystemView(requestContext(), owner.Id); err != nil || can {
+		t.Fatalf("persisted owner override = %t, %v", can, err)
+	}
+	if _, err := env.viewerService.DeactivatePrivilegedMode(requestContext(), connect.NewRequest(&apiv1.DeactivatePrivilegedModeRequest{})); err != nil {
+		t.Fatal(err)
+	}
 	activated, err := env.viewerService.ActivatePrivilegedMode(requestContext(), connect.NewRequest(&apiv1.ActivatePrivilegedModeRequest{}))
 	if err != nil {
 		t.Fatalf("ActivatePrivilegedMode: %v", err)
@@ -91,8 +131,8 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListEventLog activation: %v", err)
 	}
-	if len(activationLog.Entries) != 1 {
-		t.Fatalf("privileged-mode activation audit entries = %d, want 1", len(activationLog.Entries))
+	if len(activationLog.Entries) != 3 {
+		t.Fatalf("privileged-mode activation audit entries = %d, want 3", len(activationLog.Entries))
 	}
 
 	armedContext := requestContext()
@@ -112,8 +152,8 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListEventLog deactivation: %v", err)
 	}
-	if len(deactivationLog.Entries) != 1 {
-		t.Fatalf("privileged-mode deactivation audit entries = %d, want 1", len(deactivationLog.Entries))
+	if len(deactivationLog.Entries) != 3 {
+		t.Fatalf("privileged-mode deactivation audit entries = %d, want 3", len(deactivationLog.Entries))
 	}
 	disarmed, err := env.viewerService.GetViewer(requestContext(), connect.NewRequest(&apiv1.GetViewerRequest{}))
 	if err != nil {

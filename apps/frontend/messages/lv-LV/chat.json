@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Ieslēgt privileģēto režīmu",
       "disable": "Izslēgt privileģēto režīmu",
+      "select_roles": "Izvēlieties lomas, kuras vēlaties aktivizēt uz 15 minūtēm.",
       "confirmation": "Tas uz 15 minūtēm aktivizē tev šajā serverī piešķirtās papildu atļaujas."
     },
     "notifications": {

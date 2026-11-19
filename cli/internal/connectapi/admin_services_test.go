@@ -1737,8 +1737,8 @@ func TestAdminDiagnosticsServiceGetSystemInfoRequiresOwner(t *testing.T) {
 		t.Fatal("AssetCleanup = nil")
 	}
 	// Nine source and materializer consumers, plus one consumer per job type.
-	if len(resp.Msg.GetDurableWorkers()) != 17 {
-		t.Fatalf("DurableWorkers len = %d, want 17", len(resp.Msg.GetDurableWorkers()))
+	if len(resp.Msg.GetDurableWorkers()) != 18 {
+		t.Fatalf("DurableWorkers len = %d, want 18", len(resp.Msg.GetDurableWorkers()))
 	}
 	if got := resp.Msg.GetLivekit().GetConnectionState(); got != adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_NOT_CONFIGURED {
 		t.Fatalf("Livekit.ConnectionState = %v, want not configured", got)

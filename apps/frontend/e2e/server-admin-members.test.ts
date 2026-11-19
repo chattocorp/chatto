@@ -1,7 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import {
-  activatePrivilegedMode,
   createAndLoginTestUser,
   grantPermission,
   loginAsAdmin,
@@ -384,7 +383,6 @@ test.describe('Server Admin Members', () => {
       await grantPermission(page, 'everyone', 'admin.view-users');
       await logoutUser(page);
       await loginUser(page, viewer.login, viewer.password);
-      await activatePrivilegedMode(page);
       await page.goto(routes.serverAdminMemberDelete(target.id!));
       await expect(page).toHaveURL(/\/account$/);
       await expect(page.getByRole('button', { name: 'Delete account', exact: true })).toHaveCount(

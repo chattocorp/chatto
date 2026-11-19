@@ -6,7 +6,7 @@ sidebar. Shows the avatar with presence and the live display name. Right-click
 or touch long-press opens the profile menu; avatar clicks open presence settings.
 -->
 <script lang="ts">
-  import { UserCard, ContextMenu, ConfirmDialog, Dialog, MenuItem, MenuSection } from '$lib/ui';
+  import { UserCard, ContextMenu, FormDialog, Dialog, MenuItem, MenuSection } from '$lib/ui';
   import { serverUi } from '$lib/state/server/serverUi';
   import ConnectionQualityHint from './voice/ConnectionQualityHint.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -18,7 +18,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   import { setPresenceStatus } from '$lib/state/server/presenceTracking';
   import { presencePreferences } from '$lib/state/server/presencePreference';
 
-  import { Button } from '$lib/ui/form';
+  import { Button, Checkbox } from '$lib/ui/form';
   import Deadline from '$lib/lifecycle/Deadline.svelte';
   import { toast } from '$lib/ui/toast';
   import UserAvatar from './UserAvatar.svelte';
@@ -95,6 +95,17 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   let privilegedModeDialogVisible = $state(false);
   let privilegedModeLoading = $state(false);
   const privilegedMode = $derived(activeStore.projection.viewer?.privilegedMode);
+  let selectedRoles = $state<string[]>([]);
+  const availableRoles = $derived(privilegedMode?.availableRoles ?? []);
+  const selectedAvailableRoles = $derived(
+    availableRoles.filter((role) => selectedRoles.includes(role))
+  );
+
+  function openShieldDialog() {
+    selectedRoles = [];
+    privilegedModeDialogVisible = true;
+  }
+
   const privilegedModeDeadline = $derived(
     privilegedMode?.active ? (privilegedMode.expiresAt?.toDate().getTime() ?? null) : null
   );
@@ -202,7 +213,12 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
     if (privilegedModeLoading) return;
     privilegedModeLoading = true;
     try {
-      await activeStore.setPrivilegedMode(active);
+      if (active) {
+        if (availableRoles.length && !selectedAvailableRoles.length) return;
+        await activeStore.setPrivilegedMode(true, selectedAvailableRoles);
+      } else {
+        await activeStore.setPrivilegedMode(false);
+      }
       privilegedModeDialogVisible = false;
     } catch {
       toast.error(m('common.error.generic'));
@@ -261,9 +277,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
               data-testid="privileged-mode-toggle"
               disabled={privilegedModeLoading}
               onclick={() =>
-                privilegedMode.active
-                  ? void setPrivilegedMode(false)
-                  : (privilegedModeDialogVisible = true)}
+                privilegedMode.active ? void setPrivilegedMode(false) : openShieldDialog()}
             >
               <span
                 class={[
@@ -280,18 +294,39 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
   </div>
 {/if}
 
-<ConfirmDialog
+<FormDialog
   bind:visible={privilegedModeDialogVisible}
   title={m('chat.privileged_mode.enable')}
-  tone="warning"
-  actionLabel={m('chat.privileged_mode.enable')}
-  actionIcon="iconify icon-[uil--shield-check]"
+  size="sm"
+  submitTone="warning"
+  disabled={!privilegedMode?.available ||
+    (availableRoles.length > 0 && !selectedAvailableRoles.length)}
+  submitLabel={m('chat.privileged_mode.enable')}
+  submitIcon="iconify icon-[uil--shield-check]"
   loading={privilegedModeLoading}
-  onconfirm={() => void setPrivilegedMode(true)}
+  onsubmit={() => void setPrivilegedMode(true)}
   onclose={() => (privilegedModeDialogVisible = false)}
 >
-  {m('chat.privileged_mode.confirmation')}
-</ConfirmDialog>
+  {#if availableRoles.length}
+    <fieldset class="flex flex-col gap-2">
+      <legend class="mb-3 text-muted">{m('chat.privileged_mode.select_roles')}</legend>
+      {#each availableRoles as role (role)}
+        <Checkbox
+          id={`shield-role-${role}`}
+          checked={selectedRoles.includes(role)}
+          disabled={privilegedModeLoading}
+          onCheckedChange={(checked) => {
+            selectedRoles = checked
+              ? [...selectedRoles, role]
+              : selectedRoles.filter((name) => name !== role);
+          }}><bdi>{role}</bdi></Checkbox
+        >
+      {/each}
+    </fieldset>
+  {:else}
+    {m('chat.privileged_mode.confirmation')}
+  {/if}
+</FormDialog>
 
 <UserMenu state={profileMenu} user={activeServerUser} viewerSettings={activeServerUser?.settings} />
 

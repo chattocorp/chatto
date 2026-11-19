@@ -47,11 +47,12 @@ func snapshotRole(value *readmodel.Role) *projectionv1.RoleSnapshot {
 		return nil
 	}
 	return &projectionv1.RoleSnapshot{
-		Name:        value.Name,
-		DisplayName: value.DisplayName,
-		Description: value.Description,
-		Position:    value.Position,
-		Pingable:    value.Pingable,
+		Name:               value.Name,
+		DisplayName:        value.DisplayName,
+		Description:        value.Description,
+		Position:           value.Position,
+		Pingable:           value.Pingable,
+		RequiresShieldMode: value.RequiresShieldMode,
 	}
 }
 
@@ -60,11 +61,12 @@ func restoreRole(value *projectionv1.RoleSnapshot) *readmodel.Role {
 		return nil
 	}
 	return &readmodel.Role{
-		Name:        value.Name,
-		DisplayName: value.DisplayName,
-		Description: value.Description,
-		Position:    value.Position,
-		Pingable:    value.Pingable,
+		Name:               value.Name,
+		DisplayName:        value.DisplayName,
+		Description:        value.Description,
+		Position:           value.Position,
+		Pingable:           value.Pingable,
+		RequiresShieldMode: value.RequiresShieldMode,
 	}
 }
 

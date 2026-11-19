@@ -1,5 +1,7 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import {
+  Code,
+  ConnectError,
   createChattoClient,
   type ConnectAPIConfig,
   skipAuthenticationRequired
@@ -74,13 +76,18 @@ export type ViewerState = ViewerCapabilities & {
   viewerHasUnreadRooms: boolean;
   privilegedMode: {
     available: boolean;
+    /** Assigned protected roles. An empty list also represents older servers and direct grants only. */
+    availableRoles: string[];
     active: boolean;
     expiresAt: string | null;
   };
 };
 
 export type PrivilegedModeAPI = {
-  activate(): Promise<PrivilegedModeUpdate>;
+  /** Select the protected roles for this activation. An empty list activates direct
+   * grants only, with legacy activation on servers without role selection. Omit the
+   * argument to use legacy all-role activation. A nonempty selection never falls back. */
+  activate(roleNames?: string[]): Promise<PrivilegedModeUpdate>;
   deactivate(): Promise<PrivilegedModeUpdate>;
   refresh(): Promise<GetViewerResponse>;
 };
@@ -93,9 +100,20 @@ export type PrivilegedModeUpdate = {
 
 export function createPrivilegedModeAPI(config: ConnectAPIConfig): PrivilegedModeAPI {
   const client = createChattoClient(ViewerService, config);
+  async function requestActivation(roleNames?: string[]) {
+    if (roleNames === undefined) return client.activatePrivilegedMode({});
+    const directGrantsOnly = roleNames.length === 0;
+    try {
+      return await client.activatePrivilegedRoles({ roleNames });
+    } catch (error) {
+      if (!directGrantsOnly || ConnectError.from(error).code !== Code.Unimplemented) throw error;
+      return client.activatePrivilegedMode({});
+    }
+  }
+
   return {
-    async activate() {
-      const response = await client.activatePrivilegedMode({});
+    async activate(roleNames) {
+      const response = await requestActivation(roleNames);
       if (!response.privilegedMode)
         throw new Error('privileged-mode response did not include state');
       if (!response.capabilities || !response.viewerPermissions)
@@ -223,6 +241,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
     viewerPermissions,
     viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false,
     privilegedMode: {
+      availableRoles: response.privilegedMode?.availableRoles ?? [],
       available: response.privilegedMode?.available ?? false,
       active: response.privilegedMode?.active ?? false,
       expiresAt: response.privilegedMode?.expiresAt?.toDate().toISOString() ?? null

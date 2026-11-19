@@ -35,7 +35,7 @@ function viewer(
     },
     viewerPermissions,
     viewerHasUnreadRooms: false,
-    privilegedMode: { available: false, active: false, expiresAt: null }
+    privilegedMode: { availableRoles: [], available: false, active: false, expiresAt: null }
   };
 }
 

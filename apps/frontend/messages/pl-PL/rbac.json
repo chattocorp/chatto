@@ -23,6 +23,7 @@
       "display_name_too_long": "Nazwa wyświetlana może mieć maksymalnie 64 znaki",
       "description": "Opis",
       "description_placeholder": "Opcjonalny opis tej roli",
+      "require_shield": "Wymagaj trybu uprzywilejowanego",
       "pingable": "Zezwalaj innym na pingowanie tej roli",
       "pingable_description": "Role, które można pingować, pojawiają się w @ autouzupełnianiu i powiadamiają przypisanych członków pokoju."
     },
@@ -129,8 +130,7 @@
         "open": "Informacje o {permission}",
         "category": "Kategoria",
         "scopes": "Można ustawić dla",
-        "privileged": "Wymaga trybu uprzywilejowanego",
-        "privileged_detail": "Konta muszą włączyć tryb uprzywilejowany, aby korzystać z tego uprawnienia.",
+        "privileged_detail": "Jeśli to uprawnienie przyznano bezpośrednio kontu, jego użycie wymaga trybu uprzywilejowanego.",
         "includes": "Obejmuje",
         "included_by": "Zawarte w"
       }
