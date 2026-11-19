@@ -61,8 +61,9 @@ export class MentionRolesStore {
         if (generation !== this.#generation) return false;
         this.roles = roles
           .filter(({ name }) => name !== 'everyone')
-          .map(({ name, isSystem, position, pingable }) => ({
+          .map(({ name, displayName, isSystem, position, pingable }) => ({
             name,
+            displayName,
             isSystem,
             position,
             pingable

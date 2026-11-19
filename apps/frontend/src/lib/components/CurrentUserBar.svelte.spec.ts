@@ -184,6 +184,10 @@ describe('CurrentUserBar', () => {
       ui: { voiceCall: voiceCallState },
       store: {
         navigation: roomsState,
+        mentionRoles: {
+          load: vi.fn(),
+          roles: [{ name: 'moderator', displayName: 'Room Moderator' }]
+        },
         projection: {
           ...projectionState,
           users: new UserStore(),
@@ -281,7 +285,8 @@ describe('CurrentUserBar', () => {
     await userEvent.click(getByRole('button', { name: 'Enable privileged mode' }));
     const confirm = getByRole('button', { name: 'Enable privileged mode' }).last();
     await expect.element(confirm).toBeDisabled();
-    await userEvent.click(getByText('moderator', { exact: true }));
+    await expect.element(getByText('Room Moderator', { exact: true })).toHaveClass('text-muted');
+    await userEvent.click(getByText('Room Moderator', { exact: true }));
     await userEvent.click(confirm);
     expect(privilegedModeActions.set).toHaveBeenCalledWith(true, ['moderator']);
   });

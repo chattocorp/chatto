@@ -103,6 +103,7 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
 
   function openShieldDialog() {
     selectedRoles = [];
+    if (availableRoles.length) void activeStore.mentionRoles.load();
     privilegedModeDialogVisible = true;
   }
 
@@ -311,6 +312,9 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
     <fieldset class="flex flex-col gap-2">
       <legend class="mb-3 text-muted">{m('chat.privileged_mode.select_roles')}</legend>
       {#each availableRoles as role (role)}
+        {@const roleLabel = activeStore.mentionRoles.roles.find(
+          ({ name }) => name === role
+        )?.displayName}
         <Checkbox
           id={`shield-role-${role}`}
           checked={selectedRoles.includes(role)}
@@ -319,8 +323,13 @@ or touch long-press opens the profile menu; avatar clicks open presence settings
             selectedRoles = checked
               ? [...selectedRoles, role]
               : selectedRoles.filter((name) => name !== role);
-          }}><bdi>{role}</bdi></Checkbox
+          }}
         >
+          <bdi>{role}</bdi>
+          {#if roleLabel && roleLabel !== role}
+            <bdi class="ms-1 text-muted">{roleLabel}</bdi>
+          {/if}
+        </Checkbox>
       {/each}
     </fieldset>
   {:else}
