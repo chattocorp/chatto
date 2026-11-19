@@ -171,6 +171,34 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	}
 }
 
+func TestViewerCookieActivationAuditsExplicitRoleSelection(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	user := env.viewer
+	require.NoError(t, env.core.AssignOwnerRole(env.ctx, user.Id))
+	require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator))
+	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, user.Id, core.PermAdminAuditView))
+	handle, _, err := env.core.CreateCookieSession(env.ctx, user.Id, "password_login")
+	require.NoError(t, err)
+	ctx := authctx.WithCredential(withCaller(env.ctx, user), authctx.RuntimeCredential{
+		Kind: authctx.RuntimeCredentialKindCookieSession, UserID: user.Id, Handle: handle,
+	})
+
+	response, err := env.viewerService.ActivatePrivilegedRoles(ctx, connect.NewRequest(&apiv1.ActivatePrivilegedRolesRequest{
+		RoleNames: []string{core.RoleModerator},
+	}))
+	require.NoError(t, err)
+	log, err := env.core.ListEventLog(ctx, user.Id, core.EventLogQuery{
+		Filter: core.EventLogFilter{EventType: "PrivilegedModeActivatedEvent", ActorID: user.Id},
+	})
+	require.NoError(t, err)
+	require.Len(t, log.Entries, 1)
+	var event evtv1.Event
+	require.NoError(t, protojson.Unmarshal([]byte(log.Entries[0].PayloadJSON), &event))
+	activation := event.GetPrivilegedModeActivated()
+	require.Equal(t, []string{core.RoleModerator}, activation.GetRoleNames())
+	require.True(t, proto.Equal(response.Msg.PrivilegedMode.ExpiresAt, activation.GetExpiresAt()))
+}
+
 func TestViewerLegacyActivationRetryKeepsStoredSelection(t *testing.T) {
 	for _, kind := range []authctx.RuntimeCredentialKind{authctx.RuntimeCredentialKindBearerToken, authctx.RuntimeCredentialKindCookieSession} {
 		t.Run(string(kind), func(t *testing.T) {

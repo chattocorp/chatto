@@ -57,12 +57,13 @@ type ViewerServiceClient interface {
 	// Returns FAILED_PRECONDITION for a bot or when starting a new activation
 	// without any assigned protected roles.
 	ActivatePrivilegedMode(context.Context, *connect.Request[v1.ActivatePrivilegedModeRequest]) (*connect.Response[v1.ActivatePrivilegedModeResponse], error)
-	// Activates only the selected roles for 15 minutes.
-	// Each request, including a retry, requires all selected roles to be assigned
-	// and protected. Returns FAILED_PRECONDITION if no protected roles are
-	// available, or PERMISSION_DENIED if a selected role is unavailable.
-	// A rejected retry preserves the stored selection and deadline. Deactivate
-	// before changing the selection.
+	// Activates the selected protected roles for up to 15 minutes.
+	// Each request, including a retry, returns FAILED_PRECONDITION for a bot or
+	// a caller with no assigned protected roles. Otherwise an empty selection
+	// returns INVALID_ARGUMENT, and an unavailable role returns PERMISSION_DENIED.
+	// During an active window, a retry with the same eligible selection keeps the
+	// deadline. A different eligible selection returns INVALID_ARGUMENT. Deactivate
+	// before changing the selection. A rejected retry preserves the selection and deadline.
 	ActivatePrivilegedRoles(context.Context, *connect.Request[v1.ActivatePrivilegedRolesRequest]) (*connect.Response[v1.ActivatePrivilegedRolesResponse], error)
 	// Deactivates the selected protected roles immediately. Returns
 	// FAILED_PRECONDITION when the caller is a bot.
@@ -146,12 +147,13 @@ type ViewerServiceHandler interface {
 	// Returns FAILED_PRECONDITION for a bot or when starting a new activation
 	// without any assigned protected roles.
 	ActivatePrivilegedMode(context.Context, *connect.Request[v1.ActivatePrivilegedModeRequest]) (*connect.Response[v1.ActivatePrivilegedModeResponse], error)
-	// Activates only the selected roles for 15 minutes.
-	// Each request, including a retry, requires all selected roles to be assigned
-	// and protected. Returns FAILED_PRECONDITION if no protected roles are
-	// available, or PERMISSION_DENIED if a selected role is unavailable.
-	// A rejected retry preserves the stored selection and deadline. Deactivate
-	// before changing the selection.
+	// Activates the selected protected roles for up to 15 minutes.
+	// Each request, including a retry, returns FAILED_PRECONDITION for a bot or
+	// a caller with no assigned protected roles. Otherwise an empty selection
+	// returns INVALID_ARGUMENT, and an unavailable role returns PERMISSION_DENIED.
+	// During an active window, a retry with the same eligible selection keeps the
+	// deadline. A different eligible selection returns INVALID_ARGUMENT. Deactivate
+	// before changing the selection. A rejected retry preserves the selection and deadline.
 	ActivatePrivilegedRoles(context.Context, *connect.Request[v1.ActivatePrivilegedRolesRequest]) (*connect.Response[v1.ActivatePrivilegedRolesResponse], error)
 	// Deactivates the selected protected roles immediately. Returns
 	// FAILED_PRECONDITION when the caller is a bot.

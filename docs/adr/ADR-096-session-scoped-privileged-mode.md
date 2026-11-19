@@ -93,8 +93,8 @@ local deadline as a prompt fallback.
 
 Privileged-mode authority stays in runtime state. Chatto writes minimal
 `PrivilegedModeActivatedEvent` and `PrivilegedModeDeactivatedEvent` facts to
-EVT for the event log. The activation fact includes the deadline, so automatic
-expiry does not require a scheduled event. These facts are audit-only and do
+EVT for the event log. The activation fact records the selected role names and the deadline. Older activation facts omit the role names. Automatic
+expiry does not require a scheduled event because the activation fact already records the deadline. These facts are audit-only and do
 not change runtime authority during replay. If the runtime-state mutation
 succeeds but its audit append fails, Chatto keeps the runtime result and logs
 the failure. This prevents an audit outage from keeping privilege active.

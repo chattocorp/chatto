@@ -60,7 +60,7 @@ server session when they need them.
 - Asset URLs that Chatto issued during the mode stay usable until their access
   tickets expire.
 - The event log records successful activation and explicit deactivation
-  transitions. The activation entry includes the fixed deadline. Automatic
+  transitions. The activation entry includes the selected role names and the fixed deadline. Automatic
   expiry does not add a second event because the deadline is already durable.
 - Each connected server has independent state.
 - Bot API keys keep their current direct permission behavior. Bots do not use
