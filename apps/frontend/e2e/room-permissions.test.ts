@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import {
+  activatePrivilegedMode,
   createAndLoginTestUser,
   logoutCurrentUser,
   loginAsAdminAndUsePrimaryServer,
@@ -843,7 +844,9 @@ test.describe('Permission-only Resolution', () => {
       await expect(page.getByText('Important announcement from owner!')).toBeVisible();
     });
 
-    test('admin can post root messages in announcements room', async ({ page }) => {
+    test('admin can post root messages in announcements after activating the role', async ({
+      page
+    }) => {
       // Owner loads the primary server - this auto-creates #announcements with restricted permissions
       const _owner = await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page, `Admin Ann Test ${Date.now()}`);
@@ -860,6 +863,9 @@ test.describe('Permission-only Resolution', () => {
 
       await page.goto(routes.room(announcementsRoomId));
       const chatInput = page.getByTestId('message-input');
+      await expect(chatInput).toHaveAttribute('contenteditable', 'false');
+      await activatePrivilegedMode(page, ['admin']);
+      await page.reload();
       await expect(chatInput).toHaveAttribute('contenteditable', 'true');
     });
 
@@ -876,6 +882,7 @@ test.describe('Permission-only Resolution', () => {
       // Login as moderator
       await logoutUser(page);
       await loginUser(page, mod.login, mod.password);
+      await activatePrivilegedMode(page, ['moderator']);
       await joinRoomViaAPI(page, announcementsRoomId);
 
       await page.goto(routes.room(announcementsRoomId));

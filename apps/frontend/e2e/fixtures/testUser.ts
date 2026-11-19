@@ -122,10 +122,10 @@ async function revokeRoleViaConnect(page: Page, userId: string, roleName: string
   expect(data.member?.roles ?? []).not.toContain(roleName);
 }
 
-/** Activate the current test session's assigned protected roles. */
-export async function activatePrivilegedMode(page: Page): Promise<void> {
+/** Activate the selected protected roles for the current test session. */
+export async function activatePrivilegedMode(page: Page, roleNames: string[]): Promise<void> {
   await connectPost(page, 'chatto.api.v1.ViewerService/ActivatePrivilegedRoles', {
-    roleNames: ['owner']
+    roleNames
   });
 }
 
@@ -159,7 +159,7 @@ export async function loginAsAdmin(
   adminUser.id = viewer.user?.profile?.id;
   expect(adminUser.id).toBeTruthy();
   if (options.activatePrivilegedMode ?? true) {
-    await activatePrivilegedMode(page);
+    await activatePrivilegedMode(page, ['owner']);
   }
 
   return adminUser;
