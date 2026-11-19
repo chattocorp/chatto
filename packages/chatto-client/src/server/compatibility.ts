@@ -33,7 +33,9 @@ export const SERVER_FEATURE_REQUIREMENTS = {
    * Admin job list, details, retry, and delete through AdminJobService. Older
    * servers have no job queue. The first 0.6.0 prerelease has it.
    */
-  backgroundJobs: '0.6.0-beta.0'
+  backgroundJobs: '0.6.0-beta.0',
+  /** Select individual protected roles when activating Shield Mode. */
+  shieldRoleSelection: '0.6.0-beta.0'
 } as const;
 
 /** A capability whose server requirement the client knows. */

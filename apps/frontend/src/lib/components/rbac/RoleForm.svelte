@@ -6,6 +6,8 @@
     name = $bindable(''),
     displayName = $bindable(''),
     description = $bindable(''),
+    showShieldSetting = false,
+    requiresShieldMode = $bindable(false),
     pingable = $bindable(false),
     nameEditable = true,
     saving = false,
@@ -18,6 +20,8 @@
     name?: string;
     displayName?: string;
     description?: string;
+    showShieldSetting?: boolean;
+    requiresShieldMode?: boolean;
     pingable?: boolean;
     nameEditable?: boolean;
     saving?: boolean;
@@ -106,6 +110,15 @@
     disabled={saving}
     description={m('rbac.role_form.pingable_description')}
   />
+
+  {#if showShieldSetting}
+    <Checkbox
+      id="requires-shield-mode"
+      bind:checked={requiresShieldMode}
+      label={m('rbac.role_form.require_shield')}
+      disabled={saving}
+    />
+  {/if}
 
   {#snippet footer()}
     <Button type="submit" disabled={!isValid || saving} loading={saving} loadingText={savingLabel}>

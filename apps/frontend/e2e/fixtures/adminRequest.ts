@@ -13,7 +13,9 @@ export async function createBootstrapAdminRequest(baseURL: string): Promise<APIR
     data: { login: 'e2eadmin', password: 'adminpassword123' }
   });
   expect(loginResponse.ok()).toBeTruthy();
-  await connectPost(adminRequest, 'chatto.api.v1.ViewerService/ActivatePrivilegedMode');
+  await connectPost(adminRequest, 'chatto.api.v1.ViewerService/ActivatePrivilegedRoles', {
+    roleNames: ['owner']
+  });
   return adminRequest;
 }
 

@@ -430,8 +430,8 @@ export async function loginAdminOnRemote(
       `No userId returned from remote viewer RPC: ${JSON.stringify(viewer.toJson())}`
     );
   }
-  await viewerClient(remoteBaseURL).activatePrivilegedMode(
-    {},
+  await viewerClient(remoteBaseURL).activatePrivilegedRoles(
+    { roleNames: ['owner'] },
     { headers: authHeaders(loginData.token) }
   );
   return { token: loginData.token, userId };

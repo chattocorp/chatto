@@ -27,7 +27,7 @@ The server-management section gives owners and admins visibility into the server
   primary email explicitly instead of relying on address order. Admins can edit
   profiles, assign roles, suspend, or delete users when they hold the relevant
   permission.
-- **Jobs page** — users with `server.manage` can inspect background jobs and retry eligible failures in privileged mode. See [FDR-056](FDR-056-background-jobs.md).
+- **Jobs page** — users with `server.manage` can inspect background jobs and retry eligible failures. See [FDR-056](FDR-056-background-jobs.md).
 - **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, known durable-worker queue health, projection health (lag, entry counts, and rough memory estimates), and `AdminDiagnosticsService.GetSystemInfo` stats (user count, channel room count, DM room count).
 - The System Info page has five tabs, each with its own route: Overview, Streams, Projections, Workers, and LiveKit. The LiveKit tab is hidden when the server does not report LiveKit status. All tabs use one diagnostics snapshot. A refresh action in the page header reads a new snapshot.
 - The Overview tab starts with a health summary: one overall status and one row for each check (broker connection, projections, background workers, backlog, account limits, and calls when LiveKit is configured). Below it are the user, room, event, and stored-data counts, account usage against each limit, and the broker connection. A check whose details are on a different tab links to that tab. A tab shows a status dot when one of its checks reports a warning or a problem, so a problem stays visible from every tab.
@@ -133,8 +133,7 @@ when the manager leaves the page.
 - `room.manage` — gates general room and room-group settings at the effective resource scope; server-scope grants also gate global room-group creation and ordering.
 - `user.manage-accounts` — gates user creation, cross-user identity edits of humans, password resets, verified-email attachment, and login-cooldown resets.
 
-These administrative permissions and owner-only diagnostics require active
-privileged mode for a human session. The server configuration entry remains
+A protected role grants these permissions when selected in Shield Mode. Owner-only diagnostics require the selected owner role. The server configuration entry remains
 discoverable from entitlement while protected pages and actions use effective
 permissions.
 

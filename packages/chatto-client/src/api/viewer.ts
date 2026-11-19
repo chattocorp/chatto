@@ -74,13 +74,17 @@ export type ViewerState = ViewerCapabilities & {
   viewerHasUnreadRooms: boolean;
   privilegedMode: {
     available: boolean;
+    /** Assigned protected roles. Absent on servers with legacy all-role activation. */
+    availableRoles?: string[];
     active: boolean;
     expiresAt: string | null;
   };
 };
 
 export type PrivilegedModeAPI = {
-  activate(): Promise<PrivilegedModeUpdate>;
+  /** Select one or more protected roles for this activation. Omit the argument
+   * to activate all assigned protected roles. */
+  activate(roleNames?: string[]): Promise<PrivilegedModeUpdate>;
   deactivate(): Promise<PrivilegedModeUpdate>;
   refresh(): Promise<GetViewerResponse>;
 };
@@ -94,8 +98,11 @@ export type PrivilegedModeUpdate = {
 export function createPrivilegedModeAPI(config: ConnectAPIConfig): PrivilegedModeAPI {
   const client = createChattoClient(ViewerService, config);
   return {
-    async activate() {
-      const response = await client.activatePrivilegedMode({});
+    async activate(roleNames) {
+      const response =
+        roleNames === undefined
+          ? await client.activatePrivilegedMode({})
+          : await client.activatePrivilegedRoles({ roleNames });
       if (!response.privilegedMode)
         throw new Error('privileged-mode response did not include state');
       if (!response.capabilities || !response.viewerPermissions)
@@ -223,6 +230,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
     viewerPermissions,
     viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false,
     privilegedMode: {
+      availableRoles: response.privilegedMode?.roleSelection?.availableRoles,
       available: response.privilegedMode?.available ?? false,
       active: response.privilegedMode?.active ?? false,
       expiresAt: response.privilegedMode?.expiresAt?.toDate().toISOString() ?? null

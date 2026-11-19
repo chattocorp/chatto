@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-27
+**Last reviewed:** 2026-11-19
 
 ## Overview
 
@@ -197,10 +197,7 @@ credentials for other bots; those credentials use the target bot's authority.
   both the bot's allowlist and its owner's current RBAC entitlement allow
   it at that scope. The owner ceiling does not depend on privileged mode in
   any human session. Bot permission inspection uses the same rule.
-- Granting an elevation-required permission requires the acting caller to have
-  that permission active at the target scope. Human callers need privileged
-  mode; bot callers use their explicit grant and owner ceiling. Clearing a grant uses the normal
-  bot management checks and does not require activation of that permission.
+- A bot manager can grant any permission within the owner's entitlement at the target scope and can clear any saved grant.
 - Bot permission mutations accept only allow or clear; explicit denials are
   rejected. The editor therefore presents each applicable permission as
   enabled or disabled instead of exposing RBAC's general three-state control.
@@ -217,8 +214,7 @@ credentials for other bots; those credentials use the target bot's authority.
   permissions for, and delete their own bots. Losing `bot.create` does not
   remove management of bots they already own.
 - The permission matrix exposes room scopes only when they are visible through
-  the normal room-directory policy to both the bot owner and the managing
-  caller. It exposes the complete directory group layout, including empty
+  the room directory to the managing caller. For a different owner, the room must also be visible with the owner’s full entitlement. It exposes the complete directory group layout, including empty
   groups, so group-scoped permissions such as `room.create` remain usable.
 - A human or bot with `bot.manage` can manage any bot. Changes made by a global
   bot manager remain bounded by that bot's owner's permission ceiling.
@@ -468,6 +464,10 @@ the currently readable version, so it can change between attempts after an
 edit. Retracted or inaccessible messages are not sent.
 
 ## Permissions
+
+- A bot can receive `user.delete-self` when its owner has that permission. The
+  grant appears in the bot's effective permissions. Only human accounts can
+  use it to delete their own account.
 
 - `bot.create` — create bot accounts. Human callers become the owner; bot
   callers use their current human owner.

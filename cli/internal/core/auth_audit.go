@@ -279,11 +279,12 @@ func (c *ChattoCore) recordBearerTokenRevoked(ctx context.Context, userID, reaso
 	return nil
 }
 
-func (c *ChattoCore) recordPrivilegedModeActivated(ctx context.Context, userID string, expiresAt time.Time) error {
+func (c *ChattoCore) recordPrivilegedModeActivated(ctx context.Context, userID string, activation PrivilegedModeActivation) error {
 	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_PrivilegedModeActivated{
 		PrivilegedModeActivated: &evtv1.PrivilegedModeActivatedEvent{
 			UserId:    userID,
-			ExpiresAt: timestamppb.New(expiresAt),
+			ExpiresAt: timestamppb.New(activation.ExpiresAt),
+			RoleNames: activation.Roles,
 			Request:   auditRequestMetadata(ctx),
 		},
 	}})

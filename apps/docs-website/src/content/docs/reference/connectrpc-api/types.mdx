@@ -101,6 +101,7 @@ Public role metadata used for rendering role mentions, labels, and catalogs.
 | `is_system` | `bool` | Whether this is a built-in role. |
 | `position` | `int32` | Display/order position. |
 | `pingable` | `bool` | Whether messages may notify users assigned to this role. |
+| `requires_shield_mode` | `bool` | Grants from this role require explicit selection in Shield Mode. |
 
 <a id="chatto-api-v1-PresencePreference"></a>
 
@@ -962,9 +963,20 @@ State of explicit privileged-mode activation for this authenticated session.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `available` | `bool` | Whether the user has an elevation-required permission entitlement. This includes owner entitlement and explicit allows at any supported scope. |
-| `active` | `bool` | Whether elevated permissions are effective for this session now. |
+| `available` | `bool` | Whether the user has an assigned protected role. |
+| `active` | `bool` | Whether protected roles have been activated for this session now. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute activation deadline. Present only while privileged mode is active. |
+| `role_selection` | [`PrivilegedRoleSelection`](#chatto-api-v1-PrivilegedRoleSelection) | Present when this server supports selective activation, even when no roles are available. |
+
+<a id="chatto-api-v1-PrivilegedRoleSelection"></a>
+
+### PrivilegedRoleSelection
+
+Protected roles that the caller can select for this session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `available_roles` | `repeated string` | Assigned protected roles. An empty list means there are no roles to activate. |
 
 <a id="chatto-api-v1-ServerViewerPermissions"></a>
 
@@ -1749,7 +1761,7 @@ the code can use it; it is not bound to an email address or recipient.
 ### Job
 
 Safe administrative job summary. Content, credentials, and internal payloads
-are never returned. Requires server.manage, including privileged mode.
+are never returned. Requires effective server.manage.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1877,7 +1889,7 @@ Matrix cell for one permission and scope.
 | `scope_id` | `string` | Scope ID matching PermissionMatrixScope.id. |
 | `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision at this scope. |
 | `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. |
-| `allow_permitted` | `optional bool` | Whether an explicit allow may currently be stored for this target. Absent when no additional delegation ceiling applies. |
+| `allow_permitted` | `optional bool` | Whether the bot owner's assigned permissions allow this grant. Absent for other targets. |
 
 <a id="chatto-admin-v1-PermissionMatrixScope"></a>
 

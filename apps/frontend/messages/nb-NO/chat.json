@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Aktiver privilegert modus",
       "disable": "Deaktiver privilegert modus",
+      "select_roles": "Velg rollene du vil aktivere i 15 minutter.",
       "confirmation": "I 15 minutter aktiverer dette tilleggstillatelsene du har fått på denne serveren."
     },
     "notifications": {
@@ -76,7 +77,9 @@
       "independent_slow_mode_description": "Denne serveren bruker én felles ventetid for kanalmeldinger og trådsvar.",
       "upgrade": "Be serveradministratoren om å oppgradere til {version} eller nyere for full støtte.",
       "background_jobs_title": "Bakgrunnsjobber er ikke tilgjengelige",
-      "background_jobs_description": "Denne serveren kan ikke vise eller prøve bakgrunnsjobber på nytt i serverinnstillingene."
+      "background_jobs_description": "Denne serveren kan ikke vise eller prøve bakgrunnsjobber på nytt i serverinnstillingene.",
+      "shield_role_selection_title": "Rollevalg i privilegert modus",
+      "shield_role_selection_description": "Denne serveren aktiverer alle tilgjengelige rettigheter samtidig."
     },
     "server_gutter": {
       "move_up": "Flytt opp",

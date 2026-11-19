@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Activar modo privilegiado",
       "disable": "Desactivar modo privilegiado",
+      "select_roles": "Elige los roles que quieres activar durante 15 minutos.",
       "confirmation": "Durante 15 minutos, esto activa los permisos adicionales que tienes asignados en este servidor."
     },
     "notifications": {
@@ -76,7 +77,9 @@
       "independent_slow_mode_description": "Este servidor utiliza un tiempo de espera compartido para los mensajes del canal y las respuestas en los hilos.",
       "upgrade": "Para obtener compatibilidad completa, pide al administrador del servidor que actualice a {version} o posterior.",
       "background_jobs_title": "Las tareas en segundo plano no están disponibles",
-      "background_jobs_description": "Este servidor no puede mostrar ni reintentar tareas en segundo plano en los ajustes del servidor."
+      "background_jobs_description": "Este servidor no puede mostrar ni reintentar tareas en segundo plano en los ajustes del servidor.",
+      "shield_role_selection_title": "Selección de roles en modo privilegiado",
+      "shield_role_selection_description": "Este servidor activa todos los privilegios disponibles a la vez."
     },
     "server_gutter": {
       "move_up": "Mover hacia arriba",

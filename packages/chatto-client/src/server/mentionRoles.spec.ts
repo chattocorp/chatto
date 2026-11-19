@@ -45,6 +45,7 @@ describe('MentionRolesStore', () => {
     expect(store.roles).toEqual([
       {
         name: 'moderator',
+        displayName: 'moderator',
         isSystem: false,
         position: 1,
         pingable: true

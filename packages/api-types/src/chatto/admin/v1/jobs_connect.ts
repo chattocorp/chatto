@@ -15,7 +15,7 @@ export const AdminJobService = {
   typeName: "chatto.admin.v1.AdminJobService",
   methods: {
     /**
-     * Lists jobs. Requires server.manage, including privileged mode.
+     * Lists jobs. Requires effective server.manage.
      * This call does not subscribe or poll; callers refresh explicitly.
      *
      * @generated from rpc chatto.admin.v1.AdminJobService.ListJobs
@@ -27,7 +27,7 @@ export const AdminJobService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets a job. Requires server.manage, including privileged mode.
+     * Gets a job. Requires effective server.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminJobService.GetJob
      */
@@ -38,7 +38,7 @@ export const AdminJobService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Retries a failed job. Requires server.manage, including privileged mode.
+     * Retries a failed job. Requires effective server.manage.
      * Returns FAILED_PRECONDITION for active, successful, or expired jobs.
      * A lost response does not cancel an accepted retry. Read the job before retrying.
      *
@@ -51,7 +51,7 @@ export const AdminJobService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deletes a failed job. Requires server.manage, including privileged mode.
+     * Deletes a failed job. Requires effective server.manage.
      * The work of the job is abandoned and cannot be retried later. Returns
      * FAILED_PRECONDITION when the job is not failed or changed after the caller
      * read it, and NOT_FOUND when it is already deleted.

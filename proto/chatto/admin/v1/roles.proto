@@ -87,6 +87,8 @@ message CreateRoleRequest {
   string description = 3 [(buf.validate.field).string.max_len = 500];
   // Whether messages may notify users assigned to this role.
   bool pingable = 4;
+  // Grants from this role require explicit selection in Shield Mode.
+  bool requires_shield_mode = 5;
 }
 
 // Result of creating a role.
@@ -105,8 +107,10 @@ message UpdateRoleRequest {
   optional string description = 3 [(buf.validate.field).string.max_len = 500];
   // Whether messages may notify users assigned to this role, when changing it.
   optional bool pingable = 4;
-  // Editable fields to apply or reset: display_name, description, pingable.
-  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // Grants from this role require explicit selection in Shield Mode.
+  optional bool requires_shield_mode = 6;
+  // Editable fields to apply or reset: display_name, description, pingable, requires_shield_mode.
+  // Omit to infer populated fields. A wildcard selects all metadata fields and includes requires_shield_mode only when its value is supplied. An explicit
   // empty mask is invalid. Unselected values are ignored. Selected absent values
   // reset the field to its default, subject to field validation.
   google.protobuf.FieldMask update_mask = 5;

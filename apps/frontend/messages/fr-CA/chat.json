@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Activer le mode privilégié",
       "disable": "Désactiver le mode privilégié",
+      "select_roles": "Choisissez les rôles à activer pendant 15 minutes.",
       "confirmation": "Pendant 15 minutes, ceci active les autorisations supplémentaires qui te sont attribuées sur ce serveur."
     },
     "notifications": {
@@ -76,7 +77,9 @@
       "independent_slow_mode_description": "Ce serveur utilise un délai commun pour les messages du canal et les réponses dans les fils.",
       "upgrade": "Pour une prise en charge complète, demandez à l’administrateur du serveur de passer à la version {version} ou ultérieure.",
       "background_jobs_title": "Les tâches en arrière-plan sont indisponibles",
-      "background_jobs_description": "Ce serveur ne peut pas afficher ni relancer les tâches en arrière-plan dans les paramètres du serveur."
+      "background_jobs_description": "Ce serveur ne peut pas afficher ni relancer les tâches en arrière-plan dans les paramètres du serveur.",
+      "shield_role_selection_title": "Sélection des rôles en mode privilégié",
+      "shield_role_selection_description": "Ce serveur active tous les privilèges disponibles ensemble."
     },
     "server_gutter": {
       "move_up": "Déplacer vers le haut",

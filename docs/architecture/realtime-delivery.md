@@ -334,9 +334,10 @@ after failed reads use full current-value recovery. Projection and
 authorization generations reject superseded permission reads. The server
 cancels authorized work at the session's privilege deadline and sends a
 reconnecting `PRIVILEGED_MODE_EXPIRED` close. It does not write a live event
-after that deadline. The periodic credential check sends the same close when
-another connection of the session ends privileged mode. The client then reads
-effective permissions and rooms with privileged mode inactive. See
+after that deadline. At subscription and during periodic credential checks, the
+server sends the same close if the session's activation deadline or selected
+roles changed. The client then reads effective permissions and rooms for the
+current session. See
 [ADR-096](../adr/ADR-096-session-scoped-privileged-mode.md) and
 [ADR-105](../adr/ADR-105-privileged-mode-gates-owner-override.md).
 
@@ -406,7 +407,7 @@ safe fallback. Neither path advances the cursor past the fact.
 `live.evt.>` per Chatto process. It classifies subjects before decoding, waits
 for `ServerContentView` once for content facts, and fans immutable decoded
 events into count- and byte-bounded session queues. Sessions of one user with
-the same privileged-mode state share room-visibility state. The hub makes each
+the same activation state and selected protected roles share room-visibility state. The hub makes each
 membership, read, and visibility decision with that fixed state (ADR-105).
 There are no per-client NATS or JetStream consumers.
 

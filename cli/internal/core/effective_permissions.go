@@ -64,9 +64,6 @@ func (c *ChattoCore) ListEffectivePermissions(ctx context.Context, actorID, user
 			}
 		}
 		for _, meta := range AllPermissions() {
-			if isBot && !botPermissionDelegable(meta.Permission) {
-				continue
-			}
 			allowed := make(map[string]bool, len(scopes))
 			for _, scope := range scopes {
 				cell, applicable, err := c.buildUserPermissionMatrixCell(ctx, userID, meta.Permission, scope)

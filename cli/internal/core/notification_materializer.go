@@ -22,6 +22,7 @@ const (
 	// The durable name and its filter set form one schema-capability
 	// generation. Adding a source event that older binaries cannot decode must
 	// use a new consumer name so those binaries cannot acknowledge its work.
+	roleProtectionConsumerName     = "chatto-role-protection-notifications-v1"
 	notificationWorkerConsumerName = "chatto-notification-materializer-v1"
 	notificationWorkerAckWait      = time.Minute
 	notificationWorkerHeartbeat    = 15 * time.Second
@@ -47,6 +48,8 @@ type NotificationMaterializer struct {
 	ready                     chan struct{}
 	consumer                  jetstream.Consumer
 	consumerInfoMu            sync.Mutex
+	protectionConsumer        jetstream.Consumer
+	protectionConsumerInfoMu  sync.Mutex
 	invitationConsumer        jetstream.Consumer
 	invitationConsumerInfoMu  sync.Mutex
 }
@@ -77,6 +80,14 @@ func (m *NotificationMaterializer) Initialize(ctx context.Context) error {
 		return err
 	}
 	m.invitationConsumer = invitationConsumer
+	// Keep the existing materializer filter contract and its pending messages.
+	m.protectionConsumer, err = evtstream.CreateEffectConsumer(ctx, m.core.storage.serverEvtStream, evtstream.EffectConsumerConfig{
+		Name: roleProtectionConsumerName, Description: "Reconcile notification visibility after role protection changes",
+		FilterSubjects: []string{roleProtectionSubject()}, AckWait: notificationWorkerAckWait, MaxAckPending: 1, DeliverPolicy: jetstream.DeliverNewPolicy,
+	})
+	if err != nil {
+		return err
+	}
 	close(m.ready)
 	return nil
 }
@@ -107,7 +118,14 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	protectionWorker, err := evtstream.NewEffectWorker(m.protectionConsumer, m.processProtectionDelivery, evtstream.EffectWorkerOptions{
+		MaxConcurrent: 1, RetryDelay: notificationWorkerRetryDelay, AckTimeout: notificationWorkerAckTimeout, HeartbeatInterval: notificationWorkerHeartbeat, Logger: m.core.logger.WithPrefix("RoleProtectionNotificationWorker"),
+	})
+	if err != nil {
+		return err
+	}
 	group, workerCtx := errgroup.WithContext(ctx)
+	group.Go(func() error { return protectionWorker.Run(workerCtx) })
 	group.Go(func() error { return worker.Run(workerCtx) })
 	group.Go(func() error { return invitationWorker.Run(workerCtx) })
 	err = group.Wait()
@@ -180,6 +198,67 @@ func (m *NotificationMaterializer) WaitCurrent(ctx context.Context) error {
 	if err := m.WaitReady(ctx); err != nil {
 		return err
 	}
+	if err := m.waitMessageCurrent(ctx); err != nil {
+		return err
+	}
+	if err := m.waitEffectCurrent(ctx, []string{roleProtectionSubject()}, m.protectionConsumer, &m.protectionConsumerInfoMu); err != nil {
+		return err
+	}
+	if err := m.waitEffectCurrent(ctx, invitationNotificationSubjects(), m.invitationConsumer, &m.invitationConsumerInfoMu); err != nil {
+		return err
+	}
+	return m.core.notificationOccurrences.projection.Projector().WaitForCurrent(ctx)
+}
+
+func (m *NotificationMaterializer) waitEffectCurrent(ctx context.Context, subjects []string, consumer jetstream.Consumer, mu *sync.Mutex) error {
+	var boundary uint64
+	for _, subject := range subjects {
+		position, err := m.core.EventPublisher.LastSubjectPosition(ctx, subject)
+		if err != nil {
+			return err
+		}
+		boundary = max(boundary, position.Seq)
+	}
+	if boundary == 0 {
+		return nil
+	}
+	ticker := time.NewTicker(5 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		mu.Lock()
+		info, err := consumer.Info(ctx)
+		mu.Unlock()
+		if err != nil {
+			return err
+		}
+		if info.AckFloor.Stream >= boundary || (info.NumAckPending == 0 && info.Delivered.Stream >= boundary) {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
+func roleProtectionSubject() string {
+	return evtstream.RBACEventTypeFilter(evtstream.EventRBACRoleProtectionChanged)
+}
+
+// An earlier message may still be producing an occurrence on the original
+// consumer. Finish that work before taking the cleanup snapshot.
+func (m *NotificationMaterializer) processProtectionDelivery(ctx context.Context, delivery events.DurableDelivery) error {
+	if err := m.waitMessageCurrent(ctx); err != nil {
+		return err
+	}
+	if err := m.core.notificationOccurrences.projection.Projector().WaitForCurrent(ctx); err != nil {
+		return err
+	}
+	return m.processDelivery(ctx, delivery)
+}
+
+func (m *NotificationMaterializer) waitMessageCurrent(ctx context.Context) error {
 	var boundary uint64
 	for _, filter := range notificationWorkerFilterSubjects() {
 		position, err := m.core.EventPublisher.LastSubjectPosition(ctx, filter)
@@ -190,13 +269,7 @@ func (m *NotificationMaterializer) WaitCurrent(ctx context.Context) error {
 			boundary = position.Seq
 		}
 	}
-	if err := m.WaitThrough(ctx, boundary); err != nil {
-		return err
-	}
-	if err := m.waitInvitationCurrent(ctx); err != nil {
-		return err
-	}
-	return m.core.notificationOccurrences.projection.Projector().WaitForCurrent(ctx)
+	return m.WaitThrough(ctx, boundary)
 }
 
 func notificationWorkerFilterSubjects() []string {
@@ -281,7 +354,7 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 		if err := m.core.userModel.waitForUsers(ctx, position); err != nil {
 			return fmt.Errorf("wait for user projection: %w", err)
 		}
-	case *evtv1.Event_RbacRoleDeleted,
+	case *evtv1.Event_RbacRoleProtectionChanged, *evtv1.Event_RbacRoleDeleted,
 		*evtv1.Event_RbacRoleAssigned,
 		*evtv1.Event_RbacRoleRevoked,
 		*evtv1.Event_RbacPermissionGranted,
@@ -378,7 +451,7 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 		return m.reconcileOccurrenceVisibility(ctx, payload.RbacRoleAssigned.GetUserId(), "", streamSequence, visibilityAt)
 	case *evtv1.Event_RbacRoleRevoked:
 		return m.reconcileOccurrenceVisibility(ctx, payload.RbacRoleRevoked.GetUserId(), "", streamSequence, visibilityAt)
-	case *evtv1.Event_RbacRoleDeleted:
+	case *evtv1.Event_RbacRoleProtectionChanged, *evtv1.Event_RbacRoleDeleted:
 		return m.reconcileOccurrenceVisibility(ctx, "", "", streamSequence, visibilityAt)
 	case *evtv1.Event_RbacPermissionGranted:
 		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionGranted.GetPermission(), payload.RbacPermissionGranted.GetScope(), payload.RbacPermissionGranted.GetSubject(), streamSequence, visibilityAt)

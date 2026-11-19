@@ -3,8 +3,10 @@ package connectapi
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
@@ -99,4 +101,49 @@ func TestCallPermissionsTokenSourcesThroughAPI(t *testing.T) {
 			require.ElementsMatch(t, sources, actual)
 		})
 	}
+}
+
+func TestCallTokenRPCsDuringFinalSecondOfShieldMode(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	env.api.config.LiveKit = config.LiveKitConfig{Enabled: true, URL: "ws://livekit.test", APIKey: "key", APISecret: "secret"}
+	user := env.viewer
+	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "shield-call", "")
+	require.NoError(t, err)
+	_, err = env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator))
+	deadline := time.Now().Add(time.Hour)
+	ctx := authctx.WithCredential(withCaller(env.ctx, user), authctx.RuntimeCredential{
+		Handle: "session", UserID: user.Id, Kind: authctx.RuntimeCredentialKindCookieSession,
+		PrivilegedRoles: []string{core.RoleModerator}, PrivilegedModeExpiresAt: deadline,
+	})
+	_, err = env.voice.JoinCall(ctx, connect.NewRequest(&apiv1.JoinCallRequest{RoomId: room.Id}))
+	require.NoError(t, err)
+	check := func(t *testing.T, issue func() string) {
+		t.Helper()
+		for _, remaining := range []time.Duration{time.Millisecond, 0} {
+			env.voice.now = func() time.Time { return deadline.Add(-remaining) }
+			parsed, err := jwt.Parse(issue(), func(*jwt.Token) (any, error) { return []byte("secret"), nil }, jwt.WithValidMethods([]string{"HS256"}))
+			require.NoError(t, err)
+			metadata := parsed.Claims.(jwt.MapClaims)["metadata"].(string)
+			ref := core.ParseParticipantMetadata(metadata).SelectionRef
+			require.Equal(t, remaining > 0, ref != "", "selection reference with %s remaining", remaining)
+		}
+	}
+	t.Run("CreateCallToken", func(t *testing.T) {
+		check(t, func() string {
+			res, err := env.voice.CreateCallToken(ctx, connect.NewRequest(&apiv1.CreateCallTokenRequest{RoomId: room.Id}))
+			require.NoError(t, err)
+			return res.Msg.Token
+		})
+	})
+	t.Run("CreateCallMediaPublisherToken", func(t *testing.T) {
+		check(t, func() string {
+			res, err := env.voice.CreateCallMediaPublisherToken(ctx, connect.NewRequest(&apiv1.CreateCallMediaPublisherTokenRequest{
+				RoomId: room.Id, Kind: apiv1.CallMediaPublisherKind_CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE,
+			}))
+			require.NoError(t, err)
+			return res.Msg.Token
+		})
+	})
 }

@@ -47,7 +47,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-035](FDR-035-slow-mode.md)                             | Slow Mode                             | Active       | 2026-10-15    |
 | [FDR-036](FDR-036-invite-links.md)                          | Invitation Codes                      | Active       | 2026-10-30    |
 | [FDR-037](FDR-037-pinned-messages.md)                       | Pinned Messages                       | Active       | 2026-10-12    |
-| [FDR-038](FDR-038-bot-accounts.md)                          | Bot Accounts                          | Experimental | 2026-09-23    |
+| [FDR-038](FDR-038-bot-accounts.md)                          | Bot Accounts                          | Experimental | 2026-11-19    |
 | [FDR-039](FDR-039-message-access-and-interactions.md)       | Message Access & Interactions         | Experimental | 2026-09-20    |
 | [FDR-040](FDR-040-backup-and-restore.md)                    | Backup and Restore                    | Active       | 2026-10-26    |
 | [FDR-041](FDR-041-transactional-email-delivery.md)          | Transactional Email Delivery          | Active       | 2026-11-17    |
@@ -55,7 +55,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-043](FDR-043-model-context-protocol-integration.md)    | Model Context Protocol Integration    | Experimental | 2026-10-08    |
 | [FDR-044](FDR-044-my-threads.md)                            | Threads                               | Active       | 2026-10-30    |
 | [FDR-045](FDR-045-realtime-event-stream.md)                 | Realtime Event Stream                 | Experimental | 2026-09-25    |
-| [FDR-046](FDR-046-privileged-mode.md)                       | Privileged Mode                       | Active       | 2026-11-03    |
+| [FDR-046](FDR-046-privileged-mode.md)                       | Privileged Mode                       | Active       | 2026-11-19    |
 | [FDR-047](FDR-047-first-run-setup.md)                       | First-Run Setup                       | Active       | 2026-10-10    |
 | [FDR-048](FDR-048-chatto-mobile.md)                         | Chatto Mobile                         | Experimental | 2026-11-10    |
 | [FDR-049](FDR-049-server-gutter.md)                         | Server Gutter                         | Active       | 2026-10-09    |

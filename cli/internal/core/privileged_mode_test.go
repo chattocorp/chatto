@@ -2,11 +2,13 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/authctx"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPermissionResolver_PrivilegedModeGatesElevatedHumanPermissions(t *testing.T) {
@@ -25,6 +27,7 @@ func TestPermissionResolver_PrivilegedModeGatesElevatedHumanPermissions(t *testi
 			Kind:                    authctx.RuntimeCredentialKindBearerToken,
 			UserID:                  user.Id,
 			Handle:                  "test-session",
+			PrivilegedRoles:         []string{RoleOwner},
 			PrivilegedModeExpiresAt: deadline,
 		})
 	}
@@ -45,8 +48,8 @@ func TestPermissionResolver_PrivilegedModeGatesElevatedHumanPermissions(t *testi
 	if allowed, err := chatto.HasServerPermission(unarmed, user.Id, PermMessagePost); err != nil || !allowed {
 		t.Fatalf("unarmed message.post = %v, %v; want true, nil", allowed, err)
 	}
-	if available, err := chatto.HasAnyPrivilegedModeEntitlement(unarmed, user.Id); err != nil || !available {
-		t.Fatalf("privileged-mode entitlement = %v, %v; want true, nil", available, err)
+	if len(chatto.ProtectedRoles(user.Id)) == 0 {
+		t.Fatalf("owner should be available for activation")
 	}
 
 	armed := credentialContext(time.Now().Add(time.Minute))
@@ -59,32 +62,34 @@ func TestPermissionResolver_PrivilegedModeGatesElevatedHumanPermissions(t *testi
 	}
 }
 
-func TestPermissionResolver_PrivilegedModeTracksEntitlementChanges(t *testing.T) {
+func TestPermissionResolver_DirectGrantDoesNotRequireShieldMode(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "changing-privileges", "Changing Privileges", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	armed := authctx.WithCredential(ctx, authctx.RuntimeCredential{
-		Kind:                    authctx.RuntimeCredentialKindBearerToken,
-		UserID:                  user.Id,
-		Handle:                  "changing-session",
-		PrivilegedModeExpiresAt: time.Now().Add(time.Minute),
+	inactive := authctx.WithCredential(ctx, authctx.RuntimeCredential{
+		Kind:   authctx.RuntimeCredentialKindBearerToken,
+		UserID: user.Id,
+		Handle: "changing-session",
 	})
-	if allowed, err := chatto.HasServerPermission(armed, user.Id, PermRoomCreate); err != nil || allowed {
+	if allowed, err := chatto.HasServerPermission(inactive, user.Id, PermRoomCreate); err != nil || allowed {
 		t.Fatalf("permission before grant = %v, %v; want false, nil", allowed, err)
 	}
 	if err := chatto.GrantUserPermission(ctx, SystemActorID, user.Id, PermRoomCreate); err != nil {
 		t.Fatalf("GrantUserPermission: %v", err)
 	}
-	if allowed, err := chatto.HasServerPermission(armed, user.Id, PermRoomCreate); err != nil || !allowed {
+	if allowed, err := chatto.HasServerPermission(inactive, user.Id, PermRoomCreate); err != nil || !allowed {
 		t.Fatalf("permission after grant = %v, %v; want true, nil", allowed, err)
+	}
+	if roles := chatto.ProtectedRoles(user.Id); len(roles) != 0 {
+		t.Fatalf("direct grant offered role activation: %v", roles)
 	}
 	if err := chatto.DenyUserPermission(ctx, SystemActorID, user.Id, PermRoomCreate); err != nil {
 		t.Fatalf("DenyUserPermission: %v", err)
 	}
-	if allowed, err := chatto.HasServerPermission(armed, user.Id, PermRoomCreate); err != nil || allowed {
+	if allowed, err := chatto.HasServerPermission(inactive, user.Id, PermRoomCreate); err != nil || allowed {
 		t.Fatalf("permission after deny = %v, %v; want false, nil", allowed, err)
 	}
 }
@@ -124,23 +129,26 @@ func TestChattoCore_BearerPrivilegedModeUsesRenewableSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	if err := chatto.AssignServerRole(ctx, SystemActorID, user.Id, RoleModerator); err != nil {
+		t.Fatal(err)
+	}
 	credentials, err := chatto.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
 	if err != nil {
 		t.Fatalf("CreateBearerSessionWithSource: %v", err)
 	}
 
-	deadline, err := chatto.SetBearerPrivilegedMode(ctx, credentials.AccessToken, true)
+	deadline, err := chatto.SetBearerPrivilegedMode(ctx, credentials.AccessToken, ActivateAllPrivilegedRoles)
 	if err != nil {
 		t.Fatalf("SetBearerPrivilegedMode(active): %v", err)
 	}
-	if remaining := time.Until(deadline); remaining <= 0 || remaining > PrivilegedModeWindow {
+	if remaining := time.Until(deadline.ExpiresAt); remaining <= 0 || remaining > PrivilegedModeWindow {
 		t.Fatalf("activation remaining = %v, want within (0, %v]", remaining, PrivilegedModeWindow)
 	}
 	validated, err := chatto.ValidatePublicBearerCredential(ctx, credentials.AccessToken)
 	if err != nil {
 		t.Fatalf("ValidatePublicBearerCredential: %v", err)
 	}
-	if !validated.PrivilegedModeExpiresAt.Equal(deadline) {
+	if !validated.PrivilegedModeExpiresAt.Equal(deadline.ExpiresAt) {
 		t.Fatalf("validated deadline = %v, want %v", validated.PrivilegedModeExpiresAt, deadline)
 	}
 	rotated, err := chatto.RefreshBearerSession(ctx, credentials.RefreshToken, testRefreshRequestIDA, "")
@@ -151,14 +159,14 @@ func TestChattoCore_BearerPrivilegedModeUsesRenewableSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidatePublicBearerCredential(rotated): %v", err)
 	}
-	if !validated.PrivilegedModeExpiresAt.Equal(deadline) {
+	if !validated.PrivilegedModeExpiresAt.Equal(deadline.ExpiresAt) {
 		t.Fatalf("rotated deadline = %v, want %v", validated.PrivilegedModeExpiresAt, deadline)
 	}
-	retried, err := chatto.SetBearerPrivilegedMode(ctx, credentials.AccessToken, true)
-	if err != nil || !retried.Equal(deadline) {
+	retried, err := chatto.SetBearerPrivilegedMode(ctx, credentials.AccessToken, ActivateAllPrivilegedRoles)
+	if err != nil || !retried.ExpiresAt.Equal(deadline.ExpiresAt) {
 		t.Fatalf("idempotent activation = %v, %v; want %v, nil", retried, err, deadline)
 	}
-	if deactivated, err := chatto.SetBearerPrivilegedMode(ctx, credentials.AccessToken, false); err != nil || !deactivated.IsZero() {
+	if deactivated, err := chatto.SetBearerPrivilegedMode(ctx, credentials.AccessToken, DeactivatePrivilegedMode); err != nil || !deactivated.ExpiresAt.IsZero() {
 		t.Fatalf("deactivation = %v, %v; want zero, nil", deactivated, err)
 	}
 	validated, err = chatto.ValidatePublicBearerCredential(ctx, credentials.AccessToken)
@@ -174,11 +182,14 @@ func TestChattoCore_CookiePrivilegedModeRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	if err := chatto.AssignServerRole(ctx, SystemActorID, user.Id, RoleModerator); err != nil {
+		t.Fatal(err)
+	}
 	sessionID, _, err := chatto.CreateCookieSession(ctx, user.Id, "password_login")
 	if err != nil {
 		t.Fatalf("CreateCookieSession: %v", err)
 	}
-	deadline, err := chatto.SetCookiePrivilegedMode(ctx, sessionID, true)
+	deadline, err := chatto.SetCookiePrivilegedMode(ctx, sessionID, ActivateAllPrivilegedRoles)
 	if err != nil {
 		t.Fatalf("SetCookiePrivilegedMode(active): %v", err)
 	}
@@ -186,10 +197,10 @@ func TestChattoCore_CookiePrivilegedModeRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateCookieCredential: %v", err)
 	}
-	if got := validated.GetPrivilegedModeExpiresAt().AsTime(); !got.Equal(deadline) {
+	if got := validated.GetPrivilegedModeExpiresAt().AsTime(); !got.Equal(deadline.ExpiresAt) {
 		t.Fatalf("validated deadline = %v, want %v", got, deadline)
 	}
-	if _, err := chatto.SetCookiePrivilegedMode(ctx, sessionID, false); err != nil {
+	if _, err := chatto.SetCookiePrivilegedMode(ctx, sessionID, DeactivatePrivilegedMode); err != nil {
 		t.Fatalf("SetCookiePrivilegedMode(inactive): %v", err)
 	}
 	validated, err = chatto.ValidateCookieCredential(ctx, sessionID)
@@ -212,7 +223,7 @@ func TestChattoCore_CookiePrivilegedModeRejectsRevokedSession(t *testing.T) {
 	if err := chatto.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
 		t.Fatalf("SetPasswordHash: %v", err)
 	}
-	if _, err := chatto.SetCookiePrivilegedMode(ctx, sessionID, true); !errors.Is(err, ErrCookieSessionNotFound) {
+	if _, err := chatto.SetCookiePrivilegedMode(ctx, sessionID, ActivateAllPrivilegedRoles); !errors.Is(err, ErrCookieSessionNotFound) {
 		t.Fatalf("SetCookiePrivilegedMode error = %v, want ErrCookieSessionNotFound", err)
 	}
 }
@@ -337,51 +348,100 @@ func TestBotPermissionsIndependentOfInspectorPrivilegedMode(t *testing.T) {
 	}
 }
 
-func TestBotElevatedGrantRequiresActiveActorAuthority(t *testing.T) {
+func TestBotGrantCeilingUsesOnlyOwnerEntitlement(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "grant-owner", "Owner", "password123")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := c.AssignOwnerRole(ctx, owner.Id); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	manager, err := c.CreateUser(ctx, SystemActorID, "grant-manager", "Manager", "password123")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermBotManage); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+	require.NoError(t, c.AssignServerRole(ctx, SystemActorID, owner.Id, RoleAdmin))
+	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermBotManage))
+	require.NoError(t, c.DenyUserPermission(ctx, SystemActorID, manager.Id, PermRoomCreate))
 	allowBotCreation(t, ctx, c, owner.Id)
 	bot, err := c.CreateBot(ctx, owner.Id, "grant_bot", "Bot")
-	if err != nil {
-		t.Fatal(err)
+	require.NoError(t, err)
+	session := func(id string) context.Context {
+		return authctx.WithCredential(ctx, authctx.RuntimeCredential{
+			Handle: "session", Kind: authctx.RuntimeCredentialKindBearerToken, UserID: id,
+		})
 	}
 	scope := PermissionTargetScope{Kind: MatrixScopeServer}
-	session := func(userID string, active bool) context.Context {
-		deadline := time.Time{}
-		if active {
-			deadline = time.Now().Add(time.Minute)
+	edit := func(actor string, perm Permission, state PermissionState) error {
+		return c.SetUserPermissionState(session(actor), actor, bot.User.Id, scope, perm, state)
+	}
+	checkCell := func(perm Permission, want bool) {
+		t.Helper()
+		matrix, err := c.GetUserPermissionMatrix(session(manager.Id), manager.Id, bot.User.Id)
+		require.NoError(t, err)
+		for _, cell := range matrix.Cells {
+			if cell.ScopeID == "server" && cell.Permission == string(perm) {
+				require.NotNil(t, cell.AllowPermitted)
+				require.Equal(t, want, *cell.AllowPermitted)
+				return
+			}
 		}
-		return authctx.WithCredential(ctx, authctx.RuntimeCredential{Handle: "test-session", Kind: authctx.RuntimeCredentialKindBearerToken, UserID: userID, PrivilegedModeExpiresAt: deadline})
+		t.Fatalf("missing server cell for %s", perm)
 	}
-	if err := c.SetUserPermissionState(session(owner.Id, false), owner.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("unarmed grant: %v", err)
+	for _, actor := range []string{owner.Id, manager.Id} {
+		allowed, err := c.HasServerPermission(session(actor), actor, PermRoomCreate)
+		require.NoError(t, err)
+		require.False(t, allowed)
+		checkCell(PermRoomCreate, true)
+		require.NoError(t, edit(actor, PermRoomCreate, PermissionStateAllow))
+		allowed, err = c.HasServerPermission(ctx, bot.User.Id, PermRoomCreate)
+		require.NoError(t, err)
+		require.True(t, allowed)
+		require.NoError(t, edit(actor, PermRoomCreate, PermissionStateNone))
 	}
-	if err := c.SetUserPermissionState(session(manager.Id, true), manager.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("manager without target permission: %v", err)
-	}
-	if err := c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermRoomCreate); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.SetUserPermissionState(session(manager.Id, true), manager.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateAllow); err != nil {
-		t.Fatalf("armed manager with unarmed owner: %v", err)
-	}
-	if err := c.SetUserPermissionState(session(owner.Id, false), owner.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateNone); err != nil {
-		t.Fatalf("unarmed removal: %v", err)
-	}
+	require.NoError(t, edit(manager.Id, PermRoomCreate, PermissionStateAllow))
+	t.Run("room visible to the editor through their session and to the owner through a protected role", func(t *testing.T) {
+		group, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Restricted rooms", "")
+		require.NoError(t, err)
+		room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, group.Id, "bot-grants", "")
+		require.NoError(t, err)
+		for _, perm := range []Permission{PermRoomList, PermMessagePost} {
+			require.NoError(t, c.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, perm))
+			require.NoError(t, c.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleAdmin, perm))
+		}
+		require.NoError(t, c.GrantUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomList))
+		target := PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.Id}
+		matrix, err := c.GetUserPermissionMatrixPage(session(manager.Id), manager.Id, bot.User.Id, false, PermissionScopeQuery{Scope: &target})
+		require.NoError(t, err)
+		var allow *bool
+		for _, cell := range matrix.Cells {
+			if cell.ScopeID == "room:"+room.Id && cell.Permission == string(PermMessagePost) {
+				allow = cell.AllowPermitted
+			}
+		}
+		require.NotNil(t, allow)
+		require.True(t, *allow)
+		require.NoError(t, c.SetUserPermissionState(session(manager.Id), manager.Id, bot.User.Id, target, PermMessagePost, PermissionStateAllow))
+		require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomList))
+		matrix, err = c.GetUserPermissionMatrixPage(session(manager.Id), manager.Id, bot.User.Id, false, PermissionScopeQuery{Scope: &target})
+		require.NoError(t, err)
+		require.Empty(t, matrix.Scopes)
+	})
+	require.NoError(t, c.RevokeServerRole(ctx, SystemActorID, owner.Id, RoleAdmin))
+	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermRoomCreate))
+	managerAllowed, err := c.HasServerPermission(session(manager.Id), manager.Id, PermRoomCreate)
+	require.NoError(t, err)
+	require.True(t, managerAllowed)
+	checkCell(PermRoomCreate, false)
+	allowed, err := c.HasServerPermission(ctx, bot.User.Id, PermRoomCreate)
+	require.NoError(t, err)
+	require.False(t, allowed)
+	require.NoError(t, edit(manager.Id, PermRoomCreate, PermissionStateNone))
+	require.ErrorIs(t, edit(manager.Id, PermRoomCreate, PermissionStateAllow), ErrBotOwnerPermissionCeiling)
+
+	checkCell(PermUserDeleteSelf, true)
+	require.NoError(t, edit(manager.Id, PermUserDeleteSelf, PermissionStateAllow))
+	allowed, err = c.HasServerPermission(ctx, bot.User.Id, PermUserDeleteSelf)
+	require.NoError(t, err)
+	require.True(t, allowed)
+	allowed, err = c.CanDeleteUser(ctx, bot.User.Id, bot.User.Id)
+	require.NoError(t, err)
+	require.False(t, allowed)
 }
 
 // An owner without active privileged mode resolves like any other human.
@@ -431,6 +491,7 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 			Kind:                    authctx.RuntimeCredentialKindCookieSession,
 			UserID:                  userID,
 			Handle:                  "gated-session-" + userID,
+			PrivilegedRoles:         []string{RoleOwner},
 			PrivilegedModeExpiresAt: deadline,
 		})
 	}
@@ -449,7 +510,7 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 			Handle: bot.User.Id,
 		}), false},
 		{"fixed inactive evaluation", withPrivilegedModeEvaluation(session(owner.Id, time.Now().Add(time.Minute)), owner.Id, false), false},
-		{"fixed active evaluation", withPrivilegedModeEvaluation(ctx, owner.Id, true), true},
+		{"fixed active evaluation", withPrivilegedModeEvaluation(ctx, owner.Id, true, RoleOwner), true},
 		{"internal", ctx, true},
 	}
 	for _, tc := range contexts {
@@ -500,10 +561,14 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 			}
 
 			// Entitlement keeps the owner override for discovery and ceilings.
-			if available, err := c.HasAnyPrivilegedModeEntitlement(tc.ctx, owner.Id); err != nil || !available {
-				t.Errorf("privileged-mode entitlement = %v, %v; want true, nil", available, err)
+			if len(c.ProtectedRoles(owner.Id)) == 0 {
+				t.Errorf("owner should be available for activation")
 			}
-			if decision, err := c.PermResolver().resolveEntitlement(tc.ctx, owner.Id, KindChannel, restricted.Id, "", PermMessageRead); err != nil || decision != DecisionAllow {
+			resolver := c.PermResolver()
+			decision, err := resolver.resolveInContentView(tc.ctx, func(readCtx context.Context) (DecisionKind, error) {
+				return resolver.resolveEntitlementWithGroup(readCtx, owner.Id, KindChannel, restricted.Id, "", PermMessageRead)
+			})
+			if err != nil || decision != DecisionAllow {
 				t.Errorf("entitlement message.read = %s, %v; want allow, nil", decision, err)
 			}
 		})
@@ -515,5 +580,142 @@ func TestPermissionResolver_PrivilegedModeGatesOwnerOverride(t *testing.T) {
 	}
 	if allowed, err := c.authorization.CanJoinRoomAt(session(owner.Id, time.Time{}), owner.Id, KindChannel, restricted.Id); err != nil || !allowed {
 		t.Fatalf("inactive join with direct grant = %v, %v; want true, nil", allowed, err)
+	}
+}
+
+func TestShieldModeRoleProtection(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	manager, err := c.CreateUser(ctx, SystemActorID, "shield-manager", "Manager", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, err := c.CreateUser(ctx, SystemActorID, "shield-member", "Member", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := func(id string, roles ...string) context.Context {
+		return authctx.WithCredential(ctx, authctx.RuntimeCredential{Handle: "test-session", Kind: authctx.RuntimeCredentialKindBearerToken, UserID: id, PrivilegedRoles: roles, PrivilegedModeExpiresAt: time.Now().Add(time.Minute)})
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermRoleManage); err != nil {
+		t.Fatal(err)
+	}
+	managerCtx := request(manager.Id)
+	for _, name := range []string{"helper", "restricted"} {
+		if _, err := c.AdminCreateServerRole(managerCtx, manager.Id, AdminRoleInput{Name: name, DisplayName: name, RequiresShieldMode: true}); err != nil {
+			t.Fatal(err)
+		}
+		if err := c.AssignServerRole(ctx, SystemActorID, user.Id, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := c.GrantServerPermission(ctx, SystemActorID, "helper", PermRoomCreate); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoleAssign); err != nil {
+		t.Fatal(err)
+	}
+	check := func(session context.Context, perm Permission, want bool) {
+		t.Helper()
+		if got, err := c.HasServerPermission(session, user.Id, perm); err != nil || got != want {
+			t.Fatalf("%s = %v, %v; want %v", perm, got, err, want)
+		}
+	}
+	inactive := authctx.WithCredential(ctx, authctx.RuntimeCredential{Handle: "inactive", Kind: authctx.RuntimeCredentialKindCookieSession, UserID: user.Id})
+	t.Run("room allow leaves the same role's server deny in force until selected", func(t *testing.T) {
+		room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "shield-scope", "")
+		require.NoError(t, err)
+		// A separate allow makes losing the server deny observable.
+		require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, user.Id, PermMessageManage))
+		require.NoError(t, c.DenyServerPermission(ctx, SystemActorID, "helper", PermMessageManage))
+		require.NoError(t, c.GrantRoomPermission(ctx, SystemActorID, room.Id, "helper", PermMessageManage))
+		for _, tc := range []struct {
+			session context.Context
+			want    DecisionKind
+		}{
+			{inactive, DecisionDeny}, {request(user.Id, "restricted"), DecisionDeny}, {request(user.Id, "helper"), DecisionAllow},
+		} {
+			decision, err := c.PermResolver().Resolve(tc.session, user.Id, KindChannel, room.Id, PermMessageManage)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, decision)
+		}
+	})
+	t.Run("including permission on an unselected protected role", func(t *testing.T) {
+		resolve := func(session context.Context, want DecisionKind) {
+			t.Helper()
+			got, err := c.PermResolver().Resolve(session, user.Id, KindChannel, "", PermServerManageNeighbors)
+			require.NoError(t, err)
+			require.Equal(t, want, got)
+		}
+		resolve(inactive, DecisionNone)
+		require.NoError(t, c.GrantServerPermission(ctx, SystemActorID, "helper", PermServerManage))
+		resolve(inactive, DecisionDeny)
+		resolve(request(user.Id, "restricted"), DecisionDeny)
+		resolve(request(user.Id, "helper"), DecisionAllow)
+		require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, user.Id, PermServerManageNeighbors))
+		resolve(inactive, DecisionAllow)
+	})
+	if err := c.GrantUserPermission(ctx, SystemActorID, user.Id, PermServerManage); err != nil {
+		t.Fatal(err)
+	}
+	check(inactive, PermServerManage, true)
+	check(request(user.Id, "helper"), PermServerManage, true)
+	check(inactive, PermRoleAssign, true)
+	check(inactive, PermRoomCreate, false)
+	check(request(user.Id, "restricted"), PermRoomCreate, false)
+	check(request(user.Id, "helper"), PermRoomCreate, true)
+	if err := c.DenyServerPermission(ctx, SystemActorID, "restricted", PermRoomCreate); err != nil {
+		t.Fatal(err)
+	}
+	check(request(user.Id, "helper"), PermRoomCreate, false)
+	if err := c.DenyServerPermission(ctx, SystemActorID, "restricted", PermServerManage); err != nil {
+		t.Fatal(err)
+	}
+	check(inactive, PermServerManage, false)
+	check(request(user.Id, "helper"), PermServerManage, false)
+	update := func(name string, protected bool) error {
+		_, err := c.AdminUpdateServerRole(managerCtx, manager.Id, AdminRoleUpdateInput{Name: name, RequiresShieldMode: &protected})
+		return err
+	}
+	if err := update(RoleOwner, false); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("owner protection error = %v", err)
+	}
+	if err := update(RoleEveryone, true); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("everyone protection error = %v", err)
+	}
+	if _, err := c.AdminUpdateServerRole(inactive, user.Id, AdminRoleUpdateInput{Name: "helper", RequiresShieldMode: new(false)}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("unauthorized edit = %v", err)
+	}
+	if err := update("helper", false); err != nil {
+		t.Fatal(err)
+	}
+	check(inactive, PermRoomCreate, false)
+	if err := c.RevokeServerRole(ctx, SystemActorID, user.Id, "restricted"); err != nil {
+		t.Fatal(err)
+	}
+	check(inactive, PermRoomCreate, true)
+}
+
+// Replicas that predate the picker recognize only the old deadline. They must
+// never interpret a selective activation as blanket elevation.
+func TestShieldModeSelectiveWindowIsInvisibleToLegacyReaders(t *testing.T) {
+	deadline := time.Now().Add(time.Minute)
+	for _, record := range []any{
+		AuthTokenData{PrivilegedModeExpiresAt: deadline, PrivilegedRoles: []string{RoleModerator}},
+		RenewableSession{PrivilegedModeExpiresAt: deadline, PrivilegedRoles: []string{RoleModerator}},
+	} {
+		encoded, err := json.Marshal(record)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var legacy struct {
+			PrivilegedModeExpiresAt time.Time `json:"privileged_mode_expires_at"`
+		}
+		if err := json.Unmarshal(encoded, &legacy); err != nil {
+			t.Fatal(err)
+		}
+		if !legacy.PrivilegedModeExpiresAt.IsZero() {
+			t.Fatalf("legacy reader treats %T as fully elevated", record)
+		}
 	}
 }

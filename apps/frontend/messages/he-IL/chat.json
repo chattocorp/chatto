@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "הפעלת מצב הרשאות מוגברות",
       "disable": "השבתת מצב הרשאות מוגברות",
+      "select_roles": "בחר את התפקידים שברצונך להפעיל למשך 15 דקות.",
       "confirmation": "למשך 15 דקות, פעולה זו מפעילה את ההרשאות הנוספות שהוקצו לך בשרת זה."
     },
     "notifications": {
@@ -76,7 +77,9 @@
       "independent_slow_mode_description": "שרת זה משתמש בזמן המתנה משותף להודעות בערוץ ולתשובות בשרשורים.",
       "upgrade": "לתמיכה מלאה, בקש ממנהל השרת לשדרג לגרסה {version} או חדשה יותר.",
       "background_jobs_title": "משימות רקע אינן זמינות",
-      "background_jobs_description": "שרת זה אינו יכול להציג משימות רקע או לנסות אותן שוב בהגדרות השרת."
+      "background_jobs_description": "שרת זה אינו יכול להציג משימות רקע או לנסות אותן שוב בהגדרות השרת.",
+      "shield_role_selection_title": "בחירת תפקידים במצב הרשאות מוגברות",
+      "shield_role_selection_description": "שרת זה מפעיל את כל ההרשאות הזמינות יחד."
     },
     "server_gutter": {
       "move_up": "העבר למעלה",

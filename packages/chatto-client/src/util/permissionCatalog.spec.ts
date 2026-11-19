@@ -49,31 +49,6 @@ describe('PERMISSION_DEFINITIONS', () => {
     ]);
   });
 
-  it('mirrors the backend privileged-mode requirements', () => {
-    expect(
-      Object.entries(PERMISSION_DEFINITIONS)
-        .filter(([, metadata]) => metadata.privileged)
-        .map(([permission]) => permission)
-        .sort()
-    ).toEqual([
-      'admin.view-audit',
-      'admin.view-users',
-      'bot.manage',
-      'message.manage',
-      'role.assign',
-      'role.manage',
-      'room.create',
-      'room.manage',
-      'room.remove-member',
-      'server.manage',
-      'server.manage-neighbors',
-      'user.delete-any',
-      'user.manage-accounts',
-      'user.manage-invites',
-      'user.manage-permissions'
-    ]);
-  });
-
   it('gives every permission at least one scope', () => {
     for (const [permission, definition] of Object.entries(PERMISSION_DEFINITIONS)) {
       expect(definition.scopes.length, permission).toBeGreaterThan(0);

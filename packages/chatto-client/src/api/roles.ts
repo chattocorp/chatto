@@ -14,6 +14,8 @@ export type ServerRole = {
   isSystem: boolean;
   position: number;
   pingable: boolean;
+  /** Grants from this role apply only when selected in Shield Mode. */
+  requiresShieldMode?: boolean;
   /** Active human members; absent when not reported or not authorized. */
   memberCount?: number;
   /** Explicit grants across all scopes, excluding virtual owner access. */
@@ -34,6 +36,11 @@ export type RoleCatalog = {
   viewerCanManageRoles: boolean;
   viewerCanAssignRoles: boolean;
 };
+
+/** Servers with per-role protection always mark the built-in owner role as protected. */
+export function roleCatalogSupportsProtection(catalog: RoleCatalog | undefined): boolean {
+  return catalog?.roles.some((role) => role.name === 'owner' && role.requiresShieldMode) ?? false;
+}
 
 export type RoleDetails = RoleCatalog & {
   role: ServerRole | null;
@@ -59,13 +66,15 @@ export type CreateRoleInput = {
   displayName: string;
   description: string;
   pingable: boolean;
+  requiresShieldMode?: boolean;
 };
 
 export type UpdateRoleInput = {
   name: string;
-  displayName: string;
-  description: string;
+  displayName?: string;
+  description?: string;
   pingable?: boolean;
+  requiresShieldMode?: boolean;
 };
 
 export function createRoleAPI(config: ConnectAPIConfig) {
@@ -158,7 +167,12 @@ export function createRoleAPI(config: ConnectAPIConfig) {
     async updateRole(input: UpdateRoleInput): Promise<ServerRole> {
       const response = await adminClient.updateRole({
         ...input,
-        updateMask: updateMask(input, ['displayName', 'description', 'pingable'])
+        updateMask: updateMask(input, [
+          'displayName',
+          'description',
+          'pingable',
+          'requiresShieldMode'
+        ])
       });
       return requiredAdminRole(response.role);
     },
@@ -200,7 +214,8 @@ function serverRoleFromPublic(role: APIRole): ServerRole {
     description: role.description,
     isSystem: role.isSystem,
     position: role.position,
-    pingable: role.pingable
+    pingable: role.pingable,
+    requiresShieldMode: role.requiresShieldMode
   };
 }
 

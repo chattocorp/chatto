@@ -64,8 +64,7 @@ message RevokeInvitationCodeResponse {
 }
 
 // Issues and manages registration codes. user.invite permits access to own codes.
-// Effective user.manage-invites permits access to all codes and requires
-// privileged mode for human sessions.
+// Effective user.manage-invites permits access to all codes.
 // External systems can issue codes with an authorized API credential.
 service AdminInvitationCodeService {
   // Lists visible current and historical codes. Pagination and totals include only visible codes.

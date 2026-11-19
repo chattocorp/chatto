@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ActivatePrivilegedModeRequest, ActivatePrivilegedModeResponse, DeactivatePrivilegedModeRequest, DeactivatePrivilegedModeResponse, GetViewerRequest, GetViewerResponse } from "./viewer_pb.js";
+import { ActivatePrivilegedModeRequest, ActivatePrivilegedModeResponse, ActivatePrivilegedRolesRequest, ActivatePrivilegedRolesResponse, DeactivatePrivilegedModeRequest, DeactivatePrivilegedModeResponse, GetViewerRequest, GetViewerResponse } from "./viewer_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -27,9 +27,11 @@ export const ViewerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Activates elevation-required permissions for a fixed, non-sliding window.
-     * Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
-     * permission entitlement.
+     * Starts a window of up to 15 minutes with all currently assigned protected roles.
+     * During an active window, a retry keeps the stored selection and deadline,
+     * even if all selected roles have been revoked. Deactivate to change the selection.
+     * Returns FAILED_PRECONDITION for a bot or when starting a new activation
+     * without any assigned protected roles.
      *
      * @generated from rpc chatto.api.v1.ViewerService.ActivatePrivilegedMode
      */
@@ -40,7 +42,24 @@ export const ViewerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deactivates elevation-required permissions immediately. Returns
+     * Activates the selected protected roles for up to 15 minutes.
+     * Each request, including a retry, returns FAILED_PRECONDITION for a bot or
+     * a caller with no assigned protected roles. Otherwise an empty selection
+     * returns INVALID_ARGUMENT, and an unavailable role returns PERMISSION_DENIED.
+     * During an active window, a retry with the same eligible selection keeps the
+     * deadline. A different eligible selection returns INVALID_ARGUMENT. Deactivate
+     * before changing the selection. A rejected retry preserves the selection and deadline.
+     *
+     * @generated from rpc chatto.api.v1.ViewerService.ActivatePrivilegedRoles
+     */
+    activatePrivilegedRoles: {
+      name: "ActivatePrivilegedRoles",
+      I: ActivatePrivilegedRolesRequest,
+      O: ActivatePrivilegedRolesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Deactivates the selected protected roles immediately. Returns
      * FAILED_PRECONDITION when the caller is a bot.
      *
      * @generated from rpc chatto.api.v1.ViewerService.DeactivatePrivilegedMode

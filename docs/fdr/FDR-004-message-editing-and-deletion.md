@@ -121,7 +121,7 @@ message's thread summary contains a reply.
 ## Permissions
 
 - `message.manage` — edit messages at any time, and edit and delete other users'
-  messages. A human session must also have privileged mode active.
+  messages.
 - `message.read` — read and edit any room message.
 - `message.read-interactions` — read and edit a message in a related thread.
   Deletion remains independently authorized by authorship or `message.manage`.

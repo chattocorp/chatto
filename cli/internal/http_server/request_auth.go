@@ -163,6 +163,7 @@ func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string
 			OAuthClientID:           oauthClientIDForRuntimeCredential(credential),
 			ExpiresAt:               credential.ExpiresAt,
 			PrivilegedModeExpiresAt: credential.PrivilegedModeExpiresAt,
+			PrivilegedRoles:         credential.PrivilegedRoles,
 		},
 	}, true, nil
 }

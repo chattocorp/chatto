@@ -106,6 +106,21 @@ Chatto 0.6 removes `POST /auth/browser/session/migrate`. Browsers that still
 have only a Chatto 0.4 session cookie must sign in again. Existing Chatto 0.5
 browser sessions keep their normal login, renewal, logout, and realtime behavior.
 
+## Shield Mode role selection in 0.6
+
+Direct account grants apply without Shield Mode. To activate grants from
+protected roles, read `privileged_mode.role_selection.available_roles` from
+`ViewerService.GetViewer`. Send one or more selected names in the `role_names`
+field of `ViewerService.ActivatePrivilegedRoles`. An empty list of available
+roles means the user has no roles to activate.
+
+Clients without a role picker can continue to call
+`ViewerService.ActivatePrivilegedMode` to select all assigned protected roles
+when starting an activation. A retry during the active window keeps the
+original selection and deadline, even if role assignments have changed.
+Deactivate before choosing a different set of roles. See
+[Privileged mode](/guides/operations/permissions/#privileged-mode).
+
 ## Migrate from 0.4 to 0.5
 
 This migration starts from **0.4.26**, the last stable 0.4 release. It describes

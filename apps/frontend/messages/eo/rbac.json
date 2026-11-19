@@ -23,6 +23,7 @@
       "display_name_too_long": "Afiŝnomo devas esti 64 signoj aŭ malpli",
       "description": "Priskribo",
       "description_placeholder": "Laŭvola priskribo por ĉi tiu rolo",
+      "require_shield": "Postuli privilegian reĝimon",
       "pingable": "Permesu al homoj pingi ĉi tiun rolon",
       "pingable_description": "Pingeblaj roloj aperas en @ aŭtokompleto kaj sciigas asignitajn ĉambrajn membrojn."
     },
@@ -129,8 +130,6 @@
         "open": "Pri {permission}",
         "category": "Kategorio",
         "scopes": "Agordebla por",
-        "privileged": "Bezonas privilegian reĝimon",
-        "privileged_detail": "Kontoj devas ŝalti privilegian reĝimon por uzi ĉi tiun permeson.",
         "includes": "Inkluzivas",
         "included_by": "Inkluzivita en"
       }

@@ -402,6 +402,13 @@ export class CreateRoleRequest extends Message<CreateRoleRequest> {
    */
   pingable = false;
 
+  /**
+   * Grants from this role require explicit selection in Shield Mode.
+   *
+   * @generated from field: bool requires_shield_mode = 5;
+   */
+  requiresShieldMode = false;
+
   constructor(data?: PartialMessage<CreateRoleRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -414,6 +421,7 @@ export class CreateRoleRequest extends Message<CreateRoleRequest> {
     { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "pingable", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "requires_shield_mode", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateRoleRequest {
@@ -509,8 +517,15 @@ export class UpdateRoleRequest extends Message<UpdateRoleRequest> {
   pingable?: boolean;
 
   /**
-   * Editable fields to apply or reset: display_name, description, pingable.
-   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * Grants from this role require explicit selection in Shield Mode.
+   *
+   * @generated from field: optional bool requires_shield_mode = 6;
+   */
+  requiresShieldMode?: boolean;
+
+  /**
+   * Editable fields to apply or reset: display_name, description, pingable, requires_shield_mode.
+   * Omit to infer populated fields. A wildcard selects all metadata fields and includes requires_shield_mode only when its value is supplied. An explicit
    * empty mask is invalid. Unselected values are ignored. Selected absent values
    * reset the field to its default, subject to field validation.
    *
@@ -530,6 +545,7 @@ export class UpdateRoleRequest extends Message<UpdateRoleRequest> {
     { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "pingable", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 6, name: "requires_shield_mode", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 5, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 

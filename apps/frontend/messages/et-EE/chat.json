@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Lülita privilegeeritud režiim sisse",
       "disable": "Lülita privilegeeritud režiim välja",
+      "select_roles": "Valige rollid, mida soovite 15 minutiks aktiveerida.",
       "confirmation": "See aktiveerib 15 minutiks sulle selles serveris määratud lisaõigused."
     },
     "notifications": {
@@ -76,7 +77,9 @@
       "independent_slow_mode_description": "See server kasutab kanalisõnumite ja lõimevastuste jaoks ühist ooteaega.",
       "upgrade": "Täieliku toe saamiseks paluge serveri administraatoril uuendada versioonile {version} või uuemale.",
       "background_jobs_title": "Taustatööd pole saadaval",
-      "background_jobs_description": "See server ei saa serveri seadetes taustatöid kuvada ega uuesti proovida."
+      "background_jobs_description": "See server ei saa serveri seadetes taustatöid kuvada ega uuesti proovida.",
+      "shield_role_selection_title": "Rollide valik kõrgendatud õigustega režiimis",
+      "shield_role_selection_description": "See server aktiveerib kõik saadaolevad õigused korraga."
     },
     "server_gutter": {
       "move_up": "Liigutage üles",
