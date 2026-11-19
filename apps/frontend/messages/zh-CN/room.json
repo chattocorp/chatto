@@ -14,6 +14,7 @@
       "clear_confirm_title": "清除房间公告？",
       "clear_confirm_description": "这会立即为房间内所有人移除当前公告。你尚未保存的更改不会发布。",
       "empty": "尚未发布任何公告。",
+      "load_failed": "无法加载公告。",
       "edit": "编辑公告"
     },
     "information": {

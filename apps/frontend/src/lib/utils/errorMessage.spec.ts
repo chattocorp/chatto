@@ -2,7 +2,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StaleResponseError } from '@chatto/client/api/connect';
 import { toast } from '$lib/ui/toast';
-import { errorMessage, toastError } from './errorMessage';
+import { errorMessage, loadErrorMessage, toastError } from './errorMessage';
 
 describe('errorMessage', () => {
   it.each([
@@ -58,6 +58,23 @@ describe('errorMessage', () => {
 
   it('uses the generic message when no fallback is given', () => {
     expect(errorMessage(undefined)).toBe('Something went wrong');
+  });
+});
+
+describe('loadErrorMessage', () => {
+  it.each([Code.InvalidArgument, Code.FailedPrecondition, Code.ResourceExhausted])(
+    'uses the fallback instead of server text for code %s',
+    (code) => {
+      expect(loadErrorMessage(new ConnectError('cursor detail', code), 'Fallback')).toBe(
+        'Fallback'
+      );
+    }
+  );
+
+  it('localizes access and network codes like errorMessage', () => {
+    expect(loadErrorMessage(new ConnectError('detail', Code.Unavailable), 'Fallback')).toBe(
+      'Network error. Please try again.'
+    );
   });
 });
 

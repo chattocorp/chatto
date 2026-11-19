@@ -49,6 +49,17 @@ export function errorMessage(error: unknown, fallback: string = m('common.error.
 }
 
 /**
+ * Convert a failed read into a message for the user. Use it for load and
+ * retry states. It works like {@link errorMessage}, but always shows
+ * `fallback` for validation and limit codes: the user did not submit input,
+ * so the server text of a failed read is diagnostic and not guidance.
+ */
+export function loadErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ConnectError && SERVER_MESSAGE_CODES.has(error.code)) return fallback;
+  return errorMessage(error, fallback);
+}
+
+/**
  * Show {@link errorMessage} as an error toast. A {@link StaleResponseError}
  * shows nothing: its response belongs to a context that no longer applies,
  * and a discarded mutation response can even belong to a successful change.

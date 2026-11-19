@@ -14,6 +14,7 @@
       "clear_confirm_title": "Forigi la ĉambran avizon?",
       "clear_confirm_description": "Ĉi tio tuj forigas la aktivan avizon por ĉiuj en la ĉambro. Viaj nekonservitaj ŝanĝoj ne estos publikigitaj.",
       "empty": "Neniu avizo estas publikigita.",
+      "load_failed": "Ne eblis ŝargi la avizon.",
       "edit": "Redakti avizon"
     },
     "information": {

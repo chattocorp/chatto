@@ -14,6 +14,7 @@
       "clear_confirm_title": "Effacer l’annonce du salon ?",
       "clear_confirm_description": "Cela supprime immédiatement l’annonce active pour tous les membres du salon. Vos modifications non enregistrées ne seront pas publiées.",
       "empty": "Aucune annonce n’a été publiée.",
+      "load_failed": "Impossible de charger l’annonce.",
       "edit": "Modifier l’annonce"
     },
     "information": {
