@@ -27,13 +27,11 @@ owns author interactions and badges. This layout owns identity and timestamp pre
   {#if headerMeta}
     <span
       class={[
-        '[&>*]:[font-size:inherit]',
-        timelineClock ? 'ms-auto shrink-0' : 'contents [&>time]:truncate'
+        'contents [&>*]:[font-size:inherit]',
+        timelineClock ? 'text-xs [&>*]:shrink-0 [&>*]:text-muted/60' : '[&>time]:truncate'
       ]}
     >
-      {#if !timelineClock}
-        <span aria-hidden="true" class="shrink-0 text-muted/60 only:hidden">·</span>
-      {/if}
+      <span aria-hidden="true" class="shrink-0 text-muted/60 only:hidden">·</span>
       {@render headerMeta()}
     </span>
   {/if}

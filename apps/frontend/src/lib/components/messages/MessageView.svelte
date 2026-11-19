@@ -107,7 +107,7 @@ identity, body rendering, and row geometry consistent.
     prelude?: Snippet;
     authorSuffix?: Snippet;
     headerMeta?: Snippet;
-    /** Align the timeline clock at the inline end when the experimental header is active. */
+    /** Keep the timeline clock visible and subdued in the experimental header. */
     timelineClock?: boolean;
     afterBody?: Snippet;
     actions?: Snippet;
