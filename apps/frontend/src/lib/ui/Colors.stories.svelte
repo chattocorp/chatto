@@ -82,8 +82,8 @@
 
 <Story name="All tokens" asChild>
   <p class="mb-6 max-w-prose text-sm text-muted">
-    Semantic color tokens defined in <code class="font-mono">src/app.css</code>. Switch the Theme
-    toolbar above to compare light vs dark.
+    Semantic color tokens defined in <code class="font-mono">src/styles/themes.css</code>. Switch
+    the Theme toolbar above to compare light vs dark.
   </p>
 
   <section class="mb-8">

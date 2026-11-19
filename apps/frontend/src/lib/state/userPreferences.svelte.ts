@@ -51,7 +51,7 @@ export function applyAccentColor(value: AccentColor): void {
 
 /**
  * Curated neutral ramps for backgrounds, surfaces, borders, and text. Keep the
- * first-paint allowlist in app.html and the CSS tone blocks in app.css in sync.
+ * first-paint allowlist in app.html and the CSS tone blocks in src/styles/themes.css in sync.
  */
 export const surfaceTones = [
   'neutral',

@@ -13,7 +13,8 @@ Before changing visible UI:
 1. Inspect the relevant Storybook category and the nearest equivalent product
    surface.
 2. Prefer an established Svelte component.
-3. If no component fits, prefer a semantic utility from `src/app.css`.
+3. If no component fits, prefer a semantic utility from the
+   [design-system stylesheets](#stylesheets).
 4. Use raw Tailwind utilities for local layout and responsive composition.
 5. Add or extend a primitive when the same visual or interaction recipe would
    otherwise be repeated.
@@ -567,7 +568,7 @@ details** for normal and highlighted rows, including a narrow layout.
 
 **Inset Frame** is the canonical name in the [glossary](../../docs/GLOSSARY.md#ui).
 It is a raised rim around recessed content, shared by context menus, palettes,
-dialog trays, and preview cards. Its two primitives in `src/app.css` are the source of truth:
+dialog trays, and preview cards. Its two primitives in `src/styles/content.css` are the source of truth:
 
 - `inset-frame` owns the depth-aware 1px `text/10` border, 8px outer corners, `surface` fill,
   depth-aware lighting, text color, and default 4px rim.
@@ -722,7 +723,7 @@ while it has keyboard focus; Escape closes it and returns focus to the trigger.
 Do not use `role="tooltip"` for this interactive surface or nest links inside it.
 
 `preview-code` composes the frame and scrollable inset for posted code and the
-visual composer. Keep its geometry in `app.css`, rather than separate editor
+visual composer. Keep its geometry in `src/styles/content.css`, rather than separate editor
 and message recipes. `code-frame` adds the artifact layout to this primitive;
 the thin header holds the language, copy action, and Source/Render controls.
 Source and rendered panels use `preview-content`. Visual fences show only their
@@ -742,7 +743,7 @@ use a `preview-content` row inside `preview-frame`, like posted preview cards.
 
 Full-size attachment viewers, live call tiles, avatars, and server icons keep
 their dedicated primitives. Plain Markdown images use the preview frame through
-`prose.css`; images already inside preview frames are excluded from that rule.
+`src/styles/prose.css`; images already inside preview frames are excluded from that rule.
 
 Use **UI/Preview frames** in Storybook to check the family, aspect ratios,
 composer rows, loading/failure states, depth settings, and narrow RTL layouts.
@@ -779,7 +780,7 @@ so the rim does not change the media proportions.
 ### Shared Depth Utilities
 
 `surface-raised` owns the gradient and lit-edge recipe. `surface-lowered` owns
-inset shadows. Both live in `src/app.css` and set depth only: they do not set
+inset shadows. Both live in `src/styles/controls.css` and set depth only: they do not set
 colour, radius, layout, outer elevation, or interaction states. Use one depth
 primitive per surface. Semantic utilities set the strength and add the rest of
 the component treatment. Feature components should use those semantic utilities
@@ -1032,11 +1033,35 @@ margin, flex behavior, or responsive visibility. Do not use `!` overrides to
 change a component's color, density, radius, typography, or interaction state.
 If a legitimate variant is missing, add it to the component and its story.
 
+### Stylesheets
+
+`src/app.css` is the entry point. It loads Tailwind and imports the
+design-system stylesheets in `src/styles/` in a fixed order. A later file can
+override an earlier one, so do not change the order.
+
+| File                   | Contents                                                                |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `prose.css`            | Markdown content                                                        |
+| `composer.css`         | Composer editor content                                                 |
+| `view-transitions.css` | View transitions                                                        |
+| `foundation.css`       | Fonts, motion tokens, registered properties, Iconify, custom variants   |
+| `themes.css`           | Light and dark themes, accent colours, surface tones                    |
+| `tokens.css`           | Tailwind `@theme` tokens                                                |
+| `layout.css`           | Pane pages, panels, data tables, selectable lists                       |
+| `controls.css`         | Surface depth, buttons, pill buttons, sliders, inputs, choices          |
+| `content.css`          | Links, inline pills, Inset Frame, previews, attachments, code frames    |
+| `actions.css`          | Message rows, icon actions, sidebar items, feedback, loading indicators |
+| `shell.css`            | App shell, composer surface, server gutter, floating frames, menus      |
+| `base.css`             | Base element styles and global interaction states                       |
+
+Put a new utility in the file for its area. `scripts/check-design-system.mjs`
+reads all of them through the imports of `src/app.css`.
+
 Do not add a Svelte `<style>` block for ordinary component styling. Scoped CSS
 is appropriate for keyframes, pseudo-elements, browser-specific behavior, or
 third-party content that cannot be expressed clearly with established
 utilities. Before adding one, prefer a named utility or narrowly scoped global
-recipe in `src/app.css` when the behavior is reusable. The reviewed exception
+recipe in `src/styles/` when the behavior is reusable. The reviewed exception
 list lives in `scripts/check-design-system.mjs`; adding to it requires a comment
 in the component explaining why Tailwind or a semantic utility is insufficient.
 
@@ -1113,7 +1138,7 @@ buttons:
 
 ## Shape, Type, And Motion
 
-Hover, focus, and action-reveal feedback use these tokens from `src/app.css`:
+Hover, focus, and action-reveal feedback use these tokens from `src/styles/foundation.css`:
 
 | Token                             | Default    | Purpose                                                       |
 | --------------------------------- | ---------- | ------------------------------------------------------------- |

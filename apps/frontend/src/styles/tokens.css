@@ -1,0 +1,72 @@
+/* Tailwind theme tokens: fonts, containers, the neutral palette, and the semantic color names.
+ * Imported by src/app.css. Keep the import order: later rules can override earlier ones. */
+
+@theme {
+  /* Readable width of the content column of a pane page (`max-w-pane`), and
+     the wider column of a browsing grid (`max-w-pane-wide`). */
+  --container-pane: 64rem;
+  --container-pane-wide: 72rem;
+
+  --font-sans: Twemoji, 'IBM Plex Sans Variable', 'Twemoji Keycaps', sans-serif;
+  --font-mono: Twemoji, 'IBM Plex Mono', 'Twemoji Keycaps', monospace;
+
+  /* Tailwind defines neutrals with a `none` hue. Chrome before 138 carries
+     that missing component into the blue channel of `color-mix(in srgb, …)`,
+     which tints the dark theme olive and blue. A zero hue looks identical in
+     srgb and oklab mixes. Do not mix neutrals in oklch, lch, or hsl, where a
+     zero hue pulls the result toward red. */
+  --color-neutral-50: oklch(98.5% 0 0);
+  --color-neutral-100: oklch(97% 0 0);
+  --color-neutral-200: oklch(92.2% 0 0);
+  --color-neutral-300: oklch(87% 0 0);
+  --color-neutral-400: oklch(70.8% 0 0);
+  --color-neutral-500: oklch(55.6% 0 0);
+  --color-neutral-600: oklch(43.9% 0 0);
+  --color-neutral-700: oklch(37.1% 0 0);
+  --color-neutral-800: oklch(26.9% 0 0);
+  --color-neutral-900: oklch(20.5% 0 0);
+  --color-neutral-950: oklch(14.5% 0 0);
+
+  --color-background: var(--color-background);
+  --color-text: var(--color-text);
+  --color-text-top: var(--color-text-top);
+  --color-muted: var(--color-muted);
+
+  --color-border: var(--color-border);
+  --color-surface: var(--color-surface);
+  --color-surface-emphasized: var(--color-surface-emphasized);
+  --color-surface-strong: var(--color-surface-strong);
+  --color-surface-selected: var(--color-surface-selected);
+
+  /* Message details use a lighter tint in dark themes and a darker tint in light
+     themes. Keep borders opaque so table intersections cannot compound alpha. */
+  --color-message-surface: color-mix(in srgb, var(--color-text) 8%, transparent);
+  --color-message-border: color-mix(in srgb, var(--color-text) 20%, var(--color-surface));
+
+  --color-input: var(--color-input);
+  --color-input-border: var(--color-input-border);
+
+  --color-action: var(--color-action);
+  --color-action-hover: var(--color-action-hover);
+  --color-on-action: var(--color-on-action);
+  --color-neutral-action: var(--color-neutral-action);
+  --color-neutral-action-hover: var(--color-neutral-action-hover);
+  --color-on-neutral-action: var(--color-on-neutral-action);
+  --color-link: var(--color-link);
+  --color-link-hover: var(--color-link-hover);
+  --color-success: var(--color-success);
+  --color-on-success: var(--color-on-success);
+  --color-warning: var(--color-warning);
+  --color-on-warning: var(--color-on-warning);
+  --color-attention: var(--color-attention);
+  --color-on-attention: var(--color-on-attention);
+  --color-danger: var(--color-danger);
+  --color-on-danger: var(--color-on-danger);
+  --color-error: var(--color-error);
+  --color-server: var(--color-server);
+  --color-presence-online: var(--color-presence-online);
+  --color-presence-away: var(--color-presence-away);
+  --color-presence-do-not-disturb: var(--color-presence-do-not-disturb);
+  --color-presence-offline: var(--color-presence-offline);
+  --color-presence-invisible: var(--color-presence-invisible);
+}
