@@ -18,6 +18,9 @@
       "edit": "Muuda teadet"
     },
     "information": {
+      "edit": "Muuda ruumi teavet",
+      "updated": "Ruumi teavet uuendati.",
+      "too_long": "Kasutage kuni {max} märki.",
       "description": "Kirjeldus",
       "created": "Loodud",
       "title": "Ruumi teave",

@@ -1453,6 +1453,11 @@ export class ServerStateStore {
         this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');
         return;
+      case 'roomInformationChanged':
+        this.#timelines.refreshRoomWindow(roomId, event.id || null);
+        this.refreshRealtimeResource('rooms');
+        this.refreshRealtimeResource('roomGroups');
+        return;
       case 'roomNoticeChanged':
         this.#rooms.loaded(payload.value.roomId)?.notice?.invalidate(event.cursor);
         return;

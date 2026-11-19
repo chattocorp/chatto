@@ -173,6 +173,7 @@ message RealtimeEvent {
     RoomNoticeChangedEvent room_notice_changed = 72;
     UserAccountDeactivationChangedEvent user_account_deactivation_changed = 73;
     RoomMembershipEventsVisibilityChangedEvent room_membership_events_visibility_changed = 74;
+    RoomInformationChangedEvent room_information_changed = 75;
   }
 }
 

@@ -18,6 +18,9 @@
       "edit": "Modifica avviso"
     },
     "information": {
+      "edit": "Modifica le informazioni sulla stanza",
+      "updated": "Le informazioni sulla stanza sono state aggiornate.",
+      "too_long": "Usa al massimo {max} caratteri.",
       "description": "Descrizione",
       "created": "Creata",
       "title": "Informazioni sulla stanza",

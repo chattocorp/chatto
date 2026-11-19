@@ -18,6 +18,9 @@
       "edit": "Mededeling bewerken"
     },
     "information": {
+      "edit": "Ruiminformatie bewerken",
+      "updated": "De ruiminformatie is bijgewerkt.",
+      "too_long": "Gebruik maximaal {max} tekens.",
       "description": "Beschrijving",
       "created": "Aangemaakt",
       "title": "Ruiminformatie",

@@ -22,6 +22,7 @@ change the settings goes to the Members section instead.
   import { toast } from '$lib/ui/toast';
   import UnsavedChangesGuard from '$lib/components/UnsavedChangesGuard.svelte';
   import { applyRoomSettingsResponse, type RoomSettingsPatch } from './roomSettings';
+  import RoomInformationSettingsPanel from './RoomInformationSettingsPanel.svelte';
   import RoomNameSettingsPanel from './RoomNameSettingsPanel.svelte';
   import RoomSlowModeSettingsPanel from './RoomSlowModeSettingsPanel.svelte';
   import RoomThreadingModeSettingsPanel from './RoomThreadingModeSettingsPanel.svelte';
@@ -33,6 +34,7 @@ change the settings goes to the Members section instead.
   const detail = useRoomManagement();
   /** Each section exposes its current draft state directly to the navigation guard. */
   type SettingsSection = { hasChanges(): boolean };
+  let informationSection = $state<SettingsSection>();
   let nameSection = $state<SettingsSection>();
   let visibilitySection = $state<SettingsSection>();
   let slowModeSection = $state<SettingsSection>();
@@ -107,6 +109,7 @@ change the settings goes to the Members section instead.
   hasChanges={() =>
     [
       nameSection,
+      informationSection,
       visibilitySection,
       slowModeSection,
       threadingSection,
@@ -117,6 +120,13 @@ change the settings goes to the Members section instead.
 {#if detail.canManageRoom}
   {#key detail.room.id}
     <RoomNameSettingsPanel bind:this={nameSection} room={detail.room} onSave={saveSettings} />
+    {#if detail.room.information !== undefined}
+      <RoomInformationSettingsPanel
+        bind:this={informationSection}
+        information={detail.room.information}
+        onSave={saveSettings}
+      />
+    {/if}
     <RoomVisibilitySettingsPanel
       bind:this={visibilitySection}
       room={detail.room}

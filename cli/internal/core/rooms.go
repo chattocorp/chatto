@@ -25,6 +25,8 @@ const (
 	RoomNameMinLength        = 1
 	RoomNameMaxLength        = 30
 	RoomDescriptionMaxLength = 500
+	// RoomInformationMaxLength limits channel sidebar Markdown in Unicode code points.
+	RoomInformationMaxLength = 10_000
 	// MaxRoomSlowModeSeconds is the longest supported per-user posting interval.
 	MaxRoomSlowModeSeconds = 6 * 60 * 60
 )

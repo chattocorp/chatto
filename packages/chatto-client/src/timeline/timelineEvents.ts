@@ -18,6 +18,7 @@ export const TimelineEventKind = {
   RoomThreadingModeChanged: 'roomThreadingModeChanged',
   RoomUnarchived: 'roomUnarchived',
   RoomUpdated: 'roomUpdated',
+  RoomInformationChanged: 'roomInformationChanged',
   UserJoinedRoom: 'userJoinedRoom',
   UserLeftRoom: 'userLeftRoom'
 } as const;
@@ -68,6 +69,7 @@ export type TimelineEventPayload =
     }
   | { kind: typeof TimelineEventKind.RoomUnarchived; roomId: string }
   | { kind: typeof TimelineEventKind.RoomUpdated; roomId: string }
+  | { kind: typeof TimelineEventKind.RoomInformationChanged; roomId: string }
   | { kind: typeof TimelineEventKind.UserJoinedRoom; roomId: string }
   | { kind: typeof TimelineEventKind.UserLeftRoom; roomId: string };
 

@@ -105,6 +105,11 @@ message RoomUniversalChangedEvent {
   bool universal = 2;
 }
 
+// RoomInformationChangedEvent records a change to the channel sidebar text.
+message RoomInformationChangedEvent {
+  string room_id = 1;
+}
+
 // RoomNoticeChangedEvent asks current room members to read the latest notice.
 // It covers corrections, publication, republishing, and clear operations.
 message RoomNoticeChangedEvent {

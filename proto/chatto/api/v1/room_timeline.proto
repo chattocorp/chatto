@@ -74,6 +74,8 @@ message RoomTimelineEvent {
     RoomTimelineRoomEvent room_unarchived = 24;
     // The room's Threading Mode changed.
     RoomTimelineThreadingModeChangedEvent room_threading_mode_changed = 25;
+    // The Markdown information in the room sidebar changed.
+    RoomTimelineRoomEvent room_information_changed = 26;
     // A user joined the room.
     RoomTimelineRoomEvent user_joined_room = 30;
     // A user left the room.

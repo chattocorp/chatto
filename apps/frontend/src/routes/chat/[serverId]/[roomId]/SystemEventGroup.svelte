@@ -13,11 +13,13 @@
     kind,
     expanded,
     onExpandedChange,
+    onOpenInformation,
     onOpenUser
   }: {
     events: TimelineEventView[];
     kind: SystemGroupKind;
     expanded: boolean;
+    onOpenInformation?: () => void;
     onExpandedChange: (expanded: boolean) => void;
     /** Opens the user context menu for an actor; names stay static when unset. */
     onOpenUser?: (user: UserAvatarUserView, anchorRect: DOMRect) => void;
@@ -101,7 +103,24 @@
   {/each}
 {/snippet}
 
-{#if actors.length > 0}
+{#if kind === 'information'}
+  <div
+    class="mt-4 flex items-center gap-4 px-2 desktop-presentation:px-4"
+    data-event-id={events[0].id}
+  >
+    <div class="flex w-11 shrink-0 items-center justify-center text-muted">
+      <span aria-hidden="true" class="iconify icon-[uil--info-circle]"></span>
+    </div>
+    <div class="text-sm text-muted">
+      {m('room.information.updated')}
+      {#if onOpenInformation}
+        <button type="button" class="cursor-pointer link" onclick={onOpenInformation}
+          >{m('room.information.title')}</button
+        >
+      {/if}
+    </div>
+  </div>
+{:else if actors.length > 0}
   <div
     class="mt-4 flex items-center gap-4 px-2 desktop-presentation:px-4"
     data-event-id={events[0].id}

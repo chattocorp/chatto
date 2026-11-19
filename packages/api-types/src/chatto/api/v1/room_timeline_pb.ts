@@ -327,6 +327,14 @@ export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
     case: "roomThreadingModeChanged";
   } | {
     /**
+     * The Markdown information in the room sidebar changed.
+     *
+     * @generated from field: chatto.api.v1.RoomTimelineRoomEvent room_information_changed = 26;
+     */
+    value: RoomTimelineRoomEvent;
+    case: "roomInformationChanged";
+  } | {
+    /**
      * A user joined the room.
      *
      * @generated from field: chatto.api.v1.RoomTimelineRoomEvent user_joined_room = 30;
@@ -377,6 +385,7 @@ export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
     { no: 23, name: "room_archived", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 24, name: "room_unarchived", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 25, name: "room_threading_mode_changed", kind: "message", T: RoomTimelineThreadingModeChangedEvent, oneof: "event" },
+    { no: 26, name: "room_information_changed", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 30, name: "user_joined_room", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 31, name: "user_left_room", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 40, name: "call_started", kind: "message", T: RoomTimelineCallEvent, oneof: "event" },

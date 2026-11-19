@@ -897,6 +897,7 @@ export class MessagesStore {
       kind === TimelineEventKind.UserJoinedRoom ||
       kind === TimelineEventKind.UserLeftRoom ||
       kind === TimelineEventKind.RoomUpdated ||
+      kind === TimelineEventKind.RoomInformationChanged ||
       kind === TimelineEventKind.RoomArchived ||
       kind === TimelineEventKind.RoomUnarchived ||
       kind === TimelineEventKind.RoomCreated ||

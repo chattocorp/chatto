@@ -298,6 +298,7 @@ type RoomTimelineEvent struct {
 	//	*RoomTimelineEvent_RoomArchived
 	//	*RoomTimelineEvent_RoomUnarchived
 	//	*RoomTimelineEvent_RoomThreadingModeChanged
+	//	*RoomTimelineEvent_RoomInformationChanged
 	//	*RoomTimelineEvent_UserJoinedRoom
 	//	*RoomTimelineEvent_UserLeftRoom
 	//	*RoomTimelineEvent_CallStarted
@@ -428,6 +429,15 @@ func (x *RoomTimelineEvent) GetRoomThreadingModeChanged() *RoomTimelineThreading
 	return nil
 }
 
+func (x *RoomTimelineEvent) GetRoomInformationChanged() *RoomTimelineRoomEvent {
+	if x != nil {
+		if x, ok := x.Event.(*RoomTimelineEvent_RoomInformationChanged); ok {
+			return x.RoomInformationChanged
+		}
+	}
+	return nil
+}
+
 func (x *RoomTimelineEvent) GetUserJoinedRoom() *RoomTimelineRoomEvent {
 	if x != nil {
 		if x, ok := x.Event.(*RoomTimelineEvent_UserJoinedRoom); ok {
@@ -503,6 +513,11 @@ type RoomTimelineEvent_RoomThreadingModeChanged struct {
 	RoomThreadingModeChanged *RoomTimelineThreadingModeChangedEvent `protobuf:"bytes,25,opt,name=room_threading_mode_changed,json=roomThreadingModeChanged,proto3,oneof"`
 }
 
+type RoomTimelineEvent_RoomInformationChanged struct {
+	// The Markdown information in the room sidebar changed.
+	RoomInformationChanged *RoomTimelineRoomEvent `protobuf:"bytes,26,opt,name=room_information_changed,json=roomInformationChanged,proto3,oneof"`
+}
+
 type RoomTimelineEvent_UserJoinedRoom struct {
 	// A user joined the room.
 	UserJoinedRoom *RoomTimelineRoomEvent `protobuf:"bytes,30,opt,name=user_joined_room,json=userJoinedRoom,proto3,oneof"`
@@ -536,6 +551,8 @@ func (*RoomTimelineEvent_RoomArchived) isRoomTimelineEvent_Event() {}
 func (*RoomTimelineEvent_RoomUnarchived) isRoomTimelineEvent_Event() {}
 
 func (*RoomTimelineEvent_RoomThreadingModeChanged) isRoomTimelineEvent_Event() {}
+
+func (*RoomTimelineEvent_RoomInformationChanged) isRoomTimelineEvent_Event() {}
 
 func (*RoomTimelineEvent_UserJoinedRoom) isRoomTimelineEvent_Event() {}
 
@@ -1259,7 +1276,7 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12G\n" +
 	"\x0ethreading_mode\x18\x02 \x01(\x0e2 .chatto.api.v1.RoomThreadingModeR\rthreadingMode\"E\n" +
 	"\x11RoomMessagePosted\x120\n" +
-	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessage\"\xf5\a\n" +
+	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessage\"\xd7\b\n" +
 	"\x11RoomTimelineEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1272,7 +1289,8 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\froom_deleted\x18\x16 \x01(\v2$.chatto.api.v1.RoomTimelineRoomEventH\x00R\vroomDeleted\x12K\n" +
 	"\rroom_archived\x18\x17 \x01(\v2$.chatto.api.v1.RoomTimelineRoomEventH\x00R\froomArchived\x12O\n" +
 	"\x0froom_unarchived\x18\x18 \x01(\v2$.chatto.api.v1.RoomTimelineRoomEventH\x00R\x0eroomUnarchived\x12u\n" +
-	"\x1broom_threading_mode_changed\x18\x19 \x01(\v24.chatto.api.v1.RoomTimelineThreadingModeChangedEventH\x00R\x18roomThreadingModeChanged\x12P\n" +
+	"\x1broom_threading_mode_changed\x18\x19 \x01(\v24.chatto.api.v1.RoomTimelineThreadingModeChangedEventH\x00R\x18roomThreadingModeChanged\x12`\n" +
+	"\x18room_information_changed\x18\x1a \x01(\v2$.chatto.api.v1.RoomTimelineRoomEventH\x00R\x16roomInformationChanged\x12P\n" +
 	"\x10user_joined_room\x18\x1e \x01(\v2$.chatto.api.v1.RoomTimelineRoomEventH\x00R\x0euserJoinedRoom\x12L\n" +
 	"\x0euser_left_room\x18\x1f \x01(\v2$.chatto.api.v1.RoomTimelineRoomEventH\x00R\fuserLeftRoom\x12I\n" +
 	"\fcall_started\x18( \x01(\v2$.chatto.api.v1.RoomTimelineCallEventH\x00R\vcallStarted\x12E\n" +
@@ -1371,24 +1389,25 @@ var file_chatto_api_v1_room_timeline_proto_depIdxs = []int32{
 	1,  // 8: chatto.api.v1.RoomTimelineEvent.room_archived:type_name -> chatto.api.v1.RoomTimelineRoomEvent
 	1,  // 9: chatto.api.v1.RoomTimelineEvent.room_unarchived:type_name -> chatto.api.v1.RoomTimelineRoomEvent
 	3,  // 10: chatto.api.v1.RoomTimelineEvent.room_threading_mode_changed:type_name -> chatto.api.v1.RoomTimelineThreadingModeChangedEvent
-	1,  // 11: chatto.api.v1.RoomTimelineEvent.user_joined_room:type_name -> chatto.api.v1.RoomTimelineRoomEvent
-	1,  // 12: chatto.api.v1.RoomTimelineEvent.user_left_room:type_name -> chatto.api.v1.RoomTimelineRoomEvent
-	2,  // 13: chatto.api.v1.RoomTimelineEvent.call_started:type_name -> chatto.api.v1.RoomTimelineCallEvent
-	2,  // 14: chatto.api.v1.RoomTimelineEvent.call_ended:type_name -> chatto.api.v1.RoomTimelineCallEvent
-	5,  // 15: chatto.api.v1.RoomTimelinePage.events:type_name -> chatto.api.v1.RoomTimelineEvent
-	0,  // 16: chatto.api.v1.RoomTimelinePage.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	6,  // 17: chatto.api.v1.GetRoomEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
-	6,  // 18: chatto.api.v1.GetRoomEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
-	6,  // 19: chatto.api.v1.GetThreadEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
-	19, // 20: chatto.api.v1.GetThreadEventsResponse.viewer_state:type_name -> chatto.api.v1.ThreadViewerState
-	6,  // 21: chatto.api.v1.GetThreadEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
-	19, // 22: chatto.api.v1.GetThreadEventsAroundResponse.viewer_state:type_name -> chatto.api.v1.ThreadViewerState
-	20, // 23: chatto.api.v1.RoomTimelineIncludes.UsersEntry.value:type_name -> chatto.api.v1.User
-	24, // [24:24] is the sub-list for method output_type
-	24, // [24:24] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	1,  // 11: chatto.api.v1.RoomTimelineEvent.room_information_changed:type_name -> chatto.api.v1.RoomTimelineRoomEvent
+	1,  // 12: chatto.api.v1.RoomTimelineEvent.user_joined_room:type_name -> chatto.api.v1.RoomTimelineRoomEvent
+	1,  // 13: chatto.api.v1.RoomTimelineEvent.user_left_room:type_name -> chatto.api.v1.RoomTimelineRoomEvent
+	2,  // 14: chatto.api.v1.RoomTimelineEvent.call_started:type_name -> chatto.api.v1.RoomTimelineCallEvent
+	2,  // 15: chatto.api.v1.RoomTimelineEvent.call_ended:type_name -> chatto.api.v1.RoomTimelineCallEvent
+	5,  // 16: chatto.api.v1.RoomTimelinePage.events:type_name -> chatto.api.v1.RoomTimelineEvent
+	0,  // 17: chatto.api.v1.RoomTimelinePage.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	6,  // 18: chatto.api.v1.GetRoomEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
+	6,  // 19: chatto.api.v1.GetRoomEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
+	6,  // 20: chatto.api.v1.GetThreadEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
+	19, // 21: chatto.api.v1.GetThreadEventsResponse.viewer_state:type_name -> chatto.api.v1.ThreadViewerState
+	6,  // 22: chatto.api.v1.GetThreadEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
+	19, // 23: chatto.api.v1.GetThreadEventsAroundResponse.viewer_state:type_name -> chatto.api.v1.ThreadViewerState
+	20, // 24: chatto.api.v1.RoomTimelineIncludes.UsersEntry.value:type_name -> chatto.api.v1.User
+	25, // [25:25] is the sub-list for method output_type
+	25, // [25:25] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_room_timeline_proto_init() }
@@ -1407,6 +1426,7 @@ func file_chatto_api_v1_room_timeline_proto_init() {
 		(*RoomTimelineEvent_RoomArchived)(nil),
 		(*RoomTimelineEvent_RoomUnarchived)(nil),
 		(*RoomTimelineEvent_RoomThreadingModeChanged)(nil),
+		(*RoomTimelineEvent_RoomInformationChanged)(nil),
 		(*RoomTimelineEvent_UserJoinedRoom)(nil),
 		(*RoomTimelineEvent_UserLeftRoom)(nil),
 		(*RoomTimelineEvent_CallStarted)(nil),

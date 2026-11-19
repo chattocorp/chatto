@@ -28,6 +28,8 @@ export type DirectoryRoomSummary = {
   id: string;
   name: string;
   description: string | null;
+  /** Sidebar Markdown for channel members and managers. */
+  information?: string;
   /** Original room creation time; absent on older servers. */
   createdAt?: string | null;
   kind: RoomKind;
@@ -220,6 +222,7 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     id: entry.room.id,
     name: entry.room.name,
     description: entry.room.description || null,
+    information: entry.room.information,
     createdAt: entry.room.createdAt?.toDate().toISOString() ?? null,
     kind: entry.room.kind,
     archived: entry.room.archived,

@@ -18,6 +18,9 @@
       "edit": "Modifier l’annonce"
     },
     "information": {
+      "edit": "Modifier les informations du salon",
+      "updated": "Les informations du salon ont été mises à jour.",
+      "too_long": "Utilisez au maximum {max} caractères.",
       "description": "Description",
       "created": "Créé",
       "title": "Informations du salon",

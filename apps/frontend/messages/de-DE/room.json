@@ -18,6 +18,9 @@
       "edit": "Hinweis bearbeiten"
     },
     "information": {
+      "edit": "Rauminformationen bearbeiten",
+      "updated": "Die Rauminformationen wurden aktualisiert.",
+      "too_long": "Verwende höchstens {max} Zeichen.",
       "description": "Beschreibung",
       "created": "Erstellt",
       "title": "Rauminformationen",

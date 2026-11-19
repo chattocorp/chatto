@@ -92,6 +92,7 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 		RoomId:               room.GetId(),
 		Name:                 new("Connect / renamed!"),
 		Description:          new("updated through ConnectRPC"),
+		Information:          new("## Markdown"),
 		ShowMembershipEvents: new(false),
 	}))
 	if err != nil {
@@ -168,7 +169,7 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("partial UpdateRoom: %v", err)
 	}
-	if got := partialUpdateResp.Msg.GetRoom(); got.GetName() != "Connect / renamed!" || got.GetDescription() != "description-only patch" {
+	if got := partialUpdateResp.Msg.GetRoom(); got.GetName() != "Connect / renamed!" || got.GetDescription() != "description-only patch" || got.GetInformation() != "## Markdown" {
 		t.Fatalf("partial room update = %+v, want preserved name and updated description", got)
 	}
 	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
@@ -3152,4 +3153,28 @@ func TestRoomDirectoryDMActivityAcrossReads(t *testing.T) {
 		t.Fatal(err)
 	}
 	check(reply.CreatedAt, root.CreatedAt)
+}
+
+func TestRoomInformationViewerVisibility(t *testing.T) {
+	room := &readmodel.Room{Kind: evtv1.RoomKind_ROOM_KIND_CHANNEL, Information: "members and managers"}
+	for _, tc := range []struct {
+		state   core.DirectoryRoomViewerState
+		visible bool
+	}{
+		{core.DirectoryRoomViewerState{CanListRoom: true, CanJoinRoom: true}, false},
+		{core.DirectoryRoomViewerState{IsMember: true}, true},
+		{core.DirectoryRoomViewerState{CanManageRoom: true}, true},
+	} {
+		result := apiRoomWithViewerState(&core.DirectoryRoom{Room: room, ViewerState: tc.state})
+		if (result.Room.Information != nil) != tc.visible || (tc.visible && result.Room.GetInformation() != room.Information) {
+			t.Fatalf("unexpected information visibility for viewer state %+v", tc.state)
+		}
+	}
+	if apiRoom(room).Information != nil {
+		t.Fatal("unscoped room summaries must omit information")
+	}
+	room.Kind = evtv1.RoomKind_ROOM_KIND_DM
+	if apiRoomWithInformation(room, true).Information != nil {
+		t.Fatal("DM rooms must omit information")
+	}
 }

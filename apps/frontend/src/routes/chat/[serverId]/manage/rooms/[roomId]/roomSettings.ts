@@ -24,6 +24,7 @@ export function applyRoomSettingsResponse(
     ...current,
     ...('name' in patch && { name: updated.name }),
     ...('description' in patch && { description: updated.description || null }),
+    ...('information' in patch && { information: updated.information }),
     ...('universal' in patch && { isUniversal: updated.universal }),
     ...('slowModeSeconds' in patch && { slowModeSeconds: updated.slowModeSeconds }),
     ...('threadSlowModeSeconds' in patch && {

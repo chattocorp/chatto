@@ -338,6 +338,12 @@
     roomId,
     roomName: room.roomData?.room.name ?? '',
     roomDescription: room.roomData?.room.description ?? '',
+    information: room.isDM ? undefined : room.roomData?.room.information,
+    informationEditHref:
+      !room.isDM && room.roomData?.canManageRoom && room.roomData.room.information !== undefined
+        ? resolve('/chat/[serverId]/manage/rooms/[roomId]', { serverId: serverSegment, roomId }) +
+          '#room-information'
+        : undefined,
     roomCreatedAt: room.roomData?.room.createdAt ?? null,
     postingRules: room.roomData?.room ?? null,
     hasActiveCall: hasActiveRoomCall,
@@ -639,6 +645,15 @@
         onHighlightComplete={(highlight) => navigation.clearHighlight(highlight)}
         onOpenThread={openThread}
         onOpenCall={openRoomCall}
+        onOpenInformation={sharedRoomSidebarProps.information !== undefined
+          ? () =>
+              appUi.requestRoomSidebarPanel(
+                activeServerId,
+                roomId,
+                'pins',
+                getRoomSidebarPresentation()
+              )
+          : undefined}
         onOpenProfile={(userId) => appUi.openMemberProfile(userId)}
       >
         {#snippet header()}

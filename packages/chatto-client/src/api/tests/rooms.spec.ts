@@ -177,6 +177,16 @@ describe('createRoomCommandAPI', () => {
     });
   });
 
+  it('clears room information without changing the room description', async () => {
+    mocks.updateRoom.mockReturnValue({ room: { id: 'room-1', information: '' } });
+    const result = await roomAPI().updateRoom({ roomId: 'room-1', information: '' });
+    expect(result?.information).toBe('');
+    expect(receivedRequest(mocks.updateRoom)).toMatchObject({
+      information: '',
+      updateMask: { paths: ['information'] }
+    });
+  });
+
   it('preserves false membership display settings and sends a sparse mask', async () => {
     mocks.updateRoom.mockReturnValue({ room: { id: 'room-1', showMembershipEvents: false } });
     const result = await roomAPI().updateRoom({ roomId: 'room-1', showMembershipEvents: false });

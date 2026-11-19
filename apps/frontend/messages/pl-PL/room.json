@@ -18,6 +18,9 @@
       "edit": "Edytuj ogłoszenie"
     },
     "information": {
+      "edit": "Edytuj informacje o pokoju",
+      "updated": "Zaktualizowano informacje o pokoju.",
+      "too_long": "Użyj maksymalnie {max} znaków.",
       "description": "Opis",
       "created": "Utworzono",
       "title": "Informacje o pokoju",

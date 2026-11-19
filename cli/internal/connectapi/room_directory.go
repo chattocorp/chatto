@@ -190,7 +190,7 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 		viewerState.SlowModeNextPostAt = timestamppb.New(state.SlowModeNextPostAt)
 	}
 	result := &apiv1.RoomWithViewerState{
-		Room:        apiRoom(room.Room),
+		Room:        apiRoomWithInformation(room.Room, state.IsMember || state.CanManageRoom),
 		ViewerState: viewerState,
 	}
 	if !room.LastMessageAt.IsZero() {

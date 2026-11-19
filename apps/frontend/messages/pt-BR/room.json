@@ -18,6 +18,9 @@
       "edit": "Editar aviso"
     },
     "information": {
+      "edit": "Editar informações da sala",
+      "updated": "As informações da sala foram atualizadas.",
+      "too_long": "Use no máximo {max} caracteres.",
       "description": "Descrição",
       "created": "Criada",
       "title": "Informações da sala",

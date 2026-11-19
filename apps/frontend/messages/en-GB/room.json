@@ -18,6 +18,9 @@
       "edit": "Edit notice"
     },
     "information": {
+      "edit": "Edit room information",
+      "updated": "Room information was updated.",
+      "too_long": "Use at most {max} characters.",
       "description": "Description",
       "created": "Created",
       "title": "Room information",

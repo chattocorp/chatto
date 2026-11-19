@@ -46,7 +46,10 @@ function makeMessageEvent(
 }
 
 function makeSystemEvent(
-  kind: typeof TimelineEventKind.UserJoinedRoom | typeof TimelineEventKind.UserLeftRoom,
+  kind:
+    | typeof TimelineEventKind.UserJoinedRoom
+    | typeof TimelineEventKind.UserLeftRoom
+    | typeof TimelineEventKind.RoomInformationChanged,
   overrides: Partial<{
     id: string;
     actorId: string;
@@ -78,6 +81,19 @@ describe('buildVirtualItems', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('groups consecutive information changes without crossing the unread boundary', () => {
+    const events = ['e1', 'e2', 'e3'].map((id) =>
+      makeSystemEvent(TimelineEventKind.RoomInformationChanged, { id })
+    );
+    const groups = buildVirtualItems(meta(events), 'e3', false).filter(
+      (item) => item.type === 'system-group'
+    );
+    expect(groups.map((group) => [group.kind, group.events.map((event) => event.id)])).toEqual([
+      ['information', ['e1', 'e2']],
+      ['information', ['e3']]
+    ]);
   });
 
   it('returns empty array for empty input', () => {

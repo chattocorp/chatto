@@ -18,6 +18,9 @@
       "edit": "Upravit oznámení"
     },
     "information": {
+      "edit": "Upravit informace o místnosti",
+      "updated": "Informace o místnosti byly aktualizovány.",
+      "too_long": "Použijte nejvýše {max} znaků.",
       "description": "Popis",
       "created": "Vytvořeno",
       "title": "Informace o místnosti",

@@ -25,7 +25,7 @@ func (s *adminRoomLayoutService) GetRoom(ctx context.Context, req *connect.Reque
 		return nil, err
 	}
 	return connect.NewResponse(&adminv1.GetRoomResponse{
-		Room:                       apiRoom(details.Room),
+		Room:                       apiRoomWithInformation(details.Room, details.CanManageRoom),
 		ViewerCanManageRoom:        details.CanManageRoom,
 		ViewerCanManagePermissions: details.CanManagePermissions,
 	}), nil

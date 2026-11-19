@@ -9,7 +9,7 @@ import { ServerPublicProfile } from "../../api/v1/server_pb.js";
 import { RoomGroup, RoomWithViewerState } from "../../api/v1/room_directory_pb.js";
 import { DirectoryMember } from "../../api/v1/member_directory_pb.js";
 import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
-import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesChangedEvent, NotificationUnreadStateChangedEvent, PresenceChangedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoleAssignedEvent, RoleCreatedEvent, RoleDeletedEvent, RolePermissionsChangedEvent, RoleRevokedEvent, RolesReorderedEvent, RoleUpdatedEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomInvitationAcceptedEvent, RoomInvitationCreatedEvent, RoomInvitationDeclinedEvent, RoomLayoutChangedEvent, RoomMembershipEventsVisibilityChangedEvent, RoomNoticeChangedEvent, RoomReadStateChangedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ServerProfileChangedEvent, ThreadCreatedEvent, ThreadViewerStateChangedEvent, UserAccountCreatedEvent, UserAccountDeactivationChangedEvent, UserAccountDeletedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserProfileChangedEvent, UserTypingEvent, ViewerPermissionsChangedEvent, ViewerPreferencesChangedEvent, ViewerPresencePreferenceChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
+import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesChangedEvent, NotificationUnreadStateChangedEvent, PresenceChangedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoleAssignedEvent, RoleCreatedEvent, RoleDeletedEvent, RolePermissionsChangedEvent, RoleRevokedEvent, RolesReorderedEvent, RoleUpdatedEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomInformationChangedEvent, RoomInvitationAcceptedEvent, RoomInvitationCreatedEvent, RoomInvitationDeclinedEvent, RoomLayoutChangedEvent, RoomMembershipEventsVisibilityChangedEvent, RoomNoticeChangedEvent, RoomReadStateChangedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ServerProfileChangedEvent, ThreadCreatedEvent, ThreadViewerStateChangedEvent, UserAccountCreatedEvent, UserAccountDeactivationChangedEvent, UserAccountDeletedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserProfileChangedEvent, UserTypingEvent, ViewerPermissionsChangedEvent, ViewerPreferencesChangedEvent, ViewerPresencePreferenceChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
 
 /**
  * Startup behavior when a subscription cannot resume from its cursor.
@@ -823,6 +823,12 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
      */
     value: RoomMembershipEventsVisibilityChangedEvent;
     case: "roomMembershipEventsVisibilityChanged";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoomInformationChangedEvent room_information_changed = 75;
+     */
+    value: RoomInformationChangedEvent;
+    case: "roomInformationChanged";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeEvent>) {
@@ -891,6 +897,7 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     { no: 72, name: "room_notice_changed", kind: "message", T: RoomNoticeChangedEvent, oneof: "event" },
     { no: 73, name: "user_account_deactivation_changed", kind: "message", T: UserAccountDeactivationChangedEvent, oneof: "event" },
     { no: 74, name: "room_membership_events_visibility_changed", kind: "message", T: RoomMembershipEventsVisibilityChangedEvent, oneof: "event" },
+    { no: 75, name: "room_information_changed", kind: "message", T: RoomInformationChangedEvent, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeEvent {

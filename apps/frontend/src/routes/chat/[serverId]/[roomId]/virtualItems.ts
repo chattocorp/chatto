@@ -5,7 +5,7 @@ import {
 } from '@chatto/client/timeline/timelineEvents';
 import type { EventWithMeta } from './messageGrouping';
 
-export type SystemGroupKind = 'join' | 'leave';
+export type SystemGroupKind = 'join' | 'leave' | 'information';
 
 /**
  * A discriminated union representing items in the virtual list.
@@ -31,6 +31,8 @@ function getSystemGroupKind(event: TimelineEventView): SystemGroupKind | null {
       return 'join';
     case TimelineEventKind.UserLeftRoom:
       return 'leave';
+    case TimelineEventKind.RoomInformationChanged:
+      return 'information';
     default:
       return null;
   }
@@ -41,7 +43,7 @@ function getSystemGroupKind(event: TimelineEventView): SystemGroupKind | null {
  * Inserts the start-of-conversation marker, day separators, and the unread
  * separator as their own items.
  *
- * Consecutive `UserJoinedRoomEvent` (or consecutive `UserLeftRoomEvent`)
+ * Consecutive system events with the same group kind
  * are coalesced into a single `system-group` item. The grouping breaks
  * on: a different event kind, a day separator (timezone-aware via
  * `showDaySeparator`), or the unread separator.

@@ -656,6 +656,7 @@ Clients should inspect the event oneof to choose the renderer for the event.
 | `event.room_archived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was archived. |
 | `event.room_unarchived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was unarchived. |
 | `event.room_threading_mode_changed` | [`RoomTimelineThreadingModeChangedEvent`](#chatto-api-v1-RoomTimelineThreadingModeChangedEvent) | The room's Threading Mode changed. |
+| `event.room_information_changed` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The Markdown information in the room sidebar changed. |
 | `event.user_joined_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user joined the room. |
 | `event.user_left_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user left the room. |
 | `event.call_started` | [`RoomTimelineCallEvent`](#chatto-api-v1-RoomTimelineCallEvent) | A voice call started in the room. |
@@ -750,6 +751,7 @@ Public room metadata returned by room commands.
 | `thread_slow_mode_seconds` | `optional uint32` | Per-user interval within each thread, including its root. Zero disables the interval. Absent on servers without independent thread slow mode. |
 | `created_at` | `google.protobuf.Timestamp` | When the room was created. Absent when unavailable on an older server. |
 | `show_membership_events` | `optional bool` | Whether clients show room join/leave activity. Absence on older servers means true. Membership state and event delivery are not affected. |
+| `information` | `optional string` | Channel Markdown for room members and managers. Absent when unavailable. |
 
 <a id="chatto-api-v1-RoomNotice"></a>
 

@@ -71,6 +71,7 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 		RoomID:                req.Msg.RoomId,
 		Name:                  req.Msg.Name,
 		Description:           req.Msg.Description,
+		Information:           req.Msg.Information,
 		Universal:             req.Msg.Universal,
 		SlowModeSeconds:       req.Msg.SlowModeSeconds,
 		ThreadSlowModeSeconds: req.Msg.ThreadSlowModeSeconds,
@@ -80,7 +81,7 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.UpdateRoomResponse{Room: apiRoom(room)}), nil
+	return connect.NewResponse(&apiv1.UpdateRoomResponse{Room: apiRoomWithInformation(room, true)}), nil
 }
 
 func (s *roomService) ArchiveRoom(ctx context.Context, req *connect.Request[apiv1.ArchiveRoomRequest]) (*connect.Response[apiv1.ArchiveRoomResponse], error) {
@@ -96,7 +97,7 @@ func (s *roomService) ArchiveRoom(ctx context.Context, req *connect.Request[apiv
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.ArchiveRoomResponse{Room: apiRoom(room)}), nil
+	return connect.NewResponse(&apiv1.ArchiveRoomResponse{Room: apiRoomWithInformation(room, true)}), nil
 }
 
 func (s *roomService) UnarchiveRoom(ctx context.Context, req *connect.Request[apiv1.UnarchiveRoomRequest]) (*connect.Response[apiv1.UnarchiveRoomResponse], error) {
@@ -112,7 +113,7 @@ func (s *roomService) UnarchiveRoom(ctx context.Context, req *connect.Request[ap
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.UnarchiveRoomResponse{Room: apiRoom(room)}), nil
+	return connect.NewResponse(&apiv1.UnarchiveRoomResponse{Room: apiRoomWithInformation(room, true)}), nil
 }
 
 func (s *roomService) JoinRoom(ctx context.Context, req *connect.Request[apiv1.JoinRoomRequest]) (*connect.Response[apiv1.JoinRoomResponse], error) {
@@ -128,7 +129,7 @@ func (s *roomService) JoinRoom(ctx context.Context, req *connect.Request[apiv1.J
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.JoinRoomResponse{Room: apiRoom(room)}), nil
+	return connect.NewResponse(&apiv1.JoinRoomResponse{Room: apiRoomWithInformation(room, true)}), nil
 }
 
 func (s *roomService) JoinRoomGroup(ctx context.Context, req *connect.Request[apiv1.JoinRoomGroupRequest]) (*connect.Response[apiv1.JoinRoomGroupResponse], error) {
@@ -374,6 +375,16 @@ func (s *roomService) apiRoomSuspension(ctx context.Context, ban core.RoomBan) (
 	}
 
 	return out, nil
+}
+
+// apiRoomWithInformation includes the Markdown only after the caller has
+// established channel membership or room management authority.
+func apiRoomWithInformation(room *readmodel.Room, authorized bool) *apiv1.Room {
+	result := apiRoom(room)
+	if authorized && room.GetKind() == evtv1.RoomKind_ROOM_KIND_CHANNEL {
+		result.Information = new(room.Information)
+	}
+	return result
 }
 
 func apiRoom(room *readmodel.Room) *apiv1.Room {

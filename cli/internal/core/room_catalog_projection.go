@@ -40,6 +40,7 @@ type roomCatalogEntry struct {
 	name                  string
 	description           string
 	purpose               string
+	information           string
 	kind                  evtv1.RoomKind
 	archived              bool
 	universal             bool
@@ -100,6 +101,10 @@ func (p *RoomCatalogProjection) Apply(event *evtv1.Event, seq uint64) error {
 			if u.Purpose != nil {
 				entry.purpose = u.GetPurpose()
 			}
+		}
+	case *evtv1.Event_RoomInformationChanged:
+		if entry := p.rooms[e.RoomInformationChanged.GetRoomId()]; entry != nil {
+			entry.information = e.RoomInformationChanged.GetInformation()
 		}
 	case *evtv1.Event_RoomNoticeChanged:
 		if entry := p.rooms[e.RoomNoticeChanged.GetRoomId()]; entry != nil {
@@ -236,6 +241,7 @@ func entryToRoom(id string, entry *roomCatalogEntry) *readmodel.Room {
 		Name:                  entry.name,
 		Description:           entry.description,
 		Purpose:               entry.purpose,
+		Information:           entry.information,
 		Archived:              entry.archived,
 		Kind:                  entry.kind,
 		Universal:             entry.universal,

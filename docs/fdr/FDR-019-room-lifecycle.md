@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-10-28
+**Last reviewed:** 2026-11-19
 
 ## Overview
 
@@ -12,12 +12,13 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 - **Create** — server admins (or anyone with `room.create` in the target group) can start room creation from that group in the sidebar. They give the channel a visible 1–30-code-point Unicode name, an optional description, a room group, and the desired Threading Mode, with Enabled as the default. They may also enable Universal. Names are unique across the server after Unicode compatibility normalization and full case folding.
 - **Edit** — `room.manage` holders can change the name, description, group, Universal setting, Threading Mode, and explicit member set of an existing channel room.
 - **Settings update** — one room-settings request commits its supplied name,
-  description, Universal, Slow Mode, and Threading Mode together. A rejected
+  description, Room Information, Universal, Slow Mode, and Threading Mode together. A rejected
   commit leaves all requested fields unchanged. Omitted fields retain their
   latest values when a concurrent update causes a retry. Group moves and
   membership changes remain separate commands.
 - **Settings access** — a visible room's sidebar action menu links `room.manage` holders directly to that room's management page and lets them start the archive flow. Effective `room.manage` holders can change general settings; server-wide `role.manage` holders can configure the room's role permission matrix without receiving general room-management authority. The management read can load private-room metadata for either capability and is deliberately separate from the visibility-gated room directory.
 - **Display** — when set, the optional description appears after the channel room name in the desktop room pane header.
+- **Room Information** — A channel can keep up to 10,000 Unicode code points of Markdown in its Room Sidebar. Members can read it. Room managers can open the editor from the sidebar, including when the field is empty. They can also edit it in General settings. Saving a change adds a timeline entry that opens the sidebar. Saving an empty field clears it. The room description, notice, and pinned messages remain independent.
 - **Membership activity** — `room.manage` holders can turn **Show join/leave events** off in General settings. It is on by default for new and existing channel rooms. The current setting applies to history and live activity for all clients that support it. Turning it on reveals stored activity again. It does not change membership, event delivery, calls, or moderation records. Older clients can continue to show the activity; older servers cannot edit the setting.
 - **Join preview** — a non-member who is allowed to list and join a visible channel room sees its group, description, exact effective member count, and up to five member identities before joining. Messages, files, and activity remain hidden. A user who cannot join sees only the access-denied state.
 - **Universal** — a channel room with Universal enabled behaves as joined for every server member who is currently eligible to join it. The system does not fan out `UserJoinedRoomEvent` facts for implicit membership. Existing explicit memberships remain intact, so disabling Universal restores the prior explicit membership set.

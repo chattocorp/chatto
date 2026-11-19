@@ -16,6 +16,7 @@ export function isRootRoomEvent(event: TimelineEventView): boolean {
     case TimelineEventKind.UserJoinedRoom:
     case TimelineEventKind.UserLeftRoom:
     case TimelineEventKind.RoomUpdated:
+    case TimelineEventKind.RoomInformationChanged:
     case TimelineEventKind.RoomDeleted:
     case TimelineEventKind.RoomArchived:
     case TimelineEventKind.RoomUnarchived:

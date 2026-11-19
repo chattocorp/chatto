@@ -48,6 +48,9 @@ vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 
 vi.mock('$app/state', () => ({
   page: {
+    get url() {
+      return new URL(routeHash, 'https://server.example.test');
+    },
     get params() {
       return { serverId: server.serverId, roomId: 'shared-room' };
     },
@@ -79,6 +82,7 @@ vi.mock(
 );
 
 let server: TestServerScope;
+let routeHash = '';
 let routeId = '/chat/[serverId]/manage/rooms/[roomId]';
 
 type Section = 'general' | 'members' | 'permissions';
@@ -108,6 +112,7 @@ vi.mock('@chatto/client/api/memberDirectory', () => ({
 }));
 
 vi.mock('@chatto/client/api/rooms', () => ({
+  MAX_ROOM_INFORMATION_LENGTH: 10_000,
   createRoomCommandAPI: () => ({
     updateRoom: mocks.updateRoom,
     addMember: vi.fn(),
@@ -129,6 +134,7 @@ import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 function managedRoom(
   name: string,
   overrides: Partial<{
+    information: string;
     archived: boolean;
     isUniversal: boolean;
     threadSlowModeSeconds: number;
@@ -142,6 +148,7 @@ function managedRoom(
     id: 'shared-room',
     name,
     description: null,
+    information: overrides.information,
     archived: overrides.archived ?? false,
     isUniversal: overrides.isUniversal ?? false,
     slowModeSeconds: 0,
@@ -193,6 +200,7 @@ function dispatchProjection(event: RealtimeProjectionUpdate): void {
 
 type RoomPatch = {
   name?: string;
+  information?: string;
   description?: string | null;
   universal?: boolean;
   slowModeSeconds?: number;
@@ -218,6 +226,7 @@ function serveRoom(initial: ReturnType<typeof managedRoom>) {
       ...stored,
       ...(input.name !== undefined && { name: input.name }),
       ...(input.description !== undefined && { description: input.description }),
+      ...(input.information !== undefined && { information: input.information }),
       ...(input.universal !== undefined && { isUniversal: input.universal }),
       ...(input.slowModeSeconds !== undefined && { slowModeSeconds: input.slowModeSeconds }),
       ...(input.threadSlowModeSeconds !== undefined && {
@@ -232,6 +241,7 @@ function serveRoom(initial: ReturnType<typeof managedRoom>) {
       id: stored.id,
       name: stored.name,
       description: stored.description ?? '',
+      information: stored.information,
       universal: stored.isUniversal,
       slowModeSeconds: stored.slowModeSeconds,
       threadSlowModeSeconds: stored.threadSlowModeSeconds,
@@ -282,6 +292,57 @@ function roomRemoved(): RealtimeProjectionUpdate {
 }
 
 describe('room management page identity and realtime authority', () => {
+  it('saves and clears Markdown independently and counts Unicode code points', async () => {
+    serveRoom(managedRoom('general', { information: '' }));
+    const view = renderSections('general');
+    const field = view.getByLabelText('Markdown', { exact: true });
+    await expect.element(field).toBeVisible();
+    const limit = '🐈'.repeat(10000);
+    await field.fill(limit + '!');
+    expect(formAction(view.container, '#room-information').disabled).toBe(true);
+    await expect.element(view.getByText('Use at most 10000 characters.')).toBeVisible();
+    await field.fill(limit);
+    expect(formAction(view.container, '#room-information').disabled).toBe(false);
+    formAction(view.container, '#room-information', 'Discard changes').click();
+    await expect.element(field).toHaveValue('');
+    await field.fill('## Greeting\n\n**Welcome**');
+    submitSection(view.container, '#room-information');
+    await vi.waitFor(() =>
+      expect(mocks.updateRoom).toHaveBeenCalledExactlyOnceWith({
+        roomId: 'shared-room',
+        information: '## Greeting\n\n**Welcome**'
+      })
+    );
+    await vi.waitFor(() =>
+      expect(formAction(view.container, '#room-information').disabled).toBe(true)
+    );
+    await field.fill('');
+    submitSection(view.container, '#room-information');
+    await vi.waitFor(() =>
+      expect(mocks.updateRoom).toHaveBeenLastCalledWith({ roomId: 'shared-room', information: '' })
+    );
+  });
+
+  it('focuses and scrolls to the linked editor after the room request resolves', async () => {
+    routeHash = '#room-information';
+    const pendingRoom = deferred<AdminManagedRoom>();
+    mocks.getRoom.mockReturnValueOnce(pendingRoom.promise);
+    const view = renderSections('general');
+    await vi.waitFor(() => expect(mocks.getRoom).toHaveBeenCalledOnce());
+    expect(view.container.querySelector('#room-information')).toBeNull();
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+    pendingRoom.resolve(managedRoom('general', { information: '' }));
+    await vi.waitFor(() => expect(document.activeElement?.id).toBe('room-information'));
+    expect(scroll.mock.contexts).toContain(document.activeElement);
+  });
+
+  it('omits the information editor when the field is unavailable', async () => {
+    serveRoom(managedRoom('general'));
+    const view = renderSections('general');
+    await expect.element(view.getByLabelText('Name', { exact: true })).toBeVisible();
+    expect(view.container.querySelector('#room-information')).toBeNull();
+  });
+
   it('saves and discards only the membership display setting', async () => {
     serveRoom(managedRoom('general', { showMembershipEvents: true }));
     const view = renderSections('general');
@@ -319,6 +380,7 @@ describe('room management page identity and realtime authority', () => {
   afterEach(() => vi.restoreAllMocks());
 
   beforeEach(async () => {
+    routeHash = '';
     queryClient.clear();
     vi.clearAllMocks();
     mocks.projectionHandlers = [];

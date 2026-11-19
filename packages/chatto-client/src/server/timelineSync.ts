@@ -111,6 +111,12 @@ export class TimelineSync {
     }
   }
 
+  /** Refresh a channel timeline for a system event that cannot appear in a thread. */
+  refreshRoomWindow(roomId: string, anchorEventId: string | null): void {
+    const store = this.#options.rooms.loaded(roomId)?.messages;
+    if (store) this.#refreshWindow(store, anchorEventId, false, this.#options.eventCursor());
+  }
+
   /**
    * Reload the window of each loaded timeline of a room, or of all rooms when
    * `roomId` is empty. Thread timelines read the window around `anchorEventId`.

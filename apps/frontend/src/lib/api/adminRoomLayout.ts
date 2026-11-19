@@ -16,6 +16,8 @@ export type AdminRoomInfo = {
   id: string;
   name: string;
   description?: string | null;
+  /** Channel Markdown, absent when unavailable to this viewer. */
+  information?: string;
   archived: boolean;
   isUniversal: boolean;
   slowModeSeconds: number;
@@ -250,6 +252,7 @@ function mapAdminRoom(room: Room): AdminRoomInfo {
     id: room.id,
     name: room.name,
     description: room.description || null,
+    information: room.information,
     archived: room.archived ?? false,
     isUniversal: room.universal ?? false,
     slowModeSeconds: room.slowModeSeconds ?? 0,

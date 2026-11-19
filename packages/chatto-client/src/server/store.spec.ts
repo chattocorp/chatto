@@ -5331,6 +5331,7 @@ describe('ServerStateStore realtime resource hints', () => {
     ['roomInvitationAccepted', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
     ['roomInvitationDeclined', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
     ['roomThreadingModeChanged', { roomId: 'R1' }, ['rooms', 'roomGroups']],
+    ['roomInformationChanged', { roomId: 'R1' }, ['rooms', 'roomGroups']],
     ['roomDeleted', { roomId: 'R1' }, ['rooms', 'roomGroups']],
     ['roomLayoutChanged', {}, ['roomGroups']],
     ['serverProfileChanged', {}, ['server']],
