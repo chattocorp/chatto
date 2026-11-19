@@ -187,7 +187,7 @@
   <div
     {@attach initialPageReveal}
     {@attach watchMotionPreference}
-    class="flex h-full w-full flex-col overflow-hidden bg-surface pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] desktop-presentation:app-frame-shell desktop-presentation:px-3 desktop-presentation:pb-3"
+    class="flex h-full w-full flex-col overflow-hidden bg-surface pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] desktop-presentation:px-3 desktop-presentation:pb-3"
   >
     <SignInWindowHeader />
     <Frame class="flex-col">
@@ -200,7 +200,7 @@
     {@attach initialPageReveal}
     {@attach watchMotionPreference}
     use:sidebarSwipe
-    class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] desktop-presentation:app-frame-shell desktop-presentation:px-3 desktop-presentation:pb-3"
+    class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] desktop-presentation:px-3 desktop-presentation:pb-3"
   >
     <AppHeader>
       {#snippet callControls(activeStore)}

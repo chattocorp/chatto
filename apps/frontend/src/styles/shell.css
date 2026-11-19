@@ -29,13 +29,7 @@
   }
 }
 
-/* Composer input and formatting surfaces share the app shell's compact radius. */
-@utility composer-surface {
-  @apply shell-surface;
-}
-
 /* Chat inputs share the quiet raised finish of the user card and server tiles.
- * Keep compact formatting shelves on composer-surface.
  */
 @utility chat-input-surface {
   @apply min-h-12 shell-surface;
@@ -120,11 +114,6 @@
   padding-inline-start: max(1rem, env(safe-area-inset-left));
   padding-inline-end: max(1rem, env(safe-area-inset-right));
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
-}
-
-/* The outer app frame meets the window edge without a depth highlight. */
-@utility app-frame-shell {
-  @apply bg-surface;
 }
 
 /* Pane backgrounds cover ordinary inset shadows. A non-interactive overlay

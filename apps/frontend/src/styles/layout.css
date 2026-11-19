@@ -81,7 +81,7 @@
  * component supplies p-1 around this inset.
  */
 @utility panel-inset {
-  @apply rounded-md bg-background floating-inset;
+  @apply inset-content;
 }
 
 /* Edge-to-edge panel content is clipped to the work plane's outer radius.

@@ -11,9 +11,7 @@
 </script>
 
 <Story name="Application surface" asChild>
-  <div
-    class="flex h-80 max-w-4xl bg-surface desktop-presentation:app-frame-shell desktop-presentation:p-3"
-  >
+  <div class="flex h-80 max-w-4xl bg-surface desktop-presentation:p-3">
     <Frame>
       <aside class="relative z-50 w-48 border-e border-border bg-surface p-4">
         <p class="font-medium">Spaces</p>
