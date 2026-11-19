@@ -2,6 +2,8 @@
 type: feature
 ---
 
-Role managers can require Shield Mode for role grants. Members choose which protected roles to activate for 15 minutes. The activation event records the selected role names. The owner role always requires activation, everyone grants work during ordinary use, and role denies remain effective. Direct account grants, including management permissions, are always active subject to normal denies. To require activation for a direct grant, move it to a protected role. After upgrading, review custom roles and enable protection where required.
+Members can choose which protected roles to activate in Shield Mode for up to 15 minutes. The event log shows which roles they selected. Role managers can protect individual roles. The `owner` role always requires activation, `everyone` grants apply during ordinary use, and role denies stay in force.
 
-Bot managers can grant any permission the bot’s owner holds at the target scope, including grants from protected roles while Shield Mode is off.
+After upgrading, review custom roles and direct account grants. Enable **Require Shield Mode** on roles that need it. To require activation for a direct grant, including a management permission, move it to a protected role.
+
+Bot managers can grant any permission the bot’s owner holds at the same scope, including permissions from inactive protected roles. If the owner loses a permission, the bot’s saved grant becomes inactive.
