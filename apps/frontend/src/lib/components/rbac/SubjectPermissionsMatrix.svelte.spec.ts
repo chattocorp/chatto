@@ -175,7 +175,7 @@ it('locks inherited binary grants and only clears direct grants', () => {
   const onCycle = vi.fn();
   const { container } = render(SubjectPermissionsMatrix, {
     props: {
-      data: { ...data, cells: data.cells.map((cell) => ({ ...cell, actorCanGrant: false })) },
+      data,
       onCycle,
       decisionMode: 'binary'
     }
@@ -212,44 +212,41 @@ it('locks inherited binary grants and only clears direct grants', () => {
   expect(container.querySelector('[class~="icon-[uil--times]"]')).toBeNull();
 });
 
-it.each([{ allowPermitted: false }, { allowPermitted: true, actorCanGrant: false }])(
-  'locks an ungrantable binary permission for %o',
-  (constraint) => {
-    const onCycle = vi.fn();
-    const { container } = render(SubjectPermissionsMatrix, {
-      props: {
-        data: {
-          applicablePermissions: ['message.post'],
-          scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
-          cells: [
-            {
-              permission: 'message.post',
-              scopeId: 'server',
-              override: 'NONE',
-              effective: 'NONE',
-              ...constraint
-            }
-          ]
-        },
-        onCycle,
-        decisionMode: 'binary'
-      }
-    });
-    const button = container.querySelector(
-      'button[aria-label^="message.post is"]'
-    ) as HTMLButtonElement;
+it('locks an ungrantable binary permission', () => {
+  const onCycle = vi.fn();
+  const { container } = render(SubjectPermissionsMatrix, {
+    props: {
+      data: {
+        applicablePermissions: ['message.post'],
+        scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
+        cells: [
+          {
+            permission: 'message.post',
+            scopeId: 'server',
+            override: 'NONE',
+            effective: 'NONE',
+            allowPermitted: false
+          }
+        ]
+      },
+      onCycle,
+      decisionMode: 'binary'
+    }
+  });
+  const button = container.querySelector(
+    'button[aria-label^="message.post is"]'
+  ) as HTMLButtonElement;
 
-    expect(button.disabled).toBe(true);
-    expect(button.className).toContain('cursor-not-allowed');
-    expect(button.className).not.toContain('cursor-pointer');
-    expect(button.firstElementChild!.className).not.toContain('hover:');
-    expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
-    expect(button.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).toBeNull();
+  expect(button.disabled).toBe(true);
+  expect(button.className).toContain('cursor-not-allowed');
+  expect(button.className).not.toContain('cursor-pointer');
+  expect(button.firstElementChild!.className).not.toContain('hover:');
+  expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+  expect(button.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).toBeNull();
 
-    button.click();
-    expect(onCycle).not.toHaveBeenCalled();
-  }
-);
+  button.click();
+  expect(onCycle).not.toHaveBeenCalled();
+});
 
 it('locks an inherited room grant while allowing an older denial to be cleared', async () => {
   const onCycle = vi.fn();

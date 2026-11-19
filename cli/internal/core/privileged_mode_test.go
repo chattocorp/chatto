@@ -348,69 +348,100 @@ func TestBotPermissionsIndependentOfInspectorPrivilegedMode(t *testing.T) {
 	}
 }
 
-func TestBotElevatedGrantRequiresActiveActorAuthority(t *testing.T) {
+func TestBotGrantCeilingUsesOnlyOwnerEntitlement(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "grant-owner", "Owner", "password123")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := c.AssignOwnerRole(ctx, owner.Id); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	manager, err := c.CreateUser(ctx, SystemActorID, "grant-manager", "Manager", "password123")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermBotManage); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+	require.NoError(t, c.AssignServerRole(ctx, SystemActorID, owner.Id, RoleAdmin))
+	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermBotManage))
+	require.NoError(t, c.DenyUserPermission(ctx, SystemActorID, manager.Id, PermRoomCreate))
 	allowBotCreation(t, ctx, c, owner.Id)
 	bot, err := c.CreateBot(ctx, owner.Id, "grant_bot", "Bot")
-	if err != nil {
-		t.Fatal(err)
+	require.NoError(t, err)
+	session := func(id string) context.Context {
+		return authctx.WithCredential(ctx, authctx.RuntimeCredential{
+			Handle: "session", Kind: authctx.RuntimeCredentialKindBearerToken, UserID: id,
+		})
 	}
 	scope := PermissionTargetScope{Kind: MatrixScopeServer}
-	session := func(userID string, active bool) context.Context {
-		deadline := time.Time{}
-		if active {
-			deadline = time.Now().Add(time.Minute)
-		}
-		return authctx.WithCredential(ctx, authctx.RuntimeCredential{Handle: "test-session", Kind: authctx.RuntimeCredentialKindBearerToken, UserID: userID, PrivilegedModeExpiresAt: deadline})
+	edit := func(actor string, perm Permission, state PermissionState) error {
+		return c.SetUserPermissionState(session(actor), actor, bot.User.Id, scope, perm, state)
 	}
-	checkGrantCell := func(want bool) {
+	checkCell := func(perm Permission, want bool) {
 		t.Helper()
-		matrix, err := c.GetUserPermissionMatrix(session(manager.Id, false), manager.Id, bot.User.Id)
-		if err != nil {
-			t.Fatal(err)
-		}
+		matrix, err := c.GetUserPermissionMatrix(session(manager.Id), manager.Id, bot.User.Id)
+		require.NoError(t, err)
 		for _, cell := range matrix.Cells {
-			if cell.Permission == string(PermRoomCreate) && cell.ScopeID == "server" {
-				if cell.AllowPermitted == nil || !*cell.AllowPermitted || cell.ActorCanGrant == nil || *cell.ActorCanGrant != want {
-					t.Fatalf("owner ceiling and editor authority: %+v, want true and %t", cell, want)
-				}
+			if cell.ScopeID == "server" && cell.Permission == string(perm) {
+				require.NotNil(t, cell.AllowPermitted)
+				require.Equal(t, want, *cell.AllowPermitted)
 				return
 			}
 		}
-		t.Fatal("missing room.create cell")
+		t.Fatalf("missing server cell for %s", perm)
 	}
-	checkGrantCell(false)
-	if err := c.SetUserPermissionState(session(owner.Id, false), owner.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("unarmed grant: %v", err)
+	for _, actor := range []string{owner.Id, manager.Id} {
+		allowed, err := c.HasServerPermission(session(actor), actor, PermRoomCreate)
+		require.NoError(t, err)
+		require.False(t, allowed)
+		checkCell(PermRoomCreate, true)
+		require.NoError(t, edit(actor, PermRoomCreate, PermissionStateAllow))
+		allowed, err = c.HasServerPermission(ctx, bot.User.Id, PermRoomCreate)
+		require.NoError(t, err)
+		require.True(t, allowed)
+		require.NoError(t, edit(actor, PermRoomCreate, PermissionStateNone))
 	}
-	if err := c.SetUserPermissionState(session(manager.Id, false), manager.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("manager without target permission: %v", err)
-	}
-	if err := c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermRoomCreate); err != nil {
-		t.Fatal(err)
-	}
-	checkGrantCell(true)
-	if err := c.SetUserPermissionState(session(manager.Id, false), manager.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateAllow); err != nil {
-		t.Fatalf("manager with a direct grant and inactive Shield Mode: %v", err)
-	}
-	if err := c.SetUserPermissionState(session(owner.Id, false), owner.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateNone); err != nil {
-		t.Fatalf("unarmed removal: %v", err)
-	}
+	require.NoError(t, edit(manager.Id, PermRoomCreate, PermissionStateAllow))
+	t.Run("room visible to the editor through their session and to the owner through a protected role", func(t *testing.T) {
+		group, err := c.roomLayout.CreateRoomGroup(ctx, SystemActorID, "Restricted rooms", "")
+		require.NoError(t, err)
+		room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, group.Id, "bot-grants", "")
+		require.NoError(t, err)
+		for _, perm := range []Permission{PermRoomList, PermMessagePost} {
+			require.NoError(t, c.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, perm))
+			require.NoError(t, c.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleAdmin, perm))
+		}
+		require.NoError(t, c.GrantUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomList))
+		target := PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.Id}
+		matrix, err := c.GetUserPermissionMatrixPage(session(manager.Id), manager.Id, bot.User.Id, false, PermissionScopeQuery{Scope: &target})
+		require.NoError(t, err)
+		var allow *bool
+		for _, cell := range matrix.Cells {
+			if cell.ScopeID == "room:"+room.Id && cell.Permission == string(PermMessagePost) {
+				allow = cell.AllowPermitted
+			}
+		}
+		require.NotNil(t, allow)
+		require.True(t, *allow)
+		require.NoError(t, c.SetUserPermissionState(session(manager.Id), manager.Id, bot.User.Id, target, PermMessagePost, PermissionStateAllow))
+		require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomList))
+		matrix, err = c.GetUserPermissionMatrixPage(session(manager.Id), manager.Id, bot.User.Id, false, PermissionScopeQuery{Scope: &target})
+		require.NoError(t, err)
+		require.Empty(t, matrix.Scopes)
+	})
+	require.NoError(t, c.RevokeServerRole(ctx, SystemActorID, owner.Id, RoleAdmin))
+	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermRoomCreate))
+	managerAllowed, err := c.HasServerPermission(session(manager.Id), manager.Id, PermRoomCreate)
+	require.NoError(t, err)
+	require.True(t, managerAllowed)
+	checkCell(PermRoomCreate, false)
+	allowed, err := c.HasServerPermission(ctx, bot.User.Id, PermRoomCreate)
+	require.NoError(t, err)
+	require.False(t, allowed)
+	require.NoError(t, edit(manager.Id, PermRoomCreate, PermissionStateNone))
+	require.ErrorIs(t, edit(manager.Id, PermRoomCreate, PermissionStateAllow), ErrBotOwnerPermissionCeiling)
+
+	checkCell(PermUserDeleteSelf, true)
+	require.NoError(t, edit(manager.Id, PermUserDeleteSelf, PermissionStateAllow))
+	allowed, err = c.HasServerPermission(ctx, bot.User.Id, PermUserDeleteSelf)
+	require.NoError(t, err)
+	require.True(t, allowed)
+	allowed, err = c.CanDeleteUser(ctx, bot.User.Id, bot.User.Id)
+	require.NoError(t, err)
+	require.False(t, allowed)
 }
 
 // An owner without active privileged mode resolves like any other human.

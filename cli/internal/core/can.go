@@ -117,10 +117,13 @@ func (a *AuthorizationModel) canStartDM(ctx context.Context, userID string) (boo
 
 // CanDeleteUser checks if an actor can delete a specific user account.
 // Returns true if:
-//   - The actor is deleting their own account and has user.delete-self, OR
+//   - A human actor is deleting their own account and has user.delete-self, OR
 //   - The actor has user.delete-any (the admin power).
 func (a *AuthorizationModel) CanDeleteUser(ctx context.Context, actorID, targetUserID string) (bool, error) {
 	if actorID == targetUserID {
+		if isBot, _, _ := a.users.isBotAndOwner(actorID); isBot {
+			return false, nil
+		}
 		return a.HasServerPermission(ctx, actorID, PermUserDeleteSelf)
 	}
 

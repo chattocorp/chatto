@@ -70,9 +70,7 @@ To use a protected role, select the shield in your user area, choose the roles y
 
 A protected role's denies still apply when its grants are inactive. Direct user grants apply even with Shield Mode off. To require activation for a management permission, grant it through a protected role and remove the direct grant. Select `owner` to use the owner override. A user who selects only `moderator` keeps their ordinary room access unless that role grants additional access. Notifications use ordinary room access.
 
-Bots do not use privileged mode. To grant a permission to a bot,
-you must have that permission active at the same scope. You can remove a bot's
-permission without privileged mode.
+The bot owner’s assigned permissions set the ceiling for each bot grant at the same scope. A bot manager can grant permissions from the owner’s protected roles even while Shield Mode is off.
 
 ## Permission reference
 

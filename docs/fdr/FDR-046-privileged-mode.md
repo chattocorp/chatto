@@ -65,9 +65,7 @@ server session when they need them.
 - Each connected server has independent state.
 - Bot API keys keep their current direct permission behavior. Bots do not use
   privileged mode. Their owner ceiling uses current RBAC entitlement, independent
-  of human session activation. Granting a permission to a
-  bot requires the acting human to have it active at the target scope. Clearing
-  a grant does not require activation of that permission.
+  of human session activation. A bot manager can grant permissions from the owner's protected roles even while Shield Mode is off.
 - The admin entry point remains visible to entitled users while the mode is
   inactive. Protected capabilities and actions remain unavailable.
 - The Moderation link and page require effective server-wide

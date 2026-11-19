@@ -929,7 +929,7 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 	if state == PermissionStateDeny {
 		return fmt.Errorf("%w: bot permissions are an allowlist and do not support explicit denials", ErrInvalidArgument)
 	}
-	if !botPermissionDelegable(perm) {
+	if _, known := GetPermissionMetadata(perm); !known {
 		return fmt.Errorf("%w: permission %s cannot be delegated to a bot", ErrInvalidArgument, perm)
 	}
 	normalized := normalizePermissionScope(scope)
@@ -996,15 +996,12 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 			return err
 		}
 		if state == PermissionStateAllow {
-			ownerAllows, actorAllows, err := c.botGrantAuthority(ctx, currentBot.GetBotOwnerUserId(), actorID, perm, normalized)
+			ownerAllows, err := c.botOwnerAllowsGrant(ctx, currentBot.GetBotOwnerUserId(), perm, normalized)
 			if err != nil {
 				return err
 			}
 			if !ownerAllows {
 				return ErrBotOwnerPermissionCeiling
-			}
-			if !actorAllows {
-				return ErrPermissionDenied
 			}
 		}
 		return nil
@@ -1029,11 +1026,4 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 		return err
 	}
 	return nil
-}
-
-func botPermissionDelegable(perm Permission) bool {
-	if _, known := GetPermissionMetadata(perm); !known {
-		return false
-	}
-	return perm != PermUserDeleteSelf
 }

@@ -550,14 +550,6 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
    */
   allowPermitted?: boolean;
 
-  /**
-   * Whether the editor currently holds this permission at this scope. For bots,
-   * adding a grant requires both this authority and the owner's entitlement.
-   *
-   * @generated from field: optional bool actor_can_grant = 6;
-   */
-  actorCanGrant?: boolean;
-
   constructor(data?: PartialMessage<PermissionMatrixCell>) {
     super();
     proto3.util.initPartial(data, this);
@@ -571,7 +563,6 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
     { no: 3, name: "override", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
     { no: 4, name: "effective", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
     { no: 5, name: "allow_permitted", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
-    { no: 6, name: "actor_can_grant", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PermissionMatrixCell {

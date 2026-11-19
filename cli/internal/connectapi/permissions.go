@@ -403,7 +403,6 @@ func apiPermissionMatrixCells(cells []core.PermissionMatrixCell) []*adminv1.Perm
 			Override:       apiPermissionDecision(cell.Override),
 			Effective:      apiPermissionDecision(cell.Effective),
 			AllowPermitted: cell.AllowPermitted,
-			ActorCanGrant:  cell.ActorCanGrant,
 		}
 		out = append(out, mapped)
 	}
