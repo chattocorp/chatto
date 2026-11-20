@@ -61,7 +61,9 @@ written by every app that has write access to that repository, for example
 apps with app passwords. A modified server and one such app could link a
 user's identity to a different account (ADR-124).
 **Profile display:** The profile card and full profile show the handles of linked
-AT Protocol accounts to other server members. The server resolves each linked
+AT Protocol accounts to other server members. Each handle appears in a green
+self-verification pill. A divider separates the @ icon from the handle. The
+label identifies the server-linked account (ADR-124). The server resolves each linked
 DID when a client requests handles. The directory caches successful lookups
 for up to a day, so a renamed handle can take time to change. A missing handle
 or failed lookup leaves that handle out. Disconnecting the account removes

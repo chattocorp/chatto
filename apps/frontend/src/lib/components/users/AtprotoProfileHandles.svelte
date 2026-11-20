@@ -9,7 +9,10 @@ the selected server and member and stops when the profile closes or changes.
   import { createUserAPI } from '@chatto/client/api/users';
   import { useServerScope } from '$lib/state/server/scope.svelte';
 
-  let { userId }: { userId: string } = $props();
+  import { providerIcon } from '$lib/auth/providerIcon';
+  import SelfVerificationPill from './SelfVerificationPill.svelte';
+
+  let { userId, class: className }: { userId: string; class?: string } = $props();
   const scope = useServerScope();
 
   const handles = createQuery(() => {
@@ -24,19 +27,9 @@ the selected server and member and stops when the profile closes or changes.
 </script>
 
 {#if handles.data?.length}
-  <div
-    class="my-2 flex min-w-0 items-start gap-2.5 rounded-lg border border-border bg-surface/60 px-2.5 py-2 text-start"
-  >
-    <span
-      class="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-surface-emphasized text-muted"
-    >
-      <span aria-hidden="true" class="iconify icon-[mdi--at]"></span>
-    </span>
-    <div class="min-w-0">
-      <div class="text-xs font-medium text-muted">AT Protocol</div>
-      {#each handles.data as handle (handle)}
-        <div class="text-sm font-medium wrap-anywhere"><bdi dir="ltr">@{handle}</bdi></div>
-      {/each}
-    </div>
+  <div class={['flex min-w-0 flex-wrap gap-1', className]}>
+    {#each handles.data as handle (handle)}
+      <SelfVerificationPill method="AT Protocol" icon={providerIcon('atproto')} identity={handle} />
+    {/each}
   </div>
 {/if}

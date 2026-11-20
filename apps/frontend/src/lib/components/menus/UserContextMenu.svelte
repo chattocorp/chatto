@@ -209,13 +209,12 @@ profile settings.
     <div class="min-w-0 flex-1">
       <AccountName name={displayName} identity={user} class="font-semibold" />
       <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
+      {#if !user.isBot && !user.deleted}
+        <AtprotoProfileHandles userId={user.id} class="mt-1.5" />
+      {/if}
       <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
     </div>
   </div>
-
-  {#if !user.isBot && !user.deleted}
-    <div class="px-3"><AtprotoProfileHandles userId={user.id} /></div>
-  {/if}
 
   {#if bio || localTime}
     <div class="space-y-1 menu-section px-3 py-2 text-start">

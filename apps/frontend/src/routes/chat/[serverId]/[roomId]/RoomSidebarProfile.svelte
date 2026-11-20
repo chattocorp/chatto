@@ -127,11 +127,11 @@ fields as realtime changes arrive.
         {#snippet avatar()}
           <UserAvatar user={menuUser} {presence} size="sm" showPresence />
         {/snippet}
+        {#if !baseUser.isBot && !baseUser.deleted}
+          <AtprotoProfileHandles {userId} class="ps-12 pe-2 pb-2" />
+        {/if}
       </UserCard>
     </div>
-    {#if !baseUser.isBot && !baseUser.deleted}
-      <AtprotoProfileHandles {userId} />
-    {/if}
     <UserCustomStatusBadge status={customStatus} showText class="mt-3 max-w-full" />
 
     <UserMenu

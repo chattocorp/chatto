@@ -120,9 +120,9 @@ describe('RoomSidebarProfile', () => {
   it('shows the linked handle in the full profile and its popup', async () => {
     userStore().set(user.id, userProfileFixture(user));
     const { container } = renderProfile();
-    await expect.element(page.getByText('@alice.example', { exact: true })).toBeVisible();
+    await expect.element(page.getByText('alice.example', { exact: true })).toBeVisible();
     const menu = await openProfileMenu(container);
-    await expect.poll(() => menu.textContent).toContain('@alice.example');
+    await expect.poll(() => menu.textContent).toContain('alice.example');
   });
 
   it('renders a cached profile while the fresh query is pending', () => {
