@@ -147,6 +147,7 @@
       }
     },
     "profile": {
+      "verified_identities": "確認済みのID",
       "title": "プロフィール",
       "fallback_title": "プロフィール",
       "not_found": "ユーザーが見つかりません",

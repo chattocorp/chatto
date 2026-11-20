@@ -147,6 +147,7 @@
       }
     },
     "profile": {
+      "verified_identities": "Verified identities",
       "title": "Profile",
       "fallback_title": "Profile",
       "not_found": "User not found",

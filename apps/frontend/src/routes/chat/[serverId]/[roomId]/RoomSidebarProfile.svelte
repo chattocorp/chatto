@@ -127,9 +127,6 @@ fields as realtime changes arrive.
         {#snippet avatar()}
           <UserAvatar user={menuUser} {presence} size="sm" showPresence />
         {/snippet}
-        {#if !baseUser.isBot && !baseUser.deleted}
-          <AtprotoProfileHandles {userId} class="ps-12 pe-2 pb-2" />
-        {/if}
       </UserCard>
     </div>
     <UserCustomStatusBadge status={customStatus} showText class="mt-3 max-w-full" />
@@ -151,6 +148,13 @@ fields as realtime changes arrive.
           viewerSettings={serverScope.store.currentUser.user?.settings}
         />
       {/key}
+    {/if}
+
+    {#if !baseUser.isBot && !baseUser.deleted}
+      <AtprotoProfileHandles
+        {userId}
+        sidebarKey={serverStorageKey(serverScope.serverId, 'profile-verified-identities-collapsed')}
+      />
     {/if}
 
     {#if bio}

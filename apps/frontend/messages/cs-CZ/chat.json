@@ -147,6 +147,7 @@
       }
     },
     "profile": {
+      "verified_identities": "Ověřené identity",
       "title": "Profil",
       "fallback_title": "Profil",
       "not_found": "Uživatel nenalezen",

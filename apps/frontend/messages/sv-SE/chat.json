@@ -147,6 +147,7 @@
       }
     },
     "profile": {
+      "verified_identities": "Verifierade identiteter",
       "title": "Profil",
       "fallback_title": "Profil",
       "not_found": "Användaren hittades inte",

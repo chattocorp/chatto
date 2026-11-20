@@ -11,6 +11,7 @@ import { createTestServerScope, type TestServerScope } from '$lib/test-utils/ser
 import RoomSidebarProfile from './RoomSidebarProfile.svelte';
 
 const batchGetUsers = vi.fn();
+const getAtprotoHandles = vi.fn<() => Promise<string[]>>();
 let server: TestServerScope;
 /** The shared profile store of the fixture's server session. */
 const userStore = () => getUserStore('origin', server.scope.connection.queryScope);
@@ -96,7 +97,7 @@ describe('RoomSidebarProfile', () => {
     resetUserStoresForTests();
     server = createTestServerScope({
       serverId: 'origin',
-      api: { batchGetUsers, getAtprotoHandles: async () => ['alice.example'] },
+      api: { batchGetUsers, getAtprotoHandles },
       viewer: {
         settings: { timezone: 'Europe/Berlin', timeFormat: TimeFormat.TIME_FORMAT_24_HOUR }
       },
@@ -107,6 +108,7 @@ describe('RoomSidebarProfile', () => {
         presence: { get: () => undefined }
       }
     });
+    getAtprotoHandles.mockResolvedValue(['alice.example']);
     batchGetUsers.mockResolvedValue([user]);
     vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2025-04-27T14:30:00Z'));
   });
@@ -121,8 +123,42 @@ describe('RoomSidebarProfile', () => {
     userStore().set(user.id, userProfileFixture(user));
     const { container } = renderProfile();
     await expect.element(page.getByText('alice.example', { exact: true })).toBeVisible();
+    const disclosure = page.getByRole('button', { name: 'Verified identities' });
+    await disclosure.click();
+    await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false');
+    await disclosure.click();
+    await expect.element(disclosure).toHaveAttribute('aria-expanded', 'true');
     const menu = await openProfileMenu(container);
     await expect.poll(() => menu.textContent).toContain('alice.example');
+    const section = menu.querySelector('h3')!.closest('section')!;
+    expect(section.textContent).toContain('Verified identities');
+    expect(section.textContent).toContain('alice.example');
+    expect(
+      section.compareDocumentPosition(menu.querySelector('[data-testid="user-bio"]')!) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('omits the identities heading in both views after an empty lookup', async () => {
+    getAtprotoHandles.mockResolvedValue([]);
+    userStore().set(user.id, userProfileFixture(user));
+    const { container } = renderProfile();
+    await expect
+      .poll(() =>
+        queryClient.getQueryData([
+          'server',
+          'origin',
+          'session',
+          server.scope.connection.queryScope,
+          'user',
+          user.id,
+          'atproto-handles'
+        ])
+      )
+      .toEqual([]);
+    expect(container.textContent).not.toContain('Verified identities');
+    const menu = await openProfileMenu(container);
+    expect(menu.textContent).not.toContain('Verified identities');
   });
 
   it('renders a cached profile while the fresh query is pending', () => {

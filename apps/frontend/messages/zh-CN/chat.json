@@ -147,6 +147,7 @@
       }
     },
     "profile": {
+      "verified_identities": "已验证的身份",
       "title": "个人资料",
       "fallback_title": "个人资料",
       "not_found": "未找到该用户",

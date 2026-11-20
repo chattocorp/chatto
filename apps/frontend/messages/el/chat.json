@@ -147,6 +147,7 @@
       }
     },
     "profile": {
+      "verified_identities": "Επαληθευμένες ταυτότητες",
       "title": "Προφίλ",
       "fallback_title": "Προφίλ",
       "not_found": "Ο χρήστης δεν βρέθηκε",

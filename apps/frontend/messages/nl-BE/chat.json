@@ -147,6 +147,7 @@
       }
     },
     "profile": {
+      "verified_identities": "Geverifieerde identiteiten",
       "title": "Profiel",
       "fallback_title": "Profiel",
       "not_found": "Gebruiker niet gevonden",

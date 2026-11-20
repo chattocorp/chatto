@@ -3,6 +3,7 @@
   import { expect } from 'storybook/test';
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import { providerIcon } from '$lib/auth/providerIcon';
+  import VerifiedIdentitiesSection from '$lib/components/users/VerifiedIdentitiesSection.svelte';
   import UserCard from './UserCard.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import SelfVerificationPill from './SelfVerificationPill.svelte';
@@ -56,7 +57,7 @@
 </Story>
 
 <Story name="Profile sidebar" asChild>
-  <div class="w-64 max-w-full">
+  <div class="w-64 max-w-full p-4">
     <UserCard variant="card" name="Alice Example" username="alice">
       {#snippet avatar()}
         <UserAvatar
@@ -70,13 +71,10 @@
           useLiveProfile={false}
         />
       {/snippet}
-      <div class="flex min-w-0 flex-wrap gap-1 ps-12 pe-2 pb-2">
-        <SelfVerificationPill
-          method="AT Protocol"
-          icon={providerIcon('atproto')}
-          identity="hmans.dev"
-        />
-      </div>
     </UserCard>
+    <VerifiedIdentitiesSection
+      sidebarKey="story-profile-identities"
+      identities={[{ method: 'AT Protocol', icon: providerIcon('atproto'), identity: 'hmans.dev' }]}
+    />
   </div>
 </Story>

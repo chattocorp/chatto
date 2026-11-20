@@ -147,6 +147,7 @@
       }
     },
     "profile": {
+      "verified_identities": "Konfirmitaj identecoj",
       "title": "Profilo",
       "fallback_title": "Profilo",
       "not_found": "Uzanto ne trovita",

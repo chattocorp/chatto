@@ -10,9 +10,9 @@ the selected server and member and stops when the profile closes or changes.
   import { useServerScope } from '$lib/state/server/scope.svelte';
 
   import { providerIcon } from '$lib/auth/providerIcon';
-  import { SelfVerificationPill } from '$lib/ui';
+  import VerifiedIdentitiesSection from './VerifiedIdentitiesSection.svelte';
 
-  let { userId, class: className }: { userId: string; class?: string } = $props();
+  let { userId, sidebarKey }: { userId: string; sidebarKey?: string } = $props();
   const scope = useServerScope();
 
   const handles = createQuery(() => {
@@ -24,12 +24,13 @@ the selected server and member and stops when the profile closes or changes.
       retry: false
     };
   });
+  const identities = $derived(
+    (handles.data ?? []).map((identity) => ({
+      identity,
+      method: 'AT Protocol',
+      icon: providerIcon('atproto')
+    }))
+  );
 </script>
 
-{#if handles.data?.length}
-  <div class={['flex min-w-0 flex-wrap gap-1', className]}>
-    {#each handles.data as handle (handle)}
-      <SelfVerificationPill method="AT Protocol" icon={providerIcon('atproto')} identity={handle} />
-    {/each}
-  </div>
-{/if}
+<VerifiedIdentitiesSection {identities} {sidebarKey} />
