@@ -30,7 +30,8 @@ uv = "0.11.30"
 _.file = '.env'
 # Share Go build-cache entries across checkout paths; preserve incoming flags.
 GOFLAGS = "{{env.GOFLAGS | default(value='')}} -trimpath"
-CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
+# Use the numeric release version for development builds, including during a beta.
+CHATTO_DEVELOPMENT_VERSION = "{{ read_file(path='.sweet.yml') | split(pat='version: ') | nth(n=1) | split(pat='\n') | first | trim | regex_replace(pattern='[-+].*', rep='') }}-dev"
 # The development stack uses the workspace port block. The base is
 # `GEORDI_PORT`, then `CONDUCTOR_PORT`, or 4000 outside these tools.
 # Each workspace needs ten ports. Tasks and scripts use these names, not offsets.
