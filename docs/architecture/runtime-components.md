@@ -485,6 +485,35 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 
 ## Background workers
 
+[ADR-123](../adr/ADR-123-durable-background-jobs.md#which-chatto-workers-stay-outside-jobs)
+defines the queue boundary. The following services run alongside the job pools.
+
+- [Notification materializer](../../cli/internal/core/notification_materializer.go).
+  Its three durable EVT consumers handle message and policy changes, invitations,
+  and role protection. Each finishes its domain writes before acknowledgement.
+  The [occurrence model](../../cli/internal/core/notification_occurrence_model.go)
+  reconciles unread occurrences against stored read boundaries at startup and
+  on subsequent changes and retries. Maintenance also prunes expired entries
+  and retries physical signal deletion from dismissal tombstones. The
+  [alert expiry loop](../../cli/internal/core/notification_alert_delivery.go)
+  resolves pending occurrences past their deadline, including ones whose signal
+  has expired. The actual Web Push attempt belongs to the alert job.
+- [LiveKit reconciliation](../../cli/internal/core/call_model.go).
+  The elected replica compares current participants with the call projection
+  and repairs mismatches. The next pass takes a new observation. Ended-call
+  key deletion has its own job.
+- [Upload expiry](../../cli/internal/core/asset_uploads.go).
+  Each pass finds expired upload sessions, orphan chunks, and expired pending
+  assets from storage. A later pass can find remaining state. A committed asset
+  deletion feeds the binary and transform-cache cleanup job.
+- [Push-subscription reconciliation](../../cli/internal/core/push_subscription_cleanup.go).
+  A lease holder scans at startup and periodically for late subscriptions and
+  orphan endpoint claims. A later holder can repeat the scan. The `push_subscription_cleanup` job handles the normal per-user cleanup.
+- [Boot repair](../../cli/internal/core/core.go). Each core replays projections
+  before it sweeps obsolete message bodies and applies idempotent configuration
+  and layout repairs. The [media startup scan](../../cli/internal/core/asset_model.go)
+  finds attached videos missing a processing-started fact and schedules them
+  through the normal media path. A later start can rediscover a missed repair.
 - **`neighborhoodDiscovery`**
   ([`neighborhood_discovery.go`](../../cli/internal/core/neighborhood_discovery.go),
   [`crawl.go`](../../cli/internal/core/neighborhood/crawl.go),
@@ -502,7 +531,8 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   Optional per-pass elected post-boot and daily publication of encrypted scalar
   generations and complete `ServerContentView` projection snapshot cohorts; a
   separate cluster-wide cooldown limits bounded S3 age expiry when Chatto owns
-  lifecycle cleanup.
+  lifecycle cleanup. A later pass can publish a fresh snapshot. Projectors can
+  replay their source when a usable snapshot is unavailable.
   Process-local snapshot metrics record final startup restore outcomes,
   publication attempts and durations, and cleanup results. The
   [snapshot collector](../../cli/internal/core/projection_snapshot_metrics.go)
@@ -515,6 +545,20 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   replicas, projected lifecycle checks remove entries that another replica
   revoked, and telemetry failure does not affect credential authentication or
   the requested action.
+
+The [core lifecycle](../../cli/internal/core/core.go) also runs the local
+projectors, event reader, read-state and notification-boundary indexes, presence
+and realtime hubs, and NATS recovery checks. Each replica follows the streams
+or watches it needs to serve its own reads. A reconnect or restart restores
+those local inputs. Socket heartbeats and presence refresh stop with their
+connection. Diagnostics sample the responding process on demand. The [runtime units](#process-and-runtime-units) supervise their own
+listeners: Bleve replays its index and probes local query readiness, and the
+exporter refreshes its cached S3 measurements on the next scan.
+
+[Link previews](../../cli/internal/core/link_previews.go) fetch on a request
+that misses the cache. [Image transforms](../../cli/internal/http_server/assets.go)
+return the requested image and can store a reusable copy in the background.
+Losing that cache write means another request may need to repeat the transform.
 
 ## Background jobs and outbound bot webhooks
 
@@ -539,10 +583,12 @@ in-memory projection of `JOBS` with one payload-free summary for each job.
 `ListJobs`, `GetJob`, `RetryJob`, and `DeleteJob` read it. The view is built again from the
 retained facts on each start. Standalone media processes do not run it.
 
-[`newEffectJob`](../../cli/internal/core/effect_jobs.go) uses `jobs.Effect` to move the asset cleanup,
-call-key cleanup, push-subscription cleanup, runtime credential cleanup, user-key shredding, and
+[`newEffectJob`](../../cli/internal/core/effect_jobs.go) uses `jobs.Effect` to move the asset and branding cleanup,
+message-body erasure, call-key cleanup, push-subscription cleanup, runtime credential cleanup, user-key shredding, and
 notification alert consumers onto the queue. Each owning model keeps its
-handler; the source consumer only accepts jobs.
+handler; the source consumer only accepts jobs. During an alert attempt, the
+[push sender](../../cli/internal/push/push.go) bounds concurrent endpoint
+requests and waits for their results. The alert job owns the delivery outcome.
 
 [`botWebhookModel`](../../cli/internal/core/bot_webhook_worker.go) owns source
 selection and one HTTP attempt. The durable EVT source persists each endpoint's
