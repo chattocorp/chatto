@@ -142,9 +142,11 @@ type GetUserRequest struct {
 	//
 	//	*GetUserRequest_UserId
 	//	*GetUserRequest_Login
-	Target        isGetUserRequest_Target `protobuf_oneof:"target"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Target isGetUserRequest_Target `protobuf_oneof:"target"`
+	// Resolve public handles for linked AT Protocol accounts.
+	IncludeAtprotoHandles bool `protobuf:"varint,3,opt,name=include_atproto_handles,json=includeAtprotoHandles,proto3" json:"include_atproto_handles,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *GetUserRequest) Reset() {
@@ -202,6 +204,13 @@ func (x *GetUserRequest) GetLogin() string {
 	return ""
 }
 
+func (x *GetUserRequest) GetIncludeAtprotoHandles() bool {
+	if x != nil {
+		return x.IncludeAtprotoHandles
+	}
+	return false
+}
+
 type isGetUserRequest_Target interface {
 	isGetUserRequest_Target()
 }
@@ -224,9 +233,11 @@ func (*GetUserRequest_Login) isGetUserRequest_Target() {}
 type GetUserResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Requested user.
-	User          *DirectoryMember `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	User *DirectoryMember `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	// Current AT Protocol handles without @, when requested. Unresolved handles are omitted.
+	AtprotoHandles []string `protobuf:"bytes,2,rep,name=atproto_handles,json=atprotoHandles,proto3" json:"atproto_handles,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetUserResponse) Reset() {
@@ -262,6 +273,13 @@ func (*GetUserResponse) Descriptor() ([]byte, []int) {
 func (x *GetUserResponse) GetUser() *DirectoryMember {
 	if x != nil {
 		return x.User
+	}
+	return nil
+}
+
+func (x *GetUserResponse) GetAtprotoHandles() []string {
+	if x != nil {
+		return x.AtprotoHandles
 	}
 	return nil
 }
@@ -699,13 +717,15 @@ const file_chatto_api_v1_user_service_proto_rawDesc = "" +
 	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\x99\x01\n" +
 	"\x11ListUsersResponse\x124\n" +
 	"\x05users\x18\x01 \x03(\v2\x1e.chatto.api.v1.DirectoryMemberR\x05users\x12+\n" +
-	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"_\n" +
+	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"\x97\x01\n" +
 	"\x0eGetUserRequest\x12\"\n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x06userId\x12\x1f\n" +
-	"\x05login\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05loginB\b\n" +
-	"\x06target\"E\n" +
+	"\x05login\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05login\x126\n" +
+	"\x17include_atproto_handles\x18\x03 \x01(\bR\x15includeAtprotoHandlesB\b\n" +
+	"\x06target\"n\n" +
 	"\x0fGetUserResponse\x122\n" +
-	"\x04user\x18\x01 \x01(\v2\x1e.chatto.api.v1.DirectoryMemberR\x04user\"C\n" +
+	"\x04user\x18\x01 \x01(\v2\x1e.chatto.api.v1.DirectoryMemberR\x04user\x12'\n" +
+	"\x0fatproto_handles\x18\x02 \x03(\tR\x0eatprotoHandles\"C\n" +
 	"\x14BatchGetUsersRequest\x12+\n" +
 	"\buser_ids\x18\x01 \x03(\tB\x10\xbaH\r\x92\x01\n" +
 	"\b\x01\x10d\"\x04r\x02\x10\x01R\auserIds\"M\n" +

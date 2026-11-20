@@ -54,8 +54,8 @@ Narrower designs do not remove this:
 
 ## Consequences
 
-- AT Protocol sign-in works without a published identity. Members do not see
-  which AT Protocol identity an account uses.
+- Members can see server-reported handles in a profile. The linked DID stays
+  private. The profile makes no independent verification claim.
 - Authling, at chatto.id and on self-hosted instances, is the likely issuer.
   It already verifies identities, shows its own consent page, and signs with
   rotated keys. That needs its own Authling decision (#3604).

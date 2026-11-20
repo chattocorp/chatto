@@ -60,7 +60,12 @@ show handles as verified.
 written by every app that has write access to that repository, for example
 apps with app passwords. A modified server and one such app could link a
 user's identity to a different account (ADR-124).
-**Tradeoff:** Members cannot see which AT Protocol identity an account uses.
+**Profile display:** The profile card and full profile show the handles of linked
+AT Protocol accounts to other server members. The server resolves each linked
+DID when a client requests handles. The directory caches successful lookups
+for up to a day, so a renamed handle can take time to change. A missing handle
+or failed lookup leaves that handle out. Disconnecting the account removes
+its handle from subsequent reads.
 
 ### 3. A remembered handle instead of a device session
 
@@ -94,6 +99,7 @@ verification.
 - **Sign-in:** the server contacts the handle domain, the PLC directory for
   `did:plc` identities, the user's PDS, and its authorization server. From the
   PDS, it also reads the public profile record and the avatar image.
+- **Profile reads:** On a cache miss, the server contacts the identity directory and handle domain. Those services see the server’s address. The viewer connects only to Chatto.
 - **Remembered handle:** it stays in the browser's storage. The device sends
   it only to the server where the user signs in.
 - **Logs:** handles, DIDs, and tokens identify users. The server does not log

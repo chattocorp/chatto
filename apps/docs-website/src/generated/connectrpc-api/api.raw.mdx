@@ -4735,6 +4735,7 @@ Request one visible user by stable user ID or login.
 | --- | --- | --- |
 | `target.user_id` | `string` | Target stable user ID. |
 | `target.login` | `string` | Target login identifier. |
+| `include_atproto_handles` | `bool` | Resolve public handles for linked AT Protocol accounts. |
 
 
 <a id="chatto-api-v1-GetUserResponse"></a>
@@ -4746,6 +4747,7 @@ User directory response.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user` | [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Requested user. |
+| `atproto_handles` | `repeated string` | Current AT Protocol handles without @, when requested. Unresolved handles are omitted. |
 
 
 <a id="chatto-api-v1-UserService-BatchGetUsers"></a>

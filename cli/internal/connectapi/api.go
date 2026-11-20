@@ -4,10 +4,12 @@ import (
 	"context"
 	"math"
 	"net/http"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
 	"connectrpc.com/validate"
+	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/email"
@@ -53,6 +55,8 @@ type API struct {
 	version        string
 	searchProvider MessageSearchProviderClient
 	emailSender    email.Sender
+	// atprotoDirectory shares cached handle lookups across profile reads on this replica.
+	atprotoDirectory func() identity.Directory
 }
 
 // MessageSearchProviderClient calls the trusted provider contract used behind
@@ -77,7 +81,7 @@ func WithEmailSender(sender email.Sender) APIOption {
 }
 
 func New(core *core.ChattoCore, config config.ChattoConfig, version string, options ...APIOption) *API {
-	api := &API{core: core, config: config, version: version}
+	api := &API{core: core, config: config, version: version, atprotoDirectory: sync.OnceValue(identity.DefaultDirectory)}
 	for _, option := range options {
 		if option != nil {
 			option(api)

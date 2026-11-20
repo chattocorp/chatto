@@ -281,6 +281,8 @@ An empty search reads lifecycle and membership metadata without profile
 decryption. Name searches hydrate profiles to match login and display name.
 An optional presence-status filter uses the shared watcher snapshot before
 pagination. Counts describe the filtered set. It does not read per-user KV keys.
+`UserService.GetUser` can resolve linked AT Protocol handles on request. It uses a directory cache on each replica. Clients receive only the resolved handles.
+
 `UserService.BatchGetUsers` assembles requested profiles with bounded concurrency
 and one request-scoped encryption-key cache. See
 [FDR-025](../fdr/FDR-025-user-search-and-member-directory.md).

@@ -137,6 +137,13 @@ export class GetUserRequest extends Message<GetUserRequest> {
     case: "login";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
+  /**
+   * Resolve public handles for linked AT Protocol accounts.
+   *
+   * @generated from field: bool include_atproto_handles = 3;
+   */
+  includeAtprotoHandles = false;
+
   constructor(data?: PartialMessage<GetUserRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -147,6 +154,7 @@ export class GetUserRequest extends Message<GetUserRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "target" },
     { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "target" },
+    { no: 3, name: "include_atproto_handles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserRequest {
@@ -179,6 +187,13 @@ export class GetUserResponse extends Message<GetUserResponse> {
    */
   user?: DirectoryMember;
 
+  /**
+   * Current AT Protocol handles without @, when requested. Unresolved handles are omitted.
+   *
+   * @generated from field: repeated string atproto_handles = 2;
+   */
+  atprotoHandles: string[] = [];
+
   constructor(data?: PartialMessage<GetUserResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -188,6 +203,7 @@ export class GetUserResponse extends Message<GetUserResponse> {
   static readonly typeName = "chatto.api.v1.GetUserResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user", kind: "message", T: DirectoryMember },
+    { no: 2, name: "atproto_handles", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserResponse {

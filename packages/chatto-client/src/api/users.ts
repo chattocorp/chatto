@@ -39,6 +39,14 @@ export function createUserAPI(config: ConnectAPIConfig) {
   };
 
   return {
+    /** Read the server-resolved AT Protocol handles for a member profile. */
+    async getAtprotoHandles(userId: string, signal?: AbortSignal): Promise<string[]> {
+      const response = await client.getUser(
+        { target: { case: 'userId', value: userId }, includeAtprotoHandles: true },
+        { signal }
+      );
+      return response.atprotoHandles;
+    },
     async batchGetUsers(userIds: string[], minimumCursor?: string): Promise<UserSummary[]> {
       const read = async (ids: string[]) =>
         (

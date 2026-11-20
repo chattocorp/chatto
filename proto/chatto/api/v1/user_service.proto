@@ -41,12 +41,16 @@ message GetUserRequest {
     // Target login identifier.
     string login = 2 [(buf.validate.field).string.min_len = 1];
   }
+  // Resolve public handles for linked AT Protocol accounts.
+  bool include_atproto_handles = 3;
 }
 
 // User directory response.
 message GetUserResponse {
   // Requested user.
   DirectoryMember user = 1;
+  // Current AT Protocol handles without @, when requested. Unresolved handles are omitted.
+  repeated string atproto_handles = 2;
 }
 
 // Request user directory rows for a set of stable user IDs.

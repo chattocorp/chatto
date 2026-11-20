@@ -8,6 +8,7 @@ component uses cached user data while it refreshes and updates shared profile
 fields as realtime changes arrive.
 -->
 <script lang="ts">
+  import AtprotoProfileHandles from '$lib/components/users/AtprotoProfileHandles.svelte';
   import { createUserAPI } from '@chatto/client/api/users';
   import BotOwnerRow from '$lib/components/bots/BotOwnerRow.svelte';
   import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
@@ -128,6 +129,9 @@ fields as realtime changes arrive.
         {/snippet}
       </UserCard>
     </div>
+    {#if !baseUser.isBot && !baseUser.deleted}
+      <AtprotoProfileHandles {userId} />
+    {/if}
     <UserCustomStatusBadge status={customStatus} showText class="mt-3 max-w-full" />
 
     <UserMenu

@@ -41,6 +41,10 @@ vi.mock('$lib/navigation', () => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: serverScopeMock.serverId,
+    connection: {
+      queryScope: 'menu-session',
+      getAPI: () => ({ getAtprotoHandles: async () => ['alice.example'] })
+    },
     store: {
       get accountId() {
         return serverScopeMock.accountId;

@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
 	"connectrpc.com/connect"
+	"github.com/bluesky-social/indigo/atproto/syntax"
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 )
@@ -86,7 +90,38 @@ func (s *userService) GetUser(ctx context.Context, req *connect.Request[apiv1.Ge
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.GetUserResponse{User: member}), nil
+	out := &apiv1.GetUserResponse{User: member}
+	if req.Msg.GetIncludeAtprotoHandles() && !user.IsBot && !user.Deleted {
+		links, err := s.api.core.ExternalIdentitiesForUser(ctx, user.Id)
+		if err != nil {
+			return nil, err
+		}
+		out.AtprotoHandles = s.profileHandles(ctx, links)
+	}
+	return connect.NewResponse(out), nil
+}
+
+// profileHandles resolves only linked AT Protocol DIDs. Directory failures
+// omit individual handles so a remote outage cannot hide the local profile.
+func (s *userService) profileHandles(ctx context.Context, links []core.ExternalIdentity) []string {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	var handles []string
+	for _, link := range links {
+		if link.ProviderType != config.AuthProviderTypeATProto {
+			continue
+		}
+		did, err := syntax.ParseDID(link.Subject)
+		if err != nil {
+			continue
+		}
+		account, err := s.api.atprotoDirectory().LookupDID(ctx, did)
+		if err == nil && account.Handle != "" && !account.Handle.IsInvalidHandle() {
+			handles = append(handles, account.Handle.Normalize().String())
+		}
+	}
+	slices.Sort(handles)
+	return slices.Compact(handles)
 }
 
 func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[apiv1.BatchGetUsersRequest]) (*connect.Response[apiv1.BatchGetUsersResponse], error) {

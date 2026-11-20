@@ -96,7 +96,7 @@ describe('RoomSidebarProfile', () => {
     resetUserStoresForTests();
     server = createTestServerScope({
       serverId: 'origin',
-      api: { batchGetUsers },
+      api: { batchGetUsers, getAtprotoHandles: async () => ['alice.example'] },
       viewer: {
         settings: { timezone: 'Europe/Berlin', timeFormat: TimeFormat.TIME_FORMAT_24_HOUR }
       },
@@ -115,6 +115,14 @@ describe('RoomSidebarProfile', () => {
     currentRender?.unmount();
     currentRender = null;
     vi.restoreAllMocks();
+  });
+
+  it('shows the linked handle in the full profile and its popup', async () => {
+    userStore().set(user.id, userProfileFixture(user));
+    const { container } = renderProfile();
+    await expect.element(page.getByText('@alice.example', { exact: true })).toBeVisible();
+    const menu = await openProfileMenu(container);
+    await expect.poll(() => menu.textContent).toContain('@alice.example');
   });
 
   it('renders a cached profile while the fresh query is pending', () => {
