@@ -46,6 +46,7 @@ const caches = {
     removeAdmin: vi.fn(),
     refreshAdmin: vi.fn(),
     refreshRoles: vi.fn(),
+    removeProfile: vi.fn(),
     removeAdminUser: vi.fn(),
     reconcileAdminRoomGroups: vi.fn()
   },
@@ -118,6 +119,7 @@ describe('connectQueryCaches', () => {
 
     emit('onUserDeleted', 'U2');
     expect(caches.roomMembers.scrubUser).toHaveBeenCalledWith('S1', 'U2');
+    expect(caches.server.removeProfile).toHaveBeenCalledWith('S1', 'U2');
     expect(caches.server.removeAdminUser).toHaveBeenCalledWith('S1', 'U2');
     expect(caches.followedThreads.reset).toHaveBeenCalledWith('S1');
   });

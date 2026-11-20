@@ -32,3 +32,8 @@ export type QueryKeyScope = {
 export function serverSessionQueryRoot(scope: QueryKeyScope) {
   return [...serverQueryRoot(scope.serverId), 'session', scope.connection.queryScope] as const;
 }
+
+/** The public profile identities cached for one member and viewer session. */
+export function profileVerifiedIdentitiesKey(scope: QueryKeyScope, userId: string) {
+  return [...serverSessionQueryRoot(scope), 'user', userId, 'verified-identities'] as const;
+}

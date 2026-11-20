@@ -8,6 +8,7 @@ component uses cached user data while it refreshes and updates shared profile
 fields as realtime changes arrive.
 -->
 <script lang="ts">
+  import ProfileVerifiedIdentities from '$lib/components/users/ProfileVerifiedIdentities.svelte';
   import { createUserAPI } from '@chatto/client/api/users';
   import BotOwnerRow from '$lib/components/bots/BotOwnerRow.svelte';
   import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
@@ -147,6 +148,13 @@ fields as realtime changes arrive.
           viewerSettings={serverScope.store.currentUser.user?.settings}
         />
       {/key}
+    {/if}
+
+    {#if !baseUser.isBot && !baseUser.deleted}
+      <ProfileVerifiedIdentities
+        {userId}
+        sidebarKey={serverStorageKey(serverScope.serverId, 'profile-verified-identities-collapsed')}
+      />
     {/if}
 
     {#if bio}

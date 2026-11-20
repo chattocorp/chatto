@@ -151,6 +151,7 @@
       }
     },
     "profile": {
+      "verified_identities": "Apstiprinātās identitātes",
       "title": "Profils",
       "fallback_title": "Profils",
       "not_found": "Lietotājs nav atrasts",

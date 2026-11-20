@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -1870,4 +1871,36 @@ func TestMyAccountServiceSettingsPatchPresence(t *testing.T) {
 	if got := response.Msg.GetSettings(); got.Timezone == nil || got.GetTimezone() != "" || got.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_AUTO {
 		t.Fatalf("explicit defaults must clear overrides: %+v", got)
 	}
+}
+
+func TestGetUserVerifiedIdentities(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	directory := identity.NewMockDirectory()
+	env.api.atprotoDirectory = func() identity.Directory { return directory }
+	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "handle-member", "Member", "password")
+	require.NoError(t, err)
+	ctx := withCaller(env.ctx, env.viewer)
+	link := func(providerType, subject string) core.ExternalIdentity {
+		id, err := env.core.LinkExternalIdentityAs(ctx, target.Id, providerType, providerType, providerType, subject, target.Id)
+		require.NoError(t, err)
+		return id
+	}
+	linked := link("atproto", "did:plc:member")
+	link("atproto", "did:plc:missing")
+	link("oidc", "did:plc:private")
+	directory.Insert(identity.Identity{DID: "did:plc:member", Handle: "alice.example"})
+	directory.Insert(identity.Identity{DID: "did:plc:private", Handle: "private.example"})
+	read := func(include bool) []*apiv1.VerifiedIdentity {
+		response, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{
+			Target: &apiv1.GetUserRequest_UserId{UserId: target.Id}, IncludeVerifiedIdentities: include,
+		}))
+		require.NoError(t, err)
+		return response.Msg.VerifiedIdentities
+	}
+	require.Empty(t, read(false))
+	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "alice.example"}}, read(true))
+	directory.Insert(identity.Identity{DID: "did:plc:member", Handle: "new.example"})
+	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "new.example"}}, read(true))
+	require.NoError(t, env.core.DisconnectExternalIdentityAs(ctx, target.Id, target.Id, linked.SubjectHash, core.ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}))
+	require.Empty(t, read(true))
 }

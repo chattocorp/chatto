@@ -154,6 +154,7 @@
       }
     },
     "profile": {
+      "verified_identities": "Підтверджені ідентичності",
       "title": "Профіль",
       "fallback_title": "Профіль",
       "not_found": "Користувача не знайдено",

@@ -148,6 +148,7 @@
       }
     },
     "profile": {
+      "verified_identities": "已驗證的身分",
       "title": "個人資料",
       "fallback_title": "個人資料",
       "not_found": "找不到該使用者",

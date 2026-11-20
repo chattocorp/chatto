@@ -148,6 +148,7 @@
       }
     },
     "profile": {
+      "verified_identities": "Bekreftede identiteter",
       "title": "Profil",
       "fallback_title": "Profil",
       "not_found": "Brukeren ble ikke funnet",

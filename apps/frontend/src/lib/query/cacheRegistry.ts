@@ -28,6 +28,8 @@ export type ServerQueryCache = {
   refreshAdmin(serverId: string): void;
   /** Refresh role displays without invalidating the private-data generation. */
   refreshRoles(serverId: string): void;
+  /** Cancel and remove reads for a deleted member’s public profile. */
+  removeProfile(serverId: string, userId: string): void;
   /** Remove admin snapshots that can retain a removed user's private data. */
   removeAdminUser(serverId: string, userId: string): void;
   /** Reconcile visible room groups and refresh matrix columns after layout changes. */
@@ -158,6 +160,7 @@ export function connectQueryCaches(store: ServerStateStore): () => void {
     store.onUserDeleted((userId) => {
       queryCaches.followedThreads?.reset(serverId);
       queryCaches.roomMembers?.scrubUser(serverId, userId);
+      queryCaches.server?.removeProfile(serverId, userId);
       removeRegisteredAdminUserQueries(serverId, userId);
     }),
     store.onAuthorityChanged(({ lost }) => {

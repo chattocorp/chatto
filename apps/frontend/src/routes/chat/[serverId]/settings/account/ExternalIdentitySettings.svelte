@@ -20,7 +20,8 @@
   import { Panel, LoadingDots, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { providerIcon } from '$lib/auth/providerIcon';
-  import { createQuery } from '$lib/query/client';
+  import { profileVerifiedIdentitiesKey } from '$lib/query/keys';
+  import { createQuery, queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverRegistry } from '$lib/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -91,7 +92,10 @@
       return;
     linkUpdates = new BroadcastChannel('chatto-provider-linked');
     linkUpdates.onmessage = ({ data }) => {
-      if (accountId && data === accountId) void identitiesQuery.refetch();
+      if (accountId && data === accountId) {
+        resetProfileIdentities(accountId);
+        void identitiesQuery.refetch();
+      }
     };
     return () => linkUpdates?.close();
   });
@@ -104,8 +108,36 @@
     );
   }
 
-  function refreshAfterProviderLink() {
-    if (providerLinkIsCurrent()) void identitiesQuery.refetch();
+  function resetProfileIdentities(userId: string) {
+    void queryClient.resetQueries({
+      queryKey: profileVerifiedIdentitiesKey(serverScope, userId),
+      exact: true
+    });
+  }
+
+  // A closed window may have completed the link just before the final poll.
+  async function refreshAfterProviderLink() {
+    const pending = providerLinkWindow;
+    if (pending && providerLinkIsCurrent())
+      await readProviderLink(pending, { cancelRefetch: true });
+  }
+
+  async function readProviderLink(
+    pending: NonNullable<typeof providerLinkWindow>,
+    options: { cancelRefetch: boolean }
+  ) {
+    const result = await identitiesQuery.refetch(options);
+    if (
+      !session.isCurrent(pending.scope) ||
+      pending.userId !== accountId ||
+      !result.isSuccess ||
+      !result.data.providers.some(
+        (provider) => provider.id === pending.providerId && provider.linked
+      )
+    )
+      return false;
+    resetProfileIdentities(pending.userId);
+    return true;
   }
 
   // The provider window has no opener and can be on another origin. Confirm
@@ -115,13 +147,10 @@
     if (!pending || checkingLink || !providerLinkIsCurrent()) return;
     checkingLink = true;
     try {
-      const result = await identitiesQuery.refetch({ cancelRefetch: false });
-      if (providerLinkWindow !== pending || !providerLinkIsCurrent()) return;
       if (
-        result.isSuccess &&
-        result.data.providers.some(
-          (provider) => provider.id === pending.providerId && provider.linked
-        )
+        (await readProviderLink(pending, { cancelRefetch: false })) &&
+        providerLinkWindow === pending &&
+        providerLinkIsCurrent()
       ) {
         providerLinkWindow = null;
         await currentUser.load();
@@ -431,6 +460,7 @@
       if (!session.isCurrent(variables)) {
         return;
       }
+      if (accountId) resetProfileIdentities(accountId);
       disconnectTarget = null;
       disconnectFreshAuthTarget = null;
       disconnectCurrentPassword = '';

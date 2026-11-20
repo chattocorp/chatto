@@ -39,6 +39,7 @@ export { default as Panel } from './Panel.svelte';
 export { default as ProgressBar } from './ProgressBar.svelte';
 export { default as PaneHeader } from './PaneHeader.svelte';
 export { default as PaneContent } from './PaneContent.svelte';
+export { default as SelfVerificationPill } from './SelfVerificationPill.svelte';
 export { default as Pill } from './Pill.svelte';
 export { default as PreviewAction } from './PreviewAction.svelte';
 export { default as PreviewToolbar } from './PreviewToolbar.svelte';

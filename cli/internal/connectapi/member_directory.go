@@ -2,14 +2,19 @@ package connectapi
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
+	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
 	"connectrpc.com/connect"
+	"github.com/bluesky-social/indigo/atproto/syntax"
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 )
@@ -86,7 +91,46 @@ func (s *userService) GetUser(ctx context.Context, req *connect.Request[apiv1.Ge
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.GetUserResponse{User: member}), nil
+	out := &apiv1.GetUserResponse{User: member}
+	if req.Msg.GetIncludeVerifiedIdentities() && !user.IsBot && !user.Deleted {
+		links, err := s.api.core.ExternalIdentitiesForUser(ctx, user.Id)
+		if err != nil {
+			return nil, err
+		}
+		out.VerifiedIdentities = s.verifiedIdentities(ctx, links)
+	}
+	return connect.NewResponse(out), nil
+}
+
+// verifiedIdentities publishes only the public values resolved by supported
+// methods. Private provider subjects never appear in the response.
+func (s *userService) verifiedIdentities(ctx context.Context, links []core.ExternalIdentity) []*apiv1.VerifiedIdentity {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	var identities []*apiv1.VerifiedIdentity
+	for _, link := range links {
+		if link.ProviderType != config.AuthProviderTypeATProto {
+			continue
+		}
+		did, err := syntax.ParseDID(link.Subject)
+		if err != nil {
+			continue
+		}
+		account, err := s.api.atprotoDirectory().LookupDID(ctx, did)
+		if err == nil && account.Handle != "" && !account.Handle.IsInvalidHandle() {
+			identities = append(identities, &apiv1.VerifiedIdentity{
+				Method:      config.AuthProviderTypeATProto,
+				MethodLabel: "AT Protocol",
+				Value:       account.Handle.Normalize().String(),
+			})
+		}
+	}
+	slices.SortFunc(identities, func(a, b *apiv1.VerifiedIdentity) int {
+		return cmp.Or(strings.Compare(a.Method, b.Method), strings.Compare(a.Value, b.Value))
+	})
+	return slices.CompactFunc(identities, func(a, b *apiv1.VerifiedIdentity) bool {
+		return a.Method == b.Method && a.Value == b.Value
+	})
 }
 
 func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[apiv1.BatchGetUsersRequest]) (*connect.Response[apiv1.BatchGetUsersResponse], error) {

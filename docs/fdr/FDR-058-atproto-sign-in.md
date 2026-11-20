@@ -6,9 +6,8 @@
 ## Overview
 
 Users can sign in to Chatto with their AT Protocol identity, for example a
-Bluesky account. Chatto does not show AT Protocol handles as verified. A
-verified handle needs an independent issuer, which Chatto does not have yet
-(ADR-124).
+Bluesky account. The server reports the linked handle as a profile identity.
+Independent verification by the viewer requires an issuer (ADR-124).
 
 ## Behavior
 
@@ -23,8 +22,8 @@ verified handle needs an independent issuer, which Chatto does not have yet
   sign-in.
 - The linked external identity is the DID. A handle change does not change the
   link. With `manage_usernames`, a new account gets the handle as its username.
-  A handle that is not a valid username, for example one longer than 32
-  characters, then prevents account creation, as for other providers.
+  A handle that is not a valid username, for example one longer than the
+  configured username limit, then prevents account creation, as for other providers.
 - A new account gets the display name and avatar of the user's public Bluesky
   profile (`app.bsky.actor.profile`) as suggestions, when the repository has
   one. Without it, the handle is the display name suggestion. A signed-in
@@ -54,13 +53,29 @@ the loopback client, for which the PDS asks every time.
 
 ### 2. No verified handles from repository records
 
-**Decision:** Chatto does not publish the linked DID on profiles and does not
-show handles as verified.
+**Decision:** Chatto keeps the linked DID private. The profile shows a handle
+that the server resolved from the linked sign-in identity.
 **Why:** A proof that the user writes to their own repository can also be
 written by every app that has write access to that repository, for example
 apps with app passwords. A modified server and one such app could link a
 user's identity to a different account (ADR-124).
-**Tradeoff:** Members cannot see which AT Protocol identity an account uses.
+**Profile display:** The profile card and full profile show the handles of linked
+AT Protocol accounts to other server members. The card shows the pills between the identity header and the bio.
+The profile sidebar uses a collapsible **Verified identities** section before **About** and remembers its state per server. Both views omit the
+section when the account has no available identities. Each handle appears in a green
+self-verification pill. A 1px gap separates the @ icon from the handle.
+The pill stays on one line. If the handle is too long, an ellipsis marks
+the omitted text. Hovering over the pill shows the full handle. The
+label reflects the server operator’s verification, including links the operator
+creates after checking account ownership (ADR-124). The server resolves each linked
+DID when a client requests verified identities. The AT Protocol entry uses
+the method key `atproto` and the handle as its public value. The directory caches successful lookups
+for up to a day, so a renamed handle can take time to change. A missing handle
+or failed lookup leaves that handle out. Disconnecting the account removes
+its handle from subsequent server reads. The popup and sidebar share a session
+cache. Reopening either view shows cached identities immediately. After 30 seconds,
+reopening also refreshes them in the background. The cache drops unused results
+after five minutes.
 
 ### 3. A remembered handle instead of a device session
 
@@ -94,6 +109,7 @@ verification.
 - **Sign-in:** the server contacts the handle domain, the PLC directory for
   `did:plc` identities, the user's PDS, and its authorization server. From the
   PDS, it also reads the public profile record and the avatar image.
+- **Profile reads:** On a cache miss, the server contacts the identity directory and handle domain. Those services see the server’s address. The viewer connects only to Chatto.
 - **Remembered handle:** it stays in the browser's storage. The device sends
   it only to the server where the user signs in.
 - **Logs:** handles, DIDs, and tokens identify users. The server does not log
@@ -107,7 +123,10 @@ verification.
 
 ## Open Questions
 
-- **Verified handles:** ADR-124 describes the requirements for an issuer.
+- **Independent verification:** A future client can use evidence from a trusted
+  third party to verify an account link. ADR-124 describes the issuer requirements.
+- **Profile visibility:** A later version should let members opt in to showing
+  a linked identity. This version displays eligible identities automatically.
 - **Windowless sign-in:** AT Protocol service tokens do not name the app that
   requested them, so they are not safe for sign-in. A future protocol feature
   that binds a token to the server's OAuth client could remove the sign-in

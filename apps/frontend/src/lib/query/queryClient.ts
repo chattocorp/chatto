@@ -292,6 +292,12 @@ queryCaches.server = {
   removeAdmin: removeAdminQueries,
   refreshAdmin: refreshAdminQueries,
   refreshRoles: refreshRoleQueries,
+  removeProfile(serverId, userId) {
+    purgeQueries({
+      queryKey: serverQueryRoot(serverId),
+      predicate: ({ queryKey }) => queryKey[4] === 'user' && queryKey[5] === userId
+    });
+  },
   removeAdminUser: removeAdminUserQueries,
   reconcileAdminRoomGroups: reconcileAdminRoomGroupQueries
 };
