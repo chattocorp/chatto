@@ -1256,9 +1256,11 @@ describe('ServerSidebarEntry', () => {
     await expect.element(badge).toBeInTheDocument();
     await expect.element(badge).toHaveClass('bg-attention');
     const tile = q(container, '[data-testid="server-icon"]');
-    expect(badge!.getBoundingClientRect().top).toBeGreaterThan(
-      tile!.getBoundingClientRect().bottom
-    );
+    // The badge overlaps the tile's top-end corner.
+    const badgeRect = badge!.getBoundingClientRect();
+    const tileRect = tile!.getBoundingClientRect();
+    expect(badgeRect.top).toBeLessThan(tileRect.top + tileRect.height / 2);
+    expect(badgeRect.right).toBeGreaterThan(tileRect.left + tileRect.width / 2);
     (badge?.closest('button') as HTMLButtonElement).click();
 
     await vi.waitFor(() => {
