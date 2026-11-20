@@ -257,6 +257,11 @@ export class AuthPage {
    */
   async register(username: string, email: string, password: string): Promise<void> {
     await this.gotoRegister();
+    await this.completeRegistration(username, email, password);
+  }
+
+  /** Complete the registration form at its current URL. */
+  async completeRegistration(username: string, email: string, password: string): Promise<void> {
     await this.emailInput.fill(email);
     await this.clearCapturedEmails();
     await this.continueButton.click();
