@@ -17,10 +17,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 <ReleaseFeatureGrid>
   <ReleaseFeatureCard title="Sign in with an internet handle" size="large">
-    On servers that offer this option, enter your AT Protocol handle, such as your Bluesky handle, and approve the sign-in. A new account starts with your public display name and avatar. Chatto requests identity access only.
+    On servers that offer this option, enter your AT Protocol handle, such as your Bluesky handle, and approve the sign-in. If you have a public Bluesky profile, Chatto uses it to suggest a display name and avatar for your new account. Chatto requests identity access only.
   </ReleaseFeatureCard>
   <ReleaseFeatureCard title="Call controls that stay in reach" size="large">
-    The app header shows your call’s room, microphone, camera, screen sharing, and leave button even when you open another room or server. A status light shows when you speak or lose your connection.
+    You can mute your microphone, switch your camera on or off, or leave the call from the app header, even after you open another room or server. The call button glows when you speak and shows a warning if the connection is poor or lost.
   </ReleaseFeatureCard>
   <ReleaseFeatureCard title="Help inside Chatto">
     Open Help in the app header for guides to formatting messages, setting up bots, and installing Chatto on your phone. The guides are available in all supported languages.
@@ -35,7 +35,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Type `#` in the composer to link a server or a room across your connected servers. Open the sidebar’s server menu to copy a server link, mark the server as read, or sign out.
 - Open **Room information** to check the room’s Slow Mode and Threading Mode before you post.
 - Open text attachments in the file viewer to select and copy text. Suitable video uploads keep their original quality up to 1080p.
-- In **App Preferences → Experiments**, you can try compressing oversized videos before upload or showing the author’s username beside their display name.
+- When video uploads are enabled and a video exceeds the server’s upload limit, the composer automatically tries to compress it on your device. This requires browser support for the video’s format.
+- To show the author’s username beside their display name, turn on **New message header** in **App Preferences → Experiments**.
 - Chatto Desktop has Intel and universal macOS downloads. Automatic updates use the universal app on Intel and Apple Silicon.
 
 ### Fixes
@@ -49,13 +50,13 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Links render correctly before a colon and keep their spacing in the composer. Hover previews wait while a context menu is open. Deleting the last visible message of a day clears its date heading.
 - Gallery zoom controls stay visible between images. Attachment actions stay below the preview, and converted GIFs open in the viewer when you select them.
 - **Browser default** follows your browser’s time zone. Chatto saves a named time zone only when you choose one. You can clear an existing choice in Settings.
-- Signed-out users can leave Settings with the back arrow. Access Denied screens also have a way back. Settings uses two columns on wide windows.
+- Signed-out users can leave Settings with the back arrow. Access Denied screens also have a way back. The Account, Profile, Composer, and Voice & video settings pages use two columns on wide windows.
 
 ## Running Chatto
 
 <ReleaseFeatureGrid>
   <ReleaseFeatureCard title="Inspect and retry background jobs" size="large">
-    Open **Server Administration → Jobs** to inspect work such as webhook delivery, media processing, and account cleanup. With the `server.manage` permission, you can retry a failed job or delete it.
+    Open **Server Administration → Jobs** to inspect work such as webhook delivery, media processing, and account cleanup. With the `server.manage` permission, you can delete failed jobs or retry them if they have not expired.
   </ReleaseFeatureCard>
   <ReleaseFeatureCard title="Choose which roles to activate in Shield Mode" size="large">
     Role managers can protect individual roles. Members can activate the protected roles they need for up to 15 minutes, and the event log records their selection. The owner role always requires activation.
@@ -74,7 +75,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ### Fixes
 
-- Outbound webhooks and accepted registration, verification, and password-reset emails survive restarts. Mail delivery retries until the code or link expires. SMTP message IDs use the sender’s domain, which avoids rejection of mail sent from containers.
+- Outbound webhooks and accepted registration, verification, and password-reset emails survive restarts. Mail delivery retries until the code or link expires. SMTP message IDs now use the configured sender’s domain. This helps when a mail provider rejects a container hostname in the message ID.
 - Another replica can finish interrupted cleanup of old branding images, obsolete message bodies, and deleted accounts’ sessions and tokens. It can also finish scheduled Neighborhood refreshes.
 - Server Administration warns when a projection stops advancing. Web Push test logs identify the failed step and include the push service’s HTTP status when available.
 - Server startup retries temporary JetStream provisioning failures. In `chatto init -i`, pressing Enter on the final review creates the configuration files.
@@ -83,7 +84,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 <ReleaseFeatureGrid>
   <ReleaseFeatureCard title="More actions for MCP agents">
-    Agents can send direct messages by user ID, read and reply to threads, edit or delete messages, and manage reactions within the connected account’s permissions. To look up public profiles by username or ID, request `chatto:profile:read` and obtain fresh consent.
+    Agents can send direct messages by user ID, read and reply to threads, edit or delete messages, and manage reactions within the connected account’s permissions. OAuth clients that need public profile lookup by username or ID must request `chatto:profile:read` and obtain consent for that scope.
   </ReleaseFeatureCard>
 </ReleaseFeatureGrid>
 
@@ -101,7 +102,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 The 0.6 client can still connect to 0.5.0 servers. The Jobs page and role selection in Shield Mode require a 0.6 server. For servers still on 0.4, upgrade to at least 0.5.0 for discovery. Members whose 0.4 browser sessions never migrated through 0.5 must sign in again. See [API compatibility](/guides/integrations/api-compatibility/).
 
-If your integration handles its own OAuth callback with `@chatto/client/auth/oauth`, preserve the authorization response’s `iss` parameter and verify it against the selected server. The client rejects a missing or mismatched issuer.
+If your integration handles its own OAuth callback with `@chatto/client/auth/oauth`, check the authorization response’s `iss` parameter with `isExpectedOAuthIssuer` before calling `exchangeAuthorizationCode`. Stop the sign-in if the issuer is missing or does not match the selected server.
 
 ## GitHub release
 
