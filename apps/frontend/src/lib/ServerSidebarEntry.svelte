@@ -61,7 +61,7 @@
   const iconTitle = $derived.by(() => {
     if (!problem) return iconServer.name;
     // The sign-in message already names the server.
-    if (problem.badge === 'sign-in') return problem.message;
+    if (problem.appearance === 'sign-in') return problem.message;
     return `${iconServer.name} — ${problem.message}`;
   });
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
@@ -176,7 +176,7 @@
   onIndicatorClick={handleServerIndicatorClick}
   contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
-  badge={problem?.badge}
+  appearance={problem?.appearance}
 />
 
 {#if contextMenu}

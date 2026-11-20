@@ -85,15 +85,13 @@ Chatto's pre-1.0 API remains experimental.
   client attempts a connection and shows a warning.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
-- An older server that can still connect has no version badge in the gutter.
-  Its menu explains the version limit. A muted disconnected plug marks an
-  unreachable server or a failed connection. Its artwork appears at 50% opacity. An amber key marks a required sign-in.
-  If the version is below the connection floor or the server rejects the
-  client's realtime protocol, the artwork appears at 50% opacity with a
-  prohibition symbol. This state takes priority because signing in
-  or retrying cannot resolve the incompatibility. An unknown version keeps
-  its warning badge and normal opacity. Status markers, unread dots, and
-  notification counts appear below the artwork.
+- An amber key below the server artwork marks a required sign-in. It is the
+  only server status icon. An unreachable server or a failed connection uses
+  50% artwork opacity. The same opacity applies when the server is below the
+  connection floor or rejects the client's realtime protocol. An older server
+  that can still connect and a server with an unknown version keep normal
+  opacity. The link and menu explain the status. Unread dots and notification
+  counts appear below the artwork.
 - Only the result of an attempt changes the state. A failed attempt shows the
   warning, and only a successful attempt removes it. A new attempt, an
   immediate retry after a dropped connection, or a credential renewal does not

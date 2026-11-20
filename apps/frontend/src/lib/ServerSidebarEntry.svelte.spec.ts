@@ -677,11 +677,13 @@ describe('ServerSidebarEntry', () => {
       props: { serverId: 'remote' }
     });
 
-    await expect.element(q(container, '[data-testid="server-warning"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="server-sign-in-marker"]'))
+      .not.toBeInTheDocument();
 
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
     expect(getComputedStyle(icon.firstElementChild!).opacity).toBe('0.5');
-    expect(container.querySelector('[class~="icon-[uil--ban]"]')).not.toBeNull();
+    expect(icon.parentElement!.children).toHaveLength(1);
     await expect
       .element(icon)
       .toHaveAttribute(
@@ -722,7 +724,7 @@ describe('ServerSidebarEntry', () => {
         'Loaded Remote — This server does not support the realtime protocol used by this app.'
       );
     expect(getComputedStyle(icon.firstElementChild!).opacity).toBe('0.5');
-    expect(container.querySelector('[class~="icon-[uil--ban]"]')).not.toBeNull();
+    expect(icon.parentElement!.children).toHaveLength(1);
   });
 
   it('warns when the server version cannot establish compatibility', async () => {
@@ -735,7 +737,9 @@ describe('ServerSidebarEntry', () => {
       props: { serverId: 'remote' }
     });
 
-    await expect.element(q(container, '[data-testid="server-warning"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="server-sign-in-marker"]'))
+      .not.toBeInTheDocument();
 
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
     expect(getComputedStyle(icon.firstElementChild!).opacity).toBe('1');
@@ -767,7 +771,9 @@ describe('ServerSidebarEntry', () => {
     mocks.store.serverInfo.version = '0.5.0-beta.9-custom';
     mocks.store.serverInfo.compatibility = { status: 'limited', reason: 'server-too-old' };
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
-    await expect.element(q(container, '[data-testid="server-warning"]')).not.toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="server-sign-in-marker"]'))
+      .not.toBeInTheDocument();
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
     expect(getComputedStyle(icon.firstElementChild!).opacity).toBe('1');
     icon.dispatchEvent(
@@ -801,7 +807,7 @@ describe('ServerSidebarEntry', () => {
     });
 
     await expect.element(q(container, '[data-testid="server-icon"]')).toBeInTheDocument();
-    expect(q(container, '[data-testid="server-warning"]')).toBeNull();
+    expect(q(container, '[data-testid="server-sign-in-marker"]')).toBeNull();
     expect((q(container, '[data-testid="server-icon"]') as HTMLAnchorElement).title).toBe(
       'Loaded Remote'
     );
@@ -875,7 +881,7 @@ describe('ServerSidebarEntry', () => {
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
 
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
-    await expect.element(q(container, '[data-testid="server-warning"]')).toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="server-sign-in-marker"]')).toBeInTheDocument();
     openServerMenu(icon);
 
     await vi.waitFor(() => {
@@ -902,7 +908,9 @@ describe('ServerSidebarEntry', () => {
       mocks.store.isAuthenticated = false;
       const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
       const icon = q(container, '[data-testid="server-icon"]');
-      await expect.element(q(container, '[data-testid="server-warning"]')).toBeInTheDocument();
+      await expect
+        .element(q(container, '[data-testid="server-sign-in-marker"]'))
+        .toBeInTheDocument();
 
       const click = clickServerIcon(icon);
 
@@ -930,10 +938,10 @@ describe('ServerSidebarEntry', () => {
 
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
     await expect.element(icon).toHaveAttribute('aria-label', 'Loaded Remote needs sign-in');
-    const warning = q(container, '[data-testid="server-warning"]');
+    const warning = q(container, '[data-testid="server-sign-in-marker"]');
     await expect.element(warning).toBeInTheDocument();
     expect(warning?.querySelector('[class~="icon-[uil--key-skeleton]"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-testid="server-warning"]')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-testid="server-sign-in-marker"]')).toHaveLength(1);
 
     icon?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await vi.waitFor(() =>
@@ -954,7 +962,9 @@ describe('ServerSidebarEntry', () => {
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
     const icon = q(container, '[data-testid="server-icon"]');
     await expect.element(icon).not.toHaveAttribute('title', 'Loaded Remote needs sign-in');
-    await expect.element(q(container, '[data-testid="server-warning"]')).not.toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="server-sign-in-marker"]'))
+      .not.toBeInTheDocument();
   });
 
   it('links the pending origin to setup without a sign-in marker', async () => {
@@ -966,7 +976,9 @@ describe('ServerSidebarEntry', () => {
       const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
       const icon = q(container, 'a');
       await expect.element(icon).toHaveAttribute('href', '/setup');
-      await expect.element(q(container, '[data-testid="server-warning"]')).not.toBeInTheDocument();
+      await expect
+        .element(q(container, '[data-testid="server-sign-in-marker"]'))
+        .not.toBeInTheDocument();
       expect(mocks.beginOriginReauthentication).not.toHaveBeenCalled();
     } finally {
       page.data.serverInfo = { setupRequired: false } as never;
@@ -1084,7 +1096,7 @@ describe('ServerSidebarEntry', () => {
     await vi.waitFor(() => expect(mocks.startRemoteReauthentication).toHaveBeenCalledTimes(2));
   });
 
-  it('keeps a failed server in the gutter with a warning and without dimming', async () => {
+  it('keeps a disconnected server in the gutter with its connection explanation', async () => {
     mocks.store.projection.viewer = null;
     mocks.showConnectionLostIcon = true;
 
@@ -1097,11 +1109,13 @@ describe('ServerSidebarEntry', () => {
     const icon = q(container, '[data-testid="server-icon"]');
     await expect.element(icon).toBeInTheDocument();
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Connection unavailable');
-    await expect.element(q(container, '[data-testid="server-warning"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="server-sign-in-marker"]'))
+      .not.toBeInTheDocument();
     expect(container.textContent).toContain('L');
   });
 
-  it('shows a disconnected plug when an older server loses its connection', async () => {
+  it('fades an older server when it loses its connection', async () => {
     mocks.store.serverInfo.compatibility = { status: 'limited', reason: 'server-too-old' };
     mocks.showConnectionLostIcon = true;
 
@@ -1109,13 +1123,8 @@ describe('ServerSidebarEntry', () => {
     const icon = q(container, '[data-testid="server-icon"]');
 
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Connection unavailable');
-    const badge = q(container, '[data-testid="server-warning"]');
     expect(getComputedStyle(icon!.firstElementChild!).opacity).toBe('0.5');
-    expect(badge!.getBoundingClientRect().top).toBeGreaterThan(
-      icon!.getBoundingClientRect().bottom
-    );
-    expect(badge?.querySelector('[class~="icon-[lucide--unplug]"]')).not.toBeNull();
-    await expect.element(badge).toHaveClass('text-muted');
+    expect(icon!.parentElement!.children).toHaveLength(1);
 
     icon?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await vi.waitFor(() =>
@@ -1147,7 +1156,9 @@ describe('ServerSidebarEntry', () => {
     await vi.waitFor(() =>
       expect(q(document.body, '[data-testid="server-problem-message"]')).toBeNull()
     );
-    await expect.element(q(container, '[data-testid="server-warning"]')).not.toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="server-sign-in-marker"]'))
+      .not.toBeInTheDocument();
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
   });
 

@@ -12,8 +12,8 @@ import { serverHost } from '$lib/serverUrl';
 import { MINIMUM_CONNECTABLE_SERVER_VERSION } from '@chatto/client/server/compatibility';
 import { serverDisplayName } from '@chatto/client/server/state';
 
-/** Marker on the server icon. A limited but working server has no marker. */
-export type ServerStatusBadge = 'sign-in' | 'offline' | 'compatibility' | 'incompatible';
+/** Visual treatment for a server that is unavailable or needs sign-in. */
+export type ServerIconAppearance = 'sign-in' | 'faded';
 
 /** Reactive status of `serverId`. Read its getters in reactive contexts. */
 export type ServerStatus = ReturnType<typeof serverStatus>;
@@ -92,38 +92,38 @@ export function serverStatus(serverId: string) {
      * A connection problem or compatibility warning, or `null`. Discovery and
      * connection attempts in progress are not problems; only a failed attempt is.
      */
-    get problem(): { badge: ServerStatusBadge | null; message: string } | null {
+    get problem(): { appearance: ServerIconAppearance | null; message: string } | null {
       // A login or retry cannot resolve a confirmed incompatibility.
       if (stores.serverInfo.blockingCompatibilityProblem === 'server-too-old') {
         return {
-          badge: 'incompatible',
+          appearance: 'faded',
           message: m('chat.server_gutter.compatibility_server_too_old', {
             version: MINIMUM_CONNECTABLE_SERVER_VERSION
           })
         };
       }
       if (connection.realtimeUnsupported) {
-        return { badge: 'incompatible', message: m('chat.server_gutter.protocol_unsupported') };
+        return { appearance: 'faded', message: m('chat.server_gutter.protocol_unsupported') };
       }
       if (signInRequired()) {
         return {
-          badge: 'sign-in',
+          appearance: 'sign-in',
           message: m('ui.auth_status.sidebar_reauth', { server: name() })
         };
       }
       const compatibility = stores.serverInfo.compatibility;
       if (!stores.serverInfo.loading && compatibility.reason === 'unreachable') {
-        return { badge: 'offline', message: m('chat.server_gutter.unreachable') };
+        return { appearance: 'faded', message: m('chat.server_gutter.unreachable') };
       }
       if (connection.showConnectionLostIcon) {
-        return { badge: 'offline', message: m('chat.server_gutter.connection_unavailable') };
+        return { appearance: 'faded', message: m('chat.server_gutter.connection_unavailable') };
       }
       if (stores.serverInfo.loading) return null;
       switch (compatibility.reason) {
         case 'server-too-old':
-          return { badge: null, message: m('chat.compatibility.limited') };
+          return { appearance: null, message: m('chat.compatibility.limited') };
         case 'server-version-unknown':
-          return { badge: 'compatibility', message: m('chat.server_gutter.compatibility_unknown') };
+          return { appearance: null, message: m('chat.server_gutter.compatibility_unknown') };
       }
       return null;
     }

@@ -5,7 +5,7 @@
   import { NotificationBadge, UnreadDot } from '$lib/ui';
   import type { ServerIndicator } from '$lib/state/server/serverUi';
   import type { Attachment } from 'svelte/attachments';
-  import type { ServerStatusBadge } from '$lib/state/server/serverStatus.svelte';
+  import type { ServerIconAppearance } from '$lib/state/server/serverStatus.svelte';
   import { m } from '$lib/i18n/messages';
 
   let {
@@ -20,7 +20,7 @@
     onIndicatorClick,
     contextMenuTrigger,
     title,
-    badge = null
+    appearance = null
   }: {
     /** Display data for the icon (server name + optional logo). */
     server?: { name: string; logoUrl?: string | null };
@@ -41,8 +41,8 @@
     /** Optional right-click/long-press behavior for the server link. */
     contextMenuTrigger?: Attachment<HTMLElement>;
     title?: string;
-    /** Optional status marker. The link title describes the cause. */
-    badge?: ServerStatusBadge | null;
+    /** Fade unavailable servers or mark a required sign-in. The link title explains why. */
+    appearance?: ServerIconAppearance | null;
   } = $props();
 </script>
 
@@ -55,7 +55,7 @@
     class={[
       'server-icon server-gutter-item cursor-pointer',
       selected && 'server-gutter-item-active',
-      (badge === 'incompatible' || badge === 'offline') && '[&>div]:opacity-50'
+      appearance === 'faded' && '[&>div]:opacity-50'
     ]}
     data-testid={server ? 'server-icon' : icon ? 'nav-icon' : undefined}
   >
@@ -66,32 +66,16 @@
     {/if}
   </a>
 
-  {#if badge || indicator}
+  {#if appearance === 'sign-in' || indicator}
     <div class="flex w-full items-center justify-center gap-0.5">
-      {#if badge}
+      {#if appearance === 'sign-in'}
         <span
-          class={[
-            'grid size-4 shrink-0 place-items-center rounded-full',
-            badge === 'offline' || badge === 'incompatible'
-              ? 'bg-surface-emphasized text-muted'
-              : 'bg-warning text-on-warning'
-          ]}
+          class="grid size-4 shrink-0 place-items-center rounded-full bg-warning text-on-warning"
           {title}
-          data-testid="server-warning"
+          data-testid="server-sign-in-marker"
           aria-hidden="true"
         >
-          <span
-            class={[
-              'iconify text-xs',
-              {
-                'icon-[uil--key-skeleton]': badge === 'sign-in',
-                'icon-[uil--ban]': badge === 'incompatible',
-                'icon-[lucide--unplug]': badge === 'offline',
-                'icon-[uil--exclamation-circle]': badge === 'compatibility'
-              }
-            ]}
-            aria-hidden="true"
-          ></span>
+          <span class="iconify icon-[uil--key-skeleton] text-xs" aria-hidden="true"></span>
         </span>
       {/if}
 
