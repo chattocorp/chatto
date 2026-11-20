@@ -611,6 +611,7 @@
       "branding_cleanup": "Nettoyage des logos et des bannières du serveur",
       "asset_cleanup": "Nettoyage des fichiers",
       "call_key_cleanup": "Suppression des clés d’appel",
+      "runtime_credential_cleanup": "Nettoyage des sessions et des jetons",
       "push_subscription_cleanup": "Nettoyage des abonnements push",
       "user_key_shredding": "Suppression des clés de compte",
       "notification_alert": "Alerte de notification",

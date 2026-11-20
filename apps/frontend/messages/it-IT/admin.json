@@ -611,6 +611,7 @@
       "branding_cleanup": "Pulizia dei loghi e dei banner del server",
       "asset_cleanup": "Pulizia dei file",
       "call_key_cleanup": "Eliminazione delle chiavi di chiamata",
+      "runtime_credential_cleanup": "Pulizia di sessioni e token",
       "push_subscription_cleanup": "Pulizia delle iscrizioni push",
       "user_key_shredding": "Eliminazione delle chiavi dell’account",
       "notification_alert": "Avviso di notifica",

@@ -147,14 +147,14 @@ reconciliation owns the outcome.
 
 ### Chatto policies
 
-| Job type                                                                                                               | Attempts                    | Initial delay | Pool size per replica                  |
-| ---------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------- | -------------------------------------- |
-| Webhook                                                                                                                | Configured (`bot_webhooks`) | Configured    | `core.job_concurrency` (default 8)     |
-| Notification alert                                                                                                     | 5                           | 15 seconds    | 16                                     |
-| Email                                                                                                                  | Unlimited until expiry      | 5 seconds     | 8 (HTTP server replicas)               |
-| Media                                                                                                                  | Unlimited                   | 30 seconds    | `asset_processing.max_concurrent_jobs` |
-| Neighborhood refresh                                                                                                   | Unlimited                   | 1 minute      | 1 per replica                          |
-| Asset cleanup, branding cleanup, message-body erasure, call-key cleanup, push-subscription cleanup, user-key shredding | Unlimited                   | 30 seconds    | `core.job_concurrency` for each type   |
+| Job type                                                                                                                                           | Attempts                    | Initial delay | Pool size per replica                  |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------- | -------------------------------------- |
+| Webhook                                                                                                                                            | Configured (`bot_webhooks`) | Configured    | `core.job_concurrency` (default 8)     |
+| Notification alert                                                                                                                                 | 5                           | 15 seconds    | 16                                     |
+| Email                                                                                                                                              | Unlimited until expiry      | 5 seconds     | 8 (HTTP server replicas)               |
+| Media                                                                                                                                              | Unlimited                   | 30 seconds    | `asset_processing.max_concurrent_jobs` |
+| Neighborhood refresh                                                                                                                               | Unlimited                   | 1 minute      | 1 per replica                          |
+| Asset cleanup, branding cleanup, message-body erasure, call-key cleanup, push-subscription cleanup, runtime credential cleanup, user-key shredding | Unlimited                   | 30 seconds    | `core.job_concurrency` for each type   |
 
 Media, cleanup, and key deletion keep the unlimited retries of the workers that
 they replace. A long tool, KMS, or object-store outage must not leave

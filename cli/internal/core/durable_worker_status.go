@@ -49,6 +49,7 @@ func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagn
 	specs := []durableWorkerDiagnosticSpec{
 		{key: "asset_cleanup", streamName: natsresources.EVT, consumerName: assetCleanupConsumerName, required: true},
 		{key: jobTypeMessageBodyErasure, streamName: natsresources.EVT, consumerName: messageBodyErasureConsumerName, required: true},
+		{key: jobTypeRuntimeCredentialCleanup, streamName: natsresources.EVT, consumerName: runtimeCredentialCleanupConsumerName, required: true},
 		{key: jobTypeBrandingCleanup, streamName: natsresources.EVT, consumerName: brandingCleanupConsumerName, required: true},
 		{key: "call_key_cleanup", streamName: natsresources.EVT, consumerName: callKeyCleanupConsumerName, required: true},
 		{key: "user_key_shredding", streamName: natsresources.EVT, consumerName: userKeyShreddingConsumerName, required: true},

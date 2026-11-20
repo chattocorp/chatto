@@ -611,6 +611,7 @@
       "branding_cleanup": "Εκκαθάριση λογότυπων και μπάνερ διακομιστή",
       "asset_cleanup": "Εκκαθάριση αρχείων",
       "call_key_cleanup": "Διαγραφή κλειδιών κλήσεων",
+      "runtime_credential_cleanup": "Εκκαθάριση συνεδριών και διακριτικών",
       "push_subscription_cleanup": "Εκκαθάριση συνδρομών push",
       "user_key_shredding": "Διαγραφή κλειδιών λογαριασμού",
       "notification_alert": "Ειδοποίηση",

@@ -599,6 +599,7 @@
       "branding_cleanup": "サーバーのロゴとバナーのクリーンアップ",
       "asset_cleanup": "ファイルのクリーンアップ",
       "call_key_cleanup": "通話キーの削除",
+      "runtime_credential_cleanup": "セッションとトークンの削除",
       "push_subscription_cleanup": "プッシュ購読のクリーンアップ",
       "user_key_shredding": "アカウントキーの削除",
       "notification_alert": "通知アラート",

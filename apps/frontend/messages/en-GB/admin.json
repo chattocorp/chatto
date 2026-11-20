@@ -611,6 +611,7 @@
       "branding_cleanup": "Server logo and banner cleanup",
       "asset_cleanup": "File cleanup",
       "call_key_cleanup": "Call key deletion",
+      "runtime_credential_cleanup": "Runtime credential cleanup",
       "push_subscription_cleanup": "Push subscription cleanup",
       "user_key_shredding": "Account key deletion",
       "notification_alert": "Notification alert",

@@ -611,6 +611,7 @@
       "branding_cleanup": "Rensning av serverlogotyper och banderoller",
       "asset_cleanup": "Filrensning",
       "call_key_cleanup": "Radering av samtalsnycklar",
+      "runtime_credential_cleanup": "Rensning av sessioner och token",
       "push_subscription_cleanup": "Rensning av push-prenumerationer",
       "user_key_shredding": "Radering av kontonycklar",
       "notification_alert": "Aviseringsvarning",

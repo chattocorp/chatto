@@ -611,6 +611,7 @@
       "branding_cleanup": "Serveri logode ja bännerite puhastus",
       "asset_cleanup": "Failide puhastamine",
       "call_key_cleanup": "Kõnevõtmete kustutamine",
+      "runtime_credential_cleanup": "Seansside ja pääsutõendite puhastamine",
       "push_subscription_cleanup": "Push-tellimuste puhastamine",
       "user_key_shredding": "Kontovõtmete kustutamine",
       "notification_alert": "Teavituse hoiatus",

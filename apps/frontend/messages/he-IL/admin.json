@@ -623,6 +623,7 @@
       "branding_cleanup": "ניקוי סמלים ובאנרים של השרת",
       "asset_cleanup": "ניקוי קבצים",
       "call_key_cleanup": "מחיקת מפתחות שיחה",
+      "runtime_credential_cleanup": "ניקוי הפעלות ואסימונים",
       "push_subscription_cleanup": "ניקוי מינויי Push",
       "user_key_shredding": "מחיקת מפתחות חשבון",
       "notification_alert": "התראת עדכון",

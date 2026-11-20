@@ -254,27 +254,15 @@ func (c *ChattoCore) pushNow() time.Time {
 // from a partial one. Cleanup callers must not acknowledge physical erasure
 // after seeing only a prefix of the matching keys.
 func listPushRuntimeStateKeys(ctx context.Context, kv jetstream.KeyValue, filters ...string) ([]string, error) {
-	watcher, err := kv.WatchFiltered(ctx, filters, jetstream.IgnoreDeletes(), jetstream.MetaOnly())
+	var keys []string
+	err := visitRuntimeStateSnapshot(ctx, kv, filters, func(entry jetstream.KeyValueEntry) error {
+		keys = append(keys, entry.Key())
+		return nil
+	}, jetstream.MetaOnly())
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = watcher.Stop() }()
-
-	var keys []string
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case entry, ok := <-watcher.Updates():
-			if !ok {
-				return nil, errors.New("push runtime-state key snapshot ended before completion")
-			}
-			if entry == nil {
-				return keys, nil
-			}
-			keys = append(keys, entry.Key())
-		}
-	}
+	return keys, nil
 }
 
 func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, endpoint string) error {

@@ -611,6 +611,7 @@
       "branding_cleanup": "Serverlogo’s en banners opruimen",
       "asset_cleanup": "Bestanden opruimen",
       "call_key_cleanup": "Gesprekssleutels verwijderen",
+      "runtime_credential_cleanup": "Sessies en tokens opruimen",
       "push_subscription_cleanup": "Pushabonnementen opruimen",
       "user_key_shredding": "Accountsleutels verwijderen",
       "notification_alert": "Meldingswaarschuwing",

@@ -102,6 +102,9 @@ func initializeCoreServices(
 	}
 	initializeNeighborhoodDiscovery(core, infra, cfg, logger)
 	core.mediaModel = NewMediaModel(core)
+	if err := core.configureRuntimeCredentialCleanup(ctx); err != nil {
+		return fmt.Errorf("configure runtime credential cleanup: %w", err)
+	}
 	if err := core.configureMessageBodyErasure(ctx); err != nil {
 		return fmt.Errorf("configure message body erasure: %w", err)
 	}

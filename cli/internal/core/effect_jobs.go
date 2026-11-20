@@ -18,6 +18,7 @@ const (
 	jobTypeAssetCleanup              = "asset_cleanup"
 	jobTypeCallKeyCleanup            = "call_key_cleanup"
 	jobTypePushSubscriptionCleanup   = "push_subscription_cleanup"
+	jobTypeRuntimeCredentialCleanup  = "runtime_credential_cleanup"
 	jobTypeUserKeyShredding          = "user_key_shredding"
 	jobTypeNotificationAlertDelivery = "notification_alert"
 )
@@ -25,7 +26,7 @@ const (
 // effectJobTypes lists the effect types that use the configured job
 // concurrency. Notification alerts have their own pool size.
 func effectJobTypes() []string {
-	return []string{jobTypeAssetCleanup, jobTypeBrandingCleanup, jobTypeMessageBodyErasure, jobTypeCallKeyCleanup, jobTypePushSubscriptionCleanup, jobTypeUserKeyShredding}
+	return []string{jobTypeAssetCleanup, jobTypeBrandingCleanup, jobTypeMessageBodyErasure, jobTypeCallKeyCleanup, jobTypePushSubscriptionCleanup, jobTypeRuntimeCredentialCleanup, jobTypeUserKeyShredding}
 }
 
 // newEffectJob moves one existing durable effect consumer onto the job queue

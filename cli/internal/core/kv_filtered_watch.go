@@ -135,3 +135,30 @@ func (w *mergedKeyWatcher) Stop() error {
 	})
 	return w.stopErr
 }
+
+// visitRuntimeStateSnapshot visits the latest live values under the filters.
+// Only the nil sentinel proves the initial snapshot was complete. Callers
+// that mutate state must tolerate retry after any prefix of the snapshot.
+func visitRuntimeStateSnapshot(ctx context.Context, kv jetstream.KeyValue, filters []string, visit func(jetstream.KeyValueEntry) error, opts ...jetstream.WatchOpt) error {
+	watcher, err := kv.WatchFiltered(ctx, filters, append(opts, jetstream.IgnoreDeletes())...)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = watcher.Stop() }()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case entry, ok := <-watcher.Updates():
+			if !ok {
+				return errors.New("runtime-state key snapshot ended before completion")
+			}
+			if entry == nil {
+				return nil
+			}
+			if err := visit(entry); err != nil {
+				return err
+			}
+		}
+	}
+}
