@@ -420,15 +420,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}
 	}
 
-	watchJobs := false
-	if subscribe.GetWatchJobs() {
-		watchJobs, err = s.core.HasServerPermission(ctx, user.Id, core.PermServerManage)
-		if err != nil {
-			failCatchUp("Job watch authorization failed", err)
-			return
-		}
-	}
-	events, err := s.core.StreamMyEventsWithOptions(ctx, user.Id, core.StreamMyEventsOptions{WatchJobs: watchJobs})
+	events, err := s.core.StreamMyEventsWithOptions(ctx, user.Id, core.StreamMyEventsOptions{TouchPresence: false})
 	if err != nil {
 		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "failed to start realtime event stream", true, time.Second)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "subscribe failed"), time.Now().Add(time.Second))
@@ -506,7 +498,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	// authorization work, and finishCatchUp is idempotent on write failure.
 	finishCatchUp()
 	if err := writeCatchUpFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_CaughtUp{
-		CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: boundaryCursor, Recovery: recovery, WatchingJobs: watchJobs},
+		CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: boundaryCursor, Recovery: recovery},
 	}}); err != nil {
 		handleCatchUpWriteError(err)
 		return
@@ -537,9 +529,9 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 					continue
 				}
 				s.logger.Warn("Dropping unsupported realtime event", "event_id", event.ID(), "error", mapErr)
-				if event.DeliverySeq() > 0 || event.PubSubEvent().GetJobsChanged() != nil {
+				if event.DeliverySeq() > 0 {
 					_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-						Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "realtime event mapping failed", Reconnect: true},
+						Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "durable realtime event mapping failed", Reconnect: true},
 					}})
 					return
 				}
@@ -885,15 +877,6 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 	pubsub := event.PubSubEvent()
 	if durable == nil && pubsub == nil {
 		return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
-	}
-	if pubsub.GetJobsChanged() != nil {
-		allowed, err := s.core.HasServerPermission(ctx, viewerID, core.PermServerManage)
-		if err != nil {
-			return nil, err
-		}
-		if !allowed {
-			return nil, errRealtimeEventOmitted
-		}
 	}
 	if typing := pubsub.GetUserTyping(); typing != nil {
 		kind, err := s.core.FindRoomKind(ctx, typing.GetRoomId())

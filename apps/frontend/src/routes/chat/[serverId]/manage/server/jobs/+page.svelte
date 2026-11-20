@@ -1,6 +1,5 @@
 <!-- @component Server job queue. Each row links to its job details. Failed rows have retry and delete actions. The status filter is in the `status` search parameter. -->
 <script lang="ts">
-  import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -75,7 +74,8 @@
     );
   }
 
-  const sync = scope.store.realtimeSync;
+  // The server lists jobs newest first and filters by status from memory, so
+  // polling every loaded page reads no storage.
   const jobsQuery = createInfiniteQuery(() => ({
     queryKey: adminQueryKeys.jobList(scope, status),
     queryFn: ({ pageParam, signal }) => api.listJobs({ cursor: pageParam, status }, { signal }),
@@ -83,28 +83,9 @@
     getNextPageParam: (lastPage) => lastPage.nextCursor || undefined,
     enabled: !unavailable,
     refetchOnMount: 'always' as const,
-    refetchInterval: sync.watchingJobs
-      ? (query) => (query.state.status === 'error' ? JOBS_POLL_INTERVAL_MS : false)
-      : JOBS_POLL_INTERVAL_MS
+    // Poll while the page is visible. TanStack pauses polling in hidden tabs.
+    refetchInterval: JOBS_POLL_INTERVAL_MS
   }));
-
-  // Keep a change received during a list read or pagination for the next read.
-  let jobChanges = $state(0);
-  let appliedChanges = 0;
-  let lastCatchUp = untrack(() => sync.lastCaughtUpAt);
-  $effect(() =>
-    scope.store.onUpdate(({ event }) => {
-      if (event?.event.case === 'jobsChanged') jobChanges++;
-    })
-  );
-  $effect(() => {
-    if (unavailable || !sync.watchingJobs || jobsQuery.isFetching) return;
-    const caughtUp = sync.lastCaughtUpAt;
-    if (jobChanges === appliedChanges && lastCatchUp === caughtUp) return;
-    appliedChanges = jobChanges;
-    lastCatchUp = caughtUp;
-    untrack(() => void jobsQuery.refetch({ cancelRefetch: false }));
-  });
 
   // Pages may overlap while running jobs change. Keep one row for each stable ID.
   const jobs = $derived(

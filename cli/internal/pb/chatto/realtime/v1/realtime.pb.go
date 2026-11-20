@@ -227,9 +227,7 @@ type RealtimeSubscribe struct {
 	// that position. Cursors expire 15 minutes after issue.
 	ResumeCursor *string `protobuf:"bytes,3,opt,name=resume_cursor,json=resumeCursor,proto3,oneof" json:"resume_cursor,omitempty"`
 	// Required fallback when the cursor is absent or cannot resume safely.
-	InitialState RealtimeInitialState `protobuf:"varint,4,opt,name=initial_state,json=initialState,proto3,enum=chatto.realtime.v1.RealtimeInitialState" json:"initial_state,omitempty"`
-	// Request cursorless JobsChanged events when the caller has server.manage.
-	WatchJobs     bool `protobuf:"varint,5,opt,name=watch_jobs,json=watchJobs,proto3" json:"watch_jobs,omitempty"`
+	InitialState  RealtimeInitialState `protobuf:"varint,4,opt,name=initial_state,json=initialState,proto3,enum=chatto.realtime.v1.RealtimeInitialState" json:"initial_state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -290,13 +288,6 @@ func (x *RealtimeSubscribe) GetInitialState() RealtimeInitialState {
 		return x.InitialState
 	}
 	return RealtimeInitialState_REALTIME_INITIAL_STATE_UNSPECIFIED
-}
-
-func (x *RealtimeSubscribe) GetWatchJobs() bool {
-	if x != nil {
-		return x.WatchJobs
-	}
-	return false
 }
 
 // Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
@@ -531,9 +522,7 @@ type RealtimeCaughtUp struct {
 	// Opaque cursor at the recovery-to-live handoff boundary.
 	Cursor string `protobuf:"bytes,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	// Actual recovery result, including a successful replay with no events.
-	Recovery RealtimeRecovery `protobuf:"varint,2,opt,name=recovery,proto3,enum=chatto.realtime.v1.RealtimeRecovery" json:"recovery,omitempty"`
-	// This connection watches job changes. Refresh the list after each catch-up.
-	WatchingJobs  bool `protobuf:"varint,3,opt,name=watching_jobs,json=watchingJobs,proto3" json:"watching_jobs,omitempty"`
+	Recovery      RealtimeRecovery `protobuf:"varint,2,opt,name=recovery,proto3,enum=chatto.realtime.v1.RealtimeRecovery" json:"recovery,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -580,13 +569,6 @@ func (x *RealtimeCaughtUp) GetRecovery() RealtimeRecovery {
 		return x.Recovery
 	}
 	return RealtimeRecovery_REALTIME_RECOVERY_UNSPECIFIED
-}
-
-func (x *RealtimeCaughtUp) GetWatchingJobs() bool {
-	if x != nil {
-		return x.WatchingJobs
-	}
-	return false
 }
 
 // One authorized public event with its optional cursor.
@@ -665,7 +647,6 @@ type RealtimeEvent struct {
 	//	*RealtimeEvent_RoomNoticeChanged
 	//	*RealtimeEvent_UserAccountDeactivationChanged
 	//	*RealtimeEvent_RoomMembershipEventsVisibilityChanged
-	//	*RealtimeEvent_JobsChanged
 	Event         isRealtimeEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1222,15 +1203,6 @@ func (x *RealtimeEvent) GetRoomMembershipEventsVisibilityChanged() *RoomMembersh
 	return nil
 }
 
-func (x *RealtimeEvent) GetJobsChanged() *JobsChangedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_JobsChanged); ok {
-			return x.JobsChanged
-		}
-	}
-	return nil
-}
-
 type isRealtimeEvent_Event interface {
 	isRealtimeEvent_Event()
 }
@@ -1451,10 +1423,6 @@ type RealtimeEvent_RoomMembershipEventsVisibilityChanged struct {
 	RoomMembershipEventsVisibilityChanged *RoomMembershipEventsVisibilityChangedEvent `protobuf:"bytes,74,opt,name=room_membership_events_visibility_changed,json=roomMembershipEventsVisibilityChanged,proto3,oneof"`
 }
 
-type RealtimeEvent_JobsChanged struct {
-	JobsChanged *JobsChangedEvent `protobuf:"bytes,75,opt,name=jobs_changed,json=jobsChanged,proto3,oneof"`
-}
-
 func (*RealtimeEvent_RoomCreated) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_RoomUpdated) isRealtimeEvent_Event() {}
@@ -1562,8 +1530,6 @@ func (*RealtimeEvent_RoomNoticeChanged) isRealtimeEvent_Event() {}
 func (*RealtimeEvent_UserAccountDeactivationChanged) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_RoomMembershipEventsVisibilityChanged) isRealtimeEvent_Event() {}
-
-func (*RealtimeEvent_JobsChanged) isRealtimeEvent_Event() {}
 
 // Application-level heartbeat.
 type RealtimeHeartbeat struct {
@@ -1690,14 +1656,12 @@ var File_chatto_realtime_v1_realtime_proto protoreflect.FileDescriptor
 
 const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/realtime/v1/realtime.proto\x12\x12chatto.realtime.v1\x1a$chatto/api/v1/member_directory.proto\x1a\"chatto/api/v1/room_directory.proto\x1a\x1achatto/api/v1/server.proto\x1a\x1fchatto/api/v1/voice_calls.proto\x1a\x1fchatto/realtime/v1/events.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa1\x02\n" +
+	"!chatto/realtime/v1/realtime.proto\x12\x12chatto.realtime.v1\x1a$chatto/api/v1/member_directory.proto\x1a\"chatto/api/v1/room_directory.proto\x1a\x1achatto/api/v1/server.proto\x1a\x1fchatto/api/v1/voice_calls.proto\x1a\x1fchatto/realtime/v1/events.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x02\n" +
 	"\x11RealtimeSubscribe\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12&\n" +
 	"\fbearer_token\x18\x02 \x01(\tH\x00R\vbearerToken\x88\x01\x01\x12(\n" +
 	"\rresume_cursor\x18\x03 \x01(\tH\x01R\fresumeCursor\x88\x01\x01\x12M\n" +
-	"\rinitial_state\x18\x04 \x01(\x0e2(.chatto.realtime.v1.RealtimeInitialStateR\finitialState\x12\x1d\n" +
-	"\n" +
-	"watch_jobs\x18\x05 \x01(\bR\twatchJobsB\x0f\n" +
+	"\rinitial_state\x18\x04 \x01(\x0e2(.chatto.realtime.v1.RealtimeInitialStateR\finitialStateB\x0f\n" +
 	"\r_bearer_tokenB\x10\n" +
 	"\x0e_resume_cursor\"\xe4\x02\n" +
 	"\x13RealtimeServerFrame\x129\n" +
@@ -1713,11 +1677,10 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\vroom_groups\x18\x03 \x03(\v2\x18.chatto.api.v1.RoomGroupR\n" +
 	"roomGroups\x124\n" +
 	"\x05users\x18\x04 \x03(\v2\x1e.chatto.api.v1.DirectoryMemberR\x05users\x12<\n" +
-	"\factive_calls\x18\x05 \x03(\v2\x19.chatto.api.v1.ActiveCallR\vactiveCalls\"\x91\x01\n" +
+	"\factive_calls\x18\x05 \x03(\v2\x19.chatto.api.v1.ActiveCallR\vactiveCalls\"l\n" +
 	"\x10RealtimeCaughtUp\x12\x16\n" +
 	"\x06cursor\x18\x01 \x01(\tR\x06cursor\x12@\n" +
-	"\brecovery\x18\x02 \x01(\x0e2$.chatto.realtime.v1.RealtimeRecoveryR\brecovery\x12#\n" +
-	"\rwatching_jobs\x18\x03 \x01(\bR\fwatchingJobs\"\x92-\n" +
+	"\brecovery\x18\x02 \x01(\x0e2$.chatto.realtime.v1.RealtimeRecoveryR\brecovery\"\xc7,\n" +
 	"\rRealtimeEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1779,8 +1742,7 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x18room_invitation_declined\x18G \x01(\v2/.chatto.realtime.v1.RoomInvitationDeclinedEventH\x00R\x16roomInvitationDeclined\x12\\\n" +
 	"\x13room_notice_changed\x18H \x01(\v2*.chatto.realtime.v1.RoomNoticeChangedEventH\x00R\x11roomNoticeChanged\x12\x84\x01\n" +
 	"!user_account_deactivation_changed\x18I \x01(\v27.chatto.realtime.v1.UserAccountDeactivationChangedEventH\x00R\x1euserAccountDeactivationChanged\x12\x9a\x01\n" +
-	")room_membership_events_visibility_changed\x18J \x01(\v2>.chatto.realtime.v1.RoomMembershipEventsVisibilityChangedEventH\x00R%roomMembershipEventsVisibilityChanged\x12I\n" +
-	"\fjobs_changed\x18K \x01(\v2$.chatto.realtime.v1.JobsChangedEventH\x00R\vjobsChangedB\a\n" +
+	")room_membership_events_visibility_changed\x18J \x01(\v2>.chatto.realtime.v1.RoomMembershipEventsVisibilityChangedEventH\x00R%roomMembershipEventsVisibilityChangedB\a\n" +
 	"\x05eventB\v\n" +
 	"\t_actor_idB\t\n" +
 	"\a_cursorJ\x04\b#\x10.R\x12room_group_createdR\x12room_group_updatedR\x12room_group_deletedR\x13room_added_to_groupR\x17room_removed_from_groupR\x18rooms_in_group_reorderedR\x1bsidebar_link_added_to_groupR\x14sidebar_link_updatedR\x1fsidebar_link_removed_from_groupR\x1fsidebar_group_entries_reorderedR\x15room_groups_reordered\";\n" +
@@ -1899,8 +1861,7 @@ var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
 	(*RoomNoticeChangedEvent)(nil),                     // 67: chatto.realtime.v1.RoomNoticeChangedEvent
 	(*UserAccountDeactivationChangedEvent)(nil),        // 68: chatto.realtime.v1.UserAccountDeactivationChangedEvent
 	(*RoomMembershipEventsVisibilityChangedEvent)(nil), // 69: chatto.realtime.v1.RoomMembershipEventsVisibilityChangedEvent
-	(*JobsChangedEvent)(nil),                           // 70: chatto.realtime.v1.JobsChangedEvent
-	(*durationpb.Duration)(nil),                        // 71: google.protobuf.Duration
+	(*durationpb.Duration)(nil),                        // 70: google.protobuf.Duration
 }
 var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	0,  // 0: chatto.realtime.v1.RealtimeSubscribe.initial_state:type_name -> chatto.realtime.v1.RealtimeInitialState
@@ -1970,14 +1931,13 @@ var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	67, // 64: chatto.realtime.v1.RealtimeEvent.room_notice_changed:type_name -> chatto.realtime.v1.RoomNoticeChangedEvent
 	68, // 65: chatto.realtime.v1.RealtimeEvent.user_account_deactivation_changed:type_name -> chatto.realtime.v1.UserAccountDeactivationChangedEvent
 	69, // 66: chatto.realtime.v1.RealtimeEvent.room_membership_events_visibility_changed:type_name -> chatto.realtime.v1.RoomMembershipEventsVisibilityChangedEvent
-	70, // 67: chatto.realtime.v1.RealtimeEvent.jobs_changed:type_name -> chatto.realtime.v1.JobsChangedEvent
-	2,  // 68: chatto.realtime.v1.RealtimeClose.code:type_name -> chatto.realtime.v1.RealtimeCloseCode
-	71, // 69: chatto.realtime.v1.RealtimeClose.retry_after:type_name -> google.protobuf.Duration
-	70, // [70:70] is the sub-list for method output_type
-	70, // [70:70] is the sub-list for method input_type
-	70, // [70:70] is the sub-list for extension type_name
-	70, // [70:70] is the sub-list for extension extendee
-	0,  // [0:70] is the sub-list for field type_name
+	2,  // 67: chatto.realtime.v1.RealtimeClose.code:type_name -> chatto.realtime.v1.RealtimeCloseCode
+	70, // 68: chatto.realtime.v1.RealtimeClose.retry_after:type_name -> google.protobuf.Duration
+	69, // [69:69] is the sub-list for method output_type
+	69, // [69:69] is the sub-list for method input_type
+	69, // [69:69] is the sub-list for extension type_name
+	69, // [69:69] is the sub-list for extension extendee
+	0,  // [0:69] is the sub-list for field type_name
 }
 
 func init() { file_chatto_realtime_v1_realtime_proto_init() }
@@ -2049,7 +2009,6 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 		(*RealtimeEvent_RoomNoticeChanged)(nil),
 		(*RealtimeEvent_UserAccountDeactivationChanged)(nil),
 		(*RealtimeEvent_RoomMembershipEventsVisibilityChanged)(nil),
-		(*RealtimeEvent_JobsChanged)(nil),
 	}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}

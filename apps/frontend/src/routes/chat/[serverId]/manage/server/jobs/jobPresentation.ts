@@ -1,7 +1,7 @@
 /** Localized labels and tones that the job list and job detail pages share. */
 import { JobStatus, type AdminJob } from '$lib/api/adminJobs';
 import { m } from '$lib/i18n/messages';
-/** Fallback refresh interval for the Jobs table and active job details. */
+/** Refresh interval of visible job pages. Job state has no realtime events. */
 export const JOBS_POLL_INTERVAL_MS = 3000;
 
 /**

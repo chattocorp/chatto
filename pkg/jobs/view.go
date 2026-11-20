@@ -24,27 +24,6 @@ type view struct {
 	events.MemoryProjection
 	subjects []string
 	jobs     map[string]*entry
-	changed  chan struct{}
-}
-
-// Changes returns a channel that closes on the next local view change. Call it again before
-// reading the list to observe subsequent changes during that read.
-func (q *Queue) Changes() <-chan struct{} {
-	v := q.view
-	v.Lock()
-	defer v.Unlock()
-	if v.changed == nil {
-		v.changed = make(chan struct{})
-	}
-	return v.changed
-}
-
-// notifyChanged runs with the view locked. All observers share one signal.
-func (v *view) notifyChanged() {
-	if v.changed != nil {
-		close(v.changed)
-		v.changed = nil
-	}
 }
 
 // Subjects implements events.SubjectProjection.
@@ -59,7 +38,6 @@ func (v *view) Apply(f *fact, seq uint64) error {
 	defer v.Unlock()
 	if f.Kind == factDeleted {
 		delete(v.jobs, f.ID)
-		v.notifyChanged()
 		return nil
 	}
 	spec := specOf(f)
@@ -73,7 +51,6 @@ func (v *view) Apply(f *fact, seq uint64) error {
 		e = &entry{job: Job{ID: f.ID, Type: f.Type, CreatedAt: f.CreatedAt}}
 		v.jobs[f.ID] = e
 	}
-	v.notifyChanged()
 	e.job.Revision = seq
 	finished := e.job.Status == Succeeded || e.job.Status == Failed
 	if spec != nil && (f.Kind != factFailed || e.job.Status != Succeeded) {
@@ -130,12 +107,12 @@ func (v *view) get(id string) (entry, bool) {
 }
 
 // list returns the jobs in status, in no order. Unknown keeps every job.
-func (v *view) list(status Status, now time.Time, succeededRetention, failedRetention time.Duration) []Job {
+func (v *view) list(status Status) []Job {
 	v.RLock()
 	defer v.RUnlock()
 	jobs := make([]Job, 0, len(v.jobs))
 	for _, e := range v.jobs {
-		if (status == Unknown || e.job.Status == status) && !pastRetention(e.job, now, succeededRetention, failedRetention) {
+		if status == Unknown || e.job.Status == status {
 			jobs = append(jobs, e.job)
 		}
 	}
@@ -149,21 +126,15 @@ func (v *view) sweep(now time.Time, succeededRetention, failedRetention time.Dur
 	v.Lock()
 	defer v.Unlock()
 	for id, e := range v.jobs {
-		if pastRetention(e.job, now, succeededRetention, failedRetention) {
+		retention := time.Duration(0)
+		switch e.job.Status {
+		case Succeeded:
+			retention = succeededRetention
+		case Failed:
+			retention = failedRetention
+		}
+		if retention > 0 && !now.Before(e.job.UpdatedAt.Add(retention)) {
 			delete(v.jobs, id)
-			v.notifyChanged()
 		}
 	}
-}
-
-// Replicas can sweep at different times. List applies the same cutoff on read.
-func pastRetention(job Job, now time.Time, succeededRetention, failedRetention time.Duration) bool {
-	var retention time.Duration
-	switch job.Status {
-	case Succeeded:
-		retention = succeededRetention
-	case Failed:
-		retention = failedRetention
-	}
-	return retention > 0 && !now.Before(job.UpdatedAt.Add(retention))
 }

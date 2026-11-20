@@ -424,7 +424,6 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 		"viewer_presence_preference_changed": "viewer_presence_preference_changed",
 		"thread_viewer_state_changed":        "thread_viewer_state_changed",
 		"user_typing":                        "user_typing",
-		"jobs_changed":                       "jobs_changed",
 		"presence_changed":                   "presence_changed",
 		"notification_occurrences_changed":   "notification_occurrences_changed",
 		"notification_unread_state_changed":  "notification_unread_state_changed",

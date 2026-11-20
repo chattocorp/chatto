@@ -781,12 +781,3 @@ variants. Delivery is restricted to the sender and recipient, including before
 room membership. Directory reads expose pending invitations to their recipient
 without granting access to messages or member lists. Replay follows the same
 participant boundary.
-
-## Background jobs
-
-A realtime subscription can request `watch_jobs`. The server enables it for a
-viewer with `server.manage` and confirms it with `caught_up.watching_jobs`.
-Each replica watches its own JOBS projection. After a change or retention sweep,
-it groups changes for 250 milliseconds and checks the viewer’s current permission
-before sending a cursorless `jobs_changed` event. Clients read the filtered list
-again after a signal and after catch-up. The event contains no job data.

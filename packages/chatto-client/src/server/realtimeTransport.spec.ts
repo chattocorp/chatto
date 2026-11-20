@@ -279,29 +279,21 @@ describe('eventBusManager realtime transport', () => {
 
   it('opens /api/realtime and sends one complete subscription', async () => {
     const fake = new FakeServerConnection();
-    const sync = new RealtimeProjectionSyncState();
-    startLiveBus(fake, { sync });
+    startLiveBus(fake);
 
     expect(sockets).toHaveLength(1);
     expect(sockets[0].url).toBe(fake.realtimeUrl);
     sockets[0].open();
     expect(sockets[0].sent).toHaveLength(1);
     const subscribe = RealtimeSubscribe.fromBinary(sockets[0].sent[0]);
-    expect(subscribe.watchJobs).toBe(true);
     expect(subscribe.protocolVersion).toBe(4);
     expect(subscribe.bearerToken).toBe('token-1');
     expect(subscribe.initialState).toBe(2);
     expect(fake.status).toBe('connecting');
     await sockets[0].receive(
-      serverFrame({
-        case: 'caughtUp',
-        value: new RealtimeCaughtUp({ cursor: 'ready', watchingJobs: true })
-      })
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'ready' }) })
     );
     expect(fake.status).toBe('connected');
-    expect(sync.watchingJobs).toBe(true);
-    sockets[0].close();
-    expect(sync.watchingJobs).toBe(false);
   });
 
   it('registers the bus but defers the socket until projection support is confirmed', () => {

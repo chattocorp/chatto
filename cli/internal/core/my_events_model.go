@@ -64,8 +64,6 @@ type StreamMyEventsOptions struct {
 	// the user online and refreshes the current presence value. New clients that
 	// refresh presence through ConnectRPC set this to false.
 	TouchPresence bool
-	// WatchJobs enables local job view signals for a management subscription.
-	WatchJobs bool
 }
 
 // MyEventsMetrics is a process-local snapshot of the realtime event stream.
@@ -150,10 +148,6 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 
 	eventChan := make(chan EventEnvelope)
 
-	var jobsChanged <-chan struct{}
-	if options.WatchJobs {
-		jobsChanged = c.jobs.Changes()
-	}
 	s.activeStreams.Add(1)
 	go func() {
 		c.logger.Debug("Server event stream started", "user_id", userID)
@@ -198,20 +192,8 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 			}
 		}
 
-		var flushJobs <-chan time.Time
 		for {
 			select {
-			case <-jobsChanged:
-				// Combine a burst of queue transitions into one list refresh.
-				jobsChanged = nil
-				flushJobs = time.After(250 * time.Millisecond)
-			case <-flushJobs:
-				flushJobs = nil
-				jobsChanged = c.jobs.Changes()
-				signal := newPubSubEvent("", &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_JobsChanged{JobsChanged: &realtimev1.JobsChangedEvent{}}})
-				if !send(NewPubSubEventEnvelope(signal)) {
-					return
-				}
 			case <-ctx.Done():
 				return
 			case <-hubSub.Done:

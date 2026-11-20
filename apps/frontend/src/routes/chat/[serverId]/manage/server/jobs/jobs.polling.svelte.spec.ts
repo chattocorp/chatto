@@ -1,6 +1,4 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RealtimeProjectionUpdate, type ProjectionHandler } from '@chatto/client/realtime/eventBus';
-import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { render } from 'vitest-browser-svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { loadLocaleMessages } from '$lib/i18n/messages';
@@ -69,43 +67,7 @@ function job(status: JobStatus): AdminJob {
 describe('job page polling', () => {
   const NETWORK_ERROR = 'Network error. Please try again.';
 
-  it('refreshes on a job signal and on catch-up, with no timer reads', async () => {
-    const sync = $state({ watchingJobs: true, lastCaughtUpAt: 1 });
-    const onUpdate = vi.fn<(listener: ProjectionHandler) => () => void>(() => () => {});
-    createTestServerScope({ api: mocks, store: { realtimeSync: sync, onUpdate } });
-    mocks.listJobs
-      .mockResolvedValueOnce({ jobs: [job(JobStatus.QUEUED)], nextCursor: '' })
-      .mockResolvedValueOnce({ jobs: [job(JobStatus.RUNNING)], nextCursor: '' })
-      .mockResolvedValue({ jobs: [job(JobStatus.SUCCEEDED)], nextCursor: '' });
-    const screen = render(JobsPage);
-    await expect.element(screen.getByRole('cell', { name: 'Queued' })).toBeVisible();
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    expect(mocks.listJobs).toHaveBeenCalledTimes(1);
-    const event = new RealtimeEvent({ event: { case: 'jobsChanged', value: {} } });
-    onUpdate.mock.calls[0][0](new RealtimeProjectionUpdate({ event }));
-    await expect.element(screen.getByRole('cell', { name: 'Running' })).toBeVisible();
-    sync.lastCaughtUpAt++;
-    await expect.element(screen.getByRole('cell', { name: 'Succeeded' })).toBeVisible();
-  });
-
-  it('keeps a change received during the initial list read', async () => {
-    const onUpdate = vi.fn<(listener: ProjectionHandler) => () => void>(() => () => {});
-    const realtimeSync = { watchingJobs: true, lastCaughtUpAt: 1 };
-    createTestServerScope({ api: mocks, store: { realtimeSync, onUpdate } });
-    const initial = Promise.withResolvers<{ jobs: AdminJob[]; nextCursor: string }>();
-    mocks.listJobs
-      .mockReturnValueOnce(initial.promise)
-      .mockResolvedValue({ jobs: [job(JobStatus.SUCCEEDED)], nextCursor: '' });
-    const screen = render(JobsPage);
-    await vi.waitFor(() => expect(mocks.listJobs).toHaveBeenCalledOnce());
-    const event = new RealtimeEvent({ event: { case: 'jobsChanged', value: {} } });
-    onUpdate.mock.calls[0][0](new RealtimeProjectionUpdate({ event }));
-    initial.resolve({ jobs: [], nextCursor: '' });
-    await expect.element(screen.getByRole('cell', { name: 'Succeeded' })).toBeVisible();
-    expect(mocks.listJobs).toHaveBeenCalledTimes(2);
-  });
-
-  it('polls the list when the connection has no job watch', async () => {
+  it('refreshes the list without user action', async () => {
     mocks.listJobs
       .mockResolvedValueOnce({ jobs: [job(JobStatus.QUEUED)], nextCursor: '' })
       .mockResolvedValue({ jobs: [job(JobStatus.SUCCEEDED)], nextCursor: '' });

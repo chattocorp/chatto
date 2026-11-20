@@ -162,7 +162,6 @@ function buildStore(
       connection,
       projection: { rooms: new Map(), users: new UserStore(), activeCalls: [] },
       // A fake store reports no boundary events.
-      realtimeSync: { watchingJobs: false, lastCaughtUpAt: null },
       onUpdate: subscribe,
       onReset: subscribe,
       onRoomAccessLost: subscribe,

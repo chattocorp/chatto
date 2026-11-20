@@ -19,12 +19,6 @@ type CatchUpWaiter = {
  * exists only in memory, so a page load always starts without one.
  */
 export class RealtimeProjectionSyncState {
-  readonly #watchingJobs = signal(false);
-  /** Whether this live connection delivers authorized job list invalidations. */
-  get watchingJobs(): boolean {
-    return this.#watchingJobs.get();
-  }
-
   readonly #phaseSignal = signal<RealtimeProjectionPhase>('empty');
   get phase(): RealtimeProjectionPhase {
     return this.#phaseSignal.get();
@@ -98,7 +92,6 @@ export class RealtimeProjectionSyncState {
 
   /** Preserve shared read failures while no transport owns cursor advancement. */
   endTransport(): void {
-    this.#watchingJobs.set(false);
     this.#transportGeneration++;
   }
 
@@ -112,12 +105,7 @@ export class RealtimeProjectionSyncState {
     if (cursor) this.#resumeCursor = cursor;
   }
 
-  markCaughtUp(
-    cursor: string | undefined,
-    authorizationRefreshGeneration = 0,
-    watchingJobs = false
-  ): void {
-    this.#watchingJobs.set(watchingJobs);
+  markCaughtUp(cursor: string | undefined, authorizationRefreshGeneration = 0): void {
     if (cursor) this.#resumeCursor = cursor;
     this.#completedAuthorizationRefreshGeneration = Math.max(
       this.#completedAuthorizationRefreshGeneration,
@@ -181,7 +169,6 @@ export class RealtimeProjectionSyncState {
 
   /** Discard data readiness and the resume cursor at a projection/session reset. */
   reset(): void {
-    this.#watchingJobs.set(false);
     this.resetGeneration++;
     this.phase = 'empty';
     this.isRecoveringSnapshot = false;

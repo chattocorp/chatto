@@ -372,8 +372,9 @@ type ListOptions struct {
 }
 
 // List returns jobs ordered by last update, newest first, from the view. It
-// waits for the current stream boundary, then copies and sorts the matching
-// summaries without their payloads. Jobs that change while a caller pages can move
+// reads no storage; it copies and sorts the matching jobs on each call.
+// Payloads are omitted. List waits until
+// Run has replayed the stream. Jobs that change while a caller pages can move
 // between pages, so callers should remove duplicate IDs.
 func (q *Queue) List(ctx context.Context, opts ListOptions) ([]Job, string, error) {
 	if opts.Limit <= 0 {
@@ -386,11 +387,7 @@ func (q *Queue) List(ctx context.Context, opts ListOptions) ([]Job, string, erro
 	if err = q.projector.WaitForStartup(ctx); err != nil {
 		return nil, "", err
 	}
-	// A live change notification can come from a different replica.
-	if err = q.projector.WaitForCurrent(ctx); err != nil {
-		return nil, "", err
-	}
-	jobs := q.view.list(opts.Status, q.now(), q.opts.SucceededRetention, q.opts.FailedRetention)
+	jobs := q.view.list(opts.Status)
 	slices.SortFunc(jobs, func(a, b Job) int {
 		if c := b.UpdatedAt.Compare(a.UpdatedAt); c != 0 {
 			return c

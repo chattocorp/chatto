@@ -2725,37 +2725,3 @@ export class RoomInvitationDeclinedEvent extends Message<RoomInvitationDeclinedE
     return proto3.util.equals(RoomInvitationDeclinedEvent, a, b);
   }
 }
-
-/**
- * Job summaries changed. Read the current job list with AdminJobService.ListJobs.
- * This cursorless signal can combine several changes.
- *
- * @generated from message chatto.realtime.v1.JobsChangedEvent
- */
-export class JobsChangedEvent extends Message<JobsChangedEvent> {
-  constructor(data?: PartialMessage<JobsChangedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.JobsChangedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): JobsChangedEvent {
-    return new JobsChangedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): JobsChangedEvent {
-    return new JobsChangedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): JobsChangedEvent {
-    return new JobsChangedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: JobsChangedEvent | PlainMessage<JobsChangedEvent> | undefined, b: JobsChangedEvent | PlainMessage<JobsChangedEvent> | undefined): boolean {
-    return proto3.util.equals(JobsChangedEvent, a, b);
-  }
-}
