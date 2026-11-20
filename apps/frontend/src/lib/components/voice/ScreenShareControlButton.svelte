@@ -33,7 +33,10 @@ to the browser's `getDisplayMedia` picker through LiveKit.
   // Controls also live outside a server route, in the app header.
   let mounted = false;
 
-  let nativeAvailable = $state(false);
+  const nativeAvailable = isNativeScreenShareAvailable();
+  // Mobile browsers other than iOS 27+ cannot capture a screen. Chrome for
+  // Android 89+ no longer exposes the method; see MDN browser compatibility.
+  const browserAvailable = typeof navigator.mediaDevices?.getDisplayMedia === 'function';
   let dialogVisible = $state(false);
   let sources = $state.raw<NativeScreenShareSource[]>([]);
   let sourcesLoading = $state(false);
@@ -47,7 +50,6 @@ to the browser's `getDisplayMedia` picker through LiveKit.
 
   onMount(() => {
     mounted = true;
-    nativeAvailable = isNativeScreenShareAvailable();
     // The chooser dialog does not report a close when this control unmounts,
     // for example when the call ends. Cancel a running source listing here.
     return () => {
@@ -121,18 +123,21 @@ to the browser's `getDisplayMedia` picker through LiveKit.
   }
 </script>
 
-<VoiceCallControlButton
-  class={className}
-  label={voiceCallState.isScreenShareEnabled
-    ? m('voice.stop_share_screen')
-    : m('voice.share_screen')}
-  {testId}
-  icon="icon-[uil--desktop]"
-  {iconClass}
-  onclick={() => void handleControl()}
-  {pending}
-  disabled={!voiceCallState.canScreenShare && !voiceCallState.isScreenShareEnabled}
-/>
+<!-- Hide an action that cannot work here, but keep a running share stoppable. -->
+{#if nativeAvailable || browserAvailable || voiceCallState.isScreenShareEnabled}
+  <VoiceCallControlButton
+    class={className}
+    label={voiceCallState.isScreenShareEnabled
+      ? m('voice.stop_share_screen')
+      : m('voice.share_screen')}
+    {testId}
+    icon="icon-[uil--desktop]"
+    {iconClass}
+    onclick={() => void handleControl()}
+    {pending}
+    disabled={!voiceCallState.canScreenShare && !voiceCallState.isScreenShareEnabled}
+  />
+{/if}
 
 {#if nativeAvailable}
   <NativeScreenShareDialog

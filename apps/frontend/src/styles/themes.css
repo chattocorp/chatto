@@ -168,8 +168,6 @@
   --color-button-action: var(--accent-strong);
   --color-button-action-hover: color-mix(in srgb, var(--color-button-action), black 15%);
   --color-on-button-action: var(--color-white);
-  --color-button-success: oklch(49% 0.13 163);
-  --color-button-success-hover: color-mix(in oklch, var(--color-button-success), black 10%);
   --color-button-warning: oklch(53% 0.13 60);
   --color-button-warning-hover: color-mix(in oklch, var(--color-button-warning), black 10%);
   --color-button-danger: oklch(51% 0.18 12);

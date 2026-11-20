@@ -241,8 +241,9 @@ and the tooltip, and hide the decorative icon from assistive technology.
 ## Joined Action Pills
 
 Use `PillButtonGroup` for related independent actions in one shell. Each native
-button uses `pill-button`; `pill-button-success` and `pill-button-danger`
-supply semantic fills. Unlike `SegmentedControl`, this group does not represent
+button uses `pill-button`. `pill-button-live` gives media that is on, such as a
+camera or a screen share, a green glyph without a fill. A destructive action, such as Leave,
+uses `pill-button` with a `text-danger` glyph. Unlike `SegmentedControl`, this group does not represent
 one choice. Buttons retain independent labels, disabled states, and keyboard focus.
 
 The group owns the rounded corners. Each segment uses the same `shell-lighting`
@@ -1342,14 +1343,23 @@ beside the three-dot button. It uses the same active-call colour and pulse as
 the expanded toolbar.
 
 Call controls use `PillButtonGroup` in the app header. `app-call-bar` sets a
-30 px height, with 18 px glyphs; comfortable density uses a 36 px height. In narrow
-windows, the segment width reduces to 28 px so all call actions fit. Darker
-neutral buttons separate the group from global navigation.
-`app-call-frame` uses the shared inset surface around the group. Its rim
-and inset lighting follow the depth setting and disappear at zero depth.
-The shared pill utilities supply the tabbed segments and depth lighting. Enabled media uses
-`pill-button-success`; hang-up uses `pill-button-danger`. Keep room names in
-the link's accessible label and tooltip. The bar fits the existing header height.
+30 px height, with 18 px glyphs and 32 px media buttons. Narrow windows use 28 px
+buttons. Touch input uses a 40 px height and 40 px buttons, so the frame makes a
+44 px row. `app-call-frame` is a flat, dark track that separates the group
+from global navigation. The header buttons have no depth lighting at any depth
+setting: controls show a fill only on hover.
+
+The first button names the call room and opens it. The room-type prefix, such as
+`#`, is muted. With more than one registered server, a compact `ServerLogo`
+comes before the name. A green dot shows a healthy
+call, and a Wi-Fi glyph shows a poor or lost connection. `VoiceActivity` glows
+behind the button while the user speaks. Narrow windows show only the status.
+
+Microphone, camera, and screen share follow one rule: `pill-button-live` while
+they send media, and a neutral, slashed glyph while off. Microphone and camera
+are toggles with a stable name and `aria-pressed`. Leave is a plain button with a red
+hang-up glyph. Screen share hides where the
+host cannot capture a screen, unless a share is running.
 
 The app header and room header hide in narrow touch-capable windows while the shared
 viewport detector reports an open software keyboard. They return when it

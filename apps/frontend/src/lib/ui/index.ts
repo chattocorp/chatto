@@ -51,6 +51,7 @@ export { default as ToggleChip } from './ToggleChip.svelte';
 export { default as TopOverlayNotice } from './TopOverlayNotice.svelte';
 export { default as UnreadDot } from './UnreadDot.svelte';
 export { default as UserCard } from './UserCard.svelte';
+export { default as VoiceActivity } from './VoiceActivity.svelte';
 export { default as FadeScale } from './FadeScale.svelte';
 export { default as PillButtonGroup } from './PillButtonGroup.svelte';
 export { default as WipeReveal } from './WipeReveal.svelte';

@@ -271,12 +271,17 @@
   }
 }
 
-@utility pill-button-success {
-  @apply pill-button bg-(--color-button-success) text-white hover:bg-(--color-button-success-hover) hover:text-white enabled:active:bg-(--color-button-success-hover);
-}
-
-@utility pill-button-danger {
-  @apply pill-button bg-(--color-button-danger) text-white hover:bg-(--color-button-danger-hover) hover:text-white enabled:active:bg-(--color-button-danger-hover);
+/* Media that is on, such as a microphone, camera, or screen share: a green
+ * glyph without a fill. Toggles report "on" as pressed; keep the plain
+ * button's fill and hover instead of the pressed fill. */
+@utility pill-button-live {
+  @apply pill-button text-success hover:text-success;
+  &[aria-pressed='true'] {
+    @apply text-success;
+  }
+  &[aria-pressed='true']:not(:hover, :active) {
+    background-color: transparent;
+  }
 }
 
 @utility btn-neutral {

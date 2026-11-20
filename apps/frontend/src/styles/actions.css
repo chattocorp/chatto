@@ -196,21 +196,52 @@
   @apply app-header-icon w-auto min-w-11 px-3;
 }
 
-/* The shared recess adds an outer rim as the user's depth setting increases. */
+/* A flat, dark track sets the call controls apart from global navigation. */
 @utility app-call-frame {
-  @apply inset-content rounded-xl;
-  padding: calc(2px * min(1, var(--depth-strength)));
+  @apply rounded-[8px] bg-background p-0.5;
 }
 
-/* Darker neutral buttons separate the call controls from global navigation. */
+/* Flat buttons on the track show only a faint fill on hover. Media buttons keep one fixed width; the
+ * room button grows to fit its name. Narrow windows show only the room button's
+ * status. Touch input gets 40 px buttons, which the track brings to a 44 px row. */
 @utility app-call-bar {
-  @apply h-[30px] min-h-[30px] shrink-0 rounded-lg bg-background;
-  width: clamp(148px, calc(75cqw - 100px), 168px);
-  & > button {
-    @apply min-w-0 px-1 py-0;
+  @apply flex h-[30px] min-h-[30px] w-auto shrink-0 gap-0.5 rounded-md bg-transparent;
+  --app-call-button: 32px;
+  @variant max-sm {
+    --app-call-button: 28px;
   }
   @variant comfortable-density {
-    @apply h-9 min-h-9;
+    @apply h-10 min-h-10;
+    --app-call-button: 40px;
+  }
+  & > button,
+  & > button + button {
+    flex: none;
+    width: var(--app-call-button);
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background-image: none;
+    box-shadow: none;
+  }
+  /* A faint wash of the text colour keeps hover and press quiet on the dark track. */
+  @media (hover: hover) {
+    & > button:enabled:hover {
+      background-color: color-mix(in oklch, var(--color-text) 7%, transparent);
+    }
+  }
+  & > button:enabled:active {
+    background-color: color-mix(in oklch, var(--color-text) 11%, transparent);
+  }
+  & > [data-call-room] {
+    width: auto;
+    min-width: var(--app-call-button);
+    max-width: 10rem;
+    padding-inline: 0.625rem;
+    @variant max-sm {
+      width: var(--app-call-button);
+      padding-inline: 0;
+    }
   }
 }
 
