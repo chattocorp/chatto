@@ -16,6 +16,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -1240,6 +1241,10 @@ func TestEditMessageIgnoresUnrelatedEVTMutation(t *testing.T) {
 	edits, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageEdited))
 	require.NoError(t, err)
 	require.Len(t, edits, 1, "the mutation must commit one logical edit")
+	require.Eventually(t, func() bool {
+		jobs := jobsOfType(t, ctx, core, jobTypeMessageBodyErasure)
+		return len(jobs) == 1 && jobs[0].Status == jobqueue.Succeeded
+	}, 3*time.Second, 10*time.Millisecond)
 	bodyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageBody))
 	require.NoError(t, err)
 	require.Len(t, bodyEvents, 1, "the mutation must commit one replacement body after obsolete-body cleanup")
