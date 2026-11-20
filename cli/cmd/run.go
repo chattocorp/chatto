@@ -96,7 +96,7 @@ func init() {
 
 func runServer(configPath string) {
 	startupStartedAt := time.Now()
-	cfg, err := config.ReadConfig(configPath)
+	cfg, err := config.ReadServerConfig(configPath)
 	if err != nil {
 		log.Fatal("Failed to read configuration", "error", err)
 	}

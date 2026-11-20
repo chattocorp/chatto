@@ -252,9 +252,7 @@ func (c *ChattoConfig) Validate() error {
 		}
 		configuredOriginByRequestHost[requestHost] = origin
 	}
-	if strings.TrimSpace(c.Webserver.URL) == "" {
-		errs = append(errs, "webserver.url is required")
-	} else {
+	if strings.TrimSpace(c.Webserver.URL) != "" {
 		if err := validateAbsoluteHTTPURL("webserver.url", c.Webserver.URL); err != nil {
 			errs = append(errs, err.Error())
 		} else {
@@ -550,6 +548,16 @@ func (c *ChattoConfig) Validate() error {
 		return fmt.Errorf("config validation failed:\n  - %s", strings.Join(errs, "\n  - "))
 	}
 	return nil
+}
+
+// ReadServerConfig loads the configuration for chatto run and its offline check.
+// Only the server needs a public URL for links and OAuth callbacks.
+func ReadServerConfig(configPath string) (ChattoConfig, error) {
+	cfg, err := ReadConfig(configPath)
+	if err == nil && strings.TrimSpace(cfg.Webserver.URL) == "" {
+		return cfg, fmt.Errorf("webserver.url is required for chatto run")
+	}
+	return cfg, err
 }
 
 // ReadConfig reads configuration from the specified file path (or "chatto.toml" if empty),
