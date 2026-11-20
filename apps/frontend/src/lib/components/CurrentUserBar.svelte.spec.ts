@@ -84,6 +84,7 @@ const {
     isScreenShareEnabled: false,
     isScreenSharePending: false,
     isNativeScreenSharePending: false,
+    getAudioLevel: () => ({ isSpeaking: false, audioLevel: 0 }),
     toggleMute: vi.fn(),
     toggleCamera: vi.fn(),
     toggleScreenShare: vi.fn(),
@@ -918,11 +919,15 @@ describe('CurrentUserBar', () => {
     expect(q(container, '[data-testid="app-header-call-card"]')).toBeTruthy();
     const link = q(container, '[data-testid="app-header-call-link"]') as HTMLButtonElement;
     expect(link.getAttribute('aria-label')).toBe('Open # general');
-    expect(link.textContent?.trim()).toBe('');
+    // The room prefix is muted and separate from the name; one server shows no logo.
+    expect(link.querySelector('bdi')!.textContent).toBe('general');
+    expect(link.querySelector('bdi')!.previousElementSibling?.textContent).toBe('#');
+    expect(link.querySelector('bdi')!.previousElementSibling?.className).toContain('text-muted');
 
     const muteButton = q(container, '[data-testid="app-header-call-mute"]') as HTMLButtonElement;
-    expect(muteButton.getAttribute('aria-label')).toBe('Mute');
-    expect(muteButton.getAttribute('aria-pressed')).toBe(String(voiceCallState.isMuted));
+    // Media toggles keep a stable name; aria-pressed reports that they send media.
+    expect(muteButton.getAttribute('aria-label')).toBe('Microphone');
+    expect(muteButton.getAttribute('aria-pressed')).toBe(String(!voiceCallState.isMuted));
     const cameraButton = q(
       container,
       '[data-testid="app-header-call-camera"]'
@@ -933,10 +938,11 @@ describe('CurrentUserBar', () => {
     ) as HTMLButtonElement;
     const leaveButton = q(container, '[data-testid="app-header-call-leave"]') as HTMLButtonElement;
 
-    expect(muteButton.className).toContain('pill-button-success');
+    expect(muteButton.className).toContain('pill-button');
+    expect(muteButton.className).toContain('pill-button-live');
     expect(cameraButton.className).toContain('pill-button');
     expect(screenShareButton.className).toContain('pill-button');
-    expect(leaveButton.className).toContain('pill-button-danger');
+    expect(leaveButton.querySelector('.iconify')!.getAttribute('class')).toContain('text-danger');
 
     muteButton.click();
     cameraButton.click();
@@ -1037,18 +1043,19 @@ describe('CurrentUserBar', () => {
 
     const { container } = render(CurrentUserBarTestHarness, { callControls: true });
 
-    expect(q(container, '[data-testid="app-header-call-mute"]')!.className).toContain(
-      'pill-button'
-    );
-    expect(q(container, '[data-testid="app-header-call-camera"]')!.className).toContain(
-      'pill-button-success'
-    );
+    const mute = q(container, '[data-testid="app-header-call-mute"]')!;
+    expect(mute.className).not.toContain('pill-button-live');
+    expect(mute.getAttribute('aria-pressed')).toBe('false');
+    const camera = q(container, '[data-testid="app-header-call-camera"]')!;
+    expect(camera.className).toContain('pill-button-live');
+    expect(camera.getAttribute('aria-label')).toBe('Camera');
+    expect(camera.getAttribute('aria-pressed')).toBe('true');
     expect(q(container, '[data-testid="app-header-call-screen-share"]')!.className).toContain(
-      'pill-button-success'
+      'pill-button-live'
     );
-    expect(q(container, '[data-testid="app-header-call-leave"]')!.className).toContain(
-      'pill-button-danger'
-    );
+    expect(
+      q(container, '[data-testid="app-header-call-leave"] .iconify')!.getAttribute('class')
+    ).toContain('text-danger');
   });
 
   it('shows spinners on pending header media controls', () => {
@@ -1104,6 +1111,52 @@ describe('CurrentUserBar', () => {
     const callLink = q(container, '[data-testid="app-header-call-link"]');
     expect(callLink).toBeTruthy();
     expect(callLink!.getAttribute('aria-label')).toBe('Open Bob');
-    expect(callLink!.textContent?.trim()).toBe('');
+    expect(callLink!.textContent?.trim()).toBe('Bob');
+  });
+
+  it('describes a poor own connection on the header room button', async () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+    voiceCallState.participants = [
+      { isLocal: false, connectionQuality: 'lost' },
+      { isLocal: true, connectionQuality: 'poor' }
+    ];
+
+    const { container } = render(CurrentUserBarTestHarness, { callControls: true });
+
+    const link = q(container, '[data-testid="app-header-call-link"]')!;
+    const descriptionId = link.getAttribute('aria-describedby');
+    expect(descriptionId).toBeTruthy();
+    expect(document.getElementById(descriptionId!)?.textContent).toBe('Poor connection');
+  });
+
+  it('hides header screen share where the browser cannot capture a screen', async () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+    const mediaDevices = vi
+      .spyOn(navigator, 'mediaDevices', 'get')
+      .mockReturnValue({} as MediaDevices);
+    try {
+      const { container } = render(CurrentUserBarTestHarness, { callControls: true });
+      expect(q(container, '[data-testid="app-header-call-mute"]')).toBeTruthy();
+      expect(container.querySelector('[data-testid="app-header-call-screen-share"]')).toBeNull();
+    } finally {
+      mediaDevices.mockRestore();
+    }
+  });
+
+  it('keeps a running screen share stoppable without browser capture support', async () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+    voiceCallState.isScreenShareEnabled = true;
+    const mediaDevices = vi
+      .spyOn(navigator, 'mediaDevices', 'get')
+      .mockReturnValue({} as MediaDevices);
+    try {
+      const { container } = render(CurrentUserBarTestHarness, { callControls: true });
+      expect(q(container, '[data-testid="app-header-call-screen-share"]')).toBeTruthy();
+    } finally {
+      mediaDevices.mockRestore();
+    }
   });
 });

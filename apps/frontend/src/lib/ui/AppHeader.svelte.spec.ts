@@ -110,7 +110,8 @@ describe('AppHeader', () => {
       const call = createTestServerScope({
         serverId: 'call-server',
         store: {
-          voiceCall: { connected: true, roomId: 'room-1', isMuted: true, leave },
+          voiceCall: { connected: true, roomId: 'room-1', isMuted: true, participants: [], leave },
+          serverInfo: { name: 'Call Server', iconUrl: null },
           navigation: { rooms: [] },
           attention: { counts: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 } }
         }
@@ -125,6 +126,10 @@ describe('AppHeader', () => {
         const bounds = header.getBoundingClientRect();
         const controls = header.querySelector('[data-testid="app-header-call-card"]')!;
         expect(controls).not.toBeNull();
+        // With several registered servers, the room button names the call's server.
+        expect(
+          controls.querySelector('[data-testid="app-header-call-link"]')!.getAttribute('aria-label')
+        ).toBe('Open Current call on Call Server');
         for (const button of controls.querySelectorAll('button')) {
           const rect = button.getBoundingClientRect();
           expect(rect.width).toBeGreaterThanOrEqual(28);

@@ -284,3 +284,9 @@
     content: attr(data-line);
   }
 }
+
+/* Trim a block's line box to the capital height and baseline, so a single
+ * letter, such as a placeholder initial, centres optically. */
+@utility cap-centered {
+  text-box: trim-both cap alphabetic;
+}

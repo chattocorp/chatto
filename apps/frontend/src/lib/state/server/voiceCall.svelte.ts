@@ -69,6 +69,15 @@ export type AudioLevelInfo = {
   audioLevel: number;
 };
 
+/**
+ * Normalized level for a voice-activity display. A participant that LiveKit
+ * reports as speaking without a level gets a small visible level. Callers
+ * apply mute state.
+ */
+export function voiceActivityLevel({ audioLevel, isSpeaking }: AudioLevelInfo): number {
+  return audioLevel > 0 ? audioLevel : isSpeaking ? 0.06 : 0;
+}
+
 export type CallTransitionSoundDecision = 'play' | 'defer' | 'skip';
 
 /** Metadata embedded in the LiveKit token by the backend. */
