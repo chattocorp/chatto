@@ -1,0 +1,108 @@
+---
+title: Chatto 0.6.0 (unreleased)
+description: Features, fixes, and upgrade steps from Chatto 0.5.0 for the upcoming 0.6.0 release.
+---
+
+import ReleaseFeatureCard from "../../../components/release-notes/ReleaseFeatureCard.astro";
+import ReleaseFeatureGrid from "../../../components/release-notes/ReleaseFeatureGrid.astro";
+import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
+
+<ReleaseHero
+  version="0.6.0"
+  status="Unreleased"
+  summary="You can sign in with an internet handle, keep call controls with you as you move between rooms, and inspect background jobs. Before you upgrade from 0.5.0, set your server’s public URL and check the upgrade order for media workers."
+/>
+
+## Using Chatto
+
+<ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="Sign in with an internet handle" size="large">
+    On servers that offer this option, enter your AT Protocol handle, such as your Bluesky handle, and approve the sign-in. A new account starts with your public display name and avatar. Chatto requests identity access only.
+  </ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Call controls that stay in reach" size="large">
+    The app header shows your call’s room, microphone, camera, screen sharing, and leave button even when you open another room or server. A status light shows when you speak or lose your connection.
+  </ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Help inside Chatto">
+    Open Help in the app header for guides to formatting messages, setting up bots, and installing Chatto on your phone. The guides are available in all supported languages.
+  </ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Emoji across devices">
+    Messages, reactions, and the emoji picker use Twemoji, so members see the same artwork on phones and computers.
+  </ReleaseFeatureCard>
+</ReleaseFeatureGrid>
+
+### Other noteworthy changes
+
+- Type `#` in the composer to link a server or a room across your connected servers. Open the sidebar’s server menu to copy a server link, mark the server as read, or sign out.
+- Open **Room information** to check the room’s Slow Mode and Threading Mode before you post.
+- Open text attachments in the file viewer to select and copy text. Suitable video uploads keep their original quality up to 1080p.
+- In **App Preferences → Experiments**, you can try compressing oversized videos before upload or showing the author’s username beside their display name.
+- Chatto Desktop has Intel and universal macOS downloads. Automatic updates use the universal app on Intel and Apple Silicon.
+
+### Fixes
+
+- Sign-in checks that the response came from the server you selected. After provider sign-in, account creation finishes in the original Chatto window. You can cancel a pending sign-in and retry after closing the provider window.
+- Sign-up explains invitation codes and email verification, identifies the server and provider, and hides the direct registration link when registration is closed. You can confirm your password in Account settings before linking a provider.
+- On a weak connection, Chatto retries failed reads and shows a connection warning for the affected server. Room notices and timelines can load after an old realtime cursor expires.
+- Mention suggestions recover after a reconnect. In busy rooms, matching `@all` and `@here` appear above weaker member matches. In the mention, room, and emoji pickers, Tab inserts the highlighted entry.
+- **Reply** opens the existing thread. When the latest room message has a thread, Chatto offers to continue it for 30 minutes. Thread badges show the people who replied. Closing a fullscreen video keeps the thread open.
+- Markdown emphasis works across writing systems, including Arabic, Cyrillic, and Japanese. Both editors have a strikethrough button, and code blocks support Odin highlighting.
+- Links render correctly before a colon and keep their spacing in the composer. Hover previews wait while a context menu is open. Deleting the last visible message of a day clears its date heading.
+- Gallery zoom controls stay visible between images. Attachment actions stay below the preview, and converted GIFs open in the viewer when you select them.
+- **Browser default** follows your browser’s time zone. Chatto saves a named time zone only when you choose one. You can clear an existing choice in Settings.
+- Signed-out users can leave Settings with the back arrow. Access Denied screens also have a way back. Settings uses two columns on wide windows.
+
+## Running Chatto
+
+<ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="Inspect and retry background jobs" size="large">
+    Open **Server Administration → Jobs** to inspect work such as webhook delivery, media processing, and account cleanup. With the `server.manage` permission, you can retry a failed job or delete it.
+  </ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Choose which roles to activate in Shield Mode" size="large">
+    Role managers can protect individual roles. Members can activate the protected roles they need for up to 15 minutes, and the event log records their selection. The owner role always requires activation.
+  </ReleaseFeatureCard>
+  <ReleaseFeatureCard title="Monitor search health">
+    Standalone search providers can expose health checks and metrics. The supplied Prometheus rules alert you when a provider is missing, queries fail, or indexing stops making progress. See [search operations](/guides/operations/search/).
+  </ReleaseFeatureCard>
+</ReleaseFeatureGrid>
+
+### Other noteworthy changes
+
+- Enable the `atproto` login provider to offer internet-handle sign-in. You do not need a client registration or secret. See [external login providers](/guides/integrations/external-login-providers/).
+- After first-run setup, the new owner is signed in with Shield Mode active for 15 minutes. A welcome dialog links to the first configuration tasks.
+- Usernames can contain up to 64 characters by default. Set `core.accounts.max_login_length` to choose a limit from 2 to 254. Archive import checks new usernames against the destination limit before writing records.
+- Set `CHATTO_FRONTEND_ORIGIN` on a standalone frontend container to publish OAuth client metadata for remote sign-in. You can also set its page title, description, and link-preview image.
+
+### Fixes
+
+- Outbound webhooks and accepted registration, verification, and password-reset emails survive restarts. Mail delivery retries until the code or link expires. SMTP message IDs use the sender’s domain, which avoids rejection of mail sent from containers.
+- Another replica can finish interrupted cleanup of old branding images, obsolete message bodies, and deleted accounts’ sessions and tokens. It can also finish scheduled Neighborhood refreshes.
+- Server Administration warns when a projection stops advancing. Web Push test logs identify the failed step and include the push service’s HTTP status when available.
+- Server startup retries temporary JetStream provisioning failures. In `chatto init -i`, pressing Enter on the final review creates the configuration files.
+
+## Integrating with Chatto
+
+<ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="More actions for MCP agents">
+    Agents can send direct messages by user ID, read and reply to threads, edit or delete messages, and manage reactions within the connected account’s permissions. To look up public profiles by username or ID, request `chatto:profile:read` and obtain fresh consent.
+  </ReleaseFeatureCard>
+</ReleaseFeatureGrid>
+
+### Fixes
+
+- ConnectRPC and MCP reads with an expired minimum realtime cursor now run immediately. Public server discovery uses cacheable GET requests and sends no credentials or referrer.
+
+## Upgrade Notes
+
+1. **Set `webserver.url` or `CHATTO_WEBSERVER_URL` before you upgrade.** Use the public HTTP or HTTPS URL that members use to add your server. The server cannot start with a missing or blank value. Set the URL on servers still running 0.5 as well if members sign in from another server’s frontend.
+2. **Decide whether the bundled frontend should offer server switching.** By default it shows only its own server. Set `frontend.gutter.enabled = true` or `CHATTO_FRONTEND_GUTTER_ENABLED=true` to show the Server Gutter and Server Directory. The standalone frontend and desktop app continue to support multiple servers.
+3. **Upgrade the servers, then immediately upgrade standalone `chatto asset-processing` workers.** Older workers cannot process new media jobs. New workers need the job stream that an upgraded server creates.
+4. **Review custom roles and direct account grants after the upgrade.** Enable **Require Shield Mode** on each role that needs activation. Move any direct grant that should require activation into a protected role. A bot can receive permissions its owner holds at the same scope, including through an inactive protected role. If the owner loses a permission, the bot’s grant becomes inactive.
+5. **Check the Jobs page before rolling back.** Avoid rollback while jobs are queued or running. Earlier servers cannot finish jobs accepted by 0.6, including account-key deletion. These jobs wait until you upgrade again.
+
+The 0.6 client can still connect to 0.5.0 servers. The Jobs page and role selection in Shield Mode require a 0.6 server. For servers still on 0.4, upgrade to at least 0.5.0 for discovery. Members whose 0.4 browser sessions never migrated through 0.5 must sign in again. See [API compatibility](/guides/integrations/api-compatibility/).
+
+If your integration handles its own OAuth callback with `@chatto/client/auth/oauth`, preserve the authorization response’s `iss` parameter and verify it against the selected server. The client rejects a missing or mismatched issuer.
+
+## GitHub release
+
+The [Chatto 0.6.0 release](https://github.com/chattocorp/chatto/releases/tag/v0.6.0) will be available when the stable version ships.

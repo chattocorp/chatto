@@ -41,7 +41,7 @@ CHATTO_DEV_PORT_BASE = "{% if env.GEORDI_PORT | default(value='') != '' %}{{env.
 CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_CHATTO_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE)}}"
 # Vite frontend development server (`mise dev-frontend`).
 CHATTO_DEV_VITE_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}"
-CHATTO_DEV_AUTHLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 2}}"
+CHATTO_DEV_AUTHLING_PORT = "{{env.CHATTO_DEV_AUTHLING_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 2)}}"
 # Runling bot console.
 CHATTO_DEV_RUNLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 3}}"
 # Chatto embedded NATS.

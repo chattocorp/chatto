@@ -6,7 +6,7 @@ default: urls.chatto
 # The development services use fixed offsets from GEORDI_PORT; see the `[env]`
 # section of mise.toml. Reserve the complete block of ten ports.
 ports: 10
-# Both jobs use the same NATS port and data directory, so only one runs at a
+# The run and full jobs use the same NATS port and data directory, so only one runs at a
 # time. The port check of the second job stops it early.
 jobs:
   run:
@@ -17,7 +17,11 @@ jobs:
     # Chatto uses this job's port, so the full stack has a URL of its own.
     # Geordi gives this job the second port, which is the Vite offset: do not
     # run `mise dev-frontend` beside it. The other services keep their offsets.
-    command: CHATTO_DEV_CHATTO_PORT_OVERRIDE=$PORT CHATTO_DEV_CHATTO_URL_OVERRIDE=http://localhost:$PORT mise dev-full
+    # Authling uses the regular Chatto port so the third port can serve docs.
+    command: CHATTO_DEV_AUTHLING_PORT_OVERRIDE=$GEORDI_PORT_RUN CHATTO_DEV_CHATTO_PORT_OVERRIDE=$PORT CHATTO_DEV_CHATTO_URL_OVERRIDE=http://localhost:$PORT mise dev-full
+  docs:
+    label: Docs website
+    command: mise dev-docs-website -- --port "$PORT"
 urls:
   chatto:
     label: Chatto
@@ -25,3 +29,6 @@ urls:
   chatto-full:
     label: Chatto (full stack)
     url: http://localhost:{full}/
+  docs:
+    label: Docs website
+    url: http://localhost:{docs}/
