@@ -1,7 +1,7 @@
 # FDR-056: Background Jobs
 
 **Status:** Experimental
-**Last reviewed:** 2026-11-17
+**Last reviewed:** 2026-11-20
 
 ## Overview
 
@@ -12,6 +12,11 @@ Neighborhood refresh, notification alerts, and transactional email.
 
 ## Behavior
 
+- A Jobs row appears after the queue accepts an item. For example, an eligible
+  Neighborhood refresh or a notification alert has a row. The recurring due
+  check and the notification materializer have their own recovery paths.
+  Server owners can inspect durable consumer progress in diagnostics. Retry on
+  the Jobs page applies to an individual failed job.
 - Accepted jobs survive restart. An external effect can occur more than once.
 - Jobs show queued, running, succeeded, or failed state, attempt counts, times,
   and a safe failure category. Content and credentials are not shown.
@@ -59,10 +64,10 @@ Neighborhood refresh, notification alerts, and transactional email.
 
 ### 1. Use one execution model
 
-**Decision:** All durable asynchronous effects use one managed queue.
-Periodic reconciliation passes remain separate.
+**Decision:** Work accepted for asynchronous execution on another replica uses the shared Jobs queue.
+Periodic reconciliation uses current state to find work. Notification materialization uses its durable EVT consumers so reads can wait for the resulting state.
 **Why:** Common execution and recovery controls reduce separate worker rules.
-See ADR-123.
+See [ADR-123](../adr/ADR-123-durable-background-jobs.md#which-chatto-workers-stay-outside-jobs).
 **Tradeoff:** Operators have one more stream to back up. Each job type has its
 own worker pool, so slow work of one type does not delay another type.
 
@@ -108,5 +113,5 @@ the job list repeatedly.
 
 ## Open Questions
 
-- Add delayed deletion when it needs durable jobs.
+- Decide how to schedule future configurable deletion grace periods.
 - Add a bulk delete for failed jobs when operators need it.

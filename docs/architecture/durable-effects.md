@@ -99,14 +99,12 @@ retryably rather than acknowledging or deleting their work, allowing JetStream
 to hand the delivery to a capable replica without adding notification-only EVT
 facts.
 
-Observability is currently domain-specific. Call reconciliation records its
-consecutive LiveKit listing failures in `MEMORY_CACHE`. Owner-only asset-cleanup
-diagnostics derive queue depth and delivery progress directly from the shared
-JetStream consumer; they do not infer worker liveness from broker response
-timestamps or transient pull requests. Other effects still
-primarily emit structured logs, and there is no common metric/status contract
-for pending effect count, oldest pending age, retry attempts, terminal failures,
-or effect-consumer lag.
+The Jobs page shows accepted work, attempt counts, and failures. Durable
+consumer diagnostics show handoff progress. The notification materializer's
+acknowledgements track completed domain output. Call reconciliation records
+consecutive LiveKit listing failures in `MEMORY_CACHE`. See the
+[worker inventory](runtime-components.md#background-workers) for scans,
+local services, and their recovery paths.
 
 Failure coverage is also domain-specific. Call cleanup and message-owned asset
 deletion have commit/failure, restart, independent-work, and late-replica
@@ -136,9 +134,8 @@ notification follow-up observability.
 
 Transient `live.sync.>` publication is intentionally excluded from recovery:
 clients treat those messages as invalidations and recover authoritative state
-through projected reads. Auth email delivery is also outside this inventory:
-registration, verification, and reset credentials live in `RUNTIME_STATE`, with
-durable EVT records serving as security audit facts rather than an email queue.
+through projected reads. Transactional mail uses a job with a separate encrypted
+content record. The durable auth events serve as security audit facts.
 
 ## Transactional email
 
@@ -162,6 +159,8 @@ a capable replica returns, subject to the original deadline.
 
 ## Durable background jobs
 
+The [JOBS consumer inventory](nats-resources.md#job-consumers-and-webhook-source)
+lists the registered types and the processes that execute them.
 The shared [`pkg/jobs`](../../pkg/jobs/README.md) module owns job facts, the
 worker, capped backoff, manual retry, the job view, and retention. The `JOBS`
 stream is a small event log. Facts are JSON values, in the form that `pkg/jobs` owns, on

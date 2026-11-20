@@ -182,6 +182,42 @@ current endpoint configuration, access, message state, and expiry before HTTP.
 Jobs store opaque references and policy, never content or endpoint credentials.
 The public API exposes an explicit safe summary and action availability.
 
+### Which Chatto workers stay outside JOBS
+
+Use a job when Chatto accepts a distinct piece of work that another replica
+must be able to finish. Give that work a stable identity and check its domain
+completion condition on retry. A source consumer can hand off the work and
+acknowledge after JOBS accepts it. Its acknowledgement then proves acceptance.
+
+Keep the following execution contracts for the Chatto server:
+
+- **Notification materialization.** The message and policy, invitation, and
+  role-protection consumers acknowledge EVT after writing their derived state.
+  Reads that wait for materialization depend on that progress. A crash before
+  acknowledgement replays the source against idempotent output. Once an alert
+  signal exists, Web Push is a separate delivery with a deadline and a job.
+- **Reconciliation and backfill.** A pass discovers work by comparing current
+  state. LiveKit observations, upload expiry, read boundaries, pending alerts,
+  orphan push records, and snapshot eligibility can all change between passes.
+  After an interruption, read the state again. Keep a durable handoff when the
+  pass identifies a distinct effect, as Neighborhood refresh and media backfill do.
+- **Replica and connection state.** Each serving process needs its own current
+  projections, KV watches, search index or connection health. Recovery belongs
+  to the process that serves the read. Realtime heartbeats and presence belong
+  to the active connection. A disconnected client can reconnect and read again.
+- **Request results, caches, and telemetry.** Link previews and image transforms
+  supply the current request. A later request can fetch or generate a missing
+  cache entry. Credential-use observations and exporter samples are best effort.
+  A later observation supplies a new value.
+- **Pre-commit compensation.** If a key or binary was created but its domain
+  write never committed, there may be no durable reference from which to
+  recover it. The creating command attempts cleanup where possible. Closing the
+  orphan window would require a creation or discovery protocol. The
+  [durable effect inventory](../architecture/durable-effects.md) records these limits.
+
+The [worker inventory](../architecture/runtime-components.md#background-workers)
+identifies the owner and recovery path for each of these cases.
+
 ## Consequences
 
 Operators can inspect and retry failed work through one settings page. Webhook
@@ -209,10 +245,6 @@ actions, or separate dead-letter stream. Job state has no realtime event; the Jo
 - Rolling back to a server version without the queue leaves accepted,
   unfinished jobs in the stream; their sources are already acknowledged. Roll
   forward again to run them.
-- Notification occurrence projection, link-preview work, and periodic
-  reconciliation passes remain outside the queue. Transactional email uses a
-  separate job consumer and encrypted, expiring runtime content. Its job holds
-  only an opaque content ID and the original delivery deadline.
 
 Authling keeps job facts in a dedicated `AUTHLING_JOBS` stream with the same
 retention rules for erasure. Email uses its own consumer and pool; failed mail
