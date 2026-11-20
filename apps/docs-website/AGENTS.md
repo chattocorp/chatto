@@ -29,6 +29,10 @@ human-authored. Agents can suggest changes. Edit these pages only when the user
 explicitly requests edits to them. Report a required correction instead of
 changing a protected page as part of a routine feature update.
 
+When adding a page for the newest minor release, update the homepage
+`Release Notes` link in the same change, even if the release is still
+in beta. This navigation update is part of adding the release page.
+
 ## Page Scope And Navigation
 
 - Before adding a guide, identify the operator task it serves: installation,

@@ -51,8 +51,8 @@ distinguish stable documentation from development documentation.
 
 - Check the homepage's `Release Notes` action in
   `apps/docs-website/src/content/docs/index.mdx`. It must link to the release
-  page for the latest stable minor version represented by the site. Preparing
-  an unreleased page alone does not make it the latest stable release.
+  page for the newest minor version included in that build of the site,
+  even when the page is marked unreleased.
 - Check release navigation in `apps/docs-website/astro.config.mjs` and links
   from guides to release notes. Verify that target pages and fragments exist
   and match the release discussed. Preserve intentional historical links.
