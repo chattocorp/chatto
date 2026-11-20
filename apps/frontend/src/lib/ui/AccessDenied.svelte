@@ -1,18 +1,23 @@
 <!--
 @component
 
-Full-pane notice for routes the current user may not open: a lock icon,
-the "Access Denied" headline, an explanation, and a button back to a safe
-destination. Fills its parent and centers the notice in it.
+Full-pane notice for places the current user may not open, such as a
+management page or a room they cannot join: a lock icon, a headline, an
+explanation, and a button back to a safe destination. Fills its parent and
+centers the notice in it.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import { Button } from '$lib/ui/form';
 
   let {
+    title = m('ui.access_denied.title'),
     message = m('ui.access_denied.message'),
     backHref = '/chat',
     backLabel = m('ui.access_denied.back')
   }: {
+    /** Headline. May contain user-generated text, such as a room name. */
+    title?: string;
     /** Explanation shown below the headline. */
     message?: string;
     /** Already-resolved path for the back button. */
@@ -29,12 +34,11 @@ destination. Fills its parent and centers the notice in it.
     <span aria-hidden="true" class="iconify icon-[uil--lock] text-3xl text-danger"></span>
   </div>
   <div class="flex max-w-sm flex-col gap-2">
-    <h1 class="text-2xl font-semibold text-text-top">{m('ui.access_denied.title')}</h1>
+    <h1 class="text-2xl font-semibold text-text-top"><bdi>{title}</bdi></h1>
     <p class="text-muted">{message}</p>
   </div>
-  <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- backHref is a prop; callers pass already-resolved paths -->
-  <a href={backHref} class="btn-secondary">
+  <Button href={backHref} variant="secondary">
     <span aria-hidden="true" class="iconify icon-[uil--arrow-left] rtl:-scale-x-100"></span>
     {backLabel}
-  </a>
+  </Button>
 </div>
