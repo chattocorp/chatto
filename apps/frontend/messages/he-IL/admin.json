@@ -618,6 +618,7 @@
       "delete_message": "העבודה של משימה זו תינטש. לא תוכל לנסות אותה שוב מאוחר יותר.",
       "webhook": "מסירת Webhook",
       "media": "עיבוד מדיה",
+      "message_body_erasure": "מחיקת תוכן הודעות",
       "branding_cleanup": "ניקוי סמלים ובאנרים של השרת",
       "asset_cleanup": "ניקוי קבצים",
       "call_key_cleanup": "מחיקת מפתחות שיחה",

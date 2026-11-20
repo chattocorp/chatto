@@ -606,6 +606,7 @@
       "delete_message": "Il lavoro di questa attività viene abbandonato. Non potrai riprovarla in seguito.",
       "webhook": "Invio webhook",
       "media": "Elaborazione multimediale",
+      "message_body_erasure": "Cancellazione del contenuto dei messaggi",
       "branding_cleanup": "Pulizia dei loghi e dei banner del server",
       "asset_cleanup": "Pulizia dei file",
       "call_key_cleanup": "Eliminazione delle chiavi di chiamata",

@@ -606,6 +606,7 @@
       "delete_message": "Jobbets arbete överges. Du kan inte försöka igen senare.",
       "webhook": "Webhook-leverans",
       "media": "Mediebearbetning",
+      "message_body_erasure": "Radering av meddelandeinnehåll",
       "branding_cleanup": "Rensning av serverlogotyper och banderoller",
       "asset_cleanup": "Filrensning",
       "call_key_cleanup": "Radering av samtalsnycklar",

@@ -238,6 +238,9 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   for room, timeline, call, asset, thread, reaction, configuration,
   user-profile, content-key, RBAC, and mentionable components; also supplies the
   stable read transaction for content-backed authorization.
+- The [message-body erasure worker](../../cli/internal/core/message_body_cleanup.go)
+  consumes room edit and retraction facts. It uses projected body sequences
+  to erase superseded and retracted bodies through JOBS.
 - **`ConfigModel`**
   ([`config_model.go`](../../cli/internal/core/config_model.go),
   [`server_config_model.go`](../../cli/internal/core/server_config_model.go),
