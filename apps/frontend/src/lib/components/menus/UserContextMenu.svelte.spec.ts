@@ -15,6 +15,7 @@ const viewerSettingsState = {
 };
 const serverScopeMock = vi.hoisted(() => ({
   serverId: 'server-1',
+  getAtprotoHandles: vi.fn<() => Promise<string[]>>(),
   permissions: {
     loaded: true,
     canAdminViewUsers: false,
@@ -43,7 +44,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: serverScopeMock.serverId,
     connection: {
       queryScope: 'menu-session',
-      getAPI: () => ({ getAtprotoHandles: async () => ['alice.example'] })
+      getAPI: () => ({ getAtprotoHandles: serverScopeMock.getAtprotoHandles })
     },
     store: {
       get accountId() {
@@ -119,6 +120,7 @@ afterAll(() => {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  serverScopeMock.getAtprotoHandles.mockReset().mockResolvedValue(['alice.example']);
   serverScopeMock.serverId = 'server-1';
   serverScopeMock.permissions.loaded = true;
   serverScopeMock.permissions.canAdminViewUsers = false;
@@ -141,6 +143,24 @@ beforeEach(() => {
 });
 
 describe('UserContextMenu', () => {
+  it('shows cached identities on reopen while a stale lookup refreshes', async () => {
+    const first = renderMenu();
+    await expect.poll(() => first.container.textContent).toContain('alice.example');
+    first.unmount();
+    // Let any zero-delay cache eviction run before reopening.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Move past the session cache's freshness window while the popup is closed.
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 31_000);
+    const refresh = Promise.withResolvers<string[]>();
+    serverScopeMock.getAtprotoHandles.mockReturnValueOnce(refresh.promise);
+    const second = renderMenu();
+    await expect.poll(() => serverScopeMock.getAtprotoHandles.mock.calls.length).toBe(2);
+    expect(second.container.textContent).toContain('alice.example');
+    refresh.resolve([]);
+    await expect.poll(() => second.container.textContent).not.toContain('alice.example');
+  });
+
   it.each(['server-1', 'server-2'])(
     'links own profile settings within %s and closes the menu',
     (serverId) => {

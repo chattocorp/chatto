@@ -71,7 +71,10 @@ label identifies the server-linked account (ADR-124). The server resolves each l
 DID when a client requests handles. The directory caches successful lookups
 for up to a day, so a renamed handle can take time to change. A missing handle
 or failed lookup leaves that handle out. Disconnecting the account removes
-its handle from subsequent reads.
+its handle from subsequent server reads. The popup and sidebar share a session
+cache. Reopening either view shows cached identities immediately. After 30 seconds,
+reopening also refreshes them in the background. The cache drops unused results
+after five minutes.
 
 ### 3. A remembered handle instead of a device session
 

@@ -1,7 +1,7 @@
 <!--
 @component
-Shows linked internet handles on the public profile. Each read belongs to
-the selected server and member and stops when the profile closes or changes.
+Shares cached identity reads between the popup and sidebar for the same
+server session and profile. Stale data stays visible during a refresh.
 -->
 <script lang="ts">
   import { createQuery } from '$lib/query/client';
@@ -20,7 +20,6 @@ the selected server and member and stops when the profile closes or changes.
     return {
       queryKey: [...serverSessionQueryRoot(scope), 'user', id, 'atproto-handles'],
       queryFn: ({ signal }) => scope.connection.getAPI(createUserAPI).getAtprotoHandles(id, signal),
-      gcTime: 0,
       retry: false
     };
   });
