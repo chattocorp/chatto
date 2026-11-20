@@ -10,7 +10,7 @@ the selected server and member and stops when the profile closes or changes.
   import { useServerScope } from '$lib/state/server/scope.svelte';
 
   import { providerIcon } from '$lib/auth/providerIcon';
-  import SelfVerificationPill from './SelfVerificationPill.svelte';
+  import { SelfVerificationPill } from '$lib/ui';
 
   let { userId, class: className }: { userId: string; class?: string } = $props();
   const scope = useServerScope();
