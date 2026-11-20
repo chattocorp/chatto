@@ -606,6 +606,7 @@
       "delete_message": "Selle töö tegevus jäetakse pooleli. Te ei saa seda hiljem uuesti proovida.",
       "webhook": "Veebikonksu edastamine",
       "media": "Meedia töötlemine",
+      "neighborhood_refresh": "Naabruskonna värskendamine",
       "message_body_erasure": "Sõnumite sisu kustutamine",
       "branding_cleanup": "Serveri logode ja bännerite puhastus",
       "asset_cleanup": "Failide puhastamine",

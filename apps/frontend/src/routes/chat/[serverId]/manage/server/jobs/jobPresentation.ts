@@ -26,6 +26,8 @@ export function knownJobTypeLabel(type: string): string | null {
       return m('admin.jobs.webhook');
     case 'media':
       return m('admin.jobs.media');
+    case 'neighborhood_refresh':
+      return m('admin.jobs.neighborhood_refresh');
     case 'message_body_erasure':
       return m('admin.jobs.message_body_erasure');
     case 'branding_cleanup':

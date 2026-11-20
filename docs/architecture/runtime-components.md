@@ -489,10 +489,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   ([`neighborhood_discovery.go`](../../cli/internal/core/neighborhood_discovery.go),
   [`crawl.go`](../../cli/internal/core/neighborhood/crawl.go),
   [`remote.go`](../../cli/internal/core/neighborhood/remote.go)): Post-boot
-  five-second check on every replica; each replica runs a bounded Neighborhood
-  discovery pass when the cached directory is missing, one hour old, ten minutes
+  five-second check on every replica. The check enqueues a shared Neighborhood
+  refresh job when the cached directory is missing, one hour old, ten minutes
   old after a failed remote request, or based on a different Neighbor set.
-  Replicas do not coordinate passes; they write equivalent results. The pass
+  One worker runs the bounded pass for that cache generation. The pass
   uses the SSRF-guarded link-preview client without redirects, writes
   `neighborhood.directory`, and stores re-encoded images in `ASSET_CACHE`
   (ADR-106).

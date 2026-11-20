@@ -116,7 +116,7 @@ export class Job extends Message<Job> {
 
   /**
    * Registered work type: webhook, media, asset_cleanup, branding_cleanup, call_key_cleanup,
-   * message_body_erasure, push_subscription_cleanup, user_key_shredding, notification_alert, or email.
+   * message_body_erasure, neighborhood_refresh, push_subscription_cleanup, user_key_shredding, notification_alert, or email.
    * Clients can encounter future types.
    *
    * @generated from field: string type = 2;

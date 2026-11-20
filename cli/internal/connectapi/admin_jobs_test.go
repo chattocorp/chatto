@@ -30,9 +30,8 @@ func TestJobsAPIUsesEffectiveServerManagePermission(t *testing.T) {
 	require.Equal(t, connect.CodePermissionDenied, errorCode(err))
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermServerManage))
 	ctx := withBearerCredential(env.ctx, env.viewer, "unarmed")
-	response, err := service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{}))
+	_, err = service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{}))
 	require.NoError(t, err)
-	require.Empty(t, response.Msg.Jobs)
 	_, err = service.GetJob(ctx, connect.NewRequest(&adminv1.GetJobRequest{Id: "missing"}))
 	require.Equal(t, connect.CodeNotFound, errorCode(err))
 }
@@ -95,7 +94,9 @@ func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 	queued, err := service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{Status: adminv1.JobStatus_JOB_STATUS_QUEUED}))
 	require.NoError(t, err)
-	require.Empty(t, queued.Msg.Jobs)
+	for _, job := range queued.Msg.Jobs {
+		require.Equal(t, adminv1.JobStatus_JOB_STATUS_QUEUED, job.Status)
+	}
 	_, err = service.ListJobs(ctx, connect.NewRequest(&adminv1.ListJobsRequest{Cursor: "tampered"}))
 	require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 	retried, err := service.RetryJob(ctx, connect.NewRequest(&adminv1.RetryJobRequest{Id: "a", Version: byID["a"].Version}))
@@ -123,7 +124,6 @@ func TestJobsAPISafeSummaryPaginationAndRetry(t *testing.T) {
 	require.Len(t, failed.Msg.Jobs, 1)
 	require.Equal(t, "b", failed.Msg.Jobs[0].Id)
 }
-
 
 // Expiry blocks only the retry of a failed job. An unlimited budget has no
 // maximum in the summary.

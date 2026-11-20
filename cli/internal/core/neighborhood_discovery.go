@@ -26,9 +26,13 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/core/neighborhood"
 	"github.com/chattocorp/chatto/cli/internal/parallel"
 	cachestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
+	"github.com/chattocorp/chatto/pkg/jetstreamutil"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 const (
+	jobTypeNeighborhoodRefresh = "neighborhood_refresh"
+
 	// neighborhoodDirectoryKey stores the latest discovery result in
 	// MEMORY_CACHE.
 	neighborhoodDirectoryKey = "neighborhood.directory"
@@ -46,9 +50,7 @@ const (
 	// neighborhoodCheckInterval is the time between checks. A check reads one
 	// MEMORY_CACHE value and hashes the local Neighbor projection.
 	neighborhoodCheckInterval = 5 * time.Second
-	// neighborhoodFailureBackoff is the wait after a failed check. A check
-	// can fail after a complete remote crawl, so a short retry would repeat
-	// that crawl.
+	// neighborhoodFailureBackoff is the wait after a failed check or job attempt.
 	neighborhoodFailureBackoff = time.Minute
 	// neighborhoodPassTimeout bounds one pass, including image downloads.
 	neighborhoodPassTimeout = 20 * time.Minute
@@ -73,27 +75,26 @@ type neighborhoodFetcher interface {
 	FetchImage(ctx context.Context, origin, rawURL string) ([]byte, error)
 }
 
-// neighborhoodDiscovery refreshes the cached Neighborhood directory. Each
-// replica runs one worker. The replicas do not coordinate: when a pass is
-// due, each replica can run the same pass and write an equivalent result.
-// This interim design accepts the extra remote requests.
+// neighborhoodDiscovery schedules and performs refreshes of the shared directory.
 type neighborhoodDiscovery struct {
-	kv          jetstream.KeyValue
-	images      jetstream.ObjectStore
-	fetcher     neighborhoodFetcher
-	selfOrigins []string
-	neighbors   func() []string
-	assetsCfg   assets.Config
-	limits      neighborhood.Limits
-	logger      *log.Logger
-	now         func() time.Time
-	// checkInterval and failureBackoff override the production timings in
-	// tests.
-	checkInterval  time.Duration
-	failureBackoff time.Duration
+	// Only the periodic check accesses lastEnqueued. Once JOBS accepts a
+	// generation, the queue owns retries until its directory is replaced.
+	lastEnqueued string
+	enqueue      func(context.Context, jobqueue.Spec) error
+	kv           jetstream.KeyValue
+	images       jetstream.ObjectStore
+	fetcher      neighborhoodFetcher
+	selfOrigins  []string
+	neighbors    func() []string
+	assetsCfg    assets.Config
+	limits       neighborhood.Limits
+	logger       *log.Logger
+	now          func() time.Time
+	// checkInterval overrides the production cadence in tests.
+	checkInterval time.Duration
 }
 
-// Run checks the directory every few seconds after boot. It refreshes the
+// Run checks the directory every few seconds after boot. It schedules a refresh of the
 // directory when it is missing, old, incomplete for ten minutes, or based on
 // a different Neighbor set. Every replica sees Neighbor changes through its
 // configuration projection, so no change signal is necessary.
@@ -104,7 +105,6 @@ func (d *neighborhoodDiscovery) Run(ctx context.Context, bootDone <-chan struct{
 		return ctx.Err()
 	}
 	checkInterval := cmp.Or(d.checkInterval, neighborhoodCheckInterval)
-	failureBackoff := cmp.Or(d.failureBackoff, neighborhoodFailureBackoff)
 	for {
 		wait := checkInterval
 		if err := d.refreshIfDue(ctx); err != nil {
@@ -112,7 +112,7 @@ func (d *neighborhoodDiscovery) Run(ctx context.Context, bootDone <-chan struct{
 				return ctx.Err()
 			}
 			d.logger.Warn("Neighborhood discovery failed", "stage", "refresh", "error", err)
-			wait = failureBackoff
+			wait = neighborhoodFailureBackoff
 		}
 		select {
 		case <-ctx.Done():
@@ -122,18 +122,49 @@ func (d *neighborhoodDiscovery) Run(ctx context.Context, bootDone <-chan struct{
 	}
 }
 
-// refreshIfDue runs a discovery pass when the directory is due.
+// refreshIfDue hands off one job per cache generation. On a cold cache,
+// establish a shared generation first. This distinguishes a cache reset from
+// an earlier cold start whose job facts are still retained.
 func (d *neighborhoodDiscovery) refreshIfDue(ctx context.Context) error {
-	sources := d.neighbors()
-	fingerprint := neighborhoodSourceFingerprint(sources)
-	current, err := d.load(ctx)
+	entry, current, err := loadNeighborhoodDirectory(ctx, d.kv)
 	if err != nil {
 		return err
 	}
-	if !d.due(current, fingerprint) {
+	if entry == nil {
+		if _, err := d.kv.Create(ctx, neighborhoodDirectoryKey, nil); err != nil && !jetstreamutil.IsSequenceConflict(err) {
+			return err
+		}
+		entry, current, err = loadNeighborhoodDirectory(ctx, d.kv)
+		if err != nil || entry == nil {
+			return err
+		}
+	}
+	if !d.due(current, neighborhoodSourceFingerprint(d.neighbors())) {
 		return nil
 	}
-	return d.refresh(ctx, sources, fingerprint, current)
+	id := neighborhoodRefreshID(entry)
+	if id == d.lastEnqueued {
+		return nil
+	}
+	if err := d.enqueue(ctx, jobqueue.Spec{ID: id, Type: jobTypeNeighborhoodRefresh, MaxAttempts: jobqueue.UnlimitedAttempts, RetryDelay: neighborhoodFailureBackoff}); err != nil {
+		return err
+	}
+	d.lastEnqueued = id
+	return nil
+}
+
+// The broker timestamp distinguishes revisions reused after a cache reset.
+func neighborhoodRefreshID(entry jetstream.KeyValueEntry) string {
+	return jobqueue.ID(jobTypeNeighborhoodRefresh, fmt.Sprintf("%d:%d", entry.Revision(), entry.Created().UnixNano()))
+}
+
+func (d *neighborhoodDiscovery) performJob(ctx context.Context, job jobqueue.Job) error {
+	entry, current, err := loadNeighborhoodDirectory(ctx, d.kv)
+	if err != nil || entry == nil || neighborhoodRefreshID(entry) != job.ID {
+		return err
+	}
+	sources := d.neighbors()
+	return d.refresh(ctx, sources, neighborhoodSourceFingerprint(sources), current, entry.Revision())
 }
 
 func (d *neighborhoodDiscovery) due(current *cachestatev1.NeighborhoodDirectory, fingerprint string) bool {
@@ -150,7 +181,7 @@ func (d *neighborhoodDiscovery) due(current *cachestatev1.NeighborhoodDirectory,
 	return current.GetSourceFingerprint() != fingerprint && age >= neighborhoodSourceChangeDelay
 }
 
-func (d *neighborhoodDiscovery) refresh(ctx context.Context, sources []string, fingerprint string, previous *cachestatev1.NeighborhoodDirectory) error {
+func (d *neighborhoodDiscovery) refresh(ctx context.Context, sources []string, fingerprint string, previous *cachestatev1.NeighborhoodDirectory, revision uint64) error {
 	passCtx, cancel := context.WithTimeout(ctx, neighborhoodPassTimeout)
 	defer cancel()
 	started := d.now()
@@ -190,7 +221,10 @@ func (d *neighborhoodDiscovery) refresh(ctx context.Context, sources []string, f
 	if err != nil {
 		return err
 	}
-	if _, err := d.kv.Put(ctx, neighborhoodDirectoryKey, data); err != nil {
+	if _, err := d.kv.Update(ctx, neighborhoodDirectoryKey, data, revision); err != nil {
+		if jetstreamutil.IsSequenceConflict(err) {
+			return nil
+		}
 		return fmt.Errorf("store Neighborhood directory: %w", err)
 	}
 	logCompleted := d.logger.Info
@@ -292,23 +326,24 @@ func (d *neighborhoodDiscovery) imageIsFresh(ctx context.Context, name string) b
 	return err == nil && d.now().Sub(info.ModTime) < neighborhoodImageRewriteAge
 }
 
-func (d *neighborhoodDiscovery) load(ctx context.Context) (*cachestatev1.NeighborhoodDirectory, error) {
-	return loadNeighborhoodDirectory(ctx, d.kv)
-}
-
-func loadNeighborhoodDirectory(ctx context.Context, kv jetstream.KeyValue) (*cachestatev1.NeighborhoodDirectory, error) {
+func loadNeighborhoodDirectory(ctx context.Context, kv jetstream.KeyValue) (jetstream.KeyValueEntry, *cachestatev1.NeighborhoodDirectory, error) {
 	entry, err := kv.Get(ctx, neighborhoodDirectoryKey)
 	if errors.Is(err, jetstream.ErrKeyNotFound) {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("read Neighborhood directory: %w", err)
+		return nil, nil, fmt.Errorf("read Neighborhood directory: %w", err)
+	}
+	// An empty value identifies the first pending pass. Public readers still
+	// see a missing directory until a worker publishes the result.
+	if len(entry.Value()) == 0 {
+		return entry, nil, nil
 	}
 	directory := &cachestatev1.NeighborhoodDirectory{}
 	if err := proto.Unmarshal(entry.Value(), directory); err != nil {
-		return nil, fmt.Errorf("decode Neighborhood directory: %w", err)
+		return nil, nil, fmt.Errorf("decode Neighborhood directory: %w", err)
 	}
-	return directory, nil
+	return entry, directory, nil
 }
 
 // neighborhoodSourceFingerprint identifies the Neighbor set of a discovery
@@ -326,7 +361,8 @@ func neighborhoodSourceFingerprint(neighbors []string) string {
 // nil before the first completed discovery pass. The call does not contact
 // remote servers.
 func (c *ChattoCore) NeighborhoodDirectory(ctx context.Context) (*cachestatev1.NeighborhoodDirectory, error) {
-	return loadNeighborhoodDirectory(ctx, c.storage.memoryCacheKV)
+	_, directory, err := loadNeighborhoodDirectory(ctx, c.storage.memoryCacheKV)
+	return directory, err
 }
 
 // neighborhoodImageKey isolates public Neighborhood images from other cache entries.
@@ -364,6 +400,7 @@ func (c *ChattoCore) OpenNeighborhoodImage(ctx context.Context, name string) (io
 
 func initializeNeighborhoodDiscovery(core *ChattoCore, infra *coreInfrastructure, cfg config.CoreConfig, logger *log.Logger) {
 	core.neighborhoodDiscovery = &neighborhoodDiscovery{
+		enqueue:     core.jobs.Enqueue,
 		kv:          infra.storage.memoryCacheKV,
 		images:      infra.storage.imageCacheStore,
 		fetcher:     neighborhood.RemoteFetcher{Client: newNeighborhoodHTTPClient()},

@@ -230,7 +230,7 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
 <EnvVar name="CHATTO_CORE_JOB_CONCURRENCY" toml="core.job_concurrency" default="8">
   Maximum simultaneous jobs of each webhook, file cleanup, message-body erasure, and key-deletion
   job type in each server replica. Each of these job types has its own limit.
-  Notification alerts and media processing do not use this setting. Media
+  Neighborhood refresh uses one worker per replica. Notification alerts and media processing also have separate limits. Media
   processing uses `asset_processing.max_concurrent_jobs` instead.
 </EnvVar>
 

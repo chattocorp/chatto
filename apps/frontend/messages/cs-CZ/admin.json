@@ -630,6 +630,7 @@
       "delete_message": "Práce této úlohy bude zahozena. Později ji nemůžete zopakovat.",
       "webhook": "Doručení webhooku",
       "media": "Zpracování médií",
+      "neighborhood_refresh": "Aktualizace sousedství",
       "message_body_erasure": "Výmaz obsahu zpráv",
       "branding_cleanup": "Úklid log a bannerů serveru",
       "asset_cleanup": "Čištění souborů",

@@ -65,12 +65,14 @@ local Neighbor projection. A pass is due when the directory is missing or one
 hour old. It is also due after ten minutes when a remote request failed in the
 previous pass, and after ten seconds when the Neighbor set changed. Every
 replica sees a Neighbor change through its projection, so no change signal is
-necessary. After a failed check, the worker waits one minute, because a failed
-write can follow a complete remote crawl.
+necessary. After a failed check, the replica waits one minute.
 
-As an interim design, the replicas do not coordinate their passes. When a pass
-is due, each replica can run it and write an equivalent directory. A later
-shared job queue can replace this worker.
+All replicas enqueue the same JOBS job for the same due directory. Its ID
+uses the cache revision and broker timestamp. On a cold cache, the first check
+creates an empty entry so a new cache has its own job identity. Public reads
+return no directory until the first pass completes. A worker checks the
+generation before it crawls and updates only that revision. If the writer
+stops after enqueue, any replica can finish the job.
 
 ## Consequences
 
@@ -83,8 +85,7 @@ shared job queue can replace this worker.
 - Discovery rejects servers on private network addresses. A Neighborhood of
   internal servers is not available through this RPC.
 - A remote server receives requests once per discovery pass from each
-  recommending server, not once per user visit. A deployment with several
-  replicas can send these requests once from each replica.
+  recommending server, not once per user visit. A worker crash before publication can repeat requests on retry.
 - Results can be up to one hour old. A Neighbor change appears within about
   fifteen seconds. A server that was unavailable during a pass can return after
   about ten minutes.

@@ -8,7 +8,7 @@
 The Jobs page in server settings lets authorised users inspect background work,
 retry failed jobs, and delete failed jobs. It covers outbound webhooks, media processing, file
 cleanup, message-body erasure, server logo and banner cleanup, call-key deletion, push-subscription cleanup, account-key deletion,
-notification alerts, and transactional email.
+Neighborhood refresh, notification alerts, and transactional email.
 
 ## Behavior
 
@@ -19,7 +19,7 @@ notification alerts, and transactional email.
   capped at thirty minutes. Exhausted or permanent failures remain visible.
 - An attempt that a server restart interrupts counts as an attempt.
 - Webhook and notification alert jobs have an attempt limit. Media, cleanup,
-  key-deletion, and email jobs have no attempt limit; email still stops at its
+  Neighborhood refresh, key-deletion, and email jobs have no attempt limit; email still stops at its
   delivery deadline. The page shows only their attempt count.
 - A failed, unexpired job can be retried manually. Retry keeps its identity and
   payload and starts a new attempt budget. A retry applies only to the failure

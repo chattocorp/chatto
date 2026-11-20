@@ -606,6 +606,7 @@
       "delete_message": "Die Arbeit dieses Auftrags wird verworfen. Du kannst ihn später nicht wiederholen.",
       "webhook": "Webhook-Zustellung",
       "media": "Medienverarbeitung",
+      "neighborhood_refresh": "Nachbarschaft aktualisieren",
       "message_body_erasure": "Nachrichteninhalte löschen",
       "branding_cleanup": "Serverlogos und Banner bereinigen",
       "asset_cleanup": "Dateibereinigung",
