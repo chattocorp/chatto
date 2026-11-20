@@ -85,7 +85,7 @@ Chatto's pre-1.0 API remains experimental.
   client attempts a connection and shows a warning.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
-- An amber key below the server artwork marks a required sign-in. It is the
+- An amber key at the top-start corner of the server icon marks a required sign-in. It is the
   only server status icon. An unreachable server or a failed connection uses
   50% artwork opacity. The same opacity applies when the server is below the
   connection floor or rejects the client's realtime protocol. An older server

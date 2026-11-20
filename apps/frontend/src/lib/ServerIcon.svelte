@@ -46,7 +46,10 @@
   } = $props();
 </script>
 
-<div class="server-icon-wrapper flex w-12 flex-col items-center gap-1" {@attach contextMenuTrigger}>
+<div
+  class="server-icon-wrapper relative flex w-12 flex-col items-center gap-1"
+  {@attach contextMenuTrigger}
+>
   <a
     href={href.startsWith('/') ? resolve(href as '/') : href}
     {onclick}
@@ -66,73 +69,70 @@
     {/if}
   </a>
 
-  {#if appearance === 'sign-in' || indicator}
-    <div class="flex w-full items-center justify-center gap-0.5">
-      {#if appearance === 'sign-in'}
-        <span
-          class="grid size-4 shrink-0 place-items-center rounded-full bg-warning text-on-warning"
-          {title}
-          data-testid="server-sign-in-marker"
-          aria-hidden="true"
-        >
-          <span class="iconify icon-[uil--key-skeleton] text-xs" aria-hidden="true"></span>
-        </span>
-      {/if}
+  {#if appearance === 'sign-in'}
+    <span
+      class="pointer-events-none absolute -start-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning"
+      data-testid="server-sign-in-marker"
+      aria-hidden="true"
+    >
+      <span class="iconify icon-[uil--key-skeleton] text-xs" aria-hidden="true"></span>
+    </span>
+  {/if}
 
-      {#if indicator}
-        {#if onIndicatorClick}
-          <button
-            type="button"
-            onclick={(e) => {
-              e.stopPropagation();
-              onIndicatorClick(indicator, e);
-            }}
-            class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
-            aria-label={indicator === 'notification' && notificationCount > 0
-              ? m('chat.server_gutter.go_to_notifications_count', { count: notificationCount })
-              : indicator === 'notification'
-                ? m('chat.server_gutter.go_to_notification')
-                : m('chat.server_gutter.go_to_first_unread')}
-          >
-            {#if indicator === 'notification' && notificationCount > 0}
-              <NotificationBadge
-                count={notificationCount}
-                color={importantNotificationCount > 0 ? 'warning' : 'ambient'}
-                testid="server-notification-badge"
-              />
-              <span class="sr-only"
-                >{m('chat.server_gutter.notifications_count', { count: notificationCount })}</span
-              >
-            {:else}
-              <UnreadDot
-                color={indicator === 'notification'
-                  ? importantNotificationCount > 0
-                    ? 'warning'
-                    : 'ambient'
-                  : 'muted'}
-                testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
-              />
-            {/if}
-          </button>
-        {:else if indicator === 'notification' && notificationCount > 0}
-          <NotificationBadge
-            count={notificationCount}
-            color={importantNotificationCount > 0 ? 'warning' : 'ambient'}
-            testid="server-notification-badge"
-          />
-          <span class="sr-only"
-            >{m('chat.server_gutter.notifications_count', { count: notificationCount })}</span
-          >
-        {:else}
-          <UnreadDot
-            color={indicator === 'notification'
-              ? importantNotificationCount > 0
-                ? 'warning'
-                : 'ambient'
-              : 'muted'}
-            testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
-          />
-        {/if}
+  {#if indicator}
+    <div class="flex w-full items-center justify-center">
+      {#if onIndicatorClick}
+        <button
+          type="button"
+          onclick={(e) => {
+            e.stopPropagation();
+            onIndicatorClick(indicator, e);
+          }}
+          class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
+          aria-label={indicator === 'notification' && notificationCount > 0
+            ? m('chat.server_gutter.go_to_notifications_count', { count: notificationCount })
+            : indicator === 'notification'
+              ? m('chat.server_gutter.go_to_notification')
+              : m('chat.server_gutter.go_to_first_unread')}
+        >
+          {#if indicator === 'notification' && notificationCount > 0}
+            <NotificationBadge
+              count={notificationCount}
+              color={importantNotificationCount > 0 ? 'warning' : 'ambient'}
+              testid="server-notification-badge"
+            />
+            <span class="sr-only"
+              >{m('chat.server_gutter.notifications_count', { count: notificationCount })}</span
+            >
+          {:else}
+            <UnreadDot
+              color={indicator === 'notification'
+                ? importantNotificationCount > 0
+                  ? 'warning'
+                  : 'ambient'
+                : 'muted'}
+              testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
+            />
+          {/if}
+        </button>
+      {:else if indicator === 'notification' && notificationCount > 0}
+        <NotificationBadge
+          count={notificationCount}
+          color={importantNotificationCount > 0 ? 'warning' : 'ambient'}
+          testid="server-notification-badge"
+        />
+        <span class="sr-only"
+          >{m('chat.server_gutter.notifications_count', { count: notificationCount })}</span
+        >
+      {:else}
+        <UnreadDot
+          color={indicator === 'notification'
+            ? importantNotificationCount > 0
+              ? 'warning'
+              : 'ambient'
+            : 'muted'}
+          testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
+        />
       {/if}
     </div>
   {/if}

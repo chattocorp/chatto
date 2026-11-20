@@ -940,6 +940,11 @@ describe('ServerSidebarEntry', () => {
     await expect.element(icon).toHaveAttribute('aria-label', 'Loaded Remote needs sign-in');
     const warning = q(container, '[data-testid="server-sign-in-marker"]');
     await expect.element(warning).toBeInTheDocument();
+    const tile = icon!.getBoundingClientRect();
+    const marker = warning!.getBoundingClientRect();
+    expect(marker.top).toBe(tile.top - 4);
+    expect(marker.left).toBe(tile.left - 4);
+    expect(marker.width).toBe(20);
     expect(warning?.querySelector('[class~="icon-[uil--key-skeleton]"]')).not.toBeNull();
     expect(container.querySelectorAll('[data-testid="server-sign-in-marker"]')).toHaveLength(1);
 
