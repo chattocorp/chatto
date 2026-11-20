@@ -18,11 +18,14 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core/neighborhood"
 	cachestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 const neighborhoodTestSelf = "https://self.example"
@@ -100,6 +103,10 @@ func newTestNeighborhoodDiscovery(t *testing.T) (*ChattoCore, *neighborhoodDisco
 		limits:      neighborhood.DefaultLimits,
 		logger:      core.logger,
 		now:         func() time.Time { return now },
+	}
+	// Execute the handoff inline for tests of crawl and timing behavior.
+	discovery.enqueue = func(ctx context.Context, spec jobqueue.Spec) error {
+		return discovery.performJob(ctx, jobqueue.Job{ID: spec.ID})
 	}
 	return core, discovery, fetcher, &now
 }
@@ -269,50 +276,194 @@ func TestNeighborhoodDiscoveryPicksUpNeighborChanges(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond)
 }
 
-// failingPutKV rejects every write so that a discovery pass fails after its
-// remote crawl. It reports each rejected write on rejected.
-type failingPutKV struct {
-	jetstream.KeyValue
-	rejected chan struct{}
+// Simulate a storage outage after the remote crawl has completed.
+type unavailableDirectoryWrites struct{ jetstream.KeyValue }
+
+func (unavailableDirectoryWrites) Update(context.Context, string, []byte, uint64) (uint64, error) {
+	return 0, errors.New("storage unavailable")
 }
 
-func (kv failingPutKV) Put(context.Context, string, []byte) (uint64, error) {
-	select {
-	case kv.rejected <- struct{}{}:
-	default:
-	}
-	return 0, errors.New("write rejected")
-}
-
-func TestNeighborhoodDiscoveryWaitsAfterAFailedPass(t *testing.T) {
-	_, discovery, fetcher, _ := newTestNeighborhoodDiscovery(t)
+func TestNeighborhoodRefreshRetriesFailedPublication(t *testing.T) {
+	core, discovery, _, _ := newTestNeighborhoodDiscovery(t)
 	ctx := testContext(t)
-	rejected := make(chan struct{}, 1)
-	discovery.kv = failingPutKV{KeyValue: discovery.kv, rejected: rejected}
-	discovery.checkInterval = 5 * time.Millisecond
-	discovery.failureBackoff = time.Hour
-	bootDone := make(chan struct{})
-	close(bootDone)
-	runCtx, cancel := context.WithCancel(ctx)
-	done := make(chan error, 1)
-	go func() { done <- discovery.Run(runCtx, bootDone) }()
-	t.Cleanup(func() {
-		cancel()
-		<-done
-	})
-
-	// The write is the last step of a pass, so the complete crawl is counted.
-	select {
-	case <-rejected:
-	case <-ctx.Done():
-		t.Fatal("the discovery pass did not reach its directory write")
+	var job jobqueue.Job
+	discovery.enqueue = func(_ context.Context, spec jobqueue.Spec) error {
+		require.EqualValues(t, jobqueue.UnlimitedAttempts, spec.MaxAttempts)
+		require.Equal(t, neighborhoodFailureBackoff, spec.RetryDelay)
+		job.ID = spec.ID
+		return nil
 	}
-	lists, _ := fetcher.counts()
+	require.NoError(t, discovery.refreshIfDue(ctx))
+	discovery.kv = unavailableDirectoryWrites{discovery.kv}
+	require.ErrorContains(t, discovery.performJob(ctx, job), "storage unavailable")
+	discovery.kv = core.storage.memoryCacheKV
+	require.NoError(t, discovery.performJob(ctx, job))
+	directory, err := core.NeighborhoodDirectory(ctx)
+	require.NoError(t, err)
+	require.Len(t, directory.GetServers(), 2)
+}
 
-	// Many check intervals pass, but the failed pass does not run again.
-	time.Sleep(100 * time.Millisecond)
-	listsLater, _ := fetcher.counts()
-	require.Equal(t, lists, listsLater)
+func TestNeighborhoodRefreshAfterCacheLoss(t *testing.T) {
+	core, discovery, _, _ := newTestNeighborhoodDiscovery(t)
+	ctx := testContext(t)
+	var accepted []jobqueue.Spec
+	discovery.enqueue = func(_ context.Context, spec jobqueue.Spec) error {
+		accepted = append(accepted, spec)
+		return nil
+	}
+	require.NoError(t, discovery.refreshIfDue(ctx))
+	require.NoError(t, discovery.refreshIfDue(ctx))
+	require.Len(t, accepted, 1)
+	directory, err := core.NeighborhoodDirectory(ctx)
+	require.NoError(t, err)
+	require.Nil(t, directory)
+	first := jobqueue.Job{ID: accepted[0].ID}
+	require.NoError(t, discovery.performJob(ctx, first))
+	require.NoError(t, discovery.kv.Delete(ctx, neighborhoodDirectoryKey))
+	require.NoError(t, discovery.refreshIfDue(ctx))
+	require.Len(t, accepted, 2)
+	require.NotEqual(t, first.ID, accepted[1].ID)
+	require.NoError(t, discovery.performJob(ctx, first))
+	directory, err = core.NeighborhoodDirectory(ctx)
+	require.NoError(t, err)
+	require.Nil(t, directory)
+	require.NoError(t, discovery.performJob(ctx, jobqueue.Job{ID: accepted[1].ID}))
+	directory, err = core.NeighborhoodDirectory(ctx)
+	require.NoError(t, err)
+	require.Len(t, directory.GetServers(), 2)
+}
+
+func TestNeighborhoodRefreshWithoutNeighbors(t *testing.T) {
+	core, discovery, fetcher, now := newTestNeighborhoodDiscovery(t)
+	ctx := testContext(t)
+	var sources []string
+	discovery.neighbors = func() []string { return sources }
+	enqueue := discovery.enqueue
+	queued := 0
+	discovery.enqueue = func(ctx context.Context, spec jobqueue.Spec) error {
+		queued++
+		return enqueue(ctx, spec)
+	}
+	checkEmpty := func() {
+		t.Helper()
+		jobsBefore := queued
+		before, imagesBefore := fetcher.counts()
+		require.NoError(t, discovery.refreshIfDue(ctx))
+		directory, err := core.NeighborhoodDirectory(ctx)
+		require.NoError(t, err)
+		require.Equal(t, now.UnixNano(), directory.GetRefreshedAt().AsTime().UnixNano())
+		require.Empty(t, directory.GetServers())
+		after, imagesAfter := fetcher.counts()
+		require.Equal(t, before, after)
+		require.Equal(t, imagesBefore, imagesAfter)
+		require.Equal(t, jobsBefore, queued)
+	}
+	checkEmpty()
+	*now = now.Add(neighborhoodRefreshAge)
+	checkEmpty()
+	// Adding a Neighbor resumes queued discovery. Removing the last one
+	// clears the published directory at the normal debounce interval.
+	sources = []string{"https://a.example"}
+	*now = now.Add(neighborhoodSourceChangeDelay)
+	require.NoError(t, discovery.refreshIfDue(ctx))
+	directory, err := core.NeighborhoodDirectory(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, directory.GetServers())
+	require.Equal(t, 1, queued)
+	sources = nil
+	*now = now.Add(neighborhoodSourceChangeDelay)
+	checkEmpty()
+}
+
+type blockedNeighborhoodCrawl struct {
+	*fakeNeighborhoodFetcher
+	started chan struct{}
+}
+
+func (f *blockedNeighborhoodCrawl) ListNeighbors(ctx context.Context, _ string) ([]string, error) {
+	close(f.started)
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+// Both schedulers observe the same stale cache before any worker can run.
+// Closing the accepting replica's connection models process loss at handoff.
+func TestNeighborhoodRefreshSurvivesWriterCrash(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		midCrawl bool
+		attempts int
+	}{
+		{"after handoff", false, 1}, {"mid-crawl", true, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testContext(t)
+			ns, writerConn := testutil.StartNATS(t)
+			writer, err := NewChattoCore(ctx, writerConn, testCoreConfig())
+			require.NoError(t, err)
+			survivor, err := NewChattoCore(ctx, newReplicaConn(t, ns), testCoreConfig())
+			require.NoError(t, err)
+			const origin = "https://a.example"
+			fetcher := &fakeNeighborhoodFetcher{profiles: map[string]neighborhood.Profile{origin: {Name: "A"}}}
+			for _, replica := range []*ChattoCore{writer, survivor} {
+				replica.neighborhoodDiscovery.fetcher = fetcher
+				replica.neighborhoodDiscovery.neighbors = func() []string { return []string{origin} }
+			}
+			stale, err := proto.Marshal(&cachestatev1.NeighborhoodDirectory{RefreshedAt: timestamppb.New(time.Now().Add(-2 * neighborhoodRefreshAge)), SourceFingerprint: neighborhoodSourceFingerprint([]string{origin})})
+			require.NoError(t, err)
+			_, err = writer.storage.memoryCacheKV.Put(ctx, neighborhoodDirectoryKey, stale)
+			require.NoError(t, err)
+			require.NoError(t, writer.neighborhoodDiscovery.refreshIfDue(ctx))
+			require.NoError(t, survivor.neighborhoodDiscovery.refreshIfDue(ctx))
+			info, err := survivor.jobConsumers[jobTypeNeighborhoodRefresh].Info(ctx)
+			require.NoError(t, err)
+			require.EqualValues(t, 1, info.NumPending)
+			lists, _ := fetcher.counts()
+			require.Zero(t, lists)
+			if tc.midCrawl {
+				blocked := &blockedNeighborhoodCrawl{fetcher, make(chan struct{})}
+				writer.neighborhoodDiscovery.fetcher = blocked
+				cfg := JobsConsumerConfig(writer.jobs, jobTypeNeighborhoodRefresh)
+				cfg.AckWait = time.Second
+				consumer, err := writer.storage.jobsStream.CreateOrUpdateConsumer(ctx, cfg)
+				require.NoError(t, err)
+				workerCtx, cancel := context.WithCancel(ctx)
+				done := make(chan error, 1)
+				go func() { done <- writer.jobs.Work(workerCtx, consumer, writer.neighborhoodDiscovery.performJob, 1) }()
+				t.Cleanup(func() { cancel(); require.NoError(t, <-done) })
+				select {
+				case <-blocked.started:
+				case <-time.After(5 * time.Second):
+					t.Fatal("writer did not start the crawl")
+				}
+				// Sever NATS before cancellation so no negative acknowledgement or
+				// result can reach the broker. The survivor needs broker redelivery.
+				writerConn.Close()
+				cancel()
+			} else {
+				writerConn.Close()
+			}
+			startCoreServices(t, survivor)
+			var job jobqueue.Job
+			require.Eventually(t, func() bool {
+				jobs := jobsOfType(t, ctx, survivor, jobTypeNeighborhoodRefresh)
+				if len(jobs) != 1 {
+					return false
+				}
+				job = jobs[0]
+				return job.Status == jobqueue.Succeeded
+			}, 5*time.Second, 10*time.Millisecond)
+			directory, err := survivor.NeighborhoodDirectory(ctx)
+			require.NoError(t, err)
+			require.Len(t, directory.GetServers(), 1)
+			require.Equal(t, "A", directory.Servers[0].Name)
+			require.EqualValues(t, tc.attempts, job.Attempts)
+			// Redelivery after publication cannot crawl again.
+			require.NoError(t, survivor.neighborhoodDiscovery.performJob(ctx, job))
+			lists, _ = fetcher.counts()
+			require.Equal(t, 1, lists)
+		})
+	}
 }
 
 func TestNeighborhoodDiscoveryDue(t *testing.T) {

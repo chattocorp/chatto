@@ -606,6 +606,7 @@
       "delete_message": "Bu işin çalışması bırakılır. Daha sonra yeniden deneyemezsiniz.",
       "webhook": "Webhook teslimi",
       "media": "Medya işleme",
+      "neighborhood_refresh": "Mahalle yenileme",
       "message_body_erasure": "Mesaj içeriğini silme",
       "branding_cleanup": "Sunucu logolarını ve bannerlarını temizleme",
       "asset_cleanup": "Dosya temizliği",

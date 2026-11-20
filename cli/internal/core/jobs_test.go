@@ -49,9 +49,7 @@ func TestMediaSourceEnqueuesCurrentAndLegacyEvents(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []string{evtstream.AssetEventTypeFilter(evtstream.EventAssetProcessingStarted), evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingStarted)}, info.Config.FilterSubjects)
 	}
-	jobs, _, err := c.jobs.List(ctx, jobqueue.ListOptions{Limit: 10})
-	require.NoError(t, err)
-	require.Len(t, jobs, 2)
+	require.Len(t, jobsOfType(t, ctx, c, JobTypeMedia), 2)
 }
 
 // Job completion follows the asset lifecycle, rather than merely trusting a

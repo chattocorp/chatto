@@ -630,6 +630,7 @@
       "delete_message": "Praca tego zadania zostanie porzucona. Nie możesz go później ponowić.",
       "webhook": "Dostarczenie webhooka",
       "media": "Przetwarzanie multimediów",
+      "neighborhood_refresh": "Odświeżanie sąsiedztwa",
       "message_body_erasure": "Usuwanie treści wiadomości",
       "branding_cleanup": "Czyszczenie logo i banerów serwera",
       "asset_cleanup": "Czyszczenie plików",

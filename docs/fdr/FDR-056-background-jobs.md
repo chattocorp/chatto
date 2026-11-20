@@ -8,7 +8,7 @@
 The Jobs page in server settings lets authorised users inspect background work,
 retry failed jobs, and delete failed jobs. It covers outbound webhooks, media processing, file
 cleanup, message-body erasure, server logo and banner cleanup, call-key deletion, push-subscription cleanup, account-key deletion,
-notification alerts, and transactional email.
+Neighborhood refresh, notification alerts, and transactional email.
 
 ## Behavior
 
@@ -19,7 +19,7 @@ notification alerts, and transactional email.
   capped at thirty minutes. Exhausted or permanent failures remain visible.
 - An attempt that a server restart interrupts counts as an attempt.
 - Webhook and notification alert jobs have an attempt limit. Media, cleanup,
-  key-deletion, and email jobs have no attempt limit; email still stops at its
+  Neighborhood refresh, key-deletion, and email jobs have no attempt limit; email still stops at its
   delivery deadline. The page shows only their attempt count.
 - A failed, unexpired job can be retried manually. Retry keeps its identity and
   payload and starts a new attempt budget. A retry applies only to the failure
@@ -28,6 +28,7 @@ notification alerts, and transactional email.
 - An expired webhook or email job cannot be retried. Retry never extends its original
   delivery deadline. Current access and endpoint state still control delivery.
 - Email jobs retry transport failures until the original code or reset-link expiry. They retain no addresses or mail content in the job history. See [FDR-041](FDR-041-transactional-email-delivery.md).
+- Neighborhood refresh appears in Jobs when the server has Neighbors to check. A server with no Neighbors updates its empty directory directly. A failed refresh attempt retries after one minute, then at doubling intervals up to thirty minutes.
 - A media job succeeds when processing reaches a terminal asset outcome. A
   failed conversion is shown on the attachment; retrying a worker failure does
   not restart an already completed conversion.

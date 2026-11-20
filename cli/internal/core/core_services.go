@@ -95,12 +95,12 @@ func initializeCoreServices(
 		return fmt.Errorf("failed to initialize call reconciler lease: %w", err)
 	}
 	initializeProjectionSnapshotWorker(core, infra, projections, cfg, logger)
-	initializeNeighborhoodDiscovery(core, infra, cfg, logger)
 
 	// Effect jobs register with the queue during construction.
 	if err := core.initializeJobs(ctx); err != nil {
 		return fmt.Errorf("initialize jobs: %w", err)
 	}
+	initializeNeighborhoodDiscovery(core, infra, cfg, logger)
 	core.mediaModel = NewMediaModel(core)
 	if err := core.configureMessageBodyErasure(ctx); err != nil {
 		return fmt.Errorf("configure message body erasure: %w", err)

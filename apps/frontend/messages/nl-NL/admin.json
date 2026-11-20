@@ -606,6 +606,7 @@
       "delete_message": "Het werk van deze taak wordt opgegeven. Je kunt de taak later niet opnieuw proberen.",
       "webhook": "Webhookbezorging",
       "media": "Mediaverwerking",
+      "neighborhood_refresh": "Buurt vernieuwen",
       "message_body_erasure": "Berichtinhoud wissen",
       "branding_cleanup": "Serverlogo’s en banners opruimen",
       "asset_cleanup": "Bestanden opruimen",

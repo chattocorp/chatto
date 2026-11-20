@@ -156,6 +156,7 @@ hyphen. The filter is `jobs.{type}.*.queued` and `jobs.{type}.*.retried`.
 | `webhook`                   | `chatto-jobs-webhook-v1`                   | Server replicas                                                   |
 | `media`                     | `chatto-jobs-media-v1`                     | Server replicas with media processing, standalone media processes |
 | `notification_alert`        | `chatto-jobs-notification-alert-v1`        | Server replicas                                                   |
+| `neighborhood_refresh`      | `chatto-jobs-neighborhood-refresh-v1`      | Server replicas                                                   |
 | `message_body_erasure`      | `chatto-jobs-message-body-erasure-v1`      | Server replicas                                                   |
 | `branding_cleanup`          | `chatto-jobs-branding-cleanup-v1`          | Server replicas                                                   |
 | `asset_cleanup`             | `chatto-jobs-asset-cleanup-v1`             | Server replicas                                                   |
