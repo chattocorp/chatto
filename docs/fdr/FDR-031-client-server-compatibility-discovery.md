@@ -85,10 +85,11 @@ Chatto's pre-1.0 API remains experimental.
   client attempts a connection and shows a warning.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
-- A server icon in the gutter has two states: normal and warning. The warning
-  appears for a connection problem or compatibility warning: a required
-  sign-in, an unreachable server, an unsupported or unknown server version, or
-  a failed connection. The icon is not dimmed.
+- An older server that can still connect has no version badge in the gutter.
+  Its menu explains the version limit. A muted disconnected plug marks an
+  unreachable server or a failed connection. An amber key takes priority when
+  the user must sign in. An unsupported or unknown version keeps its warning
+  badge. The server artwork stays at full brightness.
 - Only the result of an attempt changes the state. A failed attempt shows the
   warning, and only a successful attempt removes it. A new attempt, an
   immediate retry after a dropped connection, or a credential renewal does not

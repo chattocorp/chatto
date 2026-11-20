@@ -57,18 +57,12 @@
         ? stores.serverInfo.iconUrl
         : (stores.serverInfo.iconUrl ?? status.registeredServer?.iconUrl)
   });
-  const signInRequired = $derived(status.signInRequired);
-
-  /**
-   * A connection problem or compatibility warning, or null. The gutter icon has two
-   * states: normal, or a warning when this is set.
-   */
   const problem = $derived(status.problem);
   const iconTitle = $derived.by(() => {
     if (!problem) return iconServer.name;
     // The sign-in message already names the server.
-    if (signInRequired) return problem;
-    return `${iconServer.name} — ${problem}`;
+    if (problem.badge === 'sign-in') return problem.message;
+    return `${iconServer.name} — ${problem.message}`;
   });
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
   let serverLink: HTMLAnchorElement | null = null;
@@ -182,7 +176,7 @@
   onIndicatorClick={handleServerIndicatorClick}
   contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
-  warning={problem !== null}
+  badge={problem?.badge}
 />
 
 {#if contextMenu}

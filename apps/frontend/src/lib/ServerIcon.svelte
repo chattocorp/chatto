@@ -5,6 +5,7 @@
   import { NotificationBadge, UnreadDot } from '$lib/ui';
   import type { ServerIndicator } from '$lib/state/server/serverUi';
   import type { Attachment } from 'svelte/attachments';
+  import type { ServerStatusBadge } from '$lib/state/server/serverStatus.svelte';
   import { m } from '$lib/i18n/messages';
 
   let {
@@ -19,7 +20,7 @@
     onIndicatorClick,
     contextMenuTrigger,
     title,
-    warning = false
+    badge = null
   }: {
     /** Display data for the icon (server name + optional logo). */
     server?: { name: string; logoUrl?: string | null };
@@ -40,12 +41,8 @@
     /** Optional right-click/long-press behavior for the server link. */
     contextMenuTrigger?: Attachment<HTMLElement>;
     title?: string;
-    /**
-     * Show a non-interactive warning marker: the client could not use this
-     * server (sign-in, compatibility, or connection failure). The title names
-     * the problem.
-     */
-    warning?: boolean;
+    /** Optional status marker. The link title describes the cause. */
+    badge?: ServerStatusBadge | null;
   } = $props();
 </script>
 
@@ -68,13 +65,26 @@
     {/if}
   </a>
 
-  {#if warning}
+  {#if badge}
     <span
-      class="pointer-events-none absolute -start-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning"
+      class={[
+        'pointer-events-none absolute -start-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full',
+        badge === 'offline' ? 'bg-surface-emphasized text-muted' : 'bg-warning text-on-warning'
+      ]}
       data-testid="server-warning"
       aria-hidden="true"
     >
-      <span class="iconify icon-[uil--exclamation-circle] text-xs" aria-hidden="true"></span>
+      <span
+        class={[
+          'iconify text-xs',
+          {
+            'icon-[uil--key-skeleton]': badge === 'sign-in',
+            'icon-[lucide--unplug]': badge === 'offline',
+            'icon-[uil--exclamation-circle]': badge === 'compatibility'
+          }
+        ]}
+        aria-hidden="true"
+      ></span>
     </span>
   {/if}
 

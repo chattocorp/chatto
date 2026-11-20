@@ -24,19 +24,36 @@
 <Story name="Gutter states" asChild>
   <div class="inline-flex flex-col gap-2 rounded-xl border border-border bg-background p-2">
     <ServerIcon server={origin} href="/chat/-" title="Origin Server" selected />
-    <ServerIcon server={remote} href="/chat/remote" title="Remote Server needs sign-in" warning />
+    <ServerIcon
+      server={remote}
+      href="/chat/remote"
+      title="Remote Server needs sign-in"
+      badge="sign-in"
+    />
+    <ServerIcon
+      server={remote}
+      href="#offline"
+      title="Remote Server — Connection unavailable"
+      badge="offline"
+    />
+    <ServerIcon server={legacy} href="#limited" title="Legacy Server — Older server version" />
     <ServerIcon
       server={legacy}
       href="/chat/legacy"
       title="Legacy Server — Server version is not supported"
-      warning
+      badge="compatibility"
     />
   </div>
 </Story>
 
 <Story name="Warning" asChild>
   <div class="inline-flex rounded-xl border border-border bg-background p-2">
-    <ServerIcon server={remote} href="/chat/remote" title="Remote Server needs sign-in" warning />
+    <ServerIcon
+      server={remote}
+      href="/chat/remote"
+      title="Remote Server needs sign-in"
+      badge="sign-in"
+    />
   </div>
 </Story>
 
@@ -45,8 +62,8 @@
     <ServerIcon
       server={origin}
       href="#origin"
-      title="Origin Server"
-      warning
+      title="Origin Server — Connection unavailable"
+      badge="offline"
       selected
       indicator="notification"
       notificationCount={3}

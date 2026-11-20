@@ -170,10 +170,10 @@ Use [chatto-experiments](../../.agents/skills/chatto-experiments/SKILL.md) when 
   metadata write replace them from a whole-registry in-memory snapshot; merge
   authoritative security fields at compatibility-adapter boundaries.
 - Treat an intentionally dormant inactive-server transport as healthy retained
-  state, not as a failed connection. A server-gutter icon has two states,
-  normal and warning. Only a failed attempt (transport, auth, protocol, or
-  compatibility) shows the warning, and only a successful attempt removes it.
-  Connection attempts in progress do not change the state (FDR-031).
+  state. An older server that can still connect has no version badge. Use a
+  muted disconnected plug for connection failures and an amber key when the
+  user must sign in. Connection attempts in progress do not change the
+  marker (FDR-031).
 - `@chatto/client/timeline/timelineEvents` contains the hand-owned timeline presentation
   model. Realtime handlers consume the generated public `RealtimeEvent`
   catalogue directly. Do not add a second frontend event taxonomy or calls for

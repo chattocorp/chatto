@@ -740,7 +740,7 @@ describe('ServerSidebarEntry', () => {
     mocks.store.serverInfo.version = '0.5.0-beta.9-custom';
     mocks.store.serverInfo.compatibility = { status: 'limited', reason: 'server-too-old' };
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
-    await expect.element(q(container, '[data-testid="server-warning"]')).toBeInTheDocument();
+    await expect.element(q(container, '[data-testid="server-warning"]')).not.toBeInTheDocument();
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
     icon.dispatchEvent(
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 24, clientY: 36 })
@@ -904,7 +904,7 @@ describe('ServerSidebarEntry', () => {
     await expect.element(icon).toHaveAttribute('aria-label', 'Loaded Remote needs sign-in');
     const warning = q(container, '[data-testid="server-warning"]');
     await expect.element(warning).toBeInTheDocument();
-    expect(warning?.querySelector('[class~="icon-[uil--exclamation-circle]"]')).not.toBeNull();
+    expect(warning?.querySelector('[class~="icon-[uil--key-skeleton]"]')).not.toBeNull();
     expect(container.querySelectorAll('[data-testid="server-warning"]')).toHaveLength(1);
 
     icon?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
@@ -1073,14 +1073,17 @@ describe('ServerSidebarEntry', () => {
     expect(container.textContent).toContain('L');
   });
 
-  it('warns about a disconnect of a server with a retained projection', async () => {
+  it('shows a disconnected plug when an older server loses its connection', async () => {
+    mocks.store.serverInfo.compatibility = { status: 'limited', reason: 'server-too-old' };
     mocks.showConnectionLostIcon = true;
 
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
     const icon = q(container, '[data-testid="server-icon"]');
 
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Connection unavailable');
-    await expect.element(q(container, '[data-testid="server-warning"]')).toBeInTheDocument();
+    const badge = q(container, '[data-testid="server-warning"]');
+    expect(badge?.querySelector('[class~="icon-[lucide--unplug]"]')).not.toBeNull();
+    await expect.element(badge).toHaveClass('text-muted');
 
     icon?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await vi.waitFor(() =>
