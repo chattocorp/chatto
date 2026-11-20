@@ -241,6 +241,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.myEventsModel.Run(gctx) })
 	g.Go(func() error { return runCallModel(gctx) })
 	g.Go(func() error { return c.assetModel.Run(gctx) })
+	g.Go(func() error { return c.effectJobs[jobTypeMessageBodyErasure].RunSource(gctx) })
 	g.Go(func() error { return c.effectJobs[jobTypeBrandingCleanup].RunSource(gctx) })
 	g.Go(func() error { return c.assetUploadModel.RunCleanup(gctx) })
 	g.Go(func() error { return c.keyShredding.Run(gctx) })

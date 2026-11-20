@@ -606,6 +606,7 @@
       "delete_message": "The work of this job is abandoned. You cannot retry it later.",
       "webhook": "Webhook delivery",
       "media": "Media processing",
+      "message_body_erasure": "Message body erasure",
       "branding_cleanup": "Server logo and banner cleanup",
       "asset_cleanup": "File cleanup",
       "call_key_cleanup": "Call key deletion",

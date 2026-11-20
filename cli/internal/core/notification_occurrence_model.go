@@ -217,52 +217,13 @@ func (m *NotificationOccurrenceModel) cleanupDismissedSignals(ctx context.Contex
 		if cleaned {
 			continue
 		}
-		if err := m.secureDeleteNotificationSignal(ctx, tombstone.signalSequence); err != nil {
+		if err := secureDeleteStreamMessage(ctx, m.stream, tombstone.signalSequence); err != nil {
 			m.logger.Warn("Notification signal physical deletion will retry", "notification_id", notificationID, "error", err)
 			continue
 		}
 		m.cleanedMu.Lock()
 		m.cleaned[tombstone.signalSequence] = tombstone.expiresAt.Add(notificationPhysicalCleanupGrace)
 		m.cleanedMu.Unlock()
-	}
-}
-
-// secureDeleteNotificationSignal makes physical cleanup idempotent across
-// replicas and process restarts. nats.go can hide the structured "not found"
-// API error behind ErrMsgDeleteUnsuccessful, so a failed delete must confirm
-// the exact stream sequence before it is safe to retry.
-func (m *NotificationOccurrenceModel) secureDeleteNotificationSignal(ctx context.Context, sequence uint64) error {
-	deleteErr := m.stream.SecureDeleteMsg(ctx, sequence)
-	if deleteErr == nil {
-		return nil
-	}
-	if _, lookupErr := m.stream.GetMsg(ctx, sequence); notificationSignalAlreadyAbsent(lookupErr) {
-		return nil
-	} else if lookupErr != nil {
-		return errors.Join(deleteErr, fmt.Errorf("confirm notification signal absence: %w", lookupErr))
-	}
-	return deleteErr
-}
-
-// NATS does not currently expose these server API error codes as Go constants.
-const (
-	jetStreamMessageNotFoundErrorCode  = 10057
-	jetStreamSequenceNotFoundErrorCode = 10043
-)
-
-func notificationSignalAlreadyAbsent(err error) bool {
-	if errors.Is(err, jetstream.ErrMsgNotFound) {
-		return true
-	}
-	var jsErr jetstream.JetStreamError
-	if !errors.As(err, &jsErr) || jsErr.APIError() == nil {
-		return false
-	}
-	switch jsErr.APIError().ErrorCode {
-	case jetStreamMessageNotFoundErrorCode, jetStreamSequenceNotFoundErrorCode:
-		return true
-	default:
-		return false
 	}
 }
 

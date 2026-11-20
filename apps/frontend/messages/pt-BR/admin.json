@@ -606,6 +606,7 @@
       "delete_message": "O trabalho desta tarefa é abandonado. Você não poderá tentá-la novamente mais tarde.",
       "webhook": "Envio de webhook",
       "media": "Processamento de mídia",
+      "message_body_erasure": "Eliminação do conteúdo das mensagens",
       "branding_cleanup": "Limpeza de logotipos e banners do servidor",
       "asset_cleanup": "Limpeza de arquivos",
       "call_key_cleanup": "Exclusão de chaves de chamada",

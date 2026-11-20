@@ -594,6 +594,7 @@
       "delete_message": "此任务的工作将被放弃。你以后无法重试。",
       "webhook": "Webhook 投递",
       "media": "媒体处理",
+      "message_body_erasure": "擦除消息正文",
       "branding_cleanup": "清理服务器徽标和横幅",
       "asset_cleanup": "文件清理",
       "call_key_cleanup": "删除通话密钥",

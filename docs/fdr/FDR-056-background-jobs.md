@@ -7,7 +7,7 @@
 
 The Jobs page in server settings lets authorised users inspect background work,
 retry failed jobs, and delete failed jobs. It covers outbound webhooks, media processing, file
-cleanup, server logo and banner cleanup, call-key deletion, push-subscription cleanup, account-key deletion,
+cleanup, message-body erasure, server logo and banner cleanup, call-key deletion, push-subscription cleanup, account-key deletion,
 notification alerts, and transactional email.
 
 ## Behavior

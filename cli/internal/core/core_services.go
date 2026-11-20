@@ -102,6 +102,9 @@ func initializeCoreServices(
 		return fmt.Errorf("initialize jobs: %w", err)
 	}
 	core.mediaModel = NewMediaModel(core)
+	if err := core.configureMessageBodyErasure(ctx); err != nil {
+		return fmt.Errorf("configure message body erasure: %w", err)
+	}
 	if err := core.configureBrandingCleanup(ctx); err != nil {
 		return fmt.Errorf("configure branding cleanup: %w", err)
 	}

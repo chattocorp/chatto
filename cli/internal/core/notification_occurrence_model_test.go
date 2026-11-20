@@ -82,7 +82,7 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 	if _, err := model.Get(ctx, input.RecipientID, wantID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Get after delete = %v, want not found", err)
 	}
-	if _, err := chattoCore.storage.notificationStream.GetMsg(ctx, created.GetNotificationStreamSequence()); !notificationSignalAlreadyAbsent(err) {
+	if _, err := chattoCore.storage.notificationStream.GetMsg(ctx, created.GetNotificationStreamSequence()); !streamMessageAlreadyAbsent(err) {
 		t.Fatalf("rich signal after delete = %v, want securely deleted", err)
 	}
 	// Model a restart or another replica, which does not share this process's

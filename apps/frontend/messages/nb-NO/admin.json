@@ -606,6 +606,7 @@
       "delete_message": "Arbeidet i denne jobben blir forkastet. Du kan ikke prøve den på nytt senere.",
       "webhook": "Webhook-levering",
       "media": "Mediebehandling",
+      "message_body_erasure": "Sletting av meldingsinnhold",
       "branding_cleanup": "Opprydding av serverlogoer og bannere",
       "asset_cleanup": "Filopprydding",
       "call_key_cleanup": "Sletting av samtalenøkler",

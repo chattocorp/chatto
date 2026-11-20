@@ -6,6 +6,7 @@
     "call_key_cleanup",
     "email",
     "media",
+    "message_body_erasure",
     "notification_alert",
     "push_subscription_cleanup",
     "user_key_shredding",
