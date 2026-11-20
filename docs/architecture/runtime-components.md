@@ -160,7 +160,9 @@ operations do not duplicate these outcomes.
   [`asset_processing.go`](../../cli/cmd/asset_processing.go),
   [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go)):
   Generated derivatives bypass this user upload limit.
-  Standalone media job worker started explicitly as `chatto asset-processing`.
+  Start the standalone media job worker with `chatto asset-processing`.
+  It logs `Asset-processing worker started` after its asset projection catches
+  up and it opens the media job consumer. Readiness probes can match this message.
   Embedded processing registers a handler in the core media job pool when
   `[asset_processing].enabled` is true. `[asset_processing]` owns ffmpeg paths,
   temporary directory, and media concurrency;
