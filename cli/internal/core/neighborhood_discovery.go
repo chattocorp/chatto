@@ -139,8 +139,15 @@ func (d *neighborhoodDiscovery) refreshIfDue(ctx context.Context) error {
 			return err
 		}
 	}
-	if !d.due(current, neighborhoodSourceFingerprint(d.neighbors())) {
+	sources := d.neighbors()
+	fingerprint := neighborhoodSourceFingerprint(sources)
+	if !d.due(current, fingerprint) {
 		return nil
+	}
+	// With no Neighbors the pass only publishes an empty directory. Use the
+	// same conditional write to clear old results without scheduling work.
+	if len(sources) == 0 {
+		return d.refresh(ctx, sources, fingerprint, current, entry.Revision())
 	}
 	id := neighborhoodRefreshID(entry)
 	if id == d.lastEnqueued {

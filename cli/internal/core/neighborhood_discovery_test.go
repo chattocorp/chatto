@@ -333,51 +333,137 @@ func TestNeighborhoodRefreshAfterCacheLoss(t *testing.T) {
 	require.Len(t, directory.GetServers(), 2)
 }
 
+func TestNeighborhoodRefreshWithoutNeighbors(t *testing.T) {
+	core, discovery, fetcher, now := newTestNeighborhoodDiscovery(t)
+	ctx := testContext(t)
+	var sources []string
+	discovery.neighbors = func() []string { return sources }
+	enqueue := discovery.enqueue
+	queued := 0
+	discovery.enqueue = func(ctx context.Context, spec jobqueue.Spec) error {
+		queued++
+		return enqueue(ctx, spec)
+	}
+	checkEmpty := func() {
+		t.Helper()
+		jobsBefore := queued
+		before, imagesBefore := fetcher.counts()
+		require.NoError(t, discovery.refreshIfDue(ctx))
+		directory, err := core.NeighborhoodDirectory(ctx)
+		require.NoError(t, err)
+		require.Equal(t, now.UnixNano(), directory.GetRefreshedAt().AsTime().UnixNano())
+		require.Empty(t, directory.GetServers())
+		after, imagesAfter := fetcher.counts()
+		require.Equal(t, before, after)
+		require.Equal(t, imagesBefore, imagesAfter)
+		require.Equal(t, jobsBefore, queued)
+	}
+	checkEmpty()
+	*now = now.Add(neighborhoodRefreshAge)
+	checkEmpty()
+	// Adding a Neighbor resumes queued discovery. Removing the last one
+	// clears the published directory at the normal debounce interval.
+	sources = []string{"https://a.example"}
+	*now = now.Add(neighborhoodSourceChangeDelay)
+	require.NoError(t, discovery.refreshIfDue(ctx))
+	directory, err := core.NeighborhoodDirectory(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, directory.GetServers())
+	require.Equal(t, 1, queued)
+	sources = nil
+	*now = now.Add(neighborhoodSourceChangeDelay)
+	checkEmpty()
+}
+
+type blockedNeighborhoodCrawl struct {
+	*fakeNeighborhoodFetcher
+	started chan struct{}
+}
+
+func (f *blockedNeighborhoodCrawl) ListNeighbors(ctx context.Context, _ string) ([]string, error) {
+	close(f.started)
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
 // Both schedulers observe the same stale cache before any worker can run.
 // Closing the accepting replica's connection models process loss at handoff.
 func TestNeighborhoodRefreshSurvivesWriterCrash(t *testing.T) {
-	ctx := testContext(t)
-	ns, writerConn := testutil.StartNATS(t)
-	writer, err := NewChattoCore(ctx, writerConn, testCoreConfig())
-	require.NoError(t, err)
-	survivor, err := NewChattoCore(ctx, newReplicaConn(t, ns), testCoreConfig())
-	require.NoError(t, err)
-	const origin = "https://a.example"
-	fetcher := &fakeNeighborhoodFetcher{profiles: map[string]neighborhood.Profile{origin: {Name: "A"}}}
-	for _, replica := range []*ChattoCore{writer, survivor} {
-		replica.neighborhoodDiscovery.fetcher = fetcher
-		replica.neighborhoodDiscovery.neighbors = func() []string { return []string{origin} }
+	for _, tc := range []struct {
+		name     string
+		midCrawl bool
+		attempts int
+	}{
+		{"after handoff", false, 1}, {"mid-crawl", true, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testContext(t)
+			ns, writerConn := testutil.StartNATS(t)
+			writer, err := NewChattoCore(ctx, writerConn, testCoreConfig())
+			require.NoError(t, err)
+			survivor, err := NewChattoCore(ctx, newReplicaConn(t, ns), testCoreConfig())
+			require.NoError(t, err)
+			const origin = "https://a.example"
+			fetcher := &fakeNeighborhoodFetcher{profiles: map[string]neighborhood.Profile{origin: {Name: "A"}}}
+			for _, replica := range []*ChattoCore{writer, survivor} {
+				replica.neighborhoodDiscovery.fetcher = fetcher
+				replica.neighborhoodDiscovery.neighbors = func() []string { return []string{origin} }
+			}
+			stale, err := proto.Marshal(&cachestatev1.NeighborhoodDirectory{RefreshedAt: timestamppb.New(time.Now().Add(-2 * neighborhoodRefreshAge)), SourceFingerprint: neighborhoodSourceFingerprint([]string{origin})})
+			require.NoError(t, err)
+			_, err = writer.storage.memoryCacheKV.Put(ctx, neighborhoodDirectoryKey, stale)
+			require.NoError(t, err)
+			require.NoError(t, writer.neighborhoodDiscovery.refreshIfDue(ctx))
+			require.NoError(t, survivor.neighborhoodDiscovery.refreshIfDue(ctx))
+			info, err := survivor.jobConsumers[jobTypeNeighborhoodRefresh].Info(ctx)
+			require.NoError(t, err)
+			require.EqualValues(t, 1, info.NumPending)
+			lists, _ := fetcher.counts()
+			require.Zero(t, lists)
+			if tc.midCrawl {
+				blocked := &blockedNeighborhoodCrawl{fetcher, make(chan struct{})}
+				writer.neighborhoodDiscovery.fetcher = blocked
+				cfg := JobsConsumerConfig(writer.jobs, jobTypeNeighborhoodRefresh)
+				cfg.AckWait = time.Second
+				consumer, err := writer.storage.jobsStream.CreateOrUpdateConsumer(ctx, cfg)
+				require.NoError(t, err)
+				workerCtx, cancel := context.WithCancel(ctx)
+				done := make(chan error, 1)
+				go func() { done <- writer.jobs.Work(workerCtx, consumer, writer.neighborhoodDiscovery.performJob, 1) }()
+				t.Cleanup(func() { cancel(); require.NoError(t, <-done) })
+				select {
+				case <-blocked.started:
+				case <-time.After(5 * time.Second):
+					t.Fatal("writer did not start the crawl")
+				}
+				// Sever NATS before cancellation so no negative acknowledgement or
+				// result can reach the broker. The survivor needs broker redelivery.
+				writerConn.Close()
+				cancel()
+			} else {
+				writerConn.Close()
+			}
+			startCoreServices(t, survivor)
+			var job jobqueue.Job
+			require.Eventually(t, func() bool {
+				jobs := jobsOfType(t, ctx, survivor, jobTypeNeighborhoodRefresh)
+				if len(jobs) != 1 {
+					return false
+				}
+				job = jobs[0]
+				return job.Status == jobqueue.Succeeded
+			}, 5*time.Second, 10*time.Millisecond)
+			directory, err := survivor.NeighborhoodDirectory(ctx)
+			require.NoError(t, err)
+			require.Len(t, directory.GetServers(), 1)
+			require.Equal(t, "A", directory.Servers[0].Name)
+			require.EqualValues(t, tc.attempts, job.Attempts)
+			// Redelivery after publication cannot crawl again.
+			require.NoError(t, survivor.neighborhoodDiscovery.performJob(ctx, job))
+			lists, _ = fetcher.counts()
+			require.Equal(t, 1, lists)
+		})
 	}
-	stale, err := proto.Marshal(&cachestatev1.NeighborhoodDirectory{RefreshedAt: timestamppb.New(time.Now().Add(-2 * neighborhoodRefreshAge)), SourceFingerprint: neighborhoodSourceFingerprint([]string{origin})})
-	require.NoError(t, err)
-	_, err = writer.storage.memoryCacheKV.Put(ctx, neighborhoodDirectoryKey, stale)
-	require.NoError(t, err)
-	require.NoError(t, writer.neighborhoodDiscovery.refreshIfDue(ctx))
-	require.NoError(t, survivor.neighborhoodDiscovery.refreshIfDue(ctx))
-	info, err := survivor.jobConsumers[jobTypeNeighborhoodRefresh].Info(ctx)
-	require.NoError(t, err)
-	require.EqualValues(t, 1, info.NumPending)
-	lists, _ := fetcher.counts()
-	require.Zero(t, lists)
-	writerConn.Close()
-	startCoreServices(t, survivor)
-	var job jobqueue.Job
-	require.Eventually(t, func() bool {
-		jobs := jobsOfType(t, ctx, survivor, jobTypeNeighborhoodRefresh)
-		if len(jobs) != 1 {
-			return false
-		}
-		job = jobs[0]
-		return job.Status == jobqueue.Succeeded
-	}, 5*time.Second, 10*time.Millisecond)
-	directory, err := survivor.NeighborhoodDirectory(ctx)
-	require.NoError(t, err)
-	require.Len(t, directory.GetServers(), 1)
-	require.Equal(t, "A", directory.Servers[0].Name)
-	// Redelivery after publication cannot crawl again.
-	require.NoError(t, survivor.neighborhoodDiscovery.performJob(ctx, job))
-	lists, _ = fetcher.counts()
-	require.Equal(t, 1, lists)
 }
 
 func TestNeighborhoodDiscoveryDue(t *testing.T) {

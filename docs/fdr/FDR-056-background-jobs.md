@@ -28,6 +28,7 @@ Neighborhood refresh, notification alerts, and transactional email.
 - An expired webhook or email job cannot be retried. Retry never extends its original
   delivery deadline. Current access and endpoint state still control delivery.
 - Email jobs retry transport failures until the original code or reset-link expiry. They retain no addresses or mail content in the job history. See [FDR-041](FDR-041-transactional-email-delivery.md).
+- Neighborhood refresh appears in Jobs when the server has Neighbors to check. A server with no Neighbors updates its empty directory directly. A failed refresh attempt retries after one minute, then at doubling intervals up to thirty minutes.
 - A media job succeeds when processing reaches a terminal asset outcome. A
   failed conversion is shown on the attachment; retrying a worker failure does
   not restart an already completed conversion.

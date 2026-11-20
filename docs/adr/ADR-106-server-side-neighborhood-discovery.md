@@ -67,12 +67,17 @@ previous pass, and after ten seconds when the Neighbor set changed. Every
 replica sees a Neighbor change through its projection, so no change signal is
 necessary. After a failed check, the replica waits one minute.
 
-All replicas enqueue the same JOBS job for the same due directory. Its ID
+With no Neighbors, the check publishes an empty directory directly. This also
+clears old results after the last Neighbor is removed. With one or more
+Neighbors, all replicas enqueue the same JOBS job for the same due directory. Its ID
 uses the cache revision and broker timestamp. On a cold cache, the first check
 creates an empty entry so a new cache has its own job identity. Public reads
 return no directory until the first pass completes. A worker checks the
 generation before it crawls and updates only that revision. If the writer
-stops after enqueue, any replica can finish the job.
+stops after enqueue, any replica can finish the job. After a failed job attempt,
+the first retry waits one minute. Each subsequent failure doubles the delay up
+to thirty minutes. Retries continue until the job succeeds or a newer cache
+generation supersedes it.
 
 ## Consequences
 
