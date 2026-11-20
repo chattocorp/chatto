@@ -5,9 +5,15 @@ import { segmentToServerId } from '$lib/navigation';
 import { serverRegistry } from '$lib/client';
 import type { LayoutLoad } from './$types';
 
-function redirectToLogin(url: URL): never {
-  saveReturnUrl(url.pathname + url.search);
-  return redirect(302, resolve('/login'));
+function redirectToLogin(url: URL, keepLinkOnAuthPages = false): never {
+  const { pathname, search, hash } = new URL(url.href);
+  const target = pathname + search + hash;
+  saveReturnUrl(target);
+  const login = resolve('/login');
+  redirect(
+    302,
+    keepLinkOnAuthPages ? login + '?' + new URLSearchParams({ redirect: target }) : login
+  );
 }
 
 export const load: LayoutLoad = async ({ params, parent, url }) => {
@@ -25,7 +31,9 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
     // `/login` is the origin's own sign-in page. Reauthentication recovery
     // keeps the shell mounted and shows its reconnect notice instead.
     const reauthRequired = serverRegistry.getServer(serverId)?.reauthRequiredAt != null;
-    if (!reauthRequired && user === null) redirectToLogin(url);
+    if (!reauthRequired && user === null) {
+      redirectToLogin(url, Boolean(params.roomId || params.userId));
+    }
   } else if (serverStore.currentUser.loading) {
     // Registry initialisation begins remote viewer loading before route loads.
     // Await the first request so the layout does not show a signed-out or
@@ -34,7 +42,7 @@ export const load: LayoutLoad = async ({ params, parent, url }) => {
     await serverStore.currentUser.load();
   }
 
-  // Do not read child params here. SvelteKit re-runs a load when a param that
+  // Keep the successful load independent of child params. SvelteKit re-runs a load when a param that
   // it read changes, and this load checks access.
   return {
     serverSegment: params.serverId
