@@ -143,8 +143,7 @@ Configured clients are independent of this setting. HTTPS redirects are mandator
 separate, exact-host development exceptions. They permit named CIMD hosts to
 resolve only to private or loopback addresses respectively; neither permits
 other special-use destinations. An issuer with a loopback hostname also permits
-loopback CIMD destinations without an explicit trusted-host entry. CIMD URLs
-still require HTTPS.
+loopback CIMD destinations without an explicit trusted-host entry. A CIMD URL must use HTTPS, or plain HTTP on a loopback host for local development. A plain-HTTP fetch must resolve only to loopback addresses.
 
 Operators must select exactly one NATS mode:
 
@@ -168,6 +167,7 @@ private-listener, storage-path, logging, and deployment policy.
 | `AUTHLING_EVT` | Stream | File, S2-compressed | `authling.evt.>` | Authoritative Authling event history |
 | `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup, password-reset, email-change, session, OIDC request, code, access-token, and refresh-family state, plus bounded delivery and login-attempt counters |
 | `AUTHLING_KEYS` | KV bucket | File, history 1 | Opaque key references | Workflow, OIDC signing, user, and wrapped credential data keys |
+| `AUTHLING_JOBS` | Stream | File, no maximum age, per-message TTLs | `authling.jobs.>` | Background job facts for the shared `pkg/jobs` queue. Succeeded facts and failed mail facts expire after three days; failed erasure facts and unfinished jobs stay |
 
 `AUTHLING_EVT` enables JetStream atomic publication for multi-event
 commands. The key bucket is a separate, exceptionally sensitive backup and
@@ -432,7 +432,7 @@ credential mutation makes the others stale. Completion atomically appends an
 encrypted `EmailChangedEvent` and PII-free correlated `EmailClaimedEvent` under
 account and registry OCC. The old address remains authoritative until that
 batch commits; afterward Authling advances the durable authentication version,
-creates a fresh completing session, and attempts a best-effort security notice
+creates a fresh completing session, and queues a security notice
 to the old address. A retry after an ambiguous process failure recognizes the
 committed request from the projected credential; notification recovery is
 at-least-once and can duplicate the notice. A 45-second OCC-backed completion
@@ -527,17 +527,40 @@ encrypted-at-rest profile hints as `preferred_username` and `name`.
 
 The HTTP server bounds header, body-read, response-write, and idle time. Signup,
 password reset, signed-in password change, and email change also cap request
-bodies. OTP flows globally limit delivery and bound concurrent SMTP and
-completion work per process.
+bodies. OTP flows globally limit accepted mail and bound completion work per
+process. The mail job pool bounds concurrent SMTP attempts.
 
 Signup, password reset, and email change use `storage.DeliveryBudget` for
 refundable delivery counters. Each workflow keeps its existing global key,
 HMAC-derived recipient keys, limits, and 15-minute quiet window. The budget
-reserves global capacity before recipient capacity. Failed work refunds
+reserves global capacity before recipient capacity. Failed queue acceptance refunds
 confirmed reservations on a best-effort basis. Counter mutations retry only
 confirmed revision conflicts. An uncertain write acknowledgement stops the
 operation and can leave capacity consumed until expiry. Rollback attempts both
 counters even if one fails. Non-refundable request admission remains separate.
+
+## Queued email
+
+`email.QueueSender` stores messages in encrypted, expiring runtime records at
+`email-delivery.{opaqueId}`. It uses the workflow key and associated data bound
+to the record key. The existing runtime JSON envelope contains the recipient,
+subject, body, and absolute expiry. After SMTP acceptance, content removal has
+its own five-second timeout and continues through worker cancellation.
+Job facts contain only an opaque ID and policy, never content or SMTP error text.
+
+The `authling-jobs-email-v1` consumer filters email jobs on `AUTHLING_JOBS`.
+It has explicit acknowledgement, a one-minute acknowledgement wait, unlimited
+deliveries, no pending-acknowledgement limit, and eight workers. It runs beside
+the erasure consumer under the runtime lifecycle. Attempts have a thirty-second
+timeout, capped by mail expiry. Retry starts at five seconds and uses queue
+backoff. Codes expire with their 15-minute flow; security notices expire after
+24 hours. Failed mail facts expire after three days; erasure retention is unchanged.
+
+Accepted mail survives restart. SMTP acceptance is not atomic with content
+removal, so duplicates remain possible. A replay after content removal completes
+without another send. Older replicas send inline and do not consume email jobs.
+A full rollback leaves accepted jobs waiting for a capable replica, within their
+original deadline. No existing consumer or event contract changes.
 
 ## Resource and refresh-token state
 
@@ -596,13 +619,22 @@ a fatal replay error. No active email index entry is built from erased history.
 
 The named durable consumer `authling-account-erasure` filters
 `authling.evt.account.*`, uses explicit acknowledgements, a one-minute ack wait,
-and one pending message. The worker retries failures after one second. It waits
-for account and grant projections to validate the decision, purges the user key
-then its wrapped data key from `AUTHLING_KEYS`, and appends `AccountErasedEvent`
-with account OCC. Repeated purges and repeated completion attempts are safe.
-The request remains the retry authority if a reply is lost or the process stops.
-Workers on multiple replicas may share the consumer; the consumer cursor is not
-the correctness boundary. Worker errors do not include protected data.
+and one pending message. It acknowledges other account events without work.
+For each `AccountErasureRequestedEvent` it stores an `account_erasure` job in the
+shared [`pkg/jobs`](../../../pkg/jobs/README.md) queue before acknowledgement.
+The job holds only the source subject, sequence, and message digest. The
+`authling-jobs` consumer of `AUTHLING_JOBS` runs one job at a time. The first
+retry waits one second; delays double up to thirty minutes. The attempt budget
+is effectively unlimited, because Authling has no manual retry. Each attempt
+reads the request again, waits for account and grant projections to validate
+the decision, purges the user key then its wrapped data key from
+`AUTHLING_KEYS`, and appends `AccountErasedEvent` with account OCC. Repeated
+purges and repeated completion attempts are safe. The request remains the retry
+authority if a reply is lost or the process stops. Processes on multiple
+replicas share both consumers. The two-minute acknowledgement wait of the
+`authling-jobs` consumer is the claim on a job, and a progress heartbeat
+renews it. Authling does not run the job view. Errors do not include protected
+data.
 
 The account key vault does not cache unwrapped keys. Historical ciphertext and
 PII-free structure remain in the event stream. Workflow-key-encrypted email

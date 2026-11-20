@@ -36,6 +36,7 @@ const emptyFormattingState: ComposerFormattingState = {
   bold: false,
   italic: false,
   underline: false,
+  strikethrough: false,
   inlineCode: false,
   heading: false,
   bulletList: false,

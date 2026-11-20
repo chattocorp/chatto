@@ -214,7 +214,7 @@ func TestValidateOIDCConventionalClients(t *testing.T) {
 		{"URL identifier reserved for CIMD", OIDCClientConfig{ID: "https://client.example/meta.json", Name: "Client", RedirectURIs: []string{"https://client.example/callback"}}},
 		{"short secret", OIDCClientConfig{ID: "client", Name: "Client", Secret: "short", RedirectURIs: []string{"https://client.example/callback"}}},
 		{"redirect fragment", OIDCClientConfig{ID: "client", Name: "Client", RedirectURIs: []string{"https://client.example/callback#fragment"}}},
-		{"production HTTP redirect", OIDCClientConfig{ID: "client", Name: "Client", RedirectURIs: []string{"http://localhost/callback"}}},
+		{"HTTP redirect on a public host", OIDCClientConfig{ID: "client", Name: "Client", RedirectURIs: []string{"http://client.example/callback"}}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -227,23 +227,49 @@ func TestValidateOIDCConventionalClients(t *testing.T) {
 	}
 }
 
-func TestValidateOIDCConventionalClientsAllowNamedLoopbackRedirectsInLoopbackDevelopment(t *testing.T) {
+// Configured clients may register plain-HTTP loopback redirect URIs on any
+// issuer (RFC 8252 section 7.3), so a local development client can sign in
+// against a production issuer. Plain HTTP on any other host stays invalid.
+func TestValidateOIDCConventionalClientsAllowLoopbackHTTPRedirectsOnAnyIssuer(t *testing.T) {
 	validNATS := NATSConfig{Embedded: EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}}
-	client := OIDCClientConfig{ID: "client", Name: "Client", Secret: strings.Repeat("s", 32), RedirectURIs: []string{"http://chatto.feature.localhost:4000/callback"}}
-	cfg := Config{HTTP: HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://authling.feature.localhost:8080"}, NATS: validNATS, OIDC: OIDCConfig{Clients: []OIDCClientConfig{client}}}
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("named loopback development client: %v", err)
+	issuers := []HTTPConfig{
+		{PublicURL: "https://auth.example"},
+		{BindAddress: "127.0.0.1:8080", PublicURL: "http://authling.feature.localhost:8080"},
 	}
-
-	cfg.HTTP.PublicURL = "https://auth.example"
-	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "redirect_uris") {
-		t.Fatalf("HTTPS issuer accepted a plain-HTTP named loopback redirect: %v", err)
+	tests := []struct {
+		redirect string
+		valid    bool
+	}{
+		{"http://localhost:5173/auth/callback", true},
+		{"http://LOCALHOST/callback", true},
+		{"http://127.0.0.1:5173/callback", true},
+		{"http://127.1.2.3/callback", true},
+		{"http://[::1]:5173/callback", true},
+		{"http://chatto.feature.localhost:4000/callback", true},
+		{"https://client.example/callback", true},
+		{"http://client.example/callback", false},
+		{"http://chatto.localhost.example:4000/callback", false},
+		{"http://localhost.example/callback", false},
+		{"http://192.168.1.10/callback", false},
+		{"http://[::2]/callback", false},
+		{"http://0.0.0.0/callback", false},
+		{"http://localhost:5173/callback#fragment", false},
+		{"http://user@localhost:5173/callback", false},
 	}
-
-	cfg.HTTP.PublicURL = "http://authling.feature.localhost:8080"
-	cfg.OIDC.Clients[0].RedirectURIs = []string{"http://chatto.localhost.example:4000/callback"}
-	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "redirect_uris") {
-		t.Fatalf("loopback issuer accepted a plain-HTTP non-loopback redirect: %v", err)
+	for _, issuer := range issuers {
+		for _, test := range tests {
+			t.Run(issuer.PublicURL+" "+test.redirect, func(t *testing.T) {
+				client := OIDCClientConfig{ID: "client", Name: "Client", Secret: strings.Repeat("s", 32), RedirectURIs: []string{test.redirect}}
+				cfg := Config{HTTP: issuer, NATS: validNATS, OIDC: OIDCConfig{Clients: []OIDCClientConfig{client}}}
+				err := cfg.Validate()
+				if test.valid && err != nil {
+					t.Fatalf("valid redirect rejected: %v", err)
+				}
+				if !test.valid && (err == nil || !strings.Contains(err.Error(), "redirect_uris")) {
+					t.Fatalf("invalid redirect accepted: %v", err)
+				}
+			})
+		}
 	}
 }
 
@@ -363,5 +389,18 @@ func TestSMTPConfigInsecureTransportSettings(t *testing.T) {
 				t.Fatalf("InsecureTransportSettings() = %q, want %q", got, strings.Join(tt.want, ","))
 			}
 		})
+	}
+}
+
+// A local relying party can register its loopback CIMD URL as a configured
+// client ID. Plain-HTTP client IDs remain valid configuration.
+func TestConfiguredClientAcceptsLoopbackHTTPURLID(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "authling.toml")
+	data := "[nats.embedded]\nenabled = true\n[[oidc.clients]]\nid = 'http://localhost:4000/oauth/client-metadata.json'\nname = 'Local'\nredirect_uris = ['http://localhost:4000/callback']\n"
+	if err := os.WriteFile(file, []byte(data), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Read(file); err != nil {
+		t.Fatalf("loopback HTTP client ID was rejected: %v", err)
 	}
 }

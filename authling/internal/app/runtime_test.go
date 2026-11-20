@@ -24,6 +24,7 @@ import (
 	"github.com/chattocorp/chatto/authling/internal/emailchange"
 	"github.com/chattocorp/chatto/authling/internal/evtstream"
 	"github.com/chattocorp/chatto/authling/internal/issuer"
+	"github.com/chattocorp/chatto/authling/internal/keyvault"
 	"github.com/chattocorp/chatto/authling/internal/passwordreset"
 	corev1 "github.com/chattocorp/chatto/authling/internal/pb/authling/core/v1"
 	"github.com/chattocorp/chatto/authling/internal/registration"
@@ -2093,6 +2094,28 @@ func startTestRuntimeWithOptions(
 	}
 	if err != nil {
 		t.Fatalf("create runtime: %v", err)
+	}
+	// These workflow tests inject the mail acceptance boundary directly. This
+	// permits deterministic acceptance failures and commit interleavings. Queue
+	// transport, restart, privacy, and retry behavior use production wiring in
+	// mail_jobs_test.go.
+	if sender != nil {
+		js, openErr := jetstream.New(runtime.connection.NATS)
+		if openErr != nil {
+			t.Fatal(openErr)
+		}
+		stores, openErr := storage.OpenStores(t.Context(), js, 1)
+		if openErr != nil {
+			t.Fatal(openErr)
+		}
+		key, openErr := keyvault.New(stores.Keys).WorkflowKey(t.Context())
+		if openErr != nil {
+			t.Fatal(openErr)
+		}
+		runtime.Registration = registration.New(stores.RuntimeState, key, sender, runtime.Accounts, runtime.SiteSettings)
+		runtime.PasswordReset = passwordreset.New(stores.RuntimeState, key, sender, runtime.Accounts, runtime.SiteSettings)
+		runtime.EmailChange = emailchange.New(stores.RuntimeState, key, sender, runtime.Accounts, runtime.Authentication, runtime.SiteSettings, emailChangeOptions...)
+		clear(key)
 	}
 	runContext, cancel := context.WithCancel(context.Background())
 	runErrors := make(chan error, 1)

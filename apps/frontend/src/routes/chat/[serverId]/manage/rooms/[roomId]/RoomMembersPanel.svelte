@@ -13,7 +13,7 @@
   import type { DirectoryMember } from '@chatto/client/api/memberDirectory';
   import { createMemberDirectoryAPI } from '@chatto/client/api/memberDirectory';
   import { createRoomCommandAPI } from '@chatto/client/api/rooms';
-  import { DataTable, LoadingFog, Panel, ConfirmDialog, Hint } from '$lib/ui';
+  import { DataTable, LoadingDots, Panel, ConfirmDialog, Hint } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { Button, Combobox } from '$lib/ui/form';
   import { useProjectionEvent } from '$lib/hooks';
@@ -376,7 +376,7 @@
   {/if}
 
   {#if loading && members.length === 0}
-    <LoadingFog class="m-5 h-32" label={m('admin.members.loading')} />
+    <LoadingDots class="m-5 h-32" label={m('admin.members.loading')} />
   {:else}
     <DataTable
       items={members}

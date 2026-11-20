@@ -3,6 +3,13 @@ import { TIMEOUTS } from '../constants';
 import { browserAuthenticationHeaders, csrfHeaders } from '../fixtures/csrf';
 import * as routes from '../routes';
 
+/** Message returned by the test-only captured-mail endpoint. */
+interface CapturedEmail {
+  to: string;
+  subject: string;
+  body: string;
+}
+
 /**
  * Page object for authentication flows (login, registration, email verification).
  * Handles form interactions and navigation between auth pages.
@@ -251,9 +258,10 @@ export class AuthPage {
   async register(username: string, email: string, password: string): Promise<void> {
     await this.gotoRegister();
     await this.emailInput.fill(email);
+    await this.clearCapturedEmails();
     await this.continueButton.click();
 
-    const emailData = await this.getLastVerificationEmail();
+    const emailData = await this.getLastVerificationEmail(email);
     const code = this.extractVerificationCode(emailData.body);
     await this.fillRegistrationCode(code);
     await this.submitCodeButton.click();
@@ -358,14 +366,31 @@ export class AuthPage {
 
   // --- Email Verification Methods ---
 
-  /**
-   * Get the last verification email from the test endpoint.
-   * Returns the email data including body.
-   */
-  async getLastVerificationEmail(): Promise<{ to: string; subject: string; body: string }> {
-    const response = await this.page.request.get('/auth/test/last-email');
+  /** Clear captured mail before triggering a new delivery, including to the same address. */
+  async clearCapturedEmails(): Promise<void> {
+    const response = await this.page.request.delete(
+      new URL('/auth/test/emails', this.page.url()).href
+    );
     expect(response.ok()).toBeTruthy();
-    return response.json();
+  }
+
+  /**
+   * Wait for queued mail to reach the expected recipient on this page's server.
+   * Clear captured mail before the request to exclude older mail for that address.
+   */
+  async getLastVerificationEmail(expectedRecipient: string): Promise<CapturedEmail> {
+    let message: CapturedEmail | undefined;
+    await expect(async () => {
+      const response = await this.page.request.get(
+        new URL('/auth/test/last-email', this.page.url()).href
+      );
+      expect(response.ok()).toBeTruthy();
+      const captured: CapturedEmail = await response.json();
+      expect(captured.to).toBe(expectedRecipient);
+      message = captured;
+    }).toPass({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+    if (!message) throw new Error('Expected email was not captured');
+    return message;
   }
 
   /**
@@ -384,7 +409,7 @@ export class AuthPage {
    * Assumes a verification email was just sent.
    */
   async completeEmailVerification(email: string): Promise<void> {
-    const emailData = await this.getLastVerificationEmail();
+    const emailData = await this.getLastVerificationEmail(email);
     const code = this.extractVerificationCode(emailData.body);
     const response = await this.page.request.post('/auth/verify-email/confirm-code', {
       headers: { 'Content-Type': 'application/json', ...(await csrfHeaders(this.page)) },
@@ -433,6 +458,7 @@ export class AuthPage {
    * Submit the forgot password form.
    */
   async submitForgotPassword(): Promise<void> {
+    await this.clearCapturedEmails();
     await this.sendResetLinkButton.click();
   }
 
@@ -477,8 +503,8 @@ export class AuthPage {
    * Complete password reset by getting the email, visiting the link, and setting a new password.
    * Assumes a password reset email was just sent.
    */
-  async completePasswordReset(newPassword: string): Promise<void> {
-    const emailData = await this.getLastVerificationEmail();
+  async completePasswordReset(email: string, newPassword: string): Promise<void> {
+    const emailData = await this.getLastVerificationEmail(email);
     const resetUrl = this.extractPasswordResetUrl(emailData.body);
     await this.page.goto(resetUrl);
     await expect(this.resetPasswordHeading).toBeVisible();

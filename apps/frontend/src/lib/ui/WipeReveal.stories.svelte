@@ -18,8 +18,8 @@
         {#if joined}
           <PillButtonGroup label="Call controls">
             <button class="pill-button">Camera</button>
-            <button class="pill-button-success">Mute</button>
-            <button class="pill-button-danger" onclick={() => (active = false)}>Leave</button>
+            <button class="pill-button-live">Mute</button>
+            <button class="pill-button text-danger" onclick={() => (active = false)}>Leave</button>
           </PillButtonGroup>
         {:else}
           <button class="btn-action min-h-12 w-full" onclick={() => (active = true)}

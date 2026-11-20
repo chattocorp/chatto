@@ -18,7 +18,7 @@
     <span class="iconify icon-[uil--setting]" aria-hidden="true"></span>
   </button>
   <button
-    class={muted ? 'pill-button' : 'pill-button-success'}
+    class={muted ? 'pill-button' : 'pill-button-live'}
     aria-label="Microphone"
     aria-pressed={!muted}
     onclick={() => (muted = !muted)}
@@ -28,14 +28,14 @@
       aria-hidden="true"
     ></span>
   </button>
-  <button class="pill-button" aria-label="Camera" disabled>
-    <span class="iconify icon-[uil--video-slash]" aria-hidden="true"></span>
+  <button class="pill-button-live" aria-label="Camera" aria-pressed="true">
+    <span class="iconify icon-[uil--video]" aria-hidden="true"></span>
   </button>
   <button class="pill-button" aria-label="Share screen">
     <span class="iconify icon-[uil--desktop]" aria-hidden="true"></span>
   </button>
-  <button class="pill-button-danger" aria-label="Leave call">
-    <span class="iconify icon-[uil--phone-slash]" aria-hidden="true"></span>
+  <button class="pill-button" aria-label="Leave call">
+    <span class="iconify icon-[uil--phone-slash] text-danger" aria-hidden="true"></span>
   </button>
 {/snippet}
 

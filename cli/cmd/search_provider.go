@@ -49,18 +49,36 @@ func runSearchProvider(configPath string) {
 
 	ctx, stop := runtimeunit.NotifyContext(context.Background())
 	defer stop()
-	unit := searchbleve.Unit{}
-	nc, err := runtimeunit.ConnectToNATS(ctx, cfg, nil)
-	if err != nil {
-		log.Fatal("Failed to connect to NATS", "error", err)
+	unit := searchbleve.Unit{Health: searchbleve.NewHealth()}
+	logger := log.WithPrefix(unit.Name())
+	// Start the health listener before NATS and index startup, so liveness
+	// and diagnostics answer while the provider waits, replays, or rebuilds.
+	if cfg.SearchProvider.Health.Enabled {
+		healthServer, err := searchbleve.StartHealthServer(cfg.SearchProvider.Health, unit.Health, logger)
+		if err != nil {
+			log.Fatal("Failed to start search provider health listener", "error", err)
+		}
+		defer func() {
+			if err := healthServer.Close(); err != nil {
+				logger.Warn("Failed to stop search provider health listener", "error", err)
+			}
+		}()
 	}
-	defer runtimeunit.CloseNATSConnection(nc)
-	env, err := runtimeunit.NewEnv(ctx, cfg, nc, log.WithPrefix(unit.Name()), Version)
-	if err != nil {
-		log.Fatal("Failed to create search provider environment", "error", err)
-	}
-	if err := runtimeunit.Run(ctx, env, unit); err != nil {
+	if err := runSearchProviderUnit(ctx, cfg, unit, logger); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func runSearchProviderUnit(ctx context.Context, cfg config.ChattoConfig, unit searchbleve.Unit, logger *log.Logger) error {
+	nc, err := runtimeunit.ConnectToNATS(ctx, cfg, nil)
+	if err != nil {
+		return fmt.Errorf("connect to NATS: %w", err)
+	}
+	defer runtimeunit.CloseNATSConnection(nc)
+	env, err := runtimeunit.NewEnv(ctx, cfg, nc, logger, Version)
+	if err != nil {
+		return fmt.Errorf("create search provider environment: %w", err)
+	}
+	return runtimeunit.Run(ctx, env, unit)
 }

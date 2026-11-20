@@ -462,6 +462,7 @@
 
 {#if msg}
   <MessageView
+    timelineClock
     {artifactOwner}
     {mentionStore}
     eventId={event.id}

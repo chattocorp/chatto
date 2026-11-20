@@ -1103,3 +1103,24 @@ func TestRealtimeReplayRoomSubject(t *testing.T) {
 		t.Fatal("user subject accepted as room replay subject")
 	}
 }
+
+func TestWaitForRealtimeCursorTreatsExpiredCursorAsSatisfied(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	const viewerID = "expired-barrier-viewer"
+	identity, err := evtstream.Identity(chatto.storage.serverEvtStream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A client that slept for longer than the lifetime still holds this cursor.
+	cursor, err := chatto.encodeRealtimeCursorAt(viewerID, identity, 1, time.Now().Add(-realtimeCursorLifetime-time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := chatto.WaitForRealtimeCursor(ctx, viewerID, cursor); err != nil {
+		t.Fatalf("expired minimum cursor = %v, want satisfied barrier", err)
+	}
+	if err := chatto.WaitForRealtimeCursor(ctx, viewerID, "not-a-cursor"); !errors.Is(err, ErrRealtimeCursorInvalid) {
+		t.Fatalf("invalid minimum cursor = %v, want ErrRealtimeCursorInvalid", err)
+	}
+}

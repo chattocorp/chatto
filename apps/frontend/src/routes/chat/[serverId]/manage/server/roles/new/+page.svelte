@@ -5,9 +5,13 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createRoleAPI, type CreateRoleInput } from '@chatto/client/api/roles';
+  import {
+    roleCatalogSupportsProtection,
+    createRoleAPI,
+    type CreateRoleInput
+  } from '@chatto/client/api/roles';
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
-  import { Panel, Hint, PaneContent, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
+  import { Panel, Hint, PaneContent, LoadingDots, PaneHeader, PageTitle } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { RoleForm } from '$lib/components/rbac';
   import { invalidatePermissionTiers } from '$lib/query/adminInvalidation';
@@ -23,6 +27,7 @@
   let description = $state('');
   let pingable = $state(false);
 
+  let requiresShieldMode = $state(false);
   type CreateRoleVariables = SessionSnapshot & {
     api: ReturnType<typeof createRoleAPI>;
     input: CreateRoleInput;
@@ -36,6 +41,8 @@
       queryFn: ({ signal }) => connection.getAPI(createRoleAPI).listAdminRoles({ signal })
     };
   });
+
+  const showShieldSetting = $derived(roleCatalogSupportsProtection(roleCatalogQuery.data));
 
   const createRoleMutation = createMutation(() => ({
     mutationFn: (variables: CreateRoleVariables) =>
@@ -65,7 +72,8 @@
         name: targetName,
         displayName: displayName.trim(),
         description: description.trim(),
-        pingable
+        pingable,
+        requiresShieldMode: showShieldSetting ? requiresShieldMode : undefined
       }
     });
   }
@@ -103,7 +111,7 @@
   <PaneContent>
     <div class="flex flex-col gap-6">
       {#if loading}
-        <LoadingFog class="h-32 w-full" />
+        <LoadingDots class="h-32 w-full" />
       {:else if !canManageRoles}
         <Hint tone="danger">{m('admin.permissions.need_manage_create')}</Hint>
       {:else}
@@ -116,6 +124,8 @@
             bind:name
             bind:displayName
             bind:description
+            {showShieldSetting}
+            bind:requiresShieldMode
             bind:pingable
             saving={creating}
             submitLabel={m('admin.permissions.create_role_action')}

@@ -25,6 +25,7 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/chattocorp/chatto/pkg/jetstreamutil"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 )
 
 const (
@@ -41,8 +42,6 @@ const (
 	callKeyCleanupMaxPending          = 16
 	callKeyCleanupAckWait             = 2 * time.Minute
 	callKeyCleanupRetryDelay          = 30 * time.Second
-	callKeyCleanupHeartbeat           = 30 * time.Second
-	callKeyCleanupAckTimeout          = 5 * time.Second
 )
 
 type liveKitParticipantSnapshot struct {
@@ -78,7 +77,7 @@ type CallModel struct {
 	// effectLogger receives the call-key cleanup worker's diagnostics.
 	effectLogger       *log.Logger
 	keyCleanupConsumer jetstream.Consumer
-	keyCleanupWorker   *events.DurableWorker
+	keyCleanupWorker   interface{ RunSource(context.Context) error }
 }
 
 type liveKitFailureCleanupSummary struct {
@@ -150,7 +149,9 @@ func NewCallModel(
 	return model
 }
 
-func (s *CallModel) configureKeyCleanup(ctx context.Context, stream jetstream.Stream) error {
+// configureKeyCleanup creates the source consumer of call-key cleanup jobs.
+// register binds the consumer and handler to the shared job queue.
+func (s *CallModel) configureKeyCleanup(ctx context.Context, stream jetstream.Stream, register func(jetstream.Consumer, events.DurableDeliveryHandler) (*jobqueue.Effect, error)) error {
 	consumer, err := evtstream.CreateEffectConsumer(ctx, stream, evtstream.EffectConsumerConfig{
 		Name:           callKeyCleanupConsumerName,
 		Description:    "Shared durable queue for ended Chatto call-key deletion",
@@ -162,13 +163,7 @@ func (s *CallModel) configureKeyCleanup(ctx context.Context, stream jetstream.St
 	if err != nil {
 		return fmt.Errorf("create call-key cleanup consumer: %w", err)
 	}
-	worker, err := evtstream.NewEffectWorker(consumer, s.processKeyCleanupDelivery, evtstream.EffectWorkerOptions{
-		MaxConcurrent:     callKeyCleanupMaxPending,
-		RetryDelay:        callKeyCleanupRetryDelay,
-		AckTimeout:        callKeyCleanupAckTimeout,
-		HeartbeatInterval: callKeyCleanupHeartbeat,
-		Logger:            s.effectLogger,
-	})
+	worker, err := register(consumer, s.processKeyCleanupDelivery)
 	if err != nil {
 		return fmt.Errorf("configure call-key cleanup worker: %w", err)
 	}
@@ -1007,7 +1002,7 @@ func (s *CallModel) runner() func(context.Context) error {
 	reconcileLease := s.reconcileLease
 	return func(ctx context.Context) error {
 		g, gctx := errgroup.WithContext(ctx)
-		g.Go(func() error { return s.keyCleanupWorker.Run(gctx) })
+		g.Go(func() error { return s.keyCleanupWorker.RunSource(gctx) })
 		if reconcile {
 			if reconcileLease != nil {
 				g.Go(func() error { return reconcileLease.Run(gctx, s.runReconciliationLoop) })

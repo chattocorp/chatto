@@ -2,7 +2,6 @@
   import { onDestroy, untrack, type Snippet } from 'svelte';
   import { resolve } from '$app/paths';
   import { createPresenceAPI } from '@chatto/client/api/presence';
-  import { createAccountAPI } from '@chatto/client/api/account';
   import { beginOriginReauthentication } from '$lib/auth/reauth';
   import { resumeReturnNavigation } from '$lib/auth/returnNavigation';
   import { isExplicitSignOutRedirectInProgress } from '@chatto/client/auth/signOut';
@@ -18,7 +17,6 @@
     refreshPresencePreference
   } from '$lib/state/server/presenceTracking';
   import { serverIdToSegment } from '$lib/navigation';
-  import { createDeviceTimezoneReportTracker, deviceTimezone } from '$lib/utils/deviceTimezone';
   import { idleState } from '$lib/state/idle.svelte';
   import { scheduleCustomStatusExpiry } from '@chatto/client/util/customStatusExpiry';
 
@@ -126,44 +124,6 @@
   );
 
   $effect(() => presenceTracking.sync());
-
-  // Report this device's time zone once per (server, user) when the viewer has
-  // no explicit override. Explicitly chosen zones are never overwritten, so
-  // reconnects and other devices cannot clobber a deliberate setting.
-  const timezoneReports = createDeviceTimezoneReportTracker();
-  $effect(() => {
-    const zone = deviceTimezone();
-    if (!zone) return;
-    for (const server of serverRegistry.servers) {
-      const store = serverRegistry.tryGetStore(server.id);
-      const user = store?.currentUser.user;
-      if (!store || !user || !store.isAuthenticated) continue;
-      const userId = store.accountId;
-      if (user.settings?.shareTimezone === undefined) continue;
-      const key = `${server.id}:${userId}`;
-      if (!timezoneReports.begin(key)) continue;
-      // Empty means the user explicitly selected browser default. Only an
-      // absent preference permits automatic device reporting.
-      if (user.settings?.timezone != null) {
-        continue;
-      }
-      const api = serverConnectionManager.getClient(server.id).getAPI(createAccountAPI);
-      void api
-        .updateSettings({ timezone: zone })
-        .then((settings) => {
-          store.currentUser.update(userId, (user) => {
-            if (!user.settings) return { settings };
-            if (user.settings.timezone != null) return null;
-            return { settings: { ...user.settings, timezone: settings.timezone ?? null } };
-          });
-        })
-        .catch(() => {
-          // Reporting is best-effort; the absence simply keeps the profile
-          // zone empty. A later relevant store change can retry the report.
-          timezoneReports.allowRetry(key);
-        });
-    }
-  });
 
   // Web Push registration is not needed for the first paint. Loading it on
   // demand keeps it out of every chat route's initial bundle.

@@ -14,6 +14,7 @@
       "clear_confirm_title": "Kamermededeling wissen?",
       "clear_confirm_description": "Dit verwijdert de actieve mededeling onmiddellijk voor iedereen in de kamer. Je niet-opgeslagen wijzigingen worden niet gepubliceerd.",
       "empty": "Er is geen mededeling gepubliceerd.",
+      "load_failed": "Kan de mededeling niet laden.",
       "edit": "Mededeling bewerken"
     },
     "information": {
@@ -21,7 +22,12 @@
       "created": "Aangemaakt",
       "title": "Ruiminformatie",
       "basic": "Algemeen",
-      "pinned_messages": "Vastgezette berichten"
+      "pinned_messages": "Vastgezette berichten",
+      "threads": "Discussies",
+      "slow_mode": "Langzame modus",
+      "channel_slow_mode": "Langzame modus in het kanaal",
+      "thread_slow_mode": "Langzame modus in threads",
+      "slow_mode_off": "Uit"
     },
     "create": {
       "title": "Maak een nieuwe kamer",

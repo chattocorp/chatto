@@ -21,7 +21,6 @@ import (
 
 // Pre-compiled regexes for login validation
 var (
-	validLoginRegex   = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 	invalidCharsRegex = regexp.MustCompile(`[^a-z0-9._-]`)
 )
 
@@ -399,13 +398,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 
-		// Validate identifier length to prevent abuse
-		// Email addresses can be up to 254 characters (RFC 5321), usernames up to 32
-		maxLength := 32
-		if strings.Contains(login, "@") {
-			maxLength = 254
-		}
-		if len(login) > maxLength {
+		// Existing usernames remain usable when the assignment limit is lowered.
+		if len(login) > core.MaxLoginLength {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid credentials"})
 			return
 		}
@@ -586,6 +580,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create registration code
+		expiresAt := time.Now().Add(s.config.Auth.EmailOTP.TTLOrDefault())
 		code, err := s.core.CreateRegistrationCodeForInvitation(ctx, req.Email, invitationID)
 		if err != nil {
 			if errors.Is(err, core.ErrRegistrationCodeLimitExceeded) ||
@@ -604,10 +599,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Send registration email
 		serverName := s.authEmailServerName()
 		expirationText := s.emailOTPExpirationText()
-		err = s.mailer.Send(email.Message{
-			To:      req.Email,
-			Subject: fmt.Sprintf("Complete your registration for %s", serverName),
-			Body:    fmt.Sprintf("Welcome to %s!\n\nUse this verification code to finish creating your account on %s:\n\n%s\n\nThis code will expire in %s.\n\nIf you didn't request this, you can ignore this email.", serverName, serverName, code, expirationText),
+		err = s.mailer.SendContext(c.Request.Context(), email.Message{
+			ExpiresAt: expiresAt,
+			To:        req.Email,
+			Subject:   fmt.Sprintf("Complete your registration for %s", serverName),
+			Body:      fmt.Sprintf("Welcome to %s!\n\nUse this verification code to finish creating your account on %s:\n\n%s\n\nThis code expires %s after the request.\n\nIf you didn't request this, you can ignore this email.", serverName, serverName, code, expirationText),
 		})
 		if err != nil {
 			log.Error("Failed to send registration email", "error", err)
@@ -618,7 +614,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			return
 		}
 
-		log.Info("Sent registration email")
+		log.Info("Queued registration email")
 		c.JSON(http.StatusOK, gin.H{
 			"message": "If this email is available, you will receive a registration code.",
 		})
@@ -704,8 +700,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Validate login format
-		if !isValidLogin(req.Login) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Login must be 2-32 characters, using only letters, numbers, dots, dashes, or underscores (no consecutive or trailing periods)"})
+		if err := validateRegistrationLogin(req.Login, s.core.LoginLengthLimit()); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -734,7 +730,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create user with verified email atomically (use login as display name initially)
-		user, err := s.core.CreateSelfServiceUser(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email, tokenData.InvitationID)
+		user, err := s.core.CreateSelfServiceUser(ctx, "system", req.Login, core.LoginDisplayName(req.Login), req.Password, tokenData.Email, tokenData.InvitationID)
 		if err != nil {
 			if errors.Is(err, core.ErrInvitationInvalid) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation code is invalid or no longer available"})
@@ -836,6 +832,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 		body.Email = strings.ToLower(strings.TrimSpace(body.Email))
 
+		expiresAt := time.Now().Add(s.config.Auth.EmailOTP.TTLOrDefault())
 		code, err := s.core.CreateEmailVerificationCode(req.Context(), user.Id, body.Email)
 		if err != nil {
 			if errors.Is(err, core.ErrEmailVerificationCodeLimitExceeded) ||
@@ -849,10 +846,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 		serverName := s.authEmailServerName()
 		expirationText := s.emailOTPExpirationText()
-		if err := s.mailer.Send(email.Message{
-			To:      body.Email,
-			Subject: fmt.Sprintf("Verify your email for %s", serverName),
-			Body:    fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code will expire in %s.\n\nIf you didn't request this, you can ignore this email.", serverName, code, expirationText),
+		if err := s.mailer.SendContext(c.Request.Context(), email.Message{
+			ExpiresAt: expiresAt,
+			To:        body.Email,
+			Subject:   fmt.Sprintf("Verify your email for %s", serverName),
+			Body:      fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code expires %s after the request.\n\nIf you didn't request this, you can ignore this email.", serverName, code, expirationText),
 		}); err != nil {
 			log.Error("Failed to send email verification code", "userId", user.Id, "error", err)
 			if cancelErr := s.core.CancelEmailVerificationCode(req.Context(), user.Id, body.Email, code); cancelErr != nil {
@@ -929,6 +927,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		normalizedEmail := strings.ToLower(strings.TrimSpace(req.Email))
 
 		// Create token (returns empty string if email not found - no error)
+		expiresAt := time.Now().Add(core.PasswordResetTokenTTL)
 		token, err := s.core.CreatePasswordResetToken(ctx, normalizedEmail)
 		if errors.Is(err, core.ErrPasswordResetRequestThrottled) {
 			log.Info("Password reset request throttled")
@@ -941,10 +940,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 		if token != "" && s.mailer != nil {
 			serverName := s.authEmailServerName()
 			resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.config.Webserver.URL, token)
-			err = s.mailer.Send(email.Message{
-				To:      normalizedEmail,
-				Subject: fmt.Sprintf("Reset your %s password", serverName),
-				Body:    fmt.Sprintf("Hi,\n\nWe received a request to reset the password for your %s account.\n\nClick the link below to set a new password:\n\n%s\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, you can safely ignore this email.", serverName, resetURL),
+			err = s.mailer.SendContext(c.Request.Context(), email.Message{
+				ExpiresAt: expiresAt,
+				To:        normalizedEmail,
+				Subject:   fmt.Sprintf("Reset your %s password", serverName),
+				Body:      fmt.Sprintf("Hi,\n\nWe received a request to reset the password for your %s account.\n\nClick the link below to set a new password:\n\n%s\n\nThis link expires 1 hour after the request.\n\nIf you didn't request this, you can safely ignore this email.", serverName, resetURL),
 			})
 			if err != nil {
 				log.Error("Failed to send password reset email", "error", err)
@@ -952,7 +952,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 					log.Error("Failed to cancel undelivered password reset token", "error", cancelErr)
 				}
 			} else {
-				log.Info("Sent password reset email")
+				log.Info("Queued password reset email")
 			}
 		} else if token != "" {
 			if cancelErr := s.core.CancelPasswordResetToken(ctx, token); cancelErr != nil {
@@ -1018,26 +1018,18 @@ func (s *HTTPServer) setupAuthRoutes() {
 	registerTestEndpoints(auth, s)
 }
 
-// isValidLogin validates that a login name meets the requirements:
-// 2-32 characters, alphanumeric with dots, dashes, or underscores.
-// Consecutive periods (..) and a trailing period are not allowed.
-func isValidLogin(login string) bool {
-	if len(login) < 2 || len(login) > 32 {
-		return false
-	}
+// Registration also excludes consecutive periods.
+func validateRegistrationLogin(login string, maxLength int) error {
 	if strings.Contains(login, "..") {
-		return false
+		return errors.New("username cannot contain consecutive periods")
 	}
-	if strings.HasSuffix(login, ".") {
-		return false
-	}
-	return validLoginRegex.MatchString(login)
+	return core.ValidateLogin(login, maxLength)
 }
 
 // deriveLoginFromEmail extracts a login name from an email address.
 // Takes the part before @, converts to lowercase, and removes invalid characters.
-// Valid characters: alphanumeric, underscore, dash, dot (2-32 chars).
-func deriveLoginFromEmail(email string) string {
+// Valid characters: alphanumeric, underscore, dash, dot.
+func deriveLoginFromEmail(email string, maxLength int) string {
 	// Extract part before @
 	parts := strings.Split(email, "@")
 	base := strings.ToLower(parts[0])
@@ -1051,8 +1043,8 @@ func deriveLoginFromEmail(email string) string {
 	}
 
 	// Truncate to max length
-	if len(base) > 32 {
-		base = base[:32]
+	if len(base) > maxLength {
+		base = base[:maxLength]
 	}
 
 	return base

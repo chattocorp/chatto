@@ -1395,7 +1395,8 @@ export class AdminProjectionState extends Message<AdminProjectionState> {
   failure = "";
 
   /**
-   * Estimated number of entries held by the projection.
+   * Estimated number of entries held by the projection. Zero when the
+   * estimate did not finish in time, for example during a blocked commit.
    *
    * @generated from field: int64 entry_count = 13;
    */
@@ -1416,11 +1417,49 @@ export class AdminProjectionState extends Message<AdminProjectionState> {
   averageEntryBytes = protoInt64.zero;
 
   /**
-   * Projection-specific diagnostic metrics.
+   * Projection-specific diagnostic metrics. Empty when the estimate did not
+   * finish in time.
    *
    * @generated from field: repeated chatto.admin.v1.AdminProjectionMetric metrics = 16;
    */
   metrics: AdminProjectionMetric[] = [];
+
+  /**
+   * Whether pending events have had no committed progress for the stall
+   * threshold. An idle, caught-up projection is never stalled.
+   *
+   * @generated from field: bool stalled = 17;
+   */
+  stalled = false;
+
+  /**
+   * Seconds that pending events have had no committed progress. Unset when
+   * the projection is caught up.
+   *
+   * @generated from field: optional double pending_seconds = 18;
+   */
+  pendingSeconds?: number;
+
+  /**
+   * Low-cardinality name of the work that runs now. Empty when idle.
+   *
+   * @generated from field: string current_operation = 19;
+   */
+  currentOperation = "";
+
+  /**
+   * Seconds that current_operation has run. Unset when idle.
+   *
+   * @generated from field: optional double current_operation_seconds = 20;
+   */
+  currentOperationSeconds?: number;
+
+  /**
+   * When the projection last committed progress in this replica.
+   *
+   * @generated from field: google.protobuf.Timestamp last_commit_time = 21;
+   */
+  lastCommitTime?: Timestamp;
 
   constructor(data?: PartialMessage<AdminProjectionState>) {
     super();
@@ -1446,6 +1485,11 @@ export class AdminProjectionState extends Message<AdminProjectionState> {
     { no: 14, name: "estimated_bytes", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 15, name: "average_entry_bytes", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 16, name: "metrics", kind: "message", T: AdminProjectionMetric, repeated: true },
+    { no: 17, name: "stalled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 18, name: "pending_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 19, name: "current_operation", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 20, name: "current_operation_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 21, name: "last_commit_time", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminProjectionState {

@@ -103,7 +103,7 @@ describe('MessageUserOverlays', () => {
     await vi.waitFor(() => {
       dialog = document.querySelector<HTMLDialogElement>('dialog[open]');
       expect(dialog).not.toBeNull();
-      expect(dialog?.querySelector('[data-loading-fog][aria-busy="true"]')).toBeTruthy();
+      expect(dialog?.querySelector('[data-loading-dots][aria-busy="true"]')).toBeTruthy();
     });
 
     dialog!.dispatchEvent(new Event('cancel', { cancelable: true }));

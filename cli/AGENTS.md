@@ -44,6 +44,8 @@ authorization, live events, backup and restore, and backend tests.
 - `proto/chatto/api/v1` holds public ConnectRPC API protobufs.
 - The relevant `docs/architecture/` inventories, FDRs, and ADRs should move
   with architectural changes.
+- Use the `chatto-jobs-implementation` skill before you add, change, or
+  remove a background job type.
 
 ## Public APIs
 
@@ -329,14 +331,13 @@ authorization, live events, backup and restore, and backend tests.
   everyone deny only at the same or a nearer scope.
 - Effective owner means durable `owner` role or verified email matching
   `owners.emails`. Owners are entitled to every permission, but the owner
-  override is effective only while the owner's session has active privileged
-  mode. Without it, owners resolve through the rules above like other users.
+  override is effective only while the owner's session has selected the owner role in Shield Mode. Without it, owners resolve through the rules above like other users.
   Entitlement paths (bot owner ceilings, delegation, privileged-mode
   availability) keep the override.
 - Every transport that authorizes a human must attach the verified runtime
   credential with `authctx.WithCredential` before it calls core. A context
   without a credential counts as internal work and gets entitlement semantics,
-  including the owner override and elevation-required permissions.
+  including the owner override and grants from protected roles.
 - Work that outlives its request, such as realtime fan-out, call connections,
   notifications, and alerts, must choose its privileged-mode state explicitly.
   Use the state of the receiving session, or the unprivileged view when no

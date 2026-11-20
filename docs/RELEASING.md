@@ -16,6 +16,7 @@ version and supply its changelog. Commits do not select releases. See
 | `pkg/appconfig`       | `pkg/appconfig/v`     | Package manifest                         |
 | `pkg/datacrypto`      | `pkg/datacrypto/v`    | Package manifest                         |
 | `pkg/jetstreamutil`   | `pkg/jetstreamutil/v` | Package manifest                         |
+| `pkg/jobs`            | `pkg/jobs/v`          | Package manifest                         |
 | `pkg/natsruntime`     | `pkg/natsruntime/v`   | Package manifest                         |
 
 Each unit owns `.sweet.yml`, `.sweet/` notes, and `CHANGELOG.md`. The client,
@@ -54,6 +55,13 @@ The existing `RELEASE_PLEASE_PAT` secret is retained only as a credential name
 for PR creation and tag pushes; no release-please action or configuration remains.
 Use a token that can write contents and PRs and start downstream workflows.
 
+## Prereleases
+
+To release prereleases of a package, set `prerelease: <label>` in its
+`.sweet.yml`, for example `prerelease: beta`. Remove the label to release the
+final version. Sweet finalizes a prerelease manifest version that has no label
+on its next bump. The artifact workflows accept prerelease tags.
+
 ## GitHub Latest release
 
 Only the highest stable Chatto version claims **Latest**. The Chatto publication
@@ -80,11 +88,6 @@ The workflow can also run manually from `main`.
 Preparation and tagging run on `main`. Maintenance-branch automation is not
 configured. Do not use old commit footers to request releases. Backport the
 release workflow explicitly before enabling releases on another branch.
-
-Sweet 0.3.0 does not preserve prerelease channels during a bump. Authling keeps
-its imported `0.1.0-alpha.3` baseline, but its next ordinary bump can be stable
-(for example, a fix selects `0.1.1`). Automated alpha/beta sequences need future
-Sweet support. Existing artifact workflows still accept prerelease tags.
 
 ## Publication approval
 

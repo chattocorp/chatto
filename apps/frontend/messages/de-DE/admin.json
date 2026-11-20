@@ -427,6 +427,10 @@
           "one": "{count} Projektion fehlgeschlagen",
           "other": "{count} Projektionen fehlgeschlagen"
         },
+        "projections_stalled_count": {
+          "one": "{count} Projektion hängt",
+          "other": "{count} Projektionen hängen"
+        },
         "projections_catching_up_count": {
           "one": "{count} Projektion holt auf",
           "other": "{count} Projektionen holen auf"
@@ -591,6 +595,42 @@
         "revoked": "Widerrufen",
         "used": "Verwendet"
       }
+    },
+    "jobs": {
+      "title": "Aufträge",
+      "subtitle": "Sieh dir Hintergrundaufträge an und wiederhole oder lösche fehlgeschlagene Aufträge.",
+      "load_failed": "Aufträge konnten nicht geladen werden.",
+      "retry_failed": "Dieser Auftrag konnte nicht wiederholt werden.",
+      "delete_failed": "Dieser Auftrag konnte nicht gelöscht werden.",
+      "delete_title": "Diesen Auftrag löschen?",
+      "delete_message": "Die Arbeit dieses Auftrags wird verworfen. Du kannst ihn später nicht wiederholen.",
+      "webhook": "Webhook-Zustellung",
+      "media": "Medienverarbeitung",
+      "neighborhood_refresh": "Nachbarschaft aktualisieren",
+      "message_body_erasure": "Nachrichteninhalte löschen",
+      "branding_cleanup": "Serverlogos und Banner bereinigen",
+      "asset_cleanup": "Dateibereinigung",
+      "call_key_cleanup": "Löschung von Anrufschlüsseln",
+      "runtime_credential_cleanup": "Bereinigung von Sitzungen und Tokens",
+      "push_subscription_cleanup": "Bereinigung von Push-Abonnements",
+      "user_key_shredding": "Löschung von Kontoschlüsseln",
+      "notification_alert": "Benachrichtigung",
+      "email": "E-Mail",
+      "queued": "In Warteschlange",
+      "running": "Wird ausgeführt",
+      "succeeded": "Erfolgreich",
+      "failed": "Fehlgeschlagen",
+      "empty": "Noch keine Aufträge",
+      "attempts": "Versuche",
+      "updated": "Aktualisiert",
+      "next_attempt": "Nächster Versuch",
+      "expired": "Dieser Auftrag ist abgelaufen und kann nicht wiederholt werden.",
+      "job": "Auftrag",
+      "created": "Erstellt",
+      "details": "Details",
+      "detail_subtitle": "Status, Versuche und letzter Fehlergrund dieses Auftrags.",
+      "not_found": "Dieser Auftrag existiert nicht mehr.",
+      "all": "Alle"
     }
   }
 }

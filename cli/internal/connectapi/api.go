@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 	"connectrpc.com/validate"
@@ -133,6 +134,7 @@ func (a *API) Handlers() []Handler {
 	assetPath, assetHandler := apiv1connect.NewAssetServiceHandler(&assetService{api: a}, options...)
 	assetUploadPath, assetUploadHandler := apiv1connect.NewAssetUploadServiceHandler(&assetUploadService{api: a}, assetUploadOptions...)
 	assetUploadHandler = newUploadChunkLimiter(assetUploadHandler, assetUploadOptions...)
+	jobsPath, jobsHandler := adminv1connect.NewAdminJobServiceHandler(&adminJobService{api: a}, options...)
 	adminDiagnosticsPath, adminDiagnosticsHandler := adminv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
 	adminEventLogPath, adminEventLogHandler := adminv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
 	invitationCodePath, invitationCodeHandler := adminv1connect.NewAdminInvitationCodeServiceHandler(&adminInvitationCodeService{api: a}, options...)
@@ -170,7 +172,7 @@ func (a *API) Handlers() []Handler {
 	roomDirectoryPath, roomDirectoryHandler := apiv1connect.NewRoomDirectoryServiceHandler(&roomDirectoryService{api: a}, options...)
 	adminRoomLayoutPath, adminRoomLayoutHandler := adminv1connect.NewAdminRoomLayoutServiceHandler(&adminRoomLayoutService{api: a}, options...)
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
-	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
+	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a, now: time.Now}, options...)
 	handlers := []Handler{
 		{ServicePath: roomInvitationPath, Handler: roomInvitationHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: setupPath, Handler: setupHandler, AuthPolicy: AuthPolicyPublic},
@@ -179,6 +181,7 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: effectivePermissionPath, Handler: effectivePermissionHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: assetPath, Handler: assetHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: assetUploadPath, Handler: assetUploadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: jobsPath, Handler: jobsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminDiagnosticsPath, Handler: adminDiagnosticsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminEventLogPath, Handler: adminEventLogHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: invitationCodePath, Handler: invitationCodeHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

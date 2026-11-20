@@ -24,3 +24,14 @@
     />
   </div>
 </Story>
+
+<Story name="Room" asChild>
+  <div class="h-96">
+    <AccessDenied
+      title="#leadership"
+      message="You do not have permission to join this room."
+      backHref="/chat"
+      backLabel="Return to Server"
+    />
+  </div>
+</Story>

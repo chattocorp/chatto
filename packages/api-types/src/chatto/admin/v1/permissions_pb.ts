@@ -544,8 +544,7 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
   effective = PermissionDecision.UNSPECIFIED;
 
   /**
-   * Whether an explicit allow may currently be stored for this target. Absent
-   * when no additional delegation ceiling applies.
+   * Whether the bot owner's assigned permissions allow this grant. Absent for other targets.
    *
    * @generated from field: optional bool allow_permitted = 5;
    */

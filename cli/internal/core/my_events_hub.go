@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -38,18 +39,33 @@ type myEventsDelivery struct {
 type myEventsPrincipal struct {
 	userID     string
 	privileged bool
+	roles      string
+	allRoles   bool
 }
 
 // myEventsPrincipalForContext derives the principal from the subscribing
 // request. Contexts without a human credential keep entitlement semantics.
 func myEventsPrincipalForContext(ctx context.Context, userID string) myEventsPrincipal {
-	return myEventsPrincipal{userID: userID, privileged: privilegedModeAllows(ctx, userID, time.Now())}
+	active := privilegedModeAllows(ctx, userID, time.Now())
+	var roles string
+	var allRoles bool
+	if active {
+		if credential, ok := authctx.CredentialForContext(ctx); ok {
+			roles = strings.Join(credential.PrivilegedRoles, ",")
+		} else {
+			allRoles = true
+		}
+	}
+	return myEventsPrincipal{userID: userID, privileged: active, roles: roles, allRoles: allRoles}
 }
 
 // authorizationContext evaluates decisions for the principal's sessions with
 // their privileged-mode state instead of the caller's credential.
 func (p myEventsPrincipal) authorizationContext(ctx context.Context) context.Context {
-	return withPrivilegedModeEvaluation(ctx, p.userID, p.privileged)
+	if p.allRoles {
+		return withRoleEntitlement(ctx, p.userID)
+	}
+	return withPrivilegedModeEvaluation(ctx, p.userID, p.privileged, strings.Split(p.roles, ",")...)
 }
 
 type myEventsSubscription struct {

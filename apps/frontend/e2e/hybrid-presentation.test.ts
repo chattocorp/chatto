@@ -42,7 +42,7 @@ test('uses compact density with touch presentation and mouse interaction on a hy
   const send = composer.getByRole('button', { name: 'Send: Send message', exact: true });
   await composer.getByRole('button', { name: 'Formatting options', exact: true }).click();
   const formatting = page.getByTestId('composer-formatting-toolbar').getByRole('button');
-  await expect(formatting).toHaveCount(12);
+  await expect(formatting).toHaveCount(13);
   await room.messageInput.fill('Retained hybrid draft');
   for (const width of [320, 500, 767, 768, 1024, 500]) {
     await page.setViewportSize({ width, height: 800 });
@@ -58,7 +58,7 @@ test('uses compact density with touch presentation and mouse interaction on a hy
           buttons.map((button) => button.getBoundingClientRect().height)
         )
       )
-      .toEqual(Array(12).fill(28));
+      .toEqual(Array(13).fill(28));
     await expect(room.messageInput).toHaveText('Retained hybrid draft');
     const roomActions = page.getByRole('button', { name: 'Actions for #general', exact: true });
     if (await roomActions.isVisible()) {

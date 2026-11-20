@@ -23,6 +23,7 @@
       "display_name_too_long": "Visningsnamnet måste vara 64 tecken eller mindre",
       "description": "Beskrivning",
       "description_placeholder": "Valfri beskrivning för den här rollen",
+      "require_shield": "Kräv privilegierat läge",
       "pingable": "Tillåt andra att pinga den här rollen",
       "pingable_description": "Pingbara roller visas i @ autocomplete och meddela tilldelade rumsmedlemmar."
     },
@@ -129,8 +130,6 @@
         "open": "Om {permission}",
         "category": "Kategori",
         "scopes": "Kan ställas in för",
-        "privileged": "Kräver privilegierat läge",
-        "privileged_detail": "Konton måste aktivera privilegierat läge för att använda den här behörigheten.",
         "includes": "Omfattar",
         "included_by": "Ingår i"
       }

@@ -145,10 +145,12 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 	var loginNeedsMentionCheck bool
 	if login != nil {
 		nextLogin = strings.TrimSpace(*login)
-		if err := ValidateLogin(nextLogin); err != nil {
-			return nil, err
-		}
 		loginChanged = user.GetLogin() != nextLogin
+		if loginChanged {
+			if err := ValidateLogin(nextLogin, c.LoginLengthLimit()); err != nil {
+				return nil, err
+			}
+		}
 		// Clients may include an unchanged username when updating other fields.
 		// Provider management prevents renames, not full-profile submissions.
 		if actorID == userID && loginChanged {
@@ -457,13 +459,13 @@ func (c *ChattoCore) applyLoginChangeChecked(ctx context.Context, actorID, userI
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
-	if err := ValidateLogin(newLogin); err != nil {
-		return nil, err
-	}
 
 	// Check if unchanged (exact match — case-only changes are allowed)
 	if user.Login == newLogin {
 		return user, nil // No-op, return current user
+	}
+	if err := ValidateLogin(newLogin, c.LoginLengthLimit()); err != nil {
+		return nil, err
 	}
 
 	caseOnly := strings.EqualFold(user.Login, newLogin)

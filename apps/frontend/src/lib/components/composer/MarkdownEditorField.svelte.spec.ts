@@ -58,7 +58,7 @@ describe('MarkdownEditorField mention lifecycle', () => {
       });
       flushSync();
       expect(second.container.querySelector('[contenteditable="true"]')).not.toBeNull();
-      expect(second.container.querySelector('[data-loading-fog]')).toBeNull();
+      expect(second.container.querySelector('[data-loading-dots]')).toBeNull();
       await tick();
       expect(second.container.querySelector('[contenteditable="true"]')?.textContent).toContain(
         'Second draft'
@@ -129,4 +129,45 @@ describe('MarkdownEditorField mention lifecycle', () => {
     await userEvent.keyboard('{Escape}');
     await expect.element(page.getByTestId('mention-autocomplete')).not.toBeInTheDocument();
   });
+});
+
+describe('Strikethrough toolbar', () => {
+  beforeEach(async () => {
+    await loadLocaleMessages('en-GB');
+    setReactiveLocale('en-GB');
+  });
+
+  it.each(['markdown', 'visual'] as const)(
+    'toggles selected text and retains formatting across editor modes in %s',
+    async (editorKind) => {
+      const view = render(MarkdownEditorField, { editorKind, label: 'Message' });
+      const editor = page.getByRole('textbox', { name: 'Message', exact: true });
+      const button = page.getByRole('button', { name: 'Strikethrough', exact: true });
+      await editor.fill('hello');
+      await editor.click();
+      await userEvent.keyboard('{ControlOrMeta>}a{/ControlOrMeta}');
+      await button.click();
+      await expect.element(button).toHaveAttribute('aria-pressed', 'true');
+      await expect
+        .element(editor)
+        .toHaveTextContent(editorKind === 'markdown' ? '~~hello~~' : 'hello');
+      if (editorKind === 'visual')
+        expect(view.container.querySelector('s')?.textContent).toBe('hello');
+      await button.click();
+      await expect.element(button).toHaveAttribute('aria-pressed', 'false');
+      await expect.element(editor).toHaveTextContent('hello');
+      expect(view.container.querySelector('s')).toBeNull();
+      await button.click();
+      await expect.element(button).toHaveAttribute('aria-pressed', 'true');
+      await view.rerender({ editorKind: editorKind === 'markdown' ? 'visual' : 'markdown' });
+      await expect
+        .element(editor)
+        .toHaveTextContent(editorKind === 'visual' ? '~~hello~~' : 'hello');
+      if (editorKind === 'markdown') {
+        await expect.poll(() => view.container.querySelector('s')?.textContent).toBe('hello');
+      }
+      await view.rerender({ disabled: true });
+      await expect.element(button).toBeDisabled();
+    }
+  );
 });

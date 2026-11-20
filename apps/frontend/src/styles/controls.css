@@ -1,0 +1,715 @@
+/* Panel headers, raised and lowered surfaces, buttons, pill buttons, range sliders, inputs, checkboxes, and choice rows.
+ * Imported by src/app.css. Keep the import order: later rules can override earlier ones. */
+
+/* Panel and table header — one surface with a hairline divider. Typography,
+ * spacing, and structure carry hierarchy instead of another background band.
+ * Apply to the header element of any panel-like container (admin Panel,
+ * DataTable thead, hand-rolled room-group section).
+ */
+@utility panel-header {
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Inputs and segmented tracks share a rounded, slightly recessed frame. */
+@utility control-frame {
+  @apply rounded-xl border border-input-border shadow-[var(--depth-shadow-xs)] surface-lowered;
+  --lowered-edge: 0 -1px 0 rgb(255 255 255 / calc(0.04 * var(--depth-strength)));
+}
+
+/* A padded, quiet track separates mode selection from text entry. */
+@utility segmented-track {
+  @apply control-frame border-text/10 bg-surface/60 shadow-none;
+}
+
+/* The selected segment sits just above its recessed track. */
+@utility segmented-selection {
+  @apply rounded-lg shell-lighting shadow-[var(--depth-shadow-xs)];
+  background-color: var(--segmented-fill);
+}
+
+/* Raised surfaces catch light on the upper edge. Semantic utilities select the strength.
+ * Set every parameter here so nested controls do not inherit their frame's finish.
+ * This utility owns lighting only; callers own colour, shape, and elevation.
+ */
+@utility surface-raised {
+  --lighting-top: rgb(255 255 255 / calc(0.1 * var(--depth-strength)));
+  --lighting-bottom: rgb(0 0 0 / calc(0.04 * var(--depth-strength)));
+  --lighting-midpoint: 50%;
+  --lighting-edge-width: calc(1px * var(--depth-width));
+  --lighting-edge-blur: calc(0px * var(--depth-width));
+  --lighting-edge-top: rgb(255 255 255 / calc(0.16 * var(--depth-strength)));
+  --lighting-edge-bottom: rgb(0 0 0 / calc(0.08 * var(--depth-strength)));
+  @apply inset-shadow-[0_var(--lighting-edge-width)_var(--lighting-edge-blur)_var(--lighting-edge-top),0_calc(-1*var(--lighting-edge-width))_var(--lighting-edge-blur)_var(--lighting-edge-bottom)];
+  background-image: linear-gradient(
+    to bottom,
+    var(--lighting-top),
+    transparent var(--lighting-midpoint),
+    var(--lighting-bottom)
+  );
+}
+
+/* Lowered surfaces shade their interior. Reset both parameters so nested
+ * controls do not inherit a surrounding panel's depth. No fill or outer shadow.
+ */
+@utility surface-lowered {
+  --lowered-shadow: 0 1px 2px rgb(0 0 0 / calc(0.1 * var(--depth-strength)));
+  --lowered-edge: 0 0 #0000;
+  @apply inset-shadow-[var(--lowered-shadow),var(--lowered-edge)];
+}
+
+/* Small selected indicators need a softer finish than full-size action buttons. */
+@utility selection-indicator {
+  @apply surface-raised;
+  --lighting-top: rgb(255 255 255 / calc(0.04 * var(--depth-strength)));
+  --lighting-bottom: rgb(0 0 0 / calc(0.02 * var(--depth-strength)));
+  --lighting-edge-top: rgb(255 255 255 / calc(0.07 * var(--depth-strength)));
+  --lighting-edge-bottom: rgb(0 0 0 / calc(0.04 * var(--depth-strength)));
+}
+
+/* Palette samples interpolate from solid colour to a stronger sheen with depth. */
+@utility accent-swatch {
+  @apply surface-raised shadow-[var(--depth-shadow-sm)];
+  --lighting-edge-top: rgb(255 255 255 / calc(0.3 * var(--depth-strength)));
+  --lighting-edge-bottom: rgb(0 0 0 / calc(0.15 * var(--depth-strength)));
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgb(255 255 255 / calc(max(0, var(--depth-strength) - 1) * 0.2)),
+      transparent 55%
+    ),
+    linear-gradient(
+      to bottom right,
+      color-mix(
+        in srgb,
+        var(--accent-strong),
+        var(--accent-bright) calc(min(1, var(--depth-strength)) * 100%)
+      ),
+      var(--accent-strong)
+    );
+}
+
+/* Interactive controls share the shell finish. Disabled controls lose lighting;
+ * semantic utilities own fill changes for hover and press feedback. */
+@utility control-raised {
+  @apply shell-lighting shadow-none disabled:inset-shadow-none;
+
+  &:disabled,
+  &[aria-disabled='true'] {
+    background-image: none;
+  }
+
+  &[aria-disabled='true'] {
+    @apply shadow-none inset-shadow-none;
+  }
+}
+
+@utility btn {
+  @apply select-none;
+  @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-1.5 font-medium;
+  @apply transition-[background-color,border-color,color,box-shadow,opacity] duration-150 ease-out motion-reduce:transition-none;
+  @apply control-raised;
+  @apply focus-visible:ring-2 focus-visible:ring-action/35 focus-visible:outline-none;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Compact actions and independent toggles share the standard button foundation. */
+@utility toggle-chip {
+  @apply btn gap-1.5 px-2.5 text-xs feedback-quick;
+}
+
+@utility button-content {
+  @apply max-w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap;
+}
+
+/* Desktop actions expand the dialog up to its viewport limit. Narrow windows
+ * wrap complete labels. Task sheets use dialog-actions-sheet for stacked actions. */
+@utility dialog-actions {
+  width: max-content;
+  max-width: 100%;
+  align-self: flex-end;
+  @apply mt-6 flex min-w-0 shrink-0 flex-nowrap justify-end gap-2;
+
+  & > :is(button, a) {
+    min-width: 0;
+    max-width: 100%;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* The standard first action is Cancel. Keep that stable while committing
+   * actions surrender their longer labels first. */
+  & > :is(button, a):first-child:not(:last-child) {
+    flex-shrink: 0;
+  }
+
+  /* This is a space constraint, independent of input or sheet presentation. */
+  @variant max-md {
+    flex-wrap: wrap;
+    & > :is(button, a),
+    & .button-content {
+      white-space: normal;
+      overflow-wrap: break-word;
+    }
+  }
+}
+
+/* Task sheets own button geometry, including the Button label and loading wrapper. */
+@utility dialog-actions-sheet {
+  @apply w-full flex-col items-stretch;
+  align-self: stretch;
+
+  & > :is(button, a) {
+    width: 100%;
+    min-height: 3rem;
+    height: auto;
+    flex-shrink: 0;
+    padding-block: 0.75rem;
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: break-word;
+  }
+
+  & .button-content,
+  & .button-content > span {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+}
+
+/* One shell with flat separators or softly rounded, individually lit segments.
+ * Geometry and highlights follow the shared animated depth preference. */
+@utility pill-button-group {
+  @apply relative isolate grid min-h-12 w-full min-w-0 auto-cols-fr grid-flow-col overflow-hidden rounded-xl bg-surface;
+  --pill-separation: 1;
+  &[data-gaps='false'] {
+    --pill-separation: 0;
+  }
+  gap: calc(2px * min(1, var(--depth-strength)) * var(--pill-separation));
+  & > button + button {
+    border-inline-start: calc(1px * (1 - min(1, var(--depth-strength)) * var(--pill-separation)))
+      solid var(--color-border);
+  }
+  & > button:first-child {
+    border-start-start-radius: inherit;
+    border-end-start-radius: inherit;
+  }
+  & > button:last-child {
+    border-start-end-radius: inherit;
+    border-end-end-radius: inherit;
+  }
+}
+
+@utility pill-button-group-hover-bevel {
+  background-color: transparent;
+  & > button[aria-pressed='true'] {
+    color: var(--color-action);
+  }
+  & > button:enabled:is(:hover, :focus-visible) {
+    background-color: var(--color-surface-emphasized);
+  }
+  & > button:not(:hover):not(:focus-visible),
+  & > button:disabled {
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+  }
+  /* After pointer input, focus styles are hidden, so a focused button rests flat. */
+  :where([data-input-modality='pointer']) & > button:focus-visible:not(:hover) {
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+  }
+}
+
+@utility pill-button-group-compact {
+  @apply h-7 min-h-7 rounded-lg;
+  & > button {
+    @apply min-w-7 px-1 py-0 leading-none;
+  }
+  & > button > .iconify {
+    width: 15px;
+    height: 15px;
+    font-size: 15px;
+  }
+}
+
+@utility pill-button {
+  &[aria-pressed='true'] {
+    @apply bg-surface-emphasized text-text;
+  }
+  @apply shell-lighting;
+  border-radius: calc(4px * min(1, var(--depth-strength)) * var(--pill-separation, 1));
+  @apply relative flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 px-2 py-1 text-muted;
+  @apply transition-[background-color,color,opacity] feedback-quick hover:bg-surface-selected hover:text-text motion-reduce:transition-none;
+  /* Keep hover colours immediate; ease pending/disabled opacity in both directions. */
+  transition-duration: var(--motion-duration-feedback), var(--motion-duration-feedback), 150ms;
+  @apply focus-visible:z-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action;
+  @apply enabled:active:bg-surface-strong disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* The composer uses the same primary-pointer density as navigation and menus. */
+@utility pill-button-group-touch {
+  @variant comfortable-density {
+    height: 44px;
+    min-height: 44px;
+    & > button {
+      min-width: 44px;
+      min-height: 44px;
+      font-size: var(--text-base);
+    }
+    & > button > .iconify {
+      width: 20px;
+      height: 20px;
+      font-size: 20px;
+    }
+  }
+}
+
+/* Media that is on, such as a microphone, camera, or screen share: a green
+ * glyph without a fill. Toggles report "on" as pressed; keep the plain
+ * button's fill and hover instead of the pressed fill. */
+@utility pill-button-live {
+  @apply pill-button text-success hover:text-success;
+  &[aria-pressed='true'] {
+    @apply text-success;
+  }
+  &[aria-pressed='true']:not(:hover, :active) {
+    background-color: transparent;
+  }
+}
+
+@utility btn-neutral {
+  @apply btn border-neutral-action bg-neutral-action text-on-neutral-action hover:border-neutral-action-hover hover:bg-neutral-action-hover;
+  @apply active:bg-neutral-action-hover;
+}
+
+@utility btn-action {
+  @apply btn border-(--color-button-action) bg-(--color-button-action) font-semibold text-(--color-on-button-action) hover:border-(--color-button-action-hover) hover:bg-(--color-button-action-hover);
+  @apply active:bg-(--color-button-action-hover);
+}
+
+@utility btn-secondary {
+  @apply btn bg-surface-emphasized/60 text-text;
+  @apply hover:bg-surface-emphasized active:bg-surface-strong;
+}
+
+@utility btn-ghost {
+  @apply btn bg-transparent text-text inset-shadow-none hover:bg-action/10 hover:text-action active:bg-action/15;
+  background-image: none;
+}
+
+@utility btn-warning {
+  @apply btn border-(--color-button-warning) bg-(--color-button-warning) font-semibold text-white hover:border-(--color-button-warning-hover) hover:bg-(--color-button-warning-hover);
+  @apply active:bg-(--color-button-warning-hover);
+}
+
+@utility btn-danger {
+  @apply btn border-(--color-button-danger) bg-(--color-button-danger) font-semibold text-white hover:border-(--color-button-danger-hover) hover:bg-(--color-button-danger-hover);
+  @apply active:bg-(--color-button-danger-hover);
+}
+
+/* Quiet destructive action: neutral at rest, destructive on hover/focus. */
+@utility btn-danger-secondary {
+  @apply btn-secondary;
+  @apply hover:bg-danger/10 hover:text-danger active:bg-danger/15;
+  @apply focus-visible:bg-danger/10 focus-visible:text-danger focus-visible:ring-danger/25;
+}
+
+/* Quiet room-membership action that reveals its destructive meaning on hover. */
+@utility btn-danger-ghost {
+  @apply btn bg-transparent text-muted inset-shadow-none;
+  background-image: none;
+  @apply hover:bg-danger/10 hover:text-danger active:bg-danger/15;
+}
+
+@utility btn-sm {
+  @apply min-h-8 px-3 py-1 text-sm;
+}
+
+/* Dense embedded action for toasts and other constrained surfaces. */
+@utility btn-xs {
+  @apply min-h-8 min-w-0 px-3 py-1 text-xs;
+}
+
+/* Header-line action; does not increase a panel title row's height. */
+@utility btn-compact {
+  @apply min-h-6 min-w-0 rounded-md px-2 py-0.5 text-xs;
+}
+
+@utility btn-lg {
+  @apply min-h-12 px-5 py-2.5 font-semibold;
+}
+
+/* Square icon-only size for Button size="icon"; the variant supplies the tone.
+ * The element selector outranks the padding and radius of the btn-* tones, so
+ * the square shape does not depend on rule order.
+ */
+@utility btn-icon {
+  &:is(button, a) {
+    @apply h-10 w-10 shrink-0 justify-center rounded-md p-0;
+  }
+}
+
+/* Form input utilities */
+/* RangeField keeps a slim rail inside a 44px pointer target. The native thumb
+ * and drawn grip share their width and travel in either text direction.
+ * `--range-progress` (0–1) positions the fill and grip.
+ */
+@utility range-track {
+  @apply relative block h-11;
+  --range-grip-width: 1.25rem;
+
+  &::before {
+    @apply control-frame bg-input;
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    height: 0.5rem;
+    translate: 0 -50%;
+  }
+
+  /* Pointer hover and dragging lift the grip and strengthen the fill. */
+  @media (any-hover: hover) {
+    &:hover:not(:has(.range-input:disabled)) {
+      --range-active: 1;
+    }
+  }
+
+  &:has(.range-input:active:not(:disabled)) {
+    --range-active: 1;
+  }
+
+  @variant keyboard-modality {
+    &:has(.range-input:focus-visible) .range-grip {
+      @apply border-action ring-2 ring-action/35;
+    }
+  }
+}
+
+@utility range-travel {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+@utility range-fill {
+  @apply rounded-full shell-lighting;
+  position: absolute;
+  top: 50%;
+  height: 0.5rem;
+  translate: 0 -50%;
+  inset-inline-start: 0;
+  width: calc(
+    (100% - var(--range-grip-width)) * var(--range-progress) + var(--range-grip-width) / 2
+  );
+  background-color: color-mix(
+    in srgb,
+    var(--color-button-action),
+    var(--color-button-action-hover) calc(var(--range-active, 0) * 100%)
+  );
+}
+
+/* Stops sit on the grip's centre line; filled stops take the fill's label colour. */
+@utility range-tick {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  inset-inline-start: calc(
+    (100% - var(--range-grip-width)) * var(--range-tick) + var(--range-grip-width) / 2 - 2px
+  );
+  translate: 0 -50%;
+  background-color: color-mix(in srgb, var(--color-text) 22%, transparent);
+}
+
+@utility range-tick-filled {
+  background-color: color-mix(in srgb, var(--color-on-button-action) 45%, transparent);
+}
+
+@utility range-grip {
+  @apply rounded-full border border-input-border shell-lighting shadow-[var(--depth-shadow-sm)];
+  /* Compose with the bevel's inset shadows; the halo appears while the pointer
+     is over the track or dragging. */
+  --tw-shadow:
+    var(--depth-shadow-sm),
+    0 0 0 calc(var(--range-active, 0) * 3px)
+      color-mix(in srgb, var(--color-action) 35%, transparent);
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  height: var(--range-grip-width);
+  width: var(--range-grip-width);
+  inset-inline-start: calc((100% - var(--range-grip-width)) * var(--range-progress));
+  /* A pale knob stands out against both the fill and the empty well. */
+  background-color: var(--color-white);
+
+  :root[data-theme='dark'] & {
+    background-color: var(--tone-300);
+  }
+
+  /* Two short grooves mark the grip as draggable. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset-block: 32%;
+    inset-inline-start: 50%;
+    width: 6px;
+    translate: calc(-50% * var(--inline-direction)) 0;
+    border-inline: 1px solid var(--tone-400);
+  }
+}
+
+/* Forced colours replace the drawn fill and grip; keep them visible. */
+@media (forced-colors: active) {
+  .range-fill {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+
+  .range-grip {
+    forced-color-adjust: none;
+    background: ButtonFace;
+    border-color: ButtonText;
+  }
+
+  /* Forced colours remove the focus ring's box shadow. */
+  @variant keyboard-modality {
+    .range-track:has(.range-input:focus-visible) .range-grip {
+      outline: 2px solid Highlight;
+      outline-offset: 2px;
+    }
+  }
+}
+
+@utility range-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  opacity: 0;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+
+  &::-webkit-slider-runnable-track {
+    height: 100%;
+    background: transparent;
+  }
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: var(--range-grip-width);
+    height: 100%;
+  }
+
+  &::-moz-range-track {
+    height: 100%;
+    background: transparent;
+  }
+
+  &::-moz-range-thumb {
+    width: var(--range-grip-width);
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+}
+
+@utility input {
+  @apply min-h-10 w-full control-frame bg-input px-3 py-1.5 text-text;
+  @apply placeholder:text-muted/70;
+  @apply transition-colors duration-100;
+  @apply focus:border-action focus:outline-none;
+  @apply aria-invalid:border-error;
+  @apply disabled:cursor-not-allowed disabled:opacity-60;
+  @apply select-text; /* Re-enable text selection in form fields */
+}
+
+@utility textarea {
+  @apply input resize-none;
+}
+
+/* Plain-text native options remain usable when customizable pickers are unavailable. */
+@utility select-control {
+  @apply input max-w-full min-w-0 cursor-pointer text-base;
+  @apply bg-surface control-raised;
+  text-overflow: ellipsis;
+
+  @supports (appearance: base-select) {
+    appearance: base-select;
+
+    &::picker(select) {
+      appearance: base-select;
+      @apply rounded-lg border border-input-border floating-frame p-1 text-base text-text shadow-lg;
+      min-inline-size: anchor-size(self-inline);
+      max-inline-size: calc(100dvw - 2rem);
+      max-block-size: min(20rem, 60dvh);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    &::picker-icon {
+      @apply ms-auto shrink-0 text-muted;
+    }
+
+    & option {
+      @apply flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-text;
+      white-space: normal;
+      overflow-wrap: break-word;
+    }
+
+    & option:checked {
+      @apply bg-surface-selected;
+    }
+
+    & option:not(:disabled):hover {
+      @apply bg-surface-emphasized;
+    }
+
+    & option {
+      @apply focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action;
+    }
+
+    & option::checkmark {
+      @apply shrink-0 text-action;
+    }
+
+    & option:disabled {
+      @apply cursor-not-allowed text-muted;
+    }
+  }
+}
+
+/* Instant, symmetric feedback for menu, navigation, and selection controls.
+ * Each control keeps its own transition properties; timing is shared here.
+ */
+@utility feedback-quick {
+  /* Tailwind transition utilities read these variables when they set timing. */
+  --tw-duration: var(--motion-duration-feedback);
+  --tw-ease: var(--motion-easing-feedback);
+  transition-duration: var(--motion-duration-feedback);
+  transition-timing-function: var(--motion-easing-feedback);
+  :where([data-motion='reduced']) & {
+    /* Zero timing also wins when a property utility follows this utility. */
+    --motion-duration-feedback: 0ms;
+  }
+}
+
+/* Animate the floating surface only when it opens, never its individual rows. */
+@utility overlay-enter {
+  &:popover-open {
+    animation: overlay-enter var(--motion-duration-overlay-enter) var(--motion-easing-overlay-enter);
+  }
+  :where([data-motion='reduced']) & {
+    &:popover-open {
+      animation: none;
+    }
+  }
+}
+
+@keyframes overlay-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Option rows sit just above the panel work plane; their empty indicators sit below it. */
+@utility option-depth {
+  @apply surface-raised;
+  --lighting-top: rgb(255 255 255 / calc(0.015 * var(--depth-strength)));
+  --lighting-bottom: rgb(0 0 0 / calc(0.01 * var(--depth-strength)));
+  --lighting-midpoint: 60%;
+  --lighting-edge-top: rgb(255 255 255 / calc(0.02 * var(--depth-strength)));
+  --lighting-edge-bottom: transparent;
+
+  &:disabled,
+  &:has(input:disabled) {
+    @apply shadow-none inset-shadow-none;
+    background-image: none;
+  }
+
+  &:disabled .choice-indicator,
+  &:has(input:disabled) .checkbox-box {
+    @apply shadow-none inset-shadow-none;
+    background-image: none;
+  }
+}
+
+@utility checkbox-option {
+  @apply option-depth;
+  @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 leading-5;
+  @apply transition-[background-color,border-color,box-shadow] feedback-quick;
+  @apply hover:border-input-border hover:bg-surface;
+}
+
+@utility checkbox-option-selected {
+  @apply border-action bg-action/10 hover:border-action hover:bg-action/10;
+}
+
+@utility checkbox-option-error {
+  @apply border-error/70 bg-error/5 hover:border-error/80 hover:bg-error/10;
+}
+
+@utility checkbox-box {
+  @apply surface-lowered;
+  @apply grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 border-muted bg-transparent text-transparent;
+  @apply transition-[background-color,border-color,color] feedback-quick;
+}
+
+@utility checkbox-box-selected {
+  @apply selection-indicator;
+  @apply border-action bg-action text-on-action;
+}
+
+@utility checkbox-box-error {
+  @apply border-error;
+}
+
+/* Single-choice rows used by settings radio groups. */
+@utility choice-row {
+  @apply option-depth;
+  @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 text-start leading-5 transition-colors feedback-quick;
+  @apply hover:border-input-border hover:bg-surface;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility choice-row-selected {
+  @apply border-action bg-action/10 hover:border-action hover:bg-action/10;
+}
+
+@utility choice-indicator {
+  @apply surface-lowered;
+  @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-muted transition-colors feedback-quick;
+}
+
+@utility choice-indicator-selected {
+  @apply selection-indicator;
+  @apply border-action bg-action;
+}
+
+@utility choice-indicator-dot {
+  @apply h-2 w-2 rounded-full bg-on-action;
+}
+
+/* Form error utility */
+@utility form-error {
+  @apply text-sm text-error;
+}

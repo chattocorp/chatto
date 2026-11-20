@@ -2,8 +2,10 @@ package search
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
@@ -32,7 +34,7 @@ func AddService(ctx context.Context, nc *nats.Conn, provider Provider, options S
 	if err != nil {
 		return nil, err
 	}
-	if err := AddQueryEndpoint(ctx, service, provider); err != nil {
+	if err := AddQueryEndpoint(ctx, nc, service, provider); err != nil {
 		_ = service.Stop()
 		return nil, err
 	}
@@ -44,8 +46,9 @@ func AddService(ctx context.Context, nc *nats.Conn, provider Provider, options S
 }
 
 // AddStartupStatusService reports startup progress without joining the ready
-// status or query queues. After startup, call AddQueryEndpoint and then
-// AddStatusEndpoint to advertise that the provider can answer queries.
+// status or query queues. A provider that can answer queries also registers a
+// separate service with AddService, and stops that service when it can no
+// longer answer queries. The startup status service stays registered.
 func AddStartupStatusService(ctx context.Context, nc *nats.Conn, provider Provider, options ServiceOptions) (micro.Service, error) {
 	service, err := addProviderService(ctx, nc, provider, options)
 	if err != nil {
@@ -99,16 +102,112 @@ func AddStatusEndpoint(ctx context.Context, service micro.Service, provider Prov
 	}), micro.WithEndpointSubject(StatusSubject))
 }
 
+const (
+	// maxConcurrentQueries bounds the query handlers that one query endpoint
+	// runs at a time. When all handlers are busy, for example because index
+	// work blocks them, the endpoint rejects new queries at once with a
+	// retryable error. Blocked work thus cannot accumulate without bound.
+	maxConcurrentQueries = 16
+	// queryHandlerTimeout bounds one query. It is shorter than the client's
+	// request timeout, so the client receives a provider error, not a timeout,
+	// when the provider honors cancellation.
+	queryHandlerTimeout = 8 * time.Second
+)
+
 // AddQueryEndpoint joins an existing provider service to the shared query
 // queue. Callers must not register it until the provider can answer queries.
-func AddQueryEndpoint(ctx context.Context, service micro.Service, provider Provider) error {
+//
+// Queries run concurrently, at most maxConcurrentQueries at a time, and each
+// query context expires after queryHandlerTimeout. A NATS micro request must
+// not be used after its handler returns, so a query goroutine replies through
+// nc with a detached copy of the request. Micro service statistics therefore
+// count queries but not their processing time or provider errors.
+func AddQueryEndpoint(ctx context.Context, nc *nats.Conn, service micro.Service, provider Provider) error {
 	if err := validateServiceEndpoint(ctx, service, provider); err != nil {
 		return err
 	}
+	if nc == nil {
+		return fmt.Errorf("search service NATS connection is required")
+	}
+	slots := make(chan struct{}, maxConcurrentQueries)
 	return service.AddEndpoint("query", micro.ContextHandler(ctx, func(ctx context.Context, request micro.Request) {
-		handleQuery(ctx, provider, request)
+		select {
+		case slots <- struct{}{}:
+		default:
+			respondError(request, ErrorCodeUnavailable, "search provider is busy")
+			return
+		}
+		detached := newDetachedRequest(nc, request)
+		go func() {
+			defer func() { <-slots }()
+			queryContext, cancel := context.WithTimeout(ctx, queryHandlerTimeout)
+			defer cancel()
+			handleQuery(queryContext, provider, detached)
+		}()
 	}), micro.WithEndpointSubject(QuerySubject))
 }
+
+// detachedRequest is a copy of a micro request that stays valid after the
+// micro handler returns. It replies by publishing to the reply subject, with
+// the same error headers as micro.Request.Error.
+type detachedRequest struct {
+	nc      *nats.Conn
+	subject string
+	reply   string
+	data    []byte
+	headers micro.Headers
+}
+
+func newDetachedRequest(nc *nats.Conn, request micro.Request) *detachedRequest {
+	return &detachedRequest{
+		nc:      nc,
+		subject: request.Subject(),
+		reply:   request.Reply(),
+		data:    request.Data(),
+		headers: request.Headers(),
+	}
+}
+
+func (r *detachedRequest) Respond(data []byte, opts ...micro.RespondOpt) error {
+	return r.publish(&nats.Msg{Data: data}, opts)
+}
+
+func (r *detachedRequest) RespondJSON(value any, opts ...micro.RespondOpt) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return micro.ErrMarshalResponse
+	}
+	return r.Respond(data, opts...)
+}
+
+func (r *detachedRequest) Error(code, description string, data []byte, opts ...micro.RespondOpt) error {
+	if code == "" || description == "" {
+		return micro.ErrArgRequired
+	}
+	return r.publish(&nats.Msg{
+		Header: nats.Header{micro.ErrorHeader: []string{description}, micro.ErrorCodeHeader: []string{code}},
+		Data:   data,
+	}, opts)
+}
+
+func (r *detachedRequest) publish(message *nats.Msg, opts []micro.RespondOpt) error {
+	for _, opt := range opts {
+		opt(message)
+	}
+	if r.reply == "" {
+		return nats.ErrMsgNoReply
+	}
+	message.Subject = r.reply
+	if err := r.nc.PublishMsg(message); err != nil {
+		return fmt.Errorf("%w: %s", micro.ErrRespond, err)
+	}
+	return nil
+}
+
+func (r *detachedRequest) Data() []byte           { return r.data }
+func (r *detachedRequest) Headers() micro.Headers { return r.headers }
+func (r *detachedRequest) Subject() string        { return r.subject }
+func (r *detachedRequest) Reply() string          { return r.reply }
 
 func validateServiceEndpoint(ctx context.Context, service micro.Service, provider Provider) error {
 	if ctx == nil {

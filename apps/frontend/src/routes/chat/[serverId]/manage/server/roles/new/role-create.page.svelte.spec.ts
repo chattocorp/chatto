@@ -29,7 +29,6 @@ vi.mock(
   '$lib/state/server/scope.svelte',
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
-vi.mock('@chatto/client/api/roles', () => ({ createRoleAPI: vi.fn() }));
 vi.mock('$lib/ui/Panel.svelte', async () => ({
   default: (await import('../[name]/RolePageSnippetMock.svelte')).default
 }));
@@ -37,7 +36,7 @@ vi.mock('$lib/ui', async () => ({
   Panel: (await import('$lib/ui/Panel.svelte')).default,
   PaneHeader: (await import('$lib/ui/PaneHeader.svelte')).default,
   PageTitle: (await import('$lib/ui/PageTitle.svelte')).default,
-  LoadingFog: (await import('$lib/ui/LoadingFog.svelte')).default,
+  LoadingDots: (await import('$lib/ui/LoadingDots.svelte')).default,
   Pill: (await import('$lib/ui/Pill.svelte')).default,
   Hint: (await import('$lib/ui/Hint.svelte')).default,
   PaneContent: (await import('../[name]/RolePageSnippetMock.svelte')).default
@@ -64,7 +63,10 @@ describe('role creation query invalidation', () => {
       serverId: 'origin',
       api: { listAdminRoles: mocks.listAdminRoles, createRole: mocks.createRole }
     });
-    mocks.listAdminRoles.mockResolvedValue({ roles: [], viewerCanManageRoles: true });
+    mocks.listAdminRoles.mockResolvedValue({
+      roles: [{ name: 'owner', requiresShieldMode: true }],
+      viewerCanManageRoles: true
+    });
     mocks.createRole.mockResolvedValue({ name: 'moderator' });
   });
 
@@ -79,7 +81,11 @@ describe('role creation query invalidation', () => {
 
     (container.querySelector('[data-testid="create-role"]') as HTMLButtonElement).click();
 
-    await vi.waitFor(() => expect(mocks.createRole).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(mocks.createRole).toHaveBeenCalledWith(
+        expect.objectContaining({ requiresShieldMode: true })
+      )
+    );
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
     expect(mocks.goto).toHaveBeenCalledWith('/chat/origin/manage/server/roles/moderator');
   });

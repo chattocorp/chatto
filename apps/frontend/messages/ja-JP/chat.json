@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "特権モードを有効にする",
       "disable": "特権モードを無効にする",
+      "select_roles": "15分間有効にするロールを選んでください。",
       "confirmation": "15分間、このサーバーで割り当てられている追加の権限を有効にします。"
     },
     "notifications": {
@@ -74,7 +75,11 @@
       "thread_views_description": "このサーバーでは、フォロー中のスレッドと自分が開始したスレッドが別々に表示されない場合があります。",
       "independent_slow_mode_title": "独立した低速モードは利用できません",
       "independent_slow_mode_description": "このサーバーでは、チャンネルのメッセージとスレッドの返信に共通の待機時間が適用されます。",
-      "upgrade": "完全なサポートを得るには、サーバー管理者に {version} 以降へのアップグレードを依頼してください。"
+      "upgrade": "完全なサポートを得るには、サーバー管理者に {version} 以降へのアップグレードを依頼してください。",
+      "background_jobs_title": "バックグラウンドジョブは利用できません",
+      "background_jobs_description": "このサーバーでは、サーバー設定でバックグラウンドジョブを表示または再試行できません。",
+      "shield_role_selection_title": "特権モードのロール選択",
+      "shield_role_selection_description": "このサーバーでは利用可能なすべての権限が一度に有効になります。"
     },
     "server_gutter": {
       "move_up": "上に移動",
@@ -186,7 +191,8 @@
       "system": "システム",
       "back_to_server": "サーバーに戻る",
       "invites": "招待",
-      "registration": "登録"
+      "registration": "登録",
+      "jobs": "ジョブ"
     },
     "owner_welcome": {
       "title": "サーバーの準備ができました",

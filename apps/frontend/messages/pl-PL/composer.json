@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Podkreślenie",
+      "strikethrough": "Przekreślenie",
       "bold": "Pogrubienie",
       "italic": "Kursywa",
       "inline_code": "Kod w wierszu",

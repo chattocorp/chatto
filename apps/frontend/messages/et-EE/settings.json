@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "Katsed",
+      "title": "Katsefunktsioonid",
+      "new_message_header": "Uus sõnumipäis"
+    },
     "desktop": {
       "title": "Uuendused",
       "subtitle": "Selle paigalduse uuendused",
@@ -50,7 +55,8 @@
         "composer": "Valige sõnumiredaktor ja sõnumite saatmise viis.",
         "voice": "Seadistage mikrofon, kõlarid ja kõneeelistused.",
         "system": "Kontrollige serveri seisundit, salvestusruumi ja taustaülesandeid.",
-        "event_log": "Sirvige serverisündmusi ja uurige muudatusi."
+        "event_log": "Sirvige serverisündmusi ja uurige muudatusi.",
+        "jobs": "Vaadake taustatöid ja proovige ebaõnnestunud töid uuesti."
       },
       "title": "Ülevaade",
       "shield_notice": "Selles serveris oma lisaõiguste kasutamiseks aktiveerige privilegeeritud režiim oma nime kõrval oleva kilbinupuga."
@@ -540,9 +546,9 @@
           "body": "Enne pakkuja {provider} lahtiühendamist seadistage mõni muu selle serveri toetatud sisselogimisviis."
         },
         "fresh_auth_modal": {
-          "title": "Kinnitage parool",
-          "body": "Enne {provider} linkimist sisestage oma praegune parool.",
-          "action": "Jätka"
+          "title": "Kas siduda {provider}?",
+          "body": "Pärast sidumist saate teenuse {provider} kaudu Chattosse sisse logida. Jätkamiseks sisestage oma praegune Chatto parool.",
+          "password": "Chatto parool"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Kinnitage parool",

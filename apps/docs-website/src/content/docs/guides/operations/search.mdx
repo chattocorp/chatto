@@ -124,6 +124,42 @@ chatto search-provider --config chatto.toml
 The provider uses the other `[search_provider]` settings. If Chatto uses
 embedded NATS, expose its client port only to the trusted network.
 
+### Monitor a separate provider
+
+```toml
+[search_provider.health]
+enabled = true
+bind_address = "0.0.0.0"
+port = 9091
+diagnostics = true
+```
+
+The provider then serves these routes on its own listener:
+
+| Route | Use |
+| ----- | --- |
+| `/livez` | Liveness probe. It fails only when the NATS connection is permanently closed. It does not fail while the provider builds its index. |
+| `/readyz` | Readiness probe. It succeeds only while this provider answers search queries. |
+| `/metrics` | Prometheus metrics for the process and its query probe. Use them with the [alert rules](/guides/operations/server-operations/#alert-rules). |
+| `/debug/pprof/`, `/debug/search` | Goroutine stacks, profiles, and index diagnostics. Only with `diagnostics = true`, and only for connections from the same host. |
+
+The provider regularly sends a test query to its own index. While this query
+fails or does not complete in 5 seconds, the provider stops answering search
+queries, and other providers answer them. It answers queries again after a
+test query succeeds.
+
+If Search stops responding, collect the goroutine stacks before you restart
+the provider. In Kubernetes:
+
+```bash
+kubectl port-forward pod/<search-pod> 9091:9091
+curl -s 'http://127.0.0.1:9091/debug/pprof/goroutine?debug=2' > search-goroutines.txt
+curl -s http://127.0.0.1:9091/debug/search
+```
+
+The diagnostics contain no message text or search terms. Goroutine stacks and
+profiles show internal program state, so share them only with trusted people.
+
 ## Use a different provider
 
 You can replace the bundled provider with your own. A provider is a NATS
@@ -166,6 +202,7 @@ A rebuild does not change messages or accounts.
 | Search is not in the sidebar | Set `search.enabled = true` and restart Chatto. |
 | Search is unavailable | Make sure that a provider runs and connects to the same NATS server. |
 | Search shows **Indexing** | Wait for the provider to finish. See its logs for progress. |
+| A separate provider is not ready after indexing | Its test query fails. Look for `stage=query_probe_failed` in its logs, and collect diagnostics as described in [Monitor a separate provider](#monitor-a-separate-provider). |
 | Word forms do not match | Add the language to `search_provider.languages`. |
 | Startup rejects the index directory | Use a dedicated directory that does not contain the NATS data directory. |
 | Startup requires index recovery | [Rebuild the search index](#rebuild-the-search-index). |

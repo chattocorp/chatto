@@ -7,7 +7,13 @@ import OwnerWelcomeDialog from './OwnerWelcomeDialog.svelte';
 const mocks = vi.hoisted(() => ({
   isOrigin: true,
   setPrivilegedMode: vi.fn(),
-  viewer: null as { privilegedMode: { available: boolean; active: boolean } } | null
+  viewer: null as {
+    privilegedMode: {
+      roleSelection?: { availableRoles: string[] };
+      available: boolean;
+      active: boolean;
+    };
+  } | null
 }));
 
 vi.mock(
@@ -23,7 +29,13 @@ describe('OwnerWelcomeDialog', () => {
   beforeEach(() => {
     takeOwnerOnboarding();
     mocks.isOrigin = true;
-    mocks.viewer = { privilegedMode: { available: true, active: false } };
+    mocks.viewer = {
+      privilegedMode: {
+        roleSelection: { availableRoles: ['owner', 'admin'] },
+        available: true,
+        active: false
+      }
+    };
     mocks.setPrivilegedMode.mockReset().mockResolvedValue(undefined);
     createTestServerScope({
       serverId: 'origin',
@@ -44,11 +56,20 @@ describe('OwnerWelcomeDialog', () => {
     await expect
       .element(view.getByRole('dialog', { name: 'Your server is ready' }))
       .toBeInTheDocument();
-    expect(mocks.setPrivilegedMode).toHaveBeenCalledExactlyOnceWith(true);
+    expect(mocks.setPrivilegedMode).toHaveBeenCalledExactlyOnceWith(true, ['owner']);
     await expect
       .element(view.getByRole('link', { name: 'Rooms' }))
       .toHaveAttribute('href', '/chat/-/manage/rooms');
     expect(takeOwnerOnboarding()).toBe(false);
+  });
+
+  it('uses legacy activation when the server lacks role selection', async () => {
+    mocks.viewer = { privilegedMode: { available: true, active: false } };
+    markOwnerOnboardingPending();
+    render(OwnerWelcomeDialog);
+    await vi.waitFor(() =>
+      expect(mocks.setPrivilegedMode).toHaveBeenCalledExactlyOnceWith(true, undefined)
+    );
   });
 
   it('shows no Shield Mode hint while activation is still running', async () => {

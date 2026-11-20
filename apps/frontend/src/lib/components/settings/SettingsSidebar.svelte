@@ -1,5 +1,6 @@
 <!-- @component Shared settings navigation. The route supplies the sections available to the viewer. -->
 <script lang="ts">
+  import { resolve } from '$app/paths';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import { m } from '$lib/i18n/messages';
   import type { SettingsNavGroup } from '$lib/navigation/settingsNav';
@@ -30,6 +31,6 @@
   {subtitle}
   items={overviewNavItems}
   {groups}
-  {backHref}
-  backLabel={m('settings.nav.back_to_server')}
+  backHref={backHref ?? resolve('/')}
+  backLabel={backHref ? m('settings.nav.back_to_server') : m('ui.pane_header.back')}
 />

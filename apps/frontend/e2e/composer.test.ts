@@ -359,7 +359,7 @@ test.describe('Markdown composer on touch devices', () => {
 
     await page.getByRole('button', { name: 'Formatting options', exact: true }).tap();
     const formatting = page.getByTestId('composer-formatting-toolbar').getByRole('button');
-    await expect(formatting).toHaveCount(12);
+    await expect(formatting).toHaveCount(13);
     for (const width of [390, 768, 1280, 1920]) {
       await page.setViewportSize({ width, height: 800 });
       await expect(roomPage.sendButton).toHaveCSS('height', '44px');
@@ -369,7 +369,7 @@ test.describe('Markdown composer on touch devices', () => {
             buttons.map((button) => button.getBoundingClientRect().height)
           )
         )
-        .toEqual(Array(12).fill(44));
+        .toEqual(Array(13).fill(44));
       await expect(roomPage.messageInput).toContainText(first);
       await expect(roomPage.messageInput).toContainText(second);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);

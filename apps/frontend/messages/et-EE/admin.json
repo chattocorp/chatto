@@ -427,6 +427,10 @@
           "one": "{count} projektsioon ebaõnnestus",
           "other": "{count} projektsiooni ebaõnnestus"
         },
+        "projections_stalled_count": {
+          "one": "{count} projektsioon on seiskunud",
+          "other": "{count} projektsiooni on seiskunud"
+        },
         "projections_catching_up_count": {
           "one": "{count} projektsioon jõuab järele",
           "other": "{count} projektsiooni jõuavad järele"
@@ -591,6 +595,42 @@
         "revoked": "Tühistatud",
         "used": "Kasutatud"
       }
+    },
+    "jobs": {
+      "title": "Tööd",
+      "subtitle": "Vaadake taustatöid ning proovige ebaõnnestunud töid uuesti või kustutage need.",
+      "load_failed": "Töid ei saanud laadida.",
+      "retry_failed": "Seda tööd ei saanud uuesti proovida.",
+      "delete_failed": "Seda tööd ei saanud kustutada.",
+      "delete_title": "Kas kustutada see töö?",
+      "delete_message": "Selle töö tegevus jäetakse pooleli. Te ei saa seda hiljem uuesti proovida.",
+      "webhook": "Veebikonksu edastamine",
+      "media": "Meedia töötlemine",
+      "neighborhood_refresh": "Naabruskonna värskendamine",
+      "message_body_erasure": "Sõnumite sisu kustutamine",
+      "branding_cleanup": "Serveri logode ja bännerite puhastus",
+      "asset_cleanup": "Failide puhastamine",
+      "call_key_cleanup": "Kõnevõtmete kustutamine",
+      "runtime_credential_cleanup": "Seansside ja pääsutõendite puhastamine",
+      "push_subscription_cleanup": "Push-tellimuste puhastamine",
+      "user_key_shredding": "Kontovõtmete kustutamine",
+      "notification_alert": "Teavituse hoiatus",
+      "email": "Meil",
+      "queued": "Järjekorras",
+      "running": "Töös",
+      "succeeded": "Õnnestus",
+      "failed": "Ebaõnnestus",
+      "empty": "Töid veel pole",
+      "attempts": "Katsed",
+      "updated": "Uuendatud",
+      "next_attempt": "Järgmine katse",
+      "expired": "See töö on aegunud ja seda ei saa uuesti proovida.",
+      "job": "Töö",
+      "created": "Loodud",
+      "details": "Üksikasjad",
+      "detail_subtitle": "Selle töö olek, katsed ja viimane tõrke põhjus.",
+      "not_found": "Seda tööd enam ei ole.",
+      "all": "Kõik"
     }
   }
 }

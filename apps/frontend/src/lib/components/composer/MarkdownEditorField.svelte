@@ -7,7 +7,7 @@ external value changes, such as a successful save, update the mounted editor.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { LoadingFog } from '$lib/ui';
+  import { LoadingDots } from '$lib/ui';
   import type { ComposerEditorKind } from '$lib/state/userPreferences.svelte';
   import ComposerFormattingToolbar from '$lib/components/composer/ComposerFormattingToolbar.svelte';
   import type {
@@ -113,6 +113,7 @@ external value changes, such as a successful save, update the mounted editor.
     bold: false,
     italic: false,
     underline: false,
+    strikethrough: false,
     inlineCode: false,
     heading: false,
     bulletList: false,
@@ -148,7 +149,7 @@ external value changes, such as a successful save, update the mounted editor.
 </script>
 
 <fieldset class="flex min-w-0 flex-col gap-1.5" aria-describedby={id + '-description'}>
-  <legend class="mb-1.5 text-sm font-medium text-text">{label}</legend>
+  <legend class="mb-1.5 font-medium text-text">{label}</legend>
   <ComposerFormattingToolbar
     id={id + '-formatting'}
     {formattingState}
@@ -170,7 +171,7 @@ external value changes, such as a successful save, update the mounted editor.
     {/if}
     {#key editorKind}
       {#await editorModule}
-        <LoadingFog class="h-32 w-full" />
+        <LoadingDots class="h-32 w-full" />
       {:then { default: Editor }}
         <Editor
           placeholder={placeholder || label}

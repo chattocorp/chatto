@@ -19,7 +19,7 @@ through `roomManagementContext`.
   import {
     AccessDenied,
     EmptyState,
-    LoadingFog,
+    LoadingDots,
     PaneContent,
     PaneHeader,
     PageTitle,
@@ -220,7 +220,7 @@ through `roomManagementContext`.
         {#if room}
           {@render children()}
         {:else}
-          <LoadingFog class="h-40 w-full" />
+          <LoadingDots class="h-40 w-full" />
         {/if}
       </div>
     </PaneContent>

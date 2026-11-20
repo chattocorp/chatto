@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "Eksperymenty",
+      "title": "Funkcje eksperymentalne",
+      "new_message_header": "Nowy nagłówek wiadomości"
+    },
     "desktop": {
       "title": "Aktualizacje",
       "subtitle": "Aktualizacje tej instalacji",
@@ -50,7 +55,8 @@
         "composer": "Wybierz edytor i sposób wysyłania wiadomości.",
         "voice": "Skonfiguruj mikrofon, głośniki i ustawienia połączeń.",
         "system": "Sprawdź stan serwera, pamięć i zadania w tle.",
-        "event_log": "Przeglądaj zdarzenia serwera i analizuj zmiany."
+        "event_log": "Przeglądaj zdarzenia serwera i analizuj zmiany.",
+        "jobs": "Przeglądaj zadania w tle i ponawiaj nieudane zadania."
       },
       "title": "Przegląd",
       "shield_notice": "Aby użyć dodatkowych uprawnień na tym serwerze, włącz tryb uprzywilejowany przyciskiem tarczy obok swojego imienia."
@@ -540,9 +546,9 @@
           "body": "Przed odłączeniem dostawcy {provider} skonfiguruj inną metodę logowania obsługiwaną przez ten serwer."
         },
         "fresh_auth_modal": {
-          "title": "Potwierdź hasło",
-          "body": "Wprowadź swoje aktualne hasło przed połączeniem {provider}.",
-          "action": "Kontynuuj"
+          "title": "Połączyć z {provider}?",
+          "body": "Po połączeniu możesz logować się do Chatto przez {provider}. Aby kontynuować, wpisz swoje obecne hasło do Chatto.",
+          "password": "Hasło do Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Potwierdź hasło",

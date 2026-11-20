@@ -40,6 +40,30 @@
   </div>
 </Story>
 
+<Story name="Active call, muted" asChild>
+  <div class="flex h-96 max-w-4xl flex-col bg-background">
+    <VoiceCallPanelStoryHarness withAppHeader scenario="voice" initiallyMuted />
+  </div>
+</Story>
+
+<Story name="Active call while speaking" asChild>
+  <div class="flex h-96 max-w-4xl flex-col bg-background">
+    <VoiceCallPanelStoryHarness withAppHeader scenario="voice" animateVoice />
+  </div>
+</Story>
+
+<Story name="Active call with camera and screen share" asChild>
+  <div class="flex h-96 max-w-4xl flex-col bg-background">
+    <VoiceCallPanelStoryHarness withAppHeader scenario="screen" />
+  </div>
+</Story>
+
+<Story name="Active call with a poor connection" asChild>
+  <div class="flex h-96 max-w-4xl flex-col bg-background">
+    <VoiceCallPanelStoryHarness withAppHeader scenario="voice" localConnectionQuality="poor" />
+  </div>
+</Story>
+
 <Story name="Active call in a narrow header" asChild>
   <div class="flex h-96 w-80 flex-col bg-background">
     <VoiceCallPanelStoryHarness withAppHeader scenario="voice" />

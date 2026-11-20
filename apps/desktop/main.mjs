@@ -806,7 +806,11 @@ function protectNavigation(window) {
     };
   });
 
-  window.webContents.on('did-create-window', (child) => {
+  window.webContents.on('did-create-window', (child, { frameName }) => {
+    // Electron retains the native window after a provider isolates its page.
+    child.once('closed', () => {
+      if (!window.isDestroyed()) window.webContents.send('chatto:authorization:closed', frameName);
+    });
     child.webContents.on('will-navigate', (event, target) => {
       if (isWebUrl(target) || hasAppOrigin(target)) return;
       event.preventDefault();

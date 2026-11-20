@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
+import { runInNewContext } from 'node:vm';
 import picomatch from 'picomatch';
 import { parse } from 'yaml';
 import { desktopMatrix, jobOutputs, selectJobs } from './ci-select-jobs.mjs';
@@ -85,6 +86,91 @@ test('Go changes skip the workspace and desktop jobs', () => {
   assert.deepEqual(selected(['cli/internal/core/message.go']), ['chatto', 'go']);
   assert.deepEqual(selected(['pkg/events/store.go']), ['authling', 'chatto', 'go']);
   assert.deepEqual(selected(['authling/internal/server.go']), ['authling', 'chatto', 'go']);
+});
+
+/**
+ * Evaluates the publishing condition's JavaScript-compatible expression subset.
+ * Model the implicit success() guard too: without a status function, GitHub
+ * skips a job when any dependency was skipped. actionlint checks the syntax.
+ */
+function publishesImage(
+  needs,
+  { event = 'push', ref = 'refs/heads/main', cancelled = false } = {}
+) {
+  const condition = workflow.jobs['publish-main-image'].if.replace(/^\$\{\{|\}\}$/g, '').trim();
+  const results = Object.values(needs).map(({ result }) => result);
+  if (!/\b(always|cancelled|failure|success)\s*\(/.test(condition)) {
+    if (!results.every((result) => result === 'success')) return false;
+  }
+  const expression = condition
+    .replaceAll('needs.*.result', 'results')
+    .replace(/needs\.([\w-]+)/g, (_, name) => `needs['${name}']`);
+  return runInNewContext(expression, {
+    needs,
+    results,
+    github: { event_name: event, ref },
+    cancelled: () => cancelled,
+    always: () => true,
+    success: () => results.every((result) => result === 'success'),
+    failure: () => results.includes('failure'),
+    contains: (values, value) => values.includes(value)
+  });
+}
+
+/** Creates successful or intentionally skipped dependencies from the path selection. */
+function imageDependencies(files) {
+  const groups = selected(files, push);
+  const outputs = Object.fromEntries(
+    Object.keys(workflow.jobs.changes.outputs).map((name) => [name, String(groups.includes(name))])
+  );
+  const needs = Object.fromEntries(
+    workflow.jobs['publish-main-image'].needs.map((name) => [name, { result: 'success' }])
+  );
+  needs.changes.outputs = outputs;
+  // Apply each dependency's actual selection condition, with successful ancestors.
+  for (const [name, dependency] of Object.entries(needs)) {
+    const condition = workflow.jobs[name].if;
+    if (!condition) continue;
+    const expression = condition.replace(/^\$\{\{|\}\}$/g, '').trim();
+    const runs = runInNewContext(expression, {
+      needs: { changes: needs.changes },
+      github: { event_name: 'push', ref: 'refs/heads/main' },
+      always: () => true,
+      cancelled: () => false
+    });
+    dependency.result = runs ? 'success' : 'skipped';
+  }
+  return needs;
+}
+
+for (const file of ['apps/frontend/src/lib/Message.svelte', 'cli/internal/core/message.go']) {
+  test(`main images publish with optional checks skipped for ${file}`, () => {
+    const needs = imageDependencies([file]);
+    assert.ok(Object.values(needs).some(({ result }) => result === 'skipped'));
+    assert.equal(publishesImage(needs), true);
+
+    for (const name of Object.keys(needs)) {
+      for (const result of ['failure', 'cancelled']) {
+        assert.equal(
+          publishesImage({ ...needs, [name]: { ...needs[name], result } }),
+          false,
+          `${name}: ${result}`
+        );
+      }
+    }
+    assert.equal(
+      publishesImage({ ...needs, 'build-main-image-contexts': { result: 'skipped' } }),
+      false
+    );
+    assert.equal(publishesImage(needs, { cancelled: true }), false);
+    assert.equal(publishesImage(needs, { event: 'pull_request' }), false);
+    assert.equal(publishesImage(needs, { ref: 'refs/heads/release-0.5' }), false);
+  });
+}
+
+test('main images publish for shared changes but not documentation-only changes', () => {
+  assert.equal(publishesImage(imageDependencies(['mise.toml'])), true);
+  assert.equal(publishesImage(imageDependencies(['README.md'])), false);
 });
 
 test('changes that affect both toolchains select both', () => {

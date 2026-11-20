@@ -6,7 +6,7 @@ import (
 )
 
 // AssetProcessingConsumerName is the durable EVT consumer of the
-// asset-processing runtime unit. The name is a persisted resource contract
+// media job source. The name is a persisted resource contract
 // (ADR-069).
 const AssetProcessingConsumerName = "chatto-asset-processing-v1"
 
@@ -43,19 +43,32 @@ type durableWorkerDiagnosticSpec struct {
 
 // durableWorkerDiagnosticSpecs lists every durable consumer that Chatto
 // creates. Add each new durable consumer here so operators can see its health.
+// Media jobs need a worker only while video uploads are enabled; the worker
+// can run in this server or in a standalone media process.
 func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagnosticSpec {
-	return []durableWorkerDiagnosticSpec{
+	specs := []durableWorkerDiagnosticSpec{
 		{key: "asset_cleanup", streamName: natsresources.EVT, consumerName: assetCleanupConsumerName, required: true},
+		{key: jobTypeMessageBodyErasure, streamName: natsresources.EVT, consumerName: messageBodyErasureConsumerName, required: true},
+		{key: jobTypeRuntimeCredentialCleanup, streamName: natsresources.EVT, consumerName: runtimeCredentialCleanupConsumerName, required: true},
+		{key: jobTypeBrandingCleanup, streamName: natsresources.EVT, consumerName: brandingCleanupConsumerName, required: true},
 		{key: "call_key_cleanup", streamName: natsresources.EVT, consumerName: callKeyCleanupConsumerName, required: true},
 		{key: "user_key_shredding", streamName: natsresources.EVT, consumerName: userKeyShreddingConsumerName, required: true},
 		{key: "user_push_subscription_cleanup", streamName: natsresources.EVT, consumerName: pushSubscriptionCleanupConsumerName, required: true},
 		{key: "notification_materializer", streamName: natsresources.EVT, consumerName: notificationWorkerConsumerName, required: true},
+		{key: "notification_role_protection", streamName: natsresources.EVT, consumerName: roleProtectionConsumerName, required: true},
 		{key: "notification_invitations", streamName: natsresources.EVT, consumerName: invitationNotificationConsumerName, required: true},
 		{key: "notification_alert_delivery", streamName: notificationstream.StreamName, consumerName: notificationAlertConsumerName, required: true},
 		{key: "bot_webhook_source", streamName: natsresources.EVT, consumerName: botWebhookSourceConsumer, required: true},
-		{key: "asset_processing", streamName: natsresources.EVT, consumerName: AssetProcessingConsumerName, required: videoUploadsEnabled},
+		{key: "asset_processing", streamName: natsresources.EVT, consumerName: AssetProcessingConsumerName, required: true},
 	}
+	for _, kind := range jobTypes() {
+		specs = append(specs, durableWorkerDiagnosticSpec{key: jobWorkerKey(kind), streamName: natsresources.Jobs, consumerName: JobsConsumerName(kind), required: kind != JobTypeMedia || videoUploadsEnabled})
+	}
+	return specs
 }
+
+// jobWorkerKey is the diagnostic key of the JOBS consumer of one job type.
+func jobWorkerKey(kind string) string { return kind + "_jobs" }
 
 func durableWorkerAdminStatuses(stats *JetStreamStats, videoUploadsEnabled bool) []DurableWorkerAdminStatus {
 	specs := durableWorkerDiagnosticSpecs(videoUploadsEnabled)
@@ -84,6 +97,7 @@ func durableWorkerAdminStatuses(stats *JetStreamStats, videoUploadsEnabled bool)
 		health := DurableWorkerHealthInactive
 		switch {
 		case !spec.required:
+			// An optional consumer without a worker is expected, not stalled.
 		case consumer.Waiting > 0 && hasUnacknowledgedWork:
 			health = DurableWorkerHealthWorking
 		case consumer.Waiting > 0:

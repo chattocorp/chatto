@@ -16,6 +16,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -1032,9 +1033,10 @@ func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testi
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, "edited"); err != nil {
 		t.Fatalf("EditMessage: %v", err)
 	}
-	if _, err := core.storage.serverEvtStream.GetMsg(ctx, originalSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
-		t.Fatalf("original body event after edit error = %v, want ErrMsgNotFound", err)
-	}
+	require.Eventually(t, func() bool {
+		_, err := core.storage.serverEvtStream.GetMsg(ctx, originalSeq)
+		return errors.Is(err, jetstream.ErrMsgNotFound)
+	}, 3*time.Second, 10*time.Millisecond)
 	if _, err := core.eventReader.EventAt(ctx, originalSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
 		t.Fatalf("cached original body event after edit error = %v, want ErrMsgNotFound", err)
 	}
@@ -1052,9 +1054,10 @@ func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testi
 	if err := core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, posted.Id); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
-	if _, err := core.storage.serverEvtStream.GetMsg(ctx, editedSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
-		t.Fatalf("edited body event after delete error = %v, want ErrMsgNotFound", err)
-	}
+	require.Eventually(t, func() bool {
+		_, err := core.storage.serverEvtStream.GetMsg(ctx, editedSeq)
+		return errors.Is(err, jetstream.ErrMsgNotFound)
+	}, 3*time.Second, 10*time.Millisecond)
 	if _, err := core.eventReader.EventAt(ctx, editedSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
 		t.Fatalf("cached edited body event after delete error = %v, want ErrMsgNotFound", err)
 	}
@@ -1238,6 +1241,10 @@ func TestEditMessageIgnoresUnrelatedEVTMutation(t *testing.T) {
 	edits, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageEdited))
 	require.NoError(t, err)
 	require.Len(t, edits, 1, "the mutation must commit one logical edit")
+	require.Eventually(t, func() bool {
+		jobs := jobsOfType(t, ctx, core, jobTypeMessageBodyErasure)
+		return len(jobs) == 1 && jobs[0].Status == jobqueue.Succeeded
+	}, 3*time.Second, 10*time.Millisecond)
 	bodyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageBody))
 	require.NoError(t, err)
 	require.Len(t, bodyEvents, 1, "the mutation must commit one replacement body after obsolete-body cleanup")
@@ -3111,8 +3118,10 @@ func TestHistoricalEchoBodyIsIgnoredAndDeletedWithoutErasingOriginal(t *testing.
 	_, err = c.storage.serverEvtStream.GetMsg(ctx, seqs[0])
 	require.NoError(t, err)
 	require.NoError(t, c.DeleteMessage(ctx, user.Id, KindChannel, room.Id, echoID))
-	_, err = c.storage.serverEvtStream.GetMsg(ctx, seqs[0])
-	require.Error(t, err)
+	require.Eventually(t, func() bool {
+		_, err := c.storage.serverEvtStream.GetMsg(ctx, seqs[0])
+		return errors.Is(err, jetstream.ErrMsgNotFound)
+	}, 3*time.Second, 10*time.Millisecond)
 	text, err = c.GetMessageBody(ctx, reply.Id)
 	require.NoError(t, err)
 	require.Equal(t, "current original", text)

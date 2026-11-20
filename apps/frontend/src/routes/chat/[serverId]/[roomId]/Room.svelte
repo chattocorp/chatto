@@ -339,6 +339,7 @@
     roomName: room.roomData?.room.name ?? '',
     roomDescription: room.roomData?.room.description ?? '',
     roomCreatedAt: room.roomData?.room.createdAt ?? null,
+    postingRules: room.roomData?.room ?? null,
     hasActiveCall: hasActiveRoomCall,
     loading: room.isRoomLoading,
     searchStore: roomMessageSearchStore,

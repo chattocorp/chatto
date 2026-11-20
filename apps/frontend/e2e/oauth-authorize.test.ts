@@ -58,7 +58,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await page.getByRole('button', { name: 'Create Account', exact: true }).click();
     const popup = await popupPromise;
     await expect(popup).toHaveURL(/\/register\?redirect=/);
-    await expect(popup.getByTestId('app-frame')).toHaveCount(0);
+    await expect(popup.getByTestId('sign-in-window-header')).toBeVisible();
 
     // Switching auth screens must keep the same authorization request.
     const signupURL = popup.url();
@@ -69,14 +69,11 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 
     const auth = new AuthPage(popup);
     await auth.emailInput.fill('desktop-signup@example.test');
+    await auth.clearCapturedEmails();
     await auth.continueButton.click();
     await expect(auth.firstCodeInput).toBeVisible();
     // The test mailer captures the real registration message at the remote server.
-    const emailResponse = await popup.request.get(
-      `${remoteBaseURL(remoteServer)}/auth/test/last-email`
-    );
-    expect(emailResponse.ok()).toBeTruthy();
-    const email = await emailResponse.json();
+    const email = await auth.getLastVerificationEmail('desktop-signup@example.test');
     await auth.fillRegistrationCode(auth.extractVerificationCode(email.body));
     await auth.submitCodeButton.click();
     await expect(auth.completeRegistrationHeading).toBeVisible();
@@ -124,7 +121,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     const identifierInput = remoteAuthPage.locator('input[autocomplete="username"]');
     await expect(identifierInput).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(remoteAuthPage).toHaveURL(/127\.0\.0\.1.*\/login\?redirect=/);
-    await expect(remoteAuthPage.getByTestId('app-frame')).toHaveCount(0);
+    await expect(remoteAuthPage.getByTestId('sign-in-window-header')).toBeVisible();
     await expect(remoteAuthPage.getByRole('button', { name: 'Toggle sidebar' })).toHaveCount(0);
 
     // 5. Fill in credentials for the remote user
@@ -139,7 +136,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     await expect(remoteAuthPage.getByText(/^localhost:\d+$/)).toBeVisible();
-    await expect(remoteAuthPage.getByTestId('app-frame')).toHaveCount(0);
+    await expect(remoteAuthPage.getByTestId('sign-in-window-header')).toBeVisible();
     await expect(remoteAuthPage.getByRole('button', { name: 'Toggle sidebar' })).toHaveCount(0);
     await expect(remoteAuthPage.getByText(/instances\/callback/)).toHaveCount(0);
 
@@ -155,7 +152,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await logIn.click();
     remoteAuthPage = await retryPopupPromise;
     await expect(remoteAuthPage.getByRole('button', { name: 'Allow Access' })).toBeVisible();
-    await expect(remoteAuthPage.getByTestId('app-frame')).toHaveCount(0);
+    await expect(remoteAuthPage.getByTestId('sign-in-window-header')).toBeVisible();
 
     const popupClosed = remoteAuthPage.waitForEvent('close');
     await remoteAuthPage.getByRole('button', { name: 'Allow Access' }).click();
@@ -298,6 +295,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
         timeout: TIMEOUTS.REALTIME_EVENT
       });
       await adminPage.getByRole('button', { name: 'Enable privileged mode' }).click();
+      await adminPage.getByRole('dialog').getByText('owner', { exact: true }).click();
       await adminPage
         .getByRole('dialog', { name: 'Enable privileged mode' })
         .getByRole('button', { name: 'Enable privileged mode' })

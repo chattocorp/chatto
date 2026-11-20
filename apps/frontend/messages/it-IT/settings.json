@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "Esperimenti",
+      "title": "Funzioni sperimentali",
+      "new_message_header": "Nuova intestazione del messaggio"
+    },
     "desktop": {
       "title": "Aggiornamenti",
       "subtitle": "Aggiornamenti di questa installazione",
@@ -50,7 +55,8 @@
         "composer": "Scegli il tuo editor e come inviare i messaggi.",
         "voice": "Configura microfono, altoparlanti e preferenze delle chiamate.",
         "system": "Controlla lo stato del server, lo spazio di archiviazione e le attività in background.",
-        "event_log": "Esplora gli eventi del server e analizza le modifiche."
+        "event_log": "Esplora gli eventi del server e analizza le modifiche.",
+        "jobs": "Visualizza le attività in background e riprova quelle non riuscite."
       },
       "title": "Panoramica",
       "shield_notice": "Per usare i tuoi permessi aggiuntivi su questo server, attiva la modalità privilegiata con il pulsante dello scudo accanto al tuo nome."
@@ -540,9 +546,9 @@
           "body": "Configura un altro metodo di accesso supportato da questo server prima di scollegare {provider}."
         },
         "fresh_auth_modal": {
-          "title": "Conferma la password",
-          "body": "Inserisci la tua password attuale prima di collegare {provider}.",
-          "action": "Continua"
+          "title": "Collegare {provider}?",
+          "body": "Dopo il collegamento potrai usare {provider} per accedere a Chatto. Inserisci la tua password attuale di Chatto per continuare.",
+          "password": "Password di Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Conferma la password",

@@ -1,3 +1,7 @@
+/** Score boundaries for callers that group exact or prefix matches separately. */
+export const EXACT_MATCH_SCORE = 1000;
+export const PREFIX_MATCH_SCORE = 500;
+
 /**
  * Shared fuzzy matching for room, user, emoji, and Quick Switcher searches.
  *
@@ -20,14 +24,14 @@ export function fuzzyMatch(query: string, target: string): number | null {
 
   // Exact match - highest priority
   if (lowerQuery === lowerTarget) {
-    return 1000;
+    return EXACT_MATCH_SCORE;
   }
 
   // Prefix match - high priority
   if (lowerTarget.startsWith(lowerQuery)) {
     // Bonus for longer prefix coverage (more of the target matched)
     const coverage = lowerQuery.length / lowerTarget.length;
-    return 500 + Math.floor(coverage * 100);
+    return PREFIX_MATCH_SCORE + Math.floor(coverage * 100);
   }
 
   // Contains match - medium priority

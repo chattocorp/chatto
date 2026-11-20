@@ -22,7 +22,7 @@ func TestCreateUser_RespectsMaxUsersLimit(t *testing.T) {
 
 	// Now lock the door at 1 verified account.
 	one := 1
-	core.config.Limits = config.LimitsConfig{MaxUsers: &one}
+	core.config.Accounts = config.AccountsConfig{MaxUsers: &one}
 
 	if _, err := core.CreateUser(ctx, "system", "signup-user-2", "U2", "password123"); !errors.Is(err, ErrLimitExceeded) {
 		t.Fatalf("signup should be blocked when at verified-account limit, got %v", err)
@@ -72,7 +72,7 @@ func TestVerifiedFactorAddRespectsMaxUsersLimit(t *testing.T) {
 	}
 
 	one := 1
-	core.config.Limits = config.LimitsConfig{MaxUsers: &one}
+	core.config.Accounts = config.AccountsConfig{MaxUsers: &one}
 
 	if err := core.AddVerifiedEmailDirect(ctx, verified.Id, "verified-factor-1@example.com"); err != nil {
 		t.Fatalf("adding another factor to counted account should be allowed: %v", err)

@@ -28,6 +28,20 @@ vi.mock('$lib/auth/reauth', () => ({
   startRemoteReauthentication: mocks.startRemoteReauthentication
 }));
 
+const serverInfo = {
+  name: 'SSO Community',
+  version: '0.5.0',
+  authorizeUrl: '/oauth/authorize',
+  directRegistrationEnabled: false,
+  directLoginEnabled: false,
+  accountCreationPolicy: 'open' as const,
+  welcomeMessage: null,
+  description: null,
+  iconUrl: null,
+  bannerUrl: null,
+  authProviders: []
+};
+
 const standaloneData = {
   user: null,
   serverInfo: null,
@@ -91,6 +105,62 @@ describe('origin sign-in page', () => {
     await expect.element(getByLabelText('Username or Email')).not.toBeInTheDocument();
     await expect.element(getByLabelText('Password')).not.toBeInTheDocument();
     await expect.element(getByRole('link', { name: 'Forgot password?' })).not.toBeInTheDocument();
+  });
+
+  it.each([true, false, null])(
+    'hides direct registration with provider auto-provisioning set to %s',
+    async (autoProvision) => {
+      const { getByRole, getByText } = render(LoginPage, {
+        props: {
+          data: {
+            ...standaloneData,
+            serverInfo: {
+              ...serverInfo,
+              accountCreationPolicy: 'invite_only',
+              authProviders: [
+                {
+                  id: 'company',
+                  type: 'oidc',
+                  issuerUrl: 'https://id.example',
+                  label: 'Company SSO',
+                  loginUrl: '/auth/providers/company',
+                  autoProvision
+                }
+              ]
+            }
+          }
+        }
+      });
+
+      await expect
+        .element(getByRole('link', { name: 'Continue with Company SSO', exact: true }))
+        .toBeVisible();
+      await expect
+        .element(getByRole('link', { name: 'Create Account', exact: true }))
+        .not.toBeInTheDocument();
+      const inviteNotice = getByText(
+        'New accounts need a single-use invitation code. Existing users can still sign in.'
+      );
+      if (autoProvision === true) await expect.element(inviteNotice).toBeVisible();
+      else await expect.element(inviteNotice).not.toBeInTheDocument();
+      await expect.element(getByText('or', { exact: true })).not.toBeInTheDocument();
+    }
+  );
+
+  it('offers direct registration and preserves the return URL when enabled', async () => {
+    const { getByRole } = render(LoginPage, {
+      props: {
+        data: {
+          ...standaloneData,
+          redirectUrl: '/oauth/authorize',
+          serverInfo: { ...serverInfo, directRegistrationEnabled: true }
+        }
+      }
+    });
+
+    await expect
+      .element(getByRole('link', { name: 'Create Account', exact: true }))
+      .toHaveAttribute('href', '/register?redirect=%2Foauth%2Fauthorize');
   });
 
   it('explains provider restriction denials without naming the rule', async () => {

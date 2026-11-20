@@ -1194,13 +1194,10 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	if !published {
 		return nil
 	}
-	c.secureDeleteAllMessageBodyEvents(ctx, eventID)
+	c.eventReader.Forget(c.retractedMessageBodySeqs(eventID)...)
 	if isEcho {
 		c.logger.Debug("Message echo hidden", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID, "envelope_seq", originalEntry.StreamSeq)
 		return nil
-	}
-	for _, linkedID := range c.roomModel.linkedEventIDs(eventID) {
-		c.secureDeleteAllMessageBodyEvents(ctx, linkedID)
 	}
 
 	// Attachments are referenced by the (now-tombstoned) message but
@@ -1369,7 +1366,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	if err != nil {
 		return err
 	}
-	c.secureDeleteObsoleteMessageBodyEvents(ctx, eventID)
+	c.eventReader.Forget(c.roomModel.obsoleteBodyEventSeqs(eventID)...)
 
 	c.logger.Debug("Message edited", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID)
 	if options.channelEcho != nil && *options.channelEcho && !channelEchoExistedBefore && createdChannelEchoID != "" {
@@ -1870,7 +1867,7 @@ func (c *ChattoCore) editEmbeddedBody(
 	if err != nil {
 		return err
 	}
-	c.secureDeleteObsoleteMessageBodyEvents(ctx, eventID)
+	c.eventReader.Forget(c.roomModel.obsoleteBodyEventSeqs(eventID)...)
 
 	return nil
 }

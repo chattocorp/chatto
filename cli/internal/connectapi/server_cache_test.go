@@ -31,6 +31,9 @@ func TestDiscoveryFeatureCatalog(t *testing.T) {
 		}
 		seen[feature.Id] = true
 	}
+	if !seen["shieldRoleSelection"] {
+		t.Fatal("discovery omitted Shield Mode role selection")
+	}
 	before, err := discoveryResponseETag(response.Msg)
 	if err != nil {
 		t.Fatal(err)
@@ -119,12 +122,14 @@ func TestListFeaturesVersionFilter(t *testing.T) {
 		version string
 		count   int
 	}{
-		{"0.5.0-beta.15", 2},
-		{"0.5.0-beta.16", 1},
-		{"0.5.0-beta.17", 1},
-		{"0.5.0-beta.18", 0},
-		{"0.5.0-beta.18+custom.1", 0},
-		{"0.5.0", 0},
+		{"0.5.0-beta.15", 4},
+		{"0.5.0-beta.16", 3},
+		{"0.5.0-beta.17", 3},
+		{"0.5.0-beta.18", 2},
+		{"0.5.0-beta.18+custom.1", 2},
+		{"0.5.0", 2},
+		{"0.6.0-beta.0", 0},
+		{"0.6.0", 0},
 		{"9.0.0", 0},
 	} {
 		t.Run(test.version, func(t *testing.T) {

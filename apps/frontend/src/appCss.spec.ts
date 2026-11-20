@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 
-const appCss = readFileSync(new URL('./app.css', import.meta.url), 'utf8');
+const tokensCss = readFileSync(new URL('./styles/tokens.css', import.meta.url), 'utf8');
 const tailwindTheme = readFileSync(
   createRequire(import.meta.url).resolve('tailwindcss/theme.css'),
   'utf8'
@@ -17,9 +17,9 @@ function neutralPalette(css: string): Map<string, string> {
   );
 }
 
-describe('app.css neutral palette', () => {
+describe('design-system neutral palette', () => {
   const upstream = neutralPalette(tailwindTheme);
-  const local = neutralPalette(appCss);
+  const local = neutralPalette(tokensCss);
 
   it('overrides every Tailwind neutral', () => {
     expect([...local.keys()]).toEqual([...upstream.keys()]);

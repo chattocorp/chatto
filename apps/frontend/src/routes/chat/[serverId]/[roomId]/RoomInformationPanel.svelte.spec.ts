@@ -7,6 +7,7 @@ import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import RoomInformationPanel from './RoomInformationPanel.svelte';
 import { RoomNotice } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomThreadingMode } from '@chatto/client/util/roomThreading';
 import { RoomNoticeStore } from '@chatto/client/room/notice';
 import type { ServerConnection } from '@chatto/client/server/serverConnection';
 
@@ -82,6 +83,40 @@ describe('RoomInformationPanel', () => {
     await view.rerender({ memberCount: null, roomCreatedAt: null });
     await expect.element(page.getByText('0', { exact: true })).not.toBeInTheDocument();
     await expect.poll(() => view.container.querySelector('time')).toBeNull();
+  });
+
+  it('shows threading and slow mode, splitting slow mode when threads have their own timer', async () => {
+    const value = (label: string) =>
+      [...view.container.querySelectorAll('dt')]
+        .find((dt) => dt.textContent?.trim() === label)
+        ?.nextElementSibling?.textContent?.trim();
+    const view = render(RoomInformationPanel, {
+      serverId: 'test-server',
+      roomName: 'general',
+      roomDescription: ''
+    });
+    await expect.element(page.getByText('Threads', { exact: true })).toBeVisible();
+    expect(value('Threads')).toBe('Unknown');
+    expect(value('Slow Mode')).toBe('Unknown');
+
+    await view.rerender({
+      postingRules: { threadingMode: RoomThreadingMode.REQUIRED, slowModeSeconds: 0 }
+    });
+    await expect.poll(() => value('Threads')).toBe('Required');
+    expect(value('Slow Mode')).toBe('Off');
+    expect(value('Thread Slow Mode')).toBeUndefined();
+
+    await view.rerender({
+      postingRules: {
+        threadingMode: RoomThreadingMode.DISABLED,
+        slowModeSeconds: 120,
+        threadSlowModeSeconds: 0
+      }
+    });
+    await expect.poll(() => value('Threads')).toBe('Disabled');
+    expect(value('Slow Mode')).toBeUndefined();
+    expect(value('Channel Slow Mode')).toBe('2 minutes');
+    expect(value('Thread Slow Mode')).toBe('Off');
   });
 
   it('shows current room metadata and collapses each section independently', async () => {

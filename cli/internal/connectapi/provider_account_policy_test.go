@@ -70,7 +70,9 @@ func TestManagedProviderAccountAPI(t *testing.T) {
 
 func TestExternalIdentityAccountLoginValidation(t *testing.T) {
 	for _, managed := range []bool{false, true} {
-		for _, login := range []string{"", "x", strings.Repeat("x", 33), "invalid@name"} {
+		// "impostor" is a valid, free username: a managed provider must still
+		// assign the provider's name instead.
+		for _, login := range []string{"", "x", strings.Repeat("x", 65), "invalid@name", "impostor"} {
 			t.Run(fmt.Sprintf("managed=%t/login=%q", managed, login), func(t *testing.T) {
 				env := newConnectAPITestEnvWithAuth(t, 30*time.Second, config.AuthConfig{Providers: []config.AuthProviderConfig{{
 					ID: "company", Type: "github", AutoProvision: new(true), ManageUsernames: managed,
@@ -83,6 +85,11 @@ func TestExternalIdentityAccountLoginValidation(t *testing.T) {
 				request := &authv1.CreateExternalIdentityAccountRequest{Token: token, Login: login}
 				require.NoError(t, protovalidate.Validate(request))
 				created, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(request))
+				if !managed && login == "impostor" {
+					require.NoError(t, err)
+					require.Equal(t, "impostor", created.Msg.Login)
+					return
+				}
 				if !managed {
 					require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
 					return
@@ -92,6 +99,8 @@ func TestExternalIdentityAccountLoginValidation(t *testing.T) {
 				user, err := env.core.GetUser(env.ctx, created.Msg.UserId)
 				require.NoError(t, err)
 				require.Equal(t, "person", user.DisplayName)
+				_, err = env.core.GetUserByLogin(env.ctx, "impostor")
+				require.ErrorIs(t, err, core.ErrNotFound, "a managed provider must not create the requested username")
 			})
 		}
 	}

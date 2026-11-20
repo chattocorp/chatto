@@ -73,8 +73,10 @@ so switching rooms cannot leak a query or plaintext results into another room.
     <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
       <SearchResults {store} compact>
         {#snippet children(result)}
+          {@const timestamp = result.createdAt ? formatTimestamp(result.createdAt) : undefined}
           <SearchResult
             {result}
+            title={timestamp}
             data-room-search-result-id={result.id}
             class="group/search-result"
             viewerLogin={serverScope.store.currentUser.user?.login}
@@ -91,7 +93,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
             {#snippet headerMeta()}
               {#if result.createdAt}
                 <time class="text-xs text-muted" datetime={result.createdAt}>
-                  {formatTimestamp(result.createdAt)}
+                  {timestamp}
                 </time>
               {/if}
             {/snippet}

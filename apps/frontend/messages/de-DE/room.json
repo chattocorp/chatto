@@ -14,6 +14,7 @@
       "clear_confirm_title": "Raumhinweis entfernen?",
       "clear_confirm_description": "Der aktive Hinweis wird sofort für alle im Raum entfernt. Deine ungespeicherten Änderungen werden nicht veröffentlicht.",
       "empty": "Es wurde kein Hinweis veröffentlicht.",
+      "load_failed": "Der Hinweis konnte nicht geladen werden.",
       "edit": "Hinweis bearbeiten"
     },
     "information": {
@@ -21,7 +22,12 @@
       "created": "Erstellt",
       "title": "Rauminformationen",
       "basic": "Allgemein",
-      "pinned_messages": "Angeheftete Nachrichten"
+      "pinned_messages": "Angeheftete Nachrichten",
+      "threads": "Threads",
+      "slow_mode": "Langsamer Modus",
+      "channel_slow_mode": "Langsamer Modus im Kanal",
+      "thread_slow_mode": "Langsamer Modus in Threads",
+      "slow_mode_off": "Aus"
     },
     "create": {
       "title": "Neuen Raum erstellen",

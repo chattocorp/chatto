@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Allajoonitud",
+      "strikethrough": "Läbikriipsutus",
       "bold": "Paks",
       "italic": "Kursiiv",
       "inline_code": "Tekstisisene kood",

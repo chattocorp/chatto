@@ -42,7 +42,8 @@ protocol at `/api/realtime`.
   the requested position. Limit the wait to 10 seconds. If the caller specifies
   a shorter deadline, use that deadline. Do not return historical state.
   Do not wait for other projections, effects, or events after the requested
-  position.
+  position. An expired cursor satisfies the barrier at once: its position is
+  older than any serving replica's view. Reject it only for replay.
 - Use `cursor` in events, heartbeats, and `caught_up` frames.
   Use `resume_cursor` in the subscription. Set `caught_up.recovery` to the
   result: `RESUMED`, `SNAPSHOT`, or `LIVE_ONLY`. Use `RESUMED` when replay

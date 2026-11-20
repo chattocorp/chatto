@@ -11,9 +11,9 @@
   import { Button } from '$lib/ui/form';
   import MarkdownEditorField from '$lib/components/composer/MarkdownEditorField.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
-  import { ConfirmDialog, EmptyState, FormDialog, LoadingFog, LoadRetry } from '$lib/ui';
+  import { ConfirmDialog, EmptyState, FormDialog, LoadingDots, LoadRetry } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
-  import { errorMessage } from '$lib/utils/errorMessage';
+  import { errorMessage, loadErrorMessage } from '$lib/utils/errorMessage';
   import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
 
   let {
@@ -102,12 +102,12 @@
     <div class="flex flex-col gap-3 px-2 py-3">
       {#if store.error}
         <LoadRetry
-          message={errorMessage(store.error)}
+          message={loadErrorMessage(store.error, m('room.notice.load_failed'))}
           autoRetry={isNetworkError(store.error)}
           onretry={() => store.refresh()}
         />
       {:else if !notice}
-        <LoadingFog class="min-h-24" label={m('common.loading')} />
+        <LoadingDots class="min-h-24" label={m('common.loading')} />
       {:else if notice.body}
         <div class="min-w-0" dir="auto">
           <MessageContent

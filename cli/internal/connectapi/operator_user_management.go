@@ -15,6 +15,10 @@ type operatorUserService struct {
 	api *API
 }
 
+func (s *operatorUserService) GetLoginPolicy(context.Context, *connect.Request[operatorv1.GetLoginPolicyRequest]) (*connect.Response[operatorv1.GetLoginPolicyResponse], error) {
+	return connect.NewResponse(&operatorv1.GetLoginPolicyResponse{MaxLoginLength: uint32(s.api.core.LoginLengthLimit())}), nil
+}
+
 func (s *operatorUserService) ImportUserAvatar(ctx context.Context, req *connect.Request[operatorv1.ImportUserAvatarRequest]) (*connect.Response[operatorv1.ImportUserAvatarResponse], error) {
 	if err := s.api.core.ImportHistoricalUserAvatar(ctx, req.Msg.GetOperationKey(), req.Msg.GetUserId(), req.Msg.GetImage()); err != nil {
 		return nil, err

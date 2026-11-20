@@ -40,6 +40,8 @@ func TestCheckConfigDiagnostics(t *testing.T) {
 		{"removed TOML", "[livekit]\nwebhook_url='private-sentinel'", "", "configure webhook.urls in LiveKit"},
 		{"removed provider", "[[auth.providers]]\nprovider_options={secret='private-sentinel'}", "", "remove this unused setting"},
 		{"alias TOML", "[livekit]\ninstance_id='private-sentinel'", "", "use livekit.server_id"},
+		{"account quota TOML", "[limits]\nmax_users=0", "", "use core.accounts.max_users"},
+		{"account quota ENV", "", "CHATTO_LIMITS_MAX_USERS", "use CHATTO_CORE_ACCOUNTS_MAX_USERS"},
 		{"video limit TOML", "[video]\nmax_upload_size='private-sentinel'", "", "core.assets.max_upload_size"},
 		{"video limit ENV", "", "CHATTO_VIDEO_MAX_UPLOAD_SIZE", "CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE"},
 		{"bootstrap alias", "[[bootstrap.users]]\ninstance_role='private-sentinel'", "", "bootstrap.users[].server_role"},

@@ -55,6 +55,7 @@ func withArmedBearerCredential(ctx context.Context, user *readmodel.User, token 
 		Kind:                    authctx.RuntimeCredentialKindBearerToken,
 		UserID:                  user.Id,
 		Handle:                  token,
+		PrivilegedRoles:         []string{core.RoleOwner, core.RoleAdmin, core.RoleModerator},
 		PrivilegedModeExpiresAt: time.Now().Add(time.Minute),
 	})
 }
@@ -201,7 +202,7 @@ func newConnectAPITestEnvWithAuth(t *testing.T, timeout time.Duration, auth conf
 		threads:              &threadService{api: api},
 		users:                &userService{api: api},
 		viewerService:        &viewerService{api: api},
-		voice:                &voiceCallService{api: api},
+		voice:                &voiceCallService{api: api, now: time.Now},
 		viewer:               viewer,
 	}
 }

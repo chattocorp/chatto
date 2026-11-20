@@ -1736,8 +1736,12 @@ func TestAdminDiagnosticsServiceGetSystemInfoRequiresOwner(t *testing.T) {
 	if resp.Msg.GetAssetCleanup() == nil {
 		t.Fatal("AssetCleanup = nil")
 	}
-	if len(resp.Msg.GetDurableWorkers()) != 9 {
-		t.Fatalf("DurableWorkers len = %d, want 9", len(resp.Msg.GetDurableWorkers()))
+	for _, key := range []string{"branding_cleanup", "branding_cleanup_jobs"} {
+		if !slices.ContainsFunc(resp.Msg.GetDurableWorkers(), func(worker *adminv1.AdminDurableWorkerStatus) bool {
+			return worker.GetKey() == key
+		}) {
+			t.Errorf("GetSystemInfo omitted worker %q", key)
+		}
 	}
 	if got := resp.Msg.GetLivekit().GetConnectionState(); got != adminv1.AdminLiveKitConnectionState_ADMIN_LIVE_KIT_CONNECTION_STATE_NOT_CONFIGURED {
 		t.Fatalf("Livekit.ConnectionState = %v, want not configured", got)

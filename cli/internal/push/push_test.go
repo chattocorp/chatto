@@ -1140,6 +1140,9 @@ func TestSend(t *testing.T) {
 				if result.Error == nil {
 					t.Fatal("expected error")
 				}
+				if result.HTTPStatus != tt.statusCode {
+					t.Fatalf("HTTP status = %d, want %d", result.HTTPStatus, tt.statusCode)
+				}
 				if result.Gone {
 					t.Fatal("expected non-gone failure")
 				}

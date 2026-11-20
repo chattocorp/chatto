@@ -3,15 +3,15 @@
  *
  * Allowed: ASCII letters, digits, periods, underscores, hyphens.
  * Must start with a letter or digit and must not end with a period.
- * Length: 2-32 characters.
+ * Each server enforces its configured maximum when assigning a username.
  * Mixed case is preserved; uniqueness and login are case-insensitive.
  */
 
 import { getLocale } from '$lib/i18n/runtime';
 import type { ValidationResult } from './displayName';
 
-/** Maximum login length in characters (matching backend) */
-export const MAX_LOGIN_LENGTH = 32;
+/** Maximum supported by the protocol. A server can enforce a lower limit. */
+export const MAX_LOGIN_LENGTH = 254;
 
 /** Minimum login length in characters (matching backend) */
 export const MIN_LOGIN_LENGTH = 2;

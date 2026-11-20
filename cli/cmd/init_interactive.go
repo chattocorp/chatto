@@ -67,18 +67,14 @@ func promptInitOptions(cmd *cobra.Command, opts *initOptions) (bool, error) {
 	if opts.PublicURL == fmt.Sprintf("http://localhost:%d", opts.Port) {
 		opts.PublicURL = ""
 	}
-	confirmed := false
-	wizard := newInitWizard(opts, &port, &smtpPort, &confirmed)
+	wizard := newInitWizard(opts, &port, &smtpPort)
 	if _, err := tea.NewProgram(wizard, tea.WithInput(input), tea.WithOutput(output), tea.WithContext(cmd.Context())).Run(); err != nil {
 		if errors.Is(err, tea.ErrInterrupted) {
 			return false, nil
 		}
 		return false, fmt.Errorf("interactive setup: %w", err)
 	}
-	if wizard.cancelled {
-		return false, nil
-	}
-	if !confirmed {
+	if !wizard.approved() {
 		return false, nil
 	}
 	opts.Port, _ = strconv.Atoi(port) // The form validates both port fields.
@@ -88,7 +84,7 @@ func promptInitOptions(cmd *cobra.Command, opts *initOptions) (bool, error) {
 }
 
 // newInitForm keeps conditional questions and the final review in one navigable form.
-func newInitForm(opts *initOptions, port, smtpPort *string, confirmed *bool, backward *bool) *huh.Form {
+func newInitForm(opts *initOptions, port, smtpPort *string, backward *bool) *huh.Form {
 	keys := initKeyMap()
 	// Huh validates fields on blur, including when leaving a group backwards.
 	// Let users return to earlier questions without completing the current one.
@@ -187,7 +183,7 @@ func newInitForm(opts *initOptions, port, smtpPort *string, confirmed *bool, bac
 			}, struct {
 				Options *initOptions
 				Port    *string
-			}{opts, port}).Affirmative("Create files").Negative("Cancel").Value(confirmed).
+			}{opts, port}).Affirmative("Create files").Negative("Cancel").Key("createFiles").Value(new(true)).
 				Validate(func(yes bool) error {
 					if *backward || !yes {
 						return nil

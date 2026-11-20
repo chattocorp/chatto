@@ -276,9 +276,9 @@
         "visibility_help": "Bruk et universelt rom for nyheter som alle medlemmer må få, for eksempel kunngjøringer. Medlemmer kan ikke forlate et universelt rom, men de kan dempe det. Hvis du slår av universell, blir medlemmene som ble med tidligere, værende i rommet.",
         "slow_mode_subtitle": "Begrens hvor ofte hvert medlem kan poste i dette rommet.",
         "slow_mode_interval": "Minste tid mellom innlegg",
-        "channel_slow_mode_interval": "Langsom modus i kanalen",
-        "thread_slow_mode_interval": "Langsom modus i tråder",
-        "independent_slow_mode_help": "Kanalens langsomme modus begrenser nye hovedmeldinger per medlem. Trådenes langsomme modus gjelder separat for hvert medlem i hver tråd. Hovedmeldingen starter begge tidtakerne for forfatteren. Medlemmer med tillatelsen room.manage eller message.manage er unntatt. Redigeringer og reaksjoner endrer ikke tidtakerne.",
+        "channel_slow_mode_interval": "Sakte modus i kanalen",
+        "thread_slow_mode_interval": "Sakte modus i tråder",
+        "independent_slow_mode_help": "Kanalens sakte modus begrenser nye hovedmeldinger per medlem. Trådenes sakte modus gjelder separat for hvert medlem i hver tråd. Hovedmeldingen starter begge tidtakerne for forfatteren. Medlemmer med tillatelsen room.manage eller message.manage er unntatt. Redigeringer og reaksjoner endrer ikke tidtakerne.",
         "slow_mode_help": "Én tidtaker gjelder for meldinger, trådsvar og vedlegg. Medlemmer med tillatelsen room.manage eller message.manage er unntatt. Mens de venter, kan medlemmer fortsatt skrive utkast, redigere meldingene sine og legge til reaksjoner.",
         "threading_title": "Trådmodus",
         "threading_subtitle": "Velg hvordan samtaler i dette rommet bruker tråder.",
@@ -426,6 +426,10 @@
         "projections_failed_count": {
           "one": "{count} projeksjon mislyktes",
           "other": "{count} projeksjoner mislyktes"
+        },
+        "projections_stalled_count": {
+          "one": "{count} projeksjon står fast",
+          "other": "{count} projeksjoner står fast"
         },
         "projections_catching_up_count": {
           "one": "{count} projeksjon tar igjen etterslepet",
@@ -591,6 +595,42 @@
         "revoked": "Trukket tilbake",
         "used": "Brukt"
       }
+    },
+    "jobs": {
+      "title": "Jobber",
+      "subtitle": "Se bakgrunnsjobber, og prøv mislykkede jobber på nytt eller slett dem.",
+      "load_failed": "Kunne ikke laste inn jobber.",
+      "retry_failed": "Kunne ikke prøve denne jobben på nytt.",
+      "delete_failed": "Kunne ikke slette denne jobben.",
+      "delete_title": "Slette denne jobben?",
+      "delete_message": "Arbeidet i denne jobben blir forkastet. Du kan ikke prøve den på nytt senere.",
+      "webhook": "Webhook-levering",
+      "media": "Mediebehandling",
+      "neighborhood_refresh": "Oppdatering av nabolaget",
+      "message_body_erasure": "Sletting av meldingsinnhold",
+      "branding_cleanup": "Opprydding av serverlogoer og bannere",
+      "asset_cleanup": "Filopprydding",
+      "call_key_cleanup": "Sletting av samtalenøkler",
+      "runtime_credential_cleanup": "Opprydding i økter og tilgangstokener",
+      "push_subscription_cleanup": "Opprydding av push-abonnementer",
+      "user_key_shredding": "Sletting av kontonøkler",
+      "notification_alert": "Varselvarsling",
+      "email": "E-post",
+      "queued": "I kø",
+      "running": "Kjører",
+      "succeeded": "Fullført",
+      "failed": "Mislykket",
+      "empty": "Ingen jobber ennå",
+      "attempts": "Forsøk",
+      "updated": "Oppdatert",
+      "next_attempt": "Neste forsøk",
+      "expired": "Denne jobben har utløpt og kan ikke prøves på nytt.",
+      "job": "Jobb",
+      "created": "Opprettet",
+      "details": "Detaljer",
+      "detail_subtitle": "Status, forsøk og siste feilårsak for denne jobben.",
+      "not_found": "Denne jobben finnes ikke lenger.",
+      "all": "Alle"
     }
   }
 }

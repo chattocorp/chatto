@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"reflect"
+	"regexp"
 	"testing"
 
 	"github.com/wneessen/go-mail"
@@ -138,4 +139,42 @@ func clientTLSServerName(client *mail.Client) string {
 
 func clientTLSMinVersion(client *mail.Client) uint64 {
 	return reflect.ValueOf(client).Elem().FieldByName("tlsconfig").Elem().FieldByName("MinVersion").Uint()
+}
+
+func TestSetMessageIDUsesSenderDomain(t *testing.T) {
+	message := mail.NewMsg()
+	if err := message.From("Chatto <noreply@Chatto.Example.com>"); err != nil {
+		t.Fatalf("From: %v", err)
+	}
+	setMessageID(message)
+
+	got := message.GetMessageID()
+	if !regexp.MustCompile(`^<[0-9a-f]{32}@chatto\.example\.com>$`).MatchString(got) {
+		t.Fatalf("Message-ID = %q, want <random@chatto.example.com>", got)
+	}
+
+	other := mail.NewMsg()
+	if err := other.From("noreply@chatto.example.com"); err != nil {
+		t.Fatalf("From: %v", err)
+	}
+	setMessageID(other)
+	if other.GetMessageID() == got {
+		t.Fatal("two messages received the same Message-ID")
+	}
+}
+
+func TestMessageIDDomain(t *testing.T) {
+	tests := map[string]string{
+		"noreply@example.com":       "example.com",
+		"noreply@Mail.Example.COM.": "mail.example.com",
+		"noreply@[192.0.2.1]":       "",
+		"noreply@bücher.example":    "",
+		"noreply@":                  "",
+		"no-at-sign":                "",
+	}
+	for address, want := range tests {
+		if got := messageIDDomain(address); got != want {
+			t.Errorf("messageIDDomain(%q) = %q, want %q", address, got, want)
+		}
+	}
 }

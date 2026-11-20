@@ -51,8 +51,8 @@ type flowState struct {
 	ExpiresAt            time.Time                  `json:"expires_at"`
 }
 
-// Completion reports a committed identity change and whether the best-effort
-// security notice to the previous address could be delivered.
+// Completion reports a committed identity change and whether the security
+// notice to the previous address could be accepted by the mail queue.
 type Completion struct {
 	Account                      accounts.Account
 	AuthenticationVersion        uint64
@@ -160,8 +160,8 @@ func (s *Service) Start(ctx context.Context, accountID, password, rawNewEmail st
 	if _, err := s.kv.Create(ctx, key, data, jetstream.KeyTTL(FlowTTL)); err != nil {
 		return "", fmt.Errorf("store email change flow: %w", err)
 	}
-	body := fmt.Sprintf("Your %s email change code is %s.\n\nIt expires in 15 minutes. If you did not request this, you can ignore this message.\n", siteName, code)
-	if err := s.send(ctx, email.Message{To: newEmail, Subject: "Your " + siteName + " email change code", Body: body}); err != nil {
+	body := fmt.Sprintf("Your %s email change code is %s.\n\nIt expires 15 minutes after the request. If you did not request this, you can ignore this message.\n", siteName, code)
+	if err := s.send(ctx, email.Message{ExpiresAt: state.ExpiresAt, To: newEmail, Subject: "Your " + siteName + " email change code", Body: body}); err != nil {
 		_ = s.kv.Delete(ctx, key)
 		return "", fmt.Errorf("deliver email change code: %w", err)
 	}
@@ -256,9 +256,10 @@ func (s *Service) finishCommitted(key string, revision uint64, state flowState, 
 	defer cancel()
 	siteName, notificationErr := s.site.Name(notificationContext)
 	message := email.Message{
-		To:      state.Target.OldEmail,
-		Subject: "Your " + siteName + " email address changed",
-		Body:    fmt.Sprintf("The email address for your %s account was changed. If you did not make this change, contact the operator of this service immediately.\n", siteName),
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+		To:        state.Target.OldEmail,
+		Subject:   "Your " + siteName + " email address changed",
+		Body:      fmt.Sprintf("The email address for your %s account was changed. If you did not make this change, contact the operator of this service immediately.\n", siteName),
 	}
 	if notificationErr == nil {
 		notificationErr = s.send(notificationContext, message)

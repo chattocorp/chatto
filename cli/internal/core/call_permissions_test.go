@@ -10,12 +10,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/livekit/protocol/livekit"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestCallPermissionsAdmissionAndSources(t *testing.T) {
@@ -100,7 +104,7 @@ func TestCallTokenPermissionCombinations(t *testing.T) {
 	for mask, sources := range expected {
 		t.Run(fmt.Sprintf("media_%03b", mask), func(t *testing.T) {
 			permissions := CallPermissions{Voice: mask&1 != 0, Camera: mask&2 != 0, ScreenShare: mask&4 != 0}
-			token, err := GenerateVoiceCallToken("key", "secret", "room", "user", "User", "user", "", false, "e2ee", permissions, time.Time{}, "call")
+			token, err := GenerateVoiceCallToken("key", "secret", "room", "user", "User", "user", "", false, "e2ee", permissions, "", "call")
 			require.NoError(t, err)
 			parsed, _, err := jwt.NewParser().ParseUnverified(token.Token, jwt.MapClaims{})
 			require.NoError(t, err)
@@ -389,23 +393,71 @@ func TestCallPermissionReconciliationGatesOwnerOverride(t *testing.T) {
 	require.NoError(t, c.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermCallJoin))
 
 	name := LiveKitRoomName("", KindChannel, room.Id, snapshot.Call.CallID)
-	scan := func(privilegedUntil time.Time) *callPermissionRoomService {
+	deadline := time.Now().Add(time.Minute)
+	issueCtx := authctx.WithCredential(ctx, authctx.RuntimeCredential{
+		UserID: owner.Id, Kind: authctx.RuntimeCredentialKindBearerToken, Handle: "test-session",
+		PrivilegedRoles: []string{RoleOwner, "private-review-role"}, PrivilegedModeExpiresAt: deadline,
+	})
+	ref, err := c.StoreCallRoleSelection(issueCtx, name, owner.Id, owner.Id, time.Now())
+	require.NoError(t, err)
+	require.NotEmpty(t, ref)
+	assertRuntimeKVHasTTL(t, c, callSelectionKey(ref))
+	token, err := GenerateVoiceCallToken("key", "secret", name, owner.Id, "Display", "login", "", false, "", CallPermissions{}, ref, snapshot.Call.CallID)
+	require.NoError(t, err)
+	metadata := tokenMetadata(t, token)
+	require.NotContains(t, metadata, "private-review-role")
+	require.Equal(t, ref, ParseParticipantMetadata(metadata).SelectionRef)
+
+	publisher := NewCallMediaPublisherID()
+	companionRef, err := c.StoreCallRoleSelection(issueCtx, name, publisher, owner.Id, time.Now())
+	require.NoError(t, err)
+	companion, err := GenerateCallMediaPublisherToken("key", "secret", name, publisher, owner.Id, "Display", "", snapshot.Call.CallID, ParticipantPublisherKindGameShare, companionRef)
+	require.NoError(t, err)
+	md := tokenMetadata(t, companion)
+	require.NotContains(t, md, "private-review-role")
+	companionRef = ParseParticipantMetadata(md).SelectionRef
+	roles, err := c.callRoles(ctx, companionRef, name, publisher, owner.Id)
+	require.NoError(t, err)
+	require.Equal(t, []string{RoleOwner, "private-review-role"}, roles)
+	roles, err = c.callRoles(ctx, companionRef, name, owner.Id, owner.Id)
+	require.NoError(t, err)
+	require.Empty(t, roles)
+
+	scan := func(metadata string) *callPermissionRoomService {
 		t.Helper()
-		metadata, err := json.Marshal(participantMetadata{PrivilegedUntil: privilegedUntilUnix(privilegedUntil)})
-		require.NoError(t, err)
 		service := &callPermissionRoomService{fakeLiveKitRoomService: fakeLiveKitRoomService{
 			rooms:        []string{name},
 			participants: map[string][]string{name: {owner.Id}},
-			metadata:     map[string]string{owner.Id: string(metadata)},
+			metadata:     map[string]string{owner.Id: metadata},
 		}}
 		client := &liveKitRoomClient{service: service, core: c, apiKey: "key", apiSecret: "secret"}
 		_, err = client.ListCallParticipants(ctx)
 		require.NoError(t, err)
 		return service
 	}
-	require.Empty(t, scan(time.Now().Add(time.Minute)).removals, "active privileged mode keeps the owner override")
-	removed := scan(time.Now().Add(-time.Second)).removals
+	require.Empty(t, scan(metadata).removals, "active privileged mode keeps the owner override")
+	// Keep the record present to exercise logical expiry independently of KV cleanup.
+	key := callSelectionKey(ref)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	require.NoError(t, err)
+	var selection runtimestatev1.CallRoleSelection
+	require.NoError(t, proto.Unmarshal(entry.Value(), &selection))
+	require.True(t, deadline.Equal(selection.ExpiresAt.AsTime()))
+	selection.ExpiresAt = timestamppb.New(time.Now().Add(-time.Second))
+	value, err := proto.Marshal(&selection)
+	require.NoError(t, err)
+	_, err = c.storage.runtimeStateKV.Update(ctx, key, value, entry.Revision())
+	require.NoError(t, err)
+	removed := scan(metadata).removals
 	require.Len(t, removed, 1, "expired privileged mode removes the owner")
 	require.Equal(t, owner.Id, removed[0].Identity)
-	require.Len(t, scan(time.Time{}).removals, 1, "a token without privileged mode has no owner override")
+	require.Len(t, scan("").removals, 1, "a token without privileged mode has no owner override")
+
+}
+
+func tokenMetadata(t *testing.T, token *VoiceCallToken) string {
+	t.Helper()
+	parsed, _, err := jwt.NewParser().ParseUnverified(token.Token, jwt.MapClaims{})
+	require.NoError(t, err)
+	return parsed.Claims.(jwt.MapClaims)["metadata"].(string)
 }

@@ -13,7 +13,8 @@ review complete. Passing tests or the Svelte analyser do not replace this review
 Focus on frontend implementation quality: Svelte patterns, component boundaries,
 design-system consistency, shared UI reuse, and simplicity. Check behavior where
 these choices affect it. Leave broader application, API, and persistence
-correctness to the general code review. A change being in a Svelte file does not
+correctness to the general code review
+([chatto-code-review](../chatto-code-review/SKILL.md)). A change being in a Svelte file does not
 make every correctness concern part of this review.
 
 ## Rules

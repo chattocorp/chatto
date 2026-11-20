@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "Eksperimenter",
+      "title": "Eksperimentelle funksjoner",
+      "new_message_header": "Ny meldingsoverskrift"
+    },
     "desktop": {
       "title": "Oppdateringer",
       "subtitle": "Oppdateringer for denne installasjonen",
@@ -50,7 +55,8 @@
         "composer": "Velg meldingsredigerer og hvordan du sender meldinger.",
         "voice": "Sett opp mikrofon, høyttalere og samtaleinnstillinger.",
         "system": "Kontroller serverstatus, lagring og bakgrunnsoppgaver.",
-        "event_log": "Utforsk serverhendelser og undersøk endringer."
+        "event_log": "Utforsk serverhendelser og undersøk endringer.",
+        "jobs": "Se bakgrunnsjobber og prøv mislykkede jobber på nytt."
       },
       "title": "Oversikt",
       "shield_notice": "Aktiver privilegert modus med skjoldknappen ved siden av navnet ditt for å bruke de ekstra tillatelsene dine på denne serveren."
@@ -540,9 +546,9 @@
           "body": "Sett opp en annen påloggingsmetode som denne serveren støtter, før du kobler fra {provider}."
         },
         "fresh_auth_modal": {
-          "title": "Bekreft passord",
-          "body": "Skriv inn ditt nåværende passord før du kobler til {provider}.",
-          "action": "Fortsett"
+          "title": "Koble til {provider}?",
+          "body": "Når du har koblet til {provider}, kan du bruke tjenesten til å logge inn på Chatto. Skriv inn det nåværende Chatto-passordet ditt for å fortsette.",
+          "password": "Chatto-passord"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Bekreft passord",

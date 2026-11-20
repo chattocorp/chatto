@@ -31,7 +31,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-019](FDR-019-room-lifecycle.md)                        | Room Lifecycle                        | Active       | 2026-10-28    |
 | [FDR-020](FDR-020-server-branding-and-configuration.md)     | Server Branding & Configuration       | Active       | 2026-09-18    |
 | [FDR-021](FDR-021-admin-dashboard.md)                       | Admin Dashboard & System Monitoring   | Active       | 2026-11-01    |
-| [FDR-022](FDR-022-user-profile.md)                          | User Profile                          | Active       | 2026-10-30    |
+| [FDR-022](FDR-022-user-profile.md)                          | User Profile                          | Active       | 2026-11-17    |
 | [FDR-023](FDR-023-authentication-and-sessions.md)           | Authentication & Sessions             | Active       | 2026-10-27    |
 | [FDR-024](FDR-024-permission-inspection-tool.md)            | Permission Inspection Tool            | Active       | 2026-08-27    |
 | [FDR-025](FDR-025-user-search-and-member-directory.md)      | User Search & Member Directory        | Active       | 2026-09-27    |
@@ -47,15 +47,15 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-035](FDR-035-slow-mode.md)                             | Slow Mode                             | Active       | 2026-10-15    |
 | [FDR-036](FDR-036-invite-links.md)                          | Invitation Codes                      | Active       | 2026-10-30    |
 | [FDR-037](FDR-037-pinned-messages.md)                       | Pinned Messages                       | Active       | 2026-10-12    |
-| [FDR-038](FDR-038-bot-accounts.md)                          | Bot Accounts                          | Experimental | 2026-09-23    |
+| [FDR-038](FDR-038-bot-accounts.md)                          | Bot Accounts                          | Experimental | 2026-11-19    |
 | [FDR-039](FDR-039-message-access-and-interactions.md)       | Message Access & Interactions         | Experimental | 2026-09-20    |
 | [FDR-040](FDR-040-backup-and-restore.md)                    | Backup and Restore                    | Active       | 2026-10-26    |
-| [FDR-041](FDR-041-transactional-email-delivery.md)          | Transactional Email Delivery          | Active       | 2026-08-28    |
+| [FDR-041](FDR-041-transactional-email-delivery.md)          | Transactional Email Delivery          | Active       | 2026-11-17    |
 | [FDR-042](FDR-042-chatto-neighbors.md)                      | Chatto Neighbors                      | Experimental | 2026-10-27    |
 | [FDR-043](FDR-043-model-context-protocol-integration.md)    | Model Context Protocol Integration    | Experimental | 2026-10-08    |
 | [FDR-044](FDR-044-my-threads.md)                            | Threads                               | Active       | 2026-10-30    |
 | [FDR-045](FDR-045-realtime-event-stream.md)                 | Realtime Event Stream                 | Experimental | 2026-09-25    |
-| [FDR-046](FDR-046-privileged-mode.md)                       | Privileged Mode                       | Active       | 2026-11-03    |
+| [FDR-046](FDR-046-privileged-mode.md)                       | Privileged Mode                       | Active       | 2026-11-19    |
 | [FDR-047](FDR-047-first-run-setup.md)                       | First-Run Setup                       | Active       | 2026-10-10    |
 | [FDR-048](FDR-048-chatto-mobile.md)                         | Chatto Mobile                         | Experimental | 2026-11-10    |
 | [FDR-049](FDR-049-server-gutter.md)                         | Server Gutter                         | Active       | 2026-10-09    |
@@ -65,3 +65,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-053](FDR-053-history-import-export.md)                 | History Import and Export             | Experimental | 2026-10-26    |
 | [FDR-054](FDR-054-room-notices.md)                          | Room Notices                          | Experimental | 2026-10-25    |
 | [FDR-055](FDR-055-keyboard-shortcut-help.md)                | Keyboard Shortcut Help                | Active       | 2026-10-28    |
+| [FDR-056](FDR-056-background-jobs.md)                       | Background Jobs                       | Experimental | 2026-11-17    |
+| [FDR-057](FDR-057-search-during-index-rebuild.md)           | Search During Index Rebuild           | Planned      | 2026-11-17    |
+| [FDR-058](FDR-058-atproto-sign-in.md)                       | AT Protocol Sign-In                   | Experimental | 2026-11-12    |
+| [FDR-059](FDR-059-client-experimental-features.md)          | Client Experimental Features          | Active       | 2026-11-19    |

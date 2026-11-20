@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/chattocorp/chatto/cli/internal/authctx"
@@ -47,9 +49,14 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 			Handle:                  credentials.AccessToken,
 			ExpiresAt:               validated.ExpiresAt,
 			PrivilegedModeExpiresAt: validated.PrivilegedModeExpiresAt,
+			PrivilegedRoles:         validated.PrivilegedRoles,
 		})
 	}
 
+	// The same owner can activate a moderation role without activating owner.
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, owner.Id, core.RoleModerator); err != nil {
+		t.Fatal(err)
+	}
 	unarmed, err := env.viewerService.GetViewer(requestContext(), connect.NewRequest(&apiv1.GetViewerRequest{}))
 	if err != nil {
 		t.Fatalf("GetViewer unarmed: %v", err)
@@ -61,6 +68,34 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 		t.Fatal("unarmed owner has effective system capability")
 	}
 
+	if roles := unarmed.Msg.PrivilegedMode.GetRoleSelection().GetAvailableRoles(); !slices.Equal(roles, []string{core.RoleModerator, core.RoleOwner}) {
+		t.Fatalf("selectable roles = %v", roles)
+	}
+	activateRoles := func(names ...string) (*connect.Response[apiv1.ActivatePrivilegedRolesResponse], error) {
+		return env.viewerService.ActivatePrivilegedRoles(requestContext(), connect.NewRequest(&apiv1.ActivatePrivilegedRolesRequest{RoleNames: names}))
+	}
+	if _, err := activateRoles(core.RoleAdmin); errorCode(err) != connect.CodePermissionDenied {
+		t.Fatalf("unassigned role error = %v", err)
+	}
+	if _, err := activateRoles(); errorCode(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty role selection error = %v", err)
+	}
+	moderator, err := activateRoles(core.RoleModerator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if apiCapabilityGranted(moderator.Msg.Capabilities.Grants, viewerCapabilityAdminViewSystem) {
+		t.Fatal("moderator selection activated the owner override")
+	}
+	if can, err := env.core.HasServerPermission(requestContext(), owner.Id, core.PermRoomMemberRemove); err != nil || !can {
+		t.Fatalf("selected moderator grant = %t, %v", can, err)
+	}
+	if can, err := env.core.CanAdminSystemView(requestContext(), owner.Id); err != nil || can {
+		t.Fatalf("persisted owner override = %t, %v", can, err)
+	}
+	if _, err := env.viewerService.DeactivatePrivilegedMode(requestContext(), connect.NewRequest(&apiv1.DeactivatePrivilegedModeRequest{})); err != nil {
+		t.Fatal(err)
+	}
 	activated, err := env.viewerService.ActivatePrivilegedMode(requestContext(), connect.NewRequest(&apiv1.ActivatePrivilegedModeRequest{}))
 	if err != nil {
 		t.Fatalf("ActivatePrivilegedMode: %v", err)
@@ -91,8 +126,16 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListEventLog activation: %v", err)
 	}
-	if len(activationLog.Entries) != 1 {
-		t.Fatalf("privileged-mode activation audit entries = %d, want 1", len(activationLog.Entries))
+	if len(activationLog.Entries) != 2 {
+		t.Fatalf("privileged-mode activation audit entries = %d, want 2", len(activationLog.Entries))
+	}
+
+	// The event log is newest first. The legacy request selected both assigned
+	// roles, while the earlier picker request selected only moderator.
+	for i, want := range [][]string{{core.RoleModerator, core.RoleOwner}, {core.RoleModerator}} {
+		var event evtv1.Event
+		require.NoError(t, protojson.Unmarshal([]byte(activationLog.Entries[i].PayloadJSON), &event))
+		require.Equal(t, want, event.GetPrivilegedModeActivated().GetRoleNames())
 	}
 
 	armedContext := requestContext()
@@ -112,8 +155,8 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListEventLog deactivation: %v", err)
 	}
-	if len(deactivationLog.Entries) != 1 {
-		t.Fatalf("privileged-mode deactivation audit entries = %d, want 1", len(deactivationLog.Entries))
+	if len(deactivationLog.Entries) != 2 {
+		t.Fatalf("privileged-mode deactivation audit entries = %d, want 2", len(deactivationLog.Entries))
 	}
 	disarmed, err := env.viewerService.GetViewer(requestContext(), connect.NewRequest(&apiv1.GetViewerRequest{}))
 	if err != nil {
@@ -128,11 +171,147 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	}
 }
 
+func TestViewerCookieActivationAuditsExplicitRoleSelection(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	user := env.viewer
+	require.NoError(t, env.core.AssignOwnerRole(env.ctx, user.Id))
+	require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator))
+	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, user.Id, core.PermAdminAuditView))
+	handle, _, err := env.core.CreateCookieSession(env.ctx, user.Id, "password_login")
+	require.NoError(t, err)
+	ctx := authctx.WithCredential(withCaller(env.ctx, user), authctx.RuntimeCredential{
+		Kind: authctx.RuntimeCredentialKindCookieSession, UserID: user.Id, Handle: handle,
+	})
+
+	response, err := env.viewerService.ActivatePrivilegedRoles(ctx, connect.NewRequest(&apiv1.ActivatePrivilegedRolesRequest{
+		RoleNames: []string{core.RoleModerator},
+	}))
+	require.NoError(t, err)
+	log, err := env.core.ListEventLog(ctx, user.Id, core.EventLogQuery{
+		Filter: core.EventLogFilter{EventType: "PrivilegedModeActivatedEvent", ActorID: user.Id},
+	})
+	require.NoError(t, err)
+	require.Len(t, log.Entries, 1)
+	var event evtv1.Event
+	require.NoError(t, protojson.Unmarshal([]byte(log.Entries[0].PayloadJSON), &event))
+	activation := event.GetPrivilegedModeActivated()
+	require.Equal(t, []string{core.RoleModerator}, activation.GetRoleNames())
+	require.True(t, proto.Equal(response.Msg.PrivilegedMode.ExpiresAt, activation.GetExpiresAt()))
+}
+
+func TestViewerLegacyActivationRetryKeepsStoredSelection(t *testing.T) {
+	for _, kind := range []authctx.RuntimeCredentialKind{authctx.RuntimeCredentialKindBearerToken, authctx.RuntimeCredentialKindCookieSession} {
+		t.Run(string(kind), func(t *testing.T) {
+			env := newConnectAPITestEnv(t)
+			user := env.viewer
+			require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator))
+			var handle string
+			if kind == authctx.RuntimeCredentialKindCookieSession {
+				id, _, err := env.core.CreateCookieSession(env.ctx, user.Id, "password_login")
+				require.NoError(t, err)
+				handle = id
+			} else {
+				tokens, err := env.core.CreateBearerSessionWithSource(env.ctx, user.Id, "password_login")
+				require.NoError(t, err)
+				handle = tokens.AccessToken
+			}
+			// Reuse the request credential to exercise a retry even when authentication
+			// preceded the first activation. The persisted session owns the selection.
+			ctx := authctx.WithCredential(withCaller(env.ctx, user), authctx.RuntimeCredential{UserID: user.Id, Handle: handle, Kind: kind})
+			activate := func() *apiv1.ActivatePrivilegedModeResponse {
+				t.Helper()
+				res, err := env.viewerService.ActivatePrivilegedMode(ctx, connect.NewRequest(&apiv1.ActivatePrivilegedModeRequest{}))
+				require.NoError(t, err)
+				return res.Msg
+			}
+			require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, user.Id, core.PermAdminAuditView))
+			first := activate()
+			require.False(t, apiCapabilityGranted(first.Capabilities.Grants, viewerCapabilityAdminViewSystem))
+			require.NoError(t, env.core.RevokeServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator))
+			retry := activate()
+			require.False(t, retry.PrivilegedMode.Available)
+			require.True(t, proto.Equal(first.PrivilegedMode.ExpiresAt, retry.PrivilegedMode.ExpiresAt))
+			require.NoError(t, env.core.AssignOwnerRole(env.ctx, user.Id))
+			retry = activate()
+			require.Equal(t, []string{core.RoleOwner}, retry.PrivilegedMode.RoleSelection.AvailableRoles)
+			require.True(t, proto.Equal(first.PrivilegedMode.ExpiresAt, retry.PrivilegedMode.ExpiresAt))
+			require.False(t, apiCapabilityGranted(retry.Capabilities.Grants, viewerCapabilityAdminViewSystem))
+			_, err := env.viewerService.ActivatePrivilegedRoles(ctx, connect.NewRequest(&apiv1.ActivatePrivilegedRolesRequest{RoleNames: []string{core.RoleOwner}}))
+			require.Equal(t, connect.CodeInvalidArgument, errorCode(err))
+			log, err := env.core.ListEventLog(ctx, user.Id, core.EventLogQuery{
+				Filter: core.EventLogFilter{EventType: "PrivilegedModeActivatedEvent", ActorID: user.Id},
+			})
+			require.NoError(t, err)
+			require.Len(t, log.Entries, 1)
+			var event evtv1.Event
+			require.NoError(t, protojson.Unmarshal([]byte(log.Entries[0].PayloadJSON), &event))
+			require.Equal(t, []string{core.RoleModerator}, event.GetPrivilegedModeActivated().GetRoleNames())
+			if kind == authctx.RuntimeCredentialKindCookieSession {
+				session, err := env.core.ValidateCookieCredential(ctx, handle)
+				require.NoError(t, err)
+				require.Equal(t, []string{core.RoleModerator}, session.PrivilegedRoles)
+			} else {
+				session, err := env.core.ValidatePublicBearerCredential(ctx, handle)
+				require.NoError(t, err)
+				require.Equal(t, []string{core.RoleModerator}, session.PrivilegedRoles)
+			}
+		})
+	}
+}
+
+func TestViewerCanEndShieldModeAfterLastProtectedRoleIsRevoked(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "shield-moderator", "Moderator", "password")
+	require.NoError(t, err)
+	require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator))
+	tokens, err := env.core.CreateBearerSessionWithSource(env.ctx, user.Id, "password_login")
+	require.NoError(t, err)
+	request := func() context.Context {
+		validated, err := env.core.ValidatePublicBearerCredential(env.ctx, tokens.AccessToken)
+		require.NoError(t, err)
+		return authctx.WithCredential(withCaller(env.ctx, user), authctx.RuntimeCredential{UserID: user.Id, Handle: tokens.AccessToken, Kind: authctx.RuntimeCredentialKindBearerToken, PrivilegedModeExpiresAt: validated.PrivilegedModeExpiresAt, PrivilegedRoles: validated.PrivilegedRoles})
+	}
+	active, err := env.viewerService.ActivatePrivilegedRoles(request(), connect.NewRequest(&apiv1.ActivatePrivilegedRolesRequest{RoleNames: []string{core.RoleModerator}}))
+	require.NoError(t, err)
+	require.NoError(t, env.core.RevokeServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator))
+	retry := func(want connect.Code) {
+		t.Helper()
+		_, err := env.viewerService.ActivatePrivilegedRoles(request(), connect.NewRequest(&apiv1.ActivatePrivilegedRolesRequest{RoleNames: []string{core.RoleModerator}}))
+		require.Equal(t, want, errorCode(err))
+		credential, ok := authctx.CredentialForContext(request())
+		require.True(t, ok)
+		require.Equal(t, []string{core.RoleModerator}, credential.PrivilegedRoles)
+		require.True(t, credential.PrivilegedModeExpiresAt.Equal(active.Msg.PrivilegedMode.ExpiresAt.AsTime()))
+		allowed, err := env.core.HasServerPermission(request(), user.Id, core.PermRoomMemberRemove)
+		require.NoError(t, err)
+		require.False(t, allowed)
+	}
+	retry(connect.CodeFailedPrecondition)
+	viewer, err := env.viewerService.GetViewer(request(), connect.NewRequest(&apiv1.GetViewerRequest{}))
+	require.NoError(t, err)
+	state := viewer.Msg.PrivilegedMode
+	require.False(t, state.Available)
+	require.True(t, state.Active)
+	require.True(t, proto.Equal(active.Msg.PrivilegedMode.ExpiresAt, state.ExpiresAt))
+	require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleAdmin))
+	retry(connect.CodePermissionDenied)
+	require.NoError(t, env.core.RevokeServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleAdmin))
+	_, err = env.viewerService.DeactivatePrivilegedMode(request(), connect.NewRequest(&apiv1.DeactivatePrivilegedModeRequest{}))
+	require.NoError(t, err)
+	require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, core.RoleModerator))
+	viewer, err = env.viewerService.GetViewer(request(), connect.NewRequest(&apiv1.GetViewerRequest{}))
+	require.NoError(t, err)
+	require.False(t, viewer.Msg.PrivilegedMode.Active)
+}
+
 func TestViewerServicePrivilegedModeRejectsIneligibleCallers(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	credentials, err := env.core.CreateBearerSessionWithSource(env.ctx, env.viewer.Id, "password_login")
 	if err != nil {
 		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleManage); err != nil {
+		t.Fatal(err)
 	}
 	humanContext := withBearerCredential(env.ctx, env.viewer, credentials.AccessToken)
 	if _, err := env.viewerService.ActivatePrivilegedMode(humanContext, connect.NewRequest(&apiv1.ActivatePrivilegedModeRequest{})); errorCode(err) != connect.CodeFailedPrecondition {

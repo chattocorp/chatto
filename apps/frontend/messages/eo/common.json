@@ -43,7 +43,7 @@
       "password_min_bytes": "La pasvorto estas tro mallonga",
       "password_max": "La pasvorto estas tro longa",
       "username_min": "Devas esti almenaŭ 2 signoj",
-      "username_max": "Devas esti maksimume 32 signoj",
+      "username_max": "Devas esti maksimume {max} signoj",
       "username_charset": "Nur literoj, ciferoj, punktoj, streketoj, substrekoj",
       "username_end_alphanumeric": "Devas finiĝi per litero aŭ cifero",
       "username_no_consecutive_periods": "Neniuj sinsekvaj periodoj permesitaj",

@@ -43,7 +43,7 @@ disabled state, and typography.
   <span class="min-w-0">
     <span class={['block', selected && 'font-medium']}>{label}</span>
     {#if description}
-      <span class="block text-sm text-muted">{description}</span>
+      <span class="block text-sm text-muted select-text">{description}</span>
     {/if}
   </span>
 </button>

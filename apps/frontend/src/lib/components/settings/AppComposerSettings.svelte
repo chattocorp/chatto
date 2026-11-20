@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Panel, ChoiceRow, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
+  import SettingsColumns from './SettingsColumns.svelte';
   import {
     userPreferences,
     type ComposerEditorKind,
@@ -43,44 +44,55 @@
   />
 
   <PaneContent>
-    <div class="flex flex-col gap-6">
-      <Panel title={m('settings.preferences.editor.title')} icon="iconify icon-[uil--edit]">
-        <div class="max-w-md">
-          <div
-            class="flex flex-col gap-2"
-            role="radiogroup"
-            aria-label={m('settings.preferences.editor.title')}
-          >
-            {#each editorOptions as option (option.value)}
-              <ChoiceRow
-                label={option.label}
-                description={option.description}
-                selected={userPreferences.composerEditor === option.value}
-                onclick={() => (userPreferences.composerEditor = option.value)}
-              />
-            {/each}
+    <SettingsColumns>
+      {#snippet start()}
+        <Panel
+          fillHeight
+          title={m('settings.preferences.editor.title')}
+          icon="iconify icon-[uil--edit]"
+        >
+          <div class="max-w-md">
+            <div
+              class="flex flex-col gap-2"
+              role="radiogroup"
+              aria-label={m('settings.preferences.editor.title')}
+            >
+              {#each editorOptions as option (option.value)}
+                <ChoiceRow
+                  label={option.label}
+                  description={option.description}
+                  selected={userPreferences.composerEditor === option.value}
+                  onclick={() => (userPreferences.composerEditor = option.value)}
+                />
+              {/each}
+            </div>
           </div>
-        </div>
-      </Panel>
-
-      <Panel title={m('settings.preferences.send_mode.title')} icon="iconify icon-[uil--message]">
-        <div class="max-w-md">
-          <div
-            class="flex flex-col gap-2"
-            role="radiogroup"
-            aria-label={m('settings.preferences.send_mode.title')}
-          >
-            {#each sendModeOptions as option (option.value)}
-              <ChoiceRow
-                label={option.label}
-                description={option.description}
-                selected={userPreferences.composerSendMode === option.value}
-                onclick={() => (userPreferences.composerSendMode = option.value)}
-              />
-            {/each}
+        </Panel>
+      {/snippet}
+      {#snippet end()}
+        <Panel
+          fillHeight
+          title={m('settings.preferences.send_mode.title')}
+          icon="iconify icon-[uil--message]"
+        >
+          <div class="max-w-md">
+            <div
+              class="flex flex-col gap-2"
+              role="radiogroup"
+              aria-label={m('settings.preferences.send_mode.title')}
+            >
+              {#each sendModeOptions as option (option.value)}
+                <ChoiceRow
+                  label={option.label}
+                  description={option.description}
+                  selected={userPreferences.composerSendMode === option.value}
+                  onclick={() => (userPreferences.composerSendMode = option.value)}
+                />
+              {/each}
+            </div>
           </div>
-        </div>
-      </Panel>
-    </div>
+        </Panel>
+      {/snippet}
+    </SettingsColumns>
   </PaneContent>
 </div>

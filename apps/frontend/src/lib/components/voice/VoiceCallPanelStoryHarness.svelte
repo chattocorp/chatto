@@ -29,6 +29,7 @@
     initiallyMuted = false,
     playableMedia = false,
     activeSpeaker = null,
+    localConnectionQuality = 'excellent',
     extraParticipants = 0
   }: {
     layout?: 'sidebar' | 'stage';
@@ -43,6 +44,8 @@
     playableMedia?: boolean;
     /** Identity that the call reports as the remote active speaker. */
     activeSpeaker?: string | null;
+    /** Connection quality that the call reports for the viewer. */
+    localConnectionQuality?: CallParticipantInfo['connectionQuality'];
     /** Extra camera participants for scrolling and constrained pane stories. */
     extraParticipants?: number;
   } = $props();
@@ -166,6 +169,7 @@
   function participantsForScenario(): CallParticipantInfo[] {
     const viewer = participant('viewer', 'Alice', {
       isLocal: true,
+      connectionQuality: localConnectionQuality,
       isCameraEnabled: scenario !== 'voice',
       videoTrack: scenario !== 'voice' ? cameraTrack : null
     });
@@ -220,7 +224,11 @@
       return [viewer, bob, chloe];
     }
 
-    return [participant('viewer', 'Alice', { isLocal: true }), bob, chloe];
+    return [
+      participant('viewer', 'Alice', { isLocal: true, connectionQuality: localConnectionQuality }),
+      bob,
+      chloe
+    ];
   }
 
   function ensureStorybookServer(): RegisteredServer {

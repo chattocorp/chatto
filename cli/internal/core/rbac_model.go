@@ -24,6 +24,10 @@ func (m *RBACModel) role(name string) (*readmodel.Role, bool) {
 	return m.rbac.Projection().GetRole(name)
 }
 
+func (m *RBACModel) roleRequiresShieldMode(name string) bool {
+	return m.rbac.Projection().RoleRequiresShieldMode(name)
+}
+
 func (m *RBACModel) roleExists(name string) bool {
 	return m.rbac.Projection().RoleExists(name)
 }
@@ -66,10 +70,6 @@ func (m *RBACModel) decisionsFor(scope PermissionScope, scopeID, subject string)
 
 func (m *RBACModel) decisionsForRoleServer(roleName string) (grants, denials []Permission) {
 	return m.rbac.Projection().DecisionsForRoleServer(roleName)
-}
-
-func (m *RBACModel) hasAnyPrivilegedModeAllow(userID string) bool {
-	return m.rbac.Projection().HasAnyPrivilegedModeAllow(userID)
 }
 
 func (m *RBACModel) nextAvailablePosition() int32 {

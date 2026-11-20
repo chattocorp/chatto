@@ -35,10 +35,12 @@ Renders nothing on other servers or later visits.
     if (!takeOwnerOnboarding()) return;
     visible = true;
     if (privilegedMode.available && !privilegedMode.active) {
-      store.setPrivilegedMode(true).catch((error: unknown) => {
-        shieldFailed = true;
-        toastError(error, m('chat.owner_welcome.shield_failed'));
-      });
+      store
+        .setPrivilegedMode(true, privilegedMode.roleSelection ? ['owner'] : undefined)
+        .catch((error: unknown) => {
+          shieldFailed = true;
+          toastError(error, m('chat.owner_welcome.shield_failed'));
+        });
     }
   });
 

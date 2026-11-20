@@ -70,7 +70,8 @@ describe('createRoleAPI', () => {
           description: 'Moderates rooms',
           isSystem: true,
           position: 100,
-          pingable: true
+          pingable: true,
+          requiresShieldMode: true
         }
       ]
     });
@@ -87,7 +88,8 @@ describe('createRoleAPI', () => {
           description: 'Moderates rooms',
           isSystem: true,
           position: 100,
-          pingable: true
+          pingable: true,
+          requiresShieldMode: true
         }
       ],
       viewerCanManageRoles: false,
@@ -102,7 +104,8 @@ describe('createRoleAPI', () => {
       description: 'Moderates rooms',
       isSystem: true,
       position: 100,
-      pingable: true
+      pingable: true,
+      requiresShieldMode: true
     };
     roles.getRole.mockReturnValue({ role });
     roles.batchGetRoles.mockReturnValue({ roles: [role] });
@@ -129,7 +132,8 @@ describe('createRoleAPI', () => {
             description: 'Moderates rooms',
             isSystem: true,
             position: 100,
-            pingable: true
+            pingable: true,
+            requiresShieldMode: true
           },
           memberCount: 12n,
           permissionGrantCount: 5n,
@@ -154,7 +158,8 @@ describe('createRoleAPI', () => {
           permissionDenialCount: 0,
           isSystem: true,
           position: 100,
-          pingable: true
+          pingable: true,
+          requiresShieldMode: true
         }
       ],
       viewerCanManageRoles: true,
@@ -194,7 +199,8 @@ describe('createRoleAPI', () => {
           description: '',
           isSystem: false,
           position: 10,
-          pingable: false
+          pingable: false,
+          requiresShieldMode: false
         }
       },
       viewerCanManageRoles: true,
@@ -212,7 +218,8 @@ describe('createRoleAPI', () => {
         description: '',
         isSystem: false,
         position: 10,
-        pingable: false
+        pingable: false,
+        requiresShieldMode: false
       },
       viewerCanManageRoles: true,
       viewerCanAssignRoles: true
@@ -250,7 +257,8 @@ describe('createRoleAPI', () => {
       description: 'Support queue',
       isSystem: false,
       position: 10,
-      pingable: true
+      pingable: true,
+      requiresShieldMode: true
     };
     const apiRole = {
       role: {
@@ -259,7 +267,8 @@ describe('createRoleAPI', () => {
         description: role.description,
         isSystem: role.isSystem,
         position: role.position,
-        pingable: role.pingable
+        pingable: role.pingable,
+        requiresShieldMode: role.requiresShieldMode
       }
     };
     adminRoles.createRole.mockReturnValue({ role: apiRole });
@@ -275,7 +284,8 @@ describe('createRoleAPI', () => {
         name: 'helpdesk',
         displayName: 'Support',
         description: 'Support queue',
-        pingable: false
+        pingable: false,
+        requiresShieldMode: false
       })
     ).resolves.toMatchObject({ displayName: 'Support' });
     await expect(api.deleteRole('helpdesk')).resolves.toBe(true);
@@ -284,14 +294,16 @@ describe('createRoleAPI', () => {
       name: 'helpdesk',
       displayName: 'Helpdesk',
       description: 'Support queue',
-      pingable: true
+      pingable: true,
+      requiresShieldMode: true
     });
     expect(receivedRequest(adminRoles.updateRole)).toMatchObject({
       name: 'helpdesk',
       displayName: 'Support',
       description: 'Support queue',
       pingable: false,
-      updateMask: { paths: ['display_name', 'description', 'pingable'] }
+      requiresShieldMode: false,
+      updateMask: { paths: ['display_name', 'description', 'pingable', 'requires_shield_mode'] }
     });
     expect(receivedRequest(adminRoles.deleteRole)).toMatchObject({ name: 'helpdesk' });
   });

@@ -60,6 +60,7 @@ Room sidebar panel for voice/video calls.
   import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
   import {
     getVoiceCallJoinErrorMessage,
+    voiceActivityLevel,
     type CallParticipantInfo
   } from '$lib/state/server/voiceCall.svelte';
   import type { Track } from 'livekit-client';
@@ -375,8 +376,7 @@ Room sidebar panel for voice/video calls.
 
   function participantVoiceLevel(participant: DisplayParticipant) {
     if (participant.isMuted || (participant.isLocal && voiceCallState.isMuted)) return 0;
-    const { audioLevel, isSpeaking } = voiceCallState.getAudioLevel(participant.key);
-    return audioLevel > 0 ? audioLevel : isSpeaking ? 0.06 : 0;
+    return voiceActivityLevel(voiceCallState.getAudioLevel(participant.key));
   }
 
   const canStartDMs = $derived(stores.permissions.canStartDMs);
@@ -831,7 +831,7 @@ Room sidebar panel for voice/video calls.
               class="pill-button"
               label={m('voice.preferences.title')}
               testId="call-device-menu-button"
-              icon="icon-[uil--setting]"
+              icon="icon-[uil--cog]"
               iconClass="text-lg"
               onclick={openVoicePreferences}
             />

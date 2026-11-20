@@ -23,7 +23,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
   import { Compartment, EditorSelection, EditorState, Prec, Transaction } from '@codemirror/state';
   import { EditorView, keymap, placeholder as editorPlaceholder } from '@codemirror/view';
   import { tags } from '@lezer/highlight';
-  import { Table } from '@lezer/markdown';
+  import { Strikethrough, Table } from '@lezer/markdown';
   import { sourceAutolinks } from './sourceAutolinks';
   import { sourceEmphasisHighlighting, sourceEmphasisSyntax } from './sourceEmphasisHighlighting';
   import { sourceLinkHighlighting, sourceLinkSyntax } from './sourceLinkHighlighting';
@@ -45,6 +45,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     bold: false,
     italic: false,
     underline: false,
+    strikethrough: false,
     inlineCode: false,
     heading: false,
     bulletList: false,
@@ -183,7 +184,13 @@ the same API as the visual editor while keeping the stored Markdown visible.
           ]),
           markdown({
             base: commonmarkLanguage,
-            extensions: [Table, sourceAutolinks, sourceLinkSyntax, sourceEmphasisSyntax],
+            extensions: [
+              Strikethrough,
+              Table,
+              sourceAutolinks,
+              sourceLinkSyntax,
+              sourceEmphasisSyntax
+            ],
             completeHTMLTags: false,
             pasteURLAsLink: true
           }),

@@ -1,7 +1,7 @@
 /*
  * Storybook-only overrides.
  *
- * Theme tokens come from `src/app.css`, gated by `[data-theme='dark']` on the
+ * Theme tokens come from `src/styles/themes.css`, gated by `[data-theme='dark']` on the
  * iframe's `<html>`. The decorator in `preview.ts` sets that attribute from
  * the toolbar global. Storybook's manager UI and docs chrome handle their
  * own theming via the standard `addons.setConfig` and `parameters.docs.theme`

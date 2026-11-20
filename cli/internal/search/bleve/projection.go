@@ -116,6 +116,8 @@ type Projection struct {
 	commitBatch func(*blevesearch.Batch) error
 	// syncPathOverride injects filesystem sync failures in rebuild tests.
 	syncPathOverride func(string) error
+	// diagnostics is readable without mu; see indexDiagnostics.
+	diagnostics indexDiagnostics
 }
 
 func NewProjection(directory string, languageCodes []string, keyWrapper kms.KeyWrapper, legacyKeys kms.LegacyKeyProvider, dekStore dekstore.Reader, logger *log.Logger) (*Projection, error) {
@@ -200,10 +202,14 @@ func (p *Projection) applyBatch(items []evtstream.SequencedEvent) error {
 	if len(items) == 0 {
 		return nil
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	firstSequence := items[0].Sequence
 	lastSequence := items[len(items)-1].Sequence
+	p.diagnostics.beginWrite(indexWriteStageLockWait, len(items), firstSequence, lastSequence)
+	var committedSequence uint64
+	defer func() { p.diagnostics.endWrite(committedSequence) }()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.diagnostics.setWriteStage(indexWriteStagePrepare)
 	applyTimer := time.AfterFunc(slowIndexOperation, func() {
 		p.logger.Warn("Search index operation is slow",
 			"stage", "event_preparation_or_commit",
@@ -255,6 +261,7 @@ func (p *Projection) applyBatch(items []evtstream.SequencedEvent) error {
 	if p.commitBatch != nil {
 		commitBatch = p.commitBatch
 	}
+	p.diagnostics.setWriteStage(indexWriteStageCommit)
 	commitTimer := time.AfterFunc(slowIndexOperation, func() {
 		p.logger.Warn("Search index operation is slow",
 			"stage", "bleve_batch_commit",
@@ -272,6 +279,7 @@ func (p *Projection) applyBatch(items []evtstream.SequencedEvent) error {
 		p.deks = batch.deks
 	}
 	p.checkpoint = record
+	committedSequence = lastSequence
 	return nil
 }
 
@@ -418,10 +426,13 @@ func (p *Projection) RestoreCheckpoint(_ context.Context, request events.Project
 	}
 	p.deks = deks
 	p.checkpoint = record
+	p.diagnostics.setCheckpoint(record.CutoffSequence)
 	return events.ProjectionCheckpoint{CutoffSequence: record.CutoffSequence}, nil
 }
 
 func (p *Projection) ResetCheckpoint(ctx context.Context, request events.ProjectionCheckpointRequest) error {
+	p.diagnostics.beginWrite(indexWriteStageReset, 0, 0, 0)
+	defer p.diagnostics.endWrite(0)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := ctx.Err(); err != nil {

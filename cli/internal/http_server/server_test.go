@@ -2070,7 +2070,7 @@ func TestAuthRoutes_Register_SendsRegistrationEmail(t *testing.T) {
 	if regexp.MustCompile(`\b\d{6}\b`).FindString(email.Body) == "" {
 		t.Errorf("Expected email body to contain six-digit registration code, got: %s", email.Body)
 	}
-	if !strings.Contains(email.Body, "This code will expire in 30 minutes.") {
+	if !strings.Contains(email.Body, "This code expires 30 minutes after the request.") {
 		t.Errorf("Expected email body to mention 30-minute expiration, got: %s", email.Body)
 	}
 	if strings.Contains(email.Body, "/register/complete") {
@@ -2097,7 +2097,7 @@ func TestAuthRoutes_Register_EmailUsesConfiguredOTPExpiration(t *testing.T) {
 	if msg == nil {
 		t.Fatal("Expected registration email to be sent")
 	}
-	if !strings.Contains(msg.Body, "This code will expire in 45 minutes.") {
+	if !strings.Contains(msg.Body, "This code expires 45 minutes after the request.") {
 		t.Fatalf("Expected email body to mention configured 45-minute expiration, got: %s", msg.Body)
 	}
 	if strings.Contains(msg.Body, "30 minutes") {
@@ -2383,7 +2383,7 @@ func TestAuthRoutes_RegisterComplete_InvalidLogin(t *testing.T) {
 	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
 
-	for i, login := range []string{"a", "alice."} {
+	for i, login := range []string{"a", "alice.", strings.Repeat("a", 65)} {
 		t.Run(login, func(t *testing.T) {
 			token, err := chattoCore.CreateRegistrationToken(ctx, fmt.Sprintf("invalid-%d@example.com", i))
 			if err != nil {
@@ -2840,7 +2840,7 @@ func TestAuthRoutes_EmailVerification_EmailUsesConfiguredOTPExpiration(t *testin
 	if msg == nil {
 		t.Fatal("Expected verification email to be sent")
 	}
-	if !strings.Contains(msg.Body, "This code will expire in 2 hours.") {
+	if !strings.Contains(msg.Body, "This code expires 2 hours after the request.") {
 		t.Fatalf("Expected email body to mention configured 2-hour expiration, got: %s", msg.Body)
 	}
 	if strings.Contains(msg.Body, "30 minutes") {
@@ -3007,11 +3007,13 @@ func TestAuthRoutes_RegisterComplete_ThenLogin(t *testing.T) {
 	ts, client, chattoCore, _ := setupTestHTTPServerWithMailer(t)
 	ctx := testContext(t)
 
+	login := strings.Repeat("a", 64)
+
 	// Register via two-step flow
 	token, _ := chattoCore.CreateRegistrationToken(ctx, "logintest@example.com")
 	reqBody := map[string]string{
 		"token":                token,
-		"login":                "logintest",
+		"login":                login,
 		"password":             "password123",
 		"passwordConfirmation": "password123",
 	}
@@ -3036,7 +3038,7 @@ func TestAuthRoutes_RegisterComplete_ThenLogin(t *testing.T) {
 
 	// Log in with the same credentials
 	loginBody := map[string]string{
-		"login":    "logintest",
+		"login":    login,
 		"password": "password123",
 	}
 	body, _ = json.Marshal(loginBody)
@@ -3065,8 +3067,8 @@ func TestAuthRoutes_RegisterComplete_ThenLogin(t *testing.T) {
 	if !ok {
 		t.Fatal("Expected user object")
 	}
-	if user["login"] != "logintest" {
-		t.Errorf("Expected login logintest, got %v", user["login"])
+	if user["login"] != login {
+		t.Error("Sign-in did not return the full login")
 	}
 }
 

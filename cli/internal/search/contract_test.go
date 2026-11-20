@@ -177,7 +177,7 @@ func TestStartupStatusServiceJoinsReadyQueuesOnlyWhenReady(t *testing.T) {
 	provider.mu.Lock()
 	provider.status = &searchv1.GetStatusResponse{State: searchv1.ProviderState_PROVIDER_STATE_READY}
 	provider.mu.Unlock()
-	if err := AddQueryEndpoint(testContext(t), service, provider); err != nil {
+	if err := AddQueryEndpoint(testContext(t), nc, service, provider); err != nil {
 		t.Fatalf("AddQueryEndpoint: %v", err)
 	}
 	if err := AddStatusEndpoint(testContext(t), service, provider); err != nil {
@@ -319,5 +319,84 @@ func TestClientValidatesBeforeRequest(t *testing.T) {
 	_, err := NewClient(nc).Query(testContext(t), &searchv1.QueryRequest{})
 	if err == nil || errors.Is(err, ErrUnavailable) {
 		t.Fatalf("Query error = %v, want local validation error", err)
+	}
+}
+
+// blockingProvider ignores query cancellation, like a query that waits for
+// an index lock that a blocked commit holds.
+type blockingProvider struct {
+	testProvider
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (p *blockingProvider) Query(ctx context.Context, request *searchv1.QueryRequest) (*searchv1.QueryResponse, error) {
+	p.entered <- struct{}{}
+	<-p.release
+	return p.testProvider.Query(ctx, request)
+}
+
+func TestQueryEndpointBoundsBlockedQueries(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	provider := &blockingProvider{
+		testProvider: testProvider{queryResult: &searchv1.QueryResponse{}},
+		entered:      make(chan struct{}, maxConcurrentQueries+1),
+		release:      make(chan struct{}),
+	}
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(provider.release) }) }
+	t.Cleanup(release)
+	service, err := AddService(testContext(t), nc, provider, ServiceOptions{})
+	if err != nil {
+		t.Fatalf("AddService: %v", err)
+	}
+	t.Cleanup(func() { _ = service.Stop() })
+	payload, err := proto.Marshal(validQuery())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Fill every handler slot with a blocked query. Handlers run
+	// concurrently, so each request reaches the provider.
+	for range maxConcurrentQueries {
+		if err := nc.PublishRequest(QuerySubject, nats.NewInbox(), payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for range maxConcurrentQueries {
+		select {
+		case <-provider.entered:
+		case <-testContext(t).Done():
+			t.Fatal("blocked queries did not run concurrently")
+		}
+	}
+
+	// The next query is rejected at once with a retryable error.
+	started := time.Now()
+	response, err := nc.RequestWithContext(testContext(t), QuerySubject, payload)
+	if err != nil {
+		t.Fatalf("request while busy: %v", err)
+	}
+	if code := response.Header.Get("Nats-Service-Error-Code"); code != ErrorCodeUnavailable {
+		t.Fatalf("busy error code = %q, headers = %v", code, response.Header)
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("busy rejection took %s", elapsed)
+	}
+
+	// After the blocked queries return, the endpoint accepts queries again.
+	// Handlers free their slots asynchronously, so retry only busy errors.
+	release()
+	ctx := testContext(t)
+	for {
+		_, err := NewClient(nc).Query(ctx, validQuery())
+		if err == nil {
+			break
+		}
+		var serviceError *ServiceError
+		if !errors.As(err, &serviceError) || serviceError.Description != "search provider is busy" || ctx.Err() != nil {
+			t.Fatalf("Query after release: %v", err)
+		}
+		time.Sleep(time.Millisecond)
 	}
 }

@@ -341,12 +341,13 @@ func (s *adminUserManagementService) adminMemberAfterMutationForUser(ctx context
 
 func publicAPIRoleFromAdminMemberSummary(role core.AdminMemberRoleSummary) *apiv1.Role {
 	return &apiv1.Role{
-		Name:        role.Name,
-		DisplayName: role.DisplayName,
-		Description: role.Description,
-		IsSystem:    role.IsSystem,
-		Position:    role.Position,
-		Pingable:    role.Pingable,
+		Name:               role.Name,
+		DisplayName:        role.DisplayName,
+		Description:        role.Description,
+		IsSystem:           role.IsSystem,
+		Position:           role.Position,
+		Pingable:           role.Pingable,
+		RequiresShieldMode: role.RequiresShieldMode,
 	}
 }
 

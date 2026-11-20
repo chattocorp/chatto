@@ -39,7 +39,7 @@ export function getSettingsNavGroups(server?: {
       href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
       label: m('settings.nav.account'),
       description: m('settings.overview.descriptions.account'),
-      icon: 'iconify icon-[uil--setting]'
+      icon: 'iconify icon-[uil--key-skeleton]'
     },
     {
       href: resolve('/chat/[serverId]/settings/profile', { serverId: serverSegment }),
@@ -137,5 +137,13 @@ export function getAppPreferenceNavItems(serverSegment?: string): SettingsNavIte
       icon: 'iconify icon-[uil--desktop]'
     });
 
+  appPreferenceNavItems.push({
+    href: serverSegment
+      ? resolve('/chat/[serverId]/settings/experiments', { serverId: serverSegment })
+      : resolve('/chat/preferences/experiments'),
+    label: m('settings.experiments.nav'),
+    description: m('settings.experiments.title'),
+    icon: 'iconify icon-[uil--flask]'
+  });
   return appPreferenceNavItems;
 }

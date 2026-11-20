@@ -427,6 +427,10 @@
           "one": "{count} proiezione fallita",
           "other": "{count} proiezioni fallite"
         },
+        "projections_stalled_count": {
+          "one": "{count} proiezione bloccata",
+          "other": "{count} proiezioni bloccate"
+        },
         "projections_catching_up_count": {
           "one": "{count} proiezione in fase di recupero",
           "other": "{count} proiezioni in fase di recupero"
@@ -591,6 +595,42 @@
         "revoked": "Revocato",
         "used": "Usato"
       }
+    },
+    "jobs": {
+      "title": "Attività",
+      "subtitle": "Visualizza le attività in background e riprova o elimina quelle non riuscite.",
+      "load_failed": "Impossibile caricare le attività.",
+      "retry_failed": "Impossibile riprovare questa attività.",
+      "delete_failed": "Impossibile eliminare questa attività.",
+      "delete_title": "Eliminare questa attività?",
+      "delete_message": "Il lavoro di questa attività viene abbandonato. Non potrai riprovarla in seguito.",
+      "webhook": "Invio webhook",
+      "media": "Elaborazione multimediale",
+      "neighborhood_refresh": "Aggiornamento del vicinato",
+      "message_body_erasure": "Cancellazione del contenuto dei messaggi",
+      "branding_cleanup": "Pulizia dei loghi e dei banner del server",
+      "asset_cleanup": "Pulizia dei file",
+      "call_key_cleanup": "Eliminazione delle chiavi di chiamata",
+      "runtime_credential_cleanup": "Pulizia di sessioni e token",
+      "push_subscription_cleanup": "Pulizia delle iscrizioni push",
+      "user_key_shredding": "Eliminazione delle chiavi dell’account",
+      "notification_alert": "Avviso di notifica",
+      "email": "E-mail",
+      "queued": "In coda",
+      "running": "In corso",
+      "succeeded": "Riuscita",
+      "failed": "Non riuscita",
+      "empty": "Nessuna attività per ora",
+      "attempts": "Tentativi",
+      "updated": "Aggiornata",
+      "next_attempt": "Prossimo tentativo",
+      "expired": "Questa attività è scaduta e non può essere riprovata.",
+      "job": "Attività",
+      "created": "Creata",
+      "details": "Dettagli",
+      "detail_subtitle": "Stato, tentativi e ultimo motivo di errore di questa attività.",
+      "not_found": "Questa attività non esiste più.",
+      "all": "Tutte"
     }
   }
 }

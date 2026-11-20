@@ -59,7 +59,7 @@ export function maintainerLoginSetting(): string | undefined {
   if (!value) return undefined;
   const login = value.replace(/^@/, '');
   if (
-    !/^[A-Za-z0-9][A-Za-z0-9._-]{1,31}$/.test(login) ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{1,253}$/.test(login) ||
     login.endsWith('.') ||
     ['all', 'here', 'everyone'].includes(login.toLowerCase())
   )

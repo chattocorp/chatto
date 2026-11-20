@@ -67,10 +67,15 @@ describe('ServerInformation', () => {
     expect(screen.container.querySelector('#threadViews')).not.toBeNull();
     expect(screen.container.querySelector('#independentSlowMode')).not.toBeNull();
     await expect.element(screen.getByText('Requires 0.5.0-beta.18 or newer')).toBeVisible();
+    await expect.element(screen.getByText('Background jobs are unavailable')).toBeVisible();
+    expect(screen.container.querySelector('#backgroundJobs')).not.toBeNull();
+    expect(screen.container.querySelector('#shieldRoleSelection')?.textContent).toContain(
+      'Requires 0.6.0-beta.0 or newer'
+    );
     expect(screen.container.textContent?.match(/ask the server administrator/g)).toHaveLength(1);
   });
   it('shows a supported state without upgrade advice', async () => {
-    const screen = show('0.5.0-beta.18');
+    const screen = show('0.6.0');
     await expect.element(screen.getByText('No known compatibility issues')).toBeVisible();
     expect(screen.container.querySelector('#threadViews')).toBeNull();
   });
@@ -153,10 +158,10 @@ describe('ServerInformation', () => {
     };
     const screen = render(ServerInformation, props);
     await expect
-      .element(screen.getByRole('heading', { name: 'Affected features (3)' }))
+      .element(screen.getByRole('heading', { name: 'Affected features (5)' }))
       .toBeVisible();
     const report = screen.container.querySelector('[data-testid="feature-limitations"]');
-    expect(report?.querySelectorAll('section')).toHaveLength(3);
+    expect(report?.querySelectorAll('section')).toHaveLength(5);
     expect(report?.querySelector('#threadViews')).not.toBeNull();
     expect(report?.querySelector('#frontend-future')).not.toBeNull();
     for (const row of report?.querySelectorAll('section') ?? []) {

@@ -13,7 +13,7 @@ task.source_freshness_hash_contents = true
 frontend_build_environment = "{{ env.CHATTO_BUILD_VERSION | default(value='') | hash(len=16) }}-{{ env.CHATTO_FRONTEND_PRECOMPRESS | default(value='') | hash(len=16) }}-{{ env.NODE_OPTIONS | default(value='') | hash(len=16) }}"
 
 [tools]
-"github:chattocorp/sweet-release" = "sweet@0.3.0"
+"github:chattocorp/sweet-release" = "sweet@0.4.0"
 actionlint = "1.7.12"
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:axllent/mailpit" = "1.30.6"
@@ -33,12 +33,12 @@ _.file = '.env'
 GOFLAGS = "{{env.GOFLAGS | default(value='')}} -trimpath"
 CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
 # The development stack uses the workspace port block. The base is
-# `CONDUCTOR_PORT`, or 4000 outside Conductor. Conductor gives each workspace
-# ten ports. Tasks and scripts use these names, not offsets.
-CHATTO_DEV_PORT_BASE = "{% if env.CONDUCTOR_PORT | default(value='') == '' %}4000{% else %}{{env.CONDUCTOR_PORT}}{% endif %}"
+# `GEORDI_PORT`, then `CONDUCTOR_PORT`, or 4000 outside these tools.
+# Each workspace needs ten ports. Tasks and scripts use these names, not offsets.
+CHATTO_DEV_PORT_BASE = "{% if env.GEORDI_PORT | default(value='') != '' %}{{env.GEORDI_PORT}}{% elif env.CONDUCTOR_PORT | default(value='') == '' %}4000{% else %}{{env.CONDUCTOR_PORT}}{% endif %}"
 # Chatto with its embedded frontend (`mise dev`).
 # Keep override inputs separate from resolved values inherited by nested mise.
-# Paseo supplies the overrides; Conductor can still select a new port block.
+# Paseo supplies the overrides; Geordi and Conductor select port blocks.
 CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_CHATTO_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE)}}"
 # Vite frontend development server (`mise dev-frontend`).
 CHATTO_DEV_VITE_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}"
@@ -59,13 +59,13 @@ CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.
 # Browser-facing development services use `<service>.<workspace>.localhost`.
 # These names resolve to loopback without DNS or /etc/hosts changes. They also
 # give concurrent workspaces separate cookie scopes, because cookies ignore ports.
-# In Conductor, the label is `ws` followed by the Conductor port. Conductor
+# In Geordi and Conductor, the label is `ws` followed by the base port. Conductor
 # preview URLs in .conductor/settings.toml can expand the port, but not the
 # workspace name or ID. The port is different for each concurrent workspace
-# and does not change when a workspace is renamed. Outside Conductor, the
+# and does not change when a workspace is renamed. Outside these tools, the
 # label is `local`. The label must be a valid DNS label, and it keys the
 # Authling state directory. Set CHATTO_DEV_WORKSPACE to override it.
-CHATTO_DEV_WORKSPACE = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{% set default_workspace = 'ws' ~ env.CONDUCTOR_PORT %}{% else %}{% set default_workspace = 'local' %}{% endif %}{{env.CHATTO_DEV_WORKSPACE | default(value=default_workspace) | slugify}}"
+CHATTO_DEV_WORKSPACE = "{% if env.GEORDI_PORT | default(value='') != '' %}{% set default_workspace = 'ws' ~ env.GEORDI_PORT %}{% elif env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{% set default_workspace = 'ws' ~ env.CONDUCTOR_PORT %}{% else %}{% set default_workspace = 'local' %}{% endif %}{{env.CHATTO_DEV_WORKSPACE | default(value=default_workspace) | slugify}}"
 CHATTO_DEV_CHATTO_URL = "{{env.CHATTO_DEV_CHATTO_URL_OVERRIDE | default(value='http://chatto.' ~ env.CHATTO_DEV_WORKSPACE ~ '.localhost:' ~ env.CHATTO_DEV_CHATTO_PORT)}}"
 CHATTO_DEV_LIVEKIT_URL = "{{env.CHATTO_DEV_LIVEKIT_URL_OVERRIDE | default(value='ws://localhost:' ~ env.CHATTO_DEV_LIVEKIT_PORT)}}"
 CHATTO_DEV_AUTHLING_URL = "http://authling.{{env.CHATTO_DEV_WORKSPACE}}.localhost:{{env.CHATTO_DEV_AUTHLING_PORT}}"
@@ -90,6 +90,7 @@ run = [
     { task = "setup-datacrypto" },
     { task = "setup-events" },
     { task = "setup-jetstreamutil" },
+    { task = "setup-jobs" },
     { task = "setup-natsruntime" },
     { task = "setup-frontend" },
     { task = "setup-livekit" },
@@ -121,6 +122,12 @@ sources = ["go.mod", "go.sum"]
 [tasks.deps-jetstreamutil]
 description = "Install JetStream utilities dependencies"
 dir = "pkg/jetstreamutil"
+run = "GOWORK=off go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-jobs]
+description = "Install shared job queue dependencies"
+dir = "pkg/jobs"
 run = "GOWORK=off go mod download"
 sources = ["go.mod", "go.sum"]
 
@@ -168,6 +175,10 @@ depends = ["deps-datacrypto"]
 [tasks.setup-jetstreamutil]
 description = "Set up the JetStream utilities module"
 depends = ["deps-jetstreamutil"]
+
+[tasks.setup-jobs]
+description = "Set up the shared job queue module"
+depends = ["deps-jobs"]
 
 [tasks.setup-events]
 description = "Set up the event framework module"
@@ -254,6 +265,10 @@ run = [
 description = "Generate server, client, and converter emoji maps from gemoji and Unicode data"
 depends = ["setup-frontend"]
 run = "node tools/gen-emoji-map.mjs"
+
+[tasks.update-twemoji-font]
+description = "Build the bundled Twemoji font from the pinned Twemoji release (output is committed)"
+run = "uv run --script tools/build-twemoji-font.py"
 
 [tasks.codegen]
 description = "Run all code generation tasks"
@@ -531,7 +546,7 @@ run = ['echo "Chatto: $CHATTO_DEV_CHATTO_URL"', { task = "chatto run" }]
 description = "Build and run Chatto with Authling, Runling, Mailpit, and LiveKit"
 depends = ["check-dev-ports full", "setup", "build-dev-cli", "build-runling-bot"]
 # These settings reach the `chatto run` task. They enable email and LiveKit and
-# add the Authling login provider. Environment values replace the complete
+# add the Authling and AT Protocol login providers. Environment values replace the complete
 # provider list of `cli/chatto.toml`.
 env = {
   CHATTO_SMTP_ENABLED = "true",
@@ -544,6 +559,10 @@ env = {
   CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET = "{{env.CHATTO_DEV_AUTHLING_CLIENT_SECRET}}",
   CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL = "false",
   CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION = "true",
+  CHATTO_AUTH_PROVIDERS_1_ID = "atproto",
+  CHATTO_AUTH_PROVIDERS_1_TYPE = "atproto",
+  CHATTO_AUTH_PROVIDERS_1_AUTO_PROVISION = "true",
+  CHATTO_AUTH_PROVIDERS_1_MANAGE_USERNAMES = "true",
 }
 # mise runs each service in its own process group. On SIGHUP, SIGINT, or
 # SIGTERM, it signals all of these groups, and when one service fails, it stops
@@ -913,6 +932,16 @@ run = [
 ]
 sources = ["go.mod", "go.sum", "**/*.go"]
 
+[tasks.test-jobs]
+description = "Run shared job queue tests standalone and in the repository workspace"
+depends = ["setup-jobs"]
+dir = "pkg/jobs"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
 [tasks.test-natsruntime]
 description = "Run embedded NATS runtime tests standalone and in the repository workspace"
 depends = ["setup-natsruntime"]
@@ -995,6 +1024,13 @@ dir = "pkg/jetstreamutil"
 tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
 run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
 
+[tasks.lint-jobs]
+description = "Vet the shared job queue standalone and in the workspace"
+depends = ["setup-jobs"]
+dir = "pkg/jobs"
+tools = { "go:golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize" = "0.51.0" }
+run = ["GOWORK=off go vet ./...", "go vet ./...", "../../tools/go-modernize-check.sh"]
+
 [tasks.lint-events]
 description = "Vet the event framework standalone and in the workspace"
 depends = ["setup-events"]
@@ -1037,6 +1073,16 @@ run = [
     "bash tools/test-paseo-dev.sh",
     { task = "test-interchange" },
     { task = "test-slack" },
+    { task = "test-alert-rules" },
+]
+
+[tasks.test-alert-rules]
+description = "Check and unit-test the example Prometheus alerting rules"
+dir = "examples/prometheus"
+tools = { promtool = "3.16.0" }
+run = [
+    "promtool check rules chatto-alerts.yml",
+    "promtool test rules chatto-alerts.test.yml",
 ]
 
 [tasks.test-chatto-build]
@@ -1098,6 +1144,7 @@ run = [
     { task = "test-datacrypto" },
     { task = "test-events" },
     { task = "test-jetstreamutil" },
+    { task = "test-jobs" },
     { task = "test-natsruntime" },
     { task = "test-cli" },
     { task = "test-desktop" },

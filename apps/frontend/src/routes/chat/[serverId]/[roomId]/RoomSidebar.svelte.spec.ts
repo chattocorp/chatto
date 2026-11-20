@@ -1073,10 +1073,11 @@ describe('RoomSidebar', () => {
     ).toBeTruthy();
 
     expect(deviceButton.className).toContain('pill-button');
-    expect(muteButton.className).toContain('pill-button-success');
+    expect(muteButton.className).toContain('pill-button');
+    expect(muteButton.className).toContain('pill-button-live');
     expect(cameraButton.className).toContain('pill-button');
     expect(screenShareButton.className).toContain('pill-button');
-    expect(leaveButton.className).toContain('pill-button-danger');
+    expect(leaveButton.querySelector('.iconify')!.getAttribute('class')).toContain('text-danger');
 
     muteButton.click();
     cameraButton.click();
@@ -1110,14 +1111,14 @@ describe('RoomSidebar', () => {
 
     expect(q(container, '[data-testid="call-mute-toggle"]')!.className).toContain('pill-button');
     expect(q(container, '[data-testid="call-camera-toggle"]')!.className).toContain(
-      'pill-button-success'
+      'pill-button-live'
     );
     expect(q(container, '[data-testid="call-screen-share-toggle"]')!.className).toContain(
-      'pill-button-success'
+      'pill-button-live'
     );
-    expect(q(container, '[data-testid="call-leave-button"]')!.className).toContain(
-      'pill-button-danger'
-    );
+    expect(
+      q(container, '[data-testid="call-leave-button"] .iconify')!.getAttribute('class')
+    ).toContain('text-danger');
   });
 
   it('shows voice activity for active speakers', async () => {

@@ -52,6 +52,8 @@ Server and CLI Go Components:
 - AWS SDK for Go v2 (https://github.com/aws/aws-sdk-go-v2) - Apache License 2.0
 - AWS Smithy Go (https://github.com/aws/smithy-go) - Apache License 2.0
 - Bleve full-text search (https://github.com/blevesearch/bleve) - Apache License 2.0
+- Bluesky indigo AT Protocol OAuth and identity packages
+  (https://github.com/bluesky-social/indigo) - MIT License or Apache License 2.0
 - Buf Protovalidate and generated protocol buffer tooling
   (https://protovalidate.com/, https://buf.build/) - Apache License 2.0
 - caarlos0/env (https://github.com/caarlos0/env) - MIT License
@@ -130,6 +132,10 @@ Frontend, Examples, and Documentation Components:
   https://fontsource.org/fonts/ibm-plex-mono) - SIL Open Font License 1.1
 - daisyUI, used by the Runling console (https://daisyui.com/) - MIT License
 - gemoji (https://github.com/github/gemoji) - MIT License
+- Twemoji graphics (https://github.com/jdecked/twemoji) - Creative Commons
+  Attribution 4.0 International (CC-BY-4.0); Copyright 2014-2021 Twitter,
+  Copyright 2022-present Jason Sofonia & Justine De Caires. Chatto converts the
+  graphics into the bundled Twemoji color font.
 - Unicode Emoji 15.0 data (https://www.unicode.org/Public/emoji/15.0/)
   - Unicode Data Files and Software License (Unicode-DFS-2016)
   - Copyright © 2022 Unicode, Inc. Used to generate skin-tone emoji mappings.

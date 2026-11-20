@@ -43,7 +43,7 @@
       "password_min_bytes": "Parola çok kısa",
       "password_max": "Parola çok uzun",
       "username_min": "En az 2 karakter olmalı",
-      "username_max": "En fazla 32 karakter olmalı",
+      "username_max": "En fazla {max} karakter olmalı",
       "username_charset": "Yalnızca harfler, sayılar, noktalar, kısa çizgiler, alt çizgiler",
       "username_end_alphanumeric": "Bir harf veya rakamla bitmeli",
       "username_no_consecutive_periods": "Ardışık periyotlara izin verilmez",

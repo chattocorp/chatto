@@ -1,7 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import {
-  activatePrivilegedMode,
   createAndLoginTestUser,
   grantPermission,
   logoutCurrentUser,
@@ -264,7 +263,6 @@ test.describe('Server Admin Navigation Permissions', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await activatePrivilegedMode(page);
       // Navigate directly to roles page using the roles page object
       await serverRolesPage.gotoRolesList(server.id);
 
@@ -314,7 +312,6 @@ test.describe('Server Admin Navigation Permissions', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      await activatePrivilegedMode(page);
       // Navigate to the concrete section unlocked by role.manage
       await page.goto(routes.serverAdminPermissions);
 

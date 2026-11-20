@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -34,6 +35,11 @@ func (c *ChattoCore) ImportUserAvatarFromURL(ctx context.Context, userID, avatar
 
 	resp, err := providerAvatarClient.Do(req)
 	if err != nil {
+		// A *url.Error names the full URL, which can identify the account, for
+		// example an AT Protocol DID. Callers log this error.
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
+			return fmt.Errorf("fetch provider avatar: %w", urlErr.Err)
+		}
 		return err
 	}
 	defer resp.Body.Close()

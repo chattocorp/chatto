@@ -5,7 +5,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createAdminEventLogAPI } from '$lib/api/adminEventLog';
-  import { Panel, Hint, PaneContent, Pill, LoadingFog, PaneHeader, PageTitle } from '$lib/ui';
+  import { Panel, Hint, PaneContent, Pill, LoadingDots, PaneHeader, PageTitle } from '$lib/ui';
   import { JsonCode } from '$lib/ui/code';
   import {
     formatDateTime as formatDateTimeUtil,
@@ -55,7 +55,7 @@
   <PaneContent>
     <div class="flex min-h-0 flex-col gap-6">
       {#if entryQuery.isPending}
-        <LoadingFog class="h-40 w-full" label={m('admin.event_log.loading_event')} />
+        <LoadingDots class="h-40 w-full" label={m('admin.event_log.loading_event')} />
       {:else if entryQuery.error}
         <Hint tone="danger">
           {errorMessage(entryQuery.error, m('admin.event_log.unavailable'))}

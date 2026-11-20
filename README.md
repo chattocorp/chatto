@@ -25,7 +25,7 @@ Chatto is built, designed and maintained by humans with the help of coding agent
 - **[Runling](packages/runling/README.md)**: an independent workflow and agent orchestrator, published to npm as `runling`.
 - **[Authling](authling/README.md)**: an independent identity provider. It is here temporarily and will move to its own repository.
 - **Public API definitions**: [protobuf sources](proto/) and [generated TypeScript API types](packages/api-types/).
-- **Shared framework modules**: [events](pkg/events/README.md), [jetstreamutil](pkg/jetstreamutil/README.md), [natsruntime](pkg/natsruntime/README.md), [datacrypto](pkg/datacrypto/README.md), and [appconfig](pkg/appconfig/README.md).
+- **Shared framework modules**: [events](pkg/events/README.md), [jetstreamutil](pkg/jetstreamutil/README.md), [jobs](pkg/jobs/README.md), [natsruntime](pkg/natsruntime/README.md), [datacrypto](pkg/datacrypto/README.md), and [appconfig](pkg/appconfig/README.md).
 
 ### Examples
 

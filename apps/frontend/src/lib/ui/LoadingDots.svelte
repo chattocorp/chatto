@@ -1,7 +1,8 @@
 <!--
 @component
 
-Three pulsing dots for a pending conversation timeline or server sidebar.
+Three pulsing dots for pending content other than media. Give the element
+the size of the area it replaces; the dots stay in its centre.
 The dots appear after a short delay, so fast loads do not flash them.
 When the user requests less motion, the dots stay still.
 -->
@@ -16,7 +17,7 @@ When the user requests less motion, the dots stay still.
 </script>
 
 <div
-  class={['flex loading-dots justify-center gap-1.5 text-muted', className]}
+  class={['flex loading-dots items-center justify-center gap-1.5 text-muted', className]}
   role="status"
   aria-busy="true"
   aria-label={label}

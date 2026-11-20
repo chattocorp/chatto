@@ -60,16 +60,20 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 
 func availableExternalIdentityLogin(chattoCore *core.ChattoCore, token, hint string) string {
 	hint = strings.TrimSpace(hint)
+	hint = strings.TrimRight(hint[:min(len(hint), chattoCore.LoginLengthLimit())], ".")
 	if chattoCore.IsLoginAvailable(hint) {
 		return hint
 	}
-	if core.ValidateLogin(hint) != nil {
+	if core.ValidateLogin(hint, chattoCore.LoginLengthLimit()) != nil {
 		return hint
 	}
 	digest := sha256.Sum256([]byte(token))
 	seed := binary.BigEndian.Uint32(digest[:4]) % 10000
 	const suffixLength = 5 // hyphen plus four digits
-	base := strings.TrimRight(hint[:min(len(hint), core.MaxLoginLength-suffixLength)], ".")
+	if chattoCore.LoginLengthLimit() <= suffixLength {
+		return hint
+	}
+	base := strings.TrimRight(hint[:min(len(hint), chattoCore.LoginLengthLimit()-suffixLength)], ".")
 	for offset := range uint32(100) {
 		candidate := fmt.Sprintf("%s-%04d", base, (seed+offset)%10000)
 		if chattoCore.IsLoginAvailable(candidate) {
@@ -100,14 +104,16 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 			return nil, core.ErrInvitationInvalid
 		}
 	}
-	// Leave the fallback empty for managed names. Core uses the actual assigned
-	// username, including any collision suffix, when it creates the account.
-	fallbackLogin := req.Msg.GetLogin()
+	// A provider-managed username never comes from the client. Drop the
+	// requested login here; core also assigns the name from the verified
+	// provider claim, including any collision suffix. An empty login also
+	// leaves the display-name fallback to that assigned username.
+	requestedLogin := req.Msg.GetLogin()
 	if s.api.core.ProviderUsernameManaged(flow.ProviderID) {
-		fallbackLogin = ""
+		requestedLogin = ""
 	}
-	displayName := externalIdentityCreateDisplayName(fallbackLogin, req.Msg.GetDisplayName(), flow.DisplayNameHint)
-	user, err := s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
+	displayName := externalIdentityCreateDisplayName(requestedLogin, req.Msg.GetDisplayName(), flow.DisplayNameHint)
+	user, err := s.api.core.CreateUserForExternalIdentity(ctx, requestedLogin, displayName, flow)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +185,7 @@ func externalIdentityCreateDisplayName(login, requested, hint string) string {
 	if displayName == "" ||
 		utf8.RuneCountInString(displayName) > core.MaxDisplayNameLength ||
 		core.ValidateDisplayName(displayName) != nil {
-		return strings.TrimSpace(login)
+		return core.LoginDisplayName(login)
 	}
 	return displayName
 }

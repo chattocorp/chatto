@@ -43,7 +43,7 @@
       "password_min_bytes": "Heslo je příliš krátké",
       "password_max": "Heslo je příliš dlouhé",
       "username_min": "Musí mít alespoň 2 znaky",
-      "username_max": "Musí mít maximálně 32 znaků",
+      "username_max": "Musí mít maximálně {max} znaků",
       "username_charset": "Pouze písmena, čísla, tečky, pomlčky, podtržítka",
       "username_end_alphanumeric": "Musí končit písmenem nebo číslem",
       "username_no_consecutive_periods": "Nejsou povolena žádná po sobě jdoucí období",

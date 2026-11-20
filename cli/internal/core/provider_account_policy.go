@@ -95,17 +95,22 @@ func (c *ChattoCore) ProviderUsernameManaged(providerID string) bool {
 
 const maxProviderUsernameCandidates = 1000
 
-// providerUsernameCandidate leaves room for the numeric collision suffix.
-func providerUsernameCandidate(base string, number int) string {
+// loginCandidate leaves room for the numeric collision suffix. It returns an
+// empty string when the suffix leaves no room for a leading letter or digit.
+func (c *ChattoCore) loginCandidate(base string, number int) string {
 	if number == 1 {
 		return base
 	}
 	suffix := fmt.Sprintf("-%d", number)
-	return strings.TrimRight(base[:min(len(base), MaxLoginLength-len(suffix))], ".") + suffix
+	room := c.LoginLengthLimit() - len(suffix)
+	if room < 1 {
+		return ""
+	}
+	return strings.TrimRight(base[:min(len(base), room)], ".") + suffix
 }
 
 func (c *ChattoCore) validateProviderUsername(base string) error {
-	if err := ValidateLogin(base); err != nil {
+	if err := ValidateLogin(base, c.LoginLengthLimit()); err != nil {
 		return err
 	}
 	if c.configModel.IsUsernameBlocked(base) || c.loginConflictsWithMentionHandle(base) {
@@ -122,7 +127,10 @@ func (c *ChattoCore) SuggestProviderUsername(base string) (string, error) {
 		return "", err
 	}
 	for number := 1; number <= maxProviderUsernameCandidates; number++ {
-		candidate := providerUsernameCandidate(base, number)
+		candidate := c.loginCandidate(base, number)
+		if candidate == "" {
+			break
+		}
 		if c.IsLoginAvailable(candidate) {
 			return candidate, nil
 		}
@@ -168,12 +176,16 @@ func (c *ChattoCore) SyncProviderUsername(ctx context.Context, userID, providerI
 		return err
 	}
 	for number := 1; number <= maxProviderUsernameCandidates; number++ {
-		if user.Login == providerUsernameCandidate(base, number) {
+		if user.Login == c.loginCandidate(base, number) {
 			return nil
 		}
 	}
 	for number := 1; number <= maxProviderUsernameCandidates; number++ {
-		_, err = c.applyLoginChangeChecked(ctx, SystemActorID, userID, providerUsernameCandidate(base, number), false, check)
+		candidate := c.loginCandidate(base, number)
+		if candidate == "" {
+			break
+		}
+		_, err = c.applyLoginChangeChecked(ctx, SystemActorID, userID, candidate, false, check)
 		if errors.Is(err, ErrLoginAlreadyTaken) || (number > 1 && errors.Is(err, ErrUsernameBlocked)) {
 			continue
 		}
@@ -192,11 +204,14 @@ func (c *ChattoCore) createProviderUser(ctx context.Context, login, displayName 
 	}
 	for number := 1; number <= maxProviderUsernameCandidates; number++ {
 		if managed {
-			login = providerUsernameCandidate(base, number)
+			login = c.loginCandidate(base, number)
+			if login == "" {
+				break
+			}
 		}
 		name := displayName
 		if name == "" {
-			name = login
+			name = LoginDisplayName(login)
 		}
 		user, err := c.createUserWithOptions(ctx, SystemActorID, login, name, "", userCreationOptions{
 			verifiedEmail: flow.VerifiedEmail, external: flow, invitationID: flow.InvitationID,

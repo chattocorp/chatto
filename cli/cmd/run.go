@@ -26,6 +26,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/video"
 	"github.com/chattocorp/chatto/pkg/natsruntime"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/term"
@@ -59,7 +60,10 @@ var banner = `
 
 var configFile string
 
-func runtimeUnitRegistrations() []runtimeunit.Registration {
+// runtimeUnitRegistrations lists the optional units of `chatto run`. The
+// embedded search provider records its health in searchHealth, which the
+// metrics listener exports.
+func runtimeUnitRegistrations(searchHealth *searchbleve.Health) []runtimeunit.Registration {
 	return []runtimeunit.Registration{
 		{
 			Unit: exporter.Unit{},
@@ -68,15 +72,9 @@ func runtimeUnitRegistrations() []runtimeunit.Registration {
 			},
 		},
 		{
-			Unit: searchbleve.Unit{},
+			Unit: searchbleve.Unit{Health: searchHealth},
 			StartWithRun: func(cfg config.ChattoConfig) bool {
 				return cfg.SearchProvider.Enabled
-			},
-		},
-		{
-			Unit: video.Unit{},
-			StartWithRun: func(cfg config.ChattoConfig) bool {
-				return cfg.AssetProcessing.Enabled
 			},
 		},
 	}
@@ -184,7 +182,6 @@ func runServer(configPath string) {
 	cfg.Core.AuthLoopbackClientEnabled = cfg.Auth.LoopbackClientEnabled
 	cfg.Core.EmailOTP = cfg.Auth.EmailOTP
 	cfg.Core.Replicas = cfg.NATS.ReplicasOrDefault()
-	cfg.Core.Limits = cfg.Limits
 	cfg.Core.Owners = cfg.Owners
 	cfg.Core.Version = Version
 	cfg.Core.ServerOrigins = cfg.Webserver.ServerOrigins()
@@ -195,6 +192,27 @@ func runServer(configPath string) {
 		return
 	}
 	chattoCore.VideoUploadsEnabled = cfg.Video.Enabled
+	if cfg.AssetProcessing.Enabled {
+		newProcessor := func() (*video.Service, error) {
+			return video.NewService(chattoCore, cfg.AssetProcessing, log.WithPrefix("MediaJobs"))
+		}
+		startupProcessor, processingErr := newProcessor()
+		if processingErr != nil {
+			log.Warn("Media processing tools unavailable; jobs will remain retryable")
+		}
+		chattoCore.SetMediaJobHandler(func(ctx context.Context, assetID, messageID string) error {
+			processor := startupProcessor
+			if processor == nil {
+				// Startup stays available when a processing tool is absent. Each
+				// attempt then looks the tools up again.
+				var err error
+				if processor, err = newProcessor(); err != nil {
+					return errors.New("media processing tools unavailable")
+				}
+			}
+			return chattoCore.ProcessMediaJob(ctx, assetID, messageID, processor.ProcessAsset)
+		}, cfg.AssetProcessing.MaxConcurrentJobsOrDefault())
+	}
 
 	chattoCore.ConfigureLiveKitDiagnostics(cfg.LiveKit, cfg.Webserver.URL)
 	if err := chattoCore.EnableLiveKitCallReconciliation(cfg.LiveKit); err != nil {
@@ -249,7 +267,8 @@ func runServer(configPath string) {
 		return
 	}
 
-	unitRegistrations := runtimeUnitRegistrations()
+	searchHealth := searchbleve.NewHealth()
+	unitRegistrations := runtimeUnitRegistrations(searchHealth)
 	if err := runtimeunit.ValidateRegistrations(unitRegistrations); err != nil {
 		log.Error("Failed to configure runtime units", "error", err)
 		exitCode = 1
@@ -274,12 +293,13 @@ func runServer(configPath string) {
 	// Create and run HTTP server
 	addr := net.JoinHostPort(cfg.Webserver.BindAddress, fmt.Sprint(cfg.Webserver.EffectivePort()))
 	httpServer, err := http_server.NewHTTPServer(http_server.HTTPServerConfig{
-		Config:           cfg,
-		NC:               nc,
-		Core:             chattoCore,
-		Addr:             addr,
-		Version:          Version,
-		StartupStartedAt: startupStartedAt,
+		Config:            cfg,
+		NC:                nc,
+		Core:              chattoCore,
+		Addr:              addr,
+		Version:           Version,
+		StartupStartedAt:  startupStartedAt,
+		MetricsCollectors: embeddedSearchMetrics(cfg, searchHealth),
 	})
 	if err != nil {
 		log.Error("Failed to create HTTP server", "error", err)
@@ -295,6 +315,15 @@ func runServer(configPath string) {
 		log.Error("Server failed", "error", err)
 		exitCode = 1
 	}
+}
+
+// embeddedSearchMetrics returns the health collector of the embedded search
+// provider when `chatto run` starts one.
+func embeddedSearchMetrics(cfg config.ChattoConfig, searchHealth *searchbleve.Health) []prometheus.Collector {
+	if !cfg.SearchProvider.Enabled {
+		return nil
+	}
+	return []prometheus.Collector{searchHealth.Collector()}
 }
 
 func runOptionalRuntimeUnit(ctx context.Context, env runtimeunit.Env, unit runtimeunit.Unit) error {
@@ -417,18 +446,23 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 	logger.Info("Push notifications enabled")
 
 	chattoCore.OnPushTestRequested = func(ctx context.Context, userID string) error {
+		testLog := logger.With("user_id", userID)
 		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, userID)
 		if err != nil {
+			testLog.Warn("Push test failed", "stage", "subscription_lookup")
 			return err
 		}
 		if len(subscriptions) == 0 {
+			testLog.Warn("Push test failed", "stage", "subscription_lookup", "subscription_count", 0)
 			return errors.New("no push subscriptions registered")
 		}
 		subscriptions, err = filterOwnedPushSubscriptions(ctx, chattoCore, userID, subscriptions)
 		if err != nil {
+			testLog.Warn("Push test failed", "stage", "ownership_check")
 			return fmt.Errorf("revalidate push endpoint ownership: %w", err)
 		}
 		if len(subscriptions) == 0 {
+			testLog.Warn("Push test failed", "stage", "ownership_check", "subscription_count", 0)
 			return errors.New("no current push subscriptions registered")
 		}
 		results := sender.SendToManyMapped(ctx, subscriptions, func(subscription *runtimestatev1.PushSubscription) *push.Payload {
@@ -444,12 +478,11 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 		var sendErr error
 		accepted := false
 		for _, result := range results {
+			logPushTestDelivery(testLog, len(subscriptions), result)
 			if result.Gone {
 				if err := chattoCore.DeletePushSubscription(ctx, userID, result.Endpoint); err != nil {
-					logger.Warn("Failed to remove gone push subscription",
-						"user_id", userID,
-						"endpoint_hash", push.EndpointLogID(result.Endpoint),
-						"error", err)
+					testLog.Warn("Failed to remove gone push subscription",
+						"endpoint_hash", push.EndpointLogID(result.Endpoint))
 				}
 			}
 			if result.Error == nil && result.Success {
@@ -469,6 +502,30 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 	}
 
 	chattoCore.SetNotificationAlertHandler(notificationAlertHandler(chattoCore, cfg, sender, logger))
+}
+
+// logPushTestDelivery records only controlled outcomes. Endpoints and error
+// messages can contain subscription credentials.
+func logPushTestDelivery(logger *log.Logger, count int, result *push.SendResult) {
+	fields := []any{"subscription_count", count, "endpoint_hash", push.EndpointLogID(result.Endpoint)}
+	if result.HTTPStatus != 0 {
+		fields = append(fields, "http_status", result.HTTPStatus)
+	}
+	outcome := "request_failed"
+	switch {
+	case result.Success:
+		logger.Info("Push test delivery", append(fields, "outcome", "accepted")...)
+		return
+	case result.Gone:
+		outcome = "subscription_gone"
+	case result.HTTPStatus != 0:
+		outcome = "provider_rejected"
+	case errors.Is(result.Error, context.DeadlineExceeded):
+		outcome = "timeout"
+	case errors.Is(result.Error, context.Canceled):
+		outcome = "canceled"
+	}
+	logger.Warn("Push test delivery", append(fields, "outcome", outcome)...)
 }
 
 type notificationPushSender interface {

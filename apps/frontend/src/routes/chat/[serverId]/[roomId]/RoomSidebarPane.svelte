@@ -19,7 +19,7 @@
   import type { ComponentProps } from 'svelte';
   import type RoomSidebar from './RoomSidebar.svelte';
   import { m } from '$lib/i18n/messages';
-  import { LoadingFog, LoadRetry } from '$lib/ui';
+  import { LoadingDots, LoadRetry } from '$lib/ui';
 
   let roomSidebarLoadAttempt = $state(0);
 
@@ -36,7 +36,7 @@
 
 {#snippet sidebar(props: NonNullable<typeof sidebarProps>)}
   {#await loadRoomSidebar(roomSidebarLoadAttempt)}
-    <LoadingFog class="m-4 min-h-0 flex-1" />
+    <LoadingDots class="m-4 min-h-0 flex-1" />
   {:then { default: RoomSidebar }}
     <RoomSidebar {...props} presentation={presentation === 'mobile' ? 'overlay' : 'desktop'} />
   {:catch}

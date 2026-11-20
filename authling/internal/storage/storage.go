@@ -20,6 +20,16 @@ const (
 	RuntimeStateBucket = "AUTHLING_RUNTIME_STATE"
 	// KeyStoreBucket contains separately protected user and wrapped data keys.
 	KeyStoreBucket = "AUTHLING_KEYS"
+	// JobStreamName holds the facts of background jobs.
+	JobStreamName = "AUTHLING_JOBS"
+	// JobSubjectPrefix prefixes job fact subjects.
+	JobSubjectPrefix = "authling.jobs"
+	// JobsConsumerName is the erasure job consumer shared by Authling processes.
+	JobsConsumerName = "authling-jobs"
+	// MailJobsConsumerName isolates mail from account erasure jobs.
+	MailJobsConsumerName = "authling-jobs-email-v1"
+	// JobSucceededRetention is how long the fact of a succeeded job stays.
+	JobSucceededRetention = 3 * 24 * time.Hour
 )
 
 // Stores contains Authling's non-event JetStream stores. Both buckets allow
@@ -113,4 +123,26 @@ func openBucket(ctx context.Context, js jetstream.JetStream, config jetstream.Ke
 		return nil, fmt.Errorf("bind %s bucket: %w", config.Bucket, err)
 	}
 	return kv, nil
+}
+
+// OpenJobs ensures that the background job stream exists. The stream has no
+// maximum age: an erasure job must stay until it finishes. The fact of a
+// succeeded job expires through its per-message TTL, and the worker removes the
+// earlier facts of that job, so only unfinished and failed jobs stay.
+func OpenJobs(ctx context.Context, js jetstream.JetStream, replicas int) (jetstream.Stream, error) {
+	stream, err := jetstreamutil.CreateJetStreamResourceWithRetry(ctx, provisioningRetry, func(ctx context.Context) (jetstream.Stream, error) {
+		return js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+			Name:        JobStreamName,
+			Description: "Authling background job facts",
+			Subjects:    []string{JobSubjectPrefix + ".>"},
+			Retention:   jetstream.LimitsPolicy,
+			Storage:     jetstream.FileStorage,
+			Replicas:    replicas,
+			AllowMsgTTL: true,
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("ensure %s stream: %w", JobStreamName, err)
+	}
+	return stream, nil
 }

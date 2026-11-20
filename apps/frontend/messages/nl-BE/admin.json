@@ -427,6 +427,10 @@
           "one": "{count} projectie mislukt",
           "other": "{count} projecties mislukt"
         },
+        "projections_stalled_count": {
+          "one": "{count} projectie vastgelopen",
+          "other": "{count} projecties vastgelopen"
+        },
         "projections_catching_up_count": {
           "one": "{count} projectie haalt achterstand in",
           "other": "{count} projecties halen achterstand in"
@@ -591,6 +595,42 @@
         "revoked": "Ingetrokken",
         "used": "Gebruikt"
       }
+    },
+    "jobs": {
+      "title": "Taken",
+      "subtitle": "Bekijk achtergrondtaken en probeer mislukte taken opnieuw of verwijder ze.",
+      "load_failed": "Taken konden niet worden geladen.",
+      "retry_failed": "Deze taak kon niet opnieuw worden geprobeerd.",
+      "delete_failed": "Deze taak kon niet worden verwijderd.",
+      "delete_title": "Deze taak verwijderen?",
+      "delete_message": "Het werk van deze taak wordt opgegeven. Je kunt de taak later niet opnieuw proberen.",
+      "webhook": "Webhookbezorging",
+      "media": "Mediaverwerking",
+      "neighborhood_refresh": "Buurt vernieuwen",
+      "message_body_erasure": "Berichtinhoud wissen",
+      "branding_cleanup": "Serverlogo’s en banners opruimen",
+      "asset_cleanup": "Bestanden opruimen",
+      "call_key_cleanup": "Gesprekssleutels verwijderen",
+      "runtime_credential_cleanup": "Sessies en tokens opruimen",
+      "push_subscription_cleanup": "Pushabonnementen opruimen",
+      "user_key_shredding": "Accountsleutels verwijderen",
+      "notification_alert": "Meldingswaarschuwing",
+      "email": "E-mail",
+      "queued": "In wachtrij",
+      "running": "Actief",
+      "succeeded": "Geslaagd",
+      "failed": "Mislukt",
+      "empty": "Nog geen taken",
+      "attempts": "Pogingen",
+      "updated": "Bijgewerkt",
+      "next_attempt": "Volgende poging",
+      "expired": "Deze taak is verlopen en kan niet opnieuw worden geprobeerd.",
+      "job": "Taak",
+      "created": "Aangemaakt",
+      "details": "Details",
+      "detail_subtitle": "Status, pogingen en laatste foutreden van deze taak.",
+      "not_found": "Deze taak bestaat niet meer.",
+      "all": "Alle"
     }
   }
 }

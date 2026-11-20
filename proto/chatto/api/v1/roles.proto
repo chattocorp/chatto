@@ -18,6 +18,8 @@ message Role {
   int32 position = 5;
   // Whether messages may notify users assigned to this role.
   bool pingable = 6;
+  // Grants from this role require explicit selection in Shield Mode.
+  bool requires_shield_mode = 7;
 }
 
 // Request the current role catalog.

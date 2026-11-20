@@ -184,7 +184,7 @@ func (c *ChattoCore) ImportHistoricalMessageChange(ctx context.Context, in Histo
 		}
 		if in.Kind == "deleted" {
 			if _, retracted, _ := c.roomModel.latestBodyReference(in.MessageID); retracted {
-				c.secureDeleteAllMessageBodyEvents(ctx, in.MessageID)
+				c.eventReader.Forget(c.retractedMessageBodySeqs(in.MessageID)...)
 			}
 		}
 		return nil

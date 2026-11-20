@@ -124,25 +124,55 @@ operations do not duplicate these outcomes.
   `search.BleveProvider`, started by `[search_provider].enabled` under
   `chatto run` or as `chatto search-provider`; opens existing EVT and encryption
   resources without starting `ChattoCore`, exposes status during startup replay,
-  and joins the shared query queue only after replay is current. After query and
-  status endpoints are registered, it logs `stage=service_ready`; the operator's
-  standalone search wrapper uses this field to mark the pod ready.
+  and joins the shared query queue only after replay is current and its query
+  probe succeeds. The [query probe](../../cli/internal/search/bleve/probe.go)
+  runs a fixed query that matches no room through the real index read path
+  every 10 seconds. At most one probe runs at a time; a probe that runs longer
+  than 5 seconds counts as blocked. While the latest probe failed or a probe is
+  blocked, the unit stops its separate query and ready status NATS service, so
+  that healthy replicas answer. It joins again after a probe succeeds, and
+  also registers a new service when NATS micro stopped the previous one after a
+  subscription error (`stage=query_service_stopped`). The
+  startup status service stays registered. The first time the unit joins, it
+  logs `stage=service_ready`; the operator's standalone search wrapper uses
+  this field to mark the pod ready. Later transitions log
+  `stage=query_probe_failed` and `stage=query_probe_recovered`. At shutdown,
+  the unit waits at most 15 seconds for the projector and the index to stop.
+  If a commit blocks, it logs `stage=shutdown_timeout` with the write stage and
+  sequences, leaves the index open, and returns an error.
+- **Search provider health listener**
+  ([`health.go`](../../cli/internal/search/bleve/health.go)): Optional HTTP
+  listener of `chatto search-provider`, enabled by
+  `[search_provider.health].enabled` and started before NATS and index
+  startup. `/livez` fails only when the NATS connection is permanently closed,
+  so replay, rebuilds, and blocked index work do not restart the process.
+  `/readyz` succeeds only while the unit serves the shared query queue.
+  `/metrics` exports Go, process, serving, query probe, and index write age
+  metrics. With `[search_provider.health].diagnostics`, `/debug/pprof/` and
+  `/debug/search` serve profiles, goroutine stacks, and index diagnostics to
+  loopback clients only. Handlers read no projection lock, so they answer
+  during a blocked commit or a rebuild. `chatto run` does not start this
+  listener. Instead, its metrics listener serves the same serving, query
+  probe, and index write age metrics of the bundled provider, so that each
+  replica reports its own provider, also after the provider leaves the query
+  queue.
 - **`video.Unit`** ([`unit.go`](../../cli/internal/video/unit.go),
   [`asset_processing.go`](../../cli/cmd/asset_processing.go),
   [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go)):
   Generated derivatives bypass this user upload limit.
-  Durable asset-processing worker started by `[asset_processing].enabled` under
-  `chatto run` or explicitly as `chatto asset-processing`; `[asset_processing]`
-  also owns its ffmpeg paths, temporary directory, and per-process concurrency;
+  Standalone media job worker started explicitly as `chatto asset-processing`.
+  Embedded processing registers a handler in the core media job pool when
+  `[asset_processing].enabled` is true. `[asset_processing]` owns ffmpeg paths,
+  temporary directory, and media concurrency;
   runs a private AssetProjection without starting `ChattoCore` or main-app boot
   mutations.
 - **`video.Service`** ([`service.go`](../../cli/internal/video/service.go),
   [`processor.go`](../../cli/internal/video/processor.go)): Synchronous
   video/animated-GIF processing attempts: source-rendition inspection and
   reuse preflight, fallback encoding with web-compatible stereo audio
-  normalization, aligned HLS segment packaging and upload, animated-GIF MP4 upload, and
-  terminal asset processing events; queue and concurrency remain owned by
-  `video.Unit`.
+  normalization, aligned HLS segment packaging and upload, animated-GIF MP4 upload,
+  and terminal asset processing events. The core media job pool owns embedded
+  execution, and `video.Unit` owns standalone execution.
 
 ## Event-sourcing framework and adapters
 
@@ -208,6 +238,9 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   for room, timeline, call, asset, thread, reaction, configuration,
   user-profile, content-key, RBAC, and mentionable components; also supplies the
   stable read transaction for content-backed authorization.
+- The [message-body erasure worker](../../cli/internal/core/message_body_cleanup.go)
+  consumes room edit and retraction facts. It uses projected body sequences
+  to erase superseded and retracted bodies through JOBS.
 - **`ConfigModel`**
   ([`config_model.go`](../../cli/internal/core/config_model.go),
   [`server_config_model.go`](../../cli/internal/core/server_config_model.go),
@@ -217,6 +250,10 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   in this aggregate. Self-service account creation reads the current admission
   under stream-wide EVT OCC and commits any required invitation redemption in
   the account batch. A conflict rebuilds the batch with the current policy.
+  The [branding cleanup worker](../../cli/internal/core/branding_cleanup.go)
+  consumes logo and banner changes. It reads the previous image from EVT
+  history. Branding and upload cleanup jobs share the storage deletion code.
+  Each selects its own object key and cache namespaces.
 - **`NotificationPolicyModel` / `NotificationOccurrenceModel` /
   `NotificationProjection` / `NotificationMaterializer` /
   `NotificationDecisionProjection` / `NotificationAlertDelivery`**
@@ -247,6 +284,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   direct durable push consumption from `notifications.signalled` with an
   immutable deadline and current policy, visibility, DND, and subscription
   revalidation.
+  A separate role-protection consumer removes stored attention that a member loses permission to read.
 - **`MessageModel`**
   ([`message_model.go`](../../cli/internal/core/message_model.go),
   [`messages.go`](../../cli/internal/core/messages.go)): Operation-level message
@@ -385,8 +423,8 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 - **`UserKeyShreddingModel`**
   ([`user_key_shredding.go`](../../cli/internal/core/user_key_shredding.go)):
   Request-before-destruction crypto-shredding, privacy-projection barriers,
-  synchronous idempotent completion, and shared durable recovery across
-  replicas.
+  synchronous idempotent completion, and durable recovery through
+  `user_key_shredding` jobs.
 - **`RBACModel`** ([`rbac_model.go`](../../cli/internal/core/rbac_model.go)):
   Sole core owner of RBAC projection reads and readiness for role, assignment,
   and permission authorization and writes.
@@ -418,7 +456,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   core owner of asset-projection reads and readiness; detached
   generation-consistent asset state; uploader-bound exclusive message
   attachments with asset-aggregate OCC; exact-owner deletion; processing
-  transitions, tombstones, and shared durable physical deletion.
+  transitions, tombstones, and physical deletion through `asset_cleanup` jobs.
 - **`AssetUploadModel`**
   ([`asset_uploads.go`](../../cli/internal/core/asset_uploads.go)): Eagerly
   wired chunked attachment upload sessions, temporary object assembly,
@@ -447,14 +485,45 @@ stable machine-readable keys such as `config_model`, `message_model`, and
 
 ## Background workers
 
+[ADR-123](../adr/ADR-123-durable-background-jobs.md#which-chatto-workers-stay-outside-jobs)
+defines the queue boundary. The following services run alongside the job pools.
+
+- [Notification materializer](../../cli/internal/core/notification_materializer.go).
+  Its three durable EVT consumers handle message and policy changes, invitations,
+  and role protection. Each finishes its domain writes before acknowledgement.
+  The [occurrence model](../../cli/internal/core/notification_occurrence_model.go)
+  reconciles unread occurrences against stored read boundaries at startup and
+  on subsequent changes and retries. Maintenance also prunes expired entries
+  and retries physical signal deletion from dismissal tombstones. The
+  [alert expiry loop](../../cli/internal/core/notification_alert_delivery.go)
+  resolves pending occurrences past their deadline, including ones whose signal
+  has expired. The actual Web Push attempt belongs to the alert job.
+- [LiveKit reconciliation](../../cli/internal/core/call_model.go).
+  The elected replica compares current participants with the call projection
+  and repairs mismatches. The next pass takes a new observation. Ended-call
+  key deletion has its own job.
+- [Upload expiry](../../cli/internal/core/asset_uploads.go).
+  Each pass finds expired upload sessions, orphan chunks, and expired pending
+  assets from storage. A later pass can find remaining state. A committed asset
+  deletion feeds the binary and transform-cache cleanup job.
+- [Push-subscription reconciliation](../../cli/internal/core/push_subscription_cleanup.go).
+  A lease holder scans at startup and periodically for late subscriptions and
+  orphan endpoint claims. A later holder can repeat the scan. The
+  `push_subscription_cleanup` job handles the normal per-user cleanup.
+- [Boot repair](../../cli/internal/core/core.go). Each core replays projections
+  before it sweeps obsolete message bodies and applies idempotent configuration
+  and layout repairs. The [media startup scan](../../cli/internal/core/asset_model.go)
+  finds attached videos missing a processing-started fact and schedules them
+  through the normal media path. A later start can rediscover a missed repair.
 - **`neighborhoodDiscovery`**
   ([`neighborhood_discovery.go`](../../cli/internal/core/neighborhood_discovery.go),
   [`crawl.go`](../../cli/internal/core/neighborhood/crawl.go),
   [`remote.go`](../../cli/internal/core/neighborhood/remote.go)): Post-boot
-  five-second check on every replica; each replica runs a bounded Neighborhood
-  discovery pass when the cached directory is missing, one hour old, ten minutes
-  old after a failed remote request, or based on a different Neighbor set.
-  Replicas do not coordinate passes; they write equivalent results. The pass
+  five-second check on every replica. The directory is due when it is missing,
+  one hour old, ten minutes old after a failed remote request, or based on a
+  different Neighbor set for ten seconds. With no Neighbors, the check writes
+  an empty directory directly. Otherwise, it enqueues one shared refresh job
+  for that cache generation. The pass
   uses the SSRF-guarded link-preview client without redirects, writes
   `neighborhood.directory`, and stores re-encoded images in `ASSET_CACHE`
   (ADR-106).
@@ -463,7 +532,8 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   Optional per-pass elected post-boot and daily publication of encrypted scalar
   generations and complete `ServerContentView` projection snapshot cohorts; a
   separate cluster-wide cooldown limits bounded S3 age expiry when Chatto owns
-  lifecycle cleanup.
+  lifecycle cleanup. A later pass can publish a fresh snapshot. Projectors can
+  replay their source when a usable snapshot is unavailable.
   Process-local snapshot metrics record final startup restore outcomes,
   publication attempts and durations, and cleanup results. The
   [snapshot collector](../../cli/internal/core/projection_snapshot_metrics.go)
@@ -477,19 +547,57 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   revoked, and telemetry failure does not affect credential authentication or
   the requested action.
 
-## Outbound bot webhooks
+The [core lifecycle](../../cli/internal/core/core.go) also runs the local
+projectors, event reader, read-state and notification-boundary indexes, presence
+and realtime hubs, and NATS recovery checks. Each replica follows the streams
+or watches it needs to serve its own reads. A reconnect or restart restores
+those local inputs. Socket heartbeats and presence refresh stop with their
+connection. Diagnostics sample the responding process on demand. Each
+[runtime unit](#process-and-runtime-units) has its own lifecycle. Bleve
+replays its index and probes local query readiness. The exporter refreshes
+its cached S3 measurements on the next scan.
+
+[Link previews](../../cli/internal/core/link_previews.go) fetch on a request
+that misses the cache. [Image transforms](../../cli/internal/http_server/assets.go)
+return the requested image and can store a reusable copy in the background.
+Losing that cache write means another request may need to repeat the transform.
+
+## Background jobs and outbound bot webhooks
+
+[`jobs.Queue`](../../pkg/jobs/queue.go) from the shared `pkg/jobs` module
+appends job facts to `JOBS` and runs attempts from the durable consumers of
+that stream. It has no claims, leases, or repair pass of its own; JetStream
+consumer semantics do this work. The core starts the webhook and effect worker
+pools. Each job type has its own consumer. The webhook pool and the pool of each cleanup
+and key-deletion type have `core.job_concurrency` capacity (default eight).
+The notification alert pool has capacity sixteen. With embedded media
+processing, the media pool has `asset_processing.max_concurrent_jobs`
+capacity. Standalone media processes use the media consumer with their own
+capacity.
+
+The HTTP runtime owns the eight-worker email pool and its SMTP or JMAP
+transport through [`EmailJobs`](../../cli/internal/core/email_jobs.go). Its
+request handlers persist encrypted content and accept a job before returning.
+The pool stops with the HTTP runtime.
+
+The core also runs the job view ([`view.go`](../../pkg/jobs/view.go)), an
+in-memory projection of `JOBS` with one payload-free summary for each job.
+`ListJobs`, `GetJob`, `RetryJob`, and `DeleteJob` read it. The view is built again from the
+retained facts on each start. Standalone media processes do not run it.
+
+[`newEffectJob`](../../cli/internal/core/effect_jobs.go) uses `jobs.Effect` to move the asset and branding cleanup,
+message-body erasure, call-key cleanup, push-subscription cleanup, runtime credential cleanup, user-key shredding, and
+notification alert consumers onto the queue. Each owning model keeps its
+handler; the source consumer only accepts jobs. During an alert attempt, the
+[push sender](../../cli/internal/push/push.go) bounds concurrent endpoint
+requests and waits for their results. The alert job owns the delivery outcome.
+An explicit [push test](../../cli/cmd/run.go) uses the same sender within the
+request so the caller receives the result of that test.
 
 [`botWebhookModel`](../../cli/internal/core/bot_webhook_worker.go) owns source
-selection and best-effort HTTP delivery. Core creates one shared durable EVT
-consumer before startup and runs it after boot. The source handler puts each
-destination into a process-local channel with 64 slots. Eight workers per
-process send requests and wait between retries. A full channel blocks source
-handoff. Shutdown cancels active requests and discards pending work.
-The [`management operations`](../../cli/internal/core/bot_webhooks.go) own
-bot-manager authorization, encrypted endpoint collections, and read-your-writes.
-User-aggregate OCC limits each bot to 20 endpoints. Each endpoint has fixed
-credentials and independent enabled state. Pause/resume advances its activation
-cutoff, so a resumed endpoint cannot send work from a previous enabled period.
+selection and one HTTP attempt. The durable EVT source persists each endpoint's
+job before acknowledgement. Retries and pending work survive restart. Current
+endpoint state and authorization remain per-attempt checks. See ADR-123.
 
 ## Operational log
 

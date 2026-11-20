@@ -284,6 +284,11 @@ func TestMediaModelDeleteAttachmentFromStorageDeletesBinaryAndCache(t *testing.T
 		t.Fatalf("StoreCachedResize returned error: %v", err)
 	}
 
+	brandingCache := ImageCacheKey(ServerAssetSignResource, attachment.GetId(), 32, 32, "cover")
+	if err := service.StoreCachedResize(ctx, brandingCache, []byte("logo")); err != nil {
+		t.Fatal(err)
+	}
+
 	if err := service.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 		t.Fatalf("DeleteAttachmentFromStorage returned error: %v", err)
 	}
@@ -295,6 +300,9 @@ func TestMediaModelDeleteAttachmentFromStorageDeletesBinaryAndCache(t *testing.T
 	}
 	if err := service.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 		t.Fatalf("second DeleteAttachmentFromStorage returned error: %v", err)
+	}
+	if got, err := service.GetCachedResize(ctx, brandingCache); err != nil || string(got) != "logo" {
+		t.Fatalf("branding cache after attachment cleanup = %q, %v; want logo, nil", got, err)
 	}
 }
 

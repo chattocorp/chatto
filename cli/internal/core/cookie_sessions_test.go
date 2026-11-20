@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"sync"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -85,6 +87,40 @@ func TestChattoCore_CreateAndValidateCookieSession(t *testing.T) {
 	}
 	if _, err := core.ValidateCookieCredential(ctx, bearerToken); !errors.Is(err, ErrCookieSessionNotFound) {
 		t.Fatalf("bearer token presented as cookie err = %v, want ErrCookieSessionNotFound", err)
+	}
+}
+
+func TestCookieSessionWritesDuringFinalFractionalSecond(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	now := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+	deadline := now.Add(time.Hour)
+	record, err := json.Marshal(AuthTokenData{UserID: "member", Kind: AuthTokenKindFirstPartySession,
+		Presentation: AuthTokenPresentationCookie, CreatedAt: now, ExpiresAt: deadline})
+	require.NoError(t, err)
+	// Supply the logical write time directly, independently of JetStream's clock.
+	lastInstant := deadline.Add(-time.Nanosecond)
+	t.Run("create", func(t *testing.T) {
+		require.NoError(t, c.CreateCookieSessionValue(ctx, "late-create", record, lastInstant))
+	})
+	t.Run("update", func(t *testing.T) {
+		require.NoError(t, c.CreateCookieSessionValue(ctx, "late-update", record, now))
+		entry, err := c.LoadCookieSessionValue(ctx, "late-update", now)
+		require.NoError(t, err)
+		require.NoError(t, c.UpdateCookieSessionValue(ctx, "late-update", record, entry.Revision, lastInstant))
+		_, err = c.LoadCookieSessionValue(ctx, "late-update", deadline)
+		require.ErrorIs(t, err, ErrCookieSessionNotFound)
+	})
+}
+
+func TestRuntimeStateRetentionRoundsUpToWholeSeconds(t *testing.T) {
+	for _, tc := range []struct{ remaining, retention time.Duration }{
+		{time.Nanosecond, time.Second},
+		{time.Second, time.Second},
+		{time.Second + time.Nanosecond, 2 * time.Second},
+		{time.Duration(math.MaxInt64), time.Duration(math.MaxInt64).Truncate(time.Second)},
+	} {
+		require.Equal(t, tc.retention, runtimeStateRetention(tc.remaining))
 	}
 }
 

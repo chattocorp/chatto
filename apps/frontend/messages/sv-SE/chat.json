@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "Aktivera privilegierat läge",
       "disable": "Inaktivera privilegierat läge",
+      "select_roles": "Välj vilka roller du vill aktivera i 15 minuter.",
       "confirmation": "I 15 minuter aktiverar detta de ytterligare behörigheter som du har tilldelats på den här servern."
     },
     "notifications": {
@@ -74,7 +75,11 @@
       "thread_views_description": "Följda trådar och trådar som du har startat kanske inte visas separat på den här servern.",
       "independent_slow_mode_title": "Oberoende långsamt läge är inte tillgängligt",
       "independent_slow_mode_description": "Den här servern använder en gemensam väntetid för kanalmeddelanden och trådsvar.",
-      "upgrade": "Be serveradministratören att uppgradera till {version} eller senare för fullt stöd."
+      "upgrade": "Be serveradministratören att uppgradera till {version} eller senare för fullt stöd.",
+      "background_jobs_title": "Bakgrundsjobb är inte tillgängliga",
+      "background_jobs_description": "Den här servern kan inte visa eller försöka igen med bakgrundsjobb i serverinställningarna.",
+      "shield_role_selection_title": "Rollval i privilegierat läge",
+      "shield_role_selection_description": "Den här servern aktiverar alla tillgängliga rättigheter samtidigt."
     },
     "server_gutter": {
       "move_up": "Flytta upp",
@@ -186,7 +191,8 @@
       "system": "System",
       "back_to_server": "Återgå till servern",
       "invites": "Inbjudningar",
-      "registration": "Registrering"
+      "registration": "Registrering",
+      "jobs": "Jobb"
     },
     "owner_welcome": {
       "title": "Din server är klar",

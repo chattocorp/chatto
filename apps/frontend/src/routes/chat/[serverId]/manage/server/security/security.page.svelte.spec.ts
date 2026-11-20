@@ -49,7 +49,7 @@ vi.mock('$lib/ui', async () => ({
   Panel: (await import('$lib/ui/Panel.svelte')).default,
   PaneHeader: (await import('$lib/ui/PaneHeader.svelte')).default,
   PageTitle: (await import('$lib/ui/PageTitle.svelte')).default,
-  LoadingFog: (await import('$lib/ui/LoadingFog.svelte')).default,
+  LoadingDots: (await import('$lib/ui/LoadingDots.svelte')).default,
   EmptyState: (await import('$lib/ui/EmptyState.svelte')).default,
   Hint: (await import('../roles/[name]/RolePageSnippetMock.svelte')).default,
   PaneContent: (await import('../roles/[name]/RolePageSnippetMock.svelte')).default
@@ -210,7 +210,7 @@ describe('server security query lifecycle', () => {
     const view = render(SecurityPage);
     await settle();
 
-    expect(view.container.querySelector('[data-loading-fog][aria-busy="true"]')).not.toBeNull();
+    expect(view.container.querySelector('[data-loading-dots][aria-busy="true"]')).not.toBeNull();
     expect(view.container.textContent).not.toContain('No OAuth clients have been authorised');
 
     listResult.resolve({ oauthClients: [], totalCount: 0, hasMore: false });

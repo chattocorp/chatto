@@ -427,6 +427,10 @@
           "one": "{count} projeção falhou",
           "other": "{count} projeções falharam"
         },
+        "projections_stalled_count": {
+          "one": "{count} projeção travada",
+          "other": "{count} projeções travadas"
+        },
         "projections_catching_up_count": {
           "one": "{count} projeção se atualizando",
           "other": "{count} projeções se atualizando"
@@ -591,6 +595,42 @@
         "revoked": "Revogado",
         "used": "Usado"
       }
+    },
+    "jobs": {
+      "title": "Tarefas",
+      "subtitle": "Veja as tarefas em segundo plano e tente novamente ou exclua as que falharam.",
+      "load_failed": "Não foi possível carregar as tarefas.",
+      "retry_failed": "Não foi possível tentar esta tarefa novamente.",
+      "delete_failed": "Não foi possível excluir esta tarefa.",
+      "delete_title": "Excluir esta tarefa?",
+      "delete_message": "O trabalho desta tarefa é abandonado. Você não poderá tentá-la novamente mais tarde.",
+      "webhook": "Envio de webhook",
+      "media": "Processamento de mídia",
+      "neighborhood_refresh": "Atualização da vizinhança",
+      "message_body_erasure": "Eliminação do conteúdo das mensagens",
+      "branding_cleanup": "Limpeza de logotipos e banners do servidor",
+      "asset_cleanup": "Limpeza de arquivos",
+      "call_key_cleanup": "Exclusão de chaves de chamada",
+      "runtime_credential_cleanup": "Limpeza de sessões e tokens",
+      "push_subscription_cleanup": "Limpeza de assinaturas push",
+      "user_key_shredding": "Exclusão de chaves da conta",
+      "notification_alert": "Alerta de notificação",
+      "email": "E-mail",
+      "queued": "Na fila",
+      "running": "Em execução",
+      "succeeded": "Concluída",
+      "failed": "Falhou",
+      "empty": "Ainda não há tarefas",
+      "attempts": "Tentativas",
+      "updated": "Atualizada",
+      "next_attempt": "Próxima tentativa",
+      "expired": "Esta tarefa expirou e não pode ser tentada novamente.",
+      "job": "Tarefa",
+      "created": "Criada",
+      "details": "Detalhes",
+      "detail_subtitle": "Status, tentativas e último motivo de falha desta tarefa.",
+      "not_found": "Esta tarefa não existe mais.",
+      "all": "Todas"
     }
   }
 }

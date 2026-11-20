@@ -6,6 +6,8 @@ import type {
 import type { DesktopUpdatesBridge } from './updates.svelte';
 
 export interface ChattoDesktopBridge {
+  /** Subscribe to native popup closures, identified by the original window name. */
+  onAuthorizationWindowClosed?: (callback: (frameName: string) => void) => () => void;
   updates?: DesktopUpdatesBridge;
   /** Native alerts carry opaque click IDs, never host-provided navigation URLs. */
   notifications?: {

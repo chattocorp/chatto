@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/pkg/events"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBotAPIKeyFormatIsCompactAndAcceptsLegacySecrets(t *testing.T) {
@@ -914,6 +916,22 @@ func TestBotPermissionCeilingResolvesExplicitInclusion(t *testing.T) {
 	}
 }
 
+func requireBotGrantability(t *testing.T, c *ChattoCore, ctx context.Context, editorID, botID string, scope PermissionTargetScope, perm Permission, want bool) PermissionMatrixCell {
+	t.Helper()
+	matrix, err := c.GetUserPermissionMatrixPage(ctx, editorID, botID, false, PermissionScopeQuery{Scope: &scope})
+	require.NoError(t, err)
+	require.Len(t, matrix.Scopes, 1)
+	for _, cell := range matrix.Cells {
+		if cell.ScopeID == matrix.Scopes[0].ID && cell.Permission == string(perm) {
+			require.NotNil(t, cell.AllowPermitted)
+			require.Equal(t, want, *cell.AllowPermitted)
+			return cell
+		}
+	}
+	t.Fatalf("missing %s cell for %+v", perm, scope)
+	return PermissionMatrixCell{}
+}
+
 func TestBotDMGrantIsScopedAndUsesDynamicOwnerCeiling(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -941,6 +959,17 @@ func TestBotDMGrantIsScopedAndUsesDynamicOwnerCeiling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
+	// The narrow grant is available only through the owner's broader DM read
+	// permission. Its direct deny makes the inclusion observable.
+	scope := PermissionTargetScope{Kind: MatrixScopeDM}
+	narrow := PermMessageReadInteractions
+	require.NoError(t, c.SetUserPermissionState(ctx, admin.Id, owner.Id, scope, narrow, PermissionStateDeny))
+	requireBotGrantability(t, c, ctx, admin.Id, bot.User.Id, scope, narrow, true)
+	require.NoError(t, c.SetUserPermissionState(ctx, admin.Id, bot.User.Id, scope, narrow, PermissionStateAllow))
+	decision, err := c.PermResolver().Resolve(ctx, bot.User.Id, KindDM, dm.Id, narrow)
+	require.NoError(t, err)
+	require.Equal(t, DecisionAllow, decision)
+
 	for _, permission := range []Permission{PermMessageRead, PermMessagePost, PermMessagePostInThread} {
 		if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, permission, PermissionStateAllow); err != nil {
 			t.Fatalf("grant bot DM %s: %v", permission, err)
@@ -973,12 +1002,27 @@ func TestBotDMGrantIsScopedAndUsesDynamicOwnerCeiling(t *testing.T) {
 	if allowed, err := c.CanReadMessages(ctx, bot.User.GetId(), KindDM, dm.GetId()); err != nil || allowed {
 		t.Fatalf("owner-capped bot DM read = %v, %v; want false", allowed, err)
 	}
+	for _, perm := range []Permission{PermMessageRead, narrow} {
+		cell := requireBotGrantability(t, c, ctx, admin.Id, bot.User.Id, scope, perm, false)
+		require.Equal(t, MatrixDecisionAllow, cell.Override)
+		require.Equal(t, MatrixDecisionDeny, cell.Effective)
+	}
+	require.ErrorIs(t, c.SetUserPermissionState(ctx, admin.Id, bot.User.Id, scope, narrow, PermissionStateAllow), ErrBotOwnerPermissionCeiling)
+	decision, err = c.PermResolver().Resolve(ctx, bot.User.Id, KindDM, dm.Id, narrow)
+	require.NoError(t, err)
+	require.Equal(t, DecisionDeny, decision)
 	if err := c.SetUserPermissionState(ctx, admin.GetId(), owner.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageRead, PermissionStateAllow); err != nil {
 		t.Fatalf("restore owner DM message.read: %v", err)
 	}
 	if allowed, err := c.CanReadMessages(ctx, bot.User.GetId(), KindDM, dm.GetId()); err != nil || !allowed {
 		t.Fatalf("restored owner-capped bot DM read = %v, %v; want true", allowed, err)
 	}
+	cell := requireBotGrantability(t, c, ctx, admin.Id, bot.User.Id, scope, narrow, true)
+	require.Equal(t, MatrixDecisionAllow, cell.Override)
+	require.Equal(t, MatrixDecisionAllow, cell.Effective)
+	decision, err = c.PermResolver().Resolve(ctx, bot.User.Id, KindDM, dm.Id, narrow)
+	require.NoError(t, err)
+	require.Equal(t, DecisionAllow, decision)
 }
 
 func TestBotDirectMentionActivatesInteractionThread(t *testing.T) {
@@ -1342,27 +1386,33 @@ func TestCanonicalUserPermissionMatrixForBotFiltersHiddenRoomsAndKeepsDirectoryG
 	if err := c.GrantUserGroupPermission(ctx, SystemActorID, empty.GetId(), owner.GetId(), PermRoomCreate); err != nil {
 		t.Fatalf("GrantUserGroupPermission room.create: %v", err)
 	}
-	err = c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{
-		Kind: MatrixScopeGroup,
-		ID:   empty.GetId(),
-	}, PermRoomCreate, PermissionStateAllow)
+	scope := PermissionTargetScope{Kind: MatrixScopeGroup, ID: empty.Id}
+	err = c.SetUserPermissionState(ctx, owner.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateAllow)
 	if err != nil {
 		t.Fatalf("SetUserPermissionState empty group room.create: %v", err)
 	}
-	matrix, err = c.GetUserPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())
-	if err != nil {
-		t.Fatalf("GetUserPermissionMatrix after group grant: %v", err)
-	}
-	var cell *PermissionMatrixCell
-	for i := range matrix.Cells {
-		if matrix.Cells[i].ScopeID == "group:"+empty.GetId() && matrix.Cells[i].Permission == string(PermRoomCreate) {
-			cell = &matrix.Cells[i]
-			break
-		}
-	}
-	if cell == nil || cell.Override != MatrixDecisionAllow || cell.Effective != MatrixDecisionAllow || cell.AllowPermitted == nil || !*cell.AllowPermitted {
-		t.Fatalf("empty group room.create cell = %+v, want effective owner-bounded allow", cell)
-	}
+	otherGroup := PermissionTargetScope{Kind: MatrixScopeGroup, ID: group.Id}
+	requireBotGrantability(t, c, ctx, owner.Id, bot.User.Id, otherGroup, PermRoomCreate, false)
+	require.ErrorIs(t, c.SetUserPermissionState(ctx, owner.Id, bot.User.Id, otherGroup, PermRoomCreate, PermissionStateAllow), ErrBotOwnerPermissionCeiling)
+	decision, err := c.PermResolver().ResolveGroup(ctx, bot.User.Id, KindChannel, group.Id, PermRoomCreate)
+	require.NoError(t, err)
+	require.Equal(t, DecisionDeny, decision)
+	cell := requireBotGrantability(t, c, ctx, owner.Id, bot.User.Id, scope, PermRoomCreate, true)
+	require.Equal(t, MatrixDecisionAllow, cell.Override)
+	require.Equal(t, MatrixDecisionAllow, cell.Effective)
+	decision, err = c.PermResolver().ResolveGroup(ctx, bot.User.Id, KindChannel, empty.Id, PermRoomCreate)
+	require.NoError(t, err)
+	require.Equal(t, DecisionAllow, decision)
+
+	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, owner.Id, PermUserManagePermissions))
+	require.NoError(t, c.SetUserPermissionState(ctx, owner.Id, owner.Id, scope, PermRoomCreate, PermissionStateNone))
+	cell = requireBotGrantability(t, c, ctx, owner.Id, bot.User.Id, scope, PermRoomCreate, false)
+	require.Equal(t, MatrixDecisionAllow, cell.Override)
+	require.Equal(t, MatrixDecisionDeny, cell.Effective)
+	decision, err = c.PermResolver().ResolveGroup(ctx, bot.User.Id, KindChannel, empty.Id, PermRoomCreate)
+	require.NoError(t, err)
+	require.Equal(t, DecisionDeny, decision)
+	require.ErrorIs(t, c.SetUserPermissionState(ctx, owner.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateAllow), ErrBotOwnerPermissionCeiling)
 }
 
 func TestSetUserPermissionRejectsNonexistentBotScopesWithoutPersisting(t *testing.T) {

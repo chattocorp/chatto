@@ -394,8 +394,7 @@ can be up to one hour old.
 
 ## Permissions
 
-- `server.manage-neighbors` permits Neighbor administration. A human session
-  must also have privileged mode active.
+- `server.manage-neighbors` permits Neighbor administration.
 - An effective `server.manage` allow includes `server.manage-neighbors`.
 
 ## Non-goals

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { MAX_LOGIN_LENGTH } from '$lib/validation/login';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { flattenUniquePages, nextOffset } from '$lib/query/pagination';
   import { goto } from '$app/navigation';
@@ -11,7 +12,7 @@
     Panel,
     FormDialog,
     Hint,
-    LoadingFog,
+    LoadingDots,
     PageTitle,
     PaneContent,
     PaneHeader
@@ -101,7 +102,7 @@
   const botLoginSchema = z
     .string()
     .min(2, m('common.validation.username_min'))
-    .max(32, m('common.validation.username_max'))
+    .max(MAX_LOGIN_LENGTH, m('common.validation.username_max', { max: MAX_LOGIN_LENGTH }))
     .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, m('common.validation.username_charset'))
     .refine((value) => !value.endsWith('.'), m('common.validation.username_end_alphanumeric'));
   const normalizedCreateLogin = $derived(createLogin.trim());
@@ -256,7 +257,7 @@
                   viewerSettings={serverScope.store.currentUser.user?.settings}
                 />
               {:else if ownersQuery.isPending}
-                <LoadingFog class="h-5 w-28" />
+                <LoadingDots class="h-5 w-28" />
               {:else}
                 <span class="text-muted">{m('common.unknown')}</span>
               {/if}
@@ -283,7 +284,7 @@
     id="bot-login"
     label={m('settings.bots.username')}
     error={createLoginError}
-    maxlength={32}
+    maxlength={MAX_LOGIN_LENGTH}
     required
     autofocus
     bind:value={createLogin}

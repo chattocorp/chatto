@@ -1,4 +1,5 @@
 import { EditorState } from '@codemirror/state';
+import { Strikethrough } from '@lezer/markdown';
 import { markdown } from '@codemirror/lang-markdown';
 import { describe, expect, it } from 'vitest';
 import { applySourceFormatting, getSourceFormattingState } from './sourceFormatting';
@@ -75,5 +76,39 @@ describe('getSourceFormattingState', () => {
 
     const codeState = state.update({ selection: { anchor: 21 } }).state;
     expect(getSourceFormattingState(codeState).inlineCode).toBe(true);
+  });
+});
+
+describe('strikethrough source formatting', () => {
+  it('wraps and unwraps a backward selection without moving it', () => {
+    const wrapped = applySourceFormatting('hello world', { anchor: 5, head: 0 }, 'strikethrough');
+    expect(wrapped).toEqual({ text: '~~hello~~ world', anchor: 7, head: 2 });
+    expect(applySourceFormatting(wrapped.text, wrapped, 'strikethrough')).toEqual({
+      text: 'hello world',
+      anchor: 5,
+      head: 0
+    });
+  });
+
+  it('places the cursor between paired markers', () => {
+    expect(applySourceFormatting('', { anchor: 0, head: 0 }, 'strikethrough')).toEqual({
+      text: '~~~~',
+      anchor: 2,
+      head: 2
+    });
+  });
+
+  it.each([
+    ['~~text~~', 4, true],
+    ['~~**text**~~', 6, true],
+    ['`~~text~~`', 5, false],
+    ['```\n~~text~~\n```', 8, false]
+  ])('detects strikethrough outside code in %s', (doc, anchor, strikethrough) => {
+    const state = EditorState.create({
+      doc,
+      selection: { anchor },
+      extensions: [markdown({ extensions: [Strikethrough] })]
+    });
+    expect(getSourceFormattingState(state).strikethrough).toBe(strikethrough);
   });
 });

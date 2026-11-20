@@ -610,7 +610,6 @@ export function createComposerExtensions(placeholder: string, context?: Map<unkn
       // Keep the composer subset aligned with the rendered message markdown.
       codeBlock: false,
       bold: false,
-      strike: false,
       underline: false,
       horizontalRule: false,
       trailingNode: false,

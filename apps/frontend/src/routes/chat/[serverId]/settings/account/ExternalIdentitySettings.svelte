@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
@@ -6,9 +7,8 @@
   import { identityDisconnectUnavailableMessage } from '$lib/actionAvailability';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import {
-    openAuthorizationWindow,
     authorizationWindowFeatures,
-    type AuthorizationWindow
+    openAuthorizationWindow
   } from '$lib/oauth/authorizationWindow';
   import IdentityLinkContinuation from './IdentityLinkContinuation.svelte';
   import type { CurrentUserState } from '@chatto/client/auth/currentUser';
@@ -17,7 +17,7 @@
     type ExternalIdentityProviderInfo,
     type LinkedExternalIdentityInfo
   } from '$lib/api/externalIdentities';
-  import { Panel, LoadingFog, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
+  import { Panel, LoadingDots, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { providerIcon } from '$lib/auth/providerIcon';
   import { createQuery } from '$lib/query/client';
@@ -40,11 +40,6 @@
   const accountId = $derived(serverScope.store.accountId);
   const session = createSessionGuard(serverScope, 'server-session');
 
-  type LinkVariables = SessionSnapshot & {
-    provider: ExternalIdentityProviderInfo;
-    currentPassword?: string;
-    redirectPath: string;
-  };
   type DisconnectVariables = SessionSnapshot & {
     subjectHash: string;
     providerLabel: string;
@@ -71,13 +66,35 @@
   let actionError = $state('');
   // Keep refreshes bound to the account and session that opened this window.
   let providerLinkWindow = $state.raw<{
-    window: AuthorizationWindow;
+    isClosed: () => Promise<boolean>;
     scope: SessionSnapshot;
     userId: string;
     providerId: string;
   } | null>(null);
-  let checkingWindow = false;
+  // A browser can require a new click after the asynchronous link-start request.
+  let blockedLaunch = $state.raw<{
+    url: string;
+    provider: ExternalIdentityProviderInfo;
+    scope: SessionSnapshot;
+    userId: string;
+  } | null>(null);
   let checkingLink = false;
+
+  // Provider isolation can make a live popup report closed. Its same-origin
+  // callback can still ask the original settings page to read the final state.
+  let linkUpdates: BroadcastChannel | undefined;
+  onMount(() => {
+    if (
+      !serverRegistry.isOriginServer(serverScope.serverId) ||
+      typeof BroadcastChannel === 'undefined'
+    )
+      return;
+    linkUpdates = new BroadcastChannel('chatto-provider-linked');
+    linkUpdates.onmessage = ({ data }) => {
+      if (accountId && data === accountId) void identitiesQuery.refetch();
+    };
+    return () => linkUpdates?.close();
+  });
 
   function providerLinkIsCurrent() {
     return (
@@ -118,50 +135,71 @@
 
   async function checkProviderLinkWindow() {
     const pending = providerLinkWindow;
-    if (!pending || checkingWindow) return;
-    if (!providerLinkIsCurrent()) {
+    if (!pending) return;
+    if (
+      (!providerLinkIsCurrent() || (await pending.isClosed())) &&
+      pending === providerLinkWindow
+    ) {
+      refreshAfterProviderLink();
       providerLinkWindow = null;
+    }
+  }
+
+  function launchProviderWindow(provider: ExternalIdentityProviderInfo, url: string) {
+    const userId = accountId;
+    if (!userId) return;
+    const popup = window.open(url, '_blank', authorizationWindowFeatures(window));
+    if (!popup) {
+      blockedLaunch = { url, provider, scope: session.snapshot(), userId };
       return;
     }
-    checkingWindow = true;
-    try {
-      if ((await pending.window.isClosed()) && providerLinkWindow === pending) {
-        refreshAfterProviderLink();
-        providerLinkWindow = null;
-      }
-    } finally {
-      checkingWindow = false;
+    popup.opener = null;
+    blockedLaunch = null;
+    providerLinkWindow = {
+      isClosed: async () => popup.closed,
+      scope: session.snapshot(),
+      userId,
+      providerId: provider.id
+    };
+  }
+
+  function retryBlockedLaunch() {
+    const pending = blockedLaunch;
+    blockedLaunch = null;
+    if (pending && session.isCurrent(pending.scope) && accountId === pending.userId) {
+      launchProviderWindow(pending.provider, pending.url);
     }
   }
 
   function openProviderLink(provider: ExternalIdentityProviderInfo) {
     actionError = '';
-    const userId = accountId;
-    if (!userId) return;
+    if (!accountId) return;
+    if (serverRegistry.isOriginServer(serverScope.serverId)) {
+      void startProviderLink(provider, 'popup');
+      return;
+    }
+    // Remote passwords belong on the account server's origin.
     const url = new URL('/chat/-/settings/account', serverScope.connection.connectBaseUrl);
     url.searchParams.set('link_provider', provider.id);
-    url.searchParams.set('link_user', userId);
-    const authorizationWindow = openAuthorizationWindow(
-      '_blank',
-      authorizationWindowFeatures(window)
-    );
-    if (!authorizationWindow) {
+    url.searchParams.set('link_user', accountId);
+    const popup = openAuthorizationWindow('_blank', authorizationWindowFeatures(window));
+    if (!popup) {
       actionError = m('settings.account.sso.popup_blocked');
       return;
     }
-    authorizationWindow.detachOpener();
+    popup.detachOpener();
     const pending = {
-      window: authorizationWindow,
+      isClosed: popup.isClosed,
       scope: session.snapshot(),
-      userId,
+      userId: accountId,
       providerId: provider.id
     };
     providerLinkWindow = pending;
-    void authorizationWindow.navigate(url.href).catch(() => {
+    void popup.navigate(url.href).catch(() => {
       if (providerLinkWindow !== pending) return;
       if (providerLinkIsCurrent()) actionError = m('settings.account.sso.link_failed');
       providerLinkWindow = null;
-      void authorizationWindow.close();
+      void popup.close();
     });
   }
 
@@ -176,7 +214,7 @@
       return;
     }
     if (provider.linked) window.close();
-    else void startProviderLink(provider);
+    else void startProviderLink(provider, 'current');
   }
 
   function linkErrorMessage(errorCode: string): string {
@@ -201,11 +239,15 @@
       return;
     }
     if (providers.some((provider) => provider.id === providerId && provider.linked)) {
+      linkUpdates?.postMessage(userId);
       window.close();
     }
   }
 
-  let linkFreshAuthProvider = $state<ExternalIdentityProviderInfo | null>(null);
+  let linkConfirmation = $state.raw<{
+    provider: ExternalIdentityProviderInfo;
+    destination: 'popup' | 'current';
+  } | null>(null);
   let linkCurrentPassword = $state('');
   let linkFreshAuthError = $state('');
   let disconnectTarget = $state<{ subjectHash: string; providerLabel: string } | null>(null);
@@ -257,37 +299,37 @@
 
   async function startProviderLink(
     provider: ExternalIdentityProviderInfo,
+    destination: 'popup' | 'current',
     currentPassword?: string
   ) {
     const returnURL = new URL(accountSettingsPath, window.location.origin);
     returnURL.searchParams.set('link_provider', provider.id);
     returnURL.searchParams.set('link_user', accountId ?? '');
     returnURL.searchParams.set('link_complete', '1');
-    const variables: LinkVariables = {
-      ...session.snapshot(),
-      provider,
-      currentPassword,
-      redirectPath: returnURL.pathname + returnURL.search + returnURL.hash
-    };
+    const scope = session.snapshot();
+    const userId = accountId;
     actionError = '';
     linkingProviderId = provider.id;
     try {
-      const startUrl = await variables.connection.getAPI(createExternalIdentityAPI).startLink({
+      const startUrl = await scope.connection.getAPI(createExternalIdentityAPI).startLink({
         providerId: provider.id,
-        redirectPath: variables.redirectPath,
+        redirectPath: returnURL.pathname + returnURL.search + returnURL.hash,
         currentPassword
       });
-      if (!session.isCurrent(variables)) return;
-      window.location.href = startUrl;
+      if (!session.isCurrent(scope) || userId !== accountId) return;
+      linkConfirmation = null;
+      linkCurrentPassword = '';
+      if (destination === 'popup') launchProviderWindow(provider, startUrl);
+      else window.location.href = startUrl;
     } catch (err) {
-      if (!session.isCurrent(variables)) return;
+      if (!session.isCurrent(scope) || userId !== accountId) return;
       if (
         err instanceof ConnectError &&
         err.code === Code.FailedPrecondition &&
         canUsePasswordProof &&
         currentPassword === undefined
       ) {
-        linkFreshAuthProvider = provider;
+        linkConfirmation = { provider, destination };
         linkCurrentPassword = '';
         linkFreshAuthError = '';
       } else if (
@@ -310,20 +352,20 @@
 
   function closeLinkFreshAuthDialog() {
     if (linkingProviderId) return;
-    linkFreshAuthProvider = null;
+    linkConfirmation = null;
     linkCurrentPassword = '';
     linkFreshAuthError = '';
   }
 
   async function confirmLinkFreshAuth(e: Event) {
     e.preventDefault();
-    if (!linkFreshAuthProvider || !linkCurrentPassword) {
+    if (!linkConfirmation || !linkCurrentPassword) {
       linkFreshAuthError = m('settings.account.password.current_required');
       return;
     }
-    const provider = linkFreshAuthProvider;
+    const { provider, destination } = linkConfirmation;
     linkFreshAuthError = '';
-    await startProviderLink(provider, linkCurrentPassword);
+    await startProviderLink(provider, destination, linkCurrentPassword);
   }
 
   function openDisconnectProvider(provider: ExternalIdentityProviderInfo) {
@@ -479,7 +521,7 @@
 <Panel title={m('settings.account.sso.title')} icon="iconify icon-[uil--link]">
   <div class="flex max-w-md flex-col gap-4">
     {#if loading}
-      <LoadingFog class="h-32 w-full" label={m('settings.account.sso.loading')} />
+      <LoadingDots class="h-32 w-full" label={m('settings.account.sso.loading')} />
     {:else}
       {#if error}
         <Hint tone="danger">{error}</Hint>
@@ -659,13 +701,26 @@
   {/snippet}
 </Dialog>
 
-{#if linkFreshAuthProvider}
-  {@const freshAuthProvider = linkFreshAuthProvider}
+{#if blockedLaunch}
+  <ConfirmDialog
+    visible
+    tone="info"
+    title={blockedLaunch.provider.label}
+    actionLabel={m('auth.login.continue_with_provider', { provider: blockedLaunch.provider.label })}
+    onconfirm={retryBlockedLaunch}
+    onclose={() => (blockedLaunch = null)}
+  >
+    {m('settings.account.sso.popup_blocked')}
+  </ConfirmDialog>
+{/if}
+
+{#if linkConfirmation}
+  {@const freshAuthProvider = linkConfirmation.provider}
   <FormDialog
     visible
-    title={m('settings.account.sso.fresh_auth_modal.title')}
+    title={m('settings.account.sso.fresh_auth_modal.title', { provider: freshAuthProvider.label })}
     size="sm"
-    submitLabel={m('settings.account.sso.fresh_auth_modal.action')}
+    submitLabel={m('auth.login.continue_with_provider', { provider: freshAuthProvider.label })}
     submitIcon="iconify icon-[uil--link]"
     loading={linkingProviderId === freshAuthProvider.id}
     disabled={!linkCurrentPassword || linkingProviderId !== ''}
@@ -683,7 +738,7 @@
 
     <TextInput
       id="sso-link-current-password"
-      label={m('settings.account.password.current_label')}
+      label={m('settings.account.sso.fresh_auth_modal.password')}
       type="password"
       bind:value={linkCurrentPassword}
       disabled={linkingProviderId !== ''}

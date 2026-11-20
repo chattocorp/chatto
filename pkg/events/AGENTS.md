@@ -37,6 +37,10 @@ durable worker resource ownership.
 - Constructors panic when a required argument is missing or malformed.
   They return an error when options are invalid or a construction-time check
   fails. Keep new constructors consistent with this rule.
+- `Projector.Status` must never wait for `applyMu` or a projection lock. Keep
+  status and freshness fields under the short status mutex, so diagnostics
+  answer while a commit blocks. Stall detection reports only; it must not
+  restart, reset, or delete projection state.
 - `DurableWorker` executes an already configured consumer; it must not infer
   consumer ownership from process lifecycle or create, delete, retire, or
   garbage-collect application consumers. Persisted names, inactivity policy,

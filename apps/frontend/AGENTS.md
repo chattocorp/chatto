@@ -24,7 +24,7 @@ content. Keep both in the **UI/Inset Frame** Storybook comparison when changing
 the shared treatment.
 
 For images, files, embeds, composer thumbnails, and link hover cards, use the
-preview primitives in `src/app.css`. Read the **Preview surfaces** section in
+preview primitives in `src/styles/content.css`. Read the **Preview surfaces** section in
 `DESIGN_SYSTEM.md` and the **UI/Preview frames** Storybook collection before
 adding a preview surface. Use `preview-frame` for the outer frame,
 `preview-content` for inset content, and `preview-thumbnail` for compact media.
@@ -39,6 +39,8 @@ change. It owns the review rules for side effects, reactivity, and lifecycle
 behavior. Apply those rules when choosing an implementation too.
 
 ## Architecture
+
+Use [chatto-experiments](../../.agents/skills/chatto-experiments/SKILL.md) when adding, reviewing, adopting, or retiring a client feature in App Preferences → Experiments.
 
 - Prefer store classes and small components. Stores own the data lifecycle.
   Components render state and call named store methods.
@@ -227,8 +229,9 @@ behavior. Apply those rules when choosing an implementation too.
 - Every `svelte-ignore a11y_*` comment needs a separate comment directly above
   it that states why the element stays accessible.
 - Render loading, empty, and error states inside the panel or list area that
-  they replace, with `LoadingFog`, `EmptyState`, and `Hint`. Do not leave a
-  blank area while the first page loads.
+  they replace, with `LoadingDots`, `EmptyState`, and `Hint`. Do not leave a
+  blank area while the first page loads. Use `LoadingFog` only for pending
+  images, video, and other media.
 - Do not use `{@html}` directly in feature components. Render trusted markdown
   HTML through `$lib/ui/MarkdownHtml.svelte`, which is the reviewed exception.
 - Use `<SkeletonImg>` instead of `<img class="skeleton">`.

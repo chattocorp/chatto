@@ -68,6 +68,16 @@ export const adminQueryKeys = {
   event(scope: QueryKeyScope, sequence: string) {
     return [...adminRoot(scope), 'event', sequence] as const;
   },
+  /** All job list queries. Each status filter has its own entry below it. */
+  jobs(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'jobs'] as const;
+  },
+  jobList(scope: QueryKeyScope, status: number) {
+    return [...adminRoot(scope), 'jobs', status] as const;
+  },
+  job(scope: QueryKeyScope, id: string) {
+    return [...adminRoot(scope), 'job', id] as const;
+  },
   systemInfo(scope: QueryKeyScope) {
     return [...adminRoot(scope), 'system-info'] as const;
   },

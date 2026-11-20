@@ -1,7 +1,7 @@
 import { popupErrorMessage } from '$lib/oauth/popupError';
 import { SvelteSet } from 'svelte/reactivity';
 import type { RegisteredServer } from '@chatto/client/server/registry';
-import { startRemoteReauthentication } from '$lib/auth/reauth';
+import { cancelServerOAuthFlow, startRemoteReauthentication } from '$lib/auth/reauth';
 import { m } from '$lib/i18n/messages';
 import { toast } from '$lib/ui/toast';
 import { goto } from '$app/navigation';
@@ -9,6 +9,7 @@ import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
 import { hasPasswordLogin } from '$lib/desktop/passwordLogin';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
+import { rememberAtprotoHandle } from '$lib/atproto/rememberedHandle';
 
 /** Explicit reauthentication requests can replace a retained chat view with the login form. */
 const inlineServerIds = new SvelteSet<string>();
@@ -31,6 +32,11 @@ export function isRemoteSignInPending(serverId: string): boolean {
   return pendingServerIds.has(serverId);
 }
 
+/** Stop waiting for the pending sign-in window of `server`. */
+export function cancelRemoteSignIn(server: RegisteredServer): void {
+  cancelServerOAuthFlow(server.url);
+}
+
 /**
  * The **Log in to server** action for a registered remote server. The
  * gutter menu, the signed-out view, and the reconnect notice share it, so only
@@ -41,7 +47,7 @@ export function isRemoteSignInPending(serverId: string): boolean {
  */
 export async function startRemoteSignIn(
   server: RegisteredServer,
-  options: { useOAuth?: boolean; providerId?: string; signup?: boolean } = {}
+  options: { useOAuth?: boolean; providerId?: string; loginHint?: string; signup?: boolean } = {}
 ): Promise<void> {
   if (hasPasswordLogin() && !options.useOAuth && !options.providerId && !options.signup) {
     inlineServerIds.add(server.id);
@@ -59,7 +65,10 @@ export async function startRemoteSignIn(
   pendingServerIds.add(server.id);
   try {
     if (options.signup) await startRemoteReauthentication(server, undefined, 'signup');
-    else if (options.providerId) await startRemoteReauthentication(server, options.providerId);
+    else if (options.providerId && options.loginHint) {
+      await startRemoteReauthentication(server, options.providerId, undefined, options.loginHint);
+      rememberAtprotoHandle(options.loginHint);
+    } else if (options.providerId) await startRemoteReauthentication(server, options.providerId);
     else await startRemoteReauthentication(server);
     closeInlineSignIn(server.id);
   } catch (error) {

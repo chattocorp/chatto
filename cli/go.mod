@@ -33,6 +33,7 @@ require (
 	github.com/aws/smithy-go v1.28.2
 	github.com/blevesearch/bleve/v2 v2.6.1
 	github.com/blevesearch/bleve_index_api v1.4.1
+	github.com/bluesky-social/indigo v0.0.0-20261105080030-0ba4ea4f2210
 	github.com/brianvoe/gofakeit/v7 v7.17.1
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/charmbracelet/log v1.0.0
@@ -40,6 +41,7 @@ require (
 	github.com/chattocorp/chatto/pkg/datacrypto v0.0.0
 	github.com/chattocorp/chatto/pkg/events v0.0.0
 	github.com/chattocorp/chatto/pkg/jetstreamutil v0.0.0
+	github.com/chattocorp/chatto/pkg/jobs v0.0.0
 	github.com/chattocorp/chatto/pkg/natsruntime v0.0.0
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/disintegration/imageorient v0.0.0-20180920195336-8147d86e83ec
@@ -73,7 +75,7 @@ require (
 	github.com/yuin/goldmark v1.8.6
 	golang.org/x/crypto v0.57.0
 	golang.org/x/image v0.46.0
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.60.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sync v0.23.0
 	golang.org/x/term v0.46.0
@@ -91,8 +93,14 @@ require (
 	github.com/charmbracelet/x/exp/strings v0.0.0-20240722160745-212f7b056ed0 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
+	github.com/earthboundkid/versioninfo/v2 v2.24.1 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
+	github.com/mr-tron/base58 v1.3.0 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
+	gitlab.com/yawning/secp256k1-voi v0.0.0-20230925100816-f2616030848b // indirect
+	gitlab.com/yawning/tuplehash v0.0.0-20230713102510-df83abbf9a02 // indirect
 )
 
 require (
@@ -165,13 +173,13 @@ require (
 	github.com/go-playground/locales v0.14.2 // indirect
 	github.com/go-playground/universal-translator v0.18.2 // indirect
 	github.com/go-playground/validator/v10 v10.30.5 // indirect
-	github.com/goccy/go-json v0.11.1 // indirect
+	github.com/goccy/go-json v0.11.2 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/context v1.1.2 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
@@ -188,7 +196,6 @@ require (
 	github.com/livekit/mageutil v0.0.0-20250511045019-0f1ff63f7731 // indirect
 	github.com/livekit/psrpc v0.8.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-runewidth v0.0.30 // indirect
 	github.com/minio/highwayhash v1.0.4 // indirect
@@ -218,7 +225,7 @@ require (
 	github.com/pion/turn/v5 v5.1.2 // indirect
 	github.com/pion/webrtc/v4 v4.2.22 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
-	github.com/prometheus/common v0.72.0 // indirect
+	github.com/prometheus/common v0.72.0
 	github.com/prometheus/procfs v0.22.0 // indirect
 	github.com/pseudomuto/protoc-gen-doc v1.5.1 // indirect
 	github.com/pseudomuto/protokit v0.2.0 // indirect
@@ -255,6 +262,8 @@ require (
 replace github.com/chattocorp/chatto/pkg/events => ../pkg/events
 
 replace github.com/chattocorp/chatto/pkg/jetstreamutil => ../pkg/jetstreamutil
+
+replace github.com/chattocorp/chatto/pkg/jobs => ../pkg/jobs
 
 replace github.com/chattocorp/chatto/pkg/appconfig => ../pkg/appconfig
 

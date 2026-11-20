@@ -429,6 +429,12 @@
           "many": "{count} projekce selhalo",
           "other": "{count} projekcí selhalo"
         },
+        "projections_stalled_count": {
+          "one": "{count} projekce se zastavila",
+          "few": "{count} projekce se zastavily",
+          "many": "{count} projekce se zastavilo",
+          "other": "{count} projekcí se zastavilo"
+        },
         "projections_catching_up_count": {
           "one": "{count} projekce dohání zpoždění",
           "few": "{count} projekce dohánějí zpoždění",
@@ -613,6 +619,42 @@
         "revoked": "Odvolán",
         "used": "Použitý"
       }
+    },
+    "jobs": {
+      "title": "Úlohy",
+      "subtitle": "Prohlížejte úlohy na pozadí a opakujte nebo mažte neúspěšné úlohy.",
+      "load_failed": "Úlohy se nepodařilo načíst.",
+      "retry_failed": "Tuto úlohu se nepodařilo zopakovat.",
+      "delete_failed": "Tuto úlohu se nepodařilo smazat.",
+      "delete_title": "Smazat tuto úlohu?",
+      "delete_message": "Práce této úlohy bude zahozena. Později ji nemůžete zopakovat.",
+      "webhook": "Doručení webhooku",
+      "media": "Zpracování médií",
+      "neighborhood_refresh": "Aktualizace sousedství",
+      "message_body_erasure": "Výmaz obsahu zpráv",
+      "branding_cleanup": "Úklid log a bannerů serveru",
+      "asset_cleanup": "Čištění souborů",
+      "call_key_cleanup": "Mazání klíčů hovorů",
+      "runtime_credential_cleanup": "Vyčištění relací a tokenů",
+      "push_subscription_cleanup": "Čištění odběrů push",
+      "user_key_shredding": "Mazání klíčů účtu",
+      "notification_alert": "Upozornění na oznámení",
+      "email": "Email",
+      "queued": "Ve frontě",
+      "running": "Probíhá",
+      "succeeded": "Úspěšná",
+      "failed": "Neúspěšná",
+      "empty": "Zatím žádné úlohy",
+      "attempts": "Pokusy",
+      "updated": "Aktualizováno",
+      "next_attempt": "Další pokus",
+      "expired": "Platnost této úlohy vypršela a nelze ji zopakovat.",
+      "job": "Úloha",
+      "created": "Vytvořeno",
+      "details": "Podrobnosti",
+      "detail_subtitle": "Stav, pokusy a poslední důvod selhání této úlohy.",
+      "not_found": "Tato úloha již neexistuje.",
+      "all": "Vše"
     }
   }
 }

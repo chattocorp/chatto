@@ -48,7 +48,6 @@ vi.mock(
   '$lib/state/server/scope.svelte',
   async () => (await import('$lib/test-utils/serverScope.svelte')).serverScopeModule
 );
-vi.mock('@chatto/client/api/roles', () => ({ createRoleAPI: vi.fn() }));
 vi.mock('$lib/components/admin', async () => ({
   UserList: (await import('./RolePageUserListMock.svelte')).default
 }));
@@ -58,7 +57,7 @@ vi.mock('$lib/ui/Panel.svelte', async () => ({
 vi.mock('$lib/ui', async () => ({
   PaneHeader: (await import('$lib/ui/PaneHeader.svelte')).default,
   PageTitle: (await import('$lib/ui/PageTitle.svelte')).default,
-  LoadingFog: (await import('$lib/ui/LoadingFog.svelte')).default,
+  LoadingDots: (await import('$lib/ui/LoadingDots.svelte')).default,
   Panel: (await import('$lib/ui/Panel.svelte')).default,
   Hint: (await import('./RolePageSnippetMock.svelte')).default,
   TabNav: (await import('$lib/ui/TabNav.svelte')).default,
@@ -127,6 +126,7 @@ describe('role management page identity', () => {
     server = createTestServerScope({
       serverId: 'origin',
       api: {
+        listAdminRoles: async () => ({ roles: [{ name: 'owner', requiresShieldMode: true }] }),
         getRole: mocks.getRole,
         listMembers: mocks.listMembers,
         updateRole: mocks.updateRole,
@@ -401,6 +401,20 @@ describe('role management page identity', () => {
     ).toBe('Role A updated');
   });
 
+  it('toggles Shield Mode with a sparse patch', async () => {
+    mocks.getRole.mockResolvedValue(details('role-a', 'Role A', ''));
+    mocks.updateRole.mockResolvedValue({
+      ...role('role-a', 'Role A', ''),
+      requiresShieldMode: true
+    });
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.querySelector('#requires-shield-mode')).not.toBeNull());
+    container.querySelector<HTMLInputElement>('#requires-shield-mode')!.click();
+    await vi.waitFor(() =>
+      expect(mocks.updateRole).toHaveBeenCalledWith({ name: 'role-a', requiresShieldMode: true })
+    );
+  });
+
   it('preserves dirty metadata drafts when pingable saves immediately', async () => {
     const pingSave = deferred<ServerRole>();
     mocks.getRole.mockResolvedValue(details('role-a', 'Role A', 'Original description'));
@@ -421,8 +435,6 @@ describe('role management page identity', () => {
     await vi.waitFor(() =>
       expect(mocks.updateRole).toHaveBeenCalledWith({
         name: 'role-a',
-        displayName: 'Role A',
-        description: 'Original description',
         pingable: true
       })
     );

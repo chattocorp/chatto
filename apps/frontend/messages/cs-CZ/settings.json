@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "Experimenty",
+      "title": "Experimentální funkce",
+      "new_message_header": "Nové záhlaví zprávy"
+    },
     "desktop": {
       "title": "Aktualizace",
       "subtitle": "Aktualizace této instalace",
@@ -50,7 +55,8 @@
         "composer": "Vyberte editor zpráv a způsob jejich odesílání.",
         "voice": "Nastavte mikrofon, reproduktory a předvolby hovorů.",
         "system": "Zkontrolujte stav serveru, úložiště a úlohy na pozadí.",
-        "event_log": "Procházejte události serveru a zkoumejte změny."
+        "event_log": "Procházejte události serveru a zkoumejte změny.",
+        "jobs": "Prohlížejte úlohy na pozadí a opakujte neúspěšné úlohy."
       },
       "title": "Přehled",
       "shield_notice": "Chcete-li na tomto serveru používat další oprávnění, aktivujte privilegovaný režim tlačítkem štítu vedle svého jména."
@@ -540,9 +546,9 @@
           "body": "Před odpojením poskytovatele {provider} nastavte jiný způsob přihlášení podporovaný tímto serverem."
         },
         "fresh_auth_modal": {
-          "title": "Potvrďte heslo",
-          "body": "Před propojením {provider} zadejte své aktuální heslo.",
-          "action": "Pokračovat"
+          "title": "Propojit {provider}?",
+          "body": "Po propojení se můžete přes {provider} přihlásit do Chatto. Pro pokračování zadejte své současné heslo do Chatto.",
+          "password": "Heslo do Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Potvrďte heslo",

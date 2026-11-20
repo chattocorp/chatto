@@ -428,6 +428,11 @@
           "two": "{count} הטלות נכשלו",
           "other": "{count} הטלות נכשלו"
         },
+        "projections_stalled_count": {
+          "one": "{count} הטלה נתקעה",
+          "two": "{count} הטלות נתקעו",
+          "other": "{count} הטלות נתקעו"
+        },
         "projections_catching_up_count": {
           "one": "{count} הטלה משלימה פערים",
           "two": "{count} הטלות משלימות פערים",
@@ -602,6 +607,42 @@
         "revoked": "תוקף בוטל",
         "used": "בשימוש"
       }
+    },
+    "jobs": {
+      "title": "משימות",
+      "subtitle": "הצג משימות רקע ונסה שוב או מחק משימות שנכשלו.",
+      "load_failed": "לא ניתן לטעון משימות.",
+      "retry_failed": "לא ניתן לנסות שוב משימה זו.",
+      "delete_failed": "לא ניתן למחוק משימה זו.",
+      "delete_title": "למחוק משימה זו?",
+      "delete_message": "העבודה של משימה זו תינטש. לא תוכל לנסות אותה שוב מאוחר יותר.",
+      "webhook": "מסירת Webhook",
+      "media": "עיבוד מדיה",
+      "neighborhood_refresh": "רענון השכונה",
+      "message_body_erasure": "מחיקת תוכן הודעות",
+      "branding_cleanup": "ניקוי סמלים ובאנרים של השרת",
+      "asset_cleanup": "ניקוי קבצים",
+      "call_key_cleanup": "מחיקת מפתחות שיחה",
+      "runtime_credential_cleanup": "ניקוי הפעלות ואסימונים",
+      "push_subscription_cleanup": "ניקוי מינויי Push",
+      "user_key_shredding": "מחיקת מפתחות חשבון",
+      "notification_alert": "התראת עדכון",
+      "email": "דוא״ל",
+      "queued": "בתור",
+      "running": "פועלת",
+      "succeeded": "הצליחה",
+      "failed": "נכשלה",
+      "empty": "אין עדיין משימות",
+      "attempts": "ניסיונות",
+      "updated": "עודכנה",
+      "next_attempt": "הניסיון הבא",
+      "expired": "תוקף המשימה פג ולא ניתן לנסות אותה שוב.",
+      "job": "משימה",
+      "created": "נוצרה",
+      "details": "פרטים",
+      "detail_subtitle": "המצב, הניסיונות וסיבת הכשל האחרונה של משימה זו.",
+      "not_found": "משימה זו כבר לא קיימת.",
+      "all": "הכול"
     }
   }
 }

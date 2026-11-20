@@ -428,6 +428,11 @@
           "one": "Neizdevās {count} projekcija",
           "other": "Neizdevās {count} projekcijas"
         },
+        "projections_stalled_count": {
+          "zero": "Apstājušās {count} projekcijas",
+          "one": "Apstājusies {count} projekcija",
+          "other": "Apstājušās {count} projekcijas"
+        },
         "projections_catching_up_count": {
           "zero": "{count} projekciju panāk atpalicību",
           "one": "{count} projekcija panāk atpalicību",
@@ -602,6 +607,42 @@
         "revoked": "Atsaukta",
         "used": "Izmantots"
       }
+    },
+    "jobs": {
+      "title": "Uzdevumi",
+      "subtitle": "Skatiet fona uzdevumus un atkārtojiet vai dzēsiet neizdevušos uzdevumus.",
+      "load_failed": "Neizdevās ielādēt uzdevumus.",
+      "retry_failed": "Neizdevās atkārtot šo uzdevumu.",
+      "delete_failed": "Neizdevās dzēst šo uzdevumu.",
+      "delete_title": "Vai dzēst šo uzdevumu?",
+      "delete_message": "Šī uzdevuma darbs tiek atmests. Vēlāk jūs to nevarēsiet atkārtot.",
+      "webhook": "Tīmekļa aizķeres piegāde",
+      "media": "Multivides apstrāde",
+      "neighborhood_refresh": "Apkaimes atjaunināšana",
+      "message_body_erasure": "Ziņojumu satura dzēšana",
+      "branding_cleanup": "Servera logotipu un reklāmkarogu tīrīšana",
+      "asset_cleanup": "Failu tīrīšana",
+      "call_key_cleanup": "Zvanu atslēgu dzēšana",
+      "runtime_credential_cleanup": "Sesiju un piekļuves pilnvaru tīrīšana",
+      "push_subscription_cleanup": "Push abonementu tīrīšana",
+      "user_key_shredding": "Konta atslēgu dzēšana",
+      "notification_alert": "Paziņojuma brīdinājums",
+      "email": "E-pasts",
+      "queued": "Rindā",
+      "running": "Darbojas",
+      "succeeded": "Pabeigts",
+      "failed": "Neizdevās",
+      "empty": "Uzdevumu vēl nav",
+      "attempts": "Mēģinājumi",
+      "updated": "Atjaunināts",
+      "next_attempt": "Nākamais mēģinājums",
+      "expired": "Šī uzdevuma termiņš ir beidzies, un to nevar atkārtot.",
+      "job": "Uzdevums",
+      "created": "Izveidots",
+      "details": "Informācija",
+      "detail_subtitle": "Šī uzdevuma statuss, mēģinājumi un pēdējais kļūmes iemesls.",
+      "not_found": "Šis uzdevums vairs nepastāv.",
+      "all": "Visi"
     }
   }
 }

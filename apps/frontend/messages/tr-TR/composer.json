@@ -55,6 +55,7 @@
     },
     "format": {
       "underline": "Altı çizili",
+      "strikethrough": "Üstü çizili",
       "bold": "Kalın",
       "italic": "italik",
       "inline_code": "Satır içi kod",

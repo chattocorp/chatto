@@ -23,6 +23,7 @@
       "display_name_too_long": "Le nom à afficher doit comporter 64 caractères maximum",
       "description": "Descriptif",
       "description_placeholder": "Description facultative pour ce rôle",
+      "require_shield": "Exiger le mode privilégié",
       "pingable": "Autoriser les utilisateurs à envoyer une requête ping à ce rôle",
       "pingable_description": "Les rôles pingables apparaissent dans @ autocomplete et informent les membres attribués à la salle."
     },
@@ -129,8 +130,6 @@
         "open": "À propos de {permission}",
         "category": "Catégorie",
         "scopes": "Configurable pour",
-        "privileged": "Nécessite le mode privilégié",
-        "privileged_detail": "Les comptes doivent activer le mode privilégié pour utiliser cette autorisation.",
         "includes": "Inclut",
         "included_by": "Incluse dans"
       }

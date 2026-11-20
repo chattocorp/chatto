@@ -234,6 +234,7 @@ func tokenVerifier(chattoCore *core.ChattoCore, resource string) auth.TokenVerif
 				OAuthClientID:           credential.ClientID,
 				ExpiresAt:               credential.ExpiresAt,
 				PrivilegedModeExpiresAt: credential.PrivilegedModeExpiresAt,
+				PrivilegedRoles:         credential.PrivilegedRoles,
 			})}, nil
 		}
 		if !errors.Is(err, core.ErrAuthTokenNotFound) {

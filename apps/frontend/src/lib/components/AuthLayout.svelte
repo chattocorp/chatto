@@ -3,6 +3,7 @@
   import type { PublicServerInfo } from '@chatto/client/api/server';
   import { getAuthServerInfo } from './authServerInfo';
   import ServerBranding from './ServerBranding.svelte';
+  import { ScrollFader } from '$lib/ui';
 
   const getServerInfo = getAuthServerInfo();
 
@@ -12,7 +13,6 @@
     titleOnlyWithSideBranding = false,
     compact = false,
     showBranding = true,
-    centerContent = false,
     serverInfo: suppliedServerInfo
   }: {
     children: Snippet;
@@ -20,9 +20,13 @@
     title?: string;
     /** Keep the heading accessible, but show it only beside a separate branding pane. */
     titleOnlyWithSideBranding?: boolean;
+    /**
+     * Compact layout for pages where something else names the server: the
+     * window bar of a sign-in window, or a title such as "Join {server}". The
+     * page shows only the server banner and description.
+     */
     compact?: boolean;
     showBranding?: boolean;
-    centerContent?: boolean;
     /** Public branding of a remote server; defaults to the origin auth context. */
     serverInfo?: Pick<
       PublicServerInfo,
@@ -39,6 +43,12 @@
   const description = $derived(serverInfo?.description ?? null);
   const welcomeMessage = $derived(serverInfo?.welcomeMessage ?? null);
   const hasBranding = $derived(bannerUrl || welcomeMessage || description);
+  /**
+   * Without a banner, description, or welcome message, the server name sits
+   * directly above the title. The two then read as one heading group: the
+   * name leads, and the title is its quieter second line.
+   */
+  const titleFollowsName = $derived(showBranding && !hasBranding && !compact);
 </script>
 
 <div class="flex min-h-0 flex-1 overflow-hidden">
@@ -51,48 +61,55 @@
     </div>
   {/if}
 
-  <!-- Right pane: form content -->
-  <div
-    class={[
-      'flex flex-1 justify-center overflow-y-auto',
-      centerContent ? 'items-center' : 'items-start',
-      compact ? 'p-5 sm:p-6' : 'p-8'
-    ]}
-  >
-    <div data-page-reveal class="w-full max-w-sm">
-      <!-- Show compact branding header on mobile, or when no left pane -->
-      {#if showBranding && compact}
-        <div data-page-reveal class="mb-5">
-          <ServerBranding name={serverName} {iconUrl} compact />
-        </div>
-      {:else if showBranding && !hasBranding}
-        <div data-page-reveal class="mb-8">
-          <ServerBranding name={serverName} {iconUrl} />
-        </div>
-      {:else if showBranding}
-        <div data-page-reveal class="mb-8 md:hidden">
-          <ServerBranding name={serverName} {iconUrl} {bannerUrl} {description} {welcomeMessage} />
-        </div>
-      {/if}
+  <!-- Right pane: form content, centred in the pane. The automatic margins
+       collapse when the content is taller than the pane, so it then starts at
+       the top and scrolls with edge fades. -->
+  <ScrollFader top bottom mask keyboardFocusable={false} class="min-w-0">
+    <div class={['flex min-h-full flex-1 justify-center', compact ? 'p-5 sm:p-6' : 'p-8']}>
+      <div data-page-reveal class="my-auto w-full max-w-sm">
+        <!-- Show compact branding header on mobile, or when no left pane -->
+        {#if showBranding && compact}
+          {#if bannerUrl || description}
+            <div data-page-reveal class="mb-5">
+              <ServerBranding name={serverName} {iconUrl} {bannerUrl} {description} compact />
+            </div>
+          {/if}
+        {:else if showBranding && !hasBranding}
+          <div data-page-reveal class="mb-1">
+            <ServerBranding name={serverName} {iconUrl} />
+          </div>
+        {:else if showBranding}
+          <div data-page-reveal class="mb-8 md:hidden">
+            <ServerBranding
+              name={serverName}
+              {iconUrl}
+              {bannerUrl}
+              {description}
+              {welcomeMessage}
+            />
+          </div>
+        {/if}
 
-      {#if title}
-        <h1
-          class={[
-            'text-center text-2xl font-bold',
-            titleOnlyWithSideBranding
-              ? showBranding && hasBranding && !compact
-                ? 'sr-only md:not-sr-only md:mb-6'
-                : 'sr-only'
-              : compact
-                ? 'mb-4'
-                : 'mb-6'
-          ]}
-        >
-          {title}
-        </h1>
-      {/if}
+        {#if title}
+          <h1
+            class={[
+              'text-center text-balance',
+              titleFollowsName ? 'text-lg font-medium text-muted' : 'text-xl font-semibold',
+              titleOnlyWithSideBranding
+                ? showBranding && hasBranding && !compact
+                  ? 'sr-only md:not-sr-only md:mb-6'
+                  : 'sr-only'
+                : compact
+                  ? 'mb-4'
+                  : 'mb-6'
+            ]}
+          >
+            {title}
+          </h1>
+        {/if}
 
-      {@render children()}
+        {@render children()}
+      </div>
     </div>
-  </div>
+  </ScrollFader>
 </div>

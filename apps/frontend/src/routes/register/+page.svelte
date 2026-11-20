@@ -1,18 +1,18 @@
 <script lang="ts">
+  import { MAX_LOGIN_LENGTH } from '$lib/validation/login';
+  import { confirmPendingAtprotoHandle } from '$lib/atproto/rememberedHandle';
   import { goto } from '$app/navigation';
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
-  import { openProviderSignIn, verifyProviderSignIn } from '$lib/auth/providerSignIn';
-  import type { OAuthPopup } from '$lib/oauth/popup';
+  import { confirmProviderAccount, type ProviderSignInResult } from '$lib/auth/providerSignIn';
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import { acceptRegistrationInvitation } from '$lib/auth/registrationAdmission';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
-  import AuthProviderButtons from '$lib/components/auth/AuthProviderButtons.svelte';
-  import AuthPopupNotice from '$lib/components/auth/AuthPopupNotice.svelte';
+  import OriginProviderButtons from '$lib/components/auth/OriginProviderButtons.svelte';
   import { popupErrorMessage } from '$lib/oauth/popupError';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
@@ -46,20 +46,17 @@
   let error = $state('');
   let isLoading = $state(false);
   let isResending = $state(false);
-  let selectedProviderId = $state<string | null>(null);
   let providerError = $state('');
-  let providerPopup: OAuthPopup | null = null;
   let active = true;
   onDestroy(() => {
     active = false;
-    providerPopup?.close();
   });
 
   const emailSchema = z.string().email(m('common.validation.email'));
   const loginSchema = z
     .string()
     .min(2, m('common.validation.username_min'))
-    .max(32, m('common.validation.username_max'))
+    .max(MAX_LOGIN_LENGTH, m('common.validation.username_max', { max: MAX_LOGIN_LENGTH }))
     .regex(/^[a-zA-Z0-9._-]+$/, m('common.validation.username_charset'))
     .refine((val) => !val.endsWith('.'), m('common.validation.username_end_alphanumeric'))
     .refine((val) => !val.includes('..'), m('common.validation.username_no_consecutive_periods'));
@@ -122,27 +119,14 @@
     }
   }
 
-  async function handleProviderClick(event: MouseEvent, provider: PublicAuthProvider) {
-    event.preventDefault();
-    providerError = '';
-    selectedProviderId = provider.id;
-    // Keep the server's OAuth session in this window throughout provider signup.
-    if (compact) {
-      window.location.href = providerLoginHref(provider);
+  async function completeProviderSignIn(result: ProviderSignInResult) {
+    confirmPendingAtprotoHandle();
+    if (result.kind === 'confirm-account') {
+      await confirmProviderAccount(result.token, data.redirectUrl);
       return;
     }
-    try {
-      providerPopup = openProviderSignIn(providerLoginHref(provider));
-      await verifyProviderSignIn(providerPopup);
-      if (!active) return;
-      if (!(await completeOriginAuthentication()))
-        await navigateAfterAuthentication(data.redirectUrl);
-    } catch (err) {
-      if (active) providerError = popupErrorMessage(err, m('auth.register.failed'));
-    } finally {
-      selectedProviderId = null;
-      providerPopup = null;
-    }
+    if (!(await completeOriginAuthentication()))
+      await navigateAfterAuthentication(data.redirectUrl);
   }
 
   async function requestRegistrationCode(options: { resend?: boolean } = {}) {
@@ -293,10 +277,31 @@
       </Button>
     </form>
   {:else if step === 'email'}
+    {#if registrationProviders.length > 0}
+      <OriginProviderButtons
+        providers={registrationProviders}
+        href={providerLoginHref}
+        popupUrl={compact ? undefined : providerLoginHref}
+        onstart={() => {
+          providerError = '';
+        }}
+        onresult={completeProviderSignIn}
+        onerror={(err) => {
+          providerError = popupErrorMessage(err, m('auth.register.failed'));
+        }}
+      />
+      <FormError error={providerError} />
+    {/if}
+
+    {#if registrationEnabled && registrationProviders.length > 0}
+      <Divider label={m('common.or')} />
+    {/if}
+
     {#if registrationEnabled}
       <form onsubmit={handleEmailSubmit} class="flex flex-col gap-4">
         <TextInput
           id="email"
+          description={m('auth.register.email_help')}
           label={m('common.email')}
           type="email"
           bind:value={email}
@@ -322,21 +327,6 @@
         </Button>
       </form>
     {/if}
-
-    {#if registrationEnabled && registrationProviders.length > 0}
-      <Divider label={m('common.or')} />
-    {/if}
-
-    {#if registrationProviders.length > 0}
-      <AuthProviderButtons
-        providers={registrationProviders}
-        {selectedProviderId}
-        href={providerLoginHref}
-        onclick={handleProviderClick}
-      />
-      <AuthPopupNotice pending={!compact && selectedProviderId !== null} />
-      <FormError error={providerError} />
-    {/if}
   {:else if step === 'code'}
     <form onsubmit={handleCodeSubmit} class="flex flex-col gap-5">
       <div class="text-center">
@@ -352,7 +342,7 @@
         digitLabel={(number) => m('auth.register.code.digit_label', { number })}
       />
 
-      <div class="text-center text-sm text-muted">
+      <div class="text-center text-muted">
         {m('auth.register.code.did_not_receive')}
         <button
           type="button"
@@ -428,7 +418,11 @@
     </form>
   {/if}
 
-  <Divider label={m('common.or')} />
+  {#if data.externalIdentityToken}
+    <p class="mt-6 mb-2 text-center text-muted">{m('auth.sso.existing_help')}</p>
+  {:else}
+    <Divider label={m('common.or')} />
+  {/if}
 
   <Button
     href={data.externalIdentityToken

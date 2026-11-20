@@ -427,6 +427,10 @@
           "one": "{count} projekcio malsukcesis",
           "other": "{count} projekcioj malsukcesis"
         },
+        "projections_stalled_count": {
+          "one": "{count} projekcio haltis",
+          "other": "{count} projekcioj haltis"
+        },
         "projections_catching_up_count": {
           "one": "{count} projekcio postkuras",
           "other": "{count} projekcioj postkuras"
@@ -591,6 +595,42 @@
         "revoked": "Revokita",
         "used": "Uzita"
       }
+    },
+    "jobs": {
+      "title": "Taskoj",
+      "subtitle": "Vidu fonajn taskojn, kaj reprovu aŭ forigu malsukcesajn taskojn.",
+      "load_failed": "Ne eblis ŝargi taskojn.",
+      "retry_failed": "Ne eblis reprovi ĉi tiun taskon.",
+      "delete_failed": "Ne eblis forigi ĉi tiun taskon.",
+      "delete_title": "Ĉu forigi ĉi tiun taskon?",
+      "delete_message": "La laboro de ĉi tiu tasko estas forlasita. Vi ne povos reprovi ĝin poste.",
+      "webhook": "Rethoka livero",
+      "media": "Prilaborado de aŭdvidaĵoj",
+      "neighborhood_refresh": "Ĝisdatigo de la najbarejo",
+      "message_body_erasure": "Forviŝado de mesaĝenhavo",
+      "branding_cleanup": "Purigado de servilaj emblemoj kaj standardoj",
+      "asset_cleanup": "Purigado de dosieroj",
+      "call_key_cleanup": "Forigo de vokŝlosiloj",
+      "runtime_credential_cleanup": "Forigo de seancoj kaj ĵetonoj",
+      "push_subscription_cleanup": "Purigado de puŝabonoj",
+      "user_key_shredding": "Forigo de kontŝlosiloj",
+      "notification_alert": "Sciiga averto",
+      "email": "Retpoŝto",
+      "queued": "En atendovico",
+      "running": "Ruliĝanta",
+      "succeeded": "Sukcesinta",
+      "failed": "Malsukcesinta",
+      "empty": "Ankoraŭ neniuj taskoj",
+      "attempts": "Provoj",
+      "updated": "Ĝisdatigita",
+      "next_attempt": "Sekva provo",
+      "expired": "Ĉi tiu tasko eksvalidiĝis kaj ne povas esti reprovata.",
+      "job": "Tasko",
+      "created": "Kreita",
+      "details": "Detaloj",
+      "detail_subtitle": "Stato, provoj kaj lasta kialo de malsukceso de ĉi tiu tasko.",
+      "not_found": "Ĉi tiu tasko ne plu ekzistas.",
+      "all": "Ĉiuj"
     }
   }
 }

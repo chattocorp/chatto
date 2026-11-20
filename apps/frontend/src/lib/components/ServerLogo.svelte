@@ -66,6 +66,8 @@
       onerror={() => (failedLogoURL = logoURL)}
     />
   {:else}
-    <span class="text-white drop-shadow-sm">{initial}</span>
+    <!-- Trim the line box to the capital height so the initial sits optically centred.
+         Text-box trimming needs a block-level box in Chromium. -->
+    <span class="block text-white drop-shadow-sm cap-centered">{initial}</span>
   {/if}
 </div>

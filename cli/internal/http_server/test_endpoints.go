@@ -105,7 +105,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 		}
 		displayName := req.DisplayName
 		if displayName == "" {
-			displayName = req.Login
+			displayName = core.LoginDisplayName(req.Login)
 		}
 		user, err := s.core.CreateUser(c.Request.Context(), "system", req.Login, displayName, req.Password)
 		if err != nil {
@@ -135,14 +135,14 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		if !isValidLogin(req.Login) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Login must be 2-32 characters, using only letters, numbers, dots, dashes, or underscores (no consecutive or trailing periods)"})
+		if err := validateRegistrationLogin(req.Login, s.core.LoginLengthLimit()); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
 		displayName := req.DisplayName
 		if displayName == "" {
-			displayName = req.Login
+			displayName = core.LoginDisplayName(req.Login)
 		}
 
 		ctx := c.Request.Context()
@@ -258,10 +258,10 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 		existingUser, err := s.core.GetUserByVerifiedEmail(ctx, req.Email)
 		if err != nil {
 			// User does not exist, create a new one
-			login := deriveLoginFromEmail(req.Email)
+			login := deriveLoginFromEmail(req.Email, s.core.LoginLengthLimit())
 			displayName := req.DisplayName
 			if displayName == "" {
-				displayName = login
+				displayName = core.LoginDisplayName(login)
 			}
 			newUser, err := s.core.CreateUser(ctx, "system", login, displayName, "")
 			if err != nil {

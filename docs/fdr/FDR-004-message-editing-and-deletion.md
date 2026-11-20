@@ -98,7 +98,7 @@ body from EVT.
 
 ### 6. Delete physically removes the body payload, not just hides it
 
-**Decision:** Message body content is stored in private body payload events separate from public post/edit facts. Delete appends the public retraction fact, securely deletes body payload events where the storage backend supports it, and removes attachment storage only after verifying that the asset is durably attached to that exact message. Only the placeholder rendering remains.
+**Decision:** Message body content is stored in private body payload events separate from public post/edit facts. Delete appends the public retraction fact. An edit or retraction starts a durable job to erase obsolete body payloads. The new message state is visible before physical erasure finishes. The job retries storage failures and can resume on another replica. Attachment removal requires proof that the asset belongs to that exact message. Only the placeholder rendering remains.
 **Why:** GDPR. Soft-delete leaves user-generated content in the database, which is the wrong default for an open-source chat app where users expect "delete" to mean delete. Separating public message facts from body payloads preserves the conversation audit trail while allowing body material to be removed. See ADR-007.
 **Tradeoff:** No undo. Moderators can't restore a deleted message. Older embedded-body EVT histories remain readable for compatibility but cannot be physically shredded at body granularity.
 
@@ -121,7 +121,7 @@ message's thread summary contains a reply.
 ## Permissions
 
 - `message.manage` — edit messages at any time, and edit and delete other users'
-  messages. A human session must also have privileged mode active.
+  messages.
 - `message.read` — read and edit any room message.
 - `message.read-interactions` — read and edit a message in a related thread.
   Deletion remains independently authorized by authorship or `message.manage`.

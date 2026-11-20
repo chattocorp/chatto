@@ -14,6 +14,7 @@
       "clear_confirm_title": "Forigi la ĉambran avizon?",
       "clear_confirm_description": "Ĉi tio tuj forigas la aktivan avizon por ĉiuj en la ĉambro. Viaj nekonservitaj ŝanĝoj ne estos publikigitaj.",
       "empty": "Neniu avizo estas publikigita.",
+      "load_failed": "Ne eblis ŝargi la avizon.",
       "edit": "Redakti avizon"
     },
     "information": {
@@ -21,7 +22,12 @@
       "created": "Kreita",
       "title": "Informoj pri la ĉambro",
       "basic": "Ĝenerala",
-      "pinned_messages": "Fiksitaj mesaĝoj"
+      "pinned_messages": "Fiksitaj mesaĝoj",
+      "threads": "Fadenoj",
+      "slow_mode": "Malrapida reĝimo",
+      "channel_slow_mode": "Malrapida reĝimo de kanalo",
+      "thread_slow_mode": "Malrapida reĝimo de fadenoj",
+      "slow_mode_off": "Malŝaltita"
     },
     "create": {
       "title": "Kreu Novan Ĉambron",

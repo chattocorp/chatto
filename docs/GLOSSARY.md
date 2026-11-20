@@ -101,6 +101,8 @@ account-directed email. The first verified email becomes primary, and adding
 another address does not change the selection. See
 [FDR-018](fdr/FDR-018-account-lifecycle.md).
 
+**Internet Handle** — The UI name for an AT Protocol handle, such as `alice.bsky.social`, and for the default label of `atproto` login providers. AT Protocol handles are not limited to Bluesky. Chatto does not show handles as verified. See [FDR-058](fdr/FDR-058-atproto-sign-in.md) and [ADR-124](adr/ADR-124-atproto-handle-verification-needs-an-issuer.md).
+
 **Invitation Code** — A code that permits one new account on an invite-only server. Administrators issue and revoke codes, with optional expiry. Validation does not consume the code; successful account creation does. See [FDR-036](fdr/FDR-036-invite-links.md).
 
 **Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the _primary space_). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
@@ -173,13 +175,13 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Permission** — Capability gate with an opaque, stable identifier, for example `message.post` or `role.assign`. Punctuation does not define authority. The catalog in `cli/internal/core/permission.go` defines scope and explicit inclusion.
 
-**Privileged Mode** — Explicit, fixed 15-minute activation of the elevation-required permissions that a human is currently entitled to use on one server session. For an effective owner, it also activates the owner override. It does not grant a role or permission. See [ADR-096](adr/ADR-096-session-scoped-privileged-mode.md), [ADR-105](adr/ADR-105-privileged-mode-gates-owner-override.md), and [FDR-046](fdr/FDR-046-privileged-mode.md).
+**Privileged Mode** — A fixed 15-minute window in which one human session can use grants from selected protected roles. See [ADR-096](adr/ADR-096-session-scoped-privileged-mode.md), [ADR-105](adr/ADR-105-privileged-mode-gates-owner-override.md), and [FDR-046](fdr/FDR-046-privileged-mode.md).
 
-**Shield Mode** — User-facing name for Privileged Mode, controlled by the shield button for the current server. It temporarily activates eligible permissions and the effective-owner override for that session. See [FDR-046](fdr/FDR-046-privileged-mode.md).
+**Shield Mode** — User-facing name for Privileged Mode, controlled by the shield button for the current server. The user chooses which protected roles to activate for the session. See [FDR-046](fdr/FDR-046-privileged-mode.md).
 
 **Position** — Numeric display/order value for a role. `everyone` = 0, `moderator` = 100, `admin` = 900, `owner` = 1000. Custom roles slot in the gaps. Position is not an authorization rank.
 
-**Effective owner** — A user with the durable `owner` role. A verified email listed in `owners.emails` causes Chatto to materialize this role. Effective owners are entitled to every known RBAC permission virtually. This owner override is effective only in privileged mode. Without it, an owner has only the permissions of their other roles, direct grants, and `everyone`. DM contents remain protected by participation checks at the API boundary.
+**Effective owner** — A user with the durable `owner` role. A verified email listed in `owners.emails` causes Chatto to materialize this role. Effective owners are entitled to every known RBAC permission virtually. The owner override is effective only when the user selects `owner` in Shield Mode. Without it, an owner has only the permissions of their other roles, direct grants, and `everyone`. DM contents remain protected by participation checks at the API boundary.
 
 **Owner** — Top system role (position 1000). Conferred through role assignment or through verified `owners.emails` configuration.
 
@@ -209,6 +211,8 @@ person's DM. See
 [ADR-095](adr/ADR-095-direct-message-permission-scope-and-threads.md).
 
 ## Backend
+
+**Background job** — Durable asynchronous work with an identity, execution state, and attempt budget. Failed jobs remain available for inspection and eligible manual retry. See [FDR-056](fdr/FDR-056-background-jobs.md).
 
 Infrastructure jargon. If only contributors say the word, it goes here.
 
@@ -251,6 +255,8 @@ not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
 **Projection** — Derived read model rebuilt from `EVT` and owned independently by each consuming process. Persistence is optional: a projection may cold-replay every time, use an encrypted snapshot, or checkpoint a disposable local index and EVT cutoff for tail replay. `EVT` remains the source of truth. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) and [ADR-054](adr/ADR-054-optional-projection-persistence.md).
 
+**Search index generation** — One complete Bleve index directory of the bundled search provider, with its own checkpoint. The **serving index** is the generation that answers queries. A **replacement index** is a generation that the provider builds from `EVT` while the serving index continues to answer, then switches to atomically after validation. See [FDR-057](fdr/FDR-057-search-during-index-rebuild.md).
+
 **Projector** — Runtime engine that consumes events and owns replay, readiness, failure, one apply barrier, and the applied sequence frontier for one projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
 
 **Componentized projection** — Projection that combines related projection components behind one projector, apply barrier, and sequence frontier. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
@@ -260,6 +266,8 @@ not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 **Server Content View** — Chatto's named componentized projection for process-local, sequence-consistent client-readable state derived from `EVT`. It includes focused room, timeline, call, asset, thread, reaction, configuration, user-profile, content-key, RBAC, and mentionable components. Authentication, presence, read markers, notifications, invitations, OAuth clients, and search remain outside the view. See [ADR-089](adr/ADR-089-server-content-view.md).
 
 **Projection snapshot cohort** — Complete persisted snapshot generation whose manifest binds separately stored projection-component payloads to the same event-log identity and cutoff. Chatto restores all required components or cold-replays the complete componentized projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
+
+**Stalled projection** — Projection that has matching events to apply but has committed no progress for its stall threshold (five minutes by default). An idle projection that has applied every matching event is not stalled, and each commit restarts the interval. A stalled search index makes its provider report `DEGRADED`. See [`docs/architecture/projections.md`](architecture/projections.md).
 
 **Outcome** — Loom term for reliable asynchronous work caused by a committed event and performed by a durable worker, such as sending an email or updating another system. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 

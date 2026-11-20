@@ -427,6 +427,10 @@
           "one": "{count} projection en échec",
           "other": "{count} projections en échec"
         },
+        "projections_stalled_count": {
+          "one": "{count} projection bloquée",
+          "other": "{count} projections bloquées"
+        },
         "projections_catching_up_count": {
           "one": "{count} projection en cours de rattrapage",
           "other": "{count} projections en cours de rattrapage"
@@ -591,6 +595,42 @@
         "revoked": "Révoqué",
         "used": "Utilisé"
       }
+    },
+    "jobs": {
+      "title": "Tâches",
+      "subtitle": "Consultez les tâches en arrière-plan, et relancez ou supprimez celles qui ont échoué.",
+      "load_failed": "Impossible de charger les tâches.",
+      "retry_failed": "Impossible de relancer cette tâche.",
+      "delete_failed": "Impossible de supprimer cette tâche.",
+      "delete_title": "Supprimer cette tâche ?",
+      "delete_message": "Le travail de cette tâche est abandonné. Vous ne pourrez pas la relancer plus tard.",
+      "webhook": "Envoi de webhook",
+      "media": "Traitement multimédia",
+      "neighborhood_refresh": "Actualisation du voisinage",
+      "message_body_erasure": "Effacement du contenu des messages",
+      "branding_cleanup": "Nettoyage des logos et des bannières du serveur",
+      "asset_cleanup": "Nettoyage des fichiers",
+      "call_key_cleanup": "Suppression des clés d’appel",
+      "runtime_credential_cleanup": "Nettoyage des sessions et des jetons",
+      "push_subscription_cleanup": "Nettoyage des abonnements push",
+      "user_key_shredding": "Suppression des clés de compte",
+      "notification_alert": "Alerte de notification",
+      "email": "E-mail",
+      "queued": "En attente",
+      "running": "En cours",
+      "succeeded": "Réussie",
+      "failed": "Échouée",
+      "empty": "Aucune tâche pour le moment",
+      "attempts": "Tentatives",
+      "updated": "Mise à jour",
+      "next_attempt": "Prochaine tentative",
+      "expired": "Cette tâche a expiré et ne peut plus être relancée.",
+      "job": "Tâche",
+      "created": "Créée",
+      "details": "Détails",
+      "detail_subtitle": "État, tentatives et dernière cause d’échec de cette tâche.",
+      "not_found": "Cette tâche n’existe plus.",
+      "all": "Toutes"
     }
   }
 }

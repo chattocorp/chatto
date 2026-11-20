@@ -403,6 +403,9 @@ jobs:
       - name: Test repository tooling
         run: mise test-repo-tooling
 
+      - name: Check pending releases
+        run: mise x -- sweet doctor
+
   desktop:
     needs: changes
     if: ${{ needs.changes.outputs.desktop == 'true' }}
@@ -825,6 +828,7 @@ jobs:
           mise lint-datacrypto
           mise lint-events
           mise lint-jetstreamutil
+          mise lint-jobs
           mise lint-natsruntime
 
       - name: Run application configuration tests
@@ -838,6 +842,9 @@ jobs:
 
       - name: Run JetStream utility tests
         run: mise test-jetstreamutil
+
+      - name: Run shared job queue tests
+        run: mise test-jobs
 
       - name: Run embedded NATS runtime tests
         run: mise test-natsruntime
@@ -1191,11 +1198,6 @@ jobs:
         with:
           use-image: 'true'
 
-      - name: Install performance summary dependency
-        run: |
-          apt-get update
-          apt-get install --no-install-recommends -y jq
-
       - name: Build E2E server
         run: mise build-e2e-server
 
@@ -1219,17 +1221,19 @@ jobs:
             echo "No performance results were written."
             exit 0
           fi
-          {
-            echo "## Large-server E2E performance"
-            echo ""
-            echo "> Runner speed changes from run to run. Do not compare these values with other runs."
-            echo ""
-            jq -r '"Fixture: \(.measurements.syntheticUsers) users, \(.measurements.messages) messages; \(.measurements.sampleCount)-sample medians (\(.measurements.startupMode) startup)"' "$result"
-            echo ""
-            echo "| Measurement | Duration (ms) |"
-            echo "| --- | ---: |"
-            jq -r '.measurements | to_entries[] | select(.key | endswith("Ms")) | "| \(.key) | \(.value | round) |"' "$result"
-          } >> "$GITHUB_STEP_SUMMARY"
+          mise x -- node --input-type=module - "$result" >> "$GITHUB_STEP_SUMMARY" <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const { measurements } = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+          const { syntheticUsers, messages, sampleCount, startupMode } = measurements;
+          console.log('## Large-server E2E performance\n');
+          console.log('> Runner speed changes from run to run. Do not compare these values with other runs.\n');
+          console.log(`Fixture: ${syntheticUsers} users, ${messages} messages; ${sampleCount}-sample medians (${startupMode} startup)\n`);
+          console.log('| Measurement | Duration (ms) |');
+          console.log('| --- | ---: |');
+          for (const [name, value] of Object.entries(measurements)) {
+            if (name.endsWith('Ms')) console.log(`| ${name} | ${Math.round(value)} |`);
+          }
+          NODE
 
       - name: Upload performance results
         uses: actions/upload-artifact@v7
@@ -1242,7 +1246,14 @@ jobs:
           retention-days: 30
 
   publish-main-image:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.chatto == 'true'
+    # Toolchain checks can be skipped. Require image contexts and block any
+    # failed or cancelled dependency before publishing either image.
+    if: >-
+      ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+          && needs.changes.outputs.chatto == 'true'
+          && needs.build-main-image-contexts.result == 'success'
+          && !contains(needs.*.result, 'failure')
+          && !contains(needs.*.result, 'cancelled') }}
     needs:
       - changes
       - build-main-image-contexts

@@ -55,7 +55,7 @@ test.describe('Password Reset', () => {
       await expect(authPage.page.getByText(/check your email/i)).toBeVisible();
 
       // Verify email was actually sent
-      const emailData = await authPage.getLastVerificationEmail();
+      const emailData = await authPage.getLastVerificationEmail(testEmail);
       expect(emailData.to).toBe(testEmail);
       expect(emailData.subject).toContain('Reset');
       expect(emailData.body).toContain('reset-password');
@@ -96,7 +96,7 @@ test.describe('Password Reset', () => {
       await authPage.requestPasswordReset(testEmail);
 
       // Get the reset URL and navigate to it
-      const emailData = await authPage.getLastVerificationEmail();
+      const emailData = await authPage.getLastVerificationEmail(testEmail);
       const resetUrl = authPage.extractPasswordResetUrl(emailData.body);
       await authPage.page.goto(resetUrl);
 
@@ -122,7 +122,7 @@ test.describe('Password Reset', () => {
       await authPage.requestPasswordReset(testEmail);
 
       // Get the reset URL and navigate to it
-      const emailData = await authPage.getLastVerificationEmail();
+      const emailData = await authPage.getLastVerificationEmail(testEmail);
       const resetUrl = authPage.extractPasswordResetUrl(emailData.body);
       await authPage.page.goto(resetUrl);
 
@@ -156,7 +156,7 @@ test.describe('Password Reset', () => {
       await expect(authPage.page.getByText(/check your email/i)).toBeVisible();
 
       // Step 3: Complete password reset via email link
-      await authPage.completePasswordReset(newPassword);
+      await authPage.completePasswordReset(testEmail, newPassword);
 
       // Step 4: Should be on login page with success banner
       await authPage.expectOnLoginPage();
@@ -190,7 +190,7 @@ test.describe('Password Reset', () => {
       await authPage.requestPasswordReset(testEmail);
 
       // Get the reset URL
-      const emailData = await authPage.getLastVerificationEmail();
+      const emailData = await authPage.getLastVerificationEmail(testEmail);
       const resetUrl = authPage.extractPasswordResetUrl(emailData.body);
 
       // First reset succeeds
@@ -230,7 +230,7 @@ test.describe('Password Reset', () => {
       await authPage.requestPasswordReset(testEmail);
 
       // Get the reset URL and navigate to it
-      const emailData = await authPage.getLastVerificationEmail();
+      const emailData = await authPage.getLastVerificationEmail(testEmail);
       const resetUrl = authPage.extractPasswordResetUrl(emailData.body);
       await authPage.page.goto(resetUrl);
 

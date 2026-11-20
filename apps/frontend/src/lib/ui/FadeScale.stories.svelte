@@ -17,7 +17,7 @@
         <PillButtonGroup compact label="Call controls">
           <button class="pill-button">Mute</button>
           <button class="pill-button">Camera</button>
-          <button class="pill-button-danger">Leave</button>
+          <button class="pill-button text-danger">Leave</button>
         </PillButtonGroup>
       </FadeScale>
     {/if}

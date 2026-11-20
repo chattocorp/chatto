@@ -18,7 +18,7 @@ func TestPermissionExplanationReportsPrivilegedModeGate(t *testing.T) {
 	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleManage))
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "explanation-target", "Explanation Target", "password123")
 	require.NoError(t, err)
-	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, target.Id, core.PermServerManage))
+	require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, target.Id, core.RoleAdmin))
 	ctx := authctx.WithCredential(withCaller(env.ctx, env.viewer), authctx.RuntimeCredential{
 		Kind: authctx.RuntimeCredentialKindBearerToken, UserID: env.viewer.Id,
 		Handle: "inspector-session", PrivilegedModeExpiresAt: time.Now().Add(time.Hour),

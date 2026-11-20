@@ -1,5 +1,10 @@
 {
   "settings": {
+    "experiments": {
+      "nav": "Experiências",
+      "title": "Funcionalidades experimentais",
+      "new_message_header": "Novo cabeçalho de mensagem"
+    },
     "desktop": {
       "title": "Atualizações",
       "subtitle": "Atualizações desta instalação",
@@ -50,7 +55,8 @@
         "composer": "Escolha o editor e como envia mensagens.",
         "voice": "Configure o microfone, os altifalantes e as preferências de chamadas.",
         "system": "Verifique o estado do servidor, o armazenamento e as tarefas em segundo plano.",
-        "event_log": "Explore os eventos do servidor e investigue alterações."
+        "event_log": "Explore os eventos do servidor e investigue alterações.",
+        "jobs": "Consulte as tarefas em segundo plano e repita as que falharam."
       },
       "title": "Visão geral",
       "shield_notice": "Para utilizar as suas permissões adicionais neste servidor, ative o modo privilegiado com o botão de escudo junto ao seu nome."
@@ -540,9 +546,9 @@
           "body": "Configure outro método de início de sessão suportado por este servidor antes de desligar {provider}."
         },
         "fresh_auth_modal": {
-          "title": "Confirmar palavra-passe",
-          "body": "Introduza a sua palavra-passe atual antes de ligar {provider}.",
-          "action": "Continuar"
+          "title": "Associar {provider}?",
+          "body": "Após associar {provider}, poderá usar esse serviço para iniciar sessão no Chatto. Introduza a sua palavra-passe atual do Chatto para continuar.",
+          "password": "Palavra-passe do Chatto"
         },
         "disconnect_fresh_auth_modal": {
           "title": "Confirmar palavra-passe",

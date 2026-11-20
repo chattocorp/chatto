@@ -191,10 +191,6 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	if _, err := c.DeleteAllUserPushSubscriptions(ctx, userID); err != nil {
 		c.logger.Warn("Push-subscription cleanup remains pending after account deletion", "user_id", userID, "error", err)
 	}
-	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "account_deleted"); err != nil {
-		c.logger.Warn("Failed to revoke runtime credentials during deletion", "user_id", userID, "error", err)
-		// Continue - this is best-effort
-	}
 	if err := c.deleteUserSettings(ctx, userID); err != nil {
 		c.logger.Warn("Failed to delete user settings during deletion", "user_id", userID, "error", err)
 	}

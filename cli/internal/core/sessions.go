@@ -151,13 +151,13 @@ func (c *ChattoCore) LoadCookieSessionValue(ctx context.Context, sessionID strin
 }
 
 // CreateCookieSessionValue commits a new opaque cookie session with physical
-// retention bounded by the record's authoritative expiry.
+// retention through the record's authoritative expiry.
 func (c *ChattoCore) CreateCookieSessionValue(ctx context.Context, sessionID string, value []byte, now time.Time) error {
 	tokenData, err := decodeCookieSessionValue(value, now)
 	if err != nil {
 		return err
 	}
-	if _, err := c.storage.runtimeStateKV.Create(ctx, c.authTokenKey(sessionID), value, jetstream.KeyTTL(tokenData.ExpiresAt.Sub(now))); err != nil {
+	if _, err := c.storage.runtimeStateKV.Create(ctx, c.authTokenKey(sessionID), value, jetstream.KeyTTL(runtimeStateRetention(tokenData.ExpiresAt.Sub(now)))); err != nil {
 		return fmt.Errorf("failed to store cookie session: %w", err)
 	}
 	return nil
@@ -165,7 +165,7 @@ func (c *ChattoCore) CreateCookieSessionValue(ctx context.Context, sessionID str
 
 // UpdateCookieSessionValue changes one cookie session only when the caller
 // still owns the revision it loaded. The updated message receives a fresh
-// per-message TTL that matches the authoritative expiry in the value.
+// per-message TTL rounded up to cover the authoritative expiry in the value.
 func (c *ChattoCore) UpdateCookieSessionValue(ctx context.Context, sessionID string, value []byte, revision uint64, now time.Time) error {
 	tokenData, err := decodeCookieSessionValue(value, now)
 	if err != nil {
@@ -308,6 +308,7 @@ func (c *ChattoCore) cookieSessionRecordFromValidatedCredential(credential Valid
 		record.FreshAuthSource = credential.FreshAuthSource
 	}
 	if !credential.PrivilegedModeExpiresAt.IsZero() {
+		record.PrivilegedRoles = credential.PrivilegedRoles
 		record.PrivilegedModeExpiresAt = timestamppb.New(credential.PrivilegedModeExpiresAt)
 	}
 	return record
@@ -324,8 +325,7 @@ func (c *ChattoCore) RevokeCookieSession(ctx context.Context, sessionID string) 
 	return nil
 }
 
-// RevokeCookieSessionsForUser deletes all cookie sessions for a user. Account
-// deletion uses it to erase stored session records. The scan reads every
+// RevokeCookieSessionsForUser deletes all cookie sessions for a user. The scan reads every
 // `session.*` record on the server, including bearer access records, so do not
 // call it on latency-sensitive paths. Password changes and resets revoke
 // sessions through the auth generation.

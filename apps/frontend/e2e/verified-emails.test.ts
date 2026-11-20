@@ -22,6 +22,7 @@ test.describe('Verified email settings', () => {
     const dialog = page.getByRole('dialog', { name: 'Add email address' });
     await dialog.getByLabel('Email address', { exact: true }).fill(newEmail);
     await dialog.getByLabel('Confirm email address').fill(newEmail);
+    await authPage.clearCapturedEmails();
     await dialog.getByRole('button', { name: 'Send verification code' }).click();
 
     await page.waitForURL(routes.settingsVerifyEmail);
@@ -34,7 +35,7 @@ test.describe('Verified email settings', () => {
     await expect(page.getByText(newEmail, { exact: true })).toHaveCount(0);
 
     await page.goto(routes.settingsVerifyEmail);
-    const message = await authPage.getLastVerificationEmail();
+    const message = await authPage.getLastVerificationEmail(newEmail);
     expect(message.to).toBe(newEmail);
     await page.getByLabel('Digit 1').fill(authPage.extractVerificationCode(message.body));
     await page.getByRole('button', { name: 'Verify email' }).click();
@@ -164,10 +165,11 @@ test.describe('Verified email settings', () => {
     const dialog = page.getByRole('dialog', { name: 'Add email address' });
     await dialog.getByLabel('Email address', { exact: true }).fill(newEmail);
     await dialog.getByLabel('Confirm email address').fill(newEmail);
+    await authPage.clearCapturedEmails();
     await dialog.getByRole('button', { name: 'Send verification code' }).click();
     await page.waitForURL(routes.settingsVerifyEmail);
 
-    const message = await authPage.getLastVerificationEmail();
+    const message = await authPage.getLastVerificationEmail(newEmail);
     let releaseResponse: (() => void) | undefined;
     let markConfirmed: (() => void) | undefined;
     const responseGate = new Promise<void>((resolve) => {

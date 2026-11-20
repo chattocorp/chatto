@@ -107,8 +107,9 @@ primitive.
   this complete sending action, including destination creation. Existing
   message-write grants also permit edits and deletions subject to account rights.
 - Authenticated tool calls can supply `Chatto-Realtime-Minimum-Cursor`. The
-  canonical viewer-bound content wait runs before tool dispatch. Invalid or
-  expired cursors and wait timeouts have no tool effects.
+  canonical viewer-bound content wait runs before tool dispatch. Invalid
+  cursors and wait timeouts have no tool effects. An expired cursor needs no
+  wait, so the tool runs at once.
 - MCP server metadata uses `Chatto` as its stable implementation name and the
   effective Chatto server name as its display title.
 - Static MCP instructions identify the tools as the source of truth for rooms,

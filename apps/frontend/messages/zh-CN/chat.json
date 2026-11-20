@@ -3,6 +3,7 @@
     "privileged_mode": {
       "enable": "启用特权模式",
       "disable": "停用特权模式",
+      "select_roles": "选择要启用 15 分钟的角色。",
       "confirmation": "这会在 15 分钟内启用你在此服务器上获得的额外权限。"
     },
     "notifications": {
@@ -74,7 +75,11 @@
       "thread_views_description": "此服务器可能无法分别列出你关注的话题和你发起的话题。",
       "independent_slow_mode_title": "独立慢速模式不可用",
       "independent_slow_mode_description": "此服务器对频道消息和话题回复使用共用的冷却时间。",
-      "upgrade": "如需完整支持，请要求服务器管理员升级到 {version} 或更新版本。"
+      "upgrade": "如需完整支持，请要求服务器管理员升级到 {version} 或更新版本。",
+      "background_jobs_title": "后台任务不可用",
+      "background_jobs_description": "此服务器无法在服务器设置中显示或重试后台任务。",
+      "shield_role_selection_title": "特权模式角色选择",
+      "shield_role_selection_description": "此服务器会同时启用所有可用权限。"
     },
     "server_gutter": {
       "move_up": "向上移动",
@@ -186,7 +191,8 @@
       "system": "系统",
       "back_to_server": "返回服务器",
       "invites": "邀请",
-      "registration": "注册"
+      "registration": "注册",
+      "jobs": "任务"
     },
     "owner_welcome": {
       "title": "你的服务器已准备就绪",
