@@ -103,8 +103,10 @@ only to resolve a specific ambiguity or missing detail. The agent finishes with
 the `finish_announcement` tool, which supplies a channel summary and separate
 thread details. The host requires a Markdown summary of at most 400 characters
 and details of at most 4,000 characters. Intermediate model text is not posted.
-The host appends a comparison link (or a commit link for a new branch) in the same
-paragraph as the root summary, then posts the details under that root message ID.
+For pushes, the host appends a comparison link (or a commit link for a new branch)
+at the end of the thread details, in a separate paragraph. The root summary has
+no source link. Release announcements keep their release-notes link in the root
+summary.
 
 Klaus's local configuration requires an added or changed Markdown release note
 under a release unit's `.sweet/` directory. This check runs before the model
@@ -135,15 +137,76 @@ SHA and supplies its path and UTF-8 contents in `changedFiles`. It accepts at mo
 100 files, 64 KiB per file, and 256 KiB in total. Missing, invalid, or oversized
 contents keep the event queued; they do not start an agent with partial notes.
 The filter remains generic: the configured path expression selects the files.
-A complete negative result saves a `skipped` receipt and posts neither message.
+A complete negative result saves a `skipped` receipt and posts neither channel
+message. With `thread_replies = true`, the agent first checks issue follow-ups
+and can notify original threads even when no release note qualifies.
 Repeated deliveries and restarts preserve that decision. Existing prepared
 messages resume delivery without a new eligibility check.
 Published releases bypass this push filter.
 
 The filter sends the repository and immutable commit IDs to GitHub. Its
-responses remain in the Botto process and are not sent to a model for skipped
-events. Matched file contents go to the configured model provider for qualifying events.
+responses remain in the Botto process. With thread follow-ups disabled, skipped
+events do not start a model session. With follow-ups enabled, push metadata and
+requested memory and GitHub tool results enter the model context even when the
+channel announcement is skipped. Matched file contents go to the configured
+model provider for qualifying events.
 Klaus can use read tools for clarification, but routine diff inspection is not required.
+
+The host prompt supplies capabilities, output limits, and permission boundaries.
+The configured commit prompt owns resolution checks and announcement wording.
+The GitHub skill owns issue creation and approval. The collection's `MEANS.md`
+owns memory structure, retrieval, and receipts. These instructions refer to each
+other instead of maintaining separate copies of the same workflow.
+
+### Issue-resolution follow-ups
+
+Klaus can use its existing Means collection to connect an issue to the Chatto
+thread where it was reported. Enable this in the existing announcement table:
+
+```toml
+mcp_servers = ["github", "memory_klaus"]
+thread_replies = true
+```
+
+Use the supplied commit prompt and GitHub skill with the Klaus collection's
+`MEANS.md`. The memory connection needs `info`, `list`, `search`, `read`, and
+`create`; maintenance tools remain admin-only. Optional `issue_origin` and
+`issue_notification` schema fields preserve compatibility with existing entries.
+After confirmed, owner-authorized issue creation, the conversation agent records
+the repository and issue number with the host-supplied server, room, and thread
+identifiers. It does not publish these private identifiers to GitHub. Existing
+issues do not get origins automatically.
+
+On each accepted push, the announcement agent checks those memory records and
+uses GitHub read tools to verify explicit issue resolution by a merge or commit
+included at the push's immutable `after` revision. A later push can therefore
+send a missed notice for an earlier fix. These older fixes do not enter the
+current channel announcement. Similar text, an issue mention, or closure alone
+is not enough.
+The agent posts a short fix notice in the recorded original thread, then creates
+a separate memory receipt with the returned message ID. The announcement session
+owns this receipt; conversation acknowledgments do not create another one. The
+origin is unchanged.
+No second memory collection or follow-up database is used. Destructive memory
+actions still require explicit owner approval. Release events do not send these
+follow-ups; a fix on the configured branch does not establish release availability.
+
+The operator setting grants standing permission for these thread notifications.
+The host exposes `reply_to_thread` only in opted-in push sessions and rejects
+missing roots or replies passed as roots. Chatto permissions still apply. The
+agent selects the origin and verifies resolution under prompt instructions;
+the host does not independently validate the memory-to-issue association. Use
+only trusted collection writers. Each send reuses an idempotency key derived from
+the repository, origin memory ID, and destination. Memory receipts help suppress
+repeats after later pushes; posting and recording a receipt are separate actions.
+A lost receipt can cause a retry. Chatto deduplicates the same key and exact
+message arguments for 30 minutes; different text with that key conflicts during
+that window. Memory receipts remain the check for later pushes.
+No historical pushes are replayed when this option is enabled.
+
+Memory context goes to the configured model provider. Notifications go only to
+the recorded thread, not to a DM or new channel root. Avoid including private
+conversation details in general announcements or GitHub writes.
 
 Klaus's prompt starts the root message with **✅ Just merged:** followed by a
 15–30 word sentence that names the affected projects and the main benefit. It
@@ -249,3 +312,18 @@ port in sync if you change the local listener port. Botto does not change DNS or
 remote tunnel configuration during startup. If you omit `cloudflare_tunnel_token`,
 Botto leaves connector management to you. To disable automatic startup, remove
 both connector fields from the configuration.
+
+### Failure diagnostics
+
+Host failures name the stage: GitHub lookup, model setup or turn, response
+validation, Chatto connection, thread lookup, or root/details/thread delivery.
+Known transport codes can add a fixed hint, such as connection refused. External
+error messages, request URLs, tokens, and message contents are not included.
+Nested failures keep the original stage. Retry and uncertain-delivery handling
+remain unchanged.
+
+MCP failures remain visible in Runling's tool activity. For example, a failed
+`memory_klaus` create call after a thread reply identifies a failed receipt write;
+it is not reported as a failed Chatto send. Check that sequence when diagnosing
+follow-ups. The model can recover from a tool error, so a failed tool event does
+not necessarily mean the whole run failed.

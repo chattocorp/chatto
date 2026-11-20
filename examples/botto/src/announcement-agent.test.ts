@@ -9,9 +9,9 @@ import { mcpServers } from './mcp.ts';
 import { announcementMcpSettings, describeAnnouncement } from './announcements.ts';
 
 vi.mock('./announcement-response.ts', () => ({
-  announcementResponse: () => ({
+  announcementResponse: (_signal: AbortSignal, channel = true) => ({
     extension: vi.fn(),
-    result: () => ({ summary: 'Short update', details: 'Configured detail' })
+    result: () => (channel ? { summary: 'Short update', details: 'Configured detail' } : null)
   })
 }));
 
@@ -173,7 +173,7 @@ test('the change filter runs before model startup, bypasses releases, and propag
     expect(createAgentSession).not.toHaveBeenCalled();
     check.mockRejectedValue(new Error('Lookup failed'));
     await expect(describeAnnouncement({} as TaskContext, settings, push, signal)).rejects.toThrow(
-      'Lookup failed'
+      'Announcement GitHub lookup failed.'
     );
     expect(createAgentSession).not.toHaveBeenCalled();
     check.mockResolvedValue([{ path: '.sweet/note.md', content: 'Useful release notes' }]);
@@ -210,4 +210,72 @@ test('the change filter runs before model startup, bypasses releases, and propag
   } finally {
     check.mockRestore();
   }
+});
+
+test('opted-in pushes check follow-ups without Sweet notes, but releases get no thread write tool', async () => {
+  const filter = await import('./announcement-filter.ts');
+  const check = vi.spyOn(filter, 'loadChangedFiles').mockResolvedValue([]);
+  const { createAgentSession } = await import('runling');
+  const settings = parseSettings(
+    config + 'thread_replies=true\nmcp_servers=["github", "memory"]',
+    '/example/botto.toml',
+    {}
+  );
+  const server = { getMessage: vi.fn(), createMessage: vi.fn() };
+  const signal = new AbortController().signal;
+  const push = { before: 'a'.repeat(40), after: 'b'.repeat(40), commits: [], truncated: false };
+  try {
+    await expect(describeAnnouncement({} as TaskContext, settings, push, signal)).rejects.toThrow(
+      'delivery is unavailable'
+    );
+    expect(
+      await describeAnnouncement({} as TaskContext, settings, push, signal, server)
+    ).toBeNull();
+    const options = vi.mocked(createAgentSession).mock.calls.at(-1)![0]!;
+    expect(options.extensions).toHaveLength(3);
+    expect(options.systemPrompt).toContain('call finish_followups');
+    expect(session.run).toHaveBeenLastCalledWith(
+      {},
+      expect.stringContaining('"channelAnnouncement":false'),
+      { signal }
+    );
+    await describeAnnouncement(
+      {} as TaskContext,
+      settings,
+      {
+        kind: 'release',
+        id: 1,
+        tag: 'v1',
+        name: 'v1',
+        body: '',
+        prerelease: false,
+        publishedAt: '',
+        truncated: false
+      },
+      signal,
+      server
+    );
+    expect(vi.mocked(createAgentSession).mock.calls.at(-1)![0]!.extensions).toHaveLength(2);
+    expect(() => parseSettings(config + 'thread_replies="yes"', '/example/botto.toml', {})).toThrow(
+      'Invalid announcements.github'
+    );
+  } finally {
+    check.mockRestore();
+  }
+});
+
+test('model failures identify setup or turn stages without leaking provider messages', async () => {
+  const { createAgentSession } = await import('runling');
+  const settings = parseSettings(config, '/example/botto.toml', {});
+  const push = { before: 'a'.repeat(40), after: 'b'.repeat(40), commits: [], truncated: false };
+  const signal = new AbortController().signal;
+  vi.mocked(createAgentSession).mockRejectedValueOnce(new Error('secret setup response'));
+  await expect(describeAnnouncement({} as TaskContext, settings, push, signal)).rejects.toThrow(
+    'Announcement model setup failed.'
+  );
+  session.run.mockRejectedValueOnce(new Error('secret model response'));
+  await expect(describeAnnouncement({} as TaskContext, settings, push, signal)).rejects.toThrow(
+    'Announcement model turn failed.'
+  );
+  expect(session.dispose).toHaveBeenCalled();
 });

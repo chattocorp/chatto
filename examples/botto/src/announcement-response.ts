@@ -2,21 +2,43 @@
 import type { ExtensionFactory } from '@earendil-works/pi-coding-agent';
 import { Type } from 'typebox';
 
-/** The host adds the source link to the summary and posts details under the returned root ID. */
+/** The host adds the source link according to event type and posts details under the returned root ID. */
 export interface AnnouncementDraft {
   summary: string;
   details: string;
 }
 
 /** A terminal tool selects the two message bodies; intermediate model text is never delivered. */
-export function announcementResponse(signal: AbortSignal) {
-  let draft: AnnouncementDraft | undefined;
+export function announcementResponse(signal: AbortSignal, channelAnnouncement = true) {
+  let draft: AnnouncementDraft | null | undefined;
   const extension: ExtensionFactory = (pi) => {
     pi.on('tool_call', () =>
       draft !== undefined
         ? { block: true, reason: 'The announcement is complete.', terminate: true }
         : undefined
     );
+    if (!channelAnnouncement) {
+      pi.registerTool({
+        name: 'finish_followups',
+        label: 'Finish thread follow-ups',
+        description:
+          'Finish after checking issue follow-ups and recording confirmed delivery receipts in memory. This push does not qualify for a channel announcement. Earlier tool effects remain.',
+        parameters: Type.Object({}, { additionalProperties: false }),
+        async execute() {
+          signal.throwIfAborted();
+          if (draft !== undefined) throw new Error('Announcement already completed.');
+          draft = null;
+          return {
+            content: [
+              { type: 'text' as const, text: 'Follow-ups complete; no channel announcement.' }
+            ],
+            details: {},
+            terminate: true
+          };
+        }
+      });
+      return;
+    }
     pi.registerTool({
       name: 'finish_announcement',
       label: 'Finish announcement',
@@ -64,7 +86,7 @@ export function announcementResponse(signal: AbortSignal) {
   };
   return {
     extension,
-    result(): AnnouncementDraft {
+    result(): AnnouncementDraft | null {
       signal.throwIfAborted();
       if (draft === undefined) throw new Error('Agent did not finish the announcement.');
       return draft;

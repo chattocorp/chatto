@@ -46,6 +46,24 @@ test('preserves a compact Markdown heading and summary within the existing limit
   const summary =
     '**Landed on `main` · Authling**\n\nThe admin user directory now supports sorting and infinite scroll.';
   await call(summary);
-  expect(response.result().summary).toBe(summary);
-  expect(response.result().summary.length).toBeLessThanOrEqual(400);
+  expect(response.result()!.summary).toBe(summary);
+  expect(response.result()!.summary.length).toBeLessThanOrEqual(400);
+});
+
+test('follow-up-only sessions expose no channel announcement tool and terminate with null', async () => {
+  const response = announcementResponse(new AbortController().signal, false);
+  const registerTool = vi.fn<ExtensionAPI['registerTool']>();
+  const on = vi.fn();
+  await response.extension({ registerTool, on } as unknown as ExtensionAPI);
+  expect(registerTool.mock.calls.map(([tool]) => tool.name)).toEqual(['finish_followups']);
+  const finish = registerTool.mock.calls[0]![0];
+  await finish.execute('call', {}, undefined, undefined, {} as ExtensionToolContext);
+  expect(response.result()).toBeNull();
+  expect(on.mock.calls.find(([name]) => name === 'tool_call')![1]()).toMatchObject({
+    block: true,
+    terminate: true
+  });
+  await expect(
+    finish.execute('call', {}, undefined, undefined, {} as ExtensionToolContext)
+  ).rejects.toThrow('already completed');
 });

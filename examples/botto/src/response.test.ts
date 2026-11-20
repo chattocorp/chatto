@@ -73,3 +73,38 @@ test('failed progress does not report success and cancellation prevents final ch
   await expect(call('stay_silent')).rejects.toThrow();
   expect(() => response.result('Answer')).toThrow();
 });
+
+test.each([
+  ['👏', 'clap'],
+  [':clap:', 'clap'],
+  ['clap', 'clap'],
+  ['👍', 'thumbsup'],
+  ['👏🏽', 'clap::skin-tone-4']
+])('normalizes %s and terminates without posting either text response', async (emoji, expected) => {
+  const { call, response, post, registerTool } = await setup();
+  const tool = registerTool.mock.calls.find(([tool]) => tool.name === 'react_to_message')![0];
+  const { Value } = await import('typebox/value');
+  expect(Value.Check(tool.parameters, { emoji })).toBe(true);
+  expect(await call('react_to_message', { emoji })).toMatchObject({ terminate: true });
+  await expect(call('post_update', { text: 'Nice work!' })).rejects.toThrow('final response');
+  expect(response.result('Congrats on shipping!')).toEqual({ action: 'react', emoji: expected });
+  expect(post).not.toHaveBeenCalled();
+});
+
+test('an invalid reaction cannot produce a progress post followed by a final reply', async () => {
+  const { call, response, post } = await setup();
+  await expect(call('react_to_message', { emoji: '👏👏' })).rejects.toThrow('supported emoji');
+  await expect(call('post_update', { text: 'Nice work!' })).rejects.toThrow(
+    'cannot become a progress update'
+  );
+  expect(post).not.toHaveBeenCalled();
+  expect(response.result('Nice work!')).toEqual({ action: 'reply', text: 'Nice work!' });
+});
+
+test('a rejected reaction can be corrected without extra messages', async () => {
+  const { call, response, post } = await setup();
+  await expect(call('react_to_message', { emoji: 'not-an-emoji' })).rejects.toThrow();
+  await call('react_to_message', { emoji: 'clap' });
+  expect(response.result('')).toEqual({ action: 'react', emoji: 'clap' });
+  expect(post).not.toHaveBeenCalled();
+});

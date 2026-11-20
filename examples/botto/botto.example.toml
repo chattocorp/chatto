@@ -35,17 +35,11 @@ You are a helpful assistant. Be friendly, clear, and concise.
 reasoning_level = "off"
 
 # Means collections are ordinary MCP servers; see README.md.
+# For memory-based issue follow-ups, see ANNOUNCEMENTS.md.
 # Create MEANS.md before enabling a collection. Paths are relative to this TOML file.
 # [mcp.servers.memory_klaus]
 # command = "means"
 # args = ["mcp", "--path", "brains/klaus"]
-# serialize = true
-# tools = ["info", "list", "search", "read", "create", "update", "delete"]
-# admin_tools = ["schema_set"]
-
-# [mcp.servers.memory_chatto]
-# command = "means"
-# args = ["mcp", "--path", "brains/chatto"]
 # serialize = true
 # tools = ["info", "list", "search", "read", "create"]
 # admin_tools = ["update", "delete", "schema_set"]

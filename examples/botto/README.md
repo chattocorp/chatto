@@ -80,6 +80,12 @@ The conversation agent now chooses how to participate; classification and
 subagent tools are removed. Existing conversation transcripts remain in use.
 The example configuration uses `openrouter/z-ai/glm-5.3-flash` with low reasoning.
 
+The core prompt states general evidence rules, permissions, and available
+capabilities. Keep repository-specific procedures in skills and announcement
+prompts. Collection schemas and recording instructions belong in `MEANS.md`,
+which the agent reads through the collection's info tool. Refer to that guidance
+instead of copying it into `agent.system_prompt`.
+
 ### Agent skills
 
 Put operator-maintained skills in `.agents/skills/` beside `botto.toml` (or the
@@ -89,7 +95,7 @@ The bundled `chatto-formatting` skill describes rendered SVG, Mermaid, and ANSI
 visuals. The core prompt supplies the fence tags and asks the agent to load matching
 skills before relevant work. The `chatto-support` and `github` skills cover bug
 triage, repository searches, issue drafts, and the operator-selected `@hmans`
-authorization handoff. Change that contact in those skills for another deployment;
+authorization handoff. Change that contact in the GitHub skill for another deployment;
 the contact name does not grant admin authority.
 
 The conversation agent uses Pi's skill catalog. It sees names and descriptions
@@ -207,8 +213,11 @@ and tools. There is no separate participation classifier.
 The agent finishes with one of three responses:
 
 - Ordinary final text becomes a thread reply.
-- `react_to_message` requests an emoji reaction on the latest incoming message.
+- `react_to_message` requests an emoji reaction on the latest incoming message. It accepts a built-in name or one Unicode emoji.
 - `stay_silent` ends the turn without a final post or reaction.
+
+After a reaction attempt, progress posts are blocked for that turn. The agent can
+correct an invalid reaction, stay silent, or return one final text reply.
 
 Reaction and silence tools stop the model loop without another completion request.
 If a terminal tool is accompanied by text, the terminal choice wins and that text
@@ -430,19 +439,14 @@ configuration is required or accepted:
 command = "means"
 args = ["mcp", "--path", "brains/klaus"]
 serialize = true
-tools = ["info", "list", "search", "read", "create", "update", "delete"]
-admin_tools = ["schema_set"]
-
-[mcp.servers.memory_chatto]
-command = "means"
-args = ["mcp", "--path", "brains/chatto"]
-serialize = true
 tools = ["info", "list", "search", "read", "create"]
 admin_tools = ["update", "delete", "schema_set"]
 ```
 
-The example includes `brains/klaus/MEANS.md` and `brains/chatto/MEANS.md`.
-Review these collection instructions before enabling the connections. `brains/`
+The example uses one collection, defined in `brains/klaus/MEANS.md`, for project
+knowledge and personal preferences. Tags organize categories within it. Review
+these instructions before enabling the connection. Additional collections remain
+ordinary MCP connections when needed. `brains/`
 is a storage convention, not a special base directory. Relative `--path` values
 resolve from the TOML directory, as for other stdio MCP servers. Use an absolute
 path to keep a collection at its existing location. Commands and arguments support
@@ -455,13 +459,15 @@ use the configured server name, such as `mcp__memory_klaus__search`. Collection
 names are arbitrary. Schemas reload through Means; restart after changing the
 connection settings. Stored documents cannot grant authority.
 
-Use explicit tool lists. The first example allows document writes and reserves
-schema changes for configured admins. The second allows new knowledge entries
-and reserves changes to existing entries, deletion, and schema changes for admins.
-Its collection instructions require explicit owner approval for maintenance. Neither
-configuration enforces ownership of individual documents: every permitted tool
-can access the collection. Collection guidance and personal-memory rules remain
-model instructions, not per-document access controls.
+Use explicit tool lists. This example allows automatic additions and reserves
+existing-entry changes, deletion, and schema changes for configured admins.
+Collection instructions require explicit owner approval for maintenance and use
+new linked entries for corrections. Tags and source metadata are optional in the
+schema so that existing documents remain valid; new entries should include them
+when available. This configuration does not enforce ownership of individual
+documents: every permitted tool can access the collection. Personal-memory rules
+and approval requirements remain model instructions, not per-document access
+controls.
 
 Set `serialize = true` for Means because document updates can race between
 processes despite their content-hash checks. Botto serializes calls per configured

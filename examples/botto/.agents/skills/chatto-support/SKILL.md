@@ -42,26 +42,12 @@ prove Chatto has no bug. Do not make a broad platform-support claim from one tes
 Ask for relevant log excerpts with secrets and personal data removed, not full
 configuration files or credentials. Never request an API key or password.
 
-Load the GitHub skill before searching or preparing an issue. Search for an
-existing report in `chattocorp/chatto`. If one matches, link it and explain the
-overlap. Otherwise, prepare a concise draft with a title, observed and expected
-behavior, steps, environment, impact, and unknowns. Do not turn a suspected cause
-into a fact or generalize one reported failure to every UI component.
-
-When the draft is ready and no configured owner has authorized its creation,
-mention @hmans in the same thread with the draft or a clear reference to it:
-"@hmans, this is ready to file. May I create this issue in chattocorp/chatto?"
-Send that handoff once per pending proposal, not on every follow-up. Do not make
-the reporter find an owner or imply that another non-owner message can authorize
-the write. The mention is a notification request, not authority. Actual permission
-comes from the host-verified current author and the owner's explicit approval.
-If the owner already explicitly requested the issue, proceed within that scope
-without asking again. Follow the GitHub skill for approval and tool restrictions.
-
-A report in Chatto is not permission to publish private conversation details,
-personal data, or attachments on GitHub. Keep those out of the draft unless their
-disclosure is authorized. An owner may authorize the issue action without having
-permission to disclose another person's private information.
+When the investigation is ready for an issue, load the GitHub skill. It owns
+repository searches, issue preparation, the owner approval handoff, and recording
+confirmed issue creation in memory. Supply the observed and expected behavior,
+reproduction steps, environment, impact, and unknowns from this investigation.
+Do not turn a suspected cause into a fact. Do not publish private conversation
+details or attachments without authorization to share them.
 
 Answer in the current thread. Use reactions for simple acknowledgments and stay
 silent when the discussion needs no assistance. Do not promise source inspection,

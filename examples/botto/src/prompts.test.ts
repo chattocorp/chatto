@@ -55,3 +55,30 @@ test('custom tools can provide web access when Exa is disabled', () => {
   };
   expect(systemPrompt(custom, main)).not.toContain('Web access is disabled');
 });
+
+test('background capability reports configured scope without installing a Klaus memory workflow', () => {
+  const configured = parseSettings(
+    `
+[chatto]
+url="https://chat.example.com"
+api_key="unused"
+[agent]
+model="test/model"
+[announcements.github]
+enabled=true
+repository="owner/repo"
+branch="next"
+room_id="announcements"
+webhook_secret="synthetic-secret-at-least-32-characters"
+thread_replies=true
+`,
+    'botto.toml'
+  );
+  const prompt = systemPrompt(configured, main);
+  expect(prompt).toContain('pushes to owner/repo, branch next');
+  expect(prompt).not.toContain('memory_klaus');
+  expect(prompt).not.toContain('issue_origin');
+  expect(systemPrompt({ ...configured, announcements: undefined }, main)).not.toContain(
+    'Enabled background capability'
+  );
+});

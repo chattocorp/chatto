@@ -49,12 +49,45 @@ flowchart LR
 
 ## ANSI art
 
-Use `ansi rendered` for static colored text art. The block must contain real ESC
-characters (U+001B), followed by color sequences such as `[36m`. Reset with
-ESC followed by `[0m`. In a JSON tool argument, encode ESC as `\u001b`; the decoded
-message must contain the character, not the literal backslash sequence. Bare
-`[36m`, shell commands, and text containing `\\u001b` do not produce colors.
+Use `ansi rendered` for static colored text art. Two separate requirements apply:
+the fence selects the renderer, and the contents supply the color control codes.
+A correct fence cannot repair incorrectly encoded contents.
+
+Your final reply is Markdown text, not a JSON string or a program. Emit actual
+ESC characters (U+001B), followed by a color sequence such as `[36m`, and reset
+with ESC followed by `[0m`. Do not spell ESC as `\u001b`, `\x1b`, `\033`, or
+`ESC` in the reply. Those are literal text here; Chatto does not decode them as
+string escapes. JSON escape syntax applies only inside a JSON tool argument,
+where the JSON decoder converts it to the actual character.
+
+This minimal example contains actual ESC characters before each bracket. Preserve
+those characters when using it as a template; change the art and color numbers,
+not the encoding:
+
+```ansi rendered
+[36m+---+
+| K |
++---+[0m
+```
+
+Before sending, check the fence and its contents separately. If your proposed
+Markdown spells out a backslash escape before the color codes, correct that
+encoding. Do not send it unchanged and claim that it contains real ESC characters.
+If you cannot produce the required control characters, state that limitation
+plainly instead of presenting the same broken output as a fix.
 
 Keep each block within 80 columns and 100 rows, with at most four ANSI blocks per
 message. Align borders and labels. Do not use terminal cursor movement or commands
 that require execution. Deliver the art itself, not a script for the user to run.
+
+## Correct a failed visual
+
+When the user reports a rendering problem, compare the previous output with these
+requirements before trying again. If the fence already had the correct tag, do
+not claim that adding that same tag fixes it. Inspect the contents as well, and
+make a specific correction. Re-read this skill if the first attempt failed.
+
+Producing markup is not visual verification. Do not say “now it renders,” “it
+glows,” or “I checked it” unless a rendered result was actually inspected or the
+user confirmed it. Briefly acknowledge the error and supply the corrected visual
+without a claim of success that you cannot verify.

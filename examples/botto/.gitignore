@@ -10,8 +10,5 @@ botto.toml
 # Durable local Means collections.
 brains/*
 !brains/klaus/
-!brains/chatto/
 brains/klaus/*
-brains/chatto/*
 !brains/klaus/MEANS.md
-!brains/chatto/MEANS.md

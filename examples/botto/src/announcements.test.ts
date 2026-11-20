@@ -141,8 +141,8 @@ test('persists independent root and reply receipts, then suppresses repeated del
   await deliverAnnouncement(store, key, compose, post, 'link');
   await deliverAnnouncement(store, key, compose, post, 'link');
   expect(post.mock.calls).toEqual([
-    ['Summary link', expect.any(String), ''],
-    ['Details', expect.any(String), 'root-1']
+    ['Summary', expect.any(String), ''],
+    ['Details\n\nlink', expect.any(String), 'root-1']
   ]);
   expect(post.mock.calls[0]![1]).not.toBe(post.mock.calls[1]![1]);
   expect(compose).toHaveBeenCalledOnce();
@@ -184,7 +184,7 @@ test('an uncertain reply never recreates the root or retries the reply after res
     return { id: 'root-1' };
   });
   await expect(deliverAnnouncement(store, key, compose, post, 'link')).rejects.toThrow(
-    'Lost reply response'
+    'Announcement details delivery failed.'
   );
   const restored = new AnnouncementStore(directory, ['server', 'viewer', 'repo', 'main', 'room']);
   expect(restored.get(key)).toMatchObject({
@@ -241,7 +241,7 @@ test('model failures stay queued but uncertain writes never retry after restart'
       post,
       'link'
     )
-  ).rejects.toThrow('lost response');
+  ).rejects.toThrow('Announcement root delivery failed.');
   const restored = new AnnouncementStore(directory, ['server', 'viewer', 'repo', 'main', 'room']);
   expect(restored.uncertain).toBe(1);
   expect(restored.queued).toEqual([]);
@@ -519,7 +519,7 @@ test('a confirmed announcement admits untagged follow-ups without a transcript, 
         );
       }
     )
-  ).rejects.toThrow('Uncertain details');
+  ).rejects.toThrow('Announcement details delivery failed.');
   expect(await hasTranscript(directory, identity)).toBe(false);
   const restored = new AnnouncementStore(directory, ['server', 'viewer', 'repo', 'main', 'room']);
   expect(restored.sentRoots).toEqual([location.threadRootId]);
@@ -615,7 +615,7 @@ test('unconfirmed and skipped announcement roots do not register participation',
       'link',
       register
     )
-  ).rejects.toThrow('Uncertain root');
+  ).rejects.toThrow('Announcement root delivery failed.');
   expect(register).not.toHaveBeenCalled();
   expect(store.sentRoots).toEqual([]);
 });

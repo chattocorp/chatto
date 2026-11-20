@@ -24,6 +24,8 @@ export interface AnnouncementSettings {
   releasePrompt?: string;
   /** Explicit MCP connections for this session; admin tools are never enabled. */
   mcpServers?: string[];
+  /** Permit push sessions to notify existing threads, including pushes without release notes. */
+  threadReplies?: boolean;
 }
 
 /** Disabled configuration can keep secret placeholders until the operator enables it. */
@@ -34,7 +36,7 @@ export function parseAnnouncements(
 ): AnnouncementSettings | undefined {
   const fail = (): never => {
     throw new Error(
-      'Invalid announcements.github settings. Check repository, branch, room_id, webhook_secret, host, port, cloudflared_command, cloudflare_tunnel_token, prompt_file, releases, release_prompt_file, mcp_servers, required_changed_path, and GitHub App credentials.'
+      'Invalid announcements.github settings. Check repository, branch, room_id, webhook_secret, host, port, cloudflared_command, cloudflare_tunnel_token, prompt_file, releases, release_prompt_file, mcp_servers, thread_replies, required_changed_path, and GitHub App credentials.'
     );
   };
   const table = (v: unknown): Record<string, unknown> => {
@@ -62,6 +64,7 @@ export function parseAnnouncements(
           'releases',
           'release_prompt_file',
           'mcp_servers',
+          'thread_replies',
           'required_changed_path',
           'github_app_id',
           'github_installation_id',
@@ -94,6 +97,8 @@ export function parseAnnouncements(
   )
     return fail();
   if (config.releases !== undefined && typeof config.releases !== 'boolean') return fail();
+  if (config.thread_replies !== undefined && typeof config.thread_replies !== 'boolean')
+    return fail();
   let releasePrompt: string | undefined;
   if (config.release_prompt_file !== undefined) {
     try {
@@ -145,6 +150,9 @@ export function parseAnnouncements(
     ...(config.releases !== undefined ? { releases: config.releases as boolean } : {}),
     ...(releasePrompt ? { releasePrompt } : {}),
     ...(mcpServers ? { mcpServers: [...new Set(mcpServers as string[])] } : {}),
+    ...(config.thread_replies !== undefined
+      ? { threadReplies: config.thread_replies as boolean }
+      : {}),
     repository,
     branch,
     roomId: text('room_id'),

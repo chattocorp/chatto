@@ -52,3 +52,22 @@ unknown. Do not publish private conversation details or attachments without
 authorization to share them. Return the issue or pull request link after a
 confirmed change. If a write has an uncertain outcome, read the target to check
 the result before considering another write; do not repeat it blindly.
+
+## Evidence and release availability
+
+Commit history alone does not establish whether a change is in a tagged release,
+published artifact, or deployment. Check the relevant release and its contents
+before claiming availability or absence. Otherwise say it is not verified.
+A general channel announcement does not register a personal notification.
+
+## Remember issues created from conversations
+
+After confirmed issue creation, call memory_klaus info and follow its issue-origin
+recording instructions. Do not retry issue creation if only memory recording
+failed; the issue already exists. Return its link and report that the follow-up
+was not registered if recording failed.
+
+Promise a merge notification only after the memory origin is saved or verified
+and the host advertises issue-resolution thread replies for this repository.
+This registers a check on future pushes to the configured branch, not a release
+notification or a guaranteed delivery time. Do not promise it for another repository.
