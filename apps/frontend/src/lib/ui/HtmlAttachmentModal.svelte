@@ -7,6 +7,7 @@ URL only after consent. Download and Close remain outside the sandbox.
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { expoOutTransition } from './motion';
+  import AttachmentDownload from '$lib/attachments/AttachmentDownload.svelte';
   import Dialog from './Dialog.svelte';
 
   let {
@@ -15,6 +16,7 @@ URL only after consent. Download and Close remain outside the sandbox.
     size = null,
     sizeLoading = false,
     downloadUrl,
+    resolveDownloadUrl,
     previewUrl = null,
     busy = false,
     error = null,
@@ -28,6 +30,8 @@ URL only after consent. Download and Close remain outside the sandbox.
     size?: number | null;
     sizeLoading?: boolean;
     downloadUrl: string | null;
+    /** Resolve a fresh original-file URL after an explicit download request. */
+    resolveDownloadUrl?: () => Promise<string | null>;
     previewUrl?: string | null;
     busy?: boolean;
     error?: string | null;
@@ -102,17 +106,13 @@ URL only after consent. Download and Close remain outside the sandbox.
     </dl>
   {/snippet}
   {#snippet footer()}
-    <a
-      href={downloadUrl ?? '#'}
-      download={filename}
-      target="_blank"
-      rel="external noopener noreferrer"
-      onclick={ondownload}
-      aria-disabled={busy}
-      class="btn-secondary shrink-0"
-    >
-      <span class="iconify icon-[uil--download-alt]" aria-hidden="true"></span>
-      {m('room.attachment.html_viewer.download')}
-    </a>
+    <AttachmentDownload
+      {filename}
+      {contentType}
+      {downloadUrl}
+      {resolveDownloadUrl}
+      {ondownload}
+      {busy}
+    />
   {/snippet}
 </Dialog>

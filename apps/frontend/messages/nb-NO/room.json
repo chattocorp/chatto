@@ -204,6 +204,7 @@
       "delete_label": "Slett vedlegg",
       "delete_failed": "Kunne ikke slette vedlegg",
       "view_label": "Se {filename}",
+      "save_or_share": "Lagre eller del…",
       "download_label": "Last ned {filename}",
       "image_refresh_failed": "Kunne ikke oppdatere bildelinken",
       "download_refresh_failed": "Kunne ikke oppdatere nedlastingslenken",

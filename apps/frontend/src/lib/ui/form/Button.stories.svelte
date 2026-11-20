@@ -268,3 +268,9 @@
     </div>
   </div>
 </Story>
+
+<Story name="Download file" asChild>
+  <Button href="data:text/plain,Hello" download="hello.txt" opensInNewTab variant="secondary">
+    Download
+  </Button>
+</Story>

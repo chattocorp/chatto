@@ -34,6 +34,7 @@
       contentType="text/html"
       size={24576}
       downloadUrl={documentUrl}
+      resolveDownloadUrl={async () => documentUrl}
       {previewUrl}
       onpreview={() => (previewUrl = documentUrl)}
       ondownload={() => {}}

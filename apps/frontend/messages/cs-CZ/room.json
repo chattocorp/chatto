@@ -204,6 +204,7 @@
       "delete_label": "Smazat přílohu",
       "delete_failed": "Smazání přílohy se nezdařilo",
       "view_label": "Zobrazit {filename}",
+      "save_or_share": "Uložit nebo sdílet…",
       "download_label": "Stáhnout {filename}",
       "image_refresh_failed": "Odkaz na obrázek nelze obnovit",
       "download_refresh_failed": "Odkaz ke stažení nelze obnovit",

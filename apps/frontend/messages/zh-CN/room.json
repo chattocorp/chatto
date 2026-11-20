@@ -204,6 +204,7 @@
       "delete_label": "删除附件",
       "delete_failed": "删除附件失败",
       "view_label": "查看 {filename}",
+      "save_or_share": "保存或分享…",
       "download_label": "下载 {filename}",
       "image_refresh_failed": "无法刷新图片链接",
       "download_refresh_failed": "无法刷新下载链接",
