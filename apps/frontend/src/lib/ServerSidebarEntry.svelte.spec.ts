@@ -462,7 +462,7 @@ describe('ServerSidebarEntry', () => {
     expect(mocks.markNavigationServerAsRead).toHaveBeenCalledWith('remote');
   });
 
-  it('opens server actions from the overlaid unread badge', async () => {
+  it('opens server actions from the unread badge', async () => {
     mocks.store.serverIndicator.mockReturnValue('unread');
     const { container } = render(ServerSidebarEntry, {
       props: { serverId: 'remote' }
@@ -1110,6 +1110,10 @@ describe('ServerSidebarEntry', () => {
 
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Connection unavailable');
     const badge = q(container, '[data-testid="server-warning"]');
+    expect(getComputedStyle(icon!.firstElementChild!).opacity).toBe('0.5');
+    expect(badge!.getBoundingClientRect().top).toBeGreaterThan(
+      icon!.getBoundingClientRect().bottom
+    );
     expect(badge?.querySelector('[class~="icon-[lucide--unplug]"]')).not.toBeNull();
     await expect.element(badge).toHaveClass('text-muted');
 
@@ -1235,6 +1239,10 @@ describe('ServerSidebarEntry', () => {
     const badge = q(container, '[data-testid="server-notification-badge"]');
     await expect.element(badge).toBeInTheDocument();
     await expect.element(badge).toHaveClass('bg-attention');
+    const tile = q(container, '[data-testid="server-icon"]');
+    expect(badge!.getBoundingClientRect().top).toBeGreaterThan(
+      tile!.getBoundingClientRect().bottom
+    );
     (badge?.closest('button') as HTMLButtonElement).click();
 
     await vi.waitFor(() => {
