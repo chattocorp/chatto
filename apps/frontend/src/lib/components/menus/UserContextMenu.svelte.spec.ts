@@ -1,3 +1,4 @@
+import type { VerifiedIdentity } from '@chatto/client/api/users';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
@@ -15,7 +16,7 @@ const viewerSettingsState = {
 };
 const serverScopeMock = vi.hoisted(() => ({
   serverId: 'server-1',
-  getAtprotoHandles: vi.fn<() => Promise<string[]>>(),
+  getVerifiedIdentities: vi.fn<() => Promise<VerifiedIdentity[]>>(),
   permissions: {
     loaded: true,
     canAdminViewUsers: false,
@@ -44,7 +45,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: serverScopeMock.serverId,
     connection: {
       queryScope: 'menu-session',
-      getAPI: () => ({ getAtprotoHandles: serverScopeMock.getAtprotoHandles })
+      getAPI: () => ({ getVerifiedIdentities: serverScopeMock.getVerifiedIdentities })
     },
     store: {
       get accountId() {
@@ -120,7 +121,9 @@ afterAll(() => {
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  serverScopeMock.getAtprotoHandles.mockReset().mockResolvedValue(['alice.example']);
+  serverScopeMock.getVerifiedIdentities
+    .mockReset()
+    .mockResolvedValue([{ method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' }]);
   serverScopeMock.serverId = 'server-1';
   serverScopeMock.permissions.loaded = true;
   serverScopeMock.permissions.canAdminViewUsers = false;
@@ -152,10 +155,10 @@ describe('UserContextMenu', () => {
 
     // Move past the session cache's freshness window while the popup is closed.
     vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 31_000);
-    const refresh = Promise.withResolvers<string[]>();
-    serverScopeMock.getAtprotoHandles.mockReturnValueOnce(refresh.promise);
+    const refresh = Promise.withResolvers<VerifiedIdentity[]>();
+    serverScopeMock.getVerifiedIdentities.mockReturnValueOnce(refresh.promise);
     const second = renderMenu();
-    await expect.poll(() => serverScopeMock.getAtprotoHandles.mock.calls.length).toBe(2);
+    await expect.poll(() => serverScopeMock.getVerifiedIdentities.mock.calls.length).toBe(2);
     expect(second.container.textContent).toContain('alice.example');
     refresh.resolve([]);
     await expect.poll(() => second.container.textContent).not.toContain('alice.example');

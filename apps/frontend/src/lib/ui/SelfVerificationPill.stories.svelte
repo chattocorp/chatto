@@ -74,7 +74,7 @@
     </UserCard>
     <VerifiedIdentitiesSection
       sidebarKey="story-profile-identities"
-      identities={[{ method: 'AT Protocol', icon: providerIcon('atproto'), identity: 'hmans.dev' }]}
+      identities={[{ method: 'atproto', methodLabel: 'AT Protocol', value: 'hmans.dev' }]}
     />
   </div>
 </Story>

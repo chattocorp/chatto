@@ -25,7 +25,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: 'server-1',
     connection: {
       queryScope: 'identity-session',
-      getAPI: () => ({ getAtprotoHandles: async () => [] })
+      getAPI: () => ({ getVerifiedIdentities: async () => [] })
     },
     store: {
       permissions: {

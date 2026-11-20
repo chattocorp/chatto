@@ -41,6 +41,21 @@ describe('createUserAPI', () => {
     vi.resetAllMocks();
   });
 
+  it('requests all verified identities and preserves unfamiliar methods', async () => {
+    const identities = [
+      { method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' },
+      { method: 'custom-directory', methodLabel: 'Community directory', value: 'Member 123' }
+    ];
+    mocks.getUser.mockReturnValue({ verifiedIdentities: identities });
+    await expect(createUserAPI(config()).getVerifiedIdentities('U1')).resolves.toMatchObject(
+      identities
+    );
+    expect(receivedRequest(mocks.getUser)).toMatchObject({
+      target: { case: 'userId', value: 'U1' },
+      includeVerifiedIdentities: true
+    });
+  });
+
   it('acknowledges an avatar command when its profile event arrives before the response', async () => {
     const store = getUserStore('server', 'session');
     mocks.deleteAvatar.mockImplementation(async () => {

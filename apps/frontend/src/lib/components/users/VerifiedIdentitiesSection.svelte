@@ -4,6 +4,8 @@ Lists the self-verification identities available for this profile. Sidebar
 callers supply a storage key for the disclosure. Popups show the list directly.
 -->
 <script lang="ts">
+  import type { VerifiedIdentity } from '@chatto/client/api/users';
+  import { providerIcon } from '$lib/auth/providerIcon';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import { m } from '$lib/i18n/messages';
   import { SelfVerificationPill } from '$lib/ui';
@@ -12,7 +14,7 @@ callers supply a storage key for the disclosure. Popups show the list directly.
     identities,
     sidebarKey
   }: {
-    identities: { method: string; icon: string; identity: string }[];
+    identities: VerifiedIdentity[];
     sidebarKey?: string;
   } = $props();
 
@@ -21,8 +23,14 @@ callers supply a storage key for the disclosure. Popups show the list directly.
 
 {#snippet identityList()}
   <ul aria-label={label} class="flex min-w-0 flex-wrap gap-1.5">
-    {#each identities as entry (`${entry.method}/${entry.identity}`)}
-      <li class="max-w-full leading-none"><SelfVerificationPill {...entry} /></li>
+    {#each identities as entry (JSON.stringify([entry.method, entry.value]))}
+      <li class="max-w-full leading-none">
+        <SelfVerificationPill
+          method={entry.methodLabel}
+          icon={providerIcon(entry.method)}
+          identity={entry.value}
+        />
+      </li>
     {/each}
   </ul>
 {/snippet}

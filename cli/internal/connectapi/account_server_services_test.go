@@ -1873,7 +1873,7 @@ func TestMyAccountServiceSettingsPatchPresence(t *testing.T) {
 	}
 }
 
-func TestGetUserLinkedATProtoHandles(t *testing.T) {
+func TestGetUserVerifiedIdentities(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	directory := identity.NewMockDirectory()
 	env.api.atprotoDirectory = func() identity.Directory { return directory }
@@ -1890,17 +1890,17 @@ func TestGetUserLinkedATProtoHandles(t *testing.T) {
 	link("oidc", "did:plc:private")
 	directory.Insert(identity.Identity{DID: "did:plc:member", Handle: "alice.example"})
 	directory.Insert(identity.Identity{DID: "did:plc:private", Handle: "private.example"})
-	read := func(include bool) []string {
+	read := func(include bool) []*apiv1.VerifiedIdentity {
 		response, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{
-			Target: &apiv1.GetUserRequest_UserId{UserId: target.Id}, IncludeAtprotoHandles: include,
+			Target: &apiv1.GetUserRequest_UserId{UserId: target.Id}, IncludeVerifiedIdentities: include,
 		}))
 		require.NoError(t, err)
-		return response.Msg.AtprotoHandles
+		return response.Msg.VerifiedIdentities
 	}
 	require.Empty(t, read(false))
-	require.Equal(t, []string{"alice.example"}, read(true))
+	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "alice.example"}}, read(true))
 	directory.Insert(identity.Identity{DID: "did:plc:member", Handle: "new.example"})
-	require.Equal(t, []string{"new.example"}, read(true))
+	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "new.example"}}, read(true))
 	require.NoError(t, env.core.DisconnectExternalIdentityAs(ctx, target.Id, target.Id, linked.SubjectHash, core.ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}))
 	require.Empty(t, read(true))
 }

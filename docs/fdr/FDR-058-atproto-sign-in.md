@@ -6,9 +6,8 @@
 ## Overview
 
 Users can sign in to Chatto with their AT Protocol identity, for example a
-Bluesky account. Chatto does not show AT Protocol handles as verified. A
-verified handle needs an independent issuer, which Chatto does not have yet
-(ADR-124).
+Bluesky account. The server reports the linked handle as a profile identity.
+Independent verification by the viewer requires an issuer (ADR-124).
 
 ## Behavior
 
@@ -54,8 +53,8 @@ the loopback client, for which the PDS asks every time.
 
 ### 2. No verified handles from repository records
 
-**Decision:** Chatto does not publish the linked DID on profiles and does not
-show handles as verified.
+**Decision:** Chatto keeps the linked DID private. The profile shows a handle
+that the server resolved from the linked sign-in identity.
 **Why:** A proof that the user writes to their own repository can also be
 written by every app that has write access to that repository, for example
 apps with app passwords. A modified server and one such app could link a
@@ -68,7 +67,8 @@ self-verification pill. A 1px gap separates the @ icon from the handle.
 The pill stays on one line. If the handle is too long, an ellipsis marks
 the omitted text. Hovering over the pill shows the full handle. The
 label identifies the server-linked account (ADR-124). The server resolves each linked
-DID when a client requests handles. The directory caches successful lookups
+DID when a client requests verified identities. The AT Protocol entry uses
+the method key `atproto` and the handle as its public value. The directory caches successful lookups
 for up to a day, so a renamed handle can take time to change. A missing handle
 or failed lookup leaves that handle out. Disconnecting the account removes
 its handle from subsequent server reads. The popup and sidebar share a session

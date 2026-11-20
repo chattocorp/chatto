@@ -143,10 +143,10 @@ type GetUserRequest struct {
 	//	*GetUserRequest_UserId
 	//	*GetUserRequest_Login
 	Target isGetUserRequest_Target `protobuf_oneof:"target"`
-	// Resolve public handles for linked AT Protocol accounts.
-	IncludeAtprotoHandles bool `protobuf:"varint,3,opt,name=include_atproto_handles,json=includeAtprotoHandles,proto3" json:"include_atproto_handles,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Include public identities that this server has verified for the user.
+	IncludeVerifiedIdentities bool `protobuf:"varint,3,opt,name=include_verified_identities,json=includeVerifiedIdentities,proto3" json:"include_verified_identities,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *GetUserRequest) Reset() {
@@ -204,9 +204,9 @@ func (x *GetUserRequest) GetLogin() string {
 	return ""
 }
 
-func (x *GetUserRequest) GetIncludeAtprotoHandles() bool {
+func (x *GetUserRequest) GetIncludeVerifiedIdentities() bool {
 	if x != nil {
-		return x.IncludeAtprotoHandles
+		return x.IncludeVerifiedIdentities
 	}
 	return false
 }
@@ -234,10 +234,10 @@ type GetUserResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Requested user.
 	User *DirectoryMember `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
-	// Current AT Protocol handles without @, when requested. Unresolved handles are omitted.
-	AtprotoHandles []string `protobuf:"bytes,2,rep,name=atproto_handles,json=atprotoHandles,proto3" json:"atproto_handles,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Public identities, ordered by method and value. Empty unless requested.
+	VerifiedIdentities []*VerifiedIdentity `protobuf:"bytes,2,rep,name=verified_identities,json=verifiedIdentities,proto3" json:"verified_identities,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GetUserResponse) Reset() {
@@ -277,9 +277,9 @@ func (x *GetUserResponse) GetUser() *DirectoryMember {
 	return nil
 }
 
-func (x *GetUserResponse) GetAtprotoHandles() []string {
+func (x *GetUserResponse) GetVerifiedIdentities() []*VerifiedIdentity {
 	if x != nil {
-		return x.AtprotoHandles
+		return x.VerifiedIdentities
 	}
 	return nil
 }
@@ -717,15 +717,15 @@ const file_chatto_api_v1_user_service_proto_rawDesc = "" +
 	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\x99\x01\n" +
 	"\x11ListUsersResponse\x124\n" +
 	"\x05users\x18\x01 \x03(\v2\x1e.chatto.api.v1.DirectoryMemberR\x05users\x12+\n" +
-	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"\x97\x01\n" +
+	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"\x9f\x01\n" +
 	"\x0eGetUserRequest\x12\"\n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x06userId\x12\x1f\n" +
-	"\x05login\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05login\x126\n" +
-	"\x17include_atproto_handles\x18\x03 \x01(\bR\x15includeAtprotoHandlesB\b\n" +
-	"\x06target\"n\n" +
+	"\x05login\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05login\x12>\n" +
+	"\x1binclude_verified_identities\x18\x03 \x01(\bR\x19includeVerifiedIdentitiesB\b\n" +
+	"\x06target\"\x97\x01\n" +
 	"\x0fGetUserResponse\x122\n" +
-	"\x04user\x18\x01 \x01(\v2\x1e.chatto.api.v1.DirectoryMemberR\x04user\x12'\n" +
-	"\x0fatproto_handles\x18\x02 \x03(\tR\x0eatprotoHandles\"C\n" +
+	"\x04user\x18\x01 \x01(\v2\x1e.chatto.api.v1.DirectoryMemberR\x04user\x12P\n" +
+	"\x13verified_identities\x18\x02 \x03(\v2\x1f.chatto.api.v1.VerifiedIdentityR\x12verifiedIdentities\"C\n" +
 	"\x14BatchGetUsersRequest\x12+\n" +
 	"\buser_ids\x18\x01 \x03(\tB\x10\xbaH\r\x92\x01\n" +
 	"\b\x01\x10d\"\x04r\x02\x10\x01R\auserIds\"M\n" +
@@ -791,38 +791,40 @@ var file_chatto_api_v1_user_service_proto_goTypes = []any{
 	(*PageRequest)(nil),               // 12: chatto.api.v1.PageRequest
 	(*DirectoryMember)(nil),           // 13: chatto.api.v1.DirectoryMember
 	(*PageInfo)(nil),                  // 14: chatto.api.v1.PageInfo
-	(*fieldmaskpb.FieldMask)(nil),     // 15: google.protobuf.FieldMask
-	(*User)(nil),                      // 16: chatto.api.v1.User
-	(*ImageUpload)(nil),               // 17: chatto.api.v1.ImageUpload
+	(*VerifiedIdentity)(nil),          // 15: chatto.api.v1.VerifiedIdentity
+	(*fieldmaskpb.FieldMask)(nil),     // 16: google.protobuf.FieldMask
+	(*User)(nil),                      // 17: chatto.api.v1.User
+	(*ImageUpload)(nil),               // 18: chatto.api.v1.ImageUpload
 }
 var file_chatto_api_v1_user_service_proto_depIdxs = []int32{
 	12, // 0: chatto.api.v1.ListUsersRequest.page:type_name -> chatto.api.v1.PageRequest
 	13, // 1: chatto.api.v1.ListUsersResponse.users:type_name -> chatto.api.v1.DirectoryMember
 	14, // 2: chatto.api.v1.ListUsersResponse.page:type_name -> chatto.api.v1.PageInfo
 	13, // 3: chatto.api.v1.GetUserResponse.user:type_name -> chatto.api.v1.DirectoryMember
-	13, // 4: chatto.api.v1.BatchGetUsersResponse.users:type_name -> chatto.api.v1.DirectoryMember
-	15, // 5: chatto.api.v1.UpdateUserProfileRequest.update_mask:type_name -> google.protobuf.FieldMask
-	16, // 6: chatto.api.v1.UpdateUserProfileResponse.user:type_name -> chatto.api.v1.User
-	17, // 7: chatto.api.v1.UploadAvatarRequest.image:type_name -> chatto.api.v1.ImageUpload
-	16, // 8: chatto.api.v1.UploadAvatarResponse.user:type_name -> chatto.api.v1.User
-	16, // 9: chatto.api.v1.DeleteAvatarResponse.user:type_name -> chatto.api.v1.User
-	0,  // 10: chatto.api.v1.UserService.ListUsers:input_type -> chatto.api.v1.ListUsersRequest
-	2,  // 11: chatto.api.v1.UserService.GetUser:input_type -> chatto.api.v1.GetUserRequest
-	4,  // 12: chatto.api.v1.UserService.BatchGetUsers:input_type -> chatto.api.v1.BatchGetUsersRequest
-	6,  // 13: chatto.api.v1.UserService.UpdateUserProfile:input_type -> chatto.api.v1.UpdateUserProfileRequest
-	8,  // 14: chatto.api.v1.UserService.UploadAvatar:input_type -> chatto.api.v1.UploadAvatarRequest
-	10, // 15: chatto.api.v1.UserService.DeleteAvatar:input_type -> chatto.api.v1.DeleteAvatarRequest
-	1,  // 16: chatto.api.v1.UserService.ListUsers:output_type -> chatto.api.v1.ListUsersResponse
-	3,  // 17: chatto.api.v1.UserService.GetUser:output_type -> chatto.api.v1.GetUserResponse
-	5,  // 18: chatto.api.v1.UserService.BatchGetUsers:output_type -> chatto.api.v1.BatchGetUsersResponse
-	7,  // 19: chatto.api.v1.UserService.UpdateUserProfile:output_type -> chatto.api.v1.UpdateUserProfileResponse
-	9,  // 20: chatto.api.v1.UserService.UploadAvatar:output_type -> chatto.api.v1.UploadAvatarResponse
-	11, // 21: chatto.api.v1.UserService.DeleteAvatar:output_type -> chatto.api.v1.DeleteAvatarResponse
-	16, // [16:22] is the sub-list for method output_type
-	10, // [10:16] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	15, // 4: chatto.api.v1.GetUserResponse.verified_identities:type_name -> chatto.api.v1.VerifiedIdentity
+	13, // 5: chatto.api.v1.BatchGetUsersResponse.users:type_name -> chatto.api.v1.DirectoryMember
+	16, // 6: chatto.api.v1.UpdateUserProfileRequest.update_mask:type_name -> google.protobuf.FieldMask
+	17, // 7: chatto.api.v1.UpdateUserProfileResponse.user:type_name -> chatto.api.v1.User
+	18, // 8: chatto.api.v1.UploadAvatarRequest.image:type_name -> chatto.api.v1.ImageUpload
+	17, // 9: chatto.api.v1.UploadAvatarResponse.user:type_name -> chatto.api.v1.User
+	17, // 10: chatto.api.v1.DeleteAvatarResponse.user:type_name -> chatto.api.v1.User
+	0,  // 11: chatto.api.v1.UserService.ListUsers:input_type -> chatto.api.v1.ListUsersRequest
+	2,  // 12: chatto.api.v1.UserService.GetUser:input_type -> chatto.api.v1.GetUserRequest
+	4,  // 13: chatto.api.v1.UserService.BatchGetUsers:input_type -> chatto.api.v1.BatchGetUsersRequest
+	6,  // 14: chatto.api.v1.UserService.UpdateUserProfile:input_type -> chatto.api.v1.UpdateUserProfileRequest
+	8,  // 15: chatto.api.v1.UserService.UploadAvatar:input_type -> chatto.api.v1.UploadAvatarRequest
+	10, // 16: chatto.api.v1.UserService.DeleteAvatar:input_type -> chatto.api.v1.DeleteAvatarRequest
+	1,  // 17: chatto.api.v1.UserService.ListUsers:output_type -> chatto.api.v1.ListUsersResponse
+	3,  // 18: chatto.api.v1.UserService.GetUser:output_type -> chatto.api.v1.GetUserResponse
+	5,  // 19: chatto.api.v1.UserService.BatchGetUsers:output_type -> chatto.api.v1.BatchGetUsersResponse
+	7,  // 20: chatto.api.v1.UserService.UpdateUserProfile:output_type -> chatto.api.v1.UpdateUserProfileResponse
+	9,  // 21: chatto.api.v1.UserService.UploadAvatar:output_type -> chatto.api.v1.UploadAvatarResponse
+	11, // 22: chatto.api.v1.UserService.DeleteAvatar:output_type -> chatto.api.v1.DeleteAvatarResponse
+	17, // [17:23] is the sub-list for method output_type
+	11, // [11:17] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_user_service_proto_init() }

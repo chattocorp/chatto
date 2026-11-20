@@ -25,7 +25,7 @@ profile settings.
 - `onClose` - Callback to close the popover/sheet
 -->
 <script lang="ts">
-  import AtprotoProfileHandles from '$lib/components/users/AtprotoProfileHandles.svelte';
+  import ProfileVerifiedIdentities from '$lib/components/users/ProfileVerifiedIdentities.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -214,7 +214,7 @@ profile settings.
   </div>
 
   {#if !user.isBot && !user.deleted}
-    <AtprotoProfileHandles userId={user.id} />
+    <ProfileVerifiedIdentities userId={user.id} />
   {/if}
 
   {#if bio || localTime}

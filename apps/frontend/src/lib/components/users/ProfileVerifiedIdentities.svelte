@@ -9,27 +9,20 @@ server session and profile. Stale data stays visible during a refresh.
   import { createUserAPI } from '@chatto/client/api/users';
   import { useServerScope } from '$lib/state/server/scope.svelte';
 
-  import { providerIcon } from '$lib/auth/providerIcon';
   import VerifiedIdentitiesSection from './VerifiedIdentitiesSection.svelte';
 
   let { userId, sidebarKey }: { userId: string; sidebarKey?: string } = $props();
   const scope = useServerScope();
 
-  const handles = createQuery(() => {
+  const identities = createQuery(() => {
     const id = userId;
     return {
-      queryKey: [...serverSessionQueryRoot(scope), 'user', id, 'atproto-handles'],
-      queryFn: ({ signal }) => scope.connection.getAPI(createUserAPI).getAtprotoHandles(id, signal),
+      queryKey: [...serverSessionQueryRoot(scope), 'user', id, 'verified-identities'],
+      queryFn: ({ signal }) =>
+        scope.connection.getAPI(createUserAPI).getVerifiedIdentities(id, signal),
       retry: false
     };
   });
-  const identities = $derived(
-    (handles.data ?? []).map((identity) => ({
-      identity,
-      method: 'AT Protocol',
-      icon: providerIcon('atproto')
-    }))
-  );
 </script>
 
-<VerifiedIdentitiesSection {identities} {sidebarKey} />
+<VerifiedIdentitiesSection identities={identities.data ?? []} {sidebarKey} />

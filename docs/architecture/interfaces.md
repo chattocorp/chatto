@@ -281,7 +281,7 @@ An empty search reads lifecycle and membership metadata without profile
 decryption. Name searches hydrate profiles to match login and display name.
 An optional presence-status filter uses the shared watcher snapshot before
 pagination. Counts describe the filtered set. It does not read per-user KV keys.
-`UserService.GetUser` can resolve linked AT Protocol handles on request. It uses a directory cache on each replica. Clients receive only the resolved handles.
+`UserService.GetUser` returns public verified identities when the caller sets `include_verified_identities`. Each entry contains a method key, a method label, and the public identity value. The AT Protocol method resolves handles through a directory cache on each replica.
 
 `UserService.BatchGetUsers` assembles requested profiles with bounded concurrency
 and one request-scoped encryption-key cache. See
