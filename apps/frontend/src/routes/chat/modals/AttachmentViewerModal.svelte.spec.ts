@@ -528,9 +528,7 @@ describe.each(['Markdown', 'text'])('%s attachment previews', (format) => {
           : view.getByText('# Loaded document', { exact: true })
       )
       .toBeVisible();
-    await expect
-      .element(view.getByRole('link', { name: 'Download', exact: true }))
-      .toHaveAttribute('aria-disabled', 'false');
+    await expect.element(view.getByRole('link', { name: 'Download', exact: true })).toBeEnabled();
   });
 
   it('refreshes an expired URL before requesting document bytes', async () => {
@@ -874,5 +872,110 @@ describe('shared attachment previews', () => {
       .toBe(true);
     await view.unmount();
     expect(view.container.querySelector('audio, video')).toBeNull();
+  });
+});
+
+describe('attachment downloads in the iOS Home Screen app', () => {
+  const share = vi.fn<(data: ShareData) => Promise<void>>();
+  const canShare = vi.fn(() => true);
+  const fetchFile = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    canShare.mockReturnValue(true);
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('iPhone');
+    for (const [key, value] of Object.entries({ standalone: true, share, canShare })) {
+      Object.defineProperty(navigator, key, { configurable: true, value });
+    }
+    mocks.getMetadata.mockResolvedValue({ size: 20 });
+    fetchFile.mockImplementation(async () => new Response('original bytes'));
+    vi.stubGlobal('fetch', fetchFile);
+  });
+
+  afterEach(() => {
+    for (const key of ['standalone', 'share', 'canShare']) Reflect.deleteProperty(navigator, key);
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('shares the named PDF on a fresh tap and can retry a cancelled sheet', async () => {
+    const modal = modalState();
+    Object.assign(modal.items[0], { filename: 'minutes.pdf', contentType: 'application/pdf' });
+    const view = mount(modal);
+    expect(fetchFile).not.toHaveBeenCalled();
+    await view.getByRole('button', { name: 'Download', exact: true }).click();
+    const save = view.getByRole('button', { name: 'Save or share…' });
+    await expect.element(save).toBeEnabled();
+    expect(fetchFile).toHaveBeenCalledWith(
+      'https://remote.example/assets/files/html?access=ticket&download=1',
+      expect.objectContaining({ credentials: 'omit', referrerPolicy: 'no-referrer' })
+    );
+    expect(share).not.toHaveBeenCalled();
+    share.mockRejectedValueOnce(new DOMException('Cancelled', 'AbortError'));
+    await save.click();
+    await expect.element(save).toBeEnabled();
+    expect(view.container.querySelector('[role="alert"]')).toBeNull();
+    await save.click();
+    const payload = share.mock.calls[1][0];
+    expect(Object.keys(payload)).toEqual(['files']);
+    const file = payload.files![0];
+    expect(file.name).toBe('minutes.pdf');
+    expect(file.type).toBe('application/pdf');
+    expect(await file.text()).toBe('original bytes');
+    expect(fetchFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes expired tickets and keeps the download link for unsupported files', async () => {
+    const urls = freshUrls();
+    urls.get('html')!.assetUrl!.url = '/assets/files/html?access=fresh';
+    mocks.refreshUrls.mockResolvedValue(urls);
+    canShare.mockImplementation((data?: ShareData) => data?.files?.[0]?.size === 0);
+    const view = mount(modalState(true));
+    await view.getByRole('button', { name: 'Download', exact: true }).click();
+    await expect
+      .element(view.getByRole('link', { name: 'Download' }))
+      .toHaveAttribute('href', 'https://remote.example/assets/files/html?access=fresh&download=1');
+    expect(fetchFile.mock.calls[0][0]).toBe(
+      'https://remote.example/assets/files/html?access=fresh&download=1'
+    );
+    expect(view.container.querySelector('iframe')).toBeNull();
+    expect(share).not.toHaveBeenCalled();
+  });
+
+  it('uses the native link immediately when iOS cannot share the file type', async () => {
+    canShare.mockReturnValue(false);
+    const view = mount();
+    await expect.element(view.getByRole('link', { name: 'Download' })).toBeVisible();
+    expect(fetchFile).not.toHaveBeenCalled();
+  });
+
+  it('lets the user retry after a failed file request', async () => {
+    fetchFile.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    const view = mount();
+    const download = view.getByRole('button', { name: 'Download', exact: true });
+    await download.click();
+    await expect.element(view.getByRole('alert')).toBeVisible();
+    await download.click();
+    await expect.element(view.getByRole('button', { name: 'Save or share…' })).toBeEnabled();
+    expect(fetchFile).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['unmount', 'navigate'])('aborts a pending file download on %s', async (action) => {
+    fetchFile.mockImplementationOnce(
+      (_url, options) =>
+        new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => reject(options.signal?.reason));
+        })
+    );
+    const modal = modalState();
+    modal.items.push({ ...modal.items[0], id: 'other', filename: 'other.html' });
+    const view = mount(modal);
+    await view.getByRole('button', { name: 'Download', exact: true }).click();
+    await vi.waitFor(() => expect(fetchFile).toHaveBeenCalledTimes(1));
+    const signal = fetchFile.mock.calls[0][1]?.signal;
+    if (action === 'unmount') await view.unmount();
+    else await view.getByRole('button', { name: 'Next image' }).click();
+    expect(signal?.aborted).toBe(true);
+    expect(share).not.toHaveBeenCalled();
   });
 });

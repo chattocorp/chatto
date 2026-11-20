@@ -164,6 +164,7 @@
       contentType="application/pdf"
       description="A two-page PDF document."
       downloadUrl={pdfUrl}
+      resolveDownloadUrl={async () => pdfUrl}
       ondownload={() => {}}
       onclose={() => (pdfOpen = false)}
     >

@@ -204,6 +204,7 @@
       "delete_label": "刪除附件",
       "delete_failed": "無法刪除附件",
       "view_label": "檢視 {filename}",
+      "save_or_share": "儲存或分享…",
       "download_label": "下載 {filename}",
       "image_refresh_failed": "無法重新整理圖片連結",
       "download_refresh_failed": "無法重新整理下載連結",

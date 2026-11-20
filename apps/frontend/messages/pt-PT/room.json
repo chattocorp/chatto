@@ -204,6 +204,7 @@
       "delete_label": "Apagar anexo",
       "delete_failed": "Falha ao eliminar anexo",
       "view_label": "Ver {filename}",
+      "save_or_share": "Guardar ou partilhar…",
       "download_label": "Transferir {filename}",
       "image_refresh_failed": "Não foi possível atualizar o link da imagem",
       "download_refresh_failed": "Não foi possível atualizar o link de download",

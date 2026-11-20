@@ -204,6 +204,7 @@
       "delete_label": "Supprimer la pièce jointe",
       "delete_failed": "Échec de la suppression de la pièce jointe",
       "view_label": "Afficher {filename}",
+      "save_or_share": "Enregistrer ou partager…",
       "download_label": "Télécharger {filename}",
       "image_refresh_failed": "Impossible d'actualiser le lien de l'image",
       "download_refresh_failed": "Impossible d'actualiser le lien de téléchargement",

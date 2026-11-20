@@ -6,6 +6,7 @@
  * still treated as a notification trigger rather than authoritative app state.
  */
 
+import { isIosBrowserContext, isStandaloneDisplayMode } from '$lib/utils/browserDisplayMode';
 import { createPushNotificationAPI } from '$lib/api/pushNotifications';
 import type { PushNotificationAPI } from '$lib/api/pushNotifications';
 import { isBackendCapableOrigin } from '@chatto/client/util/runtimeOrigin';
@@ -50,10 +51,6 @@ export type EnablePushOnAllServersResult = {
 };
 
 export type PushCapability = 'supported' | 'ios_home_screen_required' | 'unsupported';
-
-type StandaloneNavigator = Navigator & {
-  standalone?: boolean;
-};
 
 const serviceWorkerScriptPath = '/service-worker.js';
 const pushScopePrefix = '/__chatto/push/';
@@ -104,24 +101,6 @@ const failedRegistrations = new SvelteMap<string, string>();
 /** Servers that a refresh in this page is saving now. */
 const refreshesInFlight = new Set<string>();
 let enableAllInFlight: Promise<EnablePushOnAllServersResult> | null = null;
-
-function isIosBrowserContext(): boolean {
-  if (typeof navigator === 'undefined') return false;
-
-  const platform = navigator.platform;
-  const userAgent = navigator.userAgent;
-  const touchCapableMac = platform === 'MacIntel' && navigator.maxTouchPoints > 1;
-  return /iPad|iPhone|iPod/.test(userAgent) || touchCapableMac;
-}
-
-function isStandaloneDisplayMode(): boolean {
-  if (typeof window === 'undefined') return false;
-
-  return (
-    window.matchMedia?.('(display-mode: standalone)').matches === true ||
-    (navigator as StandaloneNavigator).standalone === true
-  );
-}
 
 export function getPushCapability(): PushCapability {
   if (!isBrowserWebPushRuntime()) return 'unsupported';

@@ -204,6 +204,7 @@
       "delete_label": "Διαγραφή συνημμένου",
       "delete_failed": "Αποτυχία διαγραφής συνημμένου",
       "view_label": "Προβολή του {filename}",
+      "save_or_share": "Αποθήκευση ή κοινοποίηση…",
       "download_label": "Λήψη του {filename}",
       "image_refresh_failed": "Δεν ήταν δυνατή η ανανέωση συνδέσμου εικόνας",
       "download_refresh_failed": "Δεν ήταν δυνατή η ανανέωση συνδέσμου λήψης",

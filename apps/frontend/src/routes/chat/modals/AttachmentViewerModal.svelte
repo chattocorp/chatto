@@ -236,6 +236,16 @@ media. HTML consent is never stored in history or carried to another selection.
       : null;
   }
 
+  async function resolveDownloadUrl() {
+    const target = modal,
+      selected = generation;
+    if (!current(target, selected)) return null;
+    if (!item.assetUrl?.url || assetUrlNeedsRefresh(item.assetUrl)) {
+      if (!(await refresh(target, selected))) return null;
+    }
+    return attachmentDownloadUrl(assetUrlForServer(target.serverId, item.assetUrl?.url));
+  }
+
   async function download(event: MouseEvent) {
     const target = modal,
       selected = generation;
@@ -249,7 +259,7 @@ media. HTML consent is never stored in history or carried to another selection.
     busy = true;
     error = null;
     try {
-      if (!(await refresh(target, selected))) return;
+      if (!(await resolveDownloadUrl())) return;
       busy = false;
       await tick();
       if (current(target, selected) && link.isConnected) link.click();
@@ -271,6 +281,7 @@ media. HTML consent is never stored in history or carried to another selection.
   count={modal.items.length}
   onnavigate={navigate}
   {downloadUrl}
+  {resolveDownloadUrl}
   {busy}
   imageViewer={zoomable}
   {error}

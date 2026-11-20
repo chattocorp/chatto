@@ -204,6 +204,7 @@
       "delete_label": "Eki sil",
       "delete_failed": "Ek silinemedi",
       "view_label": "{filename}'yi görüntüle",
+      "save_or_share": "Kaydet veya paylaş…",
       "download_label": "{filename}'yi indirin",
       "image_refresh_failed": "Resim bağlantısı yenilenemedi",
       "download_refresh_failed": "İndirme bağlantısı yenilenemedi",

@@ -211,6 +211,7 @@
       "delete_label": "Видалити вкладений файл",
       "delete_failed": "Не вдалося видалити вкладений файл",
       "view_label": "Переглянути {filename}",
+      "save_or_share": "Зберегти або поділитися…",
       "download_label": "Завантажити {filename}",
       "image_refresh_failed": "Не вдалося оновити посилання на зображення",
       "download_refresh_failed": "Не вдалося оновити посилання для завантаження",

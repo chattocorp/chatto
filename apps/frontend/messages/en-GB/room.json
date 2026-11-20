@@ -204,6 +204,7 @@
       "delete_label": "Delete attachment",
       "delete_failed": "Failed to delete attachment",
       "view_label": "View {filename}",
+      "save_or_share": "Save or share…",
       "download_label": "Download {filename}",
       "image_refresh_failed": "Could not refresh image link",
       "download_refresh_failed": "Could not refresh download link",

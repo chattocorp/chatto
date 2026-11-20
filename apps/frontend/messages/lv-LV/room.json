@@ -204,6 +204,7 @@
       "delete_label": "Dzēst pielikumu",
       "delete_failed": "Neizdevās izdzēst pielikumu",
       "view_label": "Skatīt {filename}",
+      "save_or_share": "Saglabāt vai kopīgot…",
       "download_label": "Lejupielādēt {filename}",
       "image_refresh_failed": "Nevarēja atsvaidzināt attēla saiti",
       "download_refresh_failed": "Nevarēja atsvaidzināt lejupielādes saiti",
