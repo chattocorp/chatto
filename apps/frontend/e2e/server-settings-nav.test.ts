@@ -121,6 +121,36 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectGeneralNavNotVisible();
     });
 
+    test('Jobs-only managers land on the Jobs tab and can use bookmarked job links', async ({
+      page
+    }) => {
+      await usePrimaryServerViaAPI(page);
+      await grantPermission(page, 'everyone', 'server.manage');
+      const member = await createSecondTestUser(page);
+      await logoutUser(page);
+      await loginUser(page, member.login, member.password);
+
+      const diagnostics: string[] = [];
+      page.on('request', (request) => {
+        if (request.url().endsWith('/GetSystemInfo')) diagnostics.push(request.url());
+      });
+      const jobs = `${routes.serverAdminSystem}/jobs`;
+      await page.goto(routes.serverAdminSystem);
+      await expect(page).toHaveURL(jobs);
+      const tabs = page.getByRole('navigation', { name: 'System sections' });
+      await expect(page.getByRole('heading', { name: 'Jobs', exact: true })).toBeVisible();
+      await expect(tabs).toHaveCount(0);
+
+      const oldJobs = routes.serverAdmin('jobs');
+      await page.goto(oldJobs + '?status=failed');
+      await expect(page).toHaveURL(jobs + '?status=failed');
+      await expect(page.getByRole('radio', { name: 'Failed' })).toBeChecked();
+      await page.goto(oldJobs + '/missing-job');
+      await expect(page).toHaveURL(jobs + '/missing-job');
+      await expect(page.getByText('This job no longer exists.')).toBeVisible();
+      expect(diagnostics).toEqual([]);
+    });
+
     test('member with only role.assign permission sees Settings', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 

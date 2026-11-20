@@ -1,4 +1,4 @@
-import '../../../../../../app.css';
+import '../../../../../../../app.css';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -9,7 +9,7 @@ import { JobRetryAvailability, JobStatus, type AdminJob } from '$lib/api/adminJo
 import { toast } from '$lib/ui/toast';
 import JobsPage from './+page.svelte';
 
-const JOBS_URL = 'https://chat.example.test/chat/-/manage/server/jobs';
+const JOBS_URL = 'https://chat.example.test/chat/-/manage/server/system/jobs';
 const mocks = vi.hoisted(() => ({
   listJobs: vi.fn(),
   retryJob: vi.fn(),
@@ -146,7 +146,7 @@ describe('job queue list', () => {
     const link = screen.getByRole('link', { name: 'Webhook delivery' });
     await expect
       .element(link)
-      .toHaveAttribute('href', expect.stringMatching(/\/manage\/server\/jobs\/first$/));
+      .toHaveAttribute('href', expect.stringMatching(/\/manage\/server\/system\/jobs\/first$/));
     await expect.element(screen.getByRole('cell', { name: 'Failed' })).toBeVisible();
     await expect.element(screen.getByText('3 / 5')).toBeVisible();
     await expect.element(screen.getByText('http_error')).toBeVisible();
@@ -315,11 +315,14 @@ describe('job queue list', () => {
     await expect.element(screen.getByRole('link', { name: 'Webhook delivery' })).toBeVisible();
     expect(mocks.listJobs.mock.calls[0][0]).toMatchObject({ status: JobStatus.UNSPECIFIED });
     await screen.getByRole('radio', { name: 'Failed' }).click();
-    expect(mocks.goto).toHaveBeenCalledExactlyOnceWith('/chat/-/manage/server/jobs?status=failed', {
-      replaceState: true,
-      keepFocus: true,
-      noScroll: true
-    });
+    expect(mocks.goto).toHaveBeenCalledExactlyOnceWith(
+      '/chat/-/manage/server/system/jobs?status=failed',
+      {
+        replaceState: true,
+        keepFocus: true,
+        noScroll: true
+      }
+    );
   });
 
   it('requests the status filter of the URL and clears it for All', async () => {
@@ -329,7 +332,7 @@ describe('job queue list', () => {
     await expect.element(screen.getByRole('radio', { name: 'Failed' })).toBeChecked();
     expect(mocks.listJobs.mock.calls[0][0]).toMatchObject({ status: JobStatus.FAILED });
     await screen.getByRole('radio', { name: 'All' }).click();
-    expect(mocks.goto).toHaveBeenCalledExactlyOnceWith('/chat/-/manage/server/jobs', {
+    expect(mocks.goto).toHaveBeenCalledExactlyOnceWith('/chat/-/manage/server/system/jobs', {
       replaceState: true,
       keepFocus: true,
       noScroll: true

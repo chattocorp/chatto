@@ -9,7 +9,7 @@ import (
 )
 
 // sharedJobTypes lists every job type for the server and the bundled frontend
-// (apps/frontend/src/routes/chat/[serverId]/manage/server/jobs/jobPresentation.test.ts),
+// (apps/frontend/src/routes/chat/[serverId]/manage/server/system/jobs/jobPresentation.test.ts),
 // so that a new type cannot ship without a label on the Jobs page.
 const sharedJobTypes = "../../../testdata/jobs/types.json"
 

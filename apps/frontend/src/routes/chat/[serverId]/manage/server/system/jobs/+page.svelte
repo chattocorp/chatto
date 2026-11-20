@@ -18,7 +18,6 @@
     Hint,
     PageTitle,
     PaneContent,
-    PaneHeader,
     Panel,
     SegmentedControl,
     ToggleChip
@@ -65,8 +64,8 @@
     void goto(
       resolve(
         next === 'all'
-          ? '/chat/[serverId]/manage/server/jobs'
-          : `/chat/[serverId]/manage/server/jobs?status=${next}`,
+          ? '/chat/[serverId]/manage/server/system/jobs'
+          : `/chat/[serverId]/manage/server/system/jobs?status=${next}`,
         { serverId: serverSegment }
       ),
       { replaceState: true, keepFocus: true, noScroll: true }
@@ -99,7 +98,7 @@
   );
 
   function jobHref(job: AdminJob) {
-    return resolve('/chat/[serverId]/manage/server/jobs/[id]', {
+    return resolve('/chat/[serverId]/manage/server/system/jobs/[id]', {
       serverId: serverSegment,
       id: job.id
     });
@@ -118,8 +117,6 @@
 <PageTitle title={m('admin.common.page_title', { title: m('admin.jobs.title') })} />
 
 <div class="pane-page">
-  <PaneHeader title={m('admin.jobs.title')} subtitle={m('admin.jobs.subtitle')} />
-
   <PaneContent fillHeight>
     <div class="flex min-h-0 flex-1 flex-col gap-6 [&_table]:min-w-[46rem] [&_table]:table-fixed">
       {#if unavailable}
@@ -151,6 +148,7 @@
               await jobsQuery.fetchNextPage();
             }}
             stickyHeader
+            stableScrollbarGutter
             stickyHeaderFadeOffset="top-10"
             fillHeight
             loadingMoreMessage={m('common.loading')}

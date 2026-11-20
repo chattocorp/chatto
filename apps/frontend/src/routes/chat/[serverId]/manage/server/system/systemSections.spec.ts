@@ -26,12 +26,27 @@ describe('visibleSystemSections', () => {
     ({ livekit: { connectionState } }) as AdminSystemInfo;
 
   it('shows the LiveKit section only when the server reports LiveKit status', () => {
-    expect(visibleSystemSections(withLiveKit('not_configured'))).toContain('livekit');
-    expect(visibleSystemSections(withLiveKit('unavailable'))).not.toContain('livekit');
-    expect(visibleSystemSections(null)).toEqual(['overview', 'streams', 'projections', 'workers']);
+    expect(
+      visibleSystemSections({ diagnostics: true, jobs: false }, withLiveKit('not_configured'))
+    ).toContain('livekit');
+    expect(
+      visibleSystemSections({ diagnostics: true, jobs: false }, withLiveKit('unavailable'))
+    ).not.toContain('livekit');
+    expect(visibleSystemSections({ diagnostics: true, jobs: false }, null)).toEqual([
+      'overview',
+      'streams',
+      'projections',
+      'workers'
+    ]);
   });
 
   it('keeps the LiveKit tab when it is the current section', () => {
-    expect(visibleSystemSections(withLiveKit('unavailable'), 'livekit')).toContain('livekit');
+    expect(
+      visibleSystemSections(
+        { diagnostics: true, jobs: false },
+        withLiveKit('unavailable'),
+        'livekit'
+      )
+    ).toContain('livekit');
   });
 });

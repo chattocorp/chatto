@@ -5,7 +5,7 @@
 
 ## Overview
 
-The Jobs page in server settings lets authorised users inspect background work,
+The Jobs tab under System in server settings lets authorised users inspect background work,
 retry failed jobs, and delete failed jobs. It covers outbound webhooks, media processing, file
 cleanup, message-body erasure, server logo and banner cleanup, call-key deletion, push-subscription cleanup, runtime credential cleanup, account-key deletion,
 Neighborhood refresh, notification alerts, and transactional email.
@@ -42,6 +42,7 @@ Neighborhood refresh, notification alerts, and transactional email.
   the idempotent deletion.
 - A notification alert job also succeeds when the alert expired or is no longer
   eligible. Retry does not extend the alert delivery window.
+- Existing Jobs list and detail links redirect to their System routes and keep the selected filter.
 - The list shows the most recently updated jobs first and can show all, failed,
   or queued jobs. The selected filter is part of the page address, so it stays
   after the operator opens a job and goes back. The list refreshes every three

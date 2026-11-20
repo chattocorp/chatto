@@ -49,7 +49,7 @@ checklist below for the other parts.
 4. **Shared list.** Add the type to
    [`testdata/jobs/types.json`](../../../testdata/jobs/types.json).
 5. **Frontend label.** Add a case to `knownJobTypeLabel` in
-   `apps/frontend/src/routes/chat/[serverId]/manage/server/jobs/jobPresentation.ts`.
+   `apps/frontend/src/routes/chat/[serverId]/manage/server/system/jobs/jobPresentation.ts`.
    Add `admin.jobs.<type>` to `apps/frontend/messages/en-GB/admin.json` and
    to every complete catalog. Follow the i18n rules in
    [`apps/frontend/AGENTS.md`](../../../apps/frontend/AGENTS.md).
@@ -82,6 +82,6 @@ checklist below for the other parts.
 ```sh
 mise x -- go test ./cli/internal/core -run 'Job' -count=1
 mise x -- pnpm --filter chatto-frontend exec vitest --run \
-  src/routes/chat/[serverId]/manage/server/jobs/
+  src/routes/chat/[serverId]/manage/server/system/jobs/
 mise license-check
 ```
