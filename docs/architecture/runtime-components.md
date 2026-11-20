@@ -508,7 +508,8 @@ defines the queue boundary. The following services run alongside the job pools.
   deletion feeds the binary and transform-cache cleanup job.
 - [Push-subscription reconciliation](../../cli/internal/core/push_subscription_cleanup.go).
   A lease holder scans at startup and periodically for late subscriptions and
-  orphan endpoint claims. A later holder can repeat the scan. The `push_subscription_cleanup` job handles the normal per-user cleanup.
+  orphan endpoint claims. A later holder can repeat the scan. The
+  `push_subscription_cleanup` job handles the normal per-user cleanup.
 - [Boot repair](../../cli/internal/core/core.go). Each core replays projections
   before it sweeps obsolete message bodies and applies idempotent configuration
   and layout repairs. The [media startup scan](../../cli/internal/core/asset_model.go)
@@ -551,9 +552,10 @@ projectors, event reader, read-state and notification-boundary indexes, presence
 and realtime hubs, and NATS recovery checks. Each replica follows the streams
 or watches it needs to serve its own reads. A reconnect or restart restores
 those local inputs. Socket heartbeats and presence refresh stop with their
-connection. Diagnostics sample the responding process on demand. The [runtime units](#process-and-runtime-units) supervise their own
-listeners: Bleve replays its index and probes local query readiness, and the
-exporter refreshes its cached S3 measurements on the next scan.
+connection. Diagnostics sample the responding process on demand. Each
+[runtime unit](#process-and-runtime-units) has its own lifecycle. Bleve
+replays its index and probes local query readiness. The exporter refreshes
+its cached S3 measurements on the next scan.
 
 [Link previews](../../cli/internal/core/link_previews.go) fetch on a request
 that misses the cache. [Image transforms](../../cli/internal/http_server/assets.go)
@@ -589,6 +591,8 @@ notification alert consumers onto the queue. Each owning model keeps its
 handler; the source consumer only accepts jobs. During an alert attempt, the
 [push sender](../../cli/internal/push/push.go) bounds concurrent endpoint
 requests and waits for their results. The alert job owns the delivery outcome.
+An explicit [push test](../../cli/cmd/run.go) uses the same sender within the
+request so the caller receives the result of that test.
 
 [`botWebhookModel`](../../cli/internal/core/bot_webhook_worker.go) owns source
 selection and one HTTP attempt. The durable EVT source persists each endpoint's
