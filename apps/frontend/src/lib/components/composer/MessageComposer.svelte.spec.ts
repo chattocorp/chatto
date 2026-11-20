@@ -695,6 +695,31 @@ describe('MessageComposer', () => {
 
   describe('form rendering', () => {
     it.each([
+      ['markdown', '@he', '@here', 'Tab'],
+      ['visual', '@al', '@all', 'Enter']
+    ] as const)(
+      'completes a room-wide mention in the %s editor',
+      async (kind, partial, handle, key) => {
+        userPreferences.composerEditor = kind;
+        roomStateMock.members = Array.from({ length: 20 }, (_, i) =>
+          roomMember(`member_${handle.slice(1)}_${i}`)
+        );
+        const { container } = renderMessageComposer({ roomId: 'room-wide-mention' });
+        const editor = await findEditor(container);
+        await typeEditorKeys(editor, partial);
+        await vi.waitFor(() =>
+          expect(
+            container.querySelector('[data-testid="mention-autocomplete"] .menu-item-active')
+              ?.textContent
+          ).toContain(handle)
+        );
+        await userEvent.keyboard(`{${key}}`);
+        await vi.waitFor(() => expect(editor.textContent).toBe(handle + ' '));
+        expect(mutationMock).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([
       ['markdown', '#', 'room'],
       ['visual', '#', 'room'],
       ['markdown', '@', 'mention'],
