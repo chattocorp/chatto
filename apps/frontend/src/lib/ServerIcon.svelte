@@ -58,7 +58,7 @@
     class={[
       'server-icon server-gutter-item cursor-pointer',
       selected && 'server-gutter-item-active',
-      appearance === 'faded' && '[&>div]:opacity-50'
+      appearance === 'faded' && '[&>div]:opacity-30'
     ]}
     data-testid={server ? 'server-icon' : icon ? 'nav-icon' : undefined}
   >

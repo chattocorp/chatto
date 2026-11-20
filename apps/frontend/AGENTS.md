@@ -171,7 +171,7 @@ Use [chatto-experiments](../../.agents/skills/chatto-experiments/SKILL.md) when 
   authoritative security fields at compatibility-adapter boundaries.
 - Treat an intentionally dormant inactive-server transport as healthy retained
   state. An older server that can still connect has no version badge. Fade unreachable and fully incompatible
-  servers to 50% opacity. Use an amber key for a required sign-in. Connection attempts in progress do not change the
+  servers to 30% opacity. Use an amber key for a required sign-in. Connection attempts in progress do not change the
   marker (FDR-031).
 - `@chatto/client/timeline/timelineEvents` contains the hand-owned timeline presentation
   model. Realtime handlers consume the generated public `RealtimeEvent`

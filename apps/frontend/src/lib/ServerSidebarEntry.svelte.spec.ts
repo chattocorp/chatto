@@ -682,7 +682,7 @@ describe('ServerSidebarEntry', () => {
       .not.toBeInTheDocument();
 
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
-    expect(getComputedStyle(icon.firstElementChild!).opacity).toBe('0.5');
+    expect(getComputedStyle(icon.firstElementChild!).opacity).toBe('0.3');
     expect(icon.parentElement!.children).toHaveLength(1);
     await expect
       .element(icon)
@@ -723,7 +723,7 @@ describe('ServerSidebarEntry', () => {
         'aria-label',
         'Loaded Remote — This server does not support the realtime protocol used by this app.'
       );
-    expect(getComputedStyle(icon.firstElementChild!).opacity).toBe('0.5');
+    expect(getComputedStyle(icon.firstElementChild!).opacity).toBe('0.3');
     expect(icon.parentElement!.children).toHaveLength(1);
   });
 
@@ -1128,7 +1128,7 @@ describe('ServerSidebarEntry', () => {
     const icon = q(container, '[data-testid="server-icon"]');
 
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Connection unavailable');
-    expect(getComputedStyle(icon!.firstElementChild!).opacity).toBe('0.5');
+    expect(getComputedStyle(icon!.firstElementChild!).opacity).toBe('0.3');
     expect(icon!.parentElement!.children).toHaveLength(1);
 
     icon?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
