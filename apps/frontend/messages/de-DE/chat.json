@@ -90,6 +90,7 @@
       "version": "Version {version}",
       "unreachable": "Server nicht erreichbar",
       "connection_unavailable": "Verbindung nicht verfügbar",
+      "protocol_unsupported": "Dieser Server unterstützt das Echtzeitprotokoll dieser App nicht.",
       "compatibility_server_too_old": "Dieser Server muss auf Chatto {version} oder neuer aktualisiert werden, bevor sich diese App verbinden kann.",
       "compatibility_unknown": "Diese App kann die Kompatibilität anhand der Serverversion nicht bestimmen.",
       "go_to_notifications_count": {

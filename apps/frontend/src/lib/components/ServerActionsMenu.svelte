@@ -46,7 +46,7 @@ gutter-only actions, such as reordering, in `ordering`.
   const serverSegment = $derived(serverIdToSegment(serverId));
   const stores = $derived(status.stores);
   const host = $derived(status.host);
-  const problem = $derived(status.problem);
+  const problem = $derived(status.problem?.message);
 
   /** Move keyboard focus into the menu after its popover reaches the top layer. */
   const focusMenu: Attachment<HTMLElement> = (node) => {

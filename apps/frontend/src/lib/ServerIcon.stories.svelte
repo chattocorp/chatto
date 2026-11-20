@@ -24,29 +24,46 @@
 <Story name="Gutter states" asChild>
   <div class="inline-flex flex-col gap-2 rounded-xl border border-border bg-background p-2">
     <ServerIcon server={origin} href="/chat/-" title="Origin Server" selected />
-    <ServerIcon server={remote} href="/chat/remote" title="Remote Server needs sign-in" warning />
+    <ServerIcon
+      server={remote}
+      href="/chat/remote"
+      title="Remote Server needs sign-in"
+      appearance="sign-in"
+    />
+    <ServerIcon
+      server={remote}
+      href="#offline"
+      title="Remote Server — Connection unavailable"
+      appearance="faded"
+    />
+    <ServerIcon server={legacy} href="#limited" title="Legacy Server — Older server version" />
     <ServerIcon
       server={legacy}
       href="/chat/legacy"
       title="Legacy Server — Server version is not supported"
-      warning
+      appearance="faded"
     />
   </div>
 </Story>
 
-<Story name="Warning" asChild>
+<Story name="Sign-in required" asChild>
   <div class="inline-flex rounded-xl border border-border bg-background p-2">
-    <ServerIcon server={remote} href="/chat/remote" title="Remote Server needs sign-in" warning />
+    <ServerIcon
+      server={remote}
+      href="/chat/remote"
+      title="Remote Server needs sign-in"
+      appearance="sign-in"
+    />
   </div>
 </Story>
 
-<Story name="Warning and notification" asChild>
+<Story name="Offline with notification" asChild>
   <div class="inline-flex rounded-xl border border-border bg-background p-2">
     <ServerIcon
       server={origin}
       href="#origin"
-      title="Origin Server"
-      warning
+      title="Origin Server — Connection unavailable"
+      appearance="faded"
       selected
       indicator="notification"
       notificationCount={3}
