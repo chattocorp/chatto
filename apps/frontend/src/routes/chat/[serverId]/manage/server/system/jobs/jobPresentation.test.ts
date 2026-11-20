@@ -4,7 +4,7 @@
  * without a label on the Jobs page.
  */
 import { describe, expect, it } from 'vitest';
-import sharedJobTypes from '../../../../../../../../../testdata/jobs/types.json';
+import sharedJobTypes from '../../../../../../../../../../testdata/jobs/types.json';
 import { knownJobTypeLabel } from './jobPresentation';
 
 describe('knownJobTypeLabel', () => {

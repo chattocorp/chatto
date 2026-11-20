@@ -181,17 +181,14 @@ export function getAdminNavItems({
     items.push(adminNavItem('event_log', serverSegment));
   }
 
-  if (permissions.canManageServer && !limitedFeatures.includes('backgroundJobs')) {
-    items.push({
-      href: resolve('/chat/[serverId]/manage/server/jobs', { serverId: serverSegment }),
-      label: m('chat.management_nav.jobs'),
-      description: m('settings.overview.descriptions.jobs'),
-      icon: 'iconify icon-[uil--process]'
-    });
-  }
-
   if (permissions.canAdminViewSystem) {
     items.push(adminNavItem('system', serverSegment));
+  } else if (permissions.canManageServer && !limitedFeatures.includes('backgroundJobs')) {
+    items.push({
+      ...adminNavItem('system', serverSegment),
+      href: resolve('/chat/[serverId]/manage/server/system/jobs', { serverId: serverSegment }),
+      description: m('settings.overview.descriptions.jobs')
+    });
   }
 
   return items;

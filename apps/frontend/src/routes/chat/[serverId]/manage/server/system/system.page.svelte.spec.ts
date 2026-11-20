@@ -14,11 +14,16 @@ import SystemTestHarness from './SystemTestHarness.svelte';
 import type { SystemSection } from './systemSections';
 
 const mocks = vi.hoisted(() => ({
-  getAdminSystemInfo: vi.fn()
+  getAdminSystemInfo: vi.fn(),
+  goto: vi.fn()
 }));
 
 let routeId = '/chat/[serverId]/manage/server/system';
 
+vi.mock('$app/navigation', async (original) => ({
+  ...(await original<typeof import('$app/navigation')>()),
+  goto: mocks.goto
+}));
 vi.mock('$app/state', () => ({
   page: {
     get params() {
@@ -130,6 +135,7 @@ const routeIds: Record<SystemSection, string> = {
   streams: '/chat/[serverId]/manage/server/system/streams',
   projections: '/chat/[serverId]/manage/server/system/projections',
   workers: '/chat/[serverId]/manage/server/system/workers',
+  jobs: '/chat/[serverId]/manage/server/system/jobs',
   livekit: '/chat/[serverId]/manage/server/system/livekit'
 };
 
@@ -149,7 +155,10 @@ function deferred<T>() {
 describe('server admin system diagnostics', () => {
   beforeEach(() => {
     queryClient.clear();
-    server = createTestServerScope({ serverId: 'origin' });
+    server = createTestServerScope({
+      serverId: 'origin',
+      permissions: { canAdminViewSystem: true, canManageServer: true }
+    });
     mocks.getAdminSystemInfo.mockReset();
     mocks.getAdminSystemInfo.mockResolvedValue(systemInfo);
   });
@@ -262,7 +271,7 @@ describe('server admin system diagnostics', () => {
     await settle();
 
     const nav = screen.getByRole('navigation', { name: 'System sections' });
-    for (const name of ['Overview', 'Streams', 'Projections', 'Workers', 'LiveKit']) {
+    for (const name of ['Overview', 'Streams', 'Projections', 'Workers', 'Jobs', 'LiveKit']) {
       await expect.element(nav.getByRole('link', { name, exact: true })).toBeVisible();
     }
     await expect
@@ -272,6 +281,30 @@ describe('server admin system diagnostics', () => {
       .element(nav.getByRole('link', { name: 'Workers', exact: true }))
       .toHaveAttribute('aria-current', 'page');
     expect(screen.container.textContent).toContain('Background Workers');
+  });
+
+  it('opens Jobs from the System root for a Jobs-only manager without reading diagnostics', async () => {
+    server.permissions.canAdminViewSystem = false;
+    const root = renderSection();
+    await vi.waitFor(() =>
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/manage/server/system/jobs', {
+        replaceState: true
+      })
+    );
+    root.unmount();
+    const jobs = renderSection('jobs');
+    const nav = jobs.getByRole('navigation', { name: 'System sections' });
+    expect(nav.query()).toBeNull();
+    await expect.element(jobs.getByText('Job queue')).toBeVisible();
+    expect(mocks.getAdminSystemInfo).not.toHaveBeenCalled();
+  });
+
+  it('shows diagnostic tabs without Jobs when the viewer lacks server.manage', async () => {
+    server.permissions.canManageServer = false;
+    const screen = renderSection('workers');
+    const nav = screen.getByRole('navigation', { name: 'System sections' });
+    await expect.element(nav.getByRole('link', { name: 'Workers' })).toBeVisible();
+    expect(nav.getByRole('link', { name: 'Jobs' }).query()).toBeNull();
   });
 
   it('hides the LiveKit tab when the server does not report LiveKit status', async () => {

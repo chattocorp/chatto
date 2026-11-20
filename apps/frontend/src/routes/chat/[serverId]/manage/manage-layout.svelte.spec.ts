@@ -46,18 +46,30 @@ beforeEach(() => {
 });
 
 describe('management route admission', () => {
-  it('admits Jobs only with server.manage and removes it after revocation', async () => {
-    page.url = new URL('https://example.test/chat/origin/manage/server/jobs');
+  it.each(['system', 'system/jobs', 'system/jobs/job-id'])(
+    'admits Jobs-only managers to %s and removes access after revocation',
+    async (suffix) => {
+      page.url = new URL(`https://example.test/chat/origin/manage/server/${suffix}`);
+      server.permissions.canManageServer = true;
+      const { container } = render(Layout, {
+        props: { children: testSnippet('<p>Job controls</p>') }
+      });
+      await tick();
+      expect(container.textContent).toContain('Job controls');
+      server.permissions.canManageServer = false;
+      await tick();
+      expect(container.textContent).not.toContain('Job controls');
+      expect(container.textContent).toContain('Access Denied');
+    }
+  );
+
+  it('denies a Jobs-only manager access to diagnostic sections', async () => {
+    page.url = new URL('https://example.test/chat/origin/manage/server/system/workers');
     server.permissions.canManageServer = true;
     const { container } = render(Layout, {
-      props: { children: testSnippet('<p>Job controls</p>') }
+      props: { children: testSnippet('<p>Diagnostics</p>') }
     });
-    await tick();
-    expect(container.textContent).toContain('Job controls');
-    server.permissions.canManageServer = false;
-    await tick();
-    expect(container.textContent).not.toContain('Job controls');
-    expect(container.textContent).toContain('Access Denied');
+    await expect.element(container).toHaveTextContent('Access Denied');
   });
 
   it.each(['canManageServer'] as const)(

@@ -2,7 +2,7 @@ import type { AdminSystemInfo } from '$lib/api/adminDiagnostics';
 import type { HealthCheck, HealthCheckId, HealthStatus } from './systemHealth';
 
 /** Identifies one tab of the System page. Each section has its own route. */
-export type SystemSection = 'overview' | 'streams' | 'projections' | 'workers' | 'livekit';
+export type SystemSection = 'overview' | 'streams' | 'projections' | 'workers' | 'jobs' | 'livekit';
 
 const base = '/chat/[serverId]/manage/server/system' as const;
 
@@ -12,6 +12,7 @@ export const systemSectionRoutes = {
   streams: `${base}/streams`,
   projections: `${base}/projections`,
   workers: `${base}/workers`,
+  jobs: `${base}/jobs`,
   livekit: `${base}/livekit`
 } as const satisfies Record<SystemSection, string>;
 
@@ -34,10 +35,13 @@ export const healthCheckSection: Record<HealthCheckId, SystemSection> = {
  * unless it is the current section, so the current page always has a tab.
  */
 export function visibleSystemSections(
+  access: { diagnostics: boolean; jobs: boolean },
   info: AdminSystemInfo | null,
   current: SystemSection | null = null
 ): SystemSection[] {
+  if (!access.diagnostics) return access.jobs ? ['jobs'] : [];
   const sections: SystemSection[] = ['overview', 'streams', 'projections', 'workers'];
+  if (access.jobs) sections.push('jobs');
   if ((info && info.livekit.connectionState !== 'unavailable') || current === 'livekit') {
     sections.push('livekit');
   }

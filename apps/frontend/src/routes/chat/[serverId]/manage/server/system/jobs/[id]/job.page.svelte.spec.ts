@@ -156,7 +156,7 @@ describe('job details', () => {
     await dialog.getByRole('button', { name: 'Delete' }).click();
     await expect
       .poll(() => mocks.goto.mock.calls)
-      .toEqual([['/chat/-/manage/server/jobs', { replaceState: true }]]);
+      .toEqual([['/chat/-/manage/server/system/jobs', { replaceState: true }]]);
     expect(mocks.deleteJob).toHaveBeenCalledExactlyOnceWith('job-1', 'a'.repeat(64));
   });
 

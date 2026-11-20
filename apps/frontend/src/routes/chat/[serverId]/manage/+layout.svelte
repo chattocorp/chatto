@@ -98,11 +98,22 @@
       return () => permissions.canManageServer;
     }
 
-    if (pathname.startsWith(jobsBase)) {
+    if (
+      pathname.startsWith(jobsBase) ||
+      pathname === systemBase + '/jobs' ||
+      pathname.startsWith(systemBase + '/jobs/')
+    ) {
       return () => permissions.canManageServer;
     }
 
-    // System info (NATS/JetStream stats) — owner-only for now.
+    // The System entry opens Jobs for managers who cannot read diagnostics.
+    if (pathname === systemBase || pathname === systemBase + '/') {
+      return () =>
+        permissions.canAdminViewSystem ||
+        (permissions.canManageServer &&
+          !serverScope.store.serverInfo.limitedFeatures.includes('backgroundJobs'));
+    }
+    // Diagnostic sections require their own permission.
     if (pathname.startsWith(systemBase)) {
       return () => permissions.canAdminViewSystem;
     }
