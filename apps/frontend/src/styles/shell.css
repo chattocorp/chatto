@@ -78,6 +78,10 @@
 /* Make ServerLogo slightly smaller inside server-icon to leave room for the ring */
 .server-icon > div {
   @apply h-11 w-11;
+  transition:
+    opacity 240ms ease-in-out,
+    background-color var(--motion-duration-feedback) var(--motion-easing-feedback),
+    color var(--motion-duration-feedback) var(--motion-easing-feedback);
 }
 
 /* Light falls across the padded outer frame; inset content keeps its own fill.

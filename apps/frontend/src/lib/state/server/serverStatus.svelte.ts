@@ -12,6 +12,9 @@ import { serverHost } from '$lib/serverUrl';
 import { MINIMUM_CONNECTABLE_SERVER_VERSION } from '@chatto/client/server/compatibility';
 import { serverDisplayName } from '@chatto/client/server/state';
 
+/** Visual treatment for a server that is unavailable or needs sign-in. */
+export type ServerIconAppearance = 'sign-in' | 'faded';
+
 /** Reactive status of `serverId`. Read its getters in reactive contexts. */
 export type ServerStatus = ReturnType<typeof serverStatus>;
 
@@ -89,23 +92,39 @@ export function serverStatus(serverId: string) {
      * A connection problem or compatibility warning, or `null`. Discovery and
      * connection attempts in progress are not problems; only a failed attempt is.
      */
-    get problem(): string | null {
-      if (signInRequired()) return m('ui.auth_status.sidebar_reauth', { server: name() });
-      const compatibility = stores.serverInfo.compatibility;
-      if (!stores.serverInfo.loading) {
-        switch (compatibility.reason) {
-          case 'unreachable':
-            return m('chat.server_gutter.unreachable');
-          case 'server-too-old':
-            if (compatibility.status === 'limited') return m('chat.compatibility.limited');
-            return m('chat.server_gutter.compatibility_server_too_old', {
-              version: MINIMUM_CONNECTABLE_SERVER_VERSION
-            });
-          case 'server-version-unknown':
-            return m('chat.server_gutter.compatibility_unknown');
-        }
+    get problem(): { appearance: ServerIconAppearance | null; message: string } | null {
+      // A login or retry cannot resolve a confirmed incompatibility.
+      if (stores.serverInfo.blockingCompatibilityProblem === 'server-too-old') {
+        return {
+          appearance: 'faded',
+          message: m('chat.server_gutter.compatibility_server_too_old', {
+            version: MINIMUM_CONNECTABLE_SERVER_VERSION
+          })
+        };
       }
-      if (connection.showConnectionLostIcon) return m('chat.server_gutter.connection_unavailable');
+      if (connection.realtimeUnsupported) {
+        return { appearance: 'faded', message: m('chat.server_gutter.protocol_unsupported') };
+      }
+      if (signInRequired()) {
+        return {
+          appearance: 'sign-in',
+          message: m('ui.auth_status.sidebar_reauth', { server: name() })
+        };
+      }
+      const compatibility = stores.serverInfo.compatibility;
+      if (!stores.serverInfo.loading && compatibility.reason === 'unreachable') {
+        return { appearance: 'faded', message: m('chat.server_gutter.unreachable') };
+      }
+      if (connection.showConnectionLostIcon) {
+        return { appearance: 'faded', message: m('chat.server_gutter.connection_unavailable') };
+      }
+      if (stores.serverInfo.loading) return null;
+      switch (compatibility.reason) {
+        case 'server-too-old':
+          return { appearance: null, message: m('chat.compatibility.limited') };
+        case 'server-version-unknown':
+          return { appearance: null, message: m('chat.server_gutter.compatibility_unknown') };
+      }
       return null;
     }
   };

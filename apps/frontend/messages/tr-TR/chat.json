@@ -90,6 +90,7 @@
       "version": "Sürüm {version}",
       "unreachable": "Sunucuya ulaşılamıyor",
       "connection_unavailable": "Bağlantı kullanılamıyor",
+      "protocol_unsupported": "Bu sunucu, uygulamanın kullandığı gerçek zamanlı iletişim protokolünü desteklemiyor.",
       "compatibility_server_too_old": "Bu uygulamanın bağlanabilmesi için bu sunucunun Chatto {version} veya daha yeni bir sürüme yükseltilmesi gerekir.",
       "compatibility_unknown": "Bu uygulama, sunucu sürümünden uyumluluğu belirleyemez.",
       "go_to_notifications_count": {

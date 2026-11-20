@@ -22,8 +22,8 @@ Independent verification by the viewer requires an issuer (ADR-124).
   sign-in.
 - The linked external identity is the DID. A handle change does not change the
   link. With `manage_usernames`, a new account gets the handle as its username.
-  A handle that is not a valid username, for example one longer than 32
-  characters, then prevents account creation, as for other providers.
+  A handle that is not a valid username, for example one longer than the
+  configured username limit, then prevents account creation, as for other providers.
 - A new account gets the display name and avatar of the user's public Bluesky
   profile (`app.bsky.actor.profile`) as suggestions, when the repository has
   one. Without it, the handle is the display name suggestion. A signed-in
