@@ -69,6 +69,7 @@ func (x *BotInfo) GetOwnerUserId() string {
 }
 
 // A public identity that the server associates with a user through a verification method.
+// The server operator vouches for the association, including links the operator establishes.
 // Each (method, value) pair occurs once per profile. Clients can display unfamiliar methods.
 type VerifiedIdentity struct {
 	state protoimpl.MessageState `protogen:"open.v1"`

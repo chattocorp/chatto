@@ -52,6 +52,7 @@ export class BotInfo extends Message<BotInfo> {
 
 /**
  * A public identity that the server associates with a user through a verification method.
+ * The server operator vouches for the association, including links the operator establishes.
  * Each (method, value) pair occurs once per profile. Clients can display unfamiliar methods.
  *
  * @generated from message chatto.api.v1.VerifiedIdentity

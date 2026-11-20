@@ -66,7 +66,8 @@ section when the account has no available identities. Each handle appears in a g
 self-verification pill. A 1px gap separates the @ icon from the handle.
 The pill stays on one line. If the handle is too long, an ellipsis marks
 the omitted text. Hovering over the pill shows the full handle. The
-label identifies the server-linked account (ADR-124). The server resolves each linked
+label reflects the server operator’s verification, including links the operator
+creates after checking account ownership (ADR-124). The server resolves each linked
 DID when a client requests verified identities. The AT Protocol entry uses
 the method key `atproto` and the handle as its public value. The directory caches successful lookups
 for up to a day, so a renamed handle can take time to change. A missing handle
@@ -122,7 +123,10 @@ verification.
 
 ## Open Questions
 
-- **Verified handles:** ADR-124 describes the requirements for an issuer.
+- **Independent verification:** A future client can use evidence from a trusted
+  third party to verify an account link. ADR-124 describes the issuer requirements.
+- **Profile visibility:** A later version should let members opt in to showing
+  a linked identity. This version displays eligible identities automatically.
 - **Windowless sign-in:** AT Protocol service tokens do not name the app that
   requested them, so they are not safe for sign-in. A future protocol feature
   that binds a token to the server's OAuth client could remove the sign-in

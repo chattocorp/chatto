@@ -8,8 +8,9 @@
 Users can sign in with an AT Protocol identity
 ([FDR-058](../fdr/FDR-058-atproto-sign-in.md)). Members would like to see that
 an account belongs to a known AT Protocol handle. Chatto servers are
-self-hosted, and an operator can change a server. Thus a client must not
-trust a server's claim that a user controls an identity.
+self-hosted, and an operator can change a server. For a profile on that server, the operator is the trust boundary. A viewer who
+needs independent verification must be able to verify the account link even
+when the operator supplies incorrect information.
 
 We examined a proof that the user writes to their own AT Protocol repository:
 
@@ -45,7 +46,7 @@ Narrower designs do not remove this:
 2. **No published DID for now.** Servers do not publish the DID of the linked
    sign-in identity. A future verification design defines what a server
    publishes.
-3. **Verification needs an independent issuer.** A future design must use an
+3. **Independent verification needs a trusted issuer.** A future design must use an
    attestation that only a trusted issuer can make, for example a signature
    with the issuer's key. The issuer makes it only after the DID's owner signs
    in to the issuer and confirms the account on the issuer's own page. The
@@ -54,12 +55,13 @@ Narrower designs do not remove this:
 
 ## Consequences
 
-- Members can see server-reported handles in a profile. The linked DID stays
-  private. The profile makes no independent verification claim.
+- Members trust the server operator for the **Verified identities** section.
+  A link made through provider sign-in and a link verified by the operator
+  have the same profile representation. The linked DID stays private.
 - Authling, at chatto.id and on self-hosted instances, is the likely issuer.
   It already verifies identities, shows its own consent page, and signs with
   rotated keys. That needs its own Authling decision (#3604).
-- A verified handle needs a service that Chatto or another trusted party
+- An independently verified handle needs a service that Chatto or another trusted party
   operates. That service learns which accounts its users link.
 - The trust in a verified handle also depends on the verifying client. A
   modified server controls the web app that it serves. A guarantee needs

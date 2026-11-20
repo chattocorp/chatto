@@ -5,7 +5,7 @@ server session and profile. Stale data stays visible during a refresh.
 -->
 <script lang="ts">
   import { createQuery } from '$lib/query/client';
-  import { serverSessionQueryRoot } from '$lib/query/keys';
+  import { profileVerifiedIdentitiesKey } from '$lib/query/keys';
   import { createUserAPI } from '@chatto/client/api/users';
   import { useServerScope } from '$lib/state/server/scope.svelte';
 
@@ -17,7 +17,7 @@ server session and profile. Stale data stays visible during a refresh.
   const identities = createQuery(() => {
     const id = userId;
     return {
-      queryKey: [...serverSessionQueryRoot(scope), 'user', id, 'verified-identities'],
+      queryKey: profileVerifiedIdentitiesKey(scope, id),
       queryFn: ({ signal }) =>
         scope.connection.getAPI(createUserAPI).getVerifiedIdentities(id, signal),
       retry: false

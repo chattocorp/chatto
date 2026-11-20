@@ -11,6 +11,7 @@ import {
 } from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
 import { authorizationLaunchTarget } from '$lib/test-utils';
+import { profileVerifiedIdentitiesKey } from '$lib/query/keys';
 import { settingsQueryKeys } from '$lib/query/settings';
 import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
 
@@ -363,6 +364,13 @@ describe('external identity settings query lifecycle', () => {
   });
 
   it('refreshes identities without signing out after a successful disconnect', async () => {
+    const profileKey = profileVerifiedIdentitiesKey(
+      { serverId: 'origin', connection },
+      'user-alice'
+    );
+    queryClient.setQueryData(profileKey, [
+      { method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' }
+    ]);
     const view = renderSettings();
     await settle();
 
@@ -377,6 +385,7 @@ describe('external identity settings query lifecycle', () => {
     confirmButton?.click();
 
     await vi.waitFor(() => expect(mocks.list).toHaveBeenCalledTimes(2));
+    expect(queryClient.getQueryData(profileKey)).toBeUndefined();
     expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
     expect(mocks.hardRedirectAfterSignOut).not.toHaveBeenCalled();
     expect(mocks.notifyLogout).not.toHaveBeenCalled();
@@ -557,12 +566,18 @@ describe('identity link popup and continuation', () => {
       .element(browserPage.getByRole('button', { name: 'Link', exact: true }))
       .toBeEnabled();
     mocks.list.mockResolvedValue(linkedIdentityList());
+    const profileKey = profileVerifiedIdentitiesKey(
+      { serverId: 'origin', connection },
+      'user-alice'
+    );
+    queryClient.setQueryData(profileKey, []);
     const callback = new BroadcastChannel('chatto-provider-linked');
     callback.postMessage('user-alice');
     callback.close();
     await expect
       .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
       .toBeVisible();
+    expect(queryClient.getQueryData(profileKey)).toBeUndefined();
   });
 
   it('keeps password errors in the original page and retries a blocked provider window', async () => {
