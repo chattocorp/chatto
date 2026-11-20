@@ -94,6 +94,11 @@ url = 'ws://localhost:4005'
 api_key = 'devkey'
 api_secret = 'compose-only-livekit-secret-change-me'
 
+# Show the Server Gutter and the Server Directory, so development covers
+# multi-server use.
+[frontend.gutter]
+enabled = true
+
 [nats.embedded]
 enabled = true
 port = 4004
