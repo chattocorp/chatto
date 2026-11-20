@@ -13,7 +13,7 @@ the message body.
 ## Behavior
 
 - Typing `@` followed by at least one character opens the autocomplete popup in the composer.
-- Matching is fuzzy against room-member logins, room-member display names, the virtual handles `all` and `here`, and pingable role names. Prefix matches rank higher than substring matches.
+- Matching is fuzzy against room-member logins, room-member display names, the virtual handles `all` and `here`, and pingable role names. An exact room-wide handle ranks above partial member matches. A room-wide prefix ranks above substring and fuzzy member matches, except for prioritized thread participants.
 - While the room list loads, autocomplete combines loaded members with server search results.
 - In a thread composer, thread participants rank above other matching members. An exact login or display-name match ranks first. The current user does not get this priority. Tab completion uses the same order as the popup.
 - Arrow keys move the selection. Tab, Shift+Tab, Enter, or a click confirms the highlighted match with a trailing space without sending the message. The space can be removed with Backspace. Space remains available for typing and closes the suggestions.

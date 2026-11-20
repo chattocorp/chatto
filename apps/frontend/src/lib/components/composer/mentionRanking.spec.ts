@@ -40,6 +40,12 @@ describe('rankMentionCandidates', () => {
     ]);
   });
 
+  it('uses thread priority to break ties between exact display names', () => {
+    expect(
+      handles('cha', [member('alice', 'Cha'), member('bob', 'Cha')], [], new Set(['user_bob']))
+    ).toEqual(['bob', 'alice']);
+  });
+
   it('keeps an exact match above prioritized users', () => {
     expect(handles('cha', members, [], new Set(['user_chatto_bot']))).toEqual([
       'cha',
@@ -60,7 +66,14 @@ describe('rankMentionCandidates', () => {
     ]);
   });
 
-  it('keeps users above virtual handles and roles, even when prioritized', () => {
+  it('ranks an exact virtual handle above a thread participant with a partial match', () => {
+    expect(handles('HERE', [member('there')], [], new Set(['user_there']))).toEqual([
+      'here',
+      'there'
+    ]);
+  });
+
+  it('keeps member prefixes above virtual prefixes and roles', () => {
     const roles = [{ name: 'helpers', pingable: true }];
     expect(
       handles('he', [member('heidi'), member('hector')], roles, new Set(['user_heidi']))
