@@ -87,7 +87,8 @@ Chatto's pre-1.0 API remains experimental.
   rather than being assigned a healthy or compatible state.
 - An amber key at the top-start corner of the server icon marks a required sign-in. It is the
   only server status icon. An unreachable server or a failed connection uses
-  30% artwork opacity. The same opacity applies when the server is below the
+  30% artwork opacity. Changes to and from this opacity take 240 ms. With
+  reduced motion, the change is immediate. The same opacity applies when the server is below the
   connection floor or rejects the client's realtime protocol. An older server
   that can still connect and a server with an unknown version keep normal
   opacity. The link and menu explain the status. Unread dots and notification
