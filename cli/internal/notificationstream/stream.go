@@ -143,24 +143,22 @@ func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificati
 			physicalExpiry: event.GetExpiresAt().AsTime().UTC().Add(p.retentionGrace),
 		})
 	}
-	// Lifecycle facts are complete before the write, and their permission does
-	// not depend on stream state, so they need no OCC guard. A guard on the
-	// shared lifecycle subject would serialize every recipient's writes.
-	result, err := p.log.ExecuteMutation(ctx, events.Unguarded(), func(context.Context, events.MutationAttempt) ([]events.EncodedMutationEntry, error) {
-		now := p.now().UTC()
-		entries := make([]events.EncodedMutationEntry, 0, len(prepared))
-		for _, event := range prepared {
-			ttl := event.physicalExpiry.Sub(now)
-			if ttl <= 0 {
-				return nil, ErrExpiredEvent
-			}
-			entries = append(entries, events.EncodedMutationEntry{
-				Subject: subject,
-				Record:  events.EncodedRecord{ID: event.id, Data: event.data, TTL: ttl},
-			})
+	result, err := p.publishPrepared(ctx, subject, prepared)
+	// A competing replica may still be committing the same stable ID. Only
+	// an acknowledgement supplies the sequence needed by the projection.
+	const duplicateInProcess jetstream.ErrorCode = 10158
+	for delay := 5 * time.Millisecond; delay <= 320*time.Millisecond; delay *= 2 {
+		var apiErr *jetstream.APIError
+		if !errors.As(err, &apiErr) || apiErr.ErrorCode != duplicateInProcess {
+			break
 		}
-		return entries, nil
-	})
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(delay):
+		}
+		result, err = p.publishPrepared(ctx, subject, prepared)
+	}
 	if errors.Is(err, events.ErrDuplicateBatchMessageID) && len(notificationEvents) > 1 {
 		return appendNotificationEventsIndividually(notificationEvents, func(event *notificationv1.NotificationEvent) (AppendResult, error) {
 			single, appendErr := p.AppendBatchEventuallyResults(ctx, []*notificationv1.NotificationEvent{event})
@@ -181,6 +179,28 @@ func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificati
 		}
 	}
 	return results, nil
+}
+
+// publishPrepared computes the remaining TTL at each publication attempt.
+func (p *Publisher) publishPrepared(ctx context.Context, subject string, prepared []preparedEvent) (events.MutationResult, error) {
+	// Lifecycle facts are complete before the write, and their permission does
+	// not depend on stream state, so they need no OCC guard. A guard on the
+	// shared lifecycle subject would serialize every recipient's writes.
+	return p.log.ExecuteMutation(ctx, events.Unguarded(), func(context.Context, events.MutationAttempt) ([]events.EncodedMutationEntry, error) {
+		now := p.now().UTC()
+		entries := make([]events.EncodedMutationEntry, 0, len(prepared))
+		for _, event := range prepared {
+			ttl := event.physicalExpiry.Sub(now)
+			if ttl <= 0 {
+				return nil, ErrExpiredEvent
+			}
+			entries = append(entries, events.EncodedMutationEntry{
+				Subject: subject,
+				Record:  events.EncodedRecord{ID: event.id, Data: event.data, TTL: ttl},
+			})
+		}
+		return entries, nil
+	})
 }
 
 func appendNotificationEventsIndividually(

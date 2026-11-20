@@ -325,7 +325,7 @@ func decodeBatchAck(resp *nats.Msg, conflict error) (uint64, error) {
 		if isSequenceConflict(apiErr) {
 			return 0, conflict
 		}
-		return 0, fmt.Errorf("server: %s (err_code=%d)", env.Error.Description, env.Error.ErrCode)
+		return 0, apiErr
 	}
 	return env.Sequence, nil
 }

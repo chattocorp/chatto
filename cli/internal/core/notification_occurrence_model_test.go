@@ -1,19 +1,23 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/chattocorp/chatto/cli/internal/core/subjects"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
@@ -526,5 +530,112 @@ func TestNotificationFanoutGuardsReasonsButKeepsDistinctReplies(t *testing.T) {
 	stored, err := model.Get(ctx, first.GetRecipientId(), first.GetId())
 	if err != nil || stored.GetRead() {
 		t.Fatalf("original pending notification = (%v, %v)", stored, err)
+	}
+}
+
+// pendingReadPublish reproduces the clustered JetStream response while a
+// competing replica owns the same message ID. The embedded broker stores
+// the winning write and answers the subsequent duplicate publish itself.
+type pendingReadPublish struct {
+	jetstream.JetStream
+	pending   chan struct{}
+	committed chan struct{}
+}
+
+func (js *pendingReadPublish) Publish(ctx context.Context, subject string, data []byte, opts ...jetstream.PublishOpt) (*jetstream.PubAck, error) {
+	if subject == notificationstream.ReadSubject {
+		select {
+		case <-js.pending:
+			select {
+			case <-js.committed:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		default:
+			close(js.pending)
+			return nil, &jetstream.APIError{Code: 409, ErrorCode: 10158, Description: "duplicate message id is in process"}
+		}
+	}
+	return js.JetStream.Publish(ctx, subject, data, opts...)
+}
+
+func TestMarkReadAcrossTwoReplicasWaitsForPendingDuplicate(t *testing.T) {
+	ctx := testContext(t)
+	ns, _ := testutil.StartNATS(t)
+	first := startReplica(t, ns, testCoreConfig())
+	poster, err := first.CreateUser(ctx, SystemActorID, "retry-read-poster", "Retry Read Poster", "password")
+	if err != nil {
+		t.Fatalf("CreateUser poster: %v", err)
+	}
+	reader, err := first.CreateUser(ctx, SystemActorID, "retry-read-reader", "Retry Read Reader", "password")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	room, err := first.CreateRoom(ctx, poster.Id, KindChannel, "", "retry-read-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{poster.Id, reader.Id} {
+		if _, err := first.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	posted, err := first.PostMessage(ctx, KindChannel, room.Id, poster.Id, "covered source", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	entry, ok := first.roomModel.timelineEntry(posted.GetId())
+	if !ok {
+		t.Fatal("posted message missing from timeline")
+	}
+	model := first.NotificationOccurrences()
+	occurrence, _, err := model.Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID: reader.Id, SourceEventID: posted.Id, SourceCreated: posted.GetCreatedAt().AsTime(), ActorID: poster.Id,
+		SourceStreamSequence: entry.StreamSeq,
+		Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
+		Mode:                 evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		AttentionLevel:       notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		SkipReadLookup:       true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := NewChattoCore(ctx, newReplicaConn(t, ns), testCoreConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := &pendingReadPublish{JetStream: second.js, pending: make(chan struct{}), committed: make(chan struct{})}
+	other := second.NotificationOccurrences()
+	other.publisher = notificationstream.NewPublisher(js, other.stream, notificationPhysicalCleanupGrace, testCoreLogger())
+	startCoreServices(t, second)
+	result := make(chan error, 1)
+	go func() {
+		read, err := other.MarkRead(ctx, occurrence.GetRecipientId(), occurrence.GetId())
+		if err == nil && !read.GetRead() {
+			err = errors.New("second replica returned an unread occurrence")
+		}
+		result <- err
+	}()
+	select {
+	case <-js.pending:
+	case err := <-result:
+		t.Fatalf("second replica returned before publishing: %v", err)
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	_, err = first.ReadState().MarkRoomAsRead(ctx, reader.Id, room.Id, posted.Id)
+	close(js.committed)
+	if err != nil {
+		t.Fatalf("first replica MarkRoomAsRead: %v", err)
+	}
+	if err := <-result; err != nil {
+		t.Fatalf("second replica MarkRead: %v", err)
+	}
+	info, err := model.stream.Info(ctx, jetstream.WithSubjectFilter(notificationstream.ReadSubject))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.State.Subjects[notificationstream.ReadSubject]; got != 1 {
+		t.Fatalf("read facts = %d, want 1", got)
 	}
 }

@@ -100,8 +100,9 @@ func TestDecodeBatchAckPreservesUnrelatedServerErrors(t *testing.T) {
 		Subject: "evt.room.R1.message_sent",
 		Expect:  ExpectSubjectSeq(42),
 	}))
-	if err == nil {
-		t.Fatal("decodeBatchAck error = nil, want server error")
+	var apiErr *jetstream.APIError
+	if !errors.As(err, &apiErr) || apiErr.ErrorCode != jetstream.JSErrCodeJetStreamNotEnabled {
+		t.Fatalf("decodeBatchAck error = %v, want JetStream API error with original code", err)
 	}
 	if errors.Is(err, ErrConflict) {
 		t.Fatalf("decodeBatchAck error = %v, unexpectedly wraps ErrConflict", err)
