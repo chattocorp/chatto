@@ -1,3 +1,4 @@
-# self-hosted-runner:
-#   labels:
-#     - ubicloud-standard-4
+# GitHub-hosted labels that the pinned actionlint version does not recognize.
+self-hosted-runner:
+  labels:
+    - xcode-27
