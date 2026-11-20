@@ -34,6 +34,7 @@ buttons, and context menus in the row keep their own behaviour.
     group,
     fitContent = false,
     stickyHeader = false,
+    stableScrollbarGutter = false,
     fillHeight = false,
     stickyHeaderFadeOffset = 'top-0',
     hoverable = true,
@@ -74,6 +75,8 @@ buttons, and context menus in the row keep their own behaviour.
      * Use for dense matrices where column labels must remain available.
      */
     stickyHeader?: boolean;
+    /** Reserve scrollbar space when filters change the height of a sticky-header table. */
+    stableScrollbarGutter?: boolean;
     /** Fill the remaining height of a flex parent instead of using a viewport cap. */
     fillHeight?: boolean;
     /** Tailwind position class for the sticky-header viewport's top fade. */
@@ -238,7 +241,7 @@ buttons, and context menus in the row keep their own behaviour.
     top
     bottom
     scrollX
-    scrollClass="[scrollbar-gutter:stable]"
+    scrollClass={stableScrollbarGutter ? '[scrollbar-gutter:stable]' : ''}
     bind:scrollEl={stickyScrollRoot}
     topFadeOffset={stickyHeaderFadeOffset}
     class={`data-table-viewport ${fillHeight ? 'min-h-0 flex-1' : 'max-h-[70dvh]'}`}

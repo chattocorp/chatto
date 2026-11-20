@@ -61,10 +61,12 @@ describe('settings Overview', () => {
       .not.toBeInTheDocument();
   });
 
-  it('omits the Jobs card on a server version without a job queue', async () => {
+  it('links Jobs-only managers to System when the server supports the job queue', async () => {
     scope.permissions = { ...scope.permissions, canManageServer: true };
     const supported = render(Overview);
-    await expect.element(supported.getByRole('link', { name: 'Jobs', exact: true })).toBeVisible();
+    await expect
+      .element(supported.getByRole('link', { name: 'System', exact: true }))
+      .toHaveAttribute('href', '/chat/remote.example.com/manage/server/system/jobs');
     supported.unmount();
 
     createTestServerScope({
@@ -75,7 +77,7 @@ describe('settings Overview', () => {
     const limited = render(Overview);
     await expect.element(limited.getByRole('link', { name: 'General', exact: true })).toBeVisible();
     await expect
-      .element(limited.getByRole('link', { name: 'Jobs', exact: true }))
+      .element(limited.getByRole('link', { name: 'System', exact: true }))
       .not.toBeInTheDocument();
   });
 

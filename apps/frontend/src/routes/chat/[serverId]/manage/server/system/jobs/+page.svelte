@@ -148,6 +148,7 @@
               await jobsQuery.fetchNextPage();
             }}
             stickyHeader
+            stableScrollbarGutter
             stickyHeaderFadeOffset="top-10"
             fillHeight
             loadingMoreMessage={m('common.loading')}
