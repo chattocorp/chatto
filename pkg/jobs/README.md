@@ -35,9 +35,11 @@ view.
   ends first. The interrupted delivery counts as an attempt.
 - **View.** `Queue.Run` keeps an in-memory projection of the stream: one
   summary per job, without the payload. `Queue.Get`, `Queue.List`,
-  `Queue.Retry`, and `Queue.Delete` need it. `Queue.List` returns jobs newest update first, with an
-  optional status filter and an opaque cursor. It reads no storage. Processes
-  that only enqueue or work do not need `Queue.Run`.
+  `Queue.Retry`, and `Queue.Delete` need it. `Queue.List` returns jobs in order of last
+  update, newest first, with an optional status filter and an opaque cursor.
+  It waits for the current stream position before it reads the view. Use
+  `Queue.Changes` to watch for updates and retention removals. Processes
+  that only enqueue or run jobs do not need `Queue.Run`.
 - **Retention.** Unfinished jobs stay until they finish. When a job succeeds,
   the worker writes `succeeded` with a TTL of `SucceededRetention` (default
   three days) and purges the earlier facts of the job. When a job fails, the

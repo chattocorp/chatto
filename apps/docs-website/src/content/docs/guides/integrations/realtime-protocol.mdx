@@ -128,6 +128,12 @@ the notice. Refresh notices after reconnecting, and discard stored notice
 content when room membership ends. A correction keeps `publication_id`;
 explicit republishing changes it so a dismissed notice becomes visible again.
 
+To watch the Jobs table, set `watch_jobs` in the subscription. When
+`caught_up.watching_jobs` is true, call `AdminJobService.ListJobs` after catch-up
+and after each `JobsChangedEvent`. The event has no cursor or job data. One event
+can cover several job changes. The caller needs `server.manage`. When the server
+does not confirm the watch, refresh the list as needed.
+
 ## Refresh presence and typing
 
 Call `MyAccountService.SetPresence` every 30 seconds while your client is

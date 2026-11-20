@@ -55,6 +55,8 @@ message PubSubEvent {
 
     // Private current-state invalidation; delivered only to this account.
     chatto.realtime.v1.ViewerPresencePreferenceChangedEvent viewer_presence_preference_changed = 17;
+    // Local job view invalidation for authorized realtime connections.
+    chatto.realtime.v1.JobsChangedEvent jobs_changed = 18;
   }
 }
 

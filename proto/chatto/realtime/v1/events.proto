@@ -408,3 +408,7 @@ message RoomInvitationAcceptedEvent { string room_id = 1; string invitation_id =
 
 // An invitation declined. Delivered only to its sender and recipient.
 message RoomInvitationDeclinedEvent { string room_id = 1; string invitation_id = 2; }
+
+// Job summaries changed. Read the current job list with AdminJobService.ListJobs.
+// This cursorless signal can combine several changes.
+message JobsChangedEvent {}

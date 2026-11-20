@@ -16,10 +16,13 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
 	"github.com/chattocorp/chatto/cli/internal/publiccursor"
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
+	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/gorilla/websocket"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
@@ -1141,6 +1144,48 @@ func TestRealtimeWebSocketOmitsUnauthorizedRoomEventAndContinues(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestRealtimeJobsWatch(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	manager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "jobs-manager", "Manager", "password123")
+	require.NoError(t, err)
+	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "jobs-member", "Member", "password123")
+	require.NoError(t, err)
+	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, manager.Id, core.PermServerManage))
+	watch := func(id string, want bool) *websocket.Conn {
+		t.Helper()
+		token, err := env.core.CreateAuthToken(env.ctx, id)
+		require.NoError(t, err)
+		conn := env.dialRealtime(t)
+		sendRealtimeSubscribeMessage(t, conn, &realtimev1.RealtimeSubscribe{ProtocolVersion: 4, BearerToken: &token, InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, WatchJobs: true})
+		require.Equal(t, want, readRealtimeCaughtUp(t, conn).WatchingJobs)
+		return conn
+	}
+	conn := watch(manager.Id, true)
+	watch(member.Id, false)
+	// A separate queue writer shares the server's JOBS stream.
+	js, err := jetstream.New(env.httpServer.nc)
+	require.NoError(t, err)
+	stream, err := js.Stream(env.ctx, "JOBS")
+	require.NoError(t, err)
+	queue, err := core.NewJobQueue(js, stream, 0, env.httpServer.logger, nil)
+	require.NoError(t, err)
+	require.NoError(t, queue.Enqueue(env.ctx, jobqueue.Spec{Type: "test", ID: "new-job", MaxAttempts: 1, RetryDelay: time.Second}))
+	for {
+		event := readPublicRealtimeEvent(t, conn)
+		if event.GetJobsChanged() != nil {
+			require.Nil(t, event.Cursor)
+			require.Nil(t, event.ActorId)
+			break
+		}
+	}
+	// A queued signal is authorized again after permission loss.
+	require.NoError(t, env.core.ClearUserPermissionState(env.ctx, core.SystemActorID, manager.Id, core.PermServerManage))
+	signal := core.NewPubSubEventEnvelope(&pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_JobsChanged{JobsChanged: &realtimev1.JobsChangedEvent{}}})
+	_, err = env.httpServer.realtimeServerFrameForEvent(env.ctx, manager.Id, signal)
+	require.ErrorIs(t, err, errRealtimeEventOmitted)
+
 }
 
 func TestRealtimeWebSocketDeliversPublicCursorlessEvent(t *testing.T) {

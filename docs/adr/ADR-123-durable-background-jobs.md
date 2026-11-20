@@ -128,7 +128,8 @@ exists.
 
 Each server replica runs an in-memory projection of the job stream: one
 summary per job, without the payload. Listing and detail requests read the
-view, never storage. After a retry, the queue waits until the view has applied
+view. A list request waits for the current stream position so it can follow
+a change observed on another replica. After a retry, the queue waits until the view has applied
 the new fact. The view drops a job when the stream no longer retains it. It is
 derived state and is built again from the retained facts on each start.
 
@@ -226,7 +227,7 @@ processes without changing its domain facts. The queue has no claims, leases,
 or repair pass of its own; JetStream consumer semantics do this work.
 
 V1 has no cancellation of unfinished jobs, priorities, scheduling, bulk
-actions, or separate dead-letter stream. Job state has no realtime event; the Jobs page polls.
+actions, or separate dead-letter stream. The Jobs table uses a cursorless change signal on the management viewer’s realtime connection (FDR-056).
 
 - Failed jobs accumulate until an operator retries or deletes them, or until
   `core.job_failed_retention` when it is set. There is no bulk delete.

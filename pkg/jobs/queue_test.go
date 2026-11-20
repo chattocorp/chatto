@@ -428,14 +428,28 @@ func TestQueueViewDropsOnlySucceededJobsByDefault(t *testing.T) {
 		noError(t, err)
 		return len(jobs)
 	}
+	changes := q.Changes()
 	q.sweep()
+	select {
+	case <-changes:
+		t.Fatal("empty sweep signalled a change")
+	default:
+	}
 	if listed() != 3 {
 		t.Fatalf("jobs = %d, want all three before any limit", listed())
 	}
 	// After the succeeded retention, only the success goes. Without a failed
 	// retention, the failed job stays, and an unfinished job always stays.
 	q.now = func() time.Time { return time.Now().Add(365 * 24 * time.Hour) }
+	if listed() != 2 {
+		t.Fatal("list retained an expired success before the local sweep")
+	}
 	q.sweep()
+	select {
+	case <-changes:
+	default:
+		t.Fatal("retention removal did not signal a change")
+	}
 	if _, err := q.Get(ctx, "good"); !errors.Is(err, ErrNotFound) || listed() != 2 {
 		t.Fatalf("after retention: get = %v, jobs = %d", err, listed())
 	}

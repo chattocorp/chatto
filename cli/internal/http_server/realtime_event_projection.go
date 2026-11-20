@@ -268,6 +268,8 @@ func projectRealtimePubSubEvent(source *pubsubv1.PubSubEvent) *realtimev1.Realti
 		target.Event = &realtimev1.RealtimeEvent_ViewerPresencePreferenceChanged{ViewerPresencePreferenceChanged: e.ViewerPresencePreferenceChanged}
 	case *pubsubv1.PubSubEvent_UserTyping:
 		target.Event = &realtimev1.RealtimeEvent_UserTyping{UserTyping: e.UserTyping}
+	case *pubsubv1.PubSubEvent_JobsChanged:
+		target.Event = &realtimev1.RealtimeEvent_JobsChanged{JobsChanged: e.JobsChanged}
 	case *pubsubv1.PubSubEvent_PresenceChanged:
 		target.Event = &realtimev1.RealtimeEvent_PresenceChanged{PresenceChanged: e.PresenceChanged}
 	case *pubsubv1.PubSubEvent_NotificationOccurrencesChanged:

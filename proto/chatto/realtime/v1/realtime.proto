@@ -26,6 +26,8 @@ message RealtimeSubscribe {
   optional string resume_cursor = 3;
   // Required fallback when the cursor is absent or cannot resume safely.
   RealtimeInitialState initial_state = 4;
+  // Request cursorless JobsChanged events when the caller has server.manage.
+  bool watch_jobs = 5;
 }
 
 // Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
@@ -82,6 +84,8 @@ message RealtimeCaughtUp {
   string cursor = 1;
   // Actual recovery result, including a successful replay with no events.
   RealtimeRecovery recovery = 2;
+  // This connection watches job changes. Refresh the list after each catch-up.
+  bool watching_jobs = 3;
 }
 
 // How the server reached the live-delivery boundary.
@@ -173,6 +177,7 @@ message RealtimeEvent {
     RoomNoticeChangedEvent room_notice_changed = 72;
     UserAccountDeactivationChangedEvent user_account_deactivation_changed = 73;
     RoomMembershipEventsVisibilityChangedEvent room_membership_events_visibility_changed = 74;
+    JobsChangedEvent jobs_changed = 75;
   }
 }
 

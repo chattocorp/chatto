@@ -9,7 +9,7 @@ import { ServerPublicProfile } from "../../api/v1/server_pb.js";
 import { RoomGroup, RoomWithViewerState } from "../../api/v1/room_directory_pb.js";
 import { DirectoryMember } from "../../api/v1/member_directory_pb.js";
 import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
-import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesChangedEvent, NotificationUnreadStateChangedEvent, PresenceChangedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoleAssignedEvent, RoleCreatedEvent, RoleDeletedEvent, RolePermissionsChangedEvent, RoleRevokedEvent, RolesReorderedEvent, RoleUpdatedEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomInvitationAcceptedEvent, RoomInvitationCreatedEvent, RoomInvitationDeclinedEvent, RoomLayoutChangedEvent, RoomMembershipEventsVisibilityChangedEvent, RoomNoticeChangedEvent, RoomReadStateChangedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ServerProfileChangedEvent, ThreadCreatedEvent, ThreadViewerStateChangedEvent, UserAccountCreatedEvent, UserAccountDeactivationChangedEvent, UserAccountDeletedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserProfileChangedEvent, UserTypingEvent, ViewerPermissionsChangedEvent, ViewerPreferencesChangedEvent, ViewerPresencePreferenceChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
+import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, JobsChangedEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesChangedEvent, NotificationUnreadStateChangedEvent, PresenceChangedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoleAssignedEvent, RoleCreatedEvent, RoleDeletedEvent, RolePermissionsChangedEvent, RoleRevokedEvent, RolesReorderedEvent, RoleUpdatedEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomInvitationAcceptedEvent, RoomInvitationCreatedEvent, RoomInvitationDeclinedEvent, RoomLayoutChangedEvent, RoomMembershipEventsVisibilityChangedEvent, RoomNoticeChangedEvent, RoomReadStateChangedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ServerProfileChangedEvent, ThreadCreatedEvent, ThreadViewerStateChangedEvent, UserAccountCreatedEvent, UserAccountDeactivationChangedEvent, UserAccountDeletedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserProfileChangedEvent, UserTypingEvent, ViewerPermissionsChangedEvent, ViewerPreferencesChangedEvent, ViewerPresencePreferenceChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
 
 /**
  * Startup behavior when a subscription cannot resume from its cursor.
@@ -209,6 +209,13 @@ export class RealtimeSubscribe extends Message<RealtimeSubscribe> {
    */
   initialState = RealtimeInitialState.UNSPECIFIED;
 
+  /**
+   * Request cursorless JobsChanged events when the caller has server.manage.
+   *
+   * @generated from field: bool watch_jobs = 5;
+   */
+  watchJobs = false;
+
   constructor(data?: PartialMessage<RealtimeSubscribe>) {
     super();
     proto3.util.initPartial(data, this);
@@ -221,6 +228,7 @@ export class RealtimeSubscribe extends Message<RealtimeSubscribe> {
     { no: 2, name: "bearer_token", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "initial_state", kind: "enum", T: proto3.getEnumType(RealtimeInitialState) },
+    { no: 5, name: "watch_jobs", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeSubscribe {
@@ -424,6 +432,13 @@ export class RealtimeCaughtUp extends Message<RealtimeCaughtUp> {
    */
   recovery = RealtimeRecovery.UNSPECIFIED;
 
+  /**
+   * This connection watches job changes. Refresh the list after each catch-up.
+   *
+   * @generated from field: bool watching_jobs = 3;
+   */
+  watchingJobs = false;
+
   constructor(data?: PartialMessage<RealtimeCaughtUp>) {
     super();
     proto3.util.initPartial(data, this);
@@ -434,6 +449,7 @@ export class RealtimeCaughtUp extends Message<RealtimeCaughtUp> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "recovery", kind: "enum", T: proto3.getEnumType(RealtimeRecovery) },
+    { no: 3, name: "watching_jobs", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeCaughtUp {
@@ -823,6 +839,12 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
      */
     value: RoomMembershipEventsVisibilityChangedEvent;
     case: "roomMembershipEventsVisibilityChanged";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.JobsChangedEvent jobs_changed = 75;
+     */
+    value: JobsChangedEvent;
+    case: "jobsChanged";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeEvent>) {
@@ -891,6 +913,7 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     { no: 72, name: "room_notice_changed", kind: "message", T: RoomNoticeChangedEvent, oneof: "event" },
     { no: 73, name: "user_account_deactivation_changed", kind: "message", T: UserAccountDeactivationChangedEvent, oneof: "event" },
     { no: 74, name: "room_membership_events_visibility_changed", kind: "message", T: RoomMembershipEventsVisibilityChangedEvent, oneof: "event" },
+    { no: 75, name: "jobs_changed", kind: "message", T: JobsChangedEvent, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeEvent {

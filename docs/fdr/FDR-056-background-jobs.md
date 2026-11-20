@@ -44,8 +44,7 @@ Neighborhood refresh, notification alerts, and transactional email.
   eligible. Retry does not extend the alert delivery window.
 - The list shows the most recently updated jobs first and can show all, failed,
   or queued jobs. The selected filter is part of the page address, so it stays
-  after the operator opens a job and goes back. The list refreshes every three
-  seconds while it is visible, and loads more results as it scrolls. A job
+  after the operator opens a job and goes back. The list refreshes when the server signals a change and loads more results as the operator scrolls. A job
   detail page refreshes until the job succeeds or fails. The pages have no
   cancellation of unfinished jobs, payload editing, or bulk controls.
 - Servers older than `0.6.0-beta.0` have no job API. The settings navigation then omits
@@ -90,14 +89,15 @@ that no longer exists. Without delete, these jobs would stay forever.
 **Tradeoff:** Delete works on one job at a time. An operator with many dead
 jobs must set the retention or delete them one by one.
 
-### 4. Poll instead of realtime events
+### 4. Refresh the table when jobs change
 
-**Decision:** Visible job pages poll the job API. Job state has no realtime
-event.
-**Why:** Only authorised operators view jobs, and only while the page is open.
-Polling needs no new realtime contract or delivery filter.
-**Tradeoff:** Changes appear up to three seconds late, and each open page reads
-the job list repeatedly.
+The client requests job change signals on its existing realtime connection. The
+server confirms the watch at catch-up and checks `server.manage` again before
+delivery. One signal can cover several changes, including removals. The table
+reads its loaded pages again after a signal or reconnect. When the connection
+does not supply signals, the visible table polls every three seconds. This also
+supports servers with the job API that predate the watch. Job details continue
+to poll until the job reaches a terminal state.
 
 ## Gates
 

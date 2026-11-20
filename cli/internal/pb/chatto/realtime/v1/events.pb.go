@@ -3225,6 +3225,44 @@ func (x *RoomInvitationDeclinedEvent) GetInvitationId() string {
 	return ""
 }
 
+// Job summaries changed. Read the current job list with AdminJobService.ListJobs.
+// This cursorless signal can combine several changes.
+type JobsChangedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JobsChangedEvent) Reset() {
+	*x = JobsChangedEvent{}
+	mi := &file_chatto_realtime_v1_events_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JobsChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JobsChangedEvent) ProtoMessage() {}
+
+func (x *JobsChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_realtime_v1_events_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JobsChangedEvent.ProtoReflect.Descriptor instead.
+func (*JobsChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_realtime_v1_events_proto_rawDescGZIP(), []int{59}
+}
+
 var File_chatto_realtime_v1_events_proto protoreflect.FileDescriptor
 
 const file_chatto_realtime_v1_events_proto_rawDesc = "" +
@@ -3402,7 +3440,8 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId\"[\n" +
 	"\x1bRoomInvitationDeclinedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12#\n" +
-	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId*\xb2\x01\n" +
+	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId\"\x12\n" +
+	"\x10JobsChangedEvent*\xb2\x01\n" +
 	"\x1aAssetProcessingFailureCode\x12-\n" +
 	")ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED\x10\x00\x123\n" +
 	"/ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED\x10\x01\x120\n" +
@@ -3422,7 +3461,7 @@ func file_chatto_realtime_v1_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_realtime_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_realtime_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 59)
+var file_chatto_realtime_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 60)
 var file_chatto_realtime_v1_events_proto_goTypes = []any{
 	(AssetProcessingFailureCode)(0),                    // 0: chatto.realtime.v1.AssetProcessingFailureCode
 	(*RoleCreatedEvent)(nil),                           // 1: chatto.realtime.v1.RoleCreatedEvent
@@ -3484,22 +3523,23 @@ var file_chatto_realtime_v1_events_proto_goTypes = []any{
 	(*RoomInvitationCreatedEvent)(nil),                 // 57: chatto.realtime.v1.RoomInvitationCreatedEvent
 	(*RoomInvitationAcceptedEvent)(nil),                // 58: chatto.realtime.v1.RoomInvitationAcceptedEvent
 	(*RoomInvitationDeclinedEvent)(nil),                // 59: chatto.realtime.v1.RoomInvitationDeclinedEvent
-	(v1.RoomKind)(0),                                   // 60: chatto.api.v1.RoomKind
-	(v1.RoomThreadingMode)(0),                          // 61: chatto.api.v1.RoomThreadingMode
-	(v1.PresenceStatus)(0),                             // 62: chatto.api.v1.PresenceStatus
+	(*JobsChangedEvent)(nil),                           // 60: chatto.realtime.v1.JobsChangedEvent
+	(v1.RoomKind)(0),                                   // 61: chatto.api.v1.RoomKind
+	(v1.RoomThreadingMode)(0),                          // 62: chatto.api.v1.RoomThreadingMode
+	(v1.PresenceStatus)(0),                             // 63: chatto.api.v1.PresenceStatus
 }
 var file_chatto_realtime_v1_events_proto_depIdxs = []int32{
-	60, // 0: chatto.realtime.v1.RoomCreatedEvent.kind:type_name -> chatto.api.v1.RoomKind
-	61, // 1: chatto.realtime.v1.RoomCreatedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
-	61, // 2: chatto.realtime.v1.RoomThreadingModeChangedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
+	61, // 0: chatto.realtime.v1.RoomCreatedEvent.kind:type_name -> chatto.api.v1.RoomKind
+	62, // 1: chatto.realtime.v1.RoomCreatedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
+	62, // 2: chatto.realtime.v1.RoomThreadingModeChangedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
 	30, // 3: chatto.realtime.v1.MessagePostedEvent.mentions:type_name -> chatto.realtime.v1.MessageMention
-	60, // 4: chatto.realtime.v1.MessagePostedEvent.room_kind:type_name -> chatto.api.v1.RoomKind
+	61, // 4: chatto.realtime.v1.MessagePostedEvent.room_kind:type_name -> chatto.api.v1.RoomKind
 	26, // 5: chatto.realtime.v1.MessageMention.direct:type_name -> chatto.realtime.v1.DirectUserMention
 	27, // 6: chatto.realtime.v1.MessageMention.role:type_name -> chatto.realtime.v1.RoleMessageMention
 	28, // 7: chatto.realtime.v1.MessageMention.here:type_name -> chatto.realtime.v1.HereMessageMention
 	29, // 8: chatto.realtime.v1.MessageMention.all:type_name -> chatto.realtime.v1.AllMessageMention
 	0,  // 9: chatto.realtime.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.realtime.v1.AssetProcessingFailureCode
-	62, // 10: chatto.realtime.v1.PresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
+	63, // 10: chatto.realtime.v1.PresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
 	11, // [11:11] is the sub-list for method output_type
 	11, // [11:11] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
@@ -3528,7 +3568,7 @@ func file_chatto_realtime_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_realtime_v1_events_proto_rawDesc), len(file_chatto_realtime_v1_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   59,
+			NumMessages:   60,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

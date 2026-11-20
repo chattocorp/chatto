@@ -112,6 +112,7 @@ async function messageDataToBytes(data: RealtimeMessageEvent['data']): Promise<U
 function subscribeFrame(token: string | null, resumeCursor: string | null): Uint8Array {
   return new RealtimeSubscribe({
     protocolVersion: REALTIME_PROTOCOL_VERSION,
+    watchJobs: true,
     bearerToken: token ?? undefined,
     resumeCursor: resumeCursor ?? undefined,
     initialState: RealtimeInitialState.SNAPSHOT
@@ -553,7 +554,11 @@ export class EventBusManager {
                 if (stopped || socket !== nextSocket) return;
                 catchUpComplete = true;
                 caughtUpSocket = nextSocket;
-                sync.markCaughtUp(frame.frame.value.cursor, authorizationRefreshGeneration);
+                sync.markCaughtUp(
+                  frame.frame.value.cursor,
+                  authorizationRefreshGeneration,
+                  frame.frame.value.watchingJobs
+                );
                 resolvePoll(true);
                 if (mode === 'polling') {
                   mode = 'dormant';
