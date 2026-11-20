@@ -5,7 +5,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import { PageTitle, LoadingDots } from '$lib/ui';
+  import { PageTitle, LoadingDots, AccessDenied } from '$lib/ui';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import MessageContent from '$lib/components/MessageContent.svelte';
   import type { RoomsListItem } from '$lib/state/server/navigation';
@@ -115,27 +115,11 @@
       </div>
     </div>
   {:else}
-    <div class="flex w-full max-w-md flex-col items-center text-center">
-      <div
-        class="mb-5 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-surface text-muted"
-        aria-hidden="true"
-      >
-        <span aria-hidden="true" class="iconify icon-[uil--lock] text-2xl"></span>
-      </div>
-
-      <h1 class="text-2xl font-semibold text-text">
-        {title}
-      </h1>
-      <p class="mt-3 text-base leading-7 text-muted">
-        {m('room.join.access_denied')}
-      </p>
-
-      <div class="mt-6 flex flex-wrap justify-center gap-2">
-        <Button href={overviewPath} variant="secondary">
-          <span aria-hidden="true" class="iconify icon-[uil--arrow-left] rtl:-scale-x-100"></span>
-          {m('ui.access_denied.back_to_server')}
-        </Button>
-      </div>
-    </div>
+    <AccessDenied
+      {title}
+      message={m('room.join.access_denied')}
+      backHref={overviewPath}
+      backLabel={m('ui.access_denied.back_to_server')}
+    />
   {/if}
 </section>
