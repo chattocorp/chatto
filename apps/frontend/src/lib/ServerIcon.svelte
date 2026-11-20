@@ -54,7 +54,8 @@
     aria-label={title ?? server?.name}
     class={[
       'server-icon server-gutter-item cursor-pointer',
-      selected && 'server-gutter-item-active'
+      selected && 'server-gutter-item-active',
+      badge === 'incompatible' && '[&>div]:opacity-50'
     ]}
     data-testid={server ? 'server-icon' : icon ? 'nav-icon' : undefined}
   >
@@ -65,7 +66,17 @@
     {/if}
   </a>
 
-  {#if badge}
+  {#if badge === 'incompatible'}
+    <span
+      class="pointer-events-none absolute inset-0 z-10 grid place-items-center"
+      aria-hidden="true"
+      data-testid="server-warning"
+    >
+      <span class="grid size-6 place-items-center rounded-full bg-background text-text">
+        <span class="iconify icon-[uil--ban] text-xl" aria-hidden="true"></span>
+      </span>
+    </span>
+  {:else if badge}
     <span
       class={[
         'pointer-events-none absolute -start-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full',

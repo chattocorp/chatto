@@ -1,3 +1,4 @@
+import '../app.css';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
@@ -35,6 +36,7 @@ const { mocks } = vi.hoisted(() => {
         disableRoomCallWideFor: vi.fn()
       },
       showConnectionLostIcon: false,
+      realtimeUnsupported: false,
       server: {
         id: 'remote',
         url: 'https://remote.example.com',
@@ -79,6 +81,9 @@ const { mocks } = vi.hoisted(() => {
         },
         pendingHighlights: { set: vi.fn() },
         serverInfo: {
+          get blockingCompatibilityProblem() {
+            return this.compatibility.status === 'unsupported' ? 'server-too-old' : null;
+          },
           get canConnect() {
             return (
               this.compatibility.status !== 'unsupported' &&
@@ -135,6 +140,7 @@ vi.mock('$lib/client', async () => ({
   },
   serverConnectionManager: {
     getClient: vi.fn(() => ({
+      realtimeUnsupported: mocks.realtimeUnsupported,
       get showConnectionLostIcon() {
         return connectionLostServers.has('remote') || mocks.showConnectionLostIcon;
       },
@@ -293,6 +299,7 @@ describe('ServerSidebarEntry', () => {
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     mocks.showConnectionLostIcon = false;
+    mocks.realtimeUnsupported = false;
     connectionLostServers.clear();
     mocks.getAuthenticatedServerState.mockReset();
     mocks.getViewerStateViaConnect.mockReset();
@@ -660,6 +667,8 @@ describe('ServerSidebarEntry', () => {
 
   it('shows the server version and warns when the server is too old', async () => {
     mocks.store.serverInfo.version = '0.4.12';
+    mocks.server.reauthRequiredAt = 123;
+    mocks.showConnectionLostIcon = true;
     mocks.store.serverInfo.compatibility = {
       status: 'unsupported',
       reason: 'server-too-old'
@@ -671,6 +680,8 @@ describe('ServerSidebarEntry', () => {
     await expect.element(q(container, '[data-testid="server-warning"]')).toBeInTheDocument();
 
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    expect(getComputedStyle(icon.firstElementChild!).opacity).toBe('0.5');
+    expect(container.querySelector('[class~="icon-[uil--ban]"]')).not.toBeNull();
     await expect
       .element(icon)
       .toHaveAttribute(
@@ -699,6 +710,21 @@ describe('ServerSidebarEntry', () => {
     expect(compatibilitySection!.closest('.w-80')).not.toBeNull();
   });
 
+  it('marks a rejected realtime protocol as incompatible even when the connection is down', async () => {
+    mocks.realtimeUnsupported = true;
+    mocks.showConnectionLostIcon = true;
+    const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    await expect
+      .element(icon)
+      .toHaveAttribute(
+        'aria-label',
+        'Loaded Remote — This server does not support the realtime protocol used by this app.'
+      );
+    expect(getComputedStyle(icon.firstElementChild!).opacity).toBe('0.5');
+    expect(container.querySelector('[class~="icon-[uil--ban]"]')).not.toBeNull();
+  });
+
   it('warns when the server version cannot establish compatibility', async () => {
     mocks.store.serverInfo.version = 'custom-build';
     mocks.store.serverInfo.compatibility = {
@@ -712,6 +738,7 @@ describe('ServerSidebarEntry', () => {
     await expect.element(q(container, '[data-testid="server-warning"]')).toBeInTheDocument();
 
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    expect(getComputedStyle(icon.firstElementChild!).opacity).toBe('1');
     await expect
       .element(icon)
       .toHaveAttribute(
@@ -742,6 +769,7 @@ describe('ServerSidebarEntry', () => {
     const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
     await expect.element(q(container, '[data-testid="server-warning"]')).not.toBeInTheDocument();
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    expect(getComputedStyle(icon.firstElementChild!).opacity).toBe('1');
     icon.dispatchEvent(
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 24, clientY: 36 })
     );
@@ -886,13 +914,13 @@ describe('ServerSidebarEntry', () => {
     }
   );
 
-  it('explains reauthentication before compatibility and connection problems', async () => {
+  it('explains reauthentication before an unknown version or connection loss', async () => {
     mocks.server.reauthRequiredAt = 123;
     mocks.store.isAuthenticated = false;
     mocks.showConnectionLostIcon = true;
     mocks.store.serverInfo.compatibility = {
-      status: 'unsupported',
-      reason: 'server-too-old'
+      status: 'unknown',
+      reason: 'server-version-unknown'
     };
 
     const { container } = render(ServerSidebarEntry, {

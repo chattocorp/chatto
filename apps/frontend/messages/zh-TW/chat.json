@@ -90,6 +90,7 @@
       "version": "版本 {version}",
       "unreachable": "無法連線至伺服器",
       "connection_unavailable": "連線無法使用",
+      "protocol_unsupported": "此伺服器不支援此應用程式使用的即時通訊協定。",
       "compatibility_server_too_old": "此伺服器必須升級至 Chatto {version} 或更新版本，此應用程式才能連線。",
       "compatibility_unknown": "此應用程式無法根據伺服器版本判斷相容性。",
       "go_to_notifications_count": {

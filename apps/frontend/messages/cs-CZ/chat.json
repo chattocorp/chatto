@@ -90,6 +90,7 @@
       "version": "Verze {version}",
       "unreachable": "Server je nedostupný",
       "connection_unavailable": "Připojení není dostupné",
+      "protocol_unsupported": "Tento server nepodporuje protokol pro komunikaci v reálném čase, který tato aplikace používá.",
       "compatibility_server_too_old": "Aby se tato aplikace mohla připojit, musí být tento server upgradován na Chatto {version} nebo novější.",
       "compatibility_unknown": "Tato aplikace nemůže určit kompatibilitu z verze serveru.",
       "go_to_notifications_count": {

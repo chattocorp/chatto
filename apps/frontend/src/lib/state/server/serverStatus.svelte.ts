@@ -13,7 +13,7 @@ import { MINIMUM_CONNECTABLE_SERVER_VERSION } from '@chatto/client/server/compat
 import { serverDisplayName } from '@chatto/client/server/state';
 
 /** Marker on the server icon. A limited but working server has no marker. */
-export type ServerStatusBadge = 'sign-in' | 'offline' | 'compatibility';
+export type ServerStatusBadge = 'sign-in' | 'offline' | 'compatibility' | 'incompatible';
 
 /** Reactive status of `serverId`. Read its getters in reactive contexts. */
 export type ServerStatus = ReturnType<typeof serverStatus>;
@@ -93,6 +93,18 @@ export function serverStatus(serverId: string) {
      * connection attempts in progress are not problems; only a failed attempt is.
      */
     get problem(): { badge: ServerStatusBadge | null; message: string } | null {
+      // A login or retry cannot resolve a confirmed incompatibility.
+      if (stores.serverInfo.blockingCompatibilityProblem === 'server-too-old') {
+        return {
+          badge: 'incompatible',
+          message: m('chat.server_gutter.compatibility_server_too_old', {
+            version: MINIMUM_CONNECTABLE_SERVER_VERSION
+          })
+        };
+      }
+      if (connection.realtimeUnsupported) {
+        return { badge: 'incompatible', message: m('chat.server_gutter.protocol_unsupported') };
+      }
       if (signInRequired()) {
         return {
           badge: 'sign-in',
@@ -109,15 +121,7 @@ export function serverStatus(serverId: string) {
       if (stores.serverInfo.loading) return null;
       switch (compatibility.reason) {
         case 'server-too-old':
-          if (compatibility.status === 'limited') {
-            return { badge: null, message: m('chat.compatibility.limited') };
-          }
-          return {
-            badge: 'compatibility',
-            message: m('chat.server_gutter.compatibility_server_too_old', {
-              version: MINIMUM_CONNECTABLE_SERVER_VERSION
-            })
-          };
+          return { badge: null, message: m('chat.compatibility.limited') };
         case 'server-version-unknown':
           return { badge: 'compatibility', message: m('chat.server_gutter.compatibility_unknown') };
       }

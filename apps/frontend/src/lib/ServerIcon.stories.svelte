@@ -41,7 +41,7 @@
       server={legacy}
       href="/chat/legacy"
       title="Legacy Server — Server version is not supported"
-      badge="compatibility"
+      badge="incompatible"
     />
   </div>
 </Story>
