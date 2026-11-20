@@ -130,8 +130,8 @@ describe('RoomSidebarProfile', () => {
     await expect.element(disclosure).toHaveAttribute('aria-expanded', 'true');
     const menu = await openProfileMenu(container);
     await expect.poll(() => menu.textContent).toContain('alice.example');
-    const section = menu.querySelector('h3')!.closest('section')!;
-    expect(section.textContent).toContain('Verified identities');
+    const section = menu.querySelector('ul[aria-label="Verified identities"]')!;
+    expect(menu.textContent).not.toContain('Verified identities');
     expect(section.textContent).toContain('alice.example');
     expect(
       section.compareDocumentPosition(menu.querySelector('[data-testid="user-bio"]')!) &
@@ -139,7 +139,7 @@ describe('RoomSidebarProfile', () => {
     ).toBeTruthy();
   });
 
-  it('omits the identities heading in both views after an empty lookup', async () => {
+  it('omits the identities section in both views after an empty lookup', async () => {
     getAtprotoHandles.mockResolvedValue([]);
     userStore().set(user.id, userProfileFixture(user));
     const { container } = renderProfile();
@@ -158,7 +158,7 @@ describe('RoomSidebarProfile', () => {
       .toEqual([]);
     expect(container.textContent).not.toContain('Verified identities');
     const menu = await openProfileMenu(container);
-    expect(menu.textContent).not.toContain('Verified identities');
+    expect(menu.querySelector('ul[aria-label="Verified identities"]')).toBeNull();
   });
 
   it('renders a cached profile while the fresh query is pending', () => {

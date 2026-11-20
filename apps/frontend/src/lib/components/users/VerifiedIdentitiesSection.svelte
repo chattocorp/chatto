@@ -38,7 +38,6 @@ callers supply a storage key for the disclosure. Popups show the list directly.
     </div>
   {:else}
     <section class="menu-section px-3 py-2 text-start">
-      <h3 class="mb-1.5 text-xs font-medium text-muted">{label}</h3>
       {@render identityList()}
     </section>
   {/if}
