@@ -635,6 +635,7 @@
       "branding_cleanup": "Úklid log a bannerů serveru",
       "asset_cleanup": "Čištění souborů",
       "call_key_cleanup": "Mazání klíčů hovorů",
+      "runtime_credential_cleanup": "Vyčištění relací a tokenů",
       "push_subscription_cleanup": "Čištění odběrů push",
       "user_key_shredding": "Mazání klíčů účtu",
       "notification_alert": "Upozornění na oznámení",

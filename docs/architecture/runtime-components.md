@@ -540,7 +540,7 @@ in-memory projection of `JOBS` with one payload-free summary for each job.
 retained facts on each start. Standalone media processes do not run it.
 
 [`newEffectJob`](../../cli/internal/core/effect_jobs.go) uses `jobs.Effect` to move the asset cleanup,
-call-key cleanup, push-subscription cleanup, user-key shredding, and
+call-key cleanup, push-subscription cleanup, runtime credential cleanup, user-key shredding, and
 notification alert consumers onto the queue. Each owning model keeps its
 handler; the source consumer only accepts jobs.
 

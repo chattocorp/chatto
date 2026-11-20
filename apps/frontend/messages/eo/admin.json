@@ -611,6 +611,7 @@
       "branding_cleanup": "Purigado de servilaj emblemoj kaj standardoj",
       "asset_cleanup": "Purigado de dosieroj",
       "call_key_cleanup": "Forigo de vokŝlosiloj",
+      "runtime_credential_cleanup": "Forigo de seancoj kaj ĵetonoj",
       "push_subscription_cleanup": "Purigado de puŝabonoj",
       "user_key_shredding": "Forigo de kontŝlosiloj",
       "notification_alert": "Sciiga averto",

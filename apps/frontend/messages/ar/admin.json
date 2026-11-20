@@ -659,6 +659,7 @@
       "branding_cleanup": "تنظيف شعارات الخادم ولافتاته",
       "asset_cleanup": "تنظيف الملفات",
       "call_key_cleanup": "حذف مفاتيح المكالمات",
+      "runtime_credential_cleanup": "تنظيف الجلسات ورموز الوصول",
       "push_subscription_cleanup": "تنظيف اشتراكات الإشعارات الفورية",
       "user_key_shredding": "حذف مفاتيح الحساب",
       "notification_alert": "تنبيه إشعار",

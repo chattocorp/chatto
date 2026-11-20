@@ -623,6 +623,7 @@
       "branding_cleanup": "Servera logotipu un reklāmkarogu tīrīšana",
       "asset_cleanup": "Failu tīrīšana",
       "call_key_cleanup": "Zvanu atslēgu dzēšana",
+      "runtime_credential_cleanup": "Sesiju un piekļuves pilnvaru tīrīšana",
       "push_subscription_cleanup": "Push abonementu tīrīšana",
       "user_key_shredding": "Konta atslēgu dzēšana",
       "notification_alert": "Paziņojuma brīdinājums",

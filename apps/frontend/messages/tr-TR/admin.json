@@ -611,6 +611,7 @@
       "branding_cleanup": "Sunucu logolarını ve bannerlarını temizleme",
       "asset_cleanup": "Dosya temizliği",
       "call_key_cleanup": "Arama anahtarı silme",
+      "runtime_credential_cleanup": "Oturum ve belirteç temizliği",
       "push_subscription_cleanup": "Anlık bildirim aboneliği temizliği",
       "user_key_shredding": "Hesap anahtarı silme",
       "notification_alert": "Bildirim uyarısı",

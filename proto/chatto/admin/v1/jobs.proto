@@ -38,7 +38,7 @@ message Job {
   // Stable opaque job ID, preserved across manual retries.
   string id = 1;
   // Registered work type: webhook, media, asset_cleanup, branding_cleanup, call_key_cleanup,
-  // message_body_erasure, neighborhood_refresh, push_subscription_cleanup, user_key_shredding, notification_alert, or email.
+  // message_body_erasure, neighborhood_refresh, push_subscription_cleanup, runtime_credential_cleanup, user_key_shredding, notification_alert, or email.
   // Clients can encounter future types.
   string type = 2;
   // Current execution state.

@@ -36,6 +36,8 @@ export function knownJobTypeLabel(type: string): string | null {
       return m('admin.jobs.asset_cleanup');
     case 'call_key_cleanup':
       return m('admin.jobs.call_key_cleanup');
+    case 'runtime_credential_cleanup':
+      return m('admin.jobs.runtime_credential_cleanup');
     case 'push_subscription_cleanup':
       return m('admin.jobs.push_subscription_cleanup');
     case 'user_key_shredding':

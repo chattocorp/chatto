@@ -599,6 +599,7 @@
       "branding_cleanup": "清理伺服器標誌和橫幅",
       "asset_cleanup": "檔案清理",
       "call_key_cleanup": "刪除通話金鑰",
+      "runtime_credential_cleanup": "清理工作階段與權杖",
       "push_subscription_cleanup": "清理推播訂閱",
       "user_key_shredding": "刪除帳號金鑰",
       "notification_alert": "通知提醒",

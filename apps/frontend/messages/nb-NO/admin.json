@@ -611,6 +611,7 @@
       "branding_cleanup": "Opprydding av serverlogoer og bannere",
       "asset_cleanup": "Filopprydding",
       "call_key_cleanup": "Sletting av samtalenøkler",
+      "runtime_credential_cleanup": "Opprydding i økter og tilgangstokener",
       "push_subscription_cleanup": "Opprydding av push-abonnementer",
       "user_key_shredding": "Sletting av kontonøkler",
       "notification_alert": "Varselvarsling",
