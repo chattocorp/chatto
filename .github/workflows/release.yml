@@ -699,6 +699,17 @@ jobs:
           ref: ${{ inputs.commit }}
           persist-credentials: false
 
+      # Publication scripts come from the commit of this run, not from the
+      # tagged commit. A manual run that publishes an older tag again then uses
+      # the current, retry-safe scripts.
+      - name: Check out the publication scripts
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          path: .context/release-tools
+          persist-credentials: false
+          sparse-checkout: tools/release
+
       - name: Download server release archives
         uses: actions/download-artifact@v8
         with:
@@ -749,7 +760,7 @@ jobs:
         env:
           PRERELEASE: ${{ inputs.prerelease }}
           HIGHEST: ${{ inputs.highest }}
-        run: bash tools/release/publish-images.sh
+        run: bash .context/release-tools/tools/release/publish-images.sh
 
       # Sweet sets prerelease from the version and makes only the highest
       # stable Chatto version the repository's Latest release.
@@ -763,7 +774,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-        run: bash tools/release/update-homebrew.sh
+        run: bash .context/release-tools/tools/release/update-homebrew.sh
 
   publish-stable-docs:
     needs: release

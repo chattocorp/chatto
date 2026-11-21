@@ -19,6 +19,11 @@ on:
         description: 'Sweet tag.yml output `packages`: package path to its newest entry, or null.'
         required: true
         type: string
+      testflight:
+        description: 'Start a TestFlight upload for a Chatto tag.'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -80,7 +85,7 @@ jobs:
   # runs separately, as a manual run on the tag. GITHUB_TOKEN can start manual
   # runs. A rerun of this job uploads another build.
   testflight:
-    if: fromJSON(inputs.packages)['.'] != null
+    if: inputs.testflight && fromJSON(inputs.packages)['.'] != null
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

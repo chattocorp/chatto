@@ -13,20 +13,38 @@ on:
       - labeled
       - unlabeled
       - ready_for_review
+  # Publish an existing release tag again, for example after its release run
+  # failed. This runs no CI checks: the tagged commit passed them when CI made
+  # the tag. Run it from main. See docs/RELEASING.md.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to publish again, such as v0.6.0-beta.4'
+        required: true
+        type: string
+      testflight:
+        description: 'Also upload a TestFlight build for a Chatto tag (each run uploads a new build)'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   # PRs share a group so superseded revisions are cancelled. Pushes use their
   # branch and immutable commit SHA, so no push run is cancelled or replaced:
   # each selected main commit can publish an image, and each push run tags
-  # and publishes the releases in its own commit range.
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.ref, github.sha) }}
+  # and publishes the releases in its own commit range. A manual publication
+  # has a group for its tag, so it never waits for or replaces a push run.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'workflow_dispatch' && format('publish-{0}', inputs.tag)) || format('{0}-{1}', github.ref, github.sha) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
+  # A manual publication runs no checks. Every check job depends on `changes`,
+  # or has its own guard for manual runs.
   changes:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -369,6 +387,7 @@ jobs:
           retention-days: 1
 
   license-check:
+    if: github.event_name != 'workflow_dispatch'
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -385,6 +404,7 @@ jobs:
         run: mise license-check
 
   workflow-lint:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -573,7 +593,7 @@ jobs:
 
   codegen-proto-drift:
     needs: changes
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && github.event_name != 'workflow_dispatch' }}
     # Always verify selection, but skip product checks for unrelated changes.
     env:
       RUN_PROTO_CHECKS: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' }}
@@ -1447,11 +1467,41 @@ jobs:
   # Without a status function, the condition also requires success() for every
   # job before `tag`, and optional jobs there are often skipped. Check only the
   # result of `tag`.
+  # A manual run describes one existing tag in the shape of the tag outputs.
+  describe-tag:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      tags: ${{ steps.describe.outputs.tags }}
+      packages: ${{ steps.describe.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@v4
+        with:
+          install: false
+      - name: Describe the release tag
+        id: describe
+        env:
+          # Untrusted input: the script validates it.
+          TAG: ${{ inputs.tag }}
+          REF: ${{ github.ref }}
+        run: mise x -- bash tools/release/describe-tag.sh
+
+  # Publish from the tags of a push, or from one tag of a manual run. Exactly
+  # one of `tag` and `describe-tag` runs; the other is skipped.
   publish-releases:
-    needs: tag
+    needs: [tag, describe-tag]
     if: >-
-      ${{ !cancelled() && needs.tag.result == 'success'
-          && needs.tag.outputs.tags != '[]' && needs.tag.outputs.tags != '' }}
+      ${{ !cancelled()
+          && ((needs.tag.result == 'success' && needs.tag.outputs.tags != '[]' && needs.tag.outputs.tags != '')
+              || (needs.describe-tag.result == 'success' && needs.describe-tag.outputs.tags != ''))
+      }}
     permissions:
       actions: write
       contents: write
@@ -1459,8 +1509,10 @@ jobs:
       packages: write
     uses: ./.github/workflows/publish-releases.yml
     with:
-      tags: ${{ needs.tag.outputs.tags }}
-      packages: ${{ needs.tag.outputs.packages }}
+      tags: ${{ needs.tag.outputs.tags || needs.describe-tag.outputs.tags }}
+      packages: ${{ needs.tag.outputs.packages || needs.describe-tag.outputs.packages }}
+      # Each TestFlight run uploads a new build, so a manual run asks for it.
+      testflight: ${{ github.event_name != 'workflow_dispatch' || inputs.testflight }}
     # Environment secrets, such as the desktop signing keys, are empty in a
     # called workflow unless every caller in the chain uses `secrets: inherit`
     # (actions/runner#4453). Named secrets here would drop them.
