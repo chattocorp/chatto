@@ -1,9 +1,9 @@
 import { redirect } from '@sveltejs/kit';
 import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
-import type { PageLoad } from './$types';
+import type { LayoutLoad } from './$types';
 import { serverRegistry } from '$lib/client';
 
-export const load: PageLoad = async ({ parent, url }) => {
+export const load: LayoutLoad = async ({ parent, url }) => {
   const { user } = await parent();
   const raw = url.searchParams.get('redirect') ?? '';
   const redirectUrl = isSafeInternalPath(raw) ? raw : '/';

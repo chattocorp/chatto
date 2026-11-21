@@ -224,9 +224,9 @@ func TestIsValidInternalRedirectPath(t *testing.T) {
 }
 
 func TestServerDiscoveryServiceGetServerReportsDisabledDirectLogin(t *testing.T) {
-	disabled := false
+	disabled, enabled := false, true
 	api := New(nil, config.ChattoConfig{
-		Auth: config.AuthConfig{DirectLogin: &disabled},
+		Auth: config.AuthConfig{DirectLogin: &disabled, DirectRegistration: &enabled},
 	}, "9.8.7")
 
 	resp, err := (&serverDiscoveryService{api: api}).GetServer(context.Background(), connect.NewRequest(&discoveryv1.GetServerRequest{}))
@@ -235,6 +235,9 @@ func TestServerDiscoveryServiceGetServerReportsDisabledDirectLogin(t *testing.T)
 	}
 	if resp.Msg.GetLogin().DirectLoginEnabled == nil || resp.Msg.GetLogin().GetDirectLoginEnabled() {
 		t.Fatal("DirectLoginEnabled is absent or true, want explicit false")
+	}
+	if resp.Msg.GetLogin().GetDirectRegistrationEnabled() {
+		t.Fatal("DirectRegistrationEnabled = true, want false while direct login is disabled")
 	}
 }
 

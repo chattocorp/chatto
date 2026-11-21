@@ -1,4 +1,5 @@
 import { test, expect } from './setup';
+import * as routes from './routes';
 
 test.describe('Password Reset', () => {
   test.describe('Forgot Password Page', () => {
@@ -215,7 +216,7 @@ test.describe('Password Reset', () => {
 
       const signInLink = authPage.signInLink;
       await expect(signInLink).toBeVisible();
-      await expect(signInLink).toHaveAttribute('href', '/login');
+      await expect(signInLink).toHaveAttribute('href', routes.passwordLogin);
     });
 
     test('reset password page has link to login', async ({ authPage }) => {
@@ -236,7 +237,7 @@ test.describe('Password Reset', () => {
 
       const signInLink = authPage.signInLink;
       await expect(signInLink).toBeVisible();
-      await expect(signInLink).toHaveAttribute('href', '/login');
+      await expect(signInLink).toHaveAttribute('href', routes.passwordLogin);
     });
   });
 });

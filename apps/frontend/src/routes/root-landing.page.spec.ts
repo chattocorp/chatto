@@ -8,7 +8,7 @@ vi.mock('$lib/client', () => ({
   }
 }));
 import { load } from './+page';
-import { load as loginLoad } from './login/+page';
+import { load as loginLoad } from './login/+layout';
 
 async function expectRedirect(
   url: string,
