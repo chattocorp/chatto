@@ -592,6 +592,15 @@ realtime connections as the durable fact reaches each replica. They have no
 external effect or separate recovery store. See
 [account deactivation](../../cli/internal/core/user_deactivation.go).
 
+Each validation of a runtime credential checks the auth generation. Before
+the check reads the projection, it waits until the projection has applied the
+newest event of that user that can change the result: account creation,
+password change, external identity unlink, account deletion, deactivation
+change, and the two key-shredding events. It reads the position of each of
+these subjects from the stream leader, concurrently. It does not wait for
+events of other users or for other event types. See
+[auth generation](../../cli/internal/core/auth_generation.go).
+
 Bot account kind and owner ID are durable user-aggregate fields projected by
 `UserProjection`; it also maintains the current owner-to-bot index used for
 management, reassignment, and cascade deletion. `UserAuthProjection` replays
