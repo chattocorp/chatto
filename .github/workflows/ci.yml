@@ -1444,9 +1444,14 @@ jobs:
     # with GITHUB_TOKEN start no workflow; this run publishes them.
     uses: chattocorp/sweet-release/.github/workflows/tag.yml@7e618be0b38acb105fe128f030f2f9b71527a0f6
 
+  # Without a status function, the condition also requires success() for every
+  # job before `tag`, and optional jobs there are often skipped. Check only the
+  # result of `tag`.
   publish-releases:
     needs: tag
-    if: needs.tag.outputs.tags != '[]' && needs.tag.outputs.tags != ''
+    if: >-
+      ${{ !cancelled() && needs.tag.result == 'success'
+          && needs.tag.outputs.tags != '[]' && needs.tag.outputs.tags != '' }}
     permissions:
       actions: write
       contents: write

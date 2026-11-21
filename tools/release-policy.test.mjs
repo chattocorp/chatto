@@ -45,8 +45,16 @@ test('CI tags only after every other job and then publishes from the tag outputs
   ]) {
     assert.ok(tag.if.includes(guard), guard);
   }
-  assert.equal(ci.jobs['publish-releases'].needs, 'tag');
-  assert.equal(ci.jobs['publish-releases'].uses, './.github/workflows/publish-releases.yml');
+  const publish = ci.jobs['publish-releases'];
+  assert.equal(publish.needs, 'tag');
+  assert.equal(publish.uses, './.github/workflows/publish-releases.yml');
+  // A condition without a status function also requires success() of every
+  // job before `tag`. Skipped optional jobs there would skip publication.
+  assert.ok(publish.if.includes('!cancelled()'), 'publish-releases needs a status function');
+  assert.ok(
+    publish.if.includes("needs.tag.result == 'success'"),
+    'publish-releases checks the tag result'
+  );
   // Push runs are never cancelled or replaced: each run owns its commit range.
   assert.match(ci.concurrency.group, /github\.ref, github\.sha/);
   assert.equal(ci.concurrency['cancel-in-progress'], "${{ github.event_name == 'pull_request' }}");
