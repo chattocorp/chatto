@@ -68,6 +68,12 @@ type Program = {
   timeDelta: WebGLUniformLocation | null;
   frame: WebGLUniformLocation | null;
   mouse: WebGLUniformLocation | null;
+  /**
+   * Drivers can finish compiling a program during its first draw. That draw
+   * can take far longer than later frames, so it does not count against the
+   * frame budget. A first draw that hangs the GPU still loses the context.
+   */
+  drawn: boolean;
 };
 
 let gl: WebGL2RenderingContext | null = null;
@@ -144,7 +150,8 @@ function program(source: string): Program | null {
         time: context_.getUniformLocation(linked, 'iTime'),
         timeDelta: context_.getUniformLocation(linked, 'iTimeDelta'),
         frame: context_.getUniformLocation(linked, 'iFrame'),
-        mouse: context_.getUniformLocation(linked, 'iMouse')
+        mouse: context_.getUniformLocation(linked, 'iMouse'),
+        drawn: false
       };
     } else {
       context_.deleteProgram(linked);
@@ -310,7 +317,12 @@ class Player {
       return null;
     }
     this.#target.drawImage(context_.canvas, 0, 0);
-    return performance.now() - started;
+    const elapsed = performance.now() - started;
+    if (!entry.drawn) {
+      entry.drawn = true;
+      return 0;
+    }
+    return elapsed;
   }
 
   /** Pause after a single frame that used up the frame budget. */

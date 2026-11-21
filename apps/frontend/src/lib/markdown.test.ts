@@ -161,7 +161,7 @@ describe('renderMarkdown', () => {
         )
       ).toHaveLength(4);
       expect(
-        await renderMarkdown('```glsl rendered\n' + 'x'.repeat(20_001) + '\n```', {
+        await renderMarkdown('```glsl rendered\n' + 'x'.repeat(10_001) + '\n```', {
           shaders: true
         })
       ).toContain(' disabled');

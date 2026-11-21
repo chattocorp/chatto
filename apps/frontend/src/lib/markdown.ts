@@ -50,7 +50,8 @@ const mermaidPreviewCountKey = Symbol('mermaidPreviewCount');
 const shadersKey = Symbol('shaders');
 const shaderPreviewCountKey = Symbol('shaderPreviewCount');
 const MAX_SHADER_PREVIEWS = 4;
-const MAX_SHADER_SOURCE_LENGTH = 20_000;
+// Matches the server limit for a complete message body.
+const MAX_SHADER_SOURCE_LENGTH = 10_000;
 
 type MarkdownBlockRule = (
   state: StateBlock,
