@@ -10,7 +10,7 @@ import (
 
 func TestNotificationUnreadScopeIsolationAndExpiry(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Millisecond)
-	p := NewNotificationProjection()
+	p := NewNotificationProjection(nil)
 	p.now = func() time.Time { return now }
 	for i, row := range []struct {
 		id, user, room, thread string
@@ -61,7 +61,7 @@ func TestNotificationUnreadScopeIsolationAndExpiry(t *testing.T) {
 		t.Fatalf("unknown recipient returned %+v", got)
 	}
 	// Scoped reads enforce expiry without taking over global maintenance.
-	if _, exists := p.byID["expired"]; !exists {
+	if _, exists := p.rows.byID["expired"]; !exists {
 		t.Fatal("scoped read performed global expiry cleanup")
 	}
 }
@@ -73,7 +73,7 @@ func BenchmarkNotificationReadScope(b *testing.B) {
 	for _, count := range []int{1000, 10000, 100000} {
 		b.Run(fmt.Sprintf("retained=%d", count), func(b *testing.B) {
 			now := time.Now().UTC()
-			p := NewNotificationProjection()
+			p := NewNotificationProjection(nil)
 			for i := range count {
 				id := fmt.Sprintf("N%d", i)
 				user := fmt.Sprintf("U%d", i%2000)
@@ -81,12 +81,7 @@ func BenchmarkNotificationReadScope(b *testing.B) {
 					Id: id, RecipientId: user, ExpiresAt: timestamp(now.Add(time.Hour)),
 					Signal: testNotificationSignal(notificationTestSignalDirectMention, "unrelated-room", id),
 				}
-				p.byID[id] = occurrence
-				if p.idsByUser[user] == nil {
-					p.idsByUser[user] = make(map[string]struct{})
-				}
-				p.idsByUser[user][id] = struct{}{}
-				p.addScopeLocked(occurrence)
+				p.addLocked(occurrence)
 			}
 			target := &notificationv1.NotificationOccurrence{
 				Id: "target", RecipientId: "U0", SourceEventId: "target",
