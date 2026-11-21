@@ -10,14 +10,22 @@
  * `void mainImage(out vec4 fragColor, in vec2 fragCoord)` with the uniforms
  * `iResolution`, `iTime`, `iTimeDelta`, `iFrame`, and `iMouse`. Textures,
  * buffers, and audio inputs are not supported.
+ *
+ * `iMouse` follows Shadertoy: `xy` is the pointer position while a button is
+ * down and keeps the last position after release. `zw` is the press position.
+ * `z` is negative after release, and `w` is negative after the first frame of
+ * the press. Positions are render pixels with the origin at the bottom left.
  */
 
 /** Fixed render size. It bounds GPU work independently of the display size. */
 export const SHADER_WIDTH = 640;
 export const SHADER_HEIGHT = 360;
 
-/** A frame that takes longer than this pauses its preview. */
-const SLOW_FRAME_MS = 100;
+/**
+ * GPU time that one animation frame may use across all playing previews. The
+ * preview that exceeds it pauses, so several heavy shaders cannot add up.
+ */
+const FRAME_BUDGET_MS = 100;
 /** Keep a bounded number of linked programs. */
 const MAX_PROGRAMS = 16;
 
@@ -152,7 +160,7 @@ export function isShaderUsable(source: string): boolean {
 export type ShaderPlayerEvents = {
   /** The shader cannot render, or it caused a context loss. */
   onerror: () => void;
-  /** A frame was too slow. The player stops and its owner shows it as paused. */
+  /** A frame used up the frame budget. The player stops and its owner shows it as paused. */
   onslow: () => void;
 };
 
@@ -163,6 +171,7 @@ class Player {
   #frame = 0;
   #last: number | undefined;
   #playing = false;
+  #mouse: [number, number, number, number] = [0, 0, 0, 0];
   #events: ShaderPlayerEvents;
 
   constructor(
@@ -172,10 +181,6 @@ class Player {
   ) {
     this.#target = target;
     this.#events = events;
-  }
-
-  get playing() {
-    return this.#playing;
   }
 
   /** Start or stop the animation. Time continues from the paused position. */
@@ -191,17 +196,36 @@ class Player {
     }
   }
 
-  /** Draw one frame. Returns false when the shader failed or was too slow. */
-  draw(now?: number): boolean {
+  /** Apply pointer input in render pixels. A paused preview draws the change at once. */
+  pointer(kind: PointerKind, x: number, y: number) {
+    const mouse = this.#mouse;
+    if (kind === 'press') {
+      this.#mouse = [x, y, x, y];
+    } else if (kind === 'move') {
+      if (mouse[2] <= 0) return;
+      mouse[0] = x;
+      mouse[1] = y;
+    } else {
+      if (mouse[2] <= 0) return;
+      mouse[2] = -mouse[2];
+    }
+    if (!this.#playing) this.check(this.draw());
+  }
+
+  /**
+   * Draw one frame at the animation time `now`, or again at the current time.
+   * Returns the GPU time in milliseconds, or null when the shader failed.
+   */
+  draw(now?: number): number | null {
     const delta = now === undefined || this.#last === undefined ? 0 : (now - this.#last) / 1000;
-    this.#last = now;
+    if (now !== undefined) this.#last = now;
     // Clamp long gaps, such as a busy main thread, so motion does not jump.
     this.#time += Math.min(delta, 0.1);
     const context_ = context();
     const entry = program(this.source);
     if (!context_ || !entry) {
       this.fail();
-      return false;
+      return null;
     }
     const started = performance.now();
     lastSource = this.source;
@@ -211,21 +235,28 @@ class Player {
     context_.uniform1f(entry.time, this.#time);
     context_.uniform1f(entry.timeDelta, delta);
     context_.uniform1i(entry.frame, this.#frame++);
-    context_.uniform4f(entry.mouse, 0, 0, 0, 0);
+    context_.uniform4fv(entry.mouse, this.#mouse);
+    // Shadertoy reports a positive `w` only on the first frame of a press.
+    this.#mouse[3] = -Math.abs(this.#mouse[3]);
     context_.drawArrays(context_.TRIANGLES, 0, 3);
     // Wait for the GPU, so the measured time includes the shader's own work.
     context_.readPixels(0, 0, 1, 1, context_.RGBA, context_.UNSIGNED_BYTE, pixel);
     if (context_.isContextLost()) {
       this.fail();
-      return false;
+      return null;
     }
     this.#target.drawImage(context_.canvas, 0, 0);
-    if (performance.now() - started > SLOW_FRAME_MS) {
-      this.setPlaying(false);
-      this.#events.onslow();
-      return false;
-    }
-    return true;
+    return performance.now() - started;
+  }
+
+  /** Pause after a single frame that used up the frame budget. */
+  check(elapsed: number | null) {
+    if (elapsed !== null && elapsed > FRAME_BUDGET_MS) this.slow();
+  }
+
+  slow() {
+    this.setPlaying(false);
+    this.#events.onslow();
   }
 
   fail() {
@@ -233,6 +264,9 @@ class Player {
     this.#events.onerror();
   }
 }
+
+/** Shadertoy mouse phases: a button press, a move while pressed, and the release. */
+export type PointerKind = 'press' | 'move' | 'release';
 
 const pixel = new Uint8Array(4);
 const active = new Set<Player>();
@@ -244,15 +278,27 @@ function schedule() {
   requestAnimationFrame(tick);
 }
 
+/** Draw all playing previews. Pause each preview that takes the total over budget. */
 function tick(now: number) {
   scheduled = false;
-  for (const player of [...active]) player.draw(now);
+  let spent = 0;
+  for (const player of [...active]) {
+    const elapsed = player.draw(now);
+    if (elapsed === null) continue;
+    spent += elapsed;
+    if (spent > FRAME_BUDGET_MS) player.slow();
+  }
   schedule();
 }
 
 /** Controls that a mounted preview uses. */
 export type ShaderPlayer = {
   setPlaying(playing: boolean): void;
+  /**
+   * Report pointer input as fractions of the canvas size, measured from its
+   * top-left corner. The player converts them to Shadertoy `iMouse` pixels.
+   */
+  pointer(kind: PointerKind, u: number, v: number): void;
   /** Stop playback and release the target canvas. */
   dispose(): void;
 };
@@ -274,9 +320,15 @@ export function createShaderPlayer(
   }
   const player = new Player(source, target, events);
   // A failed or slow first frame reports through `events`.
-  player.draw();
+  player.check(player.draw());
   return {
     setPlaying: (playing) => player.setPlaying(playing),
+    pointer: (kind, u, v) =>
+      player.pointer(
+        kind,
+        Math.min(Math.max(u, 0), 1) * SHADER_WIDTH,
+        (1 - Math.min(Math.max(v, 0), 1)) * SHADER_HEIGHT
+      ),
     dispose: () => player.setPlaying(false)
   };
 }

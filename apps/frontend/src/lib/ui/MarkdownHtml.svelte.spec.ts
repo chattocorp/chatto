@@ -173,6 +173,21 @@ describe('GLSL shader previews', () => {
     await expect.poll(() => pause.getAttribute('aria-pressed')).toBe('true');
   });
 
+  it.skipIf(!webgl2)('sets iMouse from a click on the preview', async () => {
+    // Red: a pointer position exists. Blue: the button was released.
+    const { container } = render(MarkdownHtml, {
+      html: await shader(
+        'c = vec4(iMouse.x > 0.0 ? 1.0 : 0.0, 0.0, iMouse.z < 0.0 ? 1.0 : 0.0, 1.0);'
+      )
+    });
+    await expect.poll(() => container.querySelector('canvas.shader-preview')).not.toBeNull();
+    const canvas = container.querySelector<HTMLCanvasElement>('canvas.shader-preview')!;
+    const pixel = () => [...canvas.getContext('2d')!.getImageData(0, 0, 1, 1).data];
+    expect(pixel()).toEqual([0, 0, 0, 255]);
+    await userEvent.click(canvas);
+    await expect.poll(pixel).toEqual([255, 0, 255, 255]);
+  });
+
   it.skipIf(!webgl2)('reveals source when the shader does not compile', async () => {
     const { container } = render(MarkdownHtml, { html: await shader('c = missing;') });
     await expect
