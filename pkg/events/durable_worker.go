@@ -80,8 +80,11 @@ type DurableWorker struct {
 	consumer jetstream.Consumer
 	handle   DurableDeliveryHandler
 	opts     DurableWorkerOptions
-	runMu    sync.Mutex
-	started  bool
+	// idleFetchWait is the lifetime of a pull that starts while no delivery
+	// is active. See Run and idleFetchWait.
+	idleFetchWait time.Duration
+	runMu         sync.Mutex
+	started       bool
 }
 
 type retryDeliveryError struct {
@@ -166,7 +169,16 @@ func NewDurableWorker(
 		opts.HeartbeatInterval = defaultDurableWorkerHeartbeatInterval
 	}
 	opts.Logger = normalizeLogger(opts.Logger)
-	return &DurableWorker{consumer: consumer, handle: handle, opts: opts}, nil
+	var maxRequestExpires time.Duration
+	if info := consumer.CachedInfo(); info != nil {
+		maxRequestExpires = info.Config.MaxRequestExpires
+	}
+	return &DurableWorker{
+		consumer:      consumer,
+		handle:        handle,
+		opts:          opts,
+		idleFetchWait: idleFetchWait(opts.FetchMaxWait, maxRequestExpires),
+	}, nil
 }
 
 // Run fetches and processes deliveries until the context is cancelled. It may
@@ -178,7 +190,8 @@ func NewDurableWorker(
 // reclaiming its own handoffs through an outstanding pull.
 //
 // The worker has at most one outstanding pull. A pull that starts while no
-// delivery is active is long (durableWorkerIdleFetchWait), so an idle worker
+// delivery is active is long (durableWorkerIdleFetchWait, limited by the
+// consumer's MaxRequestExpires), so an idle worker
 // sends few pull requests. A pull that starts while a delivery is active is
 // short (FetchMaxWait). Only a pull can start a delivery, so no delivery is
 // active while a long pull is outstanding. Thus, when cancellation hands off
@@ -216,7 +229,7 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 		// concurrently; that only makes this check choose a short pull.
 		fetchWait := w.opts.FetchMaxWait
 		if len(active) == 1 {
-			fetchWait = idleFetchWait(w.opts.FetchMaxWait)
+			fetchWait = w.idleFetchWait
 		}
 		fetchCtx, cancelFetch := context.WithTimeout(ctx, fetchWait)
 		msg, err := w.consumer.Next(fetchOptions(fetchCtx)...)
@@ -260,10 +273,16 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 	return nil
 }
 
-// idleFetchWait returns the lifetime of a pull that starts
-// while no delivery is active. It is never shorter than fetchMaxWait.
-func idleFetchWait(fetchMaxWait time.Duration) time.Duration {
-	return max(durableWorkerIdleFetchWait, fetchMaxWait)
+// idleFetchWait returns the lifetime of a pull that starts while no delivery
+// is active. The consumer's MaxRequestExpires, when set, limits it, because
+// JetStream rejects a pull with a longer expiry. It is never shorter than
+// fetchMaxWait, which an application chooses for its consumer.
+func idleFetchWait(fetchMaxWait, maxRequestExpires time.Duration) time.Duration {
+	wait := durableWorkerIdleFetchWait
+	if maxRequestExpires > 0 {
+		wait = min(wait, maxRequestExpires)
+	}
+	return max(wait, fetchMaxWait)
 }
 
 // fetchOptions returns the pull options for one fetch that ends with ctx. A

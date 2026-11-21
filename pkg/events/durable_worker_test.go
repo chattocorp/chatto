@@ -437,6 +437,57 @@ func TestDurableWorkerIdlePullIsLong(t *testing.T) {
 	}
 }
 
+// TestDurableWorkerIdlePullHonorsMaxRequestExpires checks that the idle pull
+// stays within a consumer's MaxRequestExpires. JetStream rejects a longer pull,
+// so the worker would otherwise never receive work.
+func TestDurableWorkerIdlePullHonorsMaxRequestExpires(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	consumer, err := stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
+		Durable:           "worker-max-expires",
+		AckPolicy:         jetstream.AckExplicitPolicy,
+		AckWait:           time.Minute,
+		FilterSubject:     "evt.worker.>",
+		MaxRequestExpires: 5 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("create worker consumer: %v", err)
+	}
+	pulls := recordDurableWorkerPulls(t, js, "worker-max-expires")
+	handled := make(chan string, 1)
+	worker, err := events.NewDurableWorker(consumer, func(_ context.Context, delivery events.DurableDelivery) error {
+		handled <- string(delivery.Data)
+		return nil
+	}, events.DurableWorkerOptions{MaxConcurrent: 1, Logger: testLogger()})
+	if err != nil {
+		t.Fatalf("NewDurableWorker: %v", err)
+	}
+	// The test context has a short deadline that would shorten the pull.
+	workerCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	t.Cleanup(cancel)
+	runErr := make(chan error, 1)
+	go func() { runErr <- worker.Run(workerCtx) }()
+
+	if pull := nextDurableWorkerPull(t, pulls); pull.Expires <= time.Second || pull.Expires > 5*time.Second {
+		t.Fatalf("idle pull = %+v, want an expiry within MaxRequestExpires", pull)
+	}
+	if _, err := js.Publish(ctx, "evt.worker.max-expires", []byte("work")); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	select {
+	case got := <-handled:
+		if got != "work" {
+			t.Fatalf("handled = %q", got)
+		}
+	case <-ctx.Done():
+		t.Fatal("worker did not receive work through its idle pull")
+	}
+	cancel()
+	if err := <-runErr; err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+}
+
 // TestDurableWorkerHandsOffPromptlyAfterIdlePull checks that the long idle pull
 // does not extend the shutdown handoff delay. The delivery arrives through the
 // long pull. While its handler is active, the worker starts only short pulls, so
