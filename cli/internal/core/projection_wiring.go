@@ -174,8 +174,8 @@ func initializeCoreProjections(
 	serverConfig := NewConfigProjection()
 	roomGroupLayout := NewRoomGroupLayoutProjection()
 	// The room timeline, thread, and reaction components and the Notification
-	// Decisions projection index the same message IDs. One shared table holds
-	// each ID once for all of them.
+	// Decisions and Notifications projections index the same message IDs. One
+	// shared table holds each ID once for all of them.
 	eventIDs := newEventIDTable()
 	roomTimeline := newRoomTimelineProjection(eventIDs)
 	callState := NewCallStateProjection()
@@ -243,7 +243,7 @@ func initializeCoreProjections(
 		return nil, err
 	}
 
-	notifications := NewNotificationProjection()
+	notifications := NewNotificationProjection(eventIDs)
 	notificationStreamName := infra.storage.notificationStream.CachedInfo().Config.Name
 	notificationProjectionStream, err := infra.js.Stream(ctx, notificationStreamName)
 	if err != nil {

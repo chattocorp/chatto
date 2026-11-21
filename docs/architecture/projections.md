@@ -356,8 +356,8 @@ assignments but do not identify table instances. Read and snapshot boundaries
 resolve IDs to strings through the owning table.
 
 The Room Timeline, Threads, and Reactions components of the Server Content
-View and the Notification Decisions projection intern event IDs in one
-process-wide event ID table (ADR-110). The table holds each event ID once for all of
+View and the Notification Decisions and Notifications projections intern event
+IDs in one process-wide event ID table (ADR-110). The table holds each event ID once for all of
 them. They store `uint32` handles instead of ID strings. The table contains
 no projection state, so projections with independent replay frontiers can
 share it. The table keeps ID bytes in an append-only arena and
@@ -413,7 +413,21 @@ has a short slice of active reactions, sorted by emoji and user handles.
 Emoji handles retain exact case-sensitive reaction names, including names outside
 the bundled catalogue. Replay does not resolve aliases or require emoji assets.
 
-Timeline, Threads, and Reactions construct detached read results.
+Notifications keeps one compact row for each occurrence. The row holds
+handles for the recipient, actor, and room in a model-local table, handles for
+the message and thread root event IDs in the shared event ID table, times as
+Unix nanoseconds, and read and alert state as flags. It keeps the notification
+ID as a string, because occurrences expire and the tables do not shrink. For
+the same reason, it keeps a source event ID that is not the message ID, for
+example the ID of a reaction event, as a string. When the compact fields cannot reproduce an occurrence, for example
+for an invitation or for a signal kind from a newer server version, the row
+also keeps the complete occurrence. One index for each recipient and one for
+each read-boundary scope refer to the rows. The projection records the
+earliest expiry time, so an expiry check before that time does not scan the
+rows.
+
+Timeline, Threads, Reactions, and Notifications construct detached read
+results.
 
 Compact records store times as Unix nanoseconds, where zero means "no time".
 Room Timeline, Threads, Reactions, and Content Keys each keep their
@@ -519,7 +533,7 @@ read models, but only their parent projector is started by `ChattoCore.Run`.
 `chatto_projection_component_estimated_bytes` reports separate room-timeline,
 threads, reactions, and shared event ID table (`event_ids`) estimates inside
 the Server Content View. The component estimates and the Notification
-Decisions estimate do not include the shared table. These estimates are
+Decisions and Notifications estimates do not include the shared table. These estimates are
 diagnostic approximations; retained-heap benchmarks measure their actual Go
 heap cost. `BenchmarkProjectionRetainedHeapFromStore` replays the `EVT` stream
 of a copied NATS data directory from `CHATTO_BENCH_EVT_STORE_DIR` to measure
