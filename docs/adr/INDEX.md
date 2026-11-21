@@ -140,3 +140,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-123](ADR-123-durable-background-jobs.md)                            | Durable Background Jobs                                          | Accepted             | 2026-11-14 |
 | [ADR-124](ADR-124-atproto-handle-verification-needs-an-issuer.md)        | Verified AT Protocol Handles Need an Independent Issuer          | Accepted             | 2026-11-12 |
 | [ADR-125](ADR-125-store-user-data-in-the-users-own-pds.md)               | Store User Data in the User's Own AT Protocol PDS                | Proposed             | 2026-11-19 |
+| [ADR-127](ADR-127-bounded-staleness-for-credential-validation.md)        | Bounded Staleness for Runtime Credential Validation              | Proposed             | 2026-11-22 |
