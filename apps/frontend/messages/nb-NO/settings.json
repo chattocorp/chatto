@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Eksperimenter",
       "title": "Eksperimentelle funksjoner",
-      "new_message_header": "Ny meldingsoverskrift"
+      "new_message_header": "Ny meldingsoverskrift",
+      "glsl_shaders": "Forhåndsvisning av GLSL-skyggeleggere"
     },
     "desktop": {
       "title": "Oppdateringer",

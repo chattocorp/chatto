@@ -171,7 +171,7 @@
 
   /* Visual frames fit their image; failure recovery uses the regular code frame. */
   & [data-presentation='visual']:has([data-code-panel='render']:not([hidden])) {
-    &:has(.rendered-image) {
+    &:has(.rendered-image, .shader-preview) {
       @apply w-fit max-w-full;
     }
   }

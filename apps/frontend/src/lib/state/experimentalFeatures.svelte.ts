@@ -26,7 +26,9 @@ class ClientExperiment {
 }
 
 export const experimentalFeatures = {
-  newMessageHeader: new ClientExperiment('new-message-header')
+  newMessageHeader: new ClientExperiment('new-message-header'),
+  /** Render tab and `glsl rendered` previews for GLSL code blocks in messages. */
+  glslShaders: new ClientExperiment('glsl-shaders')
 };
 
 /** Apply same-origin local storage changes to the mounted app. */

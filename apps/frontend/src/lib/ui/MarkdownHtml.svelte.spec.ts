@@ -151,6 +151,38 @@ describe('Sanitized SVG previews', () => {
   });
 });
 
+describe('GLSL shader previews', () => {
+  const webgl2 = !!document.createElement('canvas').getContext('webgl2');
+  const shader = (body: string) =>
+    renderMarkdown(
+      '```glsl rendered\nvoid mainImage(out vec4 c, in vec2 p) { ' + body + ' }\n```',
+      {
+        shaders: true
+      }
+    );
+
+  it.skipIf(!webgl2)('draws a valid shader and pauses it on request', async () => {
+    const { container } = render(MarkdownHtml, {
+      html: await shader('c = vec4(1.0, 0.0, 0.0, 1.0);')
+    });
+    await expect.poll(() => container.querySelector('canvas.shader-preview')).not.toBeNull();
+    const canvas = container.querySelector<HTMLCanvasElement>('canvas.shader-preview')!;
+    expect([...canvas.getContext('2d')!.getImageData(0, 0, 1, 1).data]).toEqual([255, 0, 0, 255]);
+    const pause = container.querySelector<HTMLButtonElement>('[aria-pressed]')!;
+    pause.click();
+    await expect.poll(() => pause.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it.skipIf(!webgl2)('reveals source when the shader does not compile', async () => {
+    const { container } = render(MarkdownHtml, { html: await shader('c = missing;') });
+    await expect
+      .poll(() => container.querySelector<HTMLButtonElement>('[data-code-tab="render"]')?.disabled)
+      .toBe(true);
+    expect(container.querySelector('canvas')).toBeNull();
+    expect(container.querySelector<HTMLElement>('.markdown-code-error')?.hidden).toBe(false);
+  });
+});
+
 describe('Mermaid previews', () => {
   it.each(['svg', 'mermaid'])(
     'reuses the loaded %s image when wheel scrolling remounts a row',

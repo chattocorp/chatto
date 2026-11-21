@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Eksperimentoj",
       "title": "Eksperimentaj funkcioj",
-      "new_message_header": "Nova mesaĝokapo"
+      "new_message_header": "Nova mesaĝokapo",
+      "glsl_shaders": "Antaŭrigardoj de GLSL-ombrigiloj"
     },
     "desktop": {
       "title": "Ĝisdatigoj",

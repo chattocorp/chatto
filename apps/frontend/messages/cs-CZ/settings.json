@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Experimenty",
       "title": "Experimentální funkce",
-      "new_message_header": "Nové záhlaví zprávy"
+      "new_message_header": "Nové záhlaví zprávy",
+      "glsl_shaders": "Náhledy shaderů GLSL"
     },
     "desktop": {
       "title": "Aktualizace",

@@ -132,6 +132,42 @@ describe('renderMarkdown', () => {
       );
     });
   });
+  describe('GLSL shader previews', () => {
+    const shader = 'void mainImage(out vec4 c, in vec2 p) { c = vec4(1.0); }\n';
+    const fence = '```glsl rendered\n' + shader + '```';
+
+    it('shows ordinary code unless the shader experiment is enabled', async () => {
+      for (const info of ['glsl', 'glsl rendered']) {
+        const html = await renderMarkdown('```' + info + '\n' + shader + '```');
+        expect(html).not.toContain('data-artifact');
+        expect(html).toContain('data-code-panel="source"');
+      }
+    });
+
+    it('offers Render and the rendered hint with the experiment', async () => {
+      const code = await renderMarkdown('```glsl\n' + shader + '```', { shaders: true });
+      expect(code).toContain('data-artifact="glsl" data-presentation="code"');
+      expect(code).toContain('data-code-panel="render" hidden');
+      const visual = await renderMarkdown(fence, { shaders: true });
+      expect(visual).toContain('data-presentation="visual"');
+      expect(visual).toContain('data-artifact-source="void mainImage');
+      expect(visual).not.toContain('data-code-panel="source"');
+    });
+
+    it('limits preview count and source length', async () => {
+      expect(
+        (await renderMarkdown(Array(5).fill(fence).join('\n\n'), { shaders: true })).match(
+          /data-presentation="visual"/g
+        )
+      ).toHaveLength(4);
+      expect(
+        await renderMarkdown('```glsl rendered\n' + 'x'.repeat(20_001) + '\n```', {
+          shaders: true
+        })
+      ).toContain(' disabled');
+    });
+  });
+
   describe('emoji shortcodes', () => {
     it('renders skin-tone compounds only in prose and retains invalid combinations', async () => {
       const source =

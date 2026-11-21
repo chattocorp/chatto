@@ -3,6 +3,7 @@
     "code_source": "Kaynak",
     "code_render": "Görünüm",
     "code_render_failed": "Önizleme kullanılamıyor. Kaynak hâlâ kullanılabilir.",
+    "code_shader": "GLSL gölgelendiricisi",
     "keyboard_shortcuts": {
       "title": "Klavye kısayolları",
       "app": "Uygulama",

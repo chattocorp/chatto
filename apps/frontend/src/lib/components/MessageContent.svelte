@@ -19,6 +19,7 @@
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { getAllContexts } from 'svelte';
   import { enhanceEntityLinks } from './messages/enhanceEntityLinks';
+  import { experimentalFeatures } from '$lib/state/experimentalFeatures.svelte';
 
   const enhanceLink = enhanceEntityLinks(getAllContexts());
 
@@ -155,7 +156,10 @@
   const sourceBody = $derived(body);
   const markdown = $derived.by(() => {
     getLocale();
-    return renderMd(sourceBody, { mentions: true });
+    return renderMd(sourceBody, {
+      mentions: true,
+      shaders: experimentalFeatures.glslShaders.enabled
+    });
   });
 
   /** Apply current message metadata without replacing unchanged Markdown DOM. */

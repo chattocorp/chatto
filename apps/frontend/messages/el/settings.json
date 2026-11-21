@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Πειράματα",
       "title": "Πειραματικές λειτουργίες",
-      "new_message_header": "Νέα κεφαλίδα μηνύματος"
+      "new_message_header": "Νέα κεφαλίδα μηνύματος",
+      "glsl_shaders": "Προεπισκοπήσεις shader GLSL"
     },
     "desktop": {
       "title": "Ενημερώσεις",

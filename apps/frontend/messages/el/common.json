@@ -3,6 +3,7 @@
     "code_source": "Πηγή",
     "code_render": "Προβολή",
     "code_render_failed": "Η προεπισκόπηση δεν είναι διαθέσιμη. Η πηγή παραμένει διαθέσιμη.",
+    "code_shader": "Shader GLSL",
     "keyboard_shortcuts": {
       "title": "Συντομεύσεις πληκτρολογίου",
       "app": "Εφαρμογή",

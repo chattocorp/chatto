@@ -15,11 +15,16 @@
   />
   <PaneContent>
     <Panel title={m('settings.experiments.title')} icon="iconify icon-[uil--flask]">
-      <div class="max-w-md">
+      <div class="flex max-w-md flex-col gap-4">
         <Checkbox
           id="new-message-header"
           label={m('settings.experiments.new_message_header')}
           bind:checked={experimentalFeatures.newMessageHeader.enabled}
+        />
+        <Checkbox
+          id="glsl-shaders"
+          label={m('settings.experiments.glsl_shaders')}
+          bind:checked={experimentalFeatures.glslShaders.enabled}
         />
       </div>
     </Panel>
