@@ -126,13 +126,14 @@ The workflow can also run manually from `main`.
 ## Maintenance branches
 
 Release preparation runs on `main` only. CI also tags and publishes pushes to
-`release-*` branches, with the same checks. To release a maintenance version,
+`release-[0-9]*` branches, with the same checks. To release a maintenance version,
 make the release commit on the branch with `mise x -- sweet bump <package-path>`
 and push it. Create the branch with a separate push first: CI does not tag the
 push that creates a branch. `highest` keeps a maintenance version from moving
 Latest, `latest` image tags, the npm `latest` tag, Homebrew, and the stable
 documentation. The environments `chatto-release`, `desktop-signing`, and
-`desktop-windows-signing` must allow the `release-*` branches. Do not use old
+`desktop-windows-signing` must allow the `release-[0-9]*` branches. Do not use
+`release-*`: it also matches the old, unprotected release-please branches. Do not use old
 commit footers to request releases. A branch that does not contain this release
 workflow does not publish its tags.
 
@@ -161,7 +162,7 @@ repository secrets; do not move them into `chatto-release`, because the
 publication job does not enter that environment. Signing secrets and Windows
 OIDC configuration remain in their existing environments. Keep the required
 reviewers on all three environments. The release jobs run in the CI run of a
-branch push, so the environments must allow `main` and the `release-*`
+branch push, so the environments must allow `main` and the `release-[0-9]*`
 branches. Manual desktop verification builds also use `main`.
 
 The same `approve-release` job also gates the client npm publication. Client
