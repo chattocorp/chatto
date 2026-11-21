@@ -21,7 +21,7 @@
     "save_failed": "Neizdevās saglabāt izmaiņas",
     "saving": "Notiek saglabāšana...",
     "save_button": "Saglabāt izmaiņas",
-    "description_help": "Tiek rādīts sveiciena ekrānā un izmantots kā saišu priekšskatījumu apraksts.",
+    "description_help": "Tiek rādīts serveru katalogā un servera informācijas lapā, kā arī izmantots kā saišu priekšskatījumu apraksts.",
     "motd_help": "Tērzēšanas galvenē tiek parādīts vienas rindiņas ziņojums. Atbalsta atzīmes.",
     "welcome_message_help": "Parādīts pieteikšanās lapā. Atbalsta atzīmes.",
     "logo_description": "Augšupielādējiet savas instances logotipu. Attēlu izmērs tiks mainīts uz 512x512 pikseļiem.",

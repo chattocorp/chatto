@@ -21,7 +21,7 @@
     "save_failed": "Změny se nepodařilo uložit",
     "saving": "Ukládání...",
     "save_button": "Uložit změny",
-    "description_help": "Zobrazuje se na uvítací obrazovce a používá se jako popis pro náhledy odkazů.",
+    "description_help": "Zobrazuje se v adresáři serverů a na stránce Informace o serveru a používá se jako popis pro náhledy odkazů.",
     "motd_help": "Jednořádková zpráva zobrazená v záhlaví chatu. Podporuje markdown.",
     "welcome_message_help": "Zobrazeno na přihlašovací stránce. Podporuje markdown.",
     "logo_description": "Nahrajte logo pro vaši instanci. Velikost obrázků bude změněna na 512 x 512 pixelů.",

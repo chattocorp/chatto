@@ -21,7 +21,7 @@
     "save_failed": "更改保存失败",
     "saving": "正在保存...",
     "save_button": "保存更改",
-    "description_help": "显示在欢迎屏幕上，并用作链接预览的描述。",
+    "description_help": "显示在服务器目录和服务器信息页面中，并用作链接预览的描述。",
     "motd_help": "显示在聊天标题栏中的单行消息。支持 Markdown。",
     "welcome_message_help": "显示在登录页面上。支持 Markdown。",
     "logo_description": "为您的实例上传徽标。图片将调整为 512x512 像素。",

@@ -23,15 +23,12 @@
     /**
      * Compact layout for pages where something else names the server: the
      * window bar of a sign-in window, or a title such as "Join {server}". The
-     * page shows only the server banner and description.
+     * page shows only the server banner and welcome message.
      */
     compact?: boolean;
     showBranding?: boolean;
     /** Public branding of a remote server; defaults to the origin auth context. */
-    serverInfo?: Pick<
-      PublicServerInfo,
-      'name' | 'iconUrl' | 'bannerUrl' | 'description' | 'welcomeMessage'
-    > | null;
+    serverInfo?: Pick<PublicServerInfo, 'name' | 'iconUrl' | 'bannerUrl' | 'welcomeMessage'> | null;
   } = $props();
 
   const serverInfo = $derived(
@@ -40,11 +37,12 @@
   const serverName = $derived(serverInfo?.name ?? 'Chatto');
   const iconUrl = $derived(serverInfo?.iconUrl ?? null);
   const bannerUrl = $derived(serverInfo?.bannerUrl ?? null);
-  const description = $derived(serverInfo?.description ?? null);
   const welcomeMessage = $derived(serverInfo?.welcomeMessage ?? null);
-  const hasBranding = $derived(bannerUrl || welcomeMessage || description);
+  // The server description is for server cards, the server information page,
+  // and link previews. Sign-in pages show the welcome message (FDR-020).
+  const hasBranding = $derived(bannerUrl || welcomeMessage);
   /**
-   * Without a banner, description, or welcome message, the server name sits
+   * Without a banner or welcome message, the server name sits
    * directly above the title. The two then read as one heading group: the
    * name leads, and the title is its quieter second line.
    */
@@ -56,7 +54,7 @@
   {#if showBranding && hasBranding && !compact}
     <div class="hidden flex-1 overflow-y-auto border-e border-border bg-surface/30 p-8 md:block">
       <div data-page-reveal>
-        <ServerBranding name={serverName} {iconUrl} {bannerUrl} {description} {welcomeMessage} />
+        <ServerBranding name={serverName} {iconUrl} {bannerUrl} {welcomeMessage} />
       </div>
     </div>
   {/if}
@@ -69,9 +67,9 @@
       <div data-page-reveal class="my-auto w-full max-w-sm">
         <!-- Show compact branding header on mobile, or when no left pane -->
         {#if showBranding && compact}
-          {#if bannerUrl || description}
+          {#if hasBranding}
             <div data-page-reveal class="mb-5">
-              <ServerBranding name={serverName} {iconUrl} {bannerUrl} {description} compact />
+              <ServerBranding name={serverName} {iconUrl} {bannerUrl} {welcomeMessage} compact />
             </div>
           {/if}
         {:else if showBranding && !hasBranding}
@@ -80,13 +78,7 @@
           </div>
         {:else if showBranding}
           <div data-page-reveal class="mb-8 md:hidden">
-            <ServerBranding
-              name={serverName}
-              {iconUrl}
-              {bannerUrl}
-              {description}
-              {welcomeMessage}
-            />
+            <ServerBranding name={serverName} {iconUrl} {bannerUrl} {welcomeMessage} />
           </div>
         {/if}
 

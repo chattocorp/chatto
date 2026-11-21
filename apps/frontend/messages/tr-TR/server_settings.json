@@ -21,7 +21,7 @@
     "save_failed": "Değişiklikler kaydedilemedi",
     "saving": "Kaydediliyor...",
     "save_button": "Değişiklikleri Kaydet",
-    "description_help": "Karşılama ekranında gösterilir ve bağlantı önizlemelerinin açıklaması olarak kullanılır.",
+    "description_help": "Sunucu Dizini'nde ve Sunucu bilgileri sayfasında gösterilir ve bağlantı önizlemelerinin açıklaması olarak kullanılır.",
     "motd_help": "Sohbet başlığında görüntülenen tek satırlık mesaj. İşaretlemeyi destekler.",
     "welcome_message_help": "Giriş sayfasında gösterilir. İşaretlemeyi destekler.",
     "logo_description": "Örneğiniz için bir logo yükleyin. Resimler 512x512 piksele yeniden boyutlandırılacaktır.",

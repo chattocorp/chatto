@@ -21,7 +21,7 @@
     "save_failed": "Impossibile salvare le modifiche",
     "saving": "Salvataggio...",
     "save_button": "Salva modifiche",
-    "description_help": "Visualizzato nella schermata di benvenuto e utilizzato come descrizione per le anteprime dei collegamenti.",
+    "description_help": "Visualizzato nella directory dei server e nella pagina Informazioni sul server, e utilizzato come descrizione per le anteprime dei collegamenti.",
     "motd_help": "Messaggio di una riga visualizzato nell'intestazione della chat. Supporta il ribasso.",
     "welcome_message_help": "Mostrato nella pagina di accesso. Supporta il ribasso.",
     "logo_description": "Carica un logo per la tua istanza. Le immagini verranno ridimensionate a 512x512 pixel.",

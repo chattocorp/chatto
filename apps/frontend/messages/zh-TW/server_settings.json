@@ -21,7 +21,7 @@
     "save_failed": "無法儲存變更",
     "saving": "儲存中...",
     "save_button": "儲存變更",
-    "description_help": "顯示於歡迎畫面，並用作連結預覽的說明。",
+    "description_help": "顯示於伺服器目錄和伺服器資訊頁面，並用作連結預覽的說明。",
     "motd_help": "顯示於聊天標頭的單行訊息。支援 Markdown。",
     "welcome_message_help": "顯示於登入頁面。支援 Markdown。",
     "logo_description": "上傳執行個體的標誌。圖片將調整為 512x512 像素。",
