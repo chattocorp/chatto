@@ -1,6 +1,6 @@
 # Import performance
 
-Run `mise bench-import` to measure a fresh synthetic interchange import through
+Run `mise bench-import` to measure a fresh synthetic CHIEF import through
 the CLI and the Operator API Unix socket. Set `CHATTO_BENCH_COUNT` to change the
 number of independent samples (default: three). Keep logs and profiles under
 `.context/bench/`. No Slack data, external API, or running dev server is needed.

@@ -1,6 +1,6 @@
-# Write a Chatto interchange converter
+# Write a CHIEF converter
 
-The format is a draft. The initial generic importer is available; export remains
+CHIEF (Chatto Import/Export Format) is a draft. The initial generic importer is available; export remains
 planned. Check the [supported import subset](../../schema/interchange/README.md).
 Build against the [specification](v1.md), not Chatto's
 internal EVT protobufs or the current Slack operator script.

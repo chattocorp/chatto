@@ -1,7 +1,7 @@
-# Convert Slack history to a Chatto archive
+# Convert Slack history to a CHIEF archive
 
-Use `slack-export.py` to convert a Slack ZIP or extracted directory into the
-[draft interchange format](../../docs/interchange/v1.md). The command writes users,
+Use `slack-export.py` to convert a Slack ZIP or extracted directory into a draft v1 archive
+in the [Chatto Import/Export Format (CHIEF)](../../docs/interchange/v1.md). The command writes users,
 channels, events, and original file bytes. It does not connect to Chatto.
 Python 3.11 or later and `uv` are required. Run from the repository checkout:
 
@@ -126,7 +126,7 @@ Slack supplies final message bodies and reaction sets. The converter writes
 times. Tombstones contain no body. Thread replies keep their root reference;
 the first reply establishes a thread without inventing its creation time.
 Known join/leave, name, topic, purpose, archive, and unarchive records become
-native interchange events. Channel changes require structured source fields;
+CHIEF events. Channel changes require structured source fields;
 the converter does not extract values from human-readable notice text.
 Every channel ends with an authoritative membership snapshot.
 

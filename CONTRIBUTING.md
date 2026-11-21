@@ -583,7 +583,7 @@ filter. Inspect the **Select jobs** step in CI to see the selection of a run.
 ## Repository Tooling Tests
 
 Run `mise test-repo-tooling` to test repository checks, release policy,
-build-output cleanup, development launchers, interchange schemas, and Slack
+build-output cleanup, development launchers, CHIEF schemas, and Slack
 import tooling. The task installs workspace dependencies and discovers
 `tools/*.test.mjs` files automatically. It runs Node test files one at a time,
 then runs the launcher shell test and the Python suites through

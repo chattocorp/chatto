@@ -90,7 +90,7 @@ product limits rather than an unbounded override.
 
 - **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-021 (dual
   asset storage), ADR-036 (runtime state), ADR-050 (projection snapshots),
-  [ADR-119](../adr/ADR-119-portable-history-interchange.md) (portable history interchange)
+  [ADR-119](../adr/ADR-119-portable-history-interchange.md) (CHIEF)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-016 (Voice
   Calls), FDR-018 (Account Lifecycle), FDR-033 (Message Search),
   [FDR-053](FDR-053-history-import-export.md) (History Import and Export)

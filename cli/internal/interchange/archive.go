@@ -1,4 +1,4 @@
-// Package interchange reads the portable history contract without contacting
+// Package interchange reads CHIEF archives without contacting
 // source platforms. Validation errors identify record positions, never content.
 //
 //go:generate go run ./internal/genschemas

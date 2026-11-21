@@ -288,7 +288,7 @@ func (m *cliArchiveImport) history(ctx context.Context) error {
 				return fmt.Errorf("membership reactions require an event ID from ImportRoomEvent; upgrade the destination server; older receipts cannot supply this ID")
 			}
 			for _, reaction := range d.Reactions {
-				// ImportReaction accepts names; interchange also permits Unicode.
+				// ImportReaction accepts names; CHIEF also permits Unicode.
 				emoji, err := core.HistoricalReactionName(reaction.Emoji)
 				if err != nil {
 					return err

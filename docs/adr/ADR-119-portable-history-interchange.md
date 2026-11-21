@@ -1,4 +1,4 @@
-# ADR-119: Portable History Interchange
+# ADR-119: CHIEF (Chatto Import/Export Format)
 
 **Date:** 2026-10-26
 
@@ -17,7 +17,7 @@ events would fabricate history.
 
 ## Decision
 
-Define an independent, versioned JSON interchange format. Its structural
+Use CHIEF as the independent, versioned JSON format for channel history. Its structural
 authority is JSON Schema Draft 2020-12. A written specification defines ordering,
 reference integrity, final-state rules, and compatibility. Synthetic archives
 and conformance tests accompany both. V1 remains a draft until runtime import,
@@ -40,7 +40,7 @@ This file contract is separate from the protobuf-first network APIs in
 [ADR-042](ADR-042-protobuf-first-public-api.md). It does not change EVT's
 protobuf storage contract. Reuse domain concepts and suitable value types,
 not the internal event union. Backup/restore remains the storage-and-key recovery
-mechanism; interchange transfers supported readable content and history.
+mechanism. CHIEF transfers supported readable content and history.
 
 The CLI reads and validates the archive, resolves source references, and calls
 individual Operator APIs. The server does not accept or parse archives.
