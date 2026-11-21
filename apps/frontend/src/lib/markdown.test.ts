@@ -686,6 +686,29 @@ describe('renderMarkdown', () => {
       );
     });
 
+    it('loads Lean on demand and highlights its syntax without changing source', async () => {
+      expect(isCodeLanguageLoaded('lean')).toBe(false);
+      expect(CODE_LANGUAGE_OPTIONS).toContainEqual({ value: 'lean', label: 'LEAN' });
+      const source = [
+        '-- Sum of a geometric series',
+        'theorem geometric_series_sum (x : Int) (n : Nat) :',
+        '  (x - 1) * ((List.range n).map (x ^ ·)).sum = x ^ n - 1 := by',
+        '  induction n <;> grind [List.range_succ]'
+      ].join('\n');
+
+      const html = await renderMarkdown('```lean\n' + source + '\n```');
+
+      expect(isCodeLanguageLoaded('lean')).toBe(true);
+      expect(html).toContain('data-language="lean"');
+      expect(html).toContain('language-lean');
+      expect(html).toContain('<span class="hljs-keyword">theorem</span>');
+      expect(html).toContain('<span class="hljs-number">1</span>');
+      expect(html).toContain('<span class="hljs-comment">-- Sum of a geometric series</span>');
+      expect(html).toContain(
+        `data-copy-source="${source.replaceAll('>', '&gt;').replaceAll('<', '&lt;')}\n"`
+      );
+    });
+
     it.each(['```js\nconst x = 1;\n```', '    indented code'])(
       'makes the code scroller keyboard focusable: %s',
       async (source) => {
