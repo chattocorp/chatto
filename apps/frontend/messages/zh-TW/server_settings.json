@@ -2,6 +2,8 @@
   "server_settings": {
     "loading": "載入中...",
     "general": "一般",
+    "profile_section": "資料",
+    "messages_section": "訊息",
     "logo": "標誌",
     "banner": "橫幅",
     "drop_image": "拖放圖片",
@@ -23,7 +25,7 @@
     "save_button": "儲存變更",
     "description_help": "顯示於伺服器目錄和伺服器資訊頁面，並用作連結預覽的說明。",
     "motd_help": "顯示於聊天標頭的單行訊息。支援 Markdown。",
-    "welcome_message_help": "顯示於登入頁面。支援 Markdown。",
+    "welcome_message_help": "在登入時和伺服器資訊頁面上顯示。支援 Markdown。",
     "logo_description": "上傳執行個體的標誌。圖片將調整為 512x512 像素。",
     "banner_description": "上傳執行個體的橫幅。橫幅也會用作連結預覽圖片；圖片將調整為 1200x630 像素（標準 OpenGraph 長寬比）。",
     "uploading": "上傳中...",

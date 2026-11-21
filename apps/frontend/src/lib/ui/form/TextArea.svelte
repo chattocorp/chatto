@@ -1,8 +1,6 @@
 <script lang="ts">
-  import { m } from '$lib/i18n/messages';
   import FormField from './FormField.svelte';
-
-  const textEncoder = new TextEncoder();
+  import { byteLimitDescription, createByteLimit } from './byteLimit';
 
   let {
     label,
@@ -35,47 +33,16 @@
     oninput?: (e: Event) => void;
   } = $props();
 
-  const effectiveDescription = $derived(
-    maxBytes === undefined
-      ? description
-      : [description, m('ui.form.max_bytes', { max: maxBytes })].filter(Boolean).join(' ')
-  );
+  const effectiveDescription = $derived(byteLimitDescription(description, maxBytes));
   const effectiveMaxlength = $derived(maxlength ?? maxBytes);
-  let acceptedValue = value;
+  const byteLimit = createByteLimit(() => maxBytes ?? Infinity);
 
   $effect(() => {
-    if (maxBytes === undefined || textEncoder.encode(value).byteLength <= maxBytes) {
-      acceptedValue = value;
-    }
+    byteLimit.track(value);
   });
 
-  function handleBeforeInput(event: InputEvent) {
-    if (maxBytes === undefined || !event.inputType.startsWith('insert')) return;
-
-    const input = event.currentTarget as HTMLTextAreaElement;
-    const insertedText =
-      event.data ??
-      event.dataTransfer?.getData('text/plain') ??
-      (event.inputType === 'insertLineBreak' || event.inputType === 'insertParagraph'
-        ? '\n'
-        : null);
-    if (insertedText == null) return;
-
-    const start = input.selectionStart ?? input.value.length;
-    const end = input.selectionEnd ?? start;
-    const nextValue = input.value.slice(0, start) + insertedText + input.value.slice(end);
-    if (textEncoder.encode(nextValue).byteLength > maxBytes) event.preventDefault();
-  }
-
   function handleInput(event: Event) {
-    const input = event.currentTarget as HTMLTextAreaElement;
-    if (maxBytes !== undefined && textEncoder.encode(input.value).byteLength > maxBytes) {
-      input.value = acceptedValue;
-      value = acceptedValue;
-    } else {
-      acceptedValue = input.value;
-      value = input.value;
-    }
+    value = byteLimit.accept(event.currentTarget as HTMLTextAreaElement);
     oninput?.(event);
   }
 </script>
@@ -84,7 +51,7 @@
   <textarea
     {id}
     data-testid={testid}
-    onbeforeinput={maxBytes === undefined ? undefined : handleBeforeInput}
+    onbeforeinput={maxBytes === undefined ? undefined : byteLimit.beforeinput}
     bind:value
     {placeholder}
     {required}

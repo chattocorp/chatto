@@ -20,13 +20,16 @@
   import { createMutation, createQuery, queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
 
-  import { Panel, Hint, LoadingDots } from '$lib/ui';
+  import { FormSection, Panel, Hint, LoadingDots } from '$lib/ui';
   import { TextInput, TextArea, Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/dom/dropZone.svelte';
   import DropZoneOverlay from '$lib/dom/DropZoneOverlay.svelte';
 
+  // Server limits from cli/internal/core/errors.go. They count UTF-8 bytes.
   const MAX_SERVER_DESCRIPTION_BYTES = 500;
+  const MAX_SERVER_MOTD_BYTES = 1000;
+  const MAX_SERVER_WELCOME_MESSAGE_BYTES = 10000;
 
   const serverScope = useServerScope();
   const session = createSessionGuard(serverScope);
@@ -282,41 +285,53 @@
     <!-- Server Details Form -->
     <Panel title={m('server_settings.general')} icon="iconify icon-[uil--edit]">
       <form onsubmit={handleSave} class="flex flex-col gap-4">
-        <TextInput
-          id="name"
-          label={m('server_settings.name_label')}
-          bind:value={() => name, (value) => edit('name', value)}
-          required
-          disabled={saving}
-          error={nameError}
-        />
+        <!-- Profile: how the server presents itself in lists and link previews. -->
+        <FormSection title={m('server_settings.profile_section')}>
+          <div class="flex flex-col gap-4">
+            <TextInput
+              id="name"
+              label={m('server_settings.name_label')}
+              bind:value={() => name, (value) => edit('name', value)}
+              required
+              disabled={saving}
+              error={nameError}
+            />
 
-        <TextArea
-          id="description"
-          label={m('server_settings.description_label')}
-          bind:value={() => description, (value) => edit('description', value)}
-          maxBytes={MAX_SERVER_DESCRIPTION_BYTES}
-          disabled={saving}
-          rows={2}
-          description={m('server_settings.description_help')}
-        />
+            <TextArea
+              id="description"
+              label={m('server_settings.description_label')}
+              bind:value={() => description, (value) => edit('description', value)}
+              maxBytes={MAX_SERVER_DESCRIPTION_BYTES}
+              disabled={saving}
+              rows={2}
+              description={m('server_settings.description_help')}
+            />
+          </div>
+        </FormSection>
 
-        <TextInput
-          id="motd"
-          label={m('common.message_of_the_day')}
-          bind:value={() => motd, (value) => edit('motd', value)}
-          disabled={saving}
-          description={m('server_settings.motd_help')}
-        />
+        <!-- Messages: what people read when they sign in and while they chat. -->
+        <FormSection title={m('server_settings.messages_section')} bordered>
+          <div class="flex flex-col gap-4">
+            <TextArea
+              id="welcome-message"
+              label={m('server_settings.welcome_message_label')}
+              bind:value={() => welcomeMessage, (value) => edit('welcomeMessage', value)}
+              maxBytes={MAX_SERVER_WELCOME_MESSAGE_BYTES}
+              rows={8}
+              disabled={saving}
+              description={m('server_settings.welcome_message_help')}
+            />
 
-        <TextArea
-          id="welcome-message"
-          label={m('server_settings.welcome_message_label')}
-          bind:value={() => welcomeMessage, (value) => edit('welcomeMessage', value)}
-          rows={3}
-          disabled={saving}
-          description={m('server_settings.welcome_message_help')}
-        />
+            <TextInput
+              id="motd"
+              label={m('common.message_of_the_day')}
+              bind:value={() => motd, (value) => edit('motd', value)}
+              maxBytes={MAX_SERVER_MOTD_BYTES}
+              disabled={saving}
+              description={m('server_settings.motd_help')}
+            />
+          </div>
+        </FormSection>
 
         {#if error}
           <FormError {error} />

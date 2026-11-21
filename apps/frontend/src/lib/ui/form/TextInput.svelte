@@ -1,5 +1,6 @@
 <script lang="ts">
   import FormField from './FormField.svelte';
+  import { byteLimitDescription, createByteLimit } from './byteLimit';
   import type { Snippet } from 'svelte';
   import type { HTMLInputAttributes } from 'svelte/elements';
 
@@ -20,6 +21,7 @@
     autocomplete,
     minlength,
     maxlength,
+    maxBytes,
     autofocus = false,
     leadingIcon,
     trailingText,
@@ -47,6 +49,8 @@
     autocomplete?: HTMLInputAttributes['autocomplete'];
     minlength?: number;
     maxlength?: number;
+    /** Reject edits whose UTF-8 encoding would exceed this many bytes. */
+    maxBytes?: number;
     autofocus?: boolean;
     /** Iconify class name (e.g. `'icon-[uil--search]'`). Renders a leading icon inside the input. */
     leadingIcon?: string;
@@ -66,9 +70,21 @@
     onkeydown?: (e: KeyboardEvent) => void;
     oninput?: (e: Event) => void;
   } = $props();
+
+  const effectiveDescription = $derived(byteLimitDescription(description, maxBytes));
+  const byteLimit = createByteLimit(() => maxBytes ?? Infinity);
+
+  $effect(() => {
+    byteLimit.track(value);
+  });
+
+  function handleInput(event: Event) {
+    value = byteLimit.accept(event.currentTarget as HTMLInputElement);
+    oninput?.(event);
+  }
 </script>
 
-<FormField {label} {id} {error} {description} {required} {labelHidden}>
+<FormField {label} {id} {error} description={effectiveDescription} {required} {labelHidden}>
   <div class="relative">
     {#if leadingIcon}
       <span
@@ -93,10 +109,11 @@
       {disabled}
       {autocomplete}
       {minlength}
-      {maxlength}
+      maxlength={maxlength ?? maxBytes}
       {autofocus}
       {onkeydown}
-      {oninput}
+      onbeforeinput={maxBytes === undefined ? undefined : byteLimit.beforeinput}
+      oninput={maxBytes === undefined ? oninput : handleInput}
       class={[
         'input',
         leadingIcon && 'ps-8',
@@ -104,7 +121,11 @@
         (trailingText || trailing) && 'pe-10'
       ]}
       aria-invalid={error ? 'true' : undefined}
-      aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
+      aria-describedby={error
+        ? `${id}-error`
+        : effectiveDescription
+          ? `${id}-description`
+          : undefined}
     />
     {#if leading}
       <div class="absolute inset-y-0 start-1 flex items-center">{@render leading()}</div>
