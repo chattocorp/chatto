@@ -97,7 +97,8 @@
     },
     "form": {
       "required": "Erforderlich",
-      "max_bytes": "Maximal {max} Byte; manche Zeichen benötigen mehr als ein Byte."
+      "length_limit_near": "Fast die maximale Länge erreicht.",
+      "length_limit_reached": "Maximale Länge erreicht."
     },
     "dates": {
       "today": "Heute",

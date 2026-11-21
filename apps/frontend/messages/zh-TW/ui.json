@@ -97,7 +97,8 @@
     },
     "form": {
       "required": "必填",
-      "max_bytes": "上限為 {max} 位元組；部分字元會使用超過一個位元組。"
+      "length_limit_near": "即將達到最大長度。",
+      "length_limit_reached": "已達到最大長度。"
     },
     "dates": {
       "today": "今天",

@@ -97,7 +97,8 @@
     },
     "form": {
       "required": "Povinné",
-      "max_bytes": "Maximum {max} bajtů; některé znaky používají více než jeden bajt."
+      "length_limit_near": "Blížíte se k maximální délce.",
+      "length_limit_reached": "Bylo dosaženo maximální délky."
     },
     "dates": {
       "today": "dnes",

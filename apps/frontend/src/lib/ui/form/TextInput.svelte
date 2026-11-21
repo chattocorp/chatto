@@ -71,7 +71,7 @@
     oninput?: (e: Event) => void;
   } = $props();
 
-  const effectiveDescription = $derived(byteLimitDescription(description, maxBytes));
+  const effectiveDescription = $derived(byteLimitDescription(description, maxBytes, value));
   const byteLimit = createByteLimit(() => maxBytes ?? Infinity);
 
   $effect(() => {

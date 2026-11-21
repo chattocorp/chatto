@@ -98,7 +98,8 @@
     },
     "form": {
       "required": "נדרש",
-      "max_bytes": "מקסימום {max} בתים; תווים מסוימים משתמשים ביותר מבייט אחד."
+      "length_limit_near": "כמעט הגעת לאורך המרבי.",
+      "length_limit_reached": "הגעת לאורך המרבי."
     },
     "dates": {
       "today": "היום",

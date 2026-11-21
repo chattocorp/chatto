@@ -4,9 +4,24 @@ import { render } from 'vitest-browser-svelte';
 import TextInput from './TextInput.svelte';
 
 describe('TextInput', () => {
-  it('formats large byte limits for the locale', () => {
-    const { container } = render(TextInput, { id: 'motd', label: 'MOTD', maxBytes: 10000 });
-    expect(container.textContent).toContain('Maximum 10,000 bytes');
+  it('mentions the length limit only near it', async () => {
+    const rendered = render(TextInput, {
+      id: 'motd',
+      label: 'MOTD',
+      description: 'Shown in the chat header.',
+      value: 'a'.repeat(89),
+      maxBytes: 100
+    });
+    expect(rendered.container.textContent).toContain('Shown in the chat header.');
+    expect(rendered.container.textContent).not.toContain('maximum length');
+
+    await rendered.rerender({ value: 'a'.repeat(90) });
+    expect(rendered.container.textContent).toContain(
+      'Shown in the chat header. Almost at the maximum length.'
+    );
+
+    await rendered.rerender({ value: 'a'.repeat(100) });
+    expect(rendered.container.textContent).toContain('Maximum length reached.');
   });
 
   it('communicates and enforces a UTF-8 byte limit', () => {
@@ -17,7 +32,7 @@ describe('TextInput', () => {
       maxBytes: 5
     });
     const input = container.querySelector('input')!;
-    expect(container.textContent).toContain('Maximum 5 bytes');
+    expect(container.textContent).not.toContain('maximum length');
 
     const blocked = new InputEvent('beforeinput', {
       bubbles: true,

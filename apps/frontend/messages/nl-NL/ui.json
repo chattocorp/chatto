@@ -97,7 +97,8 @@
     },
     "form": {
       "required": "Vereist",
-      "max_bytes": "Maximaal {max} bytes; sommige tekens gebruiken meer dan één byte."
+      "length_limit_near": "Bijna de maximale lengte bereikt.",
+      "length_limit_reached": "Maximale lengte bereikt."
     },
     "dates": {
       "today": "Vandaag",

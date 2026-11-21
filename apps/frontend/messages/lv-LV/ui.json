@@ -97,7 +97,8 @@
     },
     "form": {
       "required": "Obligāti",
-      "max_bytes": "Maksimums {max} baiti; dažas rakstzīmes izmanto vairāk nekā vienu baitu."
+      "length_limit_near": "Gandrīz sasniegts maksimālais garums.",
+      "length_limit_reached": "Sasniegts maksimālais garums."
     },
     "dates": {
       "today": "Šodien",

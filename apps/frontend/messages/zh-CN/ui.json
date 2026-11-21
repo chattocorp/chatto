@@ -97,7 +97,8 @@
     },
     "form": {
       "required": "必填",
-      "max_bytes": "最多 {max} 字节；部分字符会占用多个字节。"
+      "length_limit_near": "即将达到最大长度。",
+      "length_limit_reached": "已达到最大长度。"
     },
     "dates": {
       "today": "今天",

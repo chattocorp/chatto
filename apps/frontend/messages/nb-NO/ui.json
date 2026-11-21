@@ -97,7 +97,8 @@
     },
     "form": {
       "required": "Obligatorisk",
-      "max_bytes": "Maksimalt {max} byte; noen tegn bruker mer enn én byte."
+      "length_limit_near": "Nesten på maksimal lengde.",
+      "length_limit_reached": "Maksimal lengde er nådd."
     },
     "dates": {
       "today": "I dag",

@@ -97,7 +97,8 @@
     },
     "form": {
       "required": "Bezonata",
-      "max_bytes": "Maksimume {max} bajtoj; iuj signoj uzas pli ol unu bajton."
+      "length_limit_near": "Preskaŭ ĉe la maksimuma longo.",
+      "length_limit_reached": "Maksimuma longo atingita."
     },
     "dates": {
       "today": "Hodiaŭ",

@@ -27,7 +27,7 @@ describe('TextArea', () => {
     const textarea = container.querySelector('textarea')!;
 
     expect(textarea.maxLength).toBe(5);
-    expect(container.textContent).toContain('Maximum 5 bytes');
+    expect(container.textContent).toContain('Maximum length reached.');
 
     textarea.select();
     insert(textarea, 'draft!');

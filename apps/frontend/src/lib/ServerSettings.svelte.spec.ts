@@ -114,7 +114,7 @@ describe('ServerSettings', () => {
     const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
 
     expect(textarea.maxLength).toBe(500);
-    expect(container.textContent).toContain('Maximum 500 bytes');
+    expect(container.textContent).not.toContain('maximum length');
 
     inputDescription(textarea, 'a'.repeat(501));
     expect(textarea.value).toBe('Original description');

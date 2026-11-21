@@ -97,7 +97,8 @@
     },
     "form": {
       "required": "Gerekli",
-      "max_bytes": "Maksimum {max} bayt; bazı karakterler birden fazla bayt kullanır."
+      "length_limit_near": "Neredeyse azami uzunluğa ulaşıldı.",
+      "length_limit_reached": "Azami uzunluğa ulaşıldı."
     },
     "dates": {
       "today": "Bugün",

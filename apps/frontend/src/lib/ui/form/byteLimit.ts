@@ -1,23 +1,31 @@
 import { m } from '$lib/i18n/messages';
-import { getLocale } from '$lib/i18n/runtime';
 
 const textEncoder = new TextEncoder();
 
 type TextField = HTMLInputElement | HTMLTextAreaElement;
 
-/** Returns the field description with the byte limit appended, if there is one. */
+/** Share of the limit at which the field starts to warn. */
+const NEAR_LIMIT = 0.9;
+
+/**
+ * Returns the field description, followed by a length notice when `value`
+ * comes near `maxBytes`. The notice does not name the byte count: people
+ * think in characters, and a character can use several bytes.
+ */
 export function byteLimitDescription(
   description: string | undefined,
-  maxBytes: number | undefined
+  maxBytes: number | undefined,
+  value: string
 ) {
-  return maxBytes === undefined
-    ? description
-    : [
-        description,
-        m('ui.form.max_bytes', { max: new Intl.NumberFormat(getLocale()).format(maxBytes) })
-      ]
-        .filter(Boolean)
-        .join(' ');
+  if (maxBytes === undefined) return description;
+  const used = textEncoder.encode(value).byteLength;
+  const notice =
+    used >= maxBytes
+      ? m('ui.form.length_limit_reached')
+      : used >= maxBytes * NEAR_LIMIT
+        ? m('ui.form.length_limit_near')
+        : undefined;
+  return [description, notice].filter(Boolean).join(' ') || undefined;
 }
 
 /**

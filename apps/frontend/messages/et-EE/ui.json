@@ -97,7 +97,8 @@
     },
     "form": {
       "required": "Nõutav",
-      "max_bytes": "Maksimaalselt {max} baiti; mõned märgid kasutavad rohkem kui ühte baiti."
+      "length_limit_near": "Peaaegu maksimaalne pikkus.",
+      "length_limit_reached": "Maksimaalne pikkus on täis."
     },
     "dates": {
       "today": "Täna",
