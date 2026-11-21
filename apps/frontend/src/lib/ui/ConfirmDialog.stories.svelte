@@ -77,7 +77,7 @@
     title="End Call for Everyone"
     tone="warning"
     actionLabel="End Call"
-    actionIcon="iconify icon-[uil--phone-slash]"
+    actionIcon="iconify icon-[uil--phone] rotate-135"
     onconfirm={() => (warningVisible = false)}
     onclose={() => (warningVisible = false)}
   >

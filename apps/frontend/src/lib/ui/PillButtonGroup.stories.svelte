@@ -35,7 +35,7 @@
     <span class="iconify icon-[uil--desktop]" aria-hidden="true"></span>
   </button>
   <button class="pill-button" aria-label="Leave call">
-    <span class="iconify icon-[uil--phone-slash] text-danger" aria-hidden="true"></span>
+    <span class="iconify icon-[uil--phone] rotate-135 text-danger" aria-hidden="true"></span>
   </button>
 {/snippet}
 
