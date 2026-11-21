@@ -49,20 +49,21 @@ check whose details are in a different System section links to that section.
     unknown: m('admin.system.health.status_unknown')
   });
 
-  const overallTitle = $derived(
-    overall === 'critical'
-      ? m('admin.system.health.overall_critical')
-      : overall === 'warning'
-        ? m('admin.system.health.overall_warning')
-        : m('admin.system.health.overall_ok')
-  );
+  const overallTitle = $derived<Record<HealthStatus, string>>({
+    ok: m('admin.system.health.overall_ok'),
+    warning: m('admin.system.health.overall_warning'),
+    critical: m('admin.system.health.overall_critical'),
+    unknown: m('admin.system.health.overall_unknown')
+  });
 
   const overallSummary = $derived(
-    overall !== 'ok'
-      ? m('admin.system.health.overall_problem_summary')
-      : checks.some((check) => check.status === 'unknown')
-        ? m('admin.system.health.overall_partial_summary')
-        : m('admin.system.health.overall_ok_summary')
+    overall === 'unknown'
+      ? m('admin.system.health.overall_unknown_summary')
+      : overall !== 'ok'
+        ? m('admin.system.health.overall_problem_summary')
+        : checks.some((check) => check.status === 'unknown')
+          ? m('admin.system.health.overall_partial_summary')
+          : m('admin.system.health.overall_ok_summary')
   );
 
   const checkLabel = $derived<Record<HealthCheckId, string>>({
@@ -129,7 +130,9 @@ check whose details are in a different System section links to that section.
         data-testid="system-health-overall-icon"
       ></span>
       <div class="min-w-0">
-        <div class="text-xl font-semibold" data-testid="system-health-overall">{overallTitle}</div>
+        <div class="text-xl font-semibold" data-testid="system-health-overall">
+          {overallTitle[overall]}
+        </div>
         <div class="mt-1 text-sm text-muted">{overallSummary}</div>
       </div>
     </div>

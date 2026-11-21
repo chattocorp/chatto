@@ -2,7 +2,8 @@ import type { AdminSystemInfo } from '$lib/api/adminDiagnostics';
 
 /**
  * Severity of one health check. `unknown` means the server did not report
- * the data that the check needs; it never raises the overall status.
+ * the data that the check needs. It never raises the overall status above
+ * the other checks; see `overallHealth`.
  */
 export type HealthStatus = 'ok' | 'warning' | 'critical' | 'unknown';
 
@@ -79,13 +80,16 @@ export function systemHealthChecks(info: AdminSystemInfo): HealthCheck[] {
   return checks;
 }
 
-/** Returns the most severe status of the checks, or `ok` when all are unknown. */
-export function overallHealth(checks: HealthCheck[]): Exclude<HealthStatus, 'unknown'> {
-  const worst = checks.reduce<HealthStatus>(
+/**
+ * Returns the most severe status of the checks. Unknown checks are ignored
+ * when at least one check has data, so a mix of unknown and ok checks is ok.
+ * When no check has data (including an empty list), the result is `unknown`.
+ */
+export function overallHealth(checks: HealthCheck[]): HealthStatus {
+  return checks.reduce<HealthStatus>(
     (current, check) => (severity[check.status] > severity[current] ? check.status : current),
-    'ok'
+    'unknown'
   );
-  return worst === 'unknown' ? 'ok' : worst;
 }
 
 /**
