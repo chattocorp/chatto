@@ -71,6 +71,11 @@ invent proof or announce a fix on the basis of a guess.
 For a verified resolution, call reply_to_thread with the origin memory document
 ID and its exact room/thread IDs. Send one short update to that thread, for example:
 “✅ A fix for [#123](issue URL) has landed on `main`: [PR](PR URL).”
+The text argument is the final message and is posted immediately. Never send a
+placeholder, test message, or routing metadata. Keep destination IDs in their
+dedicated tool arguments. Prepare the complete notification before calling the
+tool. A successful send consumes the origin’s idempotency key; do not attempt
+to replace its text by calling the tool again.
 Briefly describe the fix if useful. Do not claim it is released, deployed, or
 available in a downloadable version unless separately verified. No unsolicited
 mentions, DMs, other destinations, or channel roots. This standing workflow

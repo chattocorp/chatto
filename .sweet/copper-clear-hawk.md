@@ -19,3 +19,5 @@ Klaus checks GitHub changes before starting an announcement agent and skips chan
 Botto follows human replies in threads it opens for announcements, without requiring another mention. Participation survives restarts, and existing confirmed announcement threads are registered on startup. Klaus treats reports of missed messages as uncertain behavior to investigate instead of inventing routing explanations.
 
 Enable `thread_replies` to let Klaus notify the original reporting thread when an owner-authorized issue has a verified fix on the configured branch. Issue origins and delivery receipts use the existing Means collection. Later pushes can catch up on missed notifications, including pushes without new release notes. A fix notification does not imply that the change is released or deployed.
+
+Issue-thread notifications reject message bodies that contain only destination metadata before sending. Rejected metadata-only messages do not consume the delivery key. Notification instructions also require complete final text and prohibit placeholder or test sends.

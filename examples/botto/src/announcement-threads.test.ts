@@ -90,3 +90,21 @@ test('propagates an uncertain send instead of returning a receipt', async () => 
   );
   await expect(call()).rejects.toThrow('Announcement thread delivery failed. Connection refused.');
 });
+
+test('rejects routing-only text before lookup and permits a corrected notification', async () => {
+  const { call, getMessage, createMessage } = await setup();
+  getMessage.mockResolvedValue(undefined);
+  for (const text of [
+    'thread_root_id EQV0DKTBlhnnvyM',
+    'threadRootId: root',
+    'room_id room\nthread_root_id root',
+    'root'
+  ]) {
+    await expect(call({ text })).rejects.toThrow('Nothing was sent');
+  }
+  expect(getMessage).not.toHaveBeenCalled();
+  expect(createMessage).not.toHaveBeenCalled();
+  getMessage.mockResolvedValue({ id: 'root', roomId: 'room', authorId: 'reporter' });
+  await call({ text: '✅ The syntax highlighting fix has landed on main.' });
+  expect(createMessage).toHaveBeenCalledTimes(1);
+});

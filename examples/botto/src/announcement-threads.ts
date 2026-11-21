@@ -17,13 +17,18 @@ export function announcementThreadTools(
       name: 'reply_to_thread',
       label: 'Notify the original thread',
       description:
-        'Post a short issue-resolution update to an existing Chatto thread recorded in memory. Use only after verifying that the recorded issue has a fixing commit included at the immutable after revision of this push; the fix may come from an earlier push. Supply the original issue-origin memory document ID, not a new receipt ID. Record the returned message ID in a new memory receipt after success. This cannot post a channel root.',
+        'Post a short issue-resolution update to an existing Chatto thread recorded in memory. Use only after verifying that the recorded issue has a fixing commit included at the immutable after revision of this push; the fix may come from an earlier push. Supply the original issue-origin memory document ID, not a new receipt ID. The text is posted immediately and verbatim: supply the complete final fix notification, never a placeholder, test send, or destination metadata. Keep room and thread IDs in their dedicated arguments. After success, do not send revised wording with the same origin; record the returned message ID in a new memory receipt. This cannot post a channel root.',
       parameters: Type.Object(
         {
           originMemoryId: Type.String({ minLength: 1, maxLength: 100 }),
           roomId: Type.String({ minLength: 1, maxLength: 200 }),
           threadRootId: Type.String({ minLength: 1, maxLength: 200 }),
-          text: Type.String({ minLength: 1, maxLength: 1000 })
+          text: Type.String({
+            minLength: 1,
+            maxLength: 1000,
+            description:
+              'Complete user-facing fix notification, posted immediately. No placeholders or routing metadata.'
+          })
         },
         { additionalProperties: false }
       ),
@@ -40,6 +45,20 @@ export function announcementThreadTools(
           text.length > 1000
         )
           throw new Error('Provide a memory origin, existing thread, and short notification.');
+        // Reject routing-only output before sending: a bad send would consume the origin's key.
+        const body = text.trim();
+        const metadataOnly = body
+          .split(/\r?\n/)
+          .filter((line) => line.trim())
+          .every((line) =>
+            /^(?:thread_root_id|threadRootId|room_id|roomId|origin_memory_id|originMemoryId)\s*[:=]?\s+\S+$/i.test(
+              line.trim()
+            )
+          );
+        if ([threadRootId, roomId, originMemoryId].includes(body) || metadataOnly)
+          throw new Error(
+            'Nothing was sent. Provide the complete user-facing fix notification in text; keep destination metadata in its dedicated arguments.'
+          );
         const root = await announcementStep('thread lookup', () =>
           server.getMessage({ roomId, messageId: threadRootId }, { signal })
         );
@@ -56,7 +75,7 @@ export function announcementThreadTools(
         // Chatto requires a hyphenated UUID. Version 8 carries our deterministic digest.
         const idempotencyKey = `${digest.slice(0, 8)}-${digest.slice(8, 12)}-8${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
         const sent = await announcementStep('thread delivery', () =>
-          server.createMessage({ roomId, threadRootId }, text.trim(), {
+          server.createMessage({ roomId, threadRootId }, body, {
             signal,
             idempotencyKey
           })
