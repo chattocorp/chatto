@@ -171,6 +171,8 @@ class Player {
   #frame = 0;
   #last: number | undefined;
   #playing = false;
+  /** Paused for using up the frame budget. Pointer input does not redraw it. */
+  #slowed = false;
   #mouse: [number, number, number, number] = [0, 0, 0, 0];
   #events: ShaderPlayerEvents;
 
@@ -189,6 +191,8 @@ class Player {
     this.#playing = playing;
     this.#last = undefined;
     if (playing) {
+      this.#slowed = false;
+      redraws.delete(this);
       active.add(this);
       schedule();
     } else {
@@ -196,7 +200,10 @@ class Player {
     }
   }
 
-  /** Apply pointer input in render pixels. A paused preview draws the change at once. */
+  /**
+   * Apply pointer input in render pixels. A paused preview draws the change in
+   * the next animation frame, within the frame budget.
+   */
   pointer(kind: PointerKind, x: number, y: number) {
     const mouse = this.#mouse;
     if (kind === 'press') {
@@ -209,7 +216,10 @@ class Player {
       if (mouse[2] <= 0) return;
       mouse[2] = -mouse[2];
     }
-    if (!this.#playing) this.check(this.draw());
+    if (!this.#playing && !this.#slowed) {
+      redraws.add(this);
+      schedule();
+    }
   }
 
   /**
@@ -255,13 +265,20 @@ class Player {
   }
 
   slow() {
-    this.setPlaying(false);
+    this.stop();
+    this.#slowed = true;
     this.#events.onslow();
   }
 
   fail() {
-    this.setPlaying(false);
+    this.stop();
     this.#events.onerror();
+  }
+
+  /** Stop playback and drop a pending redraw. */
+  stop() {
+    this.setPlaying(false);
+    redraws.delete(this);
   }
 }
 
@@ -270,20 +287,27 @@ export type PointerKind = 'press' | 'move' | 'release';
 
 const pixel = new Uint8Array(4);
 const active = new Set<Player>();
+/** Paused previews with pointer input to draw in the next animation frame. */
+const redraws = new Set<Player>();
 let scheduled = false;
 
 function schedule() {
-  if (scheduled || !active.size) return;
+  if (scheduled || (!active.size && !redraws.size)) return;
   scheduled = true;
   requestAnimationFrame(tick);
 }
 
-/** Draw all playing previews. Pause each preview that takes the total over budget. */
+/**
+ * Draw all playing previews and pending redraws of paused previews. Pause each
+ * preview that takes the total over budget.
+ */
 function tick(now: number) {
   scheduled = false;
   let spent = 0;
-  for (const player of [...active]) {
-    const elapsed = player.draw(now);
+  const pending = [...redraws];
+  redraws.clear();
+  for (const player of [...active, ...pending]) {
+    const elapsed = player.draw(active.has(player) ? now : undefined);
     if (elapsed === null) continue;
     spent += elapsed;
     if (spent > FRAME_BUDGET_MS) player.slow();
@@ -329,6 +353,6 @@ export function createShaderPlayer(
         Math.min(Math.max(u, 0), 1) * SHADER_WIDTH,
         (1 - Math.min(Math.max(v, 0), 1)) * SHADER_HEIGHT
       ),
-    dispose: () => player.setPlaying(false)
+    dispose: () => player.stop()
   };
 }

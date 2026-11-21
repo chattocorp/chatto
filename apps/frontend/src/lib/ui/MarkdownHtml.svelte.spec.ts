@@ -188,6 +188,39 @@ describe('GLSL shader previews', () => {
     await expect.poll(pixel).toEqual([255, 0, 255, 255]);
   });
 
+  it.skipIf(!webgl2)('steers iMouse with a touch drag instead of app gestures', async () => {
+    // Red: the touch is down in the right half. Blue: the touch ended.
+    const { container } = render(MarkdownHtml, {
+      html: await shader(
+        'c = vec4(iMouse.z > 0.0 && iMouse.x > 320.0 ? 1.0 : 0.0, 0.0, iMouse.z < 0.0 ? 1.0 : 0.0, 1.0);'
+      )
+    });
+    await expect.poll(() => container.querySelector('canvas.shader-preview')).not.toBeNull();
+    const canvas = container.querySelector<HTMLCanvasElement>('canvas.shader-preview')!;
+    expect(getComputedStyle(canvas).touchAction).toBe('none');
+    expect(canvas.closest('[data-sidebar-swipe-ignore]')).toBe(canvas);
+    const pixel = () => [...canvas.getContext('2d')!.getImageData(0, 0, 1, 1).data];
+    const bounds = canvas.getBoundingClientRect();
+    const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', u?: number) =>
+      cdp().send('Input.dispatchTouchEvent', {
+        type,
+        touchPoints:
+          u === undefined
+            ? []
+            : [{ x: bounds.left + bounds.width * u, y: bounds.top + bounds.height / 2 }]
+      });
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
+    try {
+      await touch('touchStart', 0.2);
+      for (const u of [0.4, 0.6, 0.8]) await touch('touchMove', u);
+      await expect.poll(pixel).toEqual([255, 0, 0, 255]);
+      await touch('touchEnd');
+      await expect.poll(pixel).toEqual([0, 0, 255, 255]);
+    } finally {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+    }
+  });
+
   it.skipIf(!webgl2)('reveals source when the shader does not compile', async () => {
     const { container } = render(MarkdownHtml, { html: await shader('c = missing;') });
     await expect
