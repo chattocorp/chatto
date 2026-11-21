@@ -47,41 +47,50 @@ then continues the same sign-in (FDR-058). It runs in the sign-in window.
   {#if !atprotoHandleContinuationUrl(next, 'x', page.url.origin)}
     <Hint tone="danger">{m('auth.sso.invalid')}</Hint>
   {:else}
-    <form class="flex flex-col gap-4" onsubmit={handleSubmit}>
+    <!-- The page title names the field, so the label stays for assistive
+         technology only and the help text leads the form as its intro. -->
+    <p class="mb-8 text-center leading-relaxed text-balance text-muted">
+      {m('auth.login.atproto_handle_help')}
+    </p>
+    <form class="flex flex-col gap-5" onsubmit={handleSubmit}>
       {#if notFound}
         <Hint tone="danger">{m('auth.login.error.atproto_identity_not_found')}</Hint>
       {/if}
-      <TextInput
-        id="atproto-handle"
-        label={m('auth.login.atproto_handle_label')}
-        description={m('auth.login.atproto_handle_help', {
-          example: '@' + m('auth.login.atproto_handle_placeholder')
-        })}
-        placeholder={m('auth.login.atproto_handle_placeholder')}
-        autocomplete="username"
-        leadingIcon="icon-[mdi--at]"
-        autofocus
-        required
-        bind:value={handle}
-        disabled={submitting}
-      />
-      {#if remembered && handle === remembered}
-        <div class="-mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <span class="text-sm text-muted">{m('auth.login.atproto_handle_saved')}</span>
-          <button
-            type="button"
-            class="cursor-pointer text-sm link"
-            disabled={submitting}
-            onclick={forgetHandle}>{m('auth.remote.forget_atproto_handle')}</button
-          >
-        </div>
-      {/if}
+      <div class="flex flex-col gap-2">
+        <TextInput
+          id="atproto-handle"
+          label={m('auth.login.atproto_handle_label')}
+          labelHidden
+          placeholder={m('auth.login.atproto_handle_placeholder')}
+          autocomplete="username"
+          leadingIcon="icon-[mdi--at]"
+          autofocus
+          required
+          bind:value={handle}
+          disabled={submitting}
+        />
+        {#if remembered && handle === remembered}
+          <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-1">
+            <span class="text-sm text-muted">{m('auth.login.atproto_handle_saved')}</span>
+            <button
+              type="button"
+              class="cursor-pointer text-sm link"
+              disabled={submitting}
+              onclick={forgetHandle}>{m('auth.remote.forget_atproto_handle')}</button
+            >
+          </div>
+        {/if}
+      </div>
       <Button type="submit" size="lg" fullWidth loading={submitting} disabled={!handle.trim()}>
         {m('common.continue')}
       </Button>
-      <Hint plain icon="icon-[uil--shield-check]">
-        {m('auth.login.atproto_handle_next', { server: getServerInfo()?.name || 'Chatto' })}
-      </Hint>
+      <div class="mt-4">
+        <Hint plain icon="icon-[uil--shield-check]">
+          <p class="leading-relaxed text-pretty">
+            {m('auth.login.atproto_handle_next', { server: getServerInfo()?.name || 'Chatto' })}
+          </p>
+        </Hint>
+      </div>
     </form>
   {/if}
 </AuthLayout>
