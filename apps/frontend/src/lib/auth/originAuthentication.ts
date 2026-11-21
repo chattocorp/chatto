@@ -9,13 +9,12 @@ import { hasPendingReturnNavigation, resumeReturnNavigation } from './returnNavi
  * already took ownership of navigation. Remote-server authentication is
  * deliberately untouched.
  * Set resumeReturnNavigation to false when an explicit provider continuation
- * must finish before the opening tab can resume its saved app destination.
+ * must finish before the saved app destination can resume.
  */
 export async function completeOriginAuthentication(
   options: { resumeReturnNavigation?: boolean } = {}
 ): Promise<boolean> {
-  // A provider window can inherit the opening tab's sessionStorage. Its explicit
-  // continuation owns navigation until it reports completion to that tab.
+  // An explicit provider continuation owns navigation until it completes.
   const shouldResumeReturnNavigation =
     options.resumeReturnNavigation !== false && hasPendingReturnNavigation();
   const routeBeforeInvalidation =

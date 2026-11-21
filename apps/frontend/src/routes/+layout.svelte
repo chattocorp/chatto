@@ -33,7 +33,6 @@
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { serverRegistry } from '$lib/client';
   import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
-  import { isProviderCallback } from '$lib/auth/providerContinuation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { AppUiState, provideAppUiState } from '$lib/state/appUi.svelte';
@@ -110,14 +109,7 @@
     )
       return true;
     if (page.route.id === '/servers/callback') {
-      return ['popup', 'provider'].includes(page.url.searchParams.get('mode') ?? '');
-    }
-    if (page.route.id === '/sso/confirm') {
-      // The confirmation load data says where the sign-in returns.
-      const redirectPath: unknown = page.data?.pending?.redirectPath;
-      return (
-        isSafeInternalPath(redirectPath) && isProviderCallback(new URL(redirectPath, page.url))
-      );
+      return page.url.searchParams.get('mode') === 'popup';
     }
     if (page.route.id !== '/login' && page.route.id !== '/register') return false;
     const redirect = page.url.searchParams.get('redirect');

@@ -6,8 +6,9 @@ description: Let people sign in to Chatto with OIDC, GitHub, GitLab, Google, Dis
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
 Add a login provider as a `[[auth.providers]]` entry in `chatto.toml`. The
-login page shows one button for each provider. Sign-in and account linking open
-in a popup, so users must allow popups for Chatto.
+login page shows one button for each provider. Sign-in continues in the same
+window. Account linking opens in a popup, so users must allow popups for Chatto
+to link an account.
 
 ## Supported providers
 
@@ -145,7 +146,7 @@ auto_provision = true
 - Do not set `client_id`, `client_secret`, `scopes`, `request_email`, or the
   group settings. Chatto rejects them for this type.
 - The default button label is "Internet Handle". Set `label` to change it.
-- The sign-in window asks for the handle, for example `alice.bsky.social`.
+- The sign-in page asks for the handle, for example `alice.bsky.social`.
 - Chatto requests only the `atproto` scope. It proves the account and gives
   Chatto no access to the user's posts or other data.
 - The account link uses the account's DID. A changed handle does not change

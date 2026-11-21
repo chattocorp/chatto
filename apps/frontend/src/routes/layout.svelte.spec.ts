@@ -282,25 +282,6 @@ describe('OAuth page layout', () => {
     Object.assign(page, { url: new URL('https://chat.example.test/'), data: {} });
   });
 
-  it.each([
-    ['/servers/callback?mode=provider&state=abc', false],
-    ['/', true],
-    ['/servers/callback?mode=provider', true]
-  ] as const)(
-    'shows app navigation on SSO confirmation returning to %s: %s',
-    async (redirectPath, framed) => {
-      page.route.id = '/sso/confirm';
-      Object.assign(page, {
-        url: new URL('https://chat.example.test/sso/confirm?token=abc'),
-        data: { pending: { redirectPath } }
-      });
-      const view = renderLayout();
-      if (framed)
-        await expect.element(view.getByTestId('sign-in-window-header')).not.toBeInTheDocument();
-      else await expect.element(view.getByTestId('sign-in-window-header')).toBeInTheDocument();
-    }
-  );
-
   it('restores app navigation when client-side navigation leaves OAuth login', async () => {
     page.route.id = '/login';
     Object.assign(page, {
@@ -322,7 +303,6 @@ describe('OAuth page layout', () => {
     ['/oauth/consent', ''],
     ['/sso/handle', '?next=%2Fauth%2Fproviders%2Fatproto'],
     ['/servers/callback', '?mode=popup'],
-    ['/servers/callback', '?mode=provider'],
     ['/login', '?redirect=%2Foauth%2Fauthorize'],
     ['/login', '?redirect=%2Foauth%2Fauthorize%3Fclient_id%3Dtest'],
     ['/login', '?redirect=%2Foauth%2Fconsent']

@@ -128,16 +128,11 @@ test('transfers an editable Authling profile into a new Chatto account', async (
   await page.getByRole('button', { name: 'Sign out' }).click();
 
   await page.goto(routes.login);
-  const popupPromise = page.waitForEvent('popup');
   await page.getByRole('link', { name: /Authling/ }).click();
-  const popup = await popupPromise;
-  await popup.getByLabel('Email address').fill(email);
-  await popup.getByLabel('Password').fill(password);
-  await popup.getByRole('button', { name: 'Sign in' }).click();
-  const closed = popup.waitForEvent('close');
-  await popup.getByRole('button', { name: 'Authorize' }).click();
-  // The popup hands the new account to the window that opened it (FDR-023).
-  await closed;
+  await page.getByLabel('Email address').fill(email);
+  await page.getByLabel('Password').fill(password);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Authorize' }).click();
 
   await expect(page.getByRole('heading', { name: /^Join / })).toBeVisible();
   await expect(page.getByLabel('Username')).toHaveValue(preferredUsername);

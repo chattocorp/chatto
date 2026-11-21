@@ -147,30 +147,7 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByRole('button', { name: 'Create Account' })).toBeEnabled();
   });
 
-  test('offers one-click retry while provider sign-in is pending', async ({ page, context }) => {
-    await context.route('**/auth/providers/github-main?**', (route) =>
-      route.fulfill({ contentType: 'text/html', body: '<p>Test provider consent</p>' })
-    );
-    await page.goto(routes.login);
-
-    const firstPopup = page.waitForEvent('popup');
-    await page.getByRole('link', { name: 'Continue with GitHub' }).click();
-    await expect((await firstPopup).getByText('Test provider consent')).toBeVisible();
-
-    await expect(
-      page.getByRole('status').filter({ hasText: 'Continue in the other window.' })
-    ).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Continue with Discord' })).toBeDisabled();
-    await expect(page.getByRole('link', { name: 'Continue with password' })).toBeDisabled();
-
-    const replacement = page.waitForEvent('popup');
-    await page.getByRole('button', { name: 'Try Again' }).click();
-    await expect((await replacement).getByText('Test provider consent')).toBeVisible();
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect(page.getByRole('link', { name: 'Continue with GitHub' })).toBeEnabled();
-  });
-
-  test('signs in through a popup from the origin login page and resumes its destination', async ({
+  test('signs in from the origin login page in the same window and resumes its destination', async ({
     page,
     context,
     serverURL
@@ -182,17 +159,15 @@ test.describe('External identity confirmation flows', () => {
         data: { identifier: 'e2eadmin', password: 'adminpassword123' }
       });
       expect(response.ok()).toBe(true);
-      const callback = new URL(route.request().url()).searchParams.get('redirect');
-      expect(callback).toContain('/servers/callback?mode=provider&state=');
-      await route.fulfill({ status: 302, headers: { Location: callback! } });
+      const redirect = new URL(route.request().url()).searchParams.get('redirect');
+      expect(redirect).toBe(destination);
+      await route.fulfill({ status: 302, headers: { Location: redirect! } });
     });
     await page.goto(`/login?redirect=${encodeURIComponent(destination)}`);
-    const popupPromise = page.waitForEvent('popup');
     await page.getByRole('link', { name: 'Continue with GitHub' }).click();
-    const popup = await popupPromise;
-    await expect.poll(() => popup.isClosed()).toBe(true);
     await expect(page).toHaveURL(new URL(destination, serverURL).href);
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
+    expect(context.pages()).toHaveLength(1);
   });
 
   test('confirms the password in origin account settings before opening the provider popup', async ({
@@ -254,7 +229,7 @@ test.describe('External identity confirmation flows', () => {
     await expect(page).toHaveURL(new RegExp(routes.settingsAccount + '$'));
   });
 
-  test('creates a provider account in a popup from registration', async ({
+  test('creates a provider account from registration in the same window', async ({
     page,
     context,
     authPage
@@ -266,40 +241,18 @@ test.describe('External identity confirmation flows', () => {
         providerId: 'github-main',
         providerType: 'github',
         providerLabel: 'GitHub',
-        subject: `create-popup-${Date.now()}`,
-        loginHint: 'popupsignup',
-        displayNameHint: 'Popup Signup',
+        subject: `create-register-${Date.now()}`,
+        loginHint: 'registersignup',
+        displayNameHint: 'Register Signup',
         redirectPath
       });
       await route.fulfill({ status: 302, headers: { Location: flow.confirmUrl } });
     });
     await page.goto('/register');
-    const popupPromise = page.waitForEvent('popup');
     await page.getByRole('link', { name: 'Continue with GitHub' }).click();
-    const popup = await popupPromise;
-    await popup.getByRole('button', { name: 'Create account', exact: true }).click();
-    await expect.poll(() => popup.isClosed()).toBe(true);
+    await page.getByRole('button', { name: 'Create account', exact: true }).click();
     await expect(page).toHaveURL(routes.patterns.chatRedirect);
-  });
-
-  test('recovers when the user closes the provider sign-in popup', async ({ page, context }) => {
-    await context.route('**/auth/providers/github-main?**', (route) =>
-      route.fulfill({ contentType: 'text/html', body: '<p>Test provider consent</p>' })
-    );
-    await page.goto(routes.login);
-    const popupPromise = page.waitForEvent('popup');
-    await page.getByRole('link', { name: 'Continue with GitHub' }).click();
-    const popup = await popupPromise;
-    await popup.close();
-    // An isolated provider page looks closed to the opener, so the page keeps
-    // waiting until the user cancels (FDR-023).
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect(page.getByRole('link', { name: 'Continue with GitHub' })).not.toHaveAttribute(
-      'aria-busy',
-      'true'
-    );
-    await expect(page.getByRole('link', { name: 'Continue with password' })).toBeEnabled();
-    await expect(page).toHaveURL(/\/login$/);
+    expect(context.pages()).toHaveLength(1);
   });
 
   test('explains unlinked provider sign-in when account creation is disabled', async ({ page }) => {
@@ -410,16 +363,16 @@ test.describe('External identity confirmation flows', () => {
   });
 
   for (const outcome of ['linked', 'denied', 'conflict'] as const) {
-    test(`continues existing-account provider sign-in in its popup: ${outcome}`, async ({
+    test(`continues existing-account provider sign-in in the same window: ${outcome}`, async ({
       page,
       context,
       authPage,
       serverURL
     }) => {
-      const user = await createAndLoginTestUser(page, { loginPrefix: 'existingpopup' });
+      const user = await createAndLoginTestUser(page, { loginPrefix: 'existingsso' });
       await logoutCurrentUser(page);
       const destination = '/chat/-/settings/account';
-      const subject = `existing-popup-${Date.now()}`;
+      const subject = `existing-sso-${Date.now()}`;
       let callback = '';
       let startCount = 0;
       let createToken = '';
@@ -482,34 +435,28 @@ test.describe('External identity confirmation flows', () => {
         }
         await route.fulfill({ status: 302, headers: { Location: target.href } });
       });
-      await page.goto('/login');
-      await page.evaluate((path) => sessionStorage.setItem('returnUrl', path), destination);
-      const popupPromise = page.waitForEvent('popup');
+      await page.goto(`/login?redirect=${encodeURIComponent(destination)}`);
       await page.getByRole('link', { name: 'Continue with Discord' }).click();
-      const popup = await popupPromise;
-      await popup.getByRole('link', { name: 'Sign in to existing account' }).click();
-      await popup.getByLabel('Username or Email').fill(user.login);
-      await popup.getByLabel('Password', { exact: true }).fill(user.password);
-      await popup.getByRole('button', { name: 'Sign In', exact: true }).click();
-      await expect(popup.getByText(`@${user.login}`, { exact: true })).toBeVisible();
+      await page.getByRole('link', { name: 'Sign in to existing account' }).click();
+      expect(callback).toBe(destination);
+      await page.getByLabel('Username or Email').fill(user.login);
+      await page.getByLabel('Password', { exact: true }).fill(user.password);
+      await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+      await expect(page.getByText(`@${user.login}`, { exact: true })).toBeVisible();
       await expect(
-        popup.getByRole('button', { name: 'Create account', exact: true })
+        page.getByRole('button', { name: 'Create account', exact: true })
       ).not.toBeVisible();
-      await popup.getByRole('button', { name: 'Link Account', exact: true }).click();
-      await expect.poll(() => popup.isClosed()).toBe(true);
+      await page.getByRole('button', { name: 'Link Account', exact: true }).click();
+      // A failed link returns to the saved path with its error code.
+      await expect(page).toHaveURL(
+        new RegExp(`${destination}${outcome === 'linked' ? '$' : '\\?error='}`)
+      );
+      const row = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
+      const linkedButton = outcome === 'linked' ? 'Disconnect' : 'Link';
+      await expect(row.getByRole('button', { name: linkedButton, exact: true })).toBeVisible();
       if (outcome === 'linked') {
-        await expect(page).toHaveURL(new URL(destination, serverURL).href);
-        const row = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
-        await expect(row.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();
         await page.reload();
         await expect(row.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();
-      } else {
-        await expect(page).toHaveURL(/\/login$/);
-        await expect(page.getByRole('link', { name: 'Continue with Discord' })).not.toHaveAttribute(
-          'aria-busy',
-          'true'
-        );
-        expect(await page.evaluate(() => sessionStorage.getItem('returnUrl'))).toBe(destination);
       }
       const abandoned = await context.request.post(
         '/api/connect/chatto.auth.v1.ExternalIdentityAuthService/GetPendingExternalIdentity',
@@ -519,31 +466,23 @@ test.describe('External identity confirmation flows', () => {
     });
   }
 
-  test('cancels provider confirmation without reporting successful sign-in', async ({
-    page,
-    context,
-    authPage
-  }) => {
+  test('cancels provider confirmation without signing in', async ({ page, context, authPage }) => {
     await context.route('**/auth/providers/discord-main?**', async (route) => {
       const flow = await authPage.createExternalIdentityFlow({
         kind: 'create',
         providerId: 'discord-main',
         providerType: 'discord',
         providerLabel: 'Discord',
-        subject: `cancel-popup-${Date.now()}`,
+        subject: `cancel-sso-${Date.now()}`,
         redirectPath: new URL(route.request().url()).searchParams.get('redirect')!
       });
       await route.fulfill({ status: 302, headers: { Location: flow.confirmUrl } });
     });
     await page.goto('/login');
-    const popupPromise = page.waitForEvent('popup');
     await page.getByRole('link', { name: 'Continue with Discord' }).click();
-    const popup = await popupPromise;
-    await popup.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect.poll(() => popup.isClosed()).toBe(true);
-    await expect(page).toHaveURL(/\/login$/);
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(page).toHaveURL(routes.login);
     await expect(page.getByRole('link', { name: 'Continue with password' })).toBeEnabled();
-    await expect(page.getByText('Login failed')).toBeVisible();
   });
 
   test('links a pending provider identity to the authenticated account', async ({

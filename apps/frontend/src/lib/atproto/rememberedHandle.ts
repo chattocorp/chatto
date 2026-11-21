@@ -4,8 +4,8 @@
  * The handle page suggests it, and the signed-out screen of another server
  * offers **Continue as @handle** with it. It is only a hint: each server
  * still signs the user in through its own provider. The handle page stores
- * the entered handle as pending; the window that started the sign-in keeps it
- * after the sign-in succeeds.
+ * the entered handle as pending. The app keeps it when it next loads with a
+ * signed-in origin session.
  */
 
 import { Codecs, globalSlot } from '@chatto/client/storage/slot';
