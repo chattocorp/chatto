@@ -13,6 +13,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
@@ -231,8 +232,9 @@ func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.
 	for index, identity := range linked {
 		identity.DisconnectEligibility = disconnectAvailability(s.api, identities[index], identities, hasPassword)
 	}
+	credential, _ := authctx.CredentialForContext(ctx)
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{
-		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities),
+		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities, credential.Kind == authctx.RuntimeCredentialKindCookieSession),
 		LinkedIdentities: linked,
 	}), nil
 }
@@ -258,8 +260,60 @@ func (s *accountService) StartExternalIdentityLink(ctx context.Context, req *con
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.StartExternalIdentityLinkResponse{
-		StartUrl: s.api.externalIdentityLinkStartURL(ctx, provider.ID, token),
+		StartUrl: s.api.externalIdentityStartURL(ctx, provider.ID, "link", "link_start", token),
 	}), nil
+}
+
+// StartFreshAuthReverification binds a provider sign-in to the calling
+// credential. The provider callback marks that credential fresh when the
+// provider identity belongs to the caller (see FDR-023).
+func (s *accountService) StartFreshAuthReverification(ctx context.Context, req *connect.Request[apiv1.StartFreshAuthReverificationRequest]) (*connect.Response[apiv1.StartFreshAuthReverificationResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	provider, ok := s.api.authProvider(req.Msg.GetProviderId())
+	if !ok {
+		return nil, core.ErrNotFound
+	}
+	redirectPath := req.Msg.GetRedirectPath()
+	if redirectPath != "" && !isValidInternalRedirectPath(redirectPath) {
+		return nil, core.ErrInvalidArgument
+	}
+	// Only a cookie session can bind the provider callback to this browser.
+	credential, ok := authctx.CredentialForContext(ctx)
+	if !ok || credential.UserID != caller.UserID {
+		return nil, core.ErrFreshAuthRequired
+	}
+	if credential.Kind != authctx.RuntimeCredentialKindCookieSession {
+		return nil, core.ErrFreshAuthReverificationUnavailable
+	}
+	identities, err := s.api.core.ExternalIdentitiesForUser(ctx, caller.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if !providerCanReverify(provider, identities) {
+		return nil, core.ErrFreshAuthReverificationUnavailable
+	}
+	token, err := s.api.core.CreateFreshAuthReverificationStart(ctx, provider.ID, redirectPath, credential.Handle)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.StartFreshAuthReverificationResponse{
+		StartUrl: s.api.externalIdentityStartURL(ctx, provider.ID, "reverify", "reverify_start", token),
+	}), nil
+}
+
+// providerCanReverify reports whether provider can confirm a recent sign-in
+// of the user with identities. Only OpenID Connect can force a new provider
+// sign-in (prompt=login, max_age=0) and prove it with auth_time. Other
+// provider types can pass an existing provider session through silently.
+func providerCanReverify(provider config.AuthProviderConfig, identities []core.ExternalIdentity) bool {
+	if provider.Type != config.AuthProviderTypeOpenIDConnect {
+		return false
+	}
+	_, linked := providerLinkedIdentity(provider, identities)
+	return linked
 }
 
 func (s *accountService) DisconnectExternalIdentity(ctx context.Context, req *connect.Request[apiv1.DisconnectExternalIdentityRequest]) (*connect.Response[apiv1.DisconnectExternalIdentityResponse], error) {
@@ -300,7 +354,9 @@ func apiPendingExternalIdentity(flow *core.PendingExternalIdentityFlow) *authv1.
 	}
 }
 
-func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identities []core.ExternalIdentity) []*apiv1.ExternalIdentityProvider {
+// apiExternalIdentityProviders lists providers for the settings UI.
+// cookieSession reports whether the caller's credential can re-verify.
+func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identities []core.ExternalIdentity, cookieSession bool) []*apiv1.ExternalIdentityProvider {
 	result := make([]*apiv1.ExternalIdentityProvider, 0, len(providers))
 	for _, provider := range providers {
 		escapedID := url.PathEscape(provider.ID)
@@ -310,6 +366,7 @@ func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identit
 			Linked:                    linked,
 			LinkedIdentitySubjectHash: linkedIdentity.SubjectHash,
 			Provider:                  apiProviderMetadata(provider),
+			ReverificationAvailable:   cookieSession && providerCanReverify(provider, identities),
 		})
 	}
 	return result
@@ -353,15 +410,17 @@ func (a *API) authProvider(providerID string) (config.AuthProviderConfig, bool) 
 	return config.AuthProviderConfig{}, false
 }
 
-func (a *API) externalIdentityLinkStartURL(ctx context.Context, providerID, token string) string {
+// externalIdentityStartURL returns the browser URL that starts a provider
+// flow with intent and a one-time handoff token in tokenParam.
+func (a *API) externalIdentityStartURL(ctx context.Context, providerID, intent, tokenParam, token string) string {
 	baseURL := strings.TrimRight(requestBaseURLFromContext(ctx), "/")
 	if baseURL == "" {
 		baseURL = strings.TrimRight(a.config.Webserver.URL, "/")
 	}
 	path := "/auth/providers/" + url.PathEscape(providerID)
 	values := url.Values{}
-	values.Set("intent", "link")
-	values.Set("link_start", token)
+	values.Set("intent", intent)
+	values.Set(tokenParam, token)
 	return baseURL + path + "?" + values.Encode()
 }
 

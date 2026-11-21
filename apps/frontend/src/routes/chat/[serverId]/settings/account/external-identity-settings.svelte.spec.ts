@@ -21,6 +21,8 @@ const { mocks } = vi.hoisted(() => ({
     replaceState: vi.fn(),
     list: vi.fn(),
     startLink: vi.fn(),
+    startReverification: vi.fn(),
+    navigateToProvider: vi.fn(),
     disconnect: vi.fn(),
     serverId: 'origin',
     accountId: 'user-alice' as string | null,
@@ -41,6 +43,7 @@ const connection = {
   getAPI: () => ({
     list: mocks.list,
     startLink: mocks.startLink,
+    startReverification: mocks.startReverification,
     disconnect: mocks.disconnect
   })
 };
@@ -52,6 +55,8 @@ vi.mock('$lib/client', async () => ({
     clearServerAuthentication: mocks.clearServerAuthentication
   }
 }));
+
+vi.mock('./providerNavigation', () => ({ navigateToProvider: mocks.navigateToProvider }));
 
 vi.mock('$app/state', () => ({
   page: {
@@ -485,6 +490,11 @@ describe('external identity settings query lifecycle', () => {
   });
 });
 
+function continuation(userId = 'user-alice', providerId = 'github-main') {
+  mocks.url.searchParams.set('link_provider', providerId);
+  mocks.url.searchParams.set('link_user', userId);
+}
+
 function unlinkedIdentityList() {
   const list = linkedIdentityList();
   list.providers[0].linked = false;
@@ -518,11 +528,6 @@ describe('identity link popup and continuation', () => {
     const popup = { closed: false, opener: {}, close: vi.fn() };
     const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
     return { popup, open };
-  }
-
-  function continuation(userId = 'user-alice', providerId = 'github-main') {
-    mocks.url.searchParams.set('link_provider', providerId);
-    mocks.url.searchParams.set('link_user', userId);
   }
 
   it('opens remote settings synchronously without submitting credentials to the remote API', async () => {
@@ -825,11 +830,12 @@ describe('identity link popup and continuation', () => {
     continuation();
     renderSettings();
     await expect
-      .element(browserPage.getByText(/Open account settings on the server that owns this account/))
+      .element(browserPage.getByText(/sign in again before you change your sign-in methods/))
       .toBeVisible();
     await expect
       .element(browserPage.getByRole('dialog', { name: 'Link GitHub?' }))
       .not.toBeInTheDocument();
+    expect(mocks.startReverification).not.toHaveBeenCalled();
   });
 
   it('opens the password dialog ready for input', async () => {
@@ -869,6 +875,158 @@ describe('identity link popup and continuation', () => {
       .toBeVisible();
     expect(mocks.startLink).toHaveBeenLastCalledWith(
       expect.objectContaining({ currentPassword: 'test-password' })
+    );
+  });
+});
+
+function reverifiableIdentityList(extraProviders = 0) {
+  const list = unlinkedIdentityList();
+  const ssoProviders = Array.from({ length: 1 + extraProviders }, (_, index) => ({
+    id: index === 0 ? 'sso' : `sso-${index}`,
+    type: 'oidc',
+    label: index === 0 ? 'Chatto ID' : `Other SSO ${index}`,
+    loginUrl: '/auth/providers/sso',
+    linkUrl: '/auth/providers/sso?intent=link',
+    linked: true,
+    linkedIdentitySubjectHash: `sso-subject-${index}`,
+    reverificationAvailable: true
+  }));
+  return {
+    providers: [...list.providers, ...ssoProviders],
+    linkedIdentities: ssoProviders.map((provider) => ({
+      providerId: provider.id,
+      providerType: 'oidc',
+      providerLabel: provider.label,
+      subjectHash: provider.linkedIdentitySubjectHash,
+      disconnectEligibility: DisconnectEligibility.ALLOWED
+    }))
+  };
+}
+
+describe('fresh sign-in through a linked provider', () => {
+  beforeEach(() => {
+    mocks.directLoginEnabled = false;
+    queryClient.clear();
+    vi.clearAllMocks();
+    mocks.url = new URL('http://localhost/chat/-/settings/account');
+    mocks.replaceState.mockImplementation((url: string | URL) => {
+      mocks.url = new URL(url, mocks.url);
+    });
+    mocks.serverId = 'origin';
+    mocks.scopeCurrent = true;
+    connection.serverId = 'origin';
+    mocks.list.mockResolvedValue(reverifiableIdentityList());
+    mocks.startLink.mockRejectedValue(
+      new ConnectError('fresh authentication is required', Code.FailedPrecondition)
+    );
+    mocks.disconnect.mockRejectedValue(
+      new ConnectError('fresh authentication is required', Code.FailedPrecondition)
+    );
+    mocks.startReverification.mockResolvedValue('https://chat.example.test/auth/reverify');
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('re-verifies with the only linked provider, then links in the provider window', async () => {
+    const popup = { closed: false, opener: {} };
+    const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
+    await vi.waitFor(() =>
+      expect(mocks.startReverification).toHaveBeenCalledWith({
+        providerId: 'sso',
+        redirectPath: '/chat/-/settings/account?link_provider=github-main&link_user=user-alice'
+      })
+    );
+    await vi.waitFor(() =>
+      expect(open).toHaveBeenCalledWith(
+        'https://chat.example.test/auth/reverify',
+        '_blank',
+        expect.any(String)
+      )
+    );
+    expect(popup.opener).toBeNull();
+    expect(mocks.navigateToProvider).not.toHaveBeenCalled();
+  });
+
+  it('lets the user choose when several providers can re-verify', async () => {
+    mocks.list.mockResolvedValue(reverifiableIdentityList(1));
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
+    const dialog = browserPage.getByRole('dialog', { name: 'Confirm it’s you' });
+    await expect.element(dialog).toBeVisible();
+    expect(mocks.startReverification).not.toHaveBeenCalled();
+    await dialog.getByRole('button', { name: 'Sign in again with Other SSO 1' }).click();
+    await vi.waitFor(() =>
+      expect(mocks.startReverification).toHaveBeenCalledWith(
+        expect.objectContaining({ providerId: 'sso-1' })
+      )
+    );
+  });
+
+  it('resumes the link after re-verification and does not loop on a repeated failure', async () => {
+    continuation();
+    mocks.url.searchParams.set('reverified', '1');
+    renderSettings();
+    await vi.waitFor(() => expect(mocks.startLink).toHaveBeenCalledOnce());
+    expect(mocks.url.search).toBe('');
+    await expect
+      .element(browserPage.getByText(/sign in again before you change your sign-in methods/))
+      .toBeVisible();
+    expect(mocks.startReverification).not.toHaveBeenCalled();
+  });
+
+  it('offers another attempt when the identity belongs to a different account', async () => {
+    continuation();
+    mocks.url.searchParams.set('error', 'reverification_mismatch');
+    renderSettings();
+    const dialog = browserPage.getByRole('dialog', { name: 'Confirm it’s you' });
+    await expect
+      .element(dialog.getByText(/identity that belongs to a different account/))
+      .toBeVisible();
+    expect(mocks.startLink).not.toHaveBeenCalled();
+    await dialog.getByRole('button', { name: 'Sign in again with Chatto ID' }).click();
+    await vi.waitFor(() =>
+      expect(mocks.startReverification).toHaveBeenCalledWith({
+        providerId: 'sso',
+        redirectPath: '/chat/-/settings/account?link_provider=github-main&link_user=user-alice'
+      })
+    );
+  });
+
+  it('re-verifies before a disconnect and asks for confirmation again on return', async () => {
+    renderSettings();
+    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await browserPage
+      .getByRole('dialog', { name: 'Disconnect provider' })
+      .getByRole('button', { name: 'Disconnect', exact: true })
+      .click();
+    await vi.waitFor(() =>
+      expect(mocks.startReverification).toHaveBeenCalledWith({
+        providerId: 'sso',
+        redirectPath:
+          '/chat/-/settings/account?disconnect_identity=sso-subject-0&link_user=user-alice'
+      })
+    );
+    await vi.waitFor(() =>
+      expect(mocks.navigateToProvider).toHaveBeenCalledWith(
+        'https://chat.example.test/auth/reverify'
+      )
+    );
+  });
+
+  it('shows the disconnect confirmation for a resumed disconnect', async () => {
+    mocks.url.searchParams.set('disconnect_identity', 'sso-subject-0');
+    mocks.url.searchParams.set('link_user', 'user-alice');
+    mocks.url.searchParams.set('reverified', '1');
+    mocks.disconnect.mockResolvedValue(undefined);
+    renderSettings();
+    const dialog = browserPage.getByRole('dialog', { name: 'Disconnect provider' });
+    await expect.element(dialog).toBeVisible();
+    expect(mocks.url.search).toBe('');
+    expect(mocks.disconnect).not.toHaveBeenCalled();
+    await dialog.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await vi.waitFor(() =>
+      expect(mocks.disconnect).toHaveBeenCalledWith('sso-subject-0', undefined)
     );
   });
 });

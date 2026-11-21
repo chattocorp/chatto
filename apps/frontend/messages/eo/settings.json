@@ -529,7 +529,14 @@
         "link_button": "Ligo",
         "link_failed": "Malsukcesis ligi la ensalutprovizanton",
         "fresh_auth_required": "Ensalutu denove antaŭ ligi alian provizanton.",
-        "sso_fresh_auth_required": "Malfermu la kontajn agordojn sur la servilo, al kiu apartenas ĉi tiu konto. Elsalutu kaj ensalutu denove per via SSO-provizanto, poste reprovu la agon tie.",
+        "sso_fresh_auth_required": "Pro via sekureco, ensalutu denove antaŭ ol ŝanĝi viajn ensalutmetodojn. Elsalutu, ensalutu per via ensaluta provizanto kaj poste reprovu.",
+        "reverification_failed": "Chatto ne povis konfirmi vian ensaluton. Reprovu.",
+        "reverification_mismatch": "Vi ensalutis per identeco, kiu apartenas al alia konto. Uzu identecon ligitan al ĉi tiu konto.",
+        "reverify_modal": {
+          "title": "Konfirmu, ke tio estas vi",
+          "body": "Pro via sekureco, ensalutu denove per provizanto ligita al ĉi tiu konto. Poste Chatto daŭrigos vian agon.",
+          "action": "Ensaluti denove per {provider}"
+        },
         "provider_unconfigured": "Provizanto ne plu agordita",
         "disconnect_button": "Malkonekti",
         "disconnecting": "Malkonekto...",

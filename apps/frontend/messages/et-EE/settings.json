@@ -529,7 +529,14 @@
         "link_button": "Link",
         "link_failed": "Sisselogimisteenuse pakkuja linkimine ebaõnnestus",
         "fresh_auth_required": "Enne teise pakkuja linkimist logige uuesti sisse.",
-        "sso_fresh_auth_required": "Avage konto seaded serveris, kuhu see konto kuulub. Logige välja ja logige oma SSO-pakkuja kaudu uuesti sisse ning proovige toimingut seejärel seal uuesti.",
+        "sso_fresh_auth_required": "Turvalisuse huvides logige enne sisselogimisviiside muutmist uuesti sisse. Logige välja, logige oma sisselogimisteenuse pakkuja kaudu sisse ja proovige uuesti.",
+        "reverification_failed": "Chatto ei saanud teie sisselogimist kinnitada. Proovige uuesti.",
+        "reverification_mismatch": "Logisite sisse identiteediga, mis kuulub teisele kontole. Kasutage selle kontoga seotud identiteeti.",
+        "reverify_modal": {
+          "title": "Kinnitage, et see olete teie",
+          "body": "Turvalisuse huvides logige uuesti sisse selle kontoga seotud teenusepakkuja kaudu. Seejärel jätkab Chatto teie toiminguga.",
+          "action": "Logi uuesti sisse teenusega {provider}"
+        },
         "provider_unconfigured": "Pakkuja pole enam konfigureeritud",
         "disconnect_button": "Katkesta ühendus",
         "disconnecting": "Ühenduse katkestamine...",

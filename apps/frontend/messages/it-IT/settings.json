@@ -529,7 +529,14 @@
         "link_button": "Collegamento",
         "link_failed": "Impossibile collegare il provider di accesso",
         "fresh_auth_required": "Accedi nuovamente prima di collegare un altro provider.",
-        "sso_fresh_auth_required": "Apri le impostazioni dell'account sul server a cui appartiene questo account. Esci e accedi di nuovo tramite il tuo provider SSO, quindi riprova l'azione su quel server.",
+        "sso_fresh_auth_required": "Per sicurezza, accedi di nuovo prima di modificare i tuoi metodi di accesso. Esci, accedi tramite il tuo provider di accesso e poi riprova.",
+        "reverification_failed": "Chatto non è riuscito a confermare il tuo accesso. Riprova.",
+        "reverification_mismatch": "Hai effettuato l’accesso con un’identità che appartiene a un altro account. Usa un’identità collegata a questo account.",
+        "reverify_modal": {
+          "title": "Conferma che sei tu",
+          "body": "Per sicurezza, accedi di nuovo con un provider collegato a questo account. Chatto proseguirà poi con la tua azione.",
+          "action": "Accedi di nuovo con {provider}"
+        },
         "provider_unconfigured": "Fornitore non più configurato",
         "disconnect_button": "Disconnetti",
         "disconnecting": "Disconnessione...",

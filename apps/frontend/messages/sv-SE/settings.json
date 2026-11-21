@@ -529,7 +529,14 @@
         "link_button": "Länk",
         "link_failed": "Det gick inte att länka inloggningsleverantören",
         "fresh_auth_required": "Logga in igen innan du länkar en annan leverantör.",
-        "sso_fresh_auth_required": "Öppna kontoinställningarna på servern som kontot tillhör. Logga ut och logga in igen via din SSO-leverantör och försök sedan utföra åtgärden där igen.",
+        "sso_fresh_auth_required": "Av säkerhetsskäl behöver du logga in igen innan du ändrar dina inloggningsmetoder. Logga ut, logga in via din inloggningsleverantör och försök sedan igen.",
+        "reverification_failed": "Chatto kunde inte bekräfta din inloggning. Försök igen.",
+        "reverification_mismatch": "Du loggade in med en identitet som tillhör ett annat konto. Använd en identitet som är kopplad till det här kontot.",
+        "reverify_modal": {
+          "title": "Bekräfta att det är du",
+          "body": "Av säkerhetsskäl behöver du logga in igen med en leverantör som är kopplad till det här kontot. Sedan fortsätter Chatto med din åtgärd.",
+          "action": "Logga in igen med {provider}"
+        },
         "provider_unconfigured": "Leverantören är inte längre konfigurerad",
         "disconnect_button": "Koppla bort",
         "disconnecting": "Kopplar bort...",

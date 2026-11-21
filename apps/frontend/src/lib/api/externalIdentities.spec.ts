@@ -156,7 +156,8 @@ describe('createExternalIdentityAPI', () => {
           loginUrl: 'https://remote.example.test/auth/providers/github-main',
           linkUrl: 'https://remote.example.test/auth/providers/github-main?intent=link',
           linked: true,
-          linkedIdentitySubjectHash: 'abc123'
+          linkedIdentitySubjectHash: 'abc123',
+          reverificationAvailable: false
         }
       ],
       linkedIdentities: [
@@ -218,6 +219,35 @@ describe('createExternalIdentityAPI', () => {
       providerId: 'github-main',
       redirectPath: '/chat/-/settings/account'
     });
+  });
+
+  it('starts a fresh-auth re-verification', async () => {
+    account.startFreshAuthReverification.mockReturnValue({
+      startUrl: 'https://remote.example.test/auth/providers/sso?intent=reverify&reverify_start=tok'
+    });
+
+    const api = createExternalIdentityAPI(config());
+
+    await expect(
+      api.startReverification({ providerId: 'sso', redirectPath: '/chat/-/settings/account' })
+    ).resolves.toBe(
+      'https://remote.example.test/auth/providers/sso?intent=reverify&reverify_start=tok'
+    );
+    expect(receivedRequest(account.startFreshAuthReverification)).toMatchObject({
+      providerId: 'sso',
+      redirectPath: '/chat/-/settings/account'
+    });
+  });
+
+  it('rejects an unsafe re-verification navigation URL', async () => {
+    account.startFreshAuthReverification.mockReturnValue({ startUrl: 'javascript:alert(1)' });
+
+    await expect(
+      createExternalIdentityAPI(config()).startReverification({
+        providerId: 'sso',
+        redirectPath: '/chat/-/settings/account'
+      })
+    ).rejects.toThrow('External identity link returned an unsafe URL.');
   });
 
   it('rejects an unsafe provider-link navigation URL from a remote server', async () => {

@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package chatto.core.runtime_state.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+
+// FreshAuthReverificationStart is a one-time handoff between the
+// authenticated start RPC and the provider callback. It is stored under
+// fresh_auth_reverification_start.{hmac} with a short TTL. The callback
+// consumes it, checks that the provider identity belongs to bound_user_id and
+// that the browser presents the bound cookie session, and marks only that
+// session fresh. It never creates a session.
+message FreshAuthReverificationStart {
+  // Configured provider ID that must perform the re-verification.
+  string provider_id = 1;
+  // Internal path that the browser returns to after the callback.
+  string redirect_path = 2;
+  // User ID that the provider identity must belong to.
+  string bound_user_id = 3;
+  // Purpose-scoped HMAC of the cookie session handle to upgrade.
+  string cookie_session_digest = 4;
+  // Time the start record was created. Provider authentication must be at
+  // or after this time.
+  google.protobuf.Timestamp created_at = 5;
+}

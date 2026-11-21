@@ -529,7 +529,14 @@
         "link_button": "Link",
         "link_failed": "Falha ao vincular provedor de login",
         "fresh_auth_required": "Faça login novamente antes de vincular outro provedor.",
-        "sso_fresh_auth_required": "Abra as configurações da conta no servidor ao qual esta conta pertence. Saia e entre novamente pelo seu provedor de SSO. Depois, tente realizar a ação novamente nesse servidor.",
+        "sso_fresh_auth_required": "Por segurança, entre novamente antes de alterar seus métodos de login. Saia, entre pelo seu provedor de login e tente novamente.",
+        "reverification_failed": "O Chatto não conseguiu confirmar seu login. Tente novamente.",
+        "reverification_mismatch": "Você entrou com uma identidade que pertence a outra conta. Use uma identidade vinculada a esta conta.",
+        "reverify_modal": {
+          "title": "Confirme que é você",
+          "body": "Por segurança, entre novamente com um provedor vinculado a esta conta. Depois, o Chatto continua sua ação.",
+          "action": "Entrar novamente com {provider}"
+        },
         "provider_unconfigured": "Provedor não está mais configurado",
         "disconnect_button": "Desconectar",
         "disconnecting": "Desconectando...",

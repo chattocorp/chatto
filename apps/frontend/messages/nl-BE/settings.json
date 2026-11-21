@@ -529,7 +529,14 @@
         "link_button": "Link",
         "link_failed": "Kan aanmeldingsprovider niet koppelen",
         "fresh_auth_required": "Log opnieuw in voordat u een andere provider koppelt.",
-        "sso_fresh_auth_required": "Open de accountinstellingen op de server waartoe dit account behoort. Meld u af en meld u opnieuw aan via uw SSO-provider. Probeer de actie daarna op die server opnieuw.",
+        "sso_fresh_auth_required": "Log voor je veiligheid opnieuw in voordat je je aanmeldmethoden wijzigt. Log uit, log in via je aanmeldprovider en probeer het dan opnieuw.",
+        "reverification_failed": "Chatto kon je aanmelding niet bevestigen. Probeer het opnieuw.",
+        "reverification_mismatch": "Je hebt ingelogd met een identiteit die bij een ander account hoort. Gebruik een identiteit die aan dit account is gekoppeld.",
+        "reverify_modal": {
+          "title": "Bevestig dat jij het bent",
+          "body": "Log voor je veiligheid opnieuw in met een provider die aan dit account is gekoppeld. Daarna gaat Chatto verder met je actie.",
+          "action": "Opnieuw inloggen met {provider}"
+        },
         "provider_unconfigured": "Provider niet meer geconfigureerd",
         "disconnect_button": "Verbinding verbreken",
         "disconnecting": "Verbinding verbreken...",

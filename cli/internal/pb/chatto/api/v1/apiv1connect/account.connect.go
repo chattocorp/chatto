@@ -60,6 +60,9 @@ const (
 	// MyAccountServiceStartExternalIdentityLinkProcedure is the fully-qualified name of the
 	// MyAccountService's StartExternalIdentityLink RPC.
 	MyAccountServiceStartExternalIdentityLinkProcedure = "/chatto.api.v1.MyAccountService/StartExternalIdentityLink"
+	// MyAccountServiceStartFreshAuthReverificationProcedure is the fully-qualified name of the
+	// MyAccountService's StartFreshAuthReverification RPC.
+	MyAccountServiceStartFreshAuthReverificationProcedure = "/chatto.api.v1.MyAccountService/StartFreshAuthReverification"
 	// MyAccountServiceDisconnectExternalIdentityProcedure is the fully-qualified name of the
 	// MyAccountService's DisconnectExternalIdentity RPC.
 	MyAccountServiceDisconnectExternalIdentityProcedure = "/chatto.api.v1.MyAccountService/DisconnectExternalIdentity"
@@ -128,6 +131,18 @@ type MyAccountServiceClient interface {
 	// to the authenticated account. The provider callback completes through
 	// chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink.
 	StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error)
+	// Creates a short-lived browser URL that confirms a recent sign-in through
+	// a provider already linked to the authenticated account. The provider must
+	// ask for credentials again. When the callback verifies an identity of the
+	// same account, the server marks the calling session fresh for 30 minutes,
+	// so that actions such as StartExternalIdentityLink and
+	// DisconnectExternalIdentity succeed without a password. The callback does
+	// not create a new session. Only a browser cookie session on the account's
+	// server can re-verify: the same browser must open start_url from a page on
+	// that server and complete the callback. Returns NOT_FOUND for an unknown
+	// provider and FAILED_PRECONDITION for a bearer credential, or when the
+	// provider is not linked or cannot force a new sign-in.
+	StartFreshAuthReverification(context.Context, *connect.Request[v1.StartFreshAuthReverificationRequest]) (*connect.Response[v1.StartFreshAuthReverificationResponse], error)
 	// Disconnects a provider identity from the authenticated account.
 	DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error)
 	// Legacy live presence report, expiring after 60 seconds without refresh.
@@ -224,6 +239,12 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(myAccountServiceMethods.ByName("StartExternalIdentityLink")),
 			connect.WithClientOptions(opts...),
 		),
+		startFreshAuthReverification: connect.NewClient[v1.StartFreshAuthReverificationRequest, v1.StartFreshAuthReverificationResponse](
+			httpClient,
+			baseURL+MyAccountServiceStartFreshAuthReverificationProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("StartFreshAuthReverification")),
+			connect.WithClientOptions(opts...),
+		),
 		disconnectExternalIdentity: connect.NewClient[v1.DisconnectExternalIdentityRequest, v1.DisconnectExternalIdentityResponse](
 			httpClient,
 			baseURL+MyAccountServiceDisconnectExternalIdentityProcedure,
@@ -284,24 +305,25 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // myAccountServiceClient implements MyAccountServiceClient.
 type myAccountServiceClient struct {
-	changePassword             *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
-	listVerifiedEmails         *connect.Client[v1.ListVerifiedEmailsRequest, v1.ListVerifiedEmailsResponse]
-	requestEmailVerification   *connect.Client[v1.RequestEmailVerificationRequest, v1.RequestEmailVerificationResponse]
-	confirmEmailVerification   *connect.Client[v1.ConfirmEmailVerificationRequest, v1.ConfirmEmailVerificationResponse]
-	setPrimaryEmail            *connect.Client[v1.SetPrimaryEmailRequest, v1.SetPrimaryEmailResponse]
-	getSettings                *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
-	updateSettings             *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
-	listExternalIdentities     *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
-	startExternalIdentityLink  *connect.Client[v1.StartExternalIdentityLinkRequest, v1.StartExternalIdentityLinkResponse]
-	disconnectExternalIdentity *connect.Client[v1.DisconnectExternalIdentityRequest, v1.DisconnectExternalIdentityResponse]
-	setPresence                *connect.Client[v1.SetPresenceRequest, v1.SetPresenceResponse]
-	getPresencePreference      *connect.Client[v1.GetPresencePreferenceRequest, v1.GetPresencePreferenceResponse]
-	setPresencePreference      *connect.Client[v1.SetPresencePreferenceRequest, v1.SetPresencePreferenceResponse]
-	refreshPresence            *connect.Client[v1.RefreshPresenceRequest, v1.RefreshPresenceResponse]
-	setCustomStatus            *connect.Client[v1.SetCustomStatusRequest, v1.SetCustomStatusResponse]
-	deleteCustomStatus         *connect.Client[v1.DeleteCustomStatusRequest, v1.DeleteCustomStatusResponse]
-	requestAccountDeletion     *connect.Client[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse]
-	deleteMyAccount            *connect.Client[v1.DeleteMyAccountRequest, v1.DeleteMyAccountResponse]
+	changePassword               *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
+	listVerifiedEmails           *connect.Client[v1.ListVerifiedEmailsRequest, v1.ListVerifiedEmailsResponse]
+	requestEmailVerification     *connect.Client[v1.RequestEmailVerificationRequest, v1.RequestEmailVerificationResponse]
+	confirmEmailVerification     *connect.Client[v1.ConfirmEmailVerificationRequest, v1.ConfirmEmailVerificationResponse]
+	setPrimaryEmail              *connect.Client[v1.SetPrimaryEmailRequest, v1.SetPrimaryEmailResponse]
+	getSettings                  *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
+	updateSettings               *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
+	listExternalIdentities       *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
+	startExternalIdentityLink    *connect.Client[v1.StartExternalIdentityLinkRequest, v1.StartExternalIdentityLinkResponse]
+	startFreshAuthReverification *connect.Client[v1.StartFreshAuthReverificationRequest, v1.StartFreshAuthReverificationResponse]
+	disconnectExternalIdentity   *connect.Client[v1.DisconnectExternalIdentityRequest, v1.DisconnectExternalIdentityResponse]
+	setPresence                  *connect.Client[v1.SetPresenceRequest, v1.SetPresenceResponse]
+	getPresencePreference        *connect.Client[v1.GetPresencePreferenceRequest, v1.GetPresencePreferenceResponse]
+	setPresencePreference        *connect.Client[v1.SetPresencePreferenceRequest, v1.SetPresencePreferenceResponse]
+	refreshPresence              *connect.Client[v1.RefreshPresenceRequest, v1.RefreshPresenceResponse]
+	setCustomStatus              *connect.Client[v1.SetCustomStatusRequest, v1.SetCustomStatusResponse]
+	deleteCustomStatus           *connect.Client[v1.DeleteCustomStatusRequest, v1.DeleteCustomStatusResponse]
+	requestAccountDeletion       *connect.Client[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse]
+	deleteMyAccount              *connect.Client[v1.DeleteMyAccountRequest, v1.DeleteMyAccountResponse]
 }
 
 // ChangePassword calls chatto.api.v1.MyAccountService.ChangePassword.
@@ -347,6 +369,11 @@ func (c *myAccountServiceClient) ListExternalIdentities(ctx context.Context, req
 // StartExternalIdentityLink calls chatto.api.v1.MyAccountService.StartExternalIdentityLink.
 func (c *myAccountServiceClient) StartExternalIdentityLink(ctx context.Context, req *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error) {
 	return c.startExternalIdentityLink.CallUnary(ctx, req)
+}
+
+// StartFreshAuthReverification calls chatto.api.v1.MyAccountService.StartFreshAuthReverification.
+func (c *myAccountServiceClient) StartFreshAuthReverification(ctx context.Context, req *connect.Request[v1.StartFreshAuthReverificationRequest]) (*connect.Response[v1.StartFreshAuthReverificationResponse], error) {
+	return c.startFreshAuthReverification.CallUnary(ctx, req)
 }
 
 // DisconnectExternalIdentity calls chatto.api.v1.MyAccountService.DisconnectExternalIdentity.
@@ -433,6 +460,18 @@ type MyAccountServiceHandler interface {
 	// to the authenticated account. The provider callback completes through
 	// chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink.
 	StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error)
+	// Creates a short-lived browser URL that confirms a recent sign-in through
+	// a provider already linked to the authenticated account. The provider must
+	// ask for credentials again. When the callback verifies an identity of the
+	// same account, the server marks the calling session fresh for 30 minutes,
+	// so that actions such as StartExternalIdentityLink and
+	// DisconnectExternalIdentity succeed without a password. The callback does
+	// not create a new session. Only a browser cookie session on the account's
+	// server can re-verify: the same browser must open start_url from a page on
+	// that server and complete the callback. Returns NOT_FOUND for an unknown
+	// provider and FAILED_PRECONDITION for a bearer credential, or when the
+	// provider is not linked or cannot force a new sign-in.
+	StartFreshAuthReverification(context.Context, *connect.Request[v1.StartFreshAuthReverificationRequest]) (*connect.Response[v1.StartFreshAuthReverificationResponse], error)
 	// Disconnects a provider identity from the authenticated account.
 	DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error)
 	// Legacy live presence report, expiring after 60 seconds without refresh.
@@ -525,6 +564,12 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 		connect.WithSchema(myAccountServiceMethods.ByName("StartExternalIdentityLink")),
 		connect.WithHandlerOptions(opts...),
 	)
+	myAccountServiceStartFreshAuthReverificationHandler := connect.NewUnaryHandler(
+		MyAccountServiceStartFreshAuthReverificationProcedure,
+		svc.StartFreshAuthReverification,
+		connect.WithSchema(myAccountServiceMethods.ByName("StartFreshAuthReverification")),
+		connect.WithHandlerOptions(opts...),
+	)
 	myAccountServiceDisconnectExternalIdentityHandler := connect.NewUnaryHandler(
 		MyAccountServiceDisconnectExternalIdentityProcedure,
 		svc.DisconnectExternalIdentity,
@@ -600,6 +645,8 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 			myAccountServiceListExternalIdentitiesHandler.ServeHTTP(w, r)
 		case MyAccountServiceStartExternalIdentityLinkProcedure:
 			myAccountServiceStartExternalIdentityLinkHandler.ServeHTTP(w, r)
+		case MyAccountServiceStartFreshAuthReverificationProcedure:
+			myAccountServiceStartFreshAuthReverificationHandler.ServeHTTP(w, r)
 		case MyAccountServiceDisconnectExternalIdentityProcedure:
 			myAccountServiceDisconnectExternalIdentityHandler.ServeHTTP(w, r)
 		case MyAccountServiceSetPresenceProcedure:
@@ -661,6 +708,10 @@ func (UnimplementedMyAccountServiceHandler) ListExternalIdentities(context.Conte
 
 func (UnimplementedMyAccountServiceHandler) StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.StartExternalIdentityLink is not implemented"))
+}
+
+func (UnimplementedMyAccountServiceHandler) StartFreshAuthReverification(context.Context, *connect.Request[v1.StartFreshAuthReverificationRequest]) (*connect.Response[v1.StartFreshAuthReverificationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.StartFreshAuthReverification is not implemented"))
 }
 
 func (UnimplementedMyAccountServiceHandler) DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error) {
