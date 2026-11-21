@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0
+
+### Features
+
+- Add `TerminationReason`, which reports whether an error came from `TerminateDelivery`. Applications that run a `DurableDeliveryHandler` outside a `DurableWorker` can use it to keep the same non-retryable classification. ([#3598](https://github.com/chattocorp/chatto/pull/3598))
+- Detect stalled projectors. `ProjectorStatus` now reports `ObservedSeq`, `LastCommitAt`, `LastCommitDuration`, `CurrentOperation`, `CurrentOperationDuration`, `PendingFor`, and `Stalled`. A projector is stalled when matching events wait and it commits no progress for `ProjectorOptions.StallAfter` (default five minutes). An idle, caught-up projector and a slow replay that still commits are not stalled. `Run` reads the newest matching stream sequence every 30 seconds, so a consumer that stops delivering also shows pending work. `Status` does not wait for the apply barrier. ([#3668](https://github.com/chattocorp/chatto/pull/3668))
+
+### Fixes
+
+- Atomic batch publish errors preserve the JetStream API error code so callers can identify a temporary rejection. ([#3744](https://github.com/chattocorp/chatto/pull/3744))
+
 ## 0.1.0 (2026-10-15)
 
 
