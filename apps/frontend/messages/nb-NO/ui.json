@@ -96,9 +96,7 @@
       "error_future": "Utløpet må være i fremtiden."
     },
     "form": {
-      "required": "Obligatorisk",
-      "length_limit_near": "Nesten på maksimal lengde.",
-      "length_limit_reached": "Maksimal lengde er nådd."
+      "required": "Obligatorisk"
     },
     "dates": {
       "today": "I dag",

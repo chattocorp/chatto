@@ -96,9 +96,7 @@
       "error_future": "Eksvalidiĝo devas esti estonte."
     },
     "form": {
-      "required": "Bezonata",
-      "length_limit_near": "Preskaŭ ĉe la maksimuma longo.",
-      "length_limit_reached": "Maksimuma longo atingita."
+      "required": "Bezonata"
     },
     "dates": {
       "today": "Hodiaŭ",

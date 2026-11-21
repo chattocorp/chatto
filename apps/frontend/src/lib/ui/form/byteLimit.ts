@@ -1,31 +1,22 @@
-import { m } from '$lib/i18n/messages';
-
 const textEncoder = new TextEncoder();
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
 type TextField = HTMLInputElement | HTMLTextAreaElement;
 
-/** Share of the limit at which the field starts to warn. */
-const NEAR_LIMIT = 0.9;
+function byteLength(value: string): number {
+  return textEncoder.encode(value).byteLength;
+}
 
-/**
- * Returns the field description, followed by a length notice when `value`
- * comes near `maxBytes`. The notice does not name the byte count: people
- * think in characters, and a character can use several bytes.
- */
-export function byteLimitDescription(
-  description: string | undefined,
-  maxBytes: number | undefined,
-  value: string
-) {
-  if (maxBytes === undefined) return description;
-  const used = textEncoder.encode(value).byteLength;
-  const notice =
-    used >= maxBytes
-      ? m('ui.form.length_limit_reached')
-      : used >= maxBytes * NEAR_LIMIT
-        ? m('ui.form.length_limit_near')
-        : undefined;
-  return [description, notice].filter(Boolean).join(' ') || undefined;
+/** Returns the longest start of `text`, in whole characters, that fits `maxBytes`. */
+function truncateToBytes(text: string, maxBytes: number): string {
+  let result = '';
+  let used = 0;
+  for (const { segment } of graphemes.segment(text)) {
+    used += byteLength(segment);
+    if (used > maxBytes) break;
+    result += segment;
+  }
+  return result;
 }
 
 /**
@@ -33,40 +24,52 @@ export function byteLimitDescription(
  * `maxlength` counts UTF-16 code units, so `maxlength` alone accepts text that
  * the server rejects.
  *
- * - `beforeinput` prevents an insertion that would exceed the limit.
- * - `accept` restores the last accepted value after an edit that `beforeinput`
- *   could not prevent, and returns the value to keep.
+ * An edit that would exceed the limit keeps as much of the inserted text as
+ * fits, in whole characters. The rest of the field stays unchanged.
+ *
+ * - `accept` applies the limit after an edit and returns the value to keep.
  * - `track` records a value set from outside the field, such as a loaded draft.
  */
 export function createByteLimit(getMaxBytes: () => number) {
   let accepted = '';
-  const fits = (value: string) => textEncoder.encode(value).byteLength <= getMaxBytes();
 
   return {
     track(value: string) {
-      if (fits(value)) accepted = value;
-    },
-    beforeinput(event: InputEvent) {
-      if (!event.inputType.startsWith('insert')) return;
-      const field = event.currentTarget as TextField;
-      const insertedText =
-        event.data ??
-        event.dataTransfer?.getData('text/plain') ??
-        (event.inputType === 'insertLineBreak' || event.inputType === 'insertParagraph'
-          ? '\n'
-          : null);
-      if (insertedText == null) return;
-
-      const start = field.selectionStart ?? field.value.length;
-      const end = field.selectionEnd ?? start;
-      const nextValue = field.value.slice(0, start) + insertedText + field.value.slice(end);
-      if (!fits(nextValue)) event.preventDefault();
+      if (byteLength(value) <= getMaxBytes()) accepted = value;
     },
     accept(field: TextField): string {
-      if (fits(field.value)) {
-        accepted = field.value;
-      } else {
-        field.value = accepted;
+      const next = field.value;
+      if (byteLength(next) <= getMaxBytes()) {
+        accepted = next;
+        return accepted;
+      }
+
+      // Find the inserted text: everything between the parts that the edit
+      // kept from the start and the end of the last accepted value.
+      let prefix = 0;
+      while (prefix < accepted.length && accepted[prefix] === next[prefix]) prefix++;
+      let suffix = 0;
+      while (
+        suffix < accepted.length - prefix &&
+        suffix < next.length - prefix &&
+        accepted[accepted.length - 1 - suffix] === next[next.length - 1 - suffix]
+      ) {
+        suffix++;
+      }
+      const before = next.slice(0, prefix);
+      const after = next.slice(next.length - suffix);
+      const inserted = next.slice(prefix, next.length - suffix);
+      const kept = truncateToBytes(
+        inserted,
+        Math.max(0, getMaxBytes() - byteLength(before + after))
+      );
+      const limited = before + kept + after;
+
+      accepted = byteLength(limited) <= getMaxBytes() ? limited : accepted;
+      field.value = accepted;
+      if (accepted === limited) {
+        const caret = before.length + kept.length;
+        field.setSelectionRange(caret, caret);
       }
       return accepted;
     }

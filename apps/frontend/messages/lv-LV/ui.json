@@ -96,9 +96,7 @@
       "error_future": "Derīguma termiņam jābūt nākotnē."
     },
     "form": {
-      "required": "Obligāti",
-      "length_limit_near": "Gandrīz sasniegts maksimālais garums.",
-      "length_limit_reached": "Sasniegts maksimālais garums."
+      "required": "Obligāti"
     },
     "dates": {
       "today": "Šodien",

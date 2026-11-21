@@ -96,9 +96,7 @@
       "error_future": "De vervaldatum moet in de toekomst liggen."
     },
     "form": {
-      "required": "Vereist",
-      "length_limit_near": "Bijna de maximale lengte bereikt.",
-      "length_limit_reached": "Maximale lengte bereikt."
+      "required": "Vereist"
     },
     "dates": {
       "today": "Vandaag",

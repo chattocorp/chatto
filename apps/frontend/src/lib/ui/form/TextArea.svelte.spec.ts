@@ -17,7 +17,7 @@ function insert(textarea: HTMLTextAreaElement, value: string, inputType = 'inser
 }
 
 describe('TextArea', () => {
-  it('communicates and enforces a UTF-8 byte limit', () => {
+  it('enforces a UTF-8 byte limit', () => {
     const { container } = render(TextArea, {
       id: 'description',
       label: 'Description',
@@ -27,7 +27,6 @@ describe('TextArea', () => {
     const textarea = container.querySelector('textarea')!;
 
     expect(textarea.maxLength).toBe(5);
-    expect(container.textContent).toContain('Maximum length reached.');
 
     textarea.select();
     insert(textarea, 'draft!');
@@ -49,7 +48,7 @@ describe('TextArea', () => {
     expect(textarea.value).toBe('💬');
   });
 
-  it('rejects a middle insertion without changing the existing suffix', () => {
+  it('keeps the part of a middle insertion that fits, and the existing suffix', () => {
     const existingDraft = `${'💬'.repeat(123)}suffix`;
     const { container } = render(TextArea, {
       id: 'description',
@@ -62,7 +61,24 @@ describe('TextArea', () => {
 
     insert(textarea, 'inserted');
 
-    expect(textarea.value).toBe(existingDraft);
+    expect(textarea.value).toBe(`${existingDraft.slice(0, 10)}in${existingDraft.slice(10)}`);
+    expect(textarea.selectionStart).toBe(12);
+  });
+
+  it('keeps the part of a pasted text that fits, in whole characters', () => {
+    const { container } = render(TextArea, {
+      id: 'description',
+      label: 'Description',
+      value: 'ab',
+      maxBytes: 12
+    });
+    const textarea = container.querySelector('textarea')!;
+    textarea.setSelectionRange(2, 2);
+
+    // The family emoji is one character of 25 bytes and cannot be split.
+    insert(textarea, 'cd👨‍👩‍👧‍👦ef', 'insertFromPaste');
+
+    expect(textarea.value).toBe('abcd');
   });
 
   it('counts inserted line breaks toward the byte limit', () => {

@@ -96,9 +96,7 @@
       "error_future": "到期时间必须晚于当前时间。"
     },
     "form": {
-      "required": "必填",
-      "length_limit_near": "即将达到最大长度。",
-      "length_limit_reached": "已达到最大长度。"
+      "required": "必填"
     },
     "dates": {
       "today": "今天",

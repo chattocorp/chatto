@@ -96,9 +96,7 @@
       "error_future": "Platnost musí být v budoucnosti."
     },
     "form": {
-      "required": "Povinné",
-      "length_limit_near": "Blížíte se k maximální délce.",
-      "length_limit_reached": "Bylo dosaženo maximální délky."
+      "required": "Povinné"
     },
     "dates": {
       "today": "dnes",

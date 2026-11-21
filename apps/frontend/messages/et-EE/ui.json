@@ -96,9 +96,7 @@
       "error_future": "Kehtivusaeg peab olema tulevikus."
     },
     "form": {
-      "required": "Nõutav",
-      "length_limit_near": "Peaaegu maksimaalne pikkus.",
-      "length_limit_reached": "Maksimaalne pikkus on täis."
+      "required": "Nõutav"
     },
     "dates": {
       "today": "Täna",

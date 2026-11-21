@@ -96,9 +96,7 @@
       "error_future": "A expiração deve ser no futuro."
     },
     "form": {
-      "required": "Obrigatório",
-      "length_limit_near": "Quase no comprimento máximo.",
-      "length_limit_reached": "Comprimento máximo atingido."
+      "required": "Obrigatório"
     },
     "dates": {
       "today": "Hoje",

@@ -96,9 +96,7 @@
       "error_future": "到期時間必須是未來時間。"
     },
     "form": {
-      "required": "必填",
-      "length_limit_near": "即將達到最大長度。",
-      "length_limit_reached": "已達到最大長度。"
+      "required": "必填"
     },
     "dates": {
       "today": "今天",

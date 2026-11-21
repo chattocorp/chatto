@@ -4,53 +4,22 @@ import { render } from 'vitest-browser-svelte';
 import TextInput from './TextInput.svelte';
 
 describe('TextInput', () => {
-  it('mentions the length limit only near it', async () => {
-    const rendered = render(TextInput, {
-      id: 'motd',
-      label: 'MOTD',
-      description: 'Shown in the chat header.',
-      value: 'a'.repeat(89),
-      maxBytes: 100
-    });
-    expect(rendered.container.textContent).toContain('Shown in the chat header.');
-    expect(rendered.container.textContent).not.toContain('maximum length');
-
-    await rendered.rerender({ value: 'a'.repeat(90) });
-    expect(rendered.container.textContent).toContain(
-      'Shown in the chat header. Almost at the maximum length.'
-    );
-
-    await rendered.rerender({ value: 'a'.repeat(100) });
-    expect(rendered.container.textContent).toContain('Maximum length reached.');
-  });
-
-  it('communicates and enforces a UTF-8 byte limit', () => {
+  it('keeps the part of an edit that fits a UTF-8 byte limit', () => {
     const { container } = render(TextInput, {
       id: 'motd',
       label: 'Message of the Day',
       value: '💬',
-      maxBytes: 5
+      maxBytes: 6
     });
     const input = container.querySelector('input')!;
-    expect(container.textContent).not.toContain('maximum length');
 
-    const blocked = new InputEvent('beforeinput', {
-      bubbles: true,
-      cancelable: true,
-      data: 'ab',
-      inputType: 'insertText'
-    });
-    input.setSelectionRange(input.value.length, input.value.length);
-    input.dispatchEvent(blocked);
-    expect(blocked.defaultPrevented).toBe(true);
-
-    input.value = '💬a';
+    input.value = '💬abc';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(input.value).toBe('💬a');
+    expect(input.value).toBe('💬ab');
 
-    input.value = '💬ab';
+    input.value = '💬abc';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(input.value).toBe('💬a');
+    expect(input.value).toBe('💬ab');
   });
 
   it('renders a labelled date and time field with a form name', async () => {

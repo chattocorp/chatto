@@ -96,9 +96,7 @@
       "error_future": "Der Ablauf muss in der Zukunft liegen."
     },
     "form": {
-      "required": "Erforderlich",
-      "length_limit_near": "Fast die maximale Länge erreicht.",
-      "length_limit_reached": "Maximale Länge erreicht."
+      "required": "Erforderlich"
     },
     "dates": {
       "today": "Heute",

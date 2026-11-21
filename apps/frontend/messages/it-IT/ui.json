@@ -96,9 +96,7 @@
       "error_future": "La scadenza deve essere nel futuro."
     },
     "form": {
-      "required": "Obbligatorio",
-      "length_limit_near": "Lunghezza massima quasi raggiunta.",
-      "length_limit_reached": "Lunghezza massima raggiunta."
+      "required": "Obbligatorio"
     },
     "dates": {
       "today": "Oggi",

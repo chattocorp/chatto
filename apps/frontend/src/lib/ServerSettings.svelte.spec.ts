@@ -109,15 +109,14 @@ describe('ServerSettings', () => {
     expect(mocks.getAuthenticatedServerState).toHaveBeenCalledTimes(2);
   });
 
-  it('communicates and enforces the 500-byte description limit', async () => {
+  it('keeps the part of a long description that fits the 500-byte limit', async () => {
     const { container } = await renderSettings();
     const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
 
     expect(textarea.maxLength).toBe(500);
-    expect(container.textContent).not.toContain('maximum length');
 
     inputDescription(textarea, 'a'.repeat(501));
-    expect(textarea.value).toBe('Original description');
+    expect(textarea.value).toBe('a'.repeat(500));
   });
 
   it('enforces the description limit using UTF-8 bytes', async () => {

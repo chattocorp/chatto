@@ -96,9 +96,7 @@
       "error_future": "El vencimiento debe ser en el futuro."
     },
     "form": {
-      "required": "Requerido",
-      "length_limit_near": "Casi en la longitud máxima.",
-      "length_limit_reached": "Se ha alcanzado la longitud máxima."
+      "required": "Requerido"
     },
     "dates": {
       "today": "Hoy",

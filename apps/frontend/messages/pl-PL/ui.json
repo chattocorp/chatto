@@ -96,9 +96,7 @@
       "error_future": "Wygaśnięcie musi nastąpić w przyszłości."
     },
     "form": {
-      "required": "Wymagane",
-      "length_limit_near": "Prawie osiągnięto maksymalną długość.",
-      "length_limit_reached": "Osiągnięto maksymalną długość."
+      "required": "Wymagane"
     },
     "dates": {
       "today": "Dzisiaj",

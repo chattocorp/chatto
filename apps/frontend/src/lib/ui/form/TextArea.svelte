@@ -1,6 +1,6 @@
 <script lang="ts">
   import FormField from './FormField.svelte';
-  import { byteLimitDescription, createByteLimit } from './byteLimit';
+  import { createByteLimit } from './byteLimit';
 
   let {
     label,
@@ -33,7 +33,6 @@
     oninput?: (e: Event) => void;
   } = $props();
 
-  const effectiveDescription = $derived(byteLimitDescription(description, maxBytes, value));
   const effectiveMaxlength = $derived(maxlength ?? maxBytes);
   const byteLimit = createByteLimit(() => maxBytes ?? Infinity);
 
@@ -47,11 +46,10 @@
   }
 </script>
 
-<FormField {label} {id} {error} description={effectiveDescription} {required}>
+<FormField {label} {id} {error} {description} {required}>
   <textarea
     {id}
     data-testid={testid}
-    onbeforeinput={maxBytes === undefined ? undefined : byteLimit.beforeinput}
     bind:value
     {placeholder}
     {required}
@@ -61,10 +59,6 @@
     oninput={maxBytes === undefined ? oninput : handleInput}
     class="input resize-none"
     aria-invalid={error ? 'true' : undefined}
-    aria-describedby={error
-      ? `${id}-error`
-      : effectiveDescription
-        ? `${id}-description`
-        : undefined}
+    aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
   ></textarea>
 </FormField>

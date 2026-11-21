@@ -1,6 +1,6 @@
 <script lang="ts">
   import FormField from './FormField.svelte';
-  import { byteLimitDescription, createByteLimit } from './byteLimit';
+  import { createByteLimit } from './byteLimit';
   import type { Snippet } from 'svelte';
   import type { HTMLInputAttributes } from 'svelte/elements';
 
@@ -71,7 +71,6 @@
     oninput?: (e: Event) => void;
   } = $props();
 
-  const effectiveDescription = $derived(byteLimitDescription(description, maxBytes, value));
   const byteLimit = createByteLimit(() => maxBytes ?? Infinity);
 
   $effect(() => {
@@ -84,7 +83,7 @@
   }
 </script>
 
-<FormField {label} {id} {error} description={effectiveDescription} {required} {labelHidden}>
+<FormField {label} {id} {error} {description} {required} {labelHidden}>
   <div class="relative">
     {#if leadingIcon}
       <span
@@ -112,7 +111,6 @@
       maxlength={maxlength ?? maxBytes}
       {autofocus}
       {onkeydown}
-      onbeforeinput={maxBytes === undefined ? undefined : byteLimit.beforeinput}
       oninput={maxBytes === undefined ? oninput : handleInput}
       class={[
         'input',
@@ -121,11 +119,7 @@
         (trailingText || trailing) && 'pe-10'
       ]}
       aria-invalid={error ? 'true' : undefined}
-      aria-describedby={error
-        ? `${id}-error`
-        : effectiveDescription
-          ? `${id}-description`
-          : undefined}
+      aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
     />
     {#if leading}
       <div class="absolute inset-y-0 start-1 flex items-center">{@render leading()}</div>

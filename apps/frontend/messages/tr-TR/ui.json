@@ -96,9 +96,7 @@
       "error_future": "Son kullanma tarihi gelecekte olmalıdır."
     },
     "form": {
-      "required": "Gerekli",
-      "length_limit_near": "Neredeyse azami uzunluğa ulaşıldı.",
-      "length_limit_reached": "Azami uzunluğa ulaşıldı."
+      "required": "Gerekli"
     },
     "dates": {
       "today": "Bugün",

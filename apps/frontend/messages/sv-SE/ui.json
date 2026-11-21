@@ -96,9 +96,7 @@
       "error_future": "Förfallodatumet måste vara i framtiden."
     },
     "form": {
-      "required": "Krävs",
-      "length_limit_near": "Nästan vid maximal längd.",
-      "length_limit_reached": "Maximal längd har nåtts."
+      "required": "Krävs"
     },
     "dates": {
       "today": "Idag",

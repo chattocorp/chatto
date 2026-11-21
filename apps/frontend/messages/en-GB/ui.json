@@ -96,9 +96,7 @@
       "error_future": "Expiry must be in the future."
     },
     "form": {
-      "required": "Required",
-      "length_limit_near": "Almost at the maximum length.",
-      "length_limit_reached": "Maximum length reached."
+      "required": "Required"
     },
     "dates": {
       "today": "Today",

@@ -96,9 +96,7 @@
       "error_future": "L'expiration doit être dans le futur."
     },
     "form": {
-      "required": "Obligatoire",
-      "length_limit_near": "Longueur maximale presque atteinte.",
-      "length_limit_reached": "Longueur maximale atteinte."
+      "required": "Obligatoire"
     },
     "dates": {
       "today": "Aujourd'hui",

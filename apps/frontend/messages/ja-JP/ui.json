@@ -96,9 +96,7 @@
       "error_future": "有効期限は将来である必要があります。"
     },
     "form": {
-      "required": "必須",
-      "length_limit_near": "最大の長さに近づいています。",
-      "length_limit_reached": "最大の長さに達しました。"
+      "required": "必須"
     },
     "dates": {
       "today": "今日",
