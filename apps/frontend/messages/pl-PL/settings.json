@@ -529,7 +529,14 @@
         "link_button": "Link",
         "link_failed": "Nie udało się połączyć dostawcy logowania",
         "fresh_auth_required": "Zaloguj się ponownie przed połączeniem z innym dostawcą.",
-        "sso_fresh_auth_required": "Otwórz ustawienia konta na serwerze, do którego należy to konto. Wyloguj się i zaloguj ponownie przez swojego dostawcę SSO, a następnie ponów tam tę czynność.",
+        "sso_fresh_auth_required": "Ze względów bezpieczeństwa zaloguj się ponownie, zanim zmienisz metody logowania. Wyloguj się, zaloguj przez dostawcę logowania i spróbuj ponownie.",
+        "reverification_failed": "Chatto nie może potwierdzić logowania. Spróbuj ponownie.",
+        "reverification_mismatch": "Zalogowano się tożsamością należącą do innego konta. Użyj tożsamości połączonej z tym kontem.",
+        "reverify_modal": {
+          "title": "Potwierdź, że to ty",
+          "body": "Ze względów bezpieczeństwa zaloguj się ponownie przez dostawcę połączonego z tym kontem. Następnie Chatto wznowi twoją czynność.",
+          "action": "Zaloguj się ponownie przez {provider}"
+        },
         "provider_unconfigured": "Dostawca nie jest już skonfigurowany",
         "disconnect_button": "Rozłącz",
         "disconnecting": "Rozłączam...",

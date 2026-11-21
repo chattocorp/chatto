@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package chatto.core.runtime_state.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+
+// FreshAuthReverificationCredentialKind identifies the kind of runtime
+// credential that a re-verification upgrades.
+enum FreshAuthReverificationCredentialKind {
+  FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_UNSPECIFIED = 0;
+  // A first-party bearer session. The record names its renewable session.
+  FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_BEARER_SESSION = 1;
+  // A browser cookie session. The record holds only an HMAC of the cookie
+  // handle; the callback request must present the same cookie.
+  FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_COOKIE_SESSION = 2;
+}
+
+// FreshAuthReverificationStart is a one-time handoff between the
+// authenticated start RPC and the provider callback. It is stored under
+// fresh_auth_reverification_start.{hmac} with a short TTL. The callback
+// consumes it, checks that the provider identity belongs to bound_user_id,
+// and marks only the named credential fresh. It never creates a session.
+message FreshAuthReverificationStart {
+  // Configured provider ID that must perform the re-verification.
+  string provider_id = 1;
+  // Internal path that the browser returns to after the callback.
+  string redirect_path = 2;
+  // User ID that the provider identity must belong to.
+  string bound_user_id = 3;
+  // Kind of credential to upgrade.
+  FreshAuthReverificationCredentialKind credential_kind = 4;
+  // Renewable session ID of a bearer credential. Empty for cookie sessions.
+  string renewable_session_id = 5;
+  // Purpose-scoped HMAC of a cookie session handle. Empty for bearer sessions.
+  string cookie_session_digest = 6;
+  // Time the start record was created. Provider authentication must be at
+  // or after this time.
+  google.protobuf.Timestamp created_at = 7;
+}

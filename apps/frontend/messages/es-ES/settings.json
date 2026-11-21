@@ -529,7 +529,14 @@
         "link_button": "Enlace",
         "link_failed": "No se pudo vincular el proveedor de inicio de sesión",
         "fresh_auth_required": "Ingresa nuevamente antes de vincular otro proveedor.",
-        "sso_fresh_auth_required": "Abre la configuración de la cuenta en el servidor al que pertenece esta cuenta. Cierra sesión e inicia sesión de nuevo a través de tu proveedor de SSO. Después vuelve a intentar la acción allí.",
+        "sso_fresh_auth_required": "Por tu seguridad, vuelve a iniciar sesión antes de cambiar tus métodos de inicio de sesión. Cierra sesión, inicia sesión con tu proveedor de inicio de sesión y vuelve a intentarlo.",
+        "reverification_failed": "Chatto no ha podido confirmar tu inicio de sesión. Inténtalo de nuevo.",
+        "reverification_mismatch": "Has iniciado sesión con una identidad que pertenece a otra cuenta. Usa una identidad vinculada a esta cuenta.",
+        "reverify_modal": {
+          "title": "Confirma que eres tú",
+          "body": "Por tu seguridad, vuelve a iniciar sesión con un proveedor vinculado a esta cuenta. Después, Chatto continuará con tu acción.",
+          "action": "Volver a iniciar sesión con {provider}"
+        },
         "provider_unconfigured": "Proveedor ya no configurado",
         "disconnect_button": "Desconectar",
         "disconnecting": "Desconectando...",

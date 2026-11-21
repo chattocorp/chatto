@@ -529,7 +529,14 @@
         "link_button": "Verknüpfen",
         "link_failed": "Anmeldeanbieter konnte nicht verknüpft werden",
         "fresh_auth_required": "Melde dich erneut an, bevor du einen weiteren Anbieter verknüpfst.",
-        "sso_fresh_auth_required": "Öffne die Kontoeinstellungen auf dem Server, zu dem dieses Konto gehört. Melde dich ab und über deinen SSO-Anbieter erneut an. Versuche die Aktion dann dort noch einmal.",
+        "sso_fresh_auth_required": "Melde dich zu deiner Sicherheit erneut an, bevor du deine Anmeldemethoden änderst. Melde dich ab, melde dich über deinen Anmeldeanbieter wieder an und versuche es dann erneut.",
+        "reverification_failed": "Chatto konnte deine Anmeldung nicht bestätigen. Versuche es erneut.",
+        "reverification_mismatch": "Du hast dich mit einer Identität angemeldet, die zu einem anderen Konto gehört. Verwende eine Identität, die mit diesem Konto verknüpft ist.",
+        "reverify_modal": {
+          "title": "Bestätige, dass du es bist",
+          "body": "Melde dich zu deiner Sicherheit erneut mit einem Anbieter an, der mit diesem Konto verknüpft ist. Danach setzt Chatto deine Aktion fort.",
+          "action": "Erneut mit {provider} anmelden"
+        },
         "provider_unconfigured": "Anbieter ist nicht mehr konfiguriert",
         "disconnect_button": "Trennen",
         "disconnecting": "Wird getrennt...",

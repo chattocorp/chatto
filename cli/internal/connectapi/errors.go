@@ -108,6 +108,7 @@ var connectErrorCodes = []struct {
 		core.ErrRoomThreadingPolicy,
 		core.ErrEditWindowExpired,
 		core.ErrFreshAuthRequired,
+		core.ErrFreshAuthReverificationUnavailable,
 		core.ErrPasswordAlreadySet,
 		core.ErrLoginChangeCooldown,
 		core.ErrAdminCannotSetOwnPassword,

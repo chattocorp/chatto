@@ -529,7 +529,14 @@
         "link_button": "Lien",
         "link_failed": "Échec de l'association du fournisseur d'authentification",
         "fresh_auth_required": "Connectez-vous à nouveau avant de lier un autre fournisseur.",
-        "sso_fresh_auth_required": "Ouvrez les paramètres du compte sur le serveur auquel ce compte appartient. Déconnectez-vous, puis reconnectez-vous par l’intermédiaire de votre fournisseur SSO et réessayez l’action sur ce serveur.",
+        "sso_fresh_auth_required": "Pour votre sécurité, reconnectez-vous avant de modifier vos méthodes de connexion. Déconnectez-vous, reconnectez-vous via votre fournisseur de connexion, puis réessayez.",
+        "reverification_failed": "Chatto n’a pas pu confirmer votre connexion. Réessayez.",
+        "reverification_mismatch": "Vous vous êtes connecté avec une identité qui appartient à un autre compte. Utilisez une identité liée à ce compte.",
+        "reverify_modal": {
+          "title": "Confirmez votre identité",
+          "body": "Pour votre sécurité, reconnectez-vous avec un fournisseur lié à ce compte. Chatto poursuivra ensuite votre action.",
+          "action": "Se reconnecter avec {provider}"
+        },
         "provider_unconfigured": "Le fournisseur n'est plus configuré",
         "disconnect_button": "Déconnecter",
         "disconnecting": "Déconnexion...",

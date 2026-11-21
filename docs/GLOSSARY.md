@@ -283,6 +283,8 @@ not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
 **External identity** — Provider-issued account identity linked to a user, keyed by verified issuer/provider namespace plus provider subject rather than email. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 
+**Fresh-auth re-verification** — A new sign-in through an OIDC provider that is already linked to the account. It marks the current session fresh for sensitive account operations and does not create a session. Chatto rejects an identity of another account and a provider sign-in that happened before the attempt. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
+
 **Verified identity** — A public identity that a Chatto server associates with a member through a verification method. Members trust the server operator for this association. See [FDR-058](fdr/FDR-058-atproto-sign-in.md) and [ADR-124](adr/ADR-124-atproto-handle-verification-needs-an-issuer.md).
 
 **CIMD (Client ID Metadata Document)** — Public OAuth client metadata served at the client's URL identifier and used by Chatto to bind that client identity to exact callbacks without prior operator registration. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md).

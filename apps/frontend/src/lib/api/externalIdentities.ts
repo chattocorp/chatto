@@ -50,6 +50,8 @@ export type ExternalIdentityProviderInfo = {
   linkUrl: string;
   linked: boolean;
   linkedIdentitySubjectHash: string | null;
+  /** The user can confirm a recent sign-in with this provider. False on older servers. */
+  reverificationAvailable: boolean;
 };
 
 export type ExternalIdentityList = {
@@ -135,6 +137,19 @@ export function createExternalIdentityAPI(config: ConnectAPIConfig) {
       return externalIdentityStartURL(response.startUrl);
     },
 
+    /**
+     * Returns the browser URL that confirms a recent sign-in through a linked
+     * provider. The callback returns to `redirectPath` with `reverified=1`, or
+     * with an `error` code.
+     */
+    async startReverification(input: {
+      providerId: string;
+      redirectPath: string;
+    }): Promise<string> {
+      const response = await client.startFreshAuthReverification(input);
+      return externalIdentityStartURL(response.startUrl);
+    },
+
     async disconnect(subjectHash: string, currentPassword?: string): Promise<void> {
       await client.disconnectExternalIdentity({ subjectHash, currentPassword });
     }
@@ -175,7 +190,8 @@ function externalIdentityProvider(
     loginUrl: resolveServerUrl(metadata.loginUrl, baseUrl),
     linkUrl: resolveServerUrl(provider.linkUrl, baseUrl),
     linked: provider.linked,
-    linkedIdentitySubjectHash: provider.linkedIdentitySubjectHash || null
+    linkedIdentitySubjectHash: provider.linkedIdentitySubjectHash || null,
+    reverificationAvailable: provider.reverificationAvailable
   };
 }
 

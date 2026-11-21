@@ -929,6 +929,7 @@ Public metadata for a configured external login provider.
 | `linked` | `bool` | True when this provider is already linked to the authenticated user. |
 | `linked_identity_subject_hash` | `string` | Linked identity subject hash for this provider, when linked. |
 | `provider` | [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Shared provider metadata. |
+| `reverification_available` | `bool` | True when the user can confirm a recent sign-in through this provider with StartFreshAuthReverification. The provider must be linked to the user and able to force a new provider sign-in. |
 
 <a id="chatto-api-v1-LinkedExternalIdentity"></a>
 

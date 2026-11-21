@@ -113,6 +113,12 @@ func NewExternalIdentityLinkStartToken() string {
 	return newID("ELS")
 }
 
+// NewFreshAuthReverificationStartToken generates a one-time fresh-auth
+// re-verification browser handoff token.
+func NewFreshAuthReverificationStartToken() string {
+	return newID("FAR")
+}
+
 // NewVerificationCode generates a six-digit numeric code for email verification.
 func NewVerificationCode() (string, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(1000000))

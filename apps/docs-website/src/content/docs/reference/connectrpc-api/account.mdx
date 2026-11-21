@@ -332,6 +332,49 @@ Result of preparing an external identity link flow.
 | `start_url` | `string` | Browser URL that starts provider authorization on the target server origin. |
 
 
+<a id="chatto-api-v1-MyAccountService-StartFreshAuthReverification"></a>
+
+### StartFreshAuthReverification
+
+Creates a short-lived browser URL that confirms a recent sign-in through
+a provider already linked to the authenticated account. The provider must
+ask for credentials again. When the callback verifies an identity of the
+same account, the server marks the calling session fresh for 30 minutes,
+so that actions such as StartExternalIdentityLink and
+DisconnectExternalIdentity succeed without a password. The callback does
+not create a new session. A cookie session must complete the callback in
+the same browser. Returns NOT_FOUND for an unknown provider and
+FAILED_PRECONDITION when the provider is not linked or cannot force a new
+sign-in.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/StartFreshAuthReverification
+```
+
+<a id="chatto-api-v1-StartFreshAuthReverificationRequest"></a>
+
+#### Input: StartFreshAuthReverificationRequest
+
+Request to confirm a recent sign-in through a provider that is already
+linked to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `provider_id` | `string` | Provider ID to sign in again with. The provider must report reverification_available in ListExternalIdentities. |
+| `redirect_path` | `string` | Internal path to return to after the provider callback. The server adds `reverified=1` on success, or an `error` code on failure. |
+
+
+<a id="chatto-api-v1-StartFreshAuthReverificationResponse"></a>
+
+#### Result: StartFreshAuthReverificationResponse
+
+Result of preparing a fresh-auth re-verification.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `start_url` | `string` | Browser URL that starts provider authorization on the target server origin. |
+
+
 <a id="chatto-api-v1-MyAccountService-DisconnectExternalIdentity"></a>
 
 ### DisconnectExternalIdentity

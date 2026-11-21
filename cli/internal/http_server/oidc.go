@@ -295,12 +295,31 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		}
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "link")
 		session.Set(providerSessionKey(providerRuntime.config.ID, "link_user_id"), start.BoundUserID)
+		session.Delete(providerSessionKey(providerRuntime.config.ID, "reverify_start"))
+		if isValidInternalRedirect(start.RedirectPath) {
+			linkStartRedirect = start.RedirectPath
+		}
+	} else if intent == "reverify" {
+		// Only OIDC can force a new provider sign-in and prove it. The
+		// callback consumes the token, so an abandoned attempt leaves it to
+		// expire.
+		token := c.Query("reverify_start")
+		start, err := s.core.PeekFreshAuthReverificationStart(c.Request.Context(), token)
+		if err != nil || start.ProviderID != providerRuntime.config.ID || providerRuntime.config.Type != config.AuthProviderTypeOpenIDConnect {
+			log.Warn("Fresh-auth re-verification start rejected", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "token_valid", err == nil)
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+			return
+		}
+		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "reverify")
+		session.Set(providerSessionKey(providerRuntime.config.ID, "reverify_start"), token)
+		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
 		if isValidInternalRedirect(start.RedirectPath) {
 			linkStartRedirect = start.RedirectPath
 		}
 	} else {
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "login")
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
+		session.Delete(providerSessionKey(providerRuntime.config.ID, "reverify_start"))
 		invitationID, _ := s.registrationInvitation(c, c.Query("admission"))
 		if invitationID != "" {
 			session.Set(providerSessionKey(providerRuntime.config.ID, "invitation_id"), invitationID)
@@ -357,11 +376,20 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		session.Set(providerSessionKey(providerRuntime.config.ID, "code_verifier"), codeVerifier)
 		session.Set(providerSessionKey(providerRuntime.config.ID, "nonce"), nonce)
 		codeChallenge := s256Challenge(codeVerifier)
-		authURL = providerRuntime.oidc.discovery.Load().oauth2Config.AuthCodeURL(state,
+		options := []oauth2.AuthCodeOption{
 			oauth2.SetAuthURLParam("code_challenge", codeChallenge),
 			oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 			oidc.Nonce(nonce),
-		)
+		}
+		if intent == "reverify" {
+			// An existing provider session must not count. The callback
+			// also checks auth_time, because a provider can ignore these.
+			options = append(options,
+				oauth2.SetAuthURLParam("prompt", "login"),
+				oauth2.SetAuthURLParam("max_age", "0"),
+			)
+		}
+		authURL = providerRuntime.oidc.discovery.Load().oauth2Config.AuthCodeURL(state, options...)
 	} else {
 		gothSession, err := providerRuntime.goth.BeginAuth(state)
 		if err != nil {
@@ -410,9 +438,11 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	intent, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "intent")).(string)
 	linkUserID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "link_user_id")).(string)
 	invitationID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "invitation_id")).(string)
+	reverifyToken, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "reverify_start")).(string)
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "intent"))
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "invitation_id"))
+	session.Delete(providerSessionKey(providerRuntime.config.ID, "reverify_start"))
 
 	// Check for error from provider
 	if errCode := c.Query("error"); errCode != "" {
@@ -446,7 +476,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	// accounts. The error does not name the restriction.
 	if !providerRuntime.config.AdmitsGroups(identity.groups.Groups) {
 		log.Warn("Provider sign-in denied by group restriction", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
-		if intent == "link" {
+		if intent == "link" || intent == "reverify" {
 			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", "provider_access_denied"))
 			return
 		}
@@ -485,6 +515,11 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 			log.Warn("Provider group role sync failed after link", "provider_id", providerRuntime.config.ID, "userId", linkUserID, "error", err)
 		}
 		c.Redirect(http.StatusTemporaryRedirect, providerReturnPath(session, "/"))
+		return
+	}
+
+	if intent == "reverify" {
+		s.completeFreshAuthReverification(c, session, providerRuntime.config, identity, reverifyToken)
 		return
 	}
 
@@ -564,6 +599,9 @@ type resolvedProviderIdentity struct {
 	// groups holds the OIDC groups claim when allowed_groups or group_roles
 	// needs it.
 	groups core.ProviderGroups
+	// authTime is the OIDC auth_time claim: when the provider last
+	// authenticated the user. It is zero when the ID token has none.
+	authTime time.Time
 }
 
 func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackURL string) (*authProviderRuntime, error) {
@@ -749,6 +787,7 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	}
 
 	log.Info("OIDC token verified", "provider_id", r.config.ID, "issuer", idToken.Issuer)
+	authTime := idTokenAuthTime(idToken.Claims)
 
 	// Chatto reads groups only for allowed_groups or group_roles. A groups
 	// claim in the ID token wins over UserInfo, like the profile claims.
@@ -815,7 +854,52 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		providerUsername: providerUsername,
 		displayNameHint:  displayNameHintFromParts(claims.Name, claims.PreferredUser, verifiedEmail),
 		groups:           groups,
+		authTime:         authTime,
 	}, nil
+}
+
+// idTokenAuthTime reads the auth_time claim in Unix seconds. A missing or
+// malformed claim gives the zero time, which never counts as a new sign-in.
+func idTokenAuthTime(decode func(any) error) time.Time {
+	var claim struct {
+		AuthTime json.Number `json:"auth_time"`
+	}
+	if err := decode(&claim); err != nil || claim.AuthTime == "" {
+		return time.Time{}
+	}
+	seconds, err := claim.AuthTime.Float64()
+	if err != nil || seconds <= 0 {
+		return time.Time{}
+	}
+	return time.Unix(int64(seconds), 0)
+}
+
+// completeFreshAuthReverification consumes the re-verification handoff and
+// marks the bound credential fresh when the verified identity belongs to the
+// bound account. It never creates a session. The browser returns to the
+// handoff's path with reverified=1, or with an error code.
+func (s *HTTPServer) completeFreshAuthReverification(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, token string) {
+	ctx := c.Request.Context()
+	returnPath := providerReturnPath(session, "/")
+	start, err := s.core.ConsumeFreshAuthReverificationStart(ctx, token)
+	if err == nil && start.ProviderID != providerConfig.ID {
+		err = core.ErrFreshAuthReverificationMismatch
+	}
+	if err == nil {
+		cookieHandle, _ := s.browserSessionID(c)
+		err = s.core.CompleteFreshAuthReverification(ctx, start, identity.issuer, identity.subject, identity.authTime, cookieHandle)
+	}
+	if err != nil {
+		errorCode := "reverification_failed"
+		if errors.Is(err, core.ErrFreshAuthReverificationMismatch) {
+			errorCode = "reverification_mismatch"
+		}
+		log.Warn("Fresh-auth re-verification failed", "provider_id", providerConfig.ID, "mismatch", errorCode == "reverification_mismatch", "stale", errors.Is(err, core.ErrFreshAuthReverificationStale), "error", err)
+		c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "error", errorCode))
+		return
+	}
+	log.Info("Fresh-auth re-verification succeeded", "provider_id", providerConfig.ID, "userId", start.BoundUserID)
+	c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "reverified", "1"))
 }
 
 // providerUsernameClaim reads only a string from the configured verified claim.

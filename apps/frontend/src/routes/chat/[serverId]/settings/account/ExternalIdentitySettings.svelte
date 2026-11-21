@@ -10,7 +10,10 @@
     authorizationWindowFeatures,
     openAuthorizationWindow
   } from '$lib/oauth/authorizationWindow';
-  import IdentityLinkContinuation from './IdentityLinkContinuation.svelte';
+  import { navigateToProvider } from './providerNavigation';
+  import IdentityLinkContinuation, {
+    type ContinuationState
+  } from './IdentityLinkContinuation.svelte';
   import type { CurrentUserState } from '@chatto/client/auth/currentUser';
   import {
     createExternalIdentityAPI,
@@ -232,7 +235,7 @@
     });
   }
 
-  function continueProviderLink(providerId: string, userId: string) {
+  function continueProviderLink(providerId: string, userId: string, state: ContinuationState) {
     if (!userId || userId !== accountId) {
       actionError = m('settings.account.sso.account_mismatch');
       return;
@@ -242,8 +245,125 @@
       actionError = m('settings.account.sso.provider_unavailable');
       return;
     }
-    if (provider.linked) window.close();
+    if (provider.linked) {
+      window.close();
+      return;
+    }
+    reverified ||= state.reverified;
+    const action: ProtectedAction = { kind: 'link', provider, destination: 'current' };
+    if (state.errorCode) offerReverification(action, reverificationErrorMessage(state.errorCode));
     else void startProviderLink(provider, 'current');
+  }
+
+  // A disconnect resumes with its confirmation again, so that a crafted URL
+  // cannot disconnect an identity without a click.
+  function continueDisconnect(subjectHash: string, userId: string, state: ContinuationState) {
+    if (!userId || userId !== accountId) {
+      actionError = m('settings.account.sso.account_mismatch');
+      return;
+    }
+    const identity = linkedIdentities.find((identity) => identity.subjectHash === subjectHash);
+    if (!identity) return;
+    reverified ||= state.reverified;
+    if (state.errorCode) {
+      offerReverification(
+        { kind: 'disconnect', subjectHash, providerLabel: identity.providerLabel },
+        reverificationErrorMessage(state.errorCode)
+      );
+      return;
+    }
+    openDisconnectDialog(subjectHash, identity.providerLabel);
+  }
+
+  function reverificationErrorMessage(errorCode: string): string {
+    switch (errorCode) {
+      case 'reverification_mismatch':
+        return m('settings.account.sso.reverification_mismatch');
+      case 'provider_access_denied':
+        return m('auth.login.error.provider_access_denied');
+      default:
+        return m('settings.account.sso.reverification_failed');
+    }
+  }
+
+  /** An action that the server protects with a recent sign-in. */
+  type ProtectedAction =
+    | { kind: 'link'; provider: ExternalIdentityProviderInfo; destination: 'popup' | 'current' }
+    | { kind: 'disconnect'; subjectHash: string; providerLabel: string };
+
+  // Providers that can confirm a recent sign-in without a password.
+  const reverificationProviders = $derived(
+    providers.filter((provider) => provider.linked && provider.reverificationAvailable)
+  );
+  // This page returned from a successful re-verification. A repeated
+  // freshness failure then shows the fallback instead of another round trip.
+  let reverified = false;
+  let reverificationPrompt = $state.raw<{ action: ProtectedAction; error: string } | null>(null);
+  let reverifyingProviderId = $state('');
+
+  /** The settings path that resumes action after the provider callback. */
+  function protectedActionReturnPath(action: ProtectedAction): string {
+    const url = new URL(accountSettingsPath, window.location.origin);
+    if (action.kind === 'link') url.searchParams.set('link_provider', action.provider.id);
+    else url.searchParams.set('disconnect_identity', action.subjectHash);
+    url.searchParams.set('link_user', accountId ?? '');
+    return url.pathname + url.search + url.hash;
+  }
+
+  // Confirms a recent sign-in through a linked provider, then resumes action.
+  // Servers that cannot re-verify, or a repeated failure, show fallback.
+  function requireReverification(action: ProtectedAction, fallback: string) {
+    if (
+      reverified ||
+      reverificationProviders.length === 0 ||
+      !serverRegistry.isOriginServer(serverScope.serverId)
+    ) {
+      actionError = fallback;
+      return;
+    }
+    if (reverificationProviders.length === 1)
+      void startReverification(reverificationProviders[0], action);
+    else offerReverification(action, '');
+  }
+
+  function offerReverification(action: ProtectedAction, error: string) {
+    if (reverificationProviders.length === 0) {
+      actionError = error || m('settings.account.sso.sso_fresh_auth_required');
+      return;
+    }
+    reverificationPrompt = { action, error };
+  }
+
+  async function startReverification(
+    provider: ExternalIdentityProviderInfo,
+    action: ProtectedAction
+  ) {
+    const scope = session.snapshot();
+    const userId = accountId;
+    actionError = '';
+    reverifyingProviderId = provider.id;
+    try {
+      const startUrl = await scope.connection
+        .getAPI(createExternalIdentityAPI)
+        .startReverification({
+          providerId: provider.id,
+          redirectPath: protectedActionReturnPath(action)
+        });
+      if (!session.isCurrent(scope) || userId !== accountId) return;
+      reverificationPrompt = null;
+      // A link that started in the settings page continues in its own window.
+      if (action.kind === 'link' && action.destination === 'popup')
+        launchProviderWindow(action.provider, startUrl);
+      else navigateToProvider(startUrl);
+    } catch (err) {
+      if (!session.isCurrent(scope) || userId !== accountId) return;
+      reverificationPrompt = {
+        action,
+        error: errorMessage(err, m('settings.account.sso.reverification_failed'))
+      };
+    } finally {
+      reverifyingProviderId = '';
+    }
   }
 
   function linkErrorMessage(errorCode: string): string {
@@ -349,7 +469,7 @@
       linkConfirmation = null;
       linkCurrentPassword = '';
       if (destination === 'popup') launchProviderWindow(provider, startUrl);
-      else window.location.href = startUrl;
+      else navigateToProvider(startUrl);
     } catch (err) {
       if (!session.isCurrent(scope) || userId !== accountId) return;
       if (
@@ -366,9 +486,12 @@
         err.code === Code.FailedPrecondition &&
         currentPassword === undefined
       ) {
-        actionError = directLoginEnabled
-          ? m('settings.account.sso.fresh_auth_required')
-          : m('settings.account.sso.sso_fresh_auth_required');
+        requireReverification(
+          { kind: 'link', provider, destination },
+          directLoginEnabled
+            ? m('settings.account.sso.fresh_auth_required')
+            : m('settings.account.sso.sso_fresh_auth_required')
+        );
       } else if (currentPassword !== undefined) {
         linkFreshAuthError = errorMessage(err, m('settings.account.sso.link_failed'));
       } else {
@@ -505,9 +628,12 @@
           disconnectCurrentPassword = '';
           disconnectFreshAuthError = '';
         } else {
-          actionError = directLoginEnabled
-            ? m('settings.account.sso.disconnect_fresh_auth_required')
-            : m('settings.account.sso.sso_fresh_auth_required');
+          requireReverification(
+            { kind: 'disconnect', subjectHash, providerLabel },
+            directLoginEnabled
+              ? m('settings.account.sso.disconnect_fresh_auth_required')
+              : m('settings.account.sso.sso_fresh_auth_required')
+          );
         }
       } else if (currentPassword !== undefined) {
         disconnectFreshAuthError = errorMessage(err, m('settings.account.sso.disconnect_failed'));
@@ -545,7 +671,11 @@
 {/if}
 
 {#if serverRegistry.isOriginServer(serverScope.serverId) && accountId && identitiesQuery.isSuccess && !identitiesQuery.isFetching}
-  <IdentityLinkContinuation oncontinue={continueProviderLink} oncomplete={completeProviderLink} />
+  <IdentityLinkContinuation
+    oncontinue={continueProviderLink}
+    oncomplete={completeProviderLink}
+    ondisconnect={continueDisconnect}
+  />
 {/if}
 
 <Panel title={m('settings.account.sso.title')} icon="iconify icon-[uil--link]">
@@ -730,6 +860,36 @@
     </Button>
   {/snippet}
 </Dialog>
+
+{#if reverificationPrompt}
+  {@const prompt = reverificationPrompt}
+  <Dialog
+    visible
+    title={m('settings.account.sso.reverify_modal.title')}
+    size="sm"
+    onclose={() => {
+      if (!reverifyingProviderId) reverificationPrompt = null;
+    }}
+  >
+    <div class="flex flex-col gap-3">
+      {#if prompt.error}
+        <Hint tone="danger">{prompt.error}</Hint>
+      {/if}
+      <p>{m('settings.account.sso.reverify_modal.body')}</p>
+      {#each reverificationProviders as provider (provider.id)}
+        <Button
+          variant="secondary"
+          loading={reverifyingProviderId === provider.id}
+          disabled={reverifyingProviderId !== ''}
+          onclick={() => startReverification(provider, prompt.action)}
+        >
+          <span aria-hidden="true" class={['iconify', providerIcon(provider.type)]}></span>
+          {m('settings.account.sso.reverify_modal.action', { provider: provider.label })}
+        </Button>
+      {/each}
+    </div>
+  </Dialog>
+{/if}
 
 {#if blockedLaunch}
   <ConfirmDialog

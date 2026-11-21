@@ -529,7 +529,14 @@
         "link_button": "关联",
         "link_failed": "登录提供商关联失败",
         "fresh_auth_required": "关联其他提供商前请重新登录。",
-        "sso_fresh_auth_required": "请在此账号所属的服务器上打开账号设置。退出登录，然后通过你的 SSO 提供商重新登录，再在该服务器上重试此操作。",
+        "sso_fresh_auth_required": "为了你的安全，更改登录方式前请重新登录。请退出，通过你的登录提供方重新登录，然后重试。",
+        "reverification_failed": "Chatto 无法确认你的登录。请重试。",
+        "reverification_mismatch": "你登录所用的身份属于另一个账户。请使用已关联到此账户的身份。",
+        "reverify_modal": {
+          "title": "确认是你本人",
+          "body": "为了你的安全，请使用已关联到此账户的提供方重新登录。之后 Chatto 会继续你的操作。",
+          "action": "使用 {provider} 重新登录"
+        },
         "provider_unconfigured": "已不再配置此提供商",
         "disconnect_button": "解除关联",
         "disconnecting": "正在解除关联...",
