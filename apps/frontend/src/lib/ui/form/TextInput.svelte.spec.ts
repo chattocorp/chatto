@@ -4,20 +4,6 @@ import { render } from 'vitest-browser-svelte';
 import TextInput from './TextInput.svelte';
 
 describe('TextInput', () => {
-  it('cuts text at the end to fit a UTF-8 byte limit', () => {
-    const { container } = render(TextInput, {
-      id: 'motd',
-      label: 'Message of the Day',
-      maxBytes: 6
-    });
-    const input = container.querySelector('input')!;
-
-    input.value = '💬abc';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-
-    expect(input.value).toBe('💬ab');
-  });
-
   it('renders a labelled date and time field with a form name', async () => {
     const screen = render(TextInput, {
       props: {

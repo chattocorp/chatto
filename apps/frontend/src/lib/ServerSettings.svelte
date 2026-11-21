@@ -26,10 +26,12 @@
   import { dropZone } from '$lib/dom/dropZone.svelte';
   import DropZoneOverlay from '$lib/dom/DropZoneOverlay.svelte';
 
-  // Server limits from cli/internal/core/errors.go. They count UTF-8 bytes.
-  const MAX_SERVER_DESCRIPTION_BYTES = 500;
-  const MAX_SERVER_MOTD_BYTES = 1000;
-  const MAX_SERVER_WELCOME_MESSAGE_BYTES = 10000;
+  // Server limits from cli/internal/core/errors.go. The server counts UTF-8
+  // bytes and `maxlength` counts characters, so text with many multibyte
+  // characters can pass here and fail on save with a validation error.
+  const MAX_DESCRIPTION_LENGTH = 500;
+  const MAX_MOTD_LENGTH = 1000;
+  const MAX_WELCOME_MESSAGE_LENGTH = 10000;
 
   const serverScope = useServerScope();
   const session = createSessionGuard(serverScope);
@@ -301,7 +303,7 @@
               id="description"
               label={m('server_settings.description_label')}
               bind:value={() => description, (value) => edit('description', value)}
-              maxBytes={MAX_SERVER_DESCRIPTION_BYTES}
+              maxlength={MAX_DESCRIPTION_LENGTH}
               disabled={saving}
               rows={2}
               description={m('server_settings.description_help')}
@@ -316,7 +318,7 @@
               id="welcome-message"
               label={m('server_settings.welcome_message_label')}
               bind:value={() => welcomeMessage, (value) => edit('welcomeMessage', value)}
-              maxBytes={MAX_SERVER_WELCOME_MESSAGE_BYTES}
+              maxlength={MAX_WELCOME_MESSAGE_LENGTH}
               rows={8}
               disabled={saving}
               description={m('server_settings.welcome_message_help')}
@@ -326,7 +328,7 @@
               id="motd"
               label={m('common.message_of_the_day')}
               bind:value={() => motd, (value) => edit('motd', value)}
-              maxBytes={MAX_SERVER_MOTD_BYTES}
+              maxlength={MAX_MOTD_LENGTH}
               disabled={saving}
               description={m('server_settings.motd_help')}
             />

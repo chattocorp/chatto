@@ -1,6 +1,5 @@
 <script lang="ts">
   import FormField from './FormField.svelte';
-  import { fitToBytes } from './byteLimit';
   import type { Snippet } from 'svelte';
   import type { HTMLInputAttributes } from 'svelte/elements';
 
@@ -21,7 +20,6 @@
     autocomplete,
     minlength,
     maxlength,
-    maxBytes,
     autofocus = false,
     leadingIcon,
     trailingText,
@@ -49,8 +47,6 @@
     autocomplete?: HTMLInputAttributes['autocomplete'];
     minlength?: number;
     maxlength?: number;
-    /** Cut the text at the end so that its UTF-8 encoding fits this many bytes. */
-    maxBytes?: number;
     autofocus?: boolean;
     /** Iconify class name (e.g. `'icon-[uil--search]'`). Renders a leading icon inside the input. */
     leadingIcon?: string;
@@ -70,14 +66,6 @@
     onkeydown?: (e: KeyboardEvent) => void;
     oninput?: (e: Event) => void;
   } = $props();
-
-  function handleInput(event: Event) {
-    const field = event.currentTarget as HTMLInputElement;
-    const fitted = fitToBytes(field.value, maxBytes ?? Infinity);
-    if (fitted !== field.value) field.value = fitted;
-    value = fitted;
-    oninput?.(event);
-  }
 </script>
 
 <FormField {label} {id} {error} {description} {required} {labelHidden}>
@@ -105,10 +93,10 @@
       {disabled}
       {autocomplete}
       {minlength}
-      maxlength={maxlength ?? maxBytes}
+      {maxlength}
       {autofocus}
       {onkeydown}
-      oninput={maxBytes === undefined ? oninput : handleInput}
+      {oninput}
       class={[
         'input',
         leadingIcon && 'ps-8',

@@ -1,6 +1,5 @@
 <script lang="ts">
   import FormField from './FormField.svelte';
-  import { fitToBytes } from './byteLimit';
 
   let {
     label,
@@ -14,7 +13,6 @@
     disabled = false,
     rows = 3,
     maxlength,
-    maxBytes,
     oninput
   }: {
     label: string;
@@ -28,19 +26,8 @@
     disabled?: boolean;
     rows?: number;
     maxlength?: number;
-    /** Cut the text at the end so that its UTF-8 encoding fits this many bytes. */
-    maxBytes?: number;
     oninput?: (e: Event) => void;
   } = $props();
-
-  const effectiveMaxlength = $derived(maxlength ?? maxBytes);
-  function handleInput(event: Event) {
-    const field = event.currentTarget as HTMLTextAreaElement;
-    const fitted = fitToBytes(field.value, maxBytes ?? Infinity);
-    if (fitted !== field.value) field.value = fitted;
-    value = fitted;
-    oninput?.(event);
-  }
 </script>
 
 <FormField {label} {id} {error} {description} {required}>
@@ -52,8 +39,8 @@
     {required}
     {disabled}
     {rows}
-    maxlength={effectiveMaxlength}
-    oninput={maxBytes === undefined ? oninput : handleInput}
+    {maxlength}
+    {oninput}
     class="input resize-none"
     aria-invalid={error ? 'true' : undefined}
     aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}

@@ -4,8 +4,7 @@
 
   const componentDescription = `
     Use TextArea for multi-line prose, descriptions, and notes. Keep short values in TextInput, and
-    use helper text or counters when the field has meaningful constraints. Use maxBytes when the
-    server validates the UTF-8 encoded size rather than the character count.
+    use helper text or counters when the field has meaningful constraints.
   `.trim();
 
   const { Story } = defineMeta({
@@ -23,7 +22,6 @@
 <script lang="ts">
   let value = $state('');
   let withCounter = $state('A short bio.');
-  let withByteLimit = $state('Emoji count as multiple bytes: 💬');
 </script>
 
 <Story name="Default" asChild>
@@ -48,18 +46,6 @@
   <div class="max-w-md">
     <TextArea id="max" label="Bio" bind:value={withCounter} maxlength={140} rows={3} />
     <p class="mt-1 text-xs text-muted">{withCounter.length} / 140</p>
-  </div>
-</Story>
-
-<Story name="With byte limit" asChild>
-  <div class="max-w-md">
-    <TextArea
-      id="bytes"
-      label="Link preview description"
-      bind:value={withByteLimit}
-      maxBytes={80}
-      rows={3}
-    />
   </div>
 </Story>
 
