@@ -299,13 +299,13 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		flow := options.external
 		externalEvent := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityLinked{
 			UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{
-				UserId:            userID,
-				Issuer:            flow.Issuer,
-				Subject:           flow.Subject,
-				SubjectHash:       externalIdentityHash(flow.Issuer, flow.Subject),
-				ProviderId:        flow.ProviderID,
-				ProviderType:      flow.ProviderType,
-				HasBlueskyProfile: flow.HasBlueskyProfile,
+				UserId:       userID,
+				Issuer:       flow.Issuer,
+				Subject:      flow.Subject,
+				SubjectHash:  externalIdentityHash(flow.Issuer, flow.Subject),
+				ProviderId:   flow.ProviderID,
+				ProviderType: flow.ProviderType,
+				ProfileTypes: flow.ProfileTypes,
 			},
 		}})
 		externalEvent.CreatedAt = now

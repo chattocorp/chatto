@@ -1899,13 +1899,18 @@ func TestGetUserVerifiedIdentities(t *testing.T) {
 	}
 	require.Empty(t, read(false))
 	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "alice.example"}}, read(true))
-	require.NoError(t, env.core.SyncBlueskyProfile(ctx, target.Id, linked.Issuer, linked.Subject, true))
+	require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", linked.Issuer, linked.Subject, "app.bsky.actor.profile", true))
 	directory.Insert(identity.Identity{DID: "did:plc:member", Handle: "new.example"})
 	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "new.example", HasBlueskyProfile: true}}, read(true))
-	require.NoError(t, env.core.SyncBlueskyProfile(ctx, target.Id, linked.Issuer, linked.Subject, false))
+	require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", linked.Issuer, linked.Subject, "example.actor.profile", true))
+	require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", linked.Issuer, linked.Subject, "app.bsky.actor.profile", false))
+	links, err := env.core.ExternalIdentitiesForUser(ctx, target.Id)
+	require.NoError(t, err)
+	linked.ProfileTypes = []string{"example.actor.profile"}
+	require.Contains(t, links, linked)
 	require.False(t, read(true)[0].HasBlueskyProfile)
 	require.NoError(t, env.core.DisconnectExternalIdentityAs(ctx, target.Id, target.Id, linked.SubjectHash, core.ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}))
-	require.NoError(t, env.core.SyncBlueskyProfile(ctx, target.Id, linked.Issuer, linked.Subject, true))
+	require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", linked.Issuer, linked.Subject, "app.bsky.actor.profile", true))
 	require.Empty(t, read(true))
 }
 
@@ -1916,7 +1921,7 @@ func TestVerifiedIdentityFromATProtoSignup(t *testing.T) {
 	const did = "did:plc:member"
 	directory.Insert(identity.Identity{DID: did, Handle: "alice.example"})
 	token, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
-		ProviderID: "at", ProviderType: "atproto", Issuer: "at", Subject: did, HasBlueskyProfile: true,
+		ProviderID: "at", ProviderType: "atproto", Issuer: "at", Subject: did, ProfileTypes: []string{"app.bsky.actor.profile"},
 	})
 	require.NoError(t, err)
 	flow, err := env.core.GetPendingExternalIdentityCreateFlow(env.ctx, token)

@@ -23,6 +23,9 @@ import (
 // (FDR-058).
 const atprotoIdentityScope = "atproto"
 
+// blueskyProfileType is the AT Protocol collection for a Bluesky profile.
+const blueskyProfileType = "app.bsky.actor.profile"
+
 // atprotoHandlePagePath is the frontend page that asks for the handle when a
 // sign-in starts without one. It continues the same start URL with
 // `login_hint`.
@@ -164,7 +167,7 @@ func (p *atprotoProvider) profile(ctx context.Context, pds string, did syntax.DI
 		return "", "", false
 	}
 	base := strings.TrimRight(pds, "/")
-	query := url.Values{"repo": {did.String()}, "collection": {"app.bsky.actor.profile"}, "rkey": {"self"}}
+	query := url.Values{"repo": {did.String()}, "collection": {blueskyProfileType}, "rkey": {"self"}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/xrpc/com.atproto.repo.getRecord?"+query.Encode(), nil)
 	if err != nil {
 		return "", "", false
@@ -188,7 +191,7 @@ func (p *atprotoProvider) profile(ctx context.Context, pds string, did syntax.DI
 			} `json:"avatar"`
 		} `json:"value"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, atprotoProfileRecordLimit)).Decode(&record); err != nil || record.Value.Type != "app.bsky.actor.profile" {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, atprotoProfileRecordLimit)).Decode(&record); err != nil || record.Value.Type != blueskyProfileType {
 		return "", "", false
 	}
 	displayName = strings.TrimSpace(record.Value.DisplayName)
@@ -279,12 +282,13 @@ func (r *authProviderRuntime) resolveATProtoIdentity(c *gin.Context, session ses
 		return resolvedProviderIdentity{}, fmt.Errorf("complete atproto sign-in: %w", err)
 	}
 	identity := resolvedProviderIdentity{
-		issuer:            r.config.ID,
-		subject:           account.DID.String(),
-		avatarURL:         account.AvatarURL,
-		hasBlueskyProfile: account.HasBlueskyProfile,
-		loginHint:         loginHintFromParts(account.Handle),
-		displayNameHint:   displayNameHintFromParts(account.DisplayName, account.Handle),
+		issuer:          r.config.ID,
+		subject:         account.DID.String(),
+		avatarURL:       account.AvatarURL,
+		profileType:     blueskyProfileType,
+		profileFound:    account.HasBlueskyProfile,
+		loginHint:       loginHintFromParts(account.Handle),
+		displayNameHint: displayNameHintFromParts(account.DisplayName, account.Handle),
 	}
 	if r.config.ManageUsernames {
 		identity.providerUsername = account.Handle

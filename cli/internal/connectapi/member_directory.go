@@ -121,7 +121,7 @@ func (s *userService) verifiedIdentities(ctx context.Context, links []core.Exter
 			identities = append(identities, &apiv1.VerifiedIdentity{
 				Method:            config.AuthProviderTypeATProto,
 				MethodLabel:       "AT Protocol",
-				HasBlueskyProfile: link.HasBlueskyProfile,
+				HasBlueskyProfile: slices.Contains(link.ProfileTypes, "app.bsky.actor.profile"),
 				Value:             account.Handle.Normalize().String(),
 			})
 		}

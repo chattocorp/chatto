@@ -182,7 +182,7 @@ func newATProtoFlowRouter(t *testing.T, runtime *authProviderRuntime) (*httptest
 			c.String(http.StatusBadRequest, "callback failed")
 			return
 		}
-		c.JSON(http.StatusOK, map[string]string{"subject": identity.subject, "username": identity.providerUsername, "hint": identity.loginHint, "display": identity.displayNameHint, "avatar": identity.avatarURL, "profile": strconv.FormatBool(identity.hasBlueskyProfile)})
+		c.JSON(http.StatusOK, map[string]string{"subject": identity.subject, "username": identity.providerUsername, "hint": identity.loginHint, "display": identity.displayNameHint, "avatar": identity.avatarURL, "profile": strconv.FormatBool(identity.profileFound)})
 	})
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
