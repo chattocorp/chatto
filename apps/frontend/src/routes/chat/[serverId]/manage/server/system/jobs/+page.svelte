@@ -18,7 +18,6 @@
     Hint,
     PageTitle,
     PaneContent,
-    PaneHeader,
     Panel,
     SegmentedControl,
     ToggleChip
@@ -37,7 +36,6 @@
   const jobActions = createJobActions(scope);
   /** The failed job that waits for the operator to confirm its deletion. */
   let jobToDelete = $state<AdminJob | null>(null);
-  let scrollContainer = $state<HTMLDivElement>();
 
   const serverSegment = serverIdToSegment(scope.serverId);
   // Servers before the job queue have no AdminJobService. Unknown versions may try.
@@ -66,8 +64,8 @@
     void goto(
       resolve(
         next === 'all'
-          ? '/chat/[serverId]/manage/server/jobs'
-          : `/chat/[serverId]/manage/server/jobs?status=${next}`,
+          ? '/chat/[serverId]/manage/server/system/jobs'
+          : `/chat/[serverId]/manage/server/system/jobs?status=${next}`,
         { serverId: serverSegment }
       ),
       { replaceState: true, keepFocus: true, noScroll: true }
@@ -100,7 +98,7 @@
   );
 
   function jobHref(job: AdminJob) {
-    return resolve('/chat/[serverId]/manage/server/jobs/[id]', {
+    return resolve('/chat/[serverId]/manage/server/system/jobs/[id]', {
       serverId: serverSegment,
       id: job.id
     });
@@ -119,10 +117,8 @@
 <PageTitle title={m('admin.common.page_title', { title: m('admin.jobs.title') })} />
 
 <div class="pane-page">
-  <PaneHeader title={m('admin.jobs.title')} subtitle={m('admin.jobs.subtitle')} />
-
-  <PaneContent bind:scrollContainer>
-    <div class="flex flex-col gap-6">
+  <PaneContent fillHeight>
+    <div class="flex min-h-0 flex-1 flex-col gap-6 [&_table]:min-w-[46rem] [&_table]:table-fixed">
       {#if unavailable}
         <FeatureCompatibilityNotice features={['backgroundJobs']} {serverSegment} />
       {:else}
@@ -131,7 +127,7 @@
           <Hint tone="danger">{loadError}</Hint>
         {/if}
 
-        <Panel title={m('admin.jobs.title')} noPadding>
+        <Panel title={m('admin.jobs.title')} noPadding fillHeight>
           {#snippet actions()}
             <SegmentedControl
               label={m('admin.common.status')}
@@ -151,16 +147,19 @@
             onLoadMore={async () => {
               await jobsQuery.fetchNextPage();
             }}
-            loadMoreRoot={scrollContainer}
+            stickyHeader
+            stableScrollbarGutter
+            stickyHeaderFadeOffset="top-10"
+            fillHeight
             loadingMoreMessage={m('common.loading')}
           >
             {#snippet header()}
               <th class="table-header-cell">{m('admin.jobs.job')}</th>
-              <th class="table-header-cell">{m('admin.common.status')}</th>
-              <th class="table-header-cell">{m('admin.jobs.attempts')}</th>
-              <th class="table-header-cell">{m('admin.jobs.updated')}</th>
+              <th class="w-28 table-header-cell">{m('admin.common.status')}</th>
+              <th class="w-24 table-header-cell">{m('admin.jobs.attempts')}</th>
+              <th class="w-40 table-header-cell">{m('admin.jobs.updated')}</th>
               <th class="table-header-cell">{m('common.reason')}</th>
-              <th class="table-header-cell"
+              <th class="w-28 table-header-cell"
                 ><span class="sr-only">{m('admin.neighbors.actions')}</span></th
               >
             {/snippet}
@@ -175,7 +174,9 @@
                 {jobAttemptsLabel(job, locale)}
               </td>
               <td class="px-4 py-3 text-sm">{timestamp(job.updatedAt ?? job.createdAt)}</td>
-              <td class="px-4 py-3 font-mono text-xs text-muted">{job.failure || '—'}</td>
+              <td class="px-4 py-3 font-mono text-xs wrap-anywhere text-muted"
+                >{job.failure || '—'}</td
+              >
               <td class="px-3 py-2">
                 {#if job.status === JobStatus.FAILED}
                   <div class="flex items-center justify-end gap-1">

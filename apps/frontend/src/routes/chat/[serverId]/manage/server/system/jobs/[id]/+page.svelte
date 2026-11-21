@@ -48,7 +48,9 @@
         : false
   }));
   const backHref = $derived(
-    resolve('/chat/[serverId]/manage/server/jobs', { serverId: serverIdToSegment(scope.serverId) })
+    resolve('/chat/[serverId]/manage/server/system/jobs', {
+      serverId: serverIdToSegment(scope.serverId)
+    })
   );
 
   // A deleted job has no details, so return to the list, unless the page shows another job now.

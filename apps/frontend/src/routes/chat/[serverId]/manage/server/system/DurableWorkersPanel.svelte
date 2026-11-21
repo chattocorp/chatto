@@ -2,7 +2,7 @@
   import type { AdminDurableWorkerStatus } from '$lib/api/adminDiagnostics';
   import { DataTable, Panel, Pill } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
-  import { knownJobTypeLabel } from '../jobs/jobPresentation';
+  import { knownJobTypeLabel } from './jobs/jobPresentation';
 
   let { workers }: { workers: AdminDurableWorkerStatus[] } = $props();
 
