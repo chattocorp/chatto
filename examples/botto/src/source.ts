@@ -12,6 +12,7 @@ import { log } from 'runling';
 import { safeStep } from './steps.ts';
 import { createTurnHandler } from './turn.ts';
 import { hasTranscript, incomingMessage, isHumanAuthor } from './messages.ts';
+import { hasParticipation } from './participation.ts';
 import { Delivery } from './delivery.ts';
 import { recover } from './recovery.ts';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -76,6 +77,10 @@ export async function runSource(settings: Settings, source: EventSourceContext) 
     const isActive = async (location: { roomId: string; threadRootId: string }) =>
       activeInbox.isActive(location) ||
       delivery.queued.some((item) => threadKey(replyDestination(item)) === threadKey(location)) ||
+      (await hasParticipation(
+        settings.directory,
+        conversationIdentity(settings.serverUrl, viewerId, location)
+      )) ||
       hasTranscript(
         settings.directory,
         conversationIdentity(settings.serverUrl, viewerId, location)

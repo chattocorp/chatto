@@ -72,7 +72,7 @@ TOKEN="\${REMOTE_AUTH}"
 
 test.each([
   '[mcp]\nunknown=true',
-  '[mcp.servers.memory]\ncommand="server"',
+  '[mcp.servers.chatto]\ncommand="server"',
   '[mcp.servers."bad-name"]\ncommand="server"',
   '[mcp.servers.custom]\nurl="http://example.com/mcp"',
   '[mcp.servers.custom]\nurl="https://user:private-secret@example.com/mcp"',
@@ -209,7 +209,6 @@ test('uses defaults and preserves slashes in the model ID', () => {
     contextMessages: 30,
     directory: '/config/.botto',
     skillsDirectory: '/config/.agents/skills',
-    memoryPath: '/config/memory',
     acknowledgementEmoji: 'eyes'
   });
 });
@@ -224,17 +223,9 @@ test('acknowledgement emoji can be changed or disabled', () => {
   );
 });
 
-test('resolves memory paths relative to TOML and accepts environment variables and absolute paths', () => {
-  expect(parse(`${source}\n[memory]\npath="notes"`).memoryPath).toBe('/config/notes');
-  expect(parse(`${source}\n[memory]\npath="/private/notes"`).memoryPath).toBe('/private/notes');
-  expect(
-    parseSettings(source + '\n[memory]\npath="${MEMORY_PATH}"', '/config/botto.toml', {
-      ...env,
-      MEMORY_PATH: 'notes'
-    }).memoryPath
-  ).toBe('/config/notes');
-  expect(() => parse(`${source}\n[memory]\npath=""`)).toThrow(
-    'memory.path must be a non-empty string'
+test('rejects legacy memory configuration with a data-preserving migration', () => {
+  expect(() => parse(`${source}\n[memory]\nenabled=false\npath="notes"`)).toThrow(
+    'keep MEANS.md and all documents unchanged'
   );
 });
 
@@ -406,4 +397,26 @@ test('validates expanded values and keeps numeric settings typed', () => {
       DELAY: '5000'
     })
   ).toThrow('runtime.debounce_ms must be an integer');
+});
+
+test('MCP serialization is explicit and legacy brains direct operators to existing data', () => {
+  const base = `${source}\n[mcp.servers.memory_klaus]\ncommand="means"\nargs=["mcp","--path","/existing/memory"]\ntools=["info","read","update"]`;
+  expect(parse(base).extraMcpServers[0]!.serialize).toBe(false);
+  expect(parse(base + '\nserialize=true').extraMcpServers[0]!.serialize).toBe(true);
+  expect(() => parse(base + '\nserialize="true"')).toThrow('Invalid mcp.servers');
+  expect(() => parse(`${source}\n[brains.collections.klaus]`)).toThrow('existing collection path');
+});
+
+test('Means collection names and paths are ordinary MCP configuration', () => {
+  const settings = parse(
+    `${source}\n[mcp.servers.memory]\ncommand="means"\nargs=["mcp","--path",".botto/brains/klaus"]\ntools=["info","read"]\n[mcp.servers.project]\ncommand="means"\nargs=["mcp","--path","/shared/project"]\ntools=["info","search"]`
+  );
+  expect(settings.extraMcpServers.map((server) => server.name)).toEqual(['memory', 'project']);
+  expect(settings.extraMcpServers[0]!.config).toMatchObject({
+    cwd: '/config',
+    args: ['mcp', '--path', '.botto/brains/klaus']
+  });
+  expect(settings.extraMcpServers[1]!.config).toMatchObject({
+    args: ['mcp', '--path', '/shared/project']
+  });
 });

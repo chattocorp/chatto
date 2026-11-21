@@ -1,6 +1,7 @@
 /** Agent-selected final responses; Chatto effects remain owned by the turn handler. */
 import type { ExtensionFactory } from '@earendil-works/pi-coding-agent';
 import { Type } from 'typebox';
+import { emojiNameFromUnicode, resolveEmoji } from '@chatto/client/messaging/emojiShortcodes';
 
 /** Silence and reactions are successful decisions, not empty or failed model output. */
 export type ConversationResponse =
@@ -13,6 +14,8 @@ export function responseTools(
   postUpdate?: (text: string) => void | Promise<void>
 ) {
   let decision: Exclude<ConversationResponse, { action: 'reply' }> | undefined;
+  // A reaction is a complete response choice, not the start of a progress-reporting workflow.
+  let reactionAttempted = false;
   const finish = (value: NonNullable<typeof decision>) => {
     signal.throwIfAborted();
     if (decision) throw new Error('A final response was already selected.');
@@ -57,13 +60,29 @@ export function responseTools(
         name: 'react_to_message',
         label: 'Choose an emoji reaction',
         description:
-          'End this turn by requesting a reaction to the latest incoming message instead of text. Call alone without accompanying text. Do not duplicate the host acknowledgement.',
+          'End this turn by requesting a reaction to the latest incoming message instead of text. Call alone without accompanying text. Accepts one Unicode emoji (👏) or a built-in name (clap, thumbsup, heart), optionally wrapped in colons (:clap:). Do not duplicate the host acknowledgement.',
         parameters: Type.Object(
-          { emoji: Type.String({ minLength: 1, maxLength: 100, pattern: '^[a-zA-Z0-9_+\\-]+$' }) },
+          {
+            emoji: Type.String({
+              minLength: 1,
+              maxLength: 100,
+              description: 'One Unicode emoji or a built-in reaction name, for example 👏 or clap.'
+            })
+          },
           { additionalProperties: false }
         ),
         async execute(_id, { emoji }) {
-          return finish({ action: 'react', emoji });
+          signal.throwIfAborted();
+          reactionAttempted = true;
+          const input = emoji.trim();
+          const name =
+            emojiNameFromUnicode(input) ??
+            (input.startsWith(':') && input.endsWith(':') ? input.slice(1, -1) : input);
+          if (resolveEmoji(name).kind !== 'unicode')
+            throw new Error(
+              'Use one supported emoji or built-in name, such as 👏 or clap. Correct the reaction, choose silence, or give one final reply; do not post a progress update.'
+            );
+          return finish({ action: 'react', emoji: name });
         }
       });
     if (postUpdate)
@@ -78,6 +97,11 @@ export function responseTools(
         ),
         async execute(_id, { text }) {
           signal.throwIfAborted();
+          if (decision) throw new Error('A final response was already selected.');
+          if (reactionAttempted)
+            throw new Error(
+              'A reaction attempt cannot become a progress update. Correct the reaction, choose silence, or give one final reply.'
+            );
           if (!text.trim()) throw new Error('Provide a non-empty progress update.');
           await postUpdate(text.trim());
           return { content: [{ type: 'text', text: 'Progress update delivered.' }], details: {} };
