@@ -1,20 +1,16 @@
 #!/usr/bin/env bash
 # Check, test, and pack one npm release unit, and save the tested tarball in
-# NPM_RELEASE_DIR. With NPM_PUBLISH=true, also reject a version that npm has
-# already published, including a version that was later removed.
+# NPM_RELEASE_DIR. The publish step (npm-publish.sh) handles a version that is
+# already on npm, so a release can run again.
 #
 # Usage: npm-package.sh <package-path>
 set -euo pipefail
 
 package_path="${1:?Usage: npm-package.sh <package-path>}"
 release_dir="${NPM_RELEASE_DIR:?}"
-publish="${NPM_PUBLISH:-false}"
 
 case "$package_path" in
   packages/runling)
-    if [[ "$publish" == true ]]; then
-      mise x -- node packages/runling/scripts/check-release.mjs
-    fi
     mise check-runling
     mise test-runling
     RUNLING_RELEASE_DIR="$release_dir" mise test-runling-package
@@ -27,11 +23,7 @@ case "$package_path" in
       name=@chatto/client
       export CHATTO_CLIENT_RELEASE_DIR="$release_dir"
     fi
-    if [[ "$publish" == true ]]; then
-      mise x -- pnpm --filter "$name" check:release
-    else
-      mise x -- pnpm --filter "$name" check:release --verify-only
-    fi
+    mise x -- pnpm --filter "$name" check:release --verify-only
     mise x -- pnpm --filter "$name" check
     mise x -- pnpm --filter "$name" test
     mise x -- pnpm --filter "$name" test:package

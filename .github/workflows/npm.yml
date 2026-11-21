@@ -64,7 +64,6 @@ jobs:
         run: echo "name=npm-package-${PACKAGE//\//-}" >> "$GITHUB_OUTPUT"
       - name: Check, test, and pack the release tarball
         env:
-          NPM_PUBLISH: ${{ inputs.commit != '' }}
           NPM_RELEASE_DIR: ${{ runner.temp }}/npm-release
           PACKAGE: ${{ inputs.package }}
         run: bash tools/release/npm-package.sh "$PACKAGE"
@@ -88,12 +87,20 @@ jobs:
         with:
           node-version: '24.22.1'
       - run: npm install --global npm@11.19.0
+      # The publication script comes from the commit of this run, so a manual
+      # run that publishes an older tag again uses the current script.
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: tools/release
       - uses: actions/download-artifact@v8
         with:
           name: ${{ needs.package.outputs.artifact }}
           path: release
       # Prereleases use `next`. Only the highest stable version moves `latest`,
       # so a maintenance release of an older line uses `maintenance`.
+      # A version that is already on npm with the same content is skipped.
       - name: Publish the tested tarball with trusted publishing
         env:
           DIST_TAG: ${{ inputs.prerelease && 'next' || (inputs.highest && 'latest' || 'maintenance') }}
@@ -101,4 +108,4 @@ jobs:
           shopt -s nullglob
           packages=(./release/*.tgz)
           test "${#packages[@]}" -eq 1
-          npm publish "${packages[0]}" --tag "$DIST_TAG" --access public --provenance --ignore-scripts --registry=https://registry.npmjs.org
+          bash tools/release/npm-publish.sh "${packages[0]}" "$DIST_TAG"

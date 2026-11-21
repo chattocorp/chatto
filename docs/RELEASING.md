@@ -184,6 +184,46 @@ GitHub release stays unchanged. A retry of
 an environment-protected job can require approval again. Do not rebuild a
 published version to change its contents.
 
+## Publish a release tag again
+
+Use this procedure when the CI run of a tag can no longer publish it. For
+example, the run failed and a fix to the release workflows is now on `main`.
+Rerunning the old run uses the old workflows, so start a new run:
+
+1. In GitHub Actions, open the `ci` workflow and select **Run workflow**.
+2. Select the `main` branch. For a maintenance tag, you can also select its
+   `release-[0-9]*` branch. Runs from other refs stop before they publish.
+3. Enter the existing tag, for example `v0.6.0-beta.4`.
+4. Select **testflight** only to upload a TestFlight build for a Chatto tag.
+   Each TestFlight run uploads a new build.
+5. Approve the environments, as for a release from a push.
+
+The run does no CI checks: the tagged commit passed them before CI made the
+tag. The `describe-tag` job makes sure that the tag exists on origin, that it
+matches exactly one Sweet package, and that its commit is on `main` or a
+`release-[0-9]*` branch. Then it gives `publish-releases` the same entry as
+Sweet's `tag.yml`, with `prerelease`, and with `highest` for the tags on origin
+at the time of the run. The run uses the same trusted npm publisher (`ci.yml`,
+environment `npm`) and the same signing environments as a release from a push.
+
+The workflows and the publication scripts come from the selected branch. The
+builds use the tagged commit. A run publishes the same version again only where
+this is safe:
+
+- A GitHub release in draft is reused. A published GitHub release stays
+  unchanged.
+- A container image version tag that exists already keeps its image. This
+  includes the Chatto server and frontend images and the Authling release
+  image. Their other tags, such as `next` and `latest`, are set again from that
+  image. Thus a run for an older prerelease moves `next` back to it.
+- An npm version with the same tarball content is skipped. An npm version with
+  other content stops the run with an error, because npm versions never change.
+  In that case, release a new version.
+- The desktop builds are built and signed again. Only a draft release receives
+  them.
+- Homebrew and the stable documentation update only for the highest stable
+  Chatto version, as for a release from a push.
+
 ## Documentation channels
 
 The public documentation has two independently deployed channels:
