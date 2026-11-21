@@ -17,6 +17,8 @@ is connected to, plus the add-server button pinned to the bottom. See the
   import { MediaQuery, SvelteSet } from 'svelte/reactivity';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { fade } from 'svelte/transition';
+  import { flip } from 'svelte/animate';
+  import { COMPACT_MOTION_DURATION_MS, expoOutTransition } from '$lib/ui/motion';
   import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
   import type { GutterItem } from './serverGutterDrag.svelte';
 
@@ -109,6 +111,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
         {#each items as item (item.id)}
           {@const store = serverRegistry.tryGetStore(item.serverId)}
           <div
+            animate:flip={expoOutTransition(COMPACT_MOTION_DURATION_MS)}
             transition:fade={{
               duration: userPreferences.reducedMotion || preview || item.isDndShadowItem ? 0 : 150
             }}

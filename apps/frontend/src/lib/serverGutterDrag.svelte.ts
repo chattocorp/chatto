@@ -2,6 +2,7 @@
 import { untrack } from 'svelte';
 import type { ActionReturn } from 'svelte/action';
 import { dndzone, type DndEvent, type Options } from 'svelte-dnd-action';
+import { COMPACT_MOTION_DURATION_MS, expoOutTransition } from '$lib/ui/motion';
 
 /** A drag item retains the server ID when the library changes its shadow ID. */
 export type GutterItem = { id: string; serverId: string; isDndShadowItem?: boolean };
@@ -70,7 +71,8 @@ export function attachServerGutterDrag(
         items: options.items(),
         type: 'server-gutter',
         dropFromOthersDisabled: true,
-        flipDurationMs: 0,
+        // Match the entries' animate:flip duration, which honours reduced motion.
+        flipDurationMs: expoOutTransition(COMPACT_MOTION_DURATION_MS).duration,
         dropTargetStyle: {},
         autoAriaDisabled: true,
         zoneTabIndex: -1,

@@ -256,6 +256,10 @@ test.describe('Server gutter on hybrid-input devices', () => {
     const icons = zone.getByTestId('server-icon');
     const hrefs = () =>
       icons.evaluateAll((links) => links.map((link) => link.getAttribute('href')));
+    const shadowIndex = () =>
+      zone.evaluate((node) =>
+        [...node.children].findIndex((child) => child.hasAttribute('data-is-dnd-shadow-item-hint'))
+      );
     const initialOrder = await hrefs();
     const initialURL = page.url();
     expect(initialOrder).toHaveLength(21);
@@ -287,6 +291,8 @@ test.describe('Server gutter on hybrid-input devices', () => {
       const target = await icons.nth(targetIndex).boundingBox();
       expect(target).not.toBeNull();
       await page.mouse.move(x, target!.y + target!.height / 2, { steps: 6 });
+      // Icons animate into place. Drop after the gap reaches the target, as a user does.
+      await expect.poll(shadowIndex).toBe(targetIndex);
       await page.mouse.up();
       await expect(page.locator('#dnd-action-dragged-el')).toHaveCount(0);
       await expect(zone.locator('[data-is-dnd-shadow-item-hint]')).toHaveCount(0);
