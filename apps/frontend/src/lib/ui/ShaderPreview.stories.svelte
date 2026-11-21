@@ -8,6 +8,7 @@
   import MarkdownHtml from './MarkdownHtml.svelte';
   import { renderMarkdown } from '$lib/markdown';
   import functionPresentation from './shaderDemos/functionPresentation.glsl?raw';
+  import eventHorizon from './shaderDemos/eventHorizon.glsl?raw';
 
   const plasma = `void mainImage(out vec4 fragColor, in vec2 fragCoord) {
   vec2 uv = fragCoord / iResolution.xy;
@@ -34,6 +35,8 @@
 <Story name="Mouse" args={{ source: mouse }} />
 
 <Story name="Function presentation" args={{ source: functionPresentation }} />
+
+<Story name="Event horizon" args={{ source: eventHorizon }} />
 
 <Story name="In Markdown" asChild>
   {#await html then markup}
