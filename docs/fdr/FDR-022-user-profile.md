@@ -239,7 +239,7 @@ The startup screen in `app.html` paints before the stylesheet loads, so it canno
 ### 19. Display names reject block mosaic characters
 
 **Decision:** Display names reject Block Elements (U+2580–U+259F), Symbols for Legacy Computing (U+1FB00–U+1FBFF), and its Supplement (U+1CC00–U+1CEBF). User reads apply the current rules to stored names. A stored name that is not valid is shown as the login.
-**Why:** A block mosaic glyph fills the complete character cell. Users combine these glyphs into pixel lettering that is about twice as tall as the surrounding text in messages, mentions, and member lists. Other decorative text, such as stylized letters, Box Drawing kaomoji, and Braille, keeps a normal text height and stays permitted. The read rule applies to all clients and bots and does not change stored events.
+**Why:** A block mosaic glyph fills the complete character cell. Users combine these glyphs into pixel lettering that is about twice as tall as the surrounding text in messages, mentions, and member lists. Other decorative text, such as stylized letters, Box Drawing kaomoji, and Braille, keeps a normal text height and stays permitted. The read rule applies to all clients and bots and does not change stored events. `@chatto/client` applies the same rule to every user in API responses and realtime frames. Clients therefore also show the login for such names when they connect to an older server that does not apply the read rule.
 **Tradeoff:** Users cannot use block shading characters, such as `▓▒░`, for decoration. A user whose stored name is not valid sees the login until they set a new name.
 
 ## Permissions
