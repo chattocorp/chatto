@@ -28,6 +28,10 @@ Independent verification by the viewer requires an issuer (ADR-124).
   profile (`app.bsky.actor.profile`) as suggestions, when the repository has
   one. Without it, the handle is the display name suggestion. A signed-in
   account without an avatar gets the profile avatar.
+- When signup finds a public Bluesky profile and a verified handle, Chatto adds
+  the handle-based Bluesky URL to the new member’s **Links** section. The member
+  can edit or remove it in **Edit Profile**. Later sign-ins and account linking
+  preserve the member’s list.
 - A handle that cannot be resolved returns to the handle page with an
   explanation. Other failures show the general provider error.
 - After a successful sign-in, the device remembers the handle. The handle

@@ -63,6 +63,8 @@ type PendingExternalIdentityFlow struct {
 	VerifiedEmail string `json:"verified_email,omitempty"`
 	AvatarURL     string `json:"avatar_url,omitempty"`
 	LoginHint     string `json:"login_hint,omitempty"`
+	// InitialProfileLink seeds the editable link list when this flow creates an account.
+	InitialProfileLink string `json:"initial_profile_link,omitempty"`
 	// ProviderUsername is the verified username without email/display-name fallback.
 	ProviderUsername string    `json:"provider_username,omitempty"`
 	DisplayNameHint  string    `json:"display_name_hint,omitempty"`

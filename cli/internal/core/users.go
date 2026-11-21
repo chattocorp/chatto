@@ -297,6 +297,20 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 
 	if options.external != nil {
 		flow := options.external
+		if flow.InitialProfileLink != "" {
+			user.ProfileLinks = []string{flow.InitialProfileLink}
+			if err := validateProfileLinks(user.ProfileLinks); err != nil {
+				return nil, err
+			}
+			change := &evtv1.UserProfileLinksChangedEvent{UserId: userID}
+			event := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_UserProfileLinksChanged{UserProfileLinksChanged: change}})
+			event.CreatedAt = now
+			change.EncryptedLinks, err = encryptUserPIIStringWithDEK(piiDEK, event.Id, userID, evtstream.EventUserProfileLinksChanged, "profile_links", flow.InitialProfileLink)
+			if err != nil {
+				return nil, fmt.Errorf("encrypt initial profile link: %w", err)
+			}
+			entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
+		}
 		externalEvent := newEvent(eventActorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityLinked{
 			UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{
 				UserId:       userID,

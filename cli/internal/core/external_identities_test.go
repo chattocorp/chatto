@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/stretchr/testify/require"
 )
 
 // This test does not call t.Parallel: it replaces the package-wide
@@ -582,5 +583,30 @@ func TestChattoCore_DisconnectExternalIdentityConcurrentDuplicate(t *testing.T) 
 	}
 	if len(identities) != 0 {
 		t.Fatalf("identities after concurrent disconnect = %+v, want empty", identities)
+	}
+}
+
+func TestExternalIdentitySignupSeedsEditableProfileLinkOnce(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	const link = "https://bsky.app/profile/alice.test"
+	token, err := c.CreatePendingExternalIdentityCreateFlow(ctx, PendingExternalIdentityFlow{ProviderID: "at", ProviderType: "atproto", Issuer: "at", Subject: "did:plc:member", InitialProfileLink: link})
+	require.NoError(t, err)
+	flow, err := c.GetPendingExternalIdentityCreateFlow(ctx, token)
+	require.NoError(t, err)
+	member, err := c.CreateUserForExternalIdentity(ctx, "link-member", "Member", flow)
+	require.NoError(t, err)
+	require.Equal(t, []string{link}, member.ProfileLinks)
+	readLinks := func() []string {
+		user, _, err := c.GetUserByExternalIdentityForAuthentication(ctx, flow.Issuer, flow.Subject)
+		require.NoError(t, err)
+		require.NotNil(t, user)
+		return user.ProfileLinks
+	}
+	require.Equal(t, []string{link}, readLinks())
+	for _, edited := range [][]string{{"https://example.org/"}, {}} {
+		_, err := c.UpdateOwnUserProfile(ctx, member.Id, nil, nil, nil, edited)
+		require.NoError(t, err)
+		require.ElementsMatch(t, edited, readLinks())
 	}
 }

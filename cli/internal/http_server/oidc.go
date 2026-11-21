@@ -558,6 +558,7 @@ type resolvedProviderIdentity struct {
 	subject          string
 	verifiedEmail    string
 	avatarURL        string
+	profileLink      string
 	loginHint        string
 	providerUsername string
 	displayNameHint  string
@@ -1042,20 +1043,21 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 	}
 
 	flow := core.PendingExternalIdentityFlow{
-		ProviderID:       providerConfig.ID,
-		ProviderType:     providerConfig.Type,
-		ProviderLabel:    providerConfig.LabelOrDefault(),
-		Issuer:           identity.issuer,
-		Subject:          identity.subject,
-		VerifiedEmail:    identity.verifiedEmail,
-		AvatarURL:        identity.avatarURL,
-		LoginHint:        identity.loginHint,
-		ProviderUsername: identity.providerUsername,
-		DisplayNameHint:  identity.displayNameHint,
-		Groups:           mappedGroups(providerConfig.GroupRoleMappings(), identity.groups.Groups),
-		GroupsKnown:      identity.groups.Known,
-		RedirectPath:     returnPath,
-		InvitationID:     invitationID,
+		ProviderID:         providerConfig.ID,
+		ProviderType:       providerConfig.Type,
+		ProviderLabel:      providerConfig.LabelOrDefault(),
+		Issuer:             identity.issuer,
+		Subject:            identity.subject,
+		VerifiedEmail:      identity.verifiedEmail,
+		AvatarURL:          identity.avatarURL,
+		InitialProfileLink: identity.profileLink,
+		LoginHint:          identity.loginHint,
+		ProviderUsername:   identity.providerUsername,
+		DisplayNameHint:    identity.displayNameHint,
+		Groups:             mappedGroups(providerConfig.GroupRoleMappings(), identity.groups.Groups),
+		GroupsKnown:        identity.groups.Known,
+		RedirectPath:       returnPath,
+		InvitationID:       invitationID,
 	}
 	if popup {
 		// The opening window owns the destination after account creation.
