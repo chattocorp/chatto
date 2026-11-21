@@ -67,6 +67,14 @@ distinguish stable documentation from development documentation.
   deployed site, report its channel and distinguish deployed behavior from
   local changes. Stable docs corrections ship with the next patch release.
 
+## Signing And Publication Approval
+
+When the tagged release workflow reaches **Review deployments**, stop and give
+the user the release tag and a link to the workflow run. Leave signing and
+publication approval to the user unless they explicitly ask you to approve
+that specific release. A request such as “release the next beta” still requires
+this handoff.
+
 ## After Publication
 
 Use [the release process](../../../docs/RELEASING.md) for the expected
