@@ -148,6 +148,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "在 Bluesky 上查看",
       "verified_identities": "已驗證的身分",
       "title": "個人資料",
       "fallback_title": "個人資料",

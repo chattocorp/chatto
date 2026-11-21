@@ -148,6 +148,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "Vidi ĉe Bluesky",
       "verified_identities": "Konfirmitaj identecoj",
       "title": "Profilo",
       "fallback_title": "Profilo",

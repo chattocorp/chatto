@@ -257,7 +257,8 @@ func (p *UserAuthProjection) applyExternalIdentityLinked(e *evtv1.UserExternalId
 	}
 	p.identityIndex[hash] = e.GetUserId()
 	u.externalIdentities[hash] = ExternalIdentity{
-		ProviderID: providerID, ProviderType: providerType, Issuer: e.GetIssuer(), Subject: e.GetSubject(), SubjectHash: hash,
+		HasBlueskyProfile: e.GetHasBlueskyProfile(),
+		ProviderID:        providerID, ProviderType: providerType, Issuer: e.GetIssuer(), Subject: e.GetSubject(), SubjectHash: hash,
 	}
 }
 

@@ -6,11 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -180,7 +182,7 @@ func newATProtoFlowRouter(t *testing.T, runtime *authProviderRuntime) (*httptest
 			c.String(http.StatusBadRequest, "callback failed")
 			return
 		}
-		c.JSON(http.StatusOK, map[string]string{"subject": identity.subject, "username": identity.providerUsername, "hint": identity.loginHint, "display": identity.displayNameHint, "avatar": identity.avatarURL})
+		c.JSON(http.StatusOK, map[string]string{"subject": identity.subject, "username": identity.providerUsername, "hint": identity.loginHint, "display": identity.displayNameHint, "avatar": identity.avatarURL, "profile": strconv.FormatBool(identity.hasBlueskyProfile)})
 	})
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
@@ -230,6 +232,7 @@ func TestATProtoSignInVerifiesDIDWithIdentityScopeOnly(t *testing.T) {
 	require.Equal(t, "alice.test", result["username"])
 	require.Equal(t, "alice.test", result["hint"])
 	// The public Bluesky profile supplies the new account's hints.
+	require.Equal(t, "true", result["profile"])
 	require.Equal(t, "Alice Example", result["display"])
 	require.Equal(t, "https://pds.test/xrpc/com.atproto.sync.getBlob?cid=bafkreiavatar&did="+url.QueryEscape(testATProtoDID), result["avatar"])
 }
@@ -392,5 +395,29 @@ func TestATProtoStartAsksForTheHandle(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, atprotoHandlePagePath, location.Path, tc.query)
 		require.Equal(t, tc.want, location.Query(), tc.query)
+	}
+}
+
+func TestATProtoProfileAvailability(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		found      bool
+	}{
+		{"profile without display fields", `{"value":{"$type":"app.bsky.actor.profile"}}`, true},
+		{"missing value", `{}`, false},
+		{"wrong record", `{"value":{"$type":"example.record"}}`, false},
+		{"invalid response", `{`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			provider, err := newATProtoProvider("https://chat.example/auth/providers/bsky/callback")
+			require.NoError(t, err)
+			provider.app.Client.Transport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(tc.body))}, nil
+			})
+			display, avatar, found := provider.profile(t.Context(), "https://pds.test", testATProtoDID)
+			require.Equal(t, tc.found, found)
+			require.Empty(t, display)
+			require.Empty(t, avatar)
+		})
 	}
 }

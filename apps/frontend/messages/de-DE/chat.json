@@ -148,6 +148,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "Auf Bluesky ansehen",
       "verified_identities": "Verifizierte Identitäten",
       "title": "Profil",
       "fallback_title": "Profil",

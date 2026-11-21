@@ -151,6 +151,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "הצג ב-Bluesky",
       "verified_identities": "זהויות מאומתות",
       "title": "פרופיל",
       "fallback_title": "פרופיל",

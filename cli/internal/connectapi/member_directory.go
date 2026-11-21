@@ -119,14 +119,25 @@ func (s *userService) verifiedIdentities(ctx context.Context, links []core.Exter
 		account, err := s.api.atprotoDirectory().LookupDID(ctx, did)
 		if err == nil && account.Handle != "" && !account.Handle.IsInvalidHandle() {
 			identities = append(identities, &apiv1.VerifiedIdentity{
-				Method:      config.AuthProviderTypeATProto,
-				MethodLabel: "AT Protocol",
-				Value:       account.Handle.Normalize().String(),
+				Method:            config.AuthProviderTypeATProto,
+				MethodLabel:       "AT Protocol",
+				HasBlueskyProfile: link.HasBlueskyProfile,
+				Value:             account.Handle.Normalize().String(),
 			})
 		}
 	}
 	slices.SortFunc(identities, func(a, b *apiv1.VerifiedIdentity) int {
-		return cmp.Or(strings.Compare(a.Method, b.Method), strings.Compare(a.Value, b.Value))
+		if order := cmp.Or(strings.Compare(a.Method, b.Method), strings.Compare(a.Value, b.Value)); order != 0 {
+			return order
+		}
+		// Keep a positive observation when several providers linked the same DID.
+		if a.HasBlueskyProfile != b.HasBlueskyProfile {
+			if a.HasBlueskyProfile {
+				return -1
+			}
+			return 1
+		}
+		return 0
 	})
 	return slices.CompactFunc(identities, func(a, b *apiv1.VerifiedIdentity) bool {
 		return a.Method == b.Method && a.Value == b.Value

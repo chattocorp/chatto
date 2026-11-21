@@ -71,7 +71,7 @@ creates after checking account ownership (ADR-124). The server resolves each lin
 DID when a client requests verified identities. The AT Protocol entry uses
 the method key `atproto` and the handle as its public value. The directory caches successful lookups
 for up to a day, so a renamed handle can take time to change. A missing handle
-or failed lookup leaves that handle out. Disconnecting the account removes
+or failed lookup leaves that handle out. When sign-in or account linking finds a Bluesky profile record, both views show **View on Bluesky** beside the handle. The link uses the currently resolved handle. A later sign-in updates the result, including for accounts linked before this change. The viewer contacts Bluesky only when they open the link. Disconnecting the account removes
 its handle from subsequent server reads. The popup and sidebar share a session
 cache. Reopening either view shows cached identities immediately. After 30 seconds,
 reopening also refreshes them in the background. The cache drops unused results

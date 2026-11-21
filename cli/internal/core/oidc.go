@@ -164,3 +164,28 @@ func (c *ChattoCore) LinkExternalIdentityAs(ctx context.Context, actorID, provid
 	}
 	return identity, nil
 }
+
+// SyncBlueskyProfile records a changed profile observation for an existing AT
+// Protocol link. A concurrent disconnect must never recreate the link.
+func (c *ChattoCore) SyncBlueskyProfile(ctx context.Context, userID, issuer, subject string, found bool) error {
+	hash := externalIdentityHash(issuer, subject)
+	update := &evtv1.UserExternalIdentityLinkedEvent{
+		UserId: userID, Issuer: issuer, Subject: subject, SubjectHash: hash,
+		ProviderType: config.AuthProviderTypeATProto, HasBlueskyProfile: found,
+	}
+	errNoProfileChange := errors.New("no change to linked Bluesky profile")
+	event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_UserExternalIdentityLinked{UserExternalIdentityLinked: update}})
+	_, err := c.appendUserEvent(ctx, userID, event, "", func() error {
+		for _, link := range c.userModel.externalIdentities(userID) {
+			if link.SubjectHash == hash && link.ProviderType == config.AuthProviderTypeATProto && link.HasBlueskyProfile != found {
+				update.ProviderId = link.ProviderID
+				return nil
+			}
+		}
+		return errNoProfileChange
+	})
+	if errors.Is(err, errNoProfileChange) {
+		return nil
+	}
+	return err
+}

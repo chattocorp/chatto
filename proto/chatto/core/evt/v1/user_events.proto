@@ -195,6 +195,8 @@ message UserExternalIdentityLinkedEvent {
   // may be renamed, removed, or reconfigured without changing existing links.
   string provider_id = 5;
   string provider_type = 6;
+  // True when the linked AT Protocol repository had a Bluesky profile at sign-in.
+  bool has_bluesky_profile = 7;
 }
 
 message UserExternalIdentityUnlinkedEvent {

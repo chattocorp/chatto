@@ -78,9 +78,11 @@ type VerifiedIdentity struct {
 	// Human-readable name of the method, for example "AT Protocol".
 	MethodLabel string `protobuf:"bytes,2,opt,name=method_label,json=methodLabel,proto3" json:"method_label,omitempty"`
 	// Public identity text for display, for example an AT Protocol handle without @.
-	Value         string `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Value string `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	// True when the server found a Bluesky profile for this AT Protocol handle.
+	HasBlueskyProfile bool `protobuf:"varint,4,opt,name=has_bluesky_profile,json=hasBlueskyProfile,proto3" json:"has_bluesky_profile,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *VerifiedIdentity) Reset() {
@@ -132,6 +134,13 @@ func (x *VerifiedIdentity) GetValue() string {
 		return x.Value
 	}
 	return ""
+}
+
+func (x *VerifiedIdentity) GetHasBlueskyProfile() bool {
+	if x != nil {
+		return x.HasBlueskyProfile
+	}
+	return false
 }
 
 // Public user fields.
@@ -278,11 +287,12 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\n" +
 	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"-\n" +
 	"\aBotInfo\x12\"\n" +
-	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"c\n" +
+	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"\x93\x01\n" +
 	"\x10VerifiedIdentity\x12\x16\n" +
 	"\x06method\x18\x01 \x01(\tR\x06method\x12!\n" +
 	"\fmethod_label\x18\x02 \x01(\tR\vmethodLabel\x12\x14\n" +
-	"\x05value\x18\x03 \x01(\tR\x05value\"\xd1\x03\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\x12.\n" +
+	"\x13has_bluesky_profile\x18\x04 \x01(\bR\x11hasBlueskyProfile\"\xd1\x03\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +

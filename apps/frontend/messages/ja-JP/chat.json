@@ -148,6 +148,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "Blueskyで見る",
       "verified_identities": "確認済みのID",
       "title": "プロフィール",
       "fallback_title": "プロフィール",

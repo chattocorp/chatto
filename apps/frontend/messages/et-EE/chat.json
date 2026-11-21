@@ -148,6 +148,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "Vaadake Blueskys",
       "verified_identities": "Kinnitatud identiteedid",
       "title": "Profiil",
       "fallback_title": "Profiil",

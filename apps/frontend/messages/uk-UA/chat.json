@@ -154,6 +154,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "Переглянути в Bluesky",
       "verified_identities": "Підтверджені ідентичності",
       "title": "Профіль",
       "fallback_title": "Профіль",

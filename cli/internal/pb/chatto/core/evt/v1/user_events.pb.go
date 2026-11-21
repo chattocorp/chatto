@@ -1255,10 +1255,12 @@ type UserExternalIdentityLinkedEvent struct {
 	// Event-time metadata about the configured provider that created the link.
 	// This is not dereferenced against current config during replay; providers
 	// may be renamed, removed, or reconfigured without changing existing links.
-	ProviderId    string `protobuf:"bytes,5,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	ProviderType  string `protobuf:"bytes,6,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ProviderId   string `protobuf:"bytes,5,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	ProviderType string `protobuf:"bytes,6,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
+	// True when the linked AT Protocol repository had a Bluesky profile at sign-in.
+	HasBlueskyProfile bool `protobuf:"varint,7,opt,name=has_bluesky_profile,json=hasBlueskyProfile,proto3" json:"has_bluesky_profile,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UserExternalIdentityLinkedEvent) Reset() {
@@ -1331,6 +1333,13 @@ func (x *UserExternalIdentityLinkedEvent) GetProviderType() string {
 		return x.ProviderType
 	}
 	return ""
+}
+
+func (x *UserExternalIdentityLinkedEvent) GetHasBlueskyProfile() bool {
+	if x != nil {
+		return x.HasBlueskyProfile
+	}
+	return false
 }
 
 type UserExternalIdentityUnlinkedEvent struct {
@@ -2008,7 +2017,7 @@ const file_chatto_core_evt_v1_user_events_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
 	"\x06issuer\x18\x02 \x01(\tR\x06issuer\x12\x18\n" +
 	"\asubject\x18\x03 \x01(\tR\asubject\x12!\n" +
-	"\fsubject_hash\x18\x04 \x01(\tR\vsubjectHash\"\xd5\x01\n" +
+	"\fsubject_hash\x18\x04 \x01(\tR\vsubjectHash\"\x85\x02\n" +
 	"\x1fUserExternalIdentityLinkedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
 	"\x06issuer\x18\x02 \x01(\tR\x06issuer\x12\x18\n" +
@@ -2016,7 +2025,8 @@ const file_chatto_core_evt_v1_user_events_proto_rawDesc = "" +
 	"\fsubject_hash\x18\x04 \x01(\tR\vsubjectHash\x12\x1f\n" +
 	"\vprovider_id\x18\x05 \x01(\tR\n" +
 	"providerId\x12#\n" +
-	"\rprovider_type\x18\x06 \x01(\tR\fproviderType\"\xa3\x01\n" +
+	"\rprovider_type\x18\x06 \x01(\tR\fproviderType\x12.\n" +
+	"\x13has_bluesky_profile\x18\a \x01(\bR\x11hasBlueskyProfile\"\xa3\x01\n" +
 	"!UserExternalIdentityUnlinkedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
 	"\fsubject_hash\x18\x02 \x01(\tR\vsubjectHash\x12B\n" +

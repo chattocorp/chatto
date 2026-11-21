@@ -74,7 +74,14 @@
     </UserCard>
     <VerifiedIdentitiesSection
       sidebarKey="story-profile-identities"
-      identities={[{ method: 'atproto', methodLabel: 'AT Protocol', value: 'hmans.dev' }]}
+      identities={[
+        {
+          method: 'atproto',
+          methodLabel: 'AT Protocol',
+          value: 'hmans.dev',
+          hasBlueskyProfile: true
+        }
+      ]}
     />
   </div>
 </Story>

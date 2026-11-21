@@ -378,7 +378,7 @@ reaction projection and read behavior.
 | `evt.user.{userId}.primary_email_changed` | `UserPrimaryEmailChangedEvent`; references the selected verified-email event without duplicating user PII |
 | `evt.user.{userId}.password_hash_changed` | `UserPasswordHashChangedEvent` |
 | `evt.user.{userId}.oidc_subject_linked` | `UserOIDCSubjectLinkedEvent` (legacy replay) |
-| `evt.user.{userId}.external_identity_linked` | `UserExternalIdentityLinkedEvent` |
+| `evt.user.{userId}.external_identity_linked` | `UserExternalIdentityLinkedEvent` records the link and updates its Bluesky profile availability after AT Protocol sign-in. Older events default to false. |
 | `evt.user.{userId}.external_identity_unlinked` | `UserExternalIdentityUnlinkedEvent` |
 | `evt.user.{userId}.server_preferences_changed` | `UserServerPreferencesChangedEvent` |
 | `evt.user.{userId}.login_cooldown_started` | `UserLoginCooldownStartedEvent` |

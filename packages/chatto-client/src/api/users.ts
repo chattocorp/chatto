@@ -19,7 +19,8 @@ export { mapUserSummary, mapOptionalUserSummary, type UserSummary } from './user
 import { mapUserSummary, type UserSummary } from './userSummary.js';
 
 /** Public profile identity as reported by the server. Method keys are extensible. */
-export type VerifiedIdentity = Pick<APIVerifiedIdentity, 'method' | 'methodLabel' | 'value'>;
+export type VerifiedIdentity = Pick<APIVerifiedIdentity, 'method' | 'methodLabel' | 'value'> &
+  Partial<Pick<APIVerifiedIdentity, 'hasBlueskyProfile'>>;
 
 /** Profile fields to change. Omitted fields stay unchanged; an empty bio clears it. */
 export type UpdateUserProfileInput = {

@@ -1899,8 +1899,33 @@ func TestGetUserVerifiedIdentities(t *testing.T) {
 	}
 	require.Empty(t, read(false))
 	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "alice.example"}}, read(true))
+	require.NoError(t, env.core.SyncBlueskyProfile(ctx, target.Id, linked.Issuer, linked.Subject, true))
 	directory.Insert(identity.Identity{DID: "did:plc:member", Handle: "new.example"})
-	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "new.example"}}, read(true))
+	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "new.example", HasBlueskyProfile: true}}, read(true))
+	require.NoError(t, env.core.SyncBlueskyProfile(ctx, target.Id, linked.Issuer, linked.Subject, false))
+	require.False(t, read(true)[0].HasBlueskyProfile)
 	require.NoError(t, env.core.DisconnectExternalIdentityAs(ctx, target.Id, target.Id, linked.SubjectHash, core.ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}))
+	require.NoError(t, env.core.SyncBlueskyProfile(ctx, target.Id, linked.Issuer, linked.Subject, true))
 	require.Empty(t, read(true))
+}
+
+func TestVerifiedIdentityFromATProtoSignup(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	directory := identity.NewMockDirectory()
+	env.api.atprotoDirectory = func() identity.Directory { return directory }
+	const did = "did:plc:member"
+	directory.Insert(identity.Identity{DID: did, Handle: "alice.example"})
+	token, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID: "at", ProviderType: "atproto", Issuer: "at", Subject: did, HasBlueskyProfile: true,
+	})
+	require.NoError(t, err)
+	flow, err := env.core.GetPendingExternalIdentityCreateFlow(env.ctx, token)
+	require.NoError(t, err)
+	member, err := env.core.CreateUserForExternalIdentity(env.ctx, "signup-member", "Member", flow)
+	require.NoError(t, err)
+	response, err := env.users.GetUser(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetUserRequest{
+		Target: &apiv1.GetUserRequest_UserId{UserId: member.Id}, IncludeVerifiedIdentities: true,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "alice.example", HasBlueskyProfile: true}}, response.Msg.VerifiedIdentities)
 }

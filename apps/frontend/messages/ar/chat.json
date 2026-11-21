@@ -160,6 +160,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "اعرض على Bluesky",
       "verified_identities": "الهويات التي تم التحقق منها",
       "title": "الملف الشخصي",
       "fallback_title": "الملف الشخصي",

@@ -148,6 +148,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "Visa på Bluesky",
       "verified_identities": "Verifierade identiteter",
       "title": "Profil",
       "fallback_title": "Profil",

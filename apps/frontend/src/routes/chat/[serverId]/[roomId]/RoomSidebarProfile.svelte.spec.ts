@@ -124,13 +124,23 @@ describe('RoomSidebarProfile', () => {
 
   it('shows known and unfamiliar verified identities in the full profile and its popup', async () => {
     getVerifiedIdentities.mockResolvedValue([
-      { method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' },
+      {
+        method: 'atproto',
+        methodLabel: 'AT Protocol',
+        value: 'alice.example',
+        hasBlueskyProfile: true
+      },
+      { method: 'atproto', methodLabel: 'AT Protocol', value: 'other.example' },
       { method: 'custom-directory', methodLabel: 'Community directory', value: 'Member 123' }
     ]);
     userStore().set(user.id, userProfileFixture(user));
     const { container } = renderProfile();
     await expect.element(page.getByText('alice.example', { exact: true })).toBeVisible();
     await expect.element(page.getByTitle('Community directory · Member 123')).toBeVisible();
+    const blueskyLink = page.getByRole('link', { name: 'View on Bluesky' });
+    await expect
+      .element(blueskyLink)
+      .toHaveAttribute('href', 'https://bsky.app/profile/alice.example');
     const disclosure = page.getByRole('button', { name: 'Verified identities' });
     await disclosure.click();
     await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false');
@@ -142,6 +152,8 @@ describe('RoomSidebarProfile', () => {
     expect(menu.textContent).not.toContain('Verified identities');
     expect(section.textContent).toContain('alice.example');
     expect(section.textContent).toContain('Member 123');
+    expect(section.querySelectorAll('a')).toHaveLength(1);
+    expect(section.querySelector('a')?.href).toBe('https://bsky.app/profile/alice.example');
     expect(
       section.compareDocumentPosition(menu.querySelector('[data-testid="user-bio"]')!) &
         Node.DOCUMENT_POSITION_FOLLOWING

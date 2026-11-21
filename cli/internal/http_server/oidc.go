@@ -464,6 +464,15 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		return
 	}
 
+	// Refresh only the link that this sign-in verified. Profile metadata is optional.
+	syncBlueskyProfile := func(userID string) {
+		if providerRuntime.config.Type == config.AuthProviderTypeATProto {
+			if err := s.core.SyncBlueskyProfile(ctx, userID, identity.issuer, identity.subject, identity.hasBlueskyProfile); err != nil {
+				log.Warn("Failed to update Bluesky profile availability", "provider_id", providerRuntime.config.ID)
+			}
+		}
+	}
+
 	// The authenticated link-start handoff already records consent and binds the
 	// target account. Complete it only after the provider identity is verified;
 	// linking must never replace the browser's current login session.
@@ -480,6 +489,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", errorCode))
 			return
 		}
+		syncBlueskyProfile(linkUserID)
 		// The link is committed. A failed sync is repeated at the next sign-in.
 		if err := s.core.SyncProviderGroupRoles(ctx, linkUserID, core.ProviderRoleSource{ProviderID: providerRuntime.config.ID, Issuer: identity.issuer, Subject: identity.subject}, providerRuntime.config.GroupRoleMappings(), identity.groups); err != nil {
 			log.Warn("Provider group role sync failed after link", "provider_id", providerRuntime.config.ID, "userId", linkUserID, "error", err)
@@ -523,6 +533,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		return
 	}
 
+	syncBlueskyProfile(user.Id)
 	if identity.avatarURL != "" {
 		existingAvatar, _ := s.core.GetUserAvatar(ctx, user.Id)
 		if existingAvatar == nil {
@@ -554,13 +565,14 @@ type authProviderRuntime struct {
 }
 
 type resolvedProviderIdentity struct {
-	issuer           string
-	subject          string
-	verifiedEmail    string
-	avatarURL        string
-	loginHint        string
-	providerUsername string
-	displayNameHint  string
+	issuer            string
+	subject           string
+	verifiedEmail     string
+	avatarURL         string
+	hasBlueskyProfile bool
+	loginHint         string
+	providerUsername  string
+	displayNameHint   string
 	// groups holds the OIDC groups claim when allowed_groups or group_roles
 	// needs it.
 	groups core.ProviderGroups
@@ -1042,20 +1054,21 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 	}
 
 	flow := core.PendingExternalIdentityFlow{
-		ProviderID:       providerConfig.ID,
-		ProviderType:     providerConfig.Type,
-		ProviderLabel:    providerConfig.LabelOrDefault(),
-		Issuer:           identity.issuer,
-		Subject:          identity.subject,
-		VerifiedEmail:    identity.verifiedEmail,
-		AvatarURL:        identity.avatarURL,
-		LoginHint:        identity.loginHint,
-		ProviderUsername: identity.providerUsername,
-		DisplayNameHint:  identity.displayNameHint,
-		Groups:           mappedGroups(providerConfig.GroupRoleMappings(), identity.groups.Groups),
-		GroupsKnown:      identity.groups.Known,
-		RedirectPath:     returnPath,
-		InvitationID:     invitationID,
+		ProviderID:        providerConfig.ID,
+		ProviderType:      providerConfig.Type,
+		ProviderLabel:     providerConfig.LabelOrDefault(),
+		Issuer:            identity.issuer,
+		Subject:           identity.subject,
+		VerifiedEmail:     identity.verifiedEmail,
+		AvatarURL:         identity.avatarURL,
+		HasBlueskyProfile: identity.hasBlueskyProfile,
+		LoginHint:         identity.loginHint,
+		ProviderUsername:  identity.providerUsername,
+		DisplayNameHint:   identity.displayNameHint,
+		Groups:            mappedGroups(providerConfig.GroupRoleMappings(), identity.groups.Groups),
+		GroupsKnown:       identity.groups.Known,
+		RedirectPath:      returnPath,
+		InvitationID:      invitationID,
 	}
 	if popup {
 		// The opening window owns the destination after account creation.

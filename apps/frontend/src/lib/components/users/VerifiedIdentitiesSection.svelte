@@ -24,12 +24,20 @@ callers supply a storage key for the disclosure. Popups show the list directly.
 {#snippet identityList()}
   <ul aria-label={label} class="flex min-w-0 flex-wrap gap-1.5">
     {#each identities as entry (JSON.stringify([entry.method, entry.value]))}
-      <li class="max-w-full leading-none">
+      <li class="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 leading-none">
         <SelfVerificationPill
           method={entry.methodLabel}
           icon={providerIcon(entry.method)}
           identity={entry.value}
         />
+        {#if entry.method === 'atproto' && entry.hasBlueskyProfile}
+          <a
+            href={`https://bsky.app/profile/${encodeURIComponent(entry.value)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-xs text-link underline">{m('chat.profile.view_on_bluesky')}</a
+          >
+        {/if}
       </li>
     {/each}
   </ul>

@@ -148,6 +148,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "Προβολή στο Bluesky",
       "verified_identities": "Επαληθευμένες ταυτότητες",
       "title": "Προφίλ",
       "fallback_title": "Προφίλ",

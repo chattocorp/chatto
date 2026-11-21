@@ -148,6 +148,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "Bluesky’da görüntüleyin",
       "verified_identities": "Doğrulanmış kimlikler",
       "title": "Profil",
       "fallback_title": "Profil",

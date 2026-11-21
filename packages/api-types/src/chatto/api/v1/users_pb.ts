@@ -79,6 +79,13 @@ export class VerifiedIdentity extends Message<VerifiedIdentity> {
    */
   value = "";
 
+  /**
+   * True when the server found a Bluesky profile for this AT Protocol handle.
+   *
+   * @generated from field: bool has_bluesky_profile = 4;
+   */
+  hasBlueskyProfile = false;
+
   constructor(data?: PartialMessage<VerifiedIdentity>) {
     super();
     proto3.util.initPartial(data, this);
@@ -90,6 +97,7 @@ export class VerifiedIdentity extends Message<VerifiedIdentity> {
     { no: 1, name: "method", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "method_label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "has_bluesky_profile", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): VerifiedIdentity {

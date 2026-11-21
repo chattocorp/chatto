@@ -148,6 +148,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "Zobrazit na Bluesky",
       "verified_identities": "Ověřené identity",
       "title": "Profil",
       "fallback_title": "Profil",

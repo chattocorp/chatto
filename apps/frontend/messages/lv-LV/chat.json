@@ -151,6 +151,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "Skatīt platformā Bluesky",
       "verified_identities": "Apstiprinātās identitātes",
       "title": "Profils",
       "fallback_title": "Profils",

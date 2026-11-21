@@ -43,7 +43,7 @@ describe('createUserAPI', () => {
 
   it('requests all verified identities and preserves unfamiliar methods', async () => {
     const identities = [
-      { method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' },
+      { method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example', hasBlueskyProfile: true },
       { method: 'custom-directory', methodLabel: 'Community directory', value: 'Member 123' }
     ];
     mocks.getUser.mockReturnValue({ verifiedIdentities: identities });

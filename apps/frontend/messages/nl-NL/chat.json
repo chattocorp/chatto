@@ -148,6 +148,7 @@
       }
     },
     "profile": {
+      "view_on_bluesky": "Bekijken op Bluesky",
       "verified_identities": "Geverifieerde identiteiten",
       "title": "Profiel",
       "fallback_title": "Profiel",
