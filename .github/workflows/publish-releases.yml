@@ -4,6 +4,10 @@ name: publish releases
 # checked push. Each job publishes one release unit from Sweet's tag entries:
 # `{package, version, tag, commit, prerelease, highest}`. Rerun a failed job to
 # retry its publication; every step can run again for the same tag.
+#
+# Each job publishes the newest version of its package in the push (`packages`).
+# A push with two release commits of one package publishes only the newer one;
+# the `components` job reports each skipped older tag as a warning.
 on:
   workflow_call:
     inputs:
@@ -74,6 +78,7 @@ jobs:
     uses: ./.github/workflows/build-authling-image.yml
     with:
       release_tag: ${{ fromJSON(inputs.packages)['authling'].tag }}
+      highest: ${{ fromJSON(inputs.packages)['authling'].highest }}
 
   # TestFlight build numbers come from that workflow's own run number, so it
   # runs separately, as a manual run on the tag. GITHUB_TOKEN can start manual
@@ -111,8 +116,14 @@ jobs:
         id: select
         env:
           TAGS: ${{ inputs.tags }}
+          PACKAGES: ${{ inputs.packages }}
+        # Like the artifact jobs, use only the newest tag of each package, so no
+        # release note announces an artifact that was not published.
         run: |
-          tags="$(jq -r '[.[] | select(.package != ".") | .tag] | join(" ")' <<< "$TAGS")"
+          jq -r --argjson newest "$PACKAGES" \
+            '.[] | select(.tag != $newest[.package].tag) | "::warning::\(.tag) is not the newest \(.package) version in this push; it is not published."' \
+            <<< "$TAGS"
+          tags="$(jq -r '[to_entries[] | select(.key != "." and .value != null) | .value.tag] | join(" ")' <<< "$PACKAGES")"
           echo "tags=${tags}" >> "$GITHUB_OUTPUT"
       # The checkout has every changelog entry of the push.
       - if: steps.select.outputs.tags != ''

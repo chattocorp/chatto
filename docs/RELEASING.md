@@ -62,7 +62,13 @@ To retry a failed tag push or publication, rerun the failed jobs of the original
 CI run. Existing matching tags are kept, so the tag job pushes only the missing
 tags and returns the same outputs. A later push does not recover an earlier
 failed range. CI never cancels or replaces a push run, because each run owns
-its commit range. A manual tag push starts no build.
+its commit range. A manual tag push starts no build. If a newer version of the
+same package was released after the failure, rerun all jobs instead: the tag
+job then computes `highest` again, so the retry does not move `latest` back.
+
+Each publication job uses the newest version of its package in the push. If one
+push has two release commits of the same package, CI publishes only the newer
+version and shows a warning for the older tag.
 
 Each Sweet tag entry has `prerelease` and `highest` fields. `prerelease` is true
 for a version with a prerelease suffix. `highest` is true when the version is

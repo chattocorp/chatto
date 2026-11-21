@@ -65,7 +65,13 @@ test('each release unit has one publication job', () => {
     assert.equal(job.with.package, packagePath);
   }
   const select = components.steps.find((step) => step.id === 'select').run;
-  assert.match(select, /select\(\.package != "\."\)/);
+  // Only the newest tag of each non-root package, as for the artifact jobs.
+  assert.match(select, /select\(\.key != "\." and \.value != null\)/);
+  assert.match(select, /::warning::/);
+  assert.equal(
+    releases.jobs.authling.with.highest,
+    "${{ fromJSON(inputs.packages)['authling'].highest }}"
+  );
   const publish = components.steps.at(-1).run;
   assert.match(publish, /sweet github release "\$tag"\n/);
   assert.doesNotMatch(publish, /--latest/);
