@@ -3,12 +3,16 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/parallel"
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -72,14 +76,11 @@ func (m *UserModel) waitForContentKeys(ctx context.Context, pos events.StreamPos
 	return waitForPositionAll(ctx, pos, waitForProjection("content key", m.contentKeys.Projector()))
 }
 
+// waitForUsersCurrent waits until the Users projection has applied the newest
+// event on subjects. It does not wait for the User Auth projection. A caller
+// that also reads User Auth state waits for it separately.
 func (m *UserModel) waitForUsersCurrent(ctx context.Context, name string, subjects ...string) error {
-	if m.publisher == nil || m.users.Projector() == nil {
-		return nil
-	}
-	if err := waitForProjectionSubjectsCurrent(ctx, m.publisher, name, m.users.Projector(), subjects...); err != nil {
-		return err
-	}
-	return m.waitForUserAuthCurrent(ctx, name)
+	return m.waitForUserProjectionsCurrent(ctx, name, subjects, nil)
 }
 
 func (m *UserModel) waitForUserAuth(ctx context.Context, pos events.StreamPosition) error {
@@ -89,11 +90,78 @@ func (m *UserModel) waitForUserAuth(ctx context.Context, pos events.StreamPositi
 	return waitForPositionAll(ctx, pos, waitForProjection("user auth", m.auth.Projector()))
 }
 
+// waitForUserAuthCurrent waits until the User Auth projection is current for
+// all users and all of its subject filters. Each filter is a wildcard read on
+// the EVT stream leader. Use it only where a read depends on the state of
+// users that the caller cannot name, such as a lookup or a uniqueness check
+// across all users. Otherwise use waitForUserAuthSubjectsCurrent with the
+// subjects that can change the read.
 func (m *UserModel) waitForUserAuthCurrent(ctx context.Context, name string) error {
-	if m.publisher == nil || m.auth.Projector() == nil || m.auth.Projection() == nil {
+	if m.auth.Projection() == nil {
 		return nil
 	}
-	return waitForProjectionSubjectsCurrent(ctx, m.publisher, name+" auth", m.auth.Projector(), m.auth.Projection().Subjects()...)
+	return m.waitForUserProjectionsCurrent(ctx, name+" auth", nil, m.auth.Projection().Subjects())
+}
+
+// waitForUserAuthSubjectsCurrent waits until the User Auth projection has
+// applied the newest event on subjects.
+func (m *UserModel) waitForUserAuthSubjectsCurrent(ctx context.Context, name string, subjects ...string) error {
+	return m.waitForUserProjectionsCurrent(ctx, name+" auth", nil, subjects)
+}
+
+// waitForUserProjectionsCurrent waits until the Users projection has applied
+// the newest event on usersSubjects and the User Auth projection has applied
+// the newest event on authSubjects. It reads the position of each distinct
+// subject once, and it reads all of them concurrently. Then it waits for the
+// two projections concurrently. Thus, the wait costs about two round trips to
+// the EVT stream leader, whatever the number of subjects. A projection that
+// is not wired is not waited for.
+func (m *UserModel) waitForUserProjectionsCurrent(ctx context.Context, name string, usersSubjects, authSubjects []string) error {
+	if m.publisher == nil {
+		return nil
+	}
+	if m.users.Projector() == nil {
+		usersSubjects = nil
+	}
+	if m.auth.Projector() == nil || m.auth.Projection() == nil {
+		authSubjects = nil
+	}
+	subjects := make([]string, 0, len(usersSubjects)+len(authSubjects))
+	for _, subject := range slices.Concat(usersSubjects, authSubjects) {
+		if !slices.Contains(subjects, subject) {
+			subjects = append(subjects, subject)
+		}
+	}
+	positions, err := parallel.Map(ctx, 0, subjects, func(ctx context.Context, _ int, subject string) (events.StreamPosition, error) {
+		return m.publisher.LastSubjectPosition(ctx, subject)
+	})
+	if err != nil {
+		return fmt.Errorf("read %s projection target seq: %w", name, err)
+	}
+	newest := func(subset []string) events.StreamPosition {
+		var newest events.StreamPosition
+		for i, subject := range subjects {
+			if positions[i].Seq > newest.Seq && slices.Contains(subset, subject) {
+				newest = positions[i]
+			}
+		}
+		return newest
+	}
+	waits, waitCtx := errgroup.WithContext(ctx)
+	wait := func(projectionName string, projector *events.Projector, pos events.StreamPosition) {
+		if pos.IsZero() {
+			return
+		}
+		waits.Go(func() error {
+			if err := projector.WaitFor(waitCtx, pos); err != nil {
+				return fmt.Errorf("wait for %s %s projection: %w", name, projectionName, err)
+			}
+			return nil
+		})
+	}
+	wait("users", m.users.Projector(), newest(usersSubjects))
+	wait("user auth", m.auth.Projector(), newest(authSubjects))
+	return waits.Wait()
 }
 
 func (m *UserModel) waitForContentKeysCurrent(ctx context.Context, userID string) error {

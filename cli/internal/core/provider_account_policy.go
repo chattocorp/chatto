@@ -63,6 +63,11 @@ func (c *ChattoCore) UsernameManaged(ctx context.Context, userID string) (bool, 
 	if user.GetIsBot() {
 		return false, nil
 	}
+	// The read proved that userID is the ID of a projected user, so it can go
+	// into a subject now.
+	if err := c.userModel.waitForUserAuthSubjectsCurrent(ctx, "username policy", userExternalIdentityAuthSubjects(userID)...); err != nil {
+		return false, err
+	}
 	return c.usernameManaged(userID), nil
 }
 

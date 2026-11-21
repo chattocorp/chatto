@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -206,6 +207,87 @@ func (c *ChattoCore) botCredentialVerifier(purpose, token string) []byte {
 	return mac.Sum(nil)
 }
 
+// botLifecycleAuthSubjects returns the subjects of the events of a bot that
+// make it a projected bot or delete it in UserAuthProjection. Every read of a
+// bot credential returns nothing for an unknown, non-bot, or deleted user.
+func botLifecycleAuthSubjects(botID string) []string {
+	agg := evtstream.UserAggregate(botID)
+	return []string{
+		agg.Subject(evtstream.EventUserAccountCreated),
+		agg.Subject(evtstream.EventUserAccountDeleted),
+		agg.Subject(evtstream.EventUserKeyShreddingRequested),
+		agg.Subject(evtstream.EventUserKeyShredded),
+	}
+}
+
+// botAPIKeyEventSubjects returns the subjects of the events of a bot that add,
+// replace, or remove its API key verifiers.
+func botAPIKeyEventSubjects(botID string) []string {
+	agg := evtstream.UserAggregate(botID)
+	return []string{
+		agg.Subject(evtstream.EventBotAPIKeyCreated),
+		agg.Subject(evtstream.EventBotAPIKeyRotated),
+		agg.Subject(evtstream.EventBotAPIKeyAdded),
+		agg.Subject(evtstream.EventBotAPIKeyRevoked),
+	}
+}
+
+// botIncomingWebhookEventSubjects returns the subjects of the events of a bot
+// that add, replace, or remove its incoming webhook verifiers.
+func botIncomingWebhookEventSubjects(botID string) []string {
+	agg := evtstream.UserAggregate(botID)
+	return []string{
+		agg.Subject(evtstream.EventBotIncomingWebhookCreated),
+		agg.Subject(evtstream.EventBotIncomingWebhookRotated),
+		agg.Subject(evtstream.EventBotIncomingWebhookRevoked),
+	}
+}
+
+// botAPIKeyAuthSubjects returns the subjects of the events of a bot that can
+// change what bot API key authentication reads from UserAuthProjection:
+// MatchBotAPIKeyCredential, and the bot state that watchBotAPIKeyInvalidated
+// reads when a realtime connection registers right after the authentication
+// (deactivation and owner). Every one of these events is on the bot's own
+// aggregate. Keep this list complete when an event gets one of these effects.
+// A missing subject lets a replica accept a revoked key, or reject a valid
+// one, until its projection applies the event.
+func botAPIKeyAuthSubjects(botID string) []string {
+	agg := evtstream.UserAggregate(botID)
+	return slices.Concat(botLifecycleAuthSubjects(botID), botAPIKeyEventSubjects(botID), []string{
+		agg.Subject(evtstream.EventUserAccountDeactivationChanged),
+		agg.Subject(evtstream.EventBotOwnerReassigned),
+	})
+}
+
+// botOwnerWatchAuthSubjects returns the subjects of the events of a bot owner
+// that can change the owner state that watchBotAPIKeyInvalidated reads from
+// UserAuthProjection: the owner's deactivation. The owner's account creation
+// is not in the list, because the owner exists before the bot creation or
+// reassignment that names it. botAPIKeyAuthSubjects of the bot thus cover it.
+// Keep this list complete when an event of the owner gets this effect.
+func botOwnerWatchAuthSubjects(ownerID string) []string {
+	return []string{evtstream.UserAggregate(ownerID).Subject(evtstream.EventUserAccountDeactivationChanged)}
+}
+
+// botIncomingWebhookAuthSubjects returns the subjects of the events of a bot
+// that can change the result of
+// UserAuthProjection.BotIncomingWebhookCredential. Every one of these events
+// is on the bot's own aggregate. Keep this list complete when an event gets
+// this effect. A missing subject lets a replica accept a revoked webhook
+// credential, or reject a valid one, until its projection applies the event.
+func botIncomingWebhookAuthSubjects(botID string) []string {
+	return slices.Concat(botLifecycleAuthSubjects(botID), botIncomingWebhookEventSubjects(botID))
+}
+
+// botCredentialAuthSubjects returns the subjects of the events of a bot that
+// can change any credential list that the bot credential commands read from
+// UserAuthProjection: the API keys, the incoming webhooks, and the legacy API
+// key creation time. Keep this list complete when an event gets one of these
+// effects. A missing subject lets a command decide from an old credential list.
+func botCredentialAuthSubjects(botID string) []string {
+	return slices.Concat(botLifecycleAuthSubjects(botID), botAPIKeyEventSubjects(botID), botIncomingWebhookEventSubjects(botID))
+}
+
 // ValidateBotIncomingWebhookCredential authenticates an action-limited
 // incoming webhook credential against the latest verifier replayed from EVT.
 func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, token string) (*readmodel.User, error) {
@@ -213,8 +295,10 @@ func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, t
 	if !ok {
 		return nil, ErrAuthTokenNotFound
 	}
-	agg := evtstream.UserAggregate(botID)
-	if err := c.userModel.waitForUsersCurrent(ctx, "bot incoming webhook authentication", agg.AllEventsFilter()); err != nil {
+	// Wait for the events of the bot, then for the events of its current
+	// owner, as ValidateBotAPIKeyCredential does.
+	if err := c.userModel.waitForUserProjectionsCurrent(ctx, "bot incoming webhook authentication",
+		[]string{evtstream.UserAggregate(botID).AllEventsFilter()}, botIncomingWebhookAuthSubjects(botID)); err != nil {
 		return nil, err
 	}
 	credential, ok := c.userModel.botIncomingWebhookCredential(botID, webhookID)
@@ -223,8 +307,12 @@ func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, t
 		return nil, ErrAuthTokenNotFound
 	}
 	bot, err := c.GetUser(ctx, botID)
-	if err != nil || !bot.GetIsBot() || bot.GetDeactivated() {
+	if err != nil || !bot.GetIsBot() || bot.GetDeactivated() || bot.GetBotOwnerUserId() == "" {
 		return nil, ErrAuthTokenNotFound
+	}
+	if err := c.userModel.waitForUsersCurrent(ctx, "bot incoming webhook owner",
+		evtstream.UserAggregate(bot.GetBotOwnerUserId()).AllEventsFilter()); err != nil {
+		return nil, err
 	}
 	owner, err := c.GetUser(ctx, bot.GetBotOwnerUserId())
 	if err != nil || owner.GetIsBot() || owner.GetDeactivated() {
@@ -253,8 +341,13 @@ func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token stri
 	if !ok {
 		return nil, nil, ErrAuthTokenNotFound
 	}
-	agg := evtstream.UserAggregate(botID)
-	if err := c.userModel.waitForUsersCurrent(ctx, "bot API key authentication", agg.AllEventsFilter()); err != nil {
+	// The owner of the bot is known only after the bot read, so the
+	// authentication waits in two steps: first for the events of the bot,
+	// then for the events of its current owner. Both steps read positions
+	// after the request started. Thus, a change that another replica wrote
+	// before the request is seen, also when it reassigned the bot.
+	if err := c.userModel.waitForUserProjectionsCurrent(ctx, "bot API key authentication",
+		[]string{evtstream.UserAggregate(botID).AllEventsFilter()}, botAPIKeyAuthSubjects(botID)); err != nil {
 		return nil, nil, err
 	}
 	presentedVerifier := c.botAPIKeyVerifier(token)
@@ -263,10 +356,15 @@ func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token stri
 		return nil, nil, ErrAuthTokenNotFound
 	}
 	bot, err := c.GetUser(ctx, botID)
-	if err != nil || !bot.GetIsBot() || bot.GetDeactivated() {
+	if err != nil || !bot.GetIsBot() || bot.GetDeactivated() || bot.GetBotOwnerUserId() == "" {
 		return nil, nil, ErrAuthTokenNotFound
 	}
-	owner, err := c.GetUser(ctx, bot.GetBotOwnerUserId())
+	ownerID := bot.GetBotOwnerUserId()
+	if err := c.userModel.waitForUserProjectionsCurrent(ctx, "bot API key owner",
+		[]string{evtstream.UserAggregate(ownerID).AllEventsFilter()}, botOwnerWatchAuthSubjects(ownerID)); err != nil {
+		return nil, nil, err
+	}
+	owner, err := c.GetUser(ctx, ownerID)
 	if err != nil || owner.GetIsBot() || owner.GetDeactivated() {
 		return nil, nil, ErrAuthTokenNotFound
 	}
@@ -573,7 +671,7 @@ func (c *ChattoCore) CreateBotAPIKey(ctx context.Context, actorID, botID, name s
 	if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 		return nil, err
 	}
-	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key creation"); err != nil {
+	if err := c.userModel.waitForUserAuthSubjectsCurrent(ctx, "bot API key creation", botCredentialAuthSubjects(botID)...); err != nil {
 		return nil, err
 	}
 	var user *readmodel.User
@@ -630,7 +728,7 @@ func (c *ChattoCore) RevokeBotAPIKey(ctx context.Context, actorID, botID, keyID 
 	if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 		return nil, err
 	}
-	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key revocation"); err != nil {
+	if err := c.userModel.waitForUserAuthSubjectsCurrent(ctx, "bot API key revocation", botCredentialAuthSubjects(botID)...); err != nil {
 		return nil, err
 	}
 	var user *readmodel.User
@@ -736,7 +834,7 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 	if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 		return nil, err
 	}
-	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot incoming webhook mutation"); err != nil {
+	if err := c.userModel.waitForUserAuthSubjectsCurrent(ctx, "bot incoming webhook mutation", botCredentialAuthSubjects(botID)...); err != nil {
 		return nil, err
 	}
 	var user *readmodel.User

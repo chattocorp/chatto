@@ -601,6 +601,17 @@ these subjects from the stream leader, concurrently. It does not wait for
 events of other users or for other event types. See
 [auth generation](../../cli/internal/core/auth_generation.go).
 
+The other reads of the projection also wait only for the subjects that can
+change the result. Each read keeps its list of subjects next to it. Bot API
+key and incoming webhook authentication wait for the credential, lifecycle,
+deactivation, and owner events of the bot. Then they wait for the events of
+the current owner, because the owner is known only after the bot read. The
+OAuth consent, password, and external identity reads wait for the events of
+that user. A read that depends on users that it cannot name, such as a
+uniqueness check or a lookup across all users, still waits for all subject
+filters of the projection. See
+[bot credentials](../../cli/internal/core/bots.go).
+
 Bot account kind and owner ID are durable user-aggregate fields projected by
 `UserProjection`; it also maintains the current owner-to-bot index used for
 management, reassignment, and cascade deletion. `UserAuthProjection` replays

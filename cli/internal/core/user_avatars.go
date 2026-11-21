@@ -136,9 +136,8 @@ func (c *ChattoCore) appendManagedAvatarEvent(ctx context.Context, actorID, targ
 		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 			return nil, false, fmt.Errorf("wait for user projection: %w", err)
 		}
-		if err := c.userModel.waitForUserAuthCurrent(ctx, "avatar mutation"); err != nil {
-			return nil, false, fmt.Errorf("wait for user auth projection: %w", err)
-		}
+		// The command reads only the Users and RBAC state, not the User Auth
+		// projection, so it does not wait for that projection.
 		if err := c.authorizeAtStableInputs(ctx, func() error {
 			_, authorizeErr := c.requireCanManageUserIdentity(ctx, actorID, targetUserID)
 			return authorizeErr
