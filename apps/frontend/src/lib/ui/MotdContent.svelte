@@ -1,8 +1,12 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import InlineMarkdown from './InlineMarkdown.svelte';
+  import MarkdownHtml from './MarkdownHtml.svelte';
 
   let { motd, onclick }: { motd: string; onclick: () => void } = $props();
+  const html = $derived.by(() => {
+    const body = motd;
+    return import('$lib/markdown').then(({ renderInlineMarkdown }) => renderInlineMarkdown(body));
+  });
 </script>
 
 <!-- @component Single-line MOTD preview. The owner opens the full message. -->
@@ -26,7 +30,13 @@
       data-testid="motd-preview"
       class="prose prose-compact pointer-events-none max-w-none min-w-0 truncate [&_a]:pointer-events-auto [&_a]:relative"
     >
-      <InlineMarkdown text={motd} />
+      {#await html}
+        {motd}
+      {:then html}
+        <MarkdownHtml {html} />
+      {:catch}
+        {motd}
+      {/await}
     </div>
   </div>
 </div>

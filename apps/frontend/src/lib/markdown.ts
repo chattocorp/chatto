@@ -622,31 +622,13 @@ function initialize(): void {
   };
 }
 
-/** Options for {@link renderInlineMarkdown}. */
-export type RenderInlineMarkdownOptions = {
-  /**
-   * Renders text between blank lines as paragraphs and keeps single line
-   * breaks. The default joins all lines into one line without paragraphs.
-   */
-  multiline?: boolean;
-};
-
 /**
- * Renders inline formatting and safe links. The only block markup is the
- * paragraphs of the `multiline` option. `@handle` stays plain text.
+ * Renders inline formatting and safe links on one line, without block markup.
+ * `@handle` stays plain text.
  */
-export function renderInlineMarkdown(
-  body: string,
-  { multiline = false }: RenderInlineMarkdownOptions = {}
-): string {
+export function renderInlineMarkdown(body: string): string {
   initialize();
-  if (!multiline) return md!.renderInline(body.replace(/[\r\n]+/g, ' '));
-  return body
-    .split(/\r?\n\s*\r?\n/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-    .map((paragraph) => `<p>${md!.renderInline(paragraph)}</p>`)
-    .join('');
+  return md!.renderInline(body.replace(/[\r\n]+/g, ' '));
 }
 
 /**

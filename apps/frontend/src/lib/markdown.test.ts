@@ -26,15 +26,6 @@ describe('renderInlineMarkdown', () => {
     expect(html).not.toMatch(/<(?:p|br|h[1-6]|ul|ol)\b|[\r\n]/);
   });
 
-  it('renders paragraphs and line breaks on request', () => {
-    const html = renderInlineMarkdown('**News**\nToday\n\n\n# Not a heading\r\n\r\n- Not a list', {
-      multiline: true
-    });
-    expect(html).toMatch(
-      /^<p><strong>News<\/strong><br>\s*Today<\/p><p># Not a heading<\/p><p>- Not a list<\/p>$/
-    );
-  });
-
   it('escapes source HTML and rejects unsafe links', () => {
     const html = renderInlineMarkdown('<img src=x onerror=alert(1)> [bad](javascript:alert(1))');
     expect(html).toContain('&lt;img');

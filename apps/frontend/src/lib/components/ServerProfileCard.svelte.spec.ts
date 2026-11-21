@@ -44,9 +44,7 @@ describe('ServerProfileCard public images', () => {
     expect(onactivate).toHaveBeenCalledOnce();
     await userEvent.keyboard(' ');
     expect(onactivate).toHaveBeenCalledTimes(2);
-    await userEvent.click(
-      container.querySelector('[data-testid="server-card-description"] [dir="auto"]')!
-    );
+    await userEvent.click(container.querySelector('[data-testid="server-card-description"] p')!);
     expect(onactivate).toHaveBeenCalledTimes(3);
     const card = container.querySelector('article')!.getBoundingClientRect();
     const target = action.getBoundingClientRect();
@@ -81,32 +79,6 @@ describe('ServerProfileCard public images', () => {
     expect(clicks[1]?.metaKey).toBe(true);
   });
 
-  it('renders Markdown in the description and opens its links instead of the card', async () => {
-    const onactivate = vi.fn();
-    const rendered = render(ServerProfileCard, {
-      origin: 'https://chat.example',
-      profile: profile({
-        iconUrl: null,
-        bannerUrl: null,
-        description: 'Runs `main`.\n**Expect bugs.**\n\n[Details](https://example.com)'
-      }),
-      onactivate
-    });
-    const link = rendered.getByRole('link', { name: 'Details' });
-    await expect.element(link).toBeVisible();
-    const description = rendered.container.querySelector(
-      '[data-testid="server-card-description"]'
-    )!;
-    expect(description.querySelector('code')?.textContent).toBe('main');
-    expect(description.querySelector('br')).not.toBeNull();
-    expect(description.querySelectorAll('p')).toHaveLength(2);
-    const anchor = description.querySelector('a')!;
-    // Exercise the real link hit target without contacting an external site.
-    anchor.addEventListener('click', (event) => event.preventDefault(), { once: true });
-    await link.click();
-    expect(onactivate).not.toHaveBeenCalled();
-  });
-
   it('does not activate a disabled card through its description', async () => {
     const onactivate = vi.fn();
     const { container } = render(ServerProfileCard, {
@@ -115,9 +87,7 @@ describe('ServerProfileCard public images', () => {
       onactivate,
       disabled: true
     });
-    await userEvent.click(
-      container.querySelector('[data-testid="server-card-description"] [dir="auto"]')!
-    );
+    await userEvent.click(container.querySelector('[data-testid="server-card-description"] p')!);
     expect(onactivate).not.toHaveBeenCalled();
   });
 

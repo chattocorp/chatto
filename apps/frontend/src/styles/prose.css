@@ -394,11 +394,6 @@
   --composer-code-attribute: #ffa657;
 }
 
-/* Centred prose - for short centred text such as the server description */
-.prose-center {
-  text-align: center;
-}
-
 /* Compact prose - for inline contexts like MOTD */
 .prose-compact {
   & p {
