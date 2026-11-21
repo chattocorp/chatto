@@ -3,10 +3,16 @@ package core
 import (
 	"encoding/json"
 	"errors"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+
+	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 )
 
 // createGenerationZeroPasswordUser returns a user whose auth generation stays
@@ -99,5 +105,94 @@ func TestChattoCore_LogoutWithStaleCredentialAfterPasswordChangeIsNotLive(t *tes
 
 	if userID, revoked, err := core.RevokeRefreshTokenWithReasonResult(ctx, current.RefreshToken, "logout"); err != nil || !revoked || userID != user.Id {
 		t.Fatalf("current refresh logout = (%q, %v, %v), want (%q, true, nil)", userID, revoked, err, user.Id)
+	}
+}
+
+// A replica must not decide from a projection that has not applied the newest
+// generation-relevant event of the user, whichever replica wrote it. This
+// covers the event types that the per-user wait added: account creation and
+// both key-shredding events.
+func TestCurrentAuthGenerationFollowsOtherReplica(t *testing.T) {
+	ns, _ := testutil.StartNATS(t)
+	first := startReplica(t, ns, testCoreConfig())
+	second := startReplica(t, ns, testCoreConfig())
+	ctx := testContext(t)
+
+	for name, revoke := range map[string]func(userID string) *evtv1.Event{
+		"account deleted": func(userID string) *evtv1.Event {
+			return &evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: userID}}}
+		},
+		"key shredding requested": func(userID string) *evtv1.Event {
+			return &evtv1.Event{Event: &evtv1.Event_UserKeyShreddingRequested{UserKeyShreddingRequested: &evtv1.UserKeyShreddingRequestedEvent{UserId: userID}}}
+		},
+		"key shredded": func(userID string) *evtv1.Event {
+			return &evtv1.Event{Event: &evtv1.Event_UserKeyShredded{UserKeyShredded: &evtv1.UserKeyShreddedEvent{UserId: userID}}}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			user, err := first.CreateUser(ctx, SystemActorID, strings.ReplaceAll(name, " ", "-"), "Replica User", "")
+			if err != nil {
+				t.Fatalf("CreateUser: %v", err)
+			}
+			// The other replica knows the new account immediately. An unknown
+			// user counts as revoked.
+			if generation, err := second.CurrentAuthGeneration(ctx, user.Id); err != nil || generation != 0 {
+				t.Fatalf("new account on other replica: generation = %d, err = %v, want 0, nil", generation, err)
+			}
+			if _, err := first.appendUserEvent(ctx, user.Id, newEvent(SystemActorID, revoke(user.Id)), "", nil); err != nil {
+				t.Fatalf("append event: %v", err)
+			}
+			if _, err := second.CurrentAuthGeneration(ctx, user.Id); !errors.Is(err, ErrAuthenticationRevoked) {
+				t.Fatalf("after event on other replica: err = %v, want ErrAuthenticationRevoked", err)
+			}
+		})
+	}
+}
+
+// Every validation of a runtime credential runs the auth generation check, so
+// its cost in requests to the stream leader matters. It reads one position
+// for each generation-relevant subject of the user and no subject of another
+// user.
+func TestCurrentAuthGenerationReadsOnlySubjectsOfTheUser(t *testing.T) {
+	core, nc := setupTestCore(t)
+	userID := createGenerationZeroPasswordUser(t, core, "read-budget-user")
+	createGenerationZeroPasswordUser(t, core, "read-budget-other-user")
+
+	// Background checks also read stream positions, with wildcard subjects.
+	// Count only the requests that name this user.
+	requests := make(chan string, 64)
+	sub, err := nc.Subscribe("$JS.API.STREAM.MSG.GET.EVT", func(msg *nats.Msg) {
+		var request struct {
+			LastBySubject string `json:"last_by_subj"`
+		}
+		if err := json.Unmarshal(msg.Data, &request); err == nil && strings.Contains(request.LastBySubject, userID) {
+			requests <- request.LastBySubject
+		}
+	})
+	if err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+	mustCurrentAuthGeneration(t, core, userID)
+	// The subscription is on another connection than the core. A request to
+	// the server from this connection passes the pending deliveries.
+	if err := sub.Unsubscribe(); err != nil {
+		t.Fatalf("unsubscribe: %v", err)
+	}
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+	close(requests)
+	var got []string
+	for subject := range requests {
+		got = append(got, subject)
+	}
+	want := userAuthGenerationSubjects(userID)
+	slices.Sort(got)
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
+		t.Fatalf("position reads for the user = %v, want one for each of %v", got, want)
 	}
 }
