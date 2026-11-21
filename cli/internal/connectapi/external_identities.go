@@ -232,8 +232,9 @@ func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.
 	for index, identity := range linked {
 		identity.DisconnectEligibility = disconnectAvailability(s.api, identities[index], identities, hasPassword)
 	}
+	credential, _ := authctx.CredentialForContext(ctx)
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{
-		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities),
+		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities, credential.Kind == authctx.RuntimeCredentialKindCookieSession),
 		LinkedIdentities: linked,
 	}), nil
 }
@@ -279,18 +280,13 @@ func (s *accountService) StartFreshAuthReverification(ctx context.Context, req *
 	if redirectPath != "" && !isValidInternalRedirectPath(redirectPath) {
 		return nil, core.ErrInvalidArgument
 	}
+	// Only a cookie session can bind the provider callback to this browser.
 	credential, ok := authctx.CredentialForContext(ctx)
 	if !ok || credential.UserID != caller.UserID {
 		return nil, core.ErrFreshAuthRequired
 	}
-	var presentation core.AuthTokenPresentation
-	switch credential.Kind {
-	case authctx.RuntimeCredentialKindBearerToken:
-		presentation = core.AuthTokenPresentationBearer
-	case authctx.RuntimeCredentialKindCookieSession:
-		presentation = core.AuthTokenPresentationCookie
-	default:
-		return nil, core.ErrFreshAuthRequired
+	if credential.Kind != authctx.RuntimeCredentialKindCookieSession {
+		return nil, core.ErrFreshAuthReverificationUnavailable
 	}
 	identities, err := s.api.core.ExternalIdentitiesForUser(ctx, caller.UserID)
 	if err != nil {
@@ -299,7 +295,7 @@ func (s *accountService) StartFreshAuthReverification(ctx context.Context, req *
 	if !providerCanReverify(provider, identities) {
 		return nil, core.ErrFreshAuthReverificationUnavailable
 	}
-	token, err := s.api.core.CreateFreshAuthReverificationStart(ctx, provider.ID, redirectPath, credential.Handle, presentation)
+	token, err := s.api.core.CreateFreshAuthReverificationStart(ctx, provider.ID, redirectPath, credential.Handle)
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +354,9 @@ func apiPendingExternalIdentity(flow *core.PendingExternalIdentityFlow) *authv1.
 	}
 }
 
-func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identities []core.ExternalIdentity) []*apiv1.ExternalIdentityProvider {
+// apiExternalIdentityProviders lists providers for the settings UI.
+// cookieSession reports whether the caller's credential can re-verify.
+func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identities []core.ExternalIdentity, cookieSession bool) []*apiv1.ExternalIdentityProvider {
 	result := make([]*apiv1.ExternalIdentityProvider, 0, len(providers))
 	for _, provider := range providers {
 		escapedID := url.PathEscape(provider.ID)
@@ -368,7 +366,7 @@ func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identit
 			Linked:                    linked,
 			LinkedIdentitySubjectHash: linkedIdentity.SubjectHash,
 			Provider:                  apiProviderMetadata(provider),
-			ReverificationAvailable:   providerCanReverify(provider, identities),
+			ReverificationAvailable:   cookieSession && providerCanReverify(provider, identities),
 		})
 	}
 	return result

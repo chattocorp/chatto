@@ -96,7 +96,8 @@ type ExternalIdentityProvider struct {
 	Provider *ProviderMetadata `protobuf:"bytes,8,opt,name=provider,proto3" json:"provider,omitempty"`
 	// True when the user can confirm a recent sign-in through this provider
 	// with StartFreshAuthReverification. The provider must be linked to the
-	// user and able to force a new provider sign-in.
+	// user and able to force a new provider sign-in, and the request must use a
+	// browser cookie session. Always false for bearer credentials.
 	ReverificationAvailable bool `protobuf:"varint,9,opt,name=reverification_available,json=reverificationAvailable,proto3" json:"reverification_available,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache

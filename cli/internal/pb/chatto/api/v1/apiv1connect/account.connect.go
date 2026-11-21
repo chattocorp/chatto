@@ -137,10 +137,11 @@ type MyAccountServiceClient interface {
 	// same account, the server marks the calling session fresh for 30 minutes,
 	// so that actions such as StartExternalIdentityLink and
 	// DisconnectExternalIdentity succeed without a password. The callback does
-	// not create a new session. A cookie session must complete the callback in
-	// the same browser. Returns NOT_FOUND for an unknown provider and
-	// FAILED_PRECONDITION when the provider is not linked or cannot force a new
-	// sign-in.
+	// not create a new session. Only a browser cookie session on the account's
+	// server can re-verify: the same browser must open start_url from a page on
+	// that server and complete the callback. Returns NOT_FOUND for an unknown
+	// provider and FAILED_PRECONDITION for a bearer credential, or when the
+	// provider is not linked or cannot force a new sign-in.
 	StartFreshAuthReverification(context.Context, *connect.Request[v1.StartFreshAuthReverificationRequest]) (*connect.Response[v1.StartFreshAuthReverificationResponse], error)
 	// Disconnects a provider identity from the authenticated account.
 	DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error)
@@ -465,10 +466,11 @@ type MyAccountServiceHandler interface {
 	// same account, the server marks the calling session fresh for 30 minutes,
 	// so that actions such as StartExternalIdentityLink and
 	// DisconnectExternalIdentity succeed without a password. The callback does
-	// not create a new session. A cookie session must complete the callback in
-	// the same browser. Returns NOT_FOUND for an unknown provider and
-	// FAILED_PRECONDITION when the provider is not linked or cannot force a new
-	// sign-in.
+	// not create a new session. Only a browser cookie session on the account's
+	// server can re-verify: the same browser must open start_url from a page on
+	// that server and complete the callback. Returns NOT_FOUND for an unknown
+	// provider and FAILED_PRECONDITION for a bearer credential, or when the
+	// provider is not linked or cannot force a new sign-in.
 	StartFreshAuthReverification(context.Context, *connect.Request[v1.StartFreshAuthReverificationRequest]) (*connect.Response[v1.StartFreshAuthReverificationResponse], error)
 	// Disconnects a provider identity from the authenticated account.
 	DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error)

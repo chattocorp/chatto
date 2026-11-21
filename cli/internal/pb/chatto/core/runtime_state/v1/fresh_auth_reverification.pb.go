@@ -22,65 +22,12 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// FreshAuthReverificationCredentialKind identifies the kind of runtime
-// credential that a re-verification upgrades.
-type FreshAuthReverificationCredentialKind int32
-
-const (
-	FreshAuthReverificationCredentialKind_FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_UNSPECIFIED FreshAuthReverificationCredentialKind = 0
-	// A first-party bearer session. The record names its renewable session.
-	FreshAuthReverificationCredentialKind_FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_BEARER_SESSION FreshAuthReverificationCredentialKind = 1
-	// A browser cookie session. The record holds only an HMAC of the cookie
-	// handle; the callback request must present the same cookie.
-	FreshAuthReverificationCredentialKind_FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_COOKIE_SESSION FreshAuthReverificationCredentialKind = 2
-)
-
-// Enum value maps for FreshAuthReverificationCredentialKind.
-var (
-	FreshAuthReverificationCredentialKind_name = map[int32]string{
-		0: "FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_UNSPECIFIED",
-		1: "FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_BEARER_SESSION",
-		2: "FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_COOKIE_SESSION",
-	}
-	FreshAuthReverificationCredentialKind_value = map[string]int32{
-		"FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_UNSPECIFIED":    0,
-		"FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_BEARER_SESSION": 1,
-		"FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_COOKIE_SESSION": 2,
-	}
-)
-
-func (x FreshAuthReverificationCredentialKind) Enum() *FreshAuthReverificationCredentialKind {
-	p := new(FreshAuthReverificationCredentialKind)
-	*p = x
-	return p
-}
-
-func (x FreshAuthReverificationCredentialKind) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (FreshAuthReverificationCredentialKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_enumTypes[0].Descriptor()
-}
-
-func (FreshAuthReverificationCredentialKind) Type() protoreflect.EnumType {
-	return &file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_enumTypes[0]
-}
-
-func (x FreshAuthReverificationCredentialKind) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use FreshAuthReverificationCredentialKind.Descriptor instead.
-func (FreshAuthReverificationCredentialKind) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_rawDescGZIP(), []int{0}
-}
-
 // FreshAuthReverificationStart is a one-time handoff between the
 // authenticated start RPC and the provider callback. It is stored under
 // fresh_auth_reverification_start.{hmac} with a short TTL. The callback
-// consumes it, checks that the provider identity belongs to bound_user_id,
-// and marks only the named credential fresh. It never creates a session.
+// consumes it, checks that the provider identity belongs to bound_user_id and
+// that the browser presents the bound cookie session, and marks only that
+// session fresh. It never creates a session.
 type FreshAuthReverificationStart struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Configured provider ID that must perform the re-verification.
@@ -89,15 +36,11 @@ type FreshAuthReverificationStart struct {
 	RedirectPath string `protobuf:"bytes,2,opt,name=redirect_path,json=redirectPath,proto3" json:"redirect_path,omitempty"`
 	// User ID that the provider identity must belong to.
 	BoundUserId string `protobuf:"bytes,3,opt,name=bound_user_id,json=boundUserId,proto3" json:"bound_user_id,omitempty"`
-	// Kind of credential to upgrade.
-	CredentialKind FreshAuthReverificationCredentialKind `protobuf:"varint,4,opt,name=credential_kind,json=credentialKind,proto3,enum=chatto.core.runtime_state.v1.FreshAuthReverificationCredentialKind" json:"credential_kind,omitempty"`
-	// Renewable session ID of a bearer credential. Empty for cookie sessions.
-	RenewableSessionId string `protobuf:"bytes,5,opt,name=renewable_session_id,json=renewableSessionId,proto3" json:"renewable_session_id,omitempty"`
-	// Purpose-scoped HMAC of a cookie session handle. Empty for bearer sessions.
-	CookieSessionDigest string `protobuf:"bytes,6,opt,name=cookie_session_digest,json=cookieSessionDigest,proto3" json:"cookie_session_digest,omitempty"`
+	// Purpose-scoped HMAC of the cookie session handle to upgrade.
+	CookieSessionDigest string `protobuf:"bytes,4,opt,name=cookie_session_digest,json=cookieSessionDigest,proto3" json:"cookie_session_digest,omitempty"`
 	// Time the start record was created. Provider authentication must be at
 	// or after this time.
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -153,20 +96,6 @@ func (x *FreshAuthReverificationStart) GetBoundUserId() string {
 	return ""
 }
 
-func (x *FreshAuthReverificationStart) GetCredentialKind() FreshAuthReverificationCredentialKind {
-	if x != nil {
-		return x.CredentialKind
-	}
-	return FreshAuthReverificationCredentialKind_FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_UNSPECIFIED
-}
-
-func (x *FreshAuthReverificationStart) GetRenewableSessionId() string {
-	if x != nil {
-		return x.RenewableSessionId
-	}
-	return ""
-}
-
 func (x *FreshAuthReverificationStart) GetCookieSessionDigest() string {
 	if x != nil {
 		return x.CookieSessionDigest
@@ -185,21 +114,15 @@ var File_chatto_core_runtime_state_v1_fresh_auth_reverification_proto protorefle
 
 const file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_rawDesc = "" +
 	"\n" +
-	"<chatto/core/runtime_state/v1/fresh_auth_reverification.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x97\x03\n" +
+	"<chatto/core/runtime_state/v1/fresh_auth_reverification.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf7\x01\n" +
 	"\x1cFreshAuthReverificationStart\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12#\n" +
 	"\rredirect_path\x18\x02 \x01(\tR\fredirectPath\x12\"\n" +
-	"\rbound_user_id\x18\x03 \x01(\tR\vboundUserId\x12l\n" +
-	"\x0fcredential_kind\x18\x04 \x01(\x0e2C.chatto.core.runtime_state.v1.FreshAuthReverificationCredentialKindR\x0ecredentialKind\x120\n" +
-	"\x14renewable_session_id\x18\x05 \x01(\tR\x12renewableSessionId\x122\n" +
-	"\x15cookie_session_digest\x18\x06 \x01(\tR\x13cookieSessionDigest\x129\n" +
+	"\rbound_user_id\x18\x03 \x01(\tR\vboundUserId\x122\n" +
+	"\x15cookie_session_digest\x18\x04 \x01(\tR\x13cookieSessionDigest\x129\n" +
 	"\n" +
-	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt*\xde\x01\n" +
-	"%FreshAuthReverificationCredentialKind\x129\n" +
-	"5FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_UNSPECIFIED\x10\x00\x12<\n" +
-	"8FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_BEARER_SESSION\x10\x01\x12<\n" +
-	"8FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_COOKIE_SESSION\x10\x02B\xa9\x02\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\xa9\x02\n" +
 	" com.chatto.core.runtime_state.v1B\x1cFreshAuthReverificationProtoP\x01ZXgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
@@ -214,21 +137,18 @@ func file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_rawDescGZ
 	return file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_rawDescData
 }
 
-var file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_goTypes = []any{
-	(FreshAuthReverificationCredentialKind)(0), // 0: chatto.core.runtime_state.v1.FreshAuthReverificationCredentialKind
-	(*FreshAuthReverificationStart)(nil),       // 1: chatto.core.runtime_state.v1.FreshAuthReverificationStart
-	(*timestamppb.Timestamp)(nil),              // 2: google.protobuf.Timestamp
+	(*FreshAuthReverificationStart)(nil), // 0: chatto.core.runtime_state.v1.FreshAuthReverificationStart
+	(*timestamppb.Timestamp)(nil),        // 1: google.protobuf.Timestamp
 }
 var file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_depIdxs = []int32{
-	0, // 0: chatto.core.runtime_state.v1.FreshAuthReverificationStart.credential_kind:type_name -> chatto.core.runtime_state.v1.FreshAuthReverificationCredentialKind
-	2, // 1: chatto.core.runtime_state.v1.FreshAuthReverificationStart.created_at:type_name -> google.protobuf.Timestamp
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	1, // 0: chatto.core.runtime_state.v1.FreshAuthReverificationStart.created_at:type_name -> google.protobuf.Timestamp
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_init() }
@@ -241,14 +161,13 @@ func file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_rawDesc), len(file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_goTypes,
 		DependencyIndexes: file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_depIdxs,
-		EnumInfos:         file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_enumTypes,
 		MessageInfos:      file_chatto_core_runtime_state_v1_fresh_auth_reverification_proto_msgTypes,
 	}.Build()
 	File_chatto_core_runtime_state_v1_fresh_auth_reverification_proto = out.File

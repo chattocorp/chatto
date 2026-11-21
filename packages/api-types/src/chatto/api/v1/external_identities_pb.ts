@@ -90,7 +90,8 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
   /**
    * True when the user can confirm a recent sign-in through this provider
    * with StartFreshAuthReverification. The provider must be linked to the
-   * user and able to force a new provider sign-in.
+   * user and able to force a new provider sign-in, and the request must use a
+   * browser cookie session. Always false for bearer credentials.
    *
    * @generated from field: bool reverification_available = 9;
    */

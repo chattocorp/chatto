@@ -1,22 +1,21 @@
 package connectapi
 
 import (
-	"errors"
 	"net/url"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 )
 
-// On an SSO-only server, a stale bearer session cannot link another provider.
-// Re-verification through a linked OIDC provider of the same account upgrades
-// that session, and the link then starts without a password. An identity of
-// another account does not upgrade it.
-func TestStartFreshAuthReverificationResumesLink(t *testing.T) {
+// StartFreshAuthReverification accepts only a cookie session and a linked
+// OIDC provider, and binds the handoff to the caller and its return path.
+// core.TestFreshAuthReverification covers the freshness upgrade itself.
+func TestStartFreshAuthReverification(t *testing.T) {
 	const issuer = "https://idp.example"
 	directLogin := false
 	env := newConnectAPITestEnvWithAuth(t, 30*time.Second, config.AuthConfig{
@@ -37,25 +36,24 @@ func TestStartFreshAuthReverificationResumesLink(t *testing.T) {
 		t.Fatalf("LinkExternalIdentity other: %v", err)
 	}
 	// A source without a sign-in suffix does not grant initial freshness.
-	session, err := env.core.CreateBearerSessionWithSource(ctx, env.viewer.Id, "refresh")
+	cookieHandle, _, err := env.core.CreateCookieSession(ctx, env.viewer.Id, "refresh")
+	if err != nil {
+		t.Fatalf("CreateCookieSession: %v", err)
+	}
+	callerCtx := authctx.WithCredential(withCaller(ctx, env.viewer), authctx.RuntimeCredential{
+		Kind: authctx.RuntimeCredentialKindCookieSession, UserID: env.viewer.Id, Handle: cookieHandle,
+	})
+	bearer, err := env.core.CreateBearerSessionWithSource(ctx, env.viewer.Id, "refresh")
 	if err != nil {
 		t.Fatalf("CreateBearerSessionWithSource: %v", err)
 	}
-	callerCtx := withBearerCredential(ctx, env.viewer, session.AccessToken)
+	bearerCtx := withBearerCredential(ctx, env.viewer, bearer.AccessToken)
 	start := func(providerID, redirectPath string) (*connect.Response[apiv1.StartFreshAuthReverificationResponse], error) {
 		return env.account.StartFreshAuthReverification(callerCtx, connect.NewRequest(&apiv1.StartFreshAuthReverificationRequest{
 			ProviderId:   providerID,
 			RedirectPath: redirectPath,
 		}))
 	}
-	startLink := func() error {
-		_, err := env.account.StartExternalIdentityLink(callerCtx, connect.NewRequest(&apiv1.StartExternalIdentityLinkRequest{
-			ProviderId:   "discord",
-			RedirectPath: "/chat/-/settings/account",
-		}))
-		return err
-	}
-
 	_, err = start("sso", "/chat/-/settings/account")
 	requireConnectCode(t, err, connect.CodeFailedPrecondition)
 
@@ -77,6 +75,17 @@ func TestStartFreshAuthReverificationResumesLink(t *testing.T) {
 	if !available["sso"] || available["gh"] || available["discord"] {
 		t.Fatalf("reverification_available = %v, want only sso", available)
 	}
+	bearerList, err := env.account.ListExternalIdentities(bearerCtx, connect.NewRequest(&apiv1.ListExternalIdentitiesRequest{}))
+	if err != nil {
+		t.Fatalf("ListExternalIdentities bearer: %v", err)
+	}
+	for _, provider := range bearerList.Msg.GetProviders() {
+		if provider.GetReverificationAvailable() {
+			t.Fatalf("bearer caller sees reverification_available for %s", provider.GetProvider().GetId())
+		}
+	}
+	_, err = env.account.StartFreshAuthReverification(bearerCtx, connect.NewRequest(&apiv1.StartFreshAuthReverificationRequest{ProviderId: "sso"}))
+	requireConnectCode(t, err, connect.CodeFailedPrecondition)
 
 	for _, tc := range []struct {
 		name, providerID, redirect string
@@ -93,44 +102,25 @@ func TestStartFreshAuthReverificationResumesLink(t *testing.T) {
 		})
 	}
 
-	requireConnectCode(t, startLink(), connect.CodeFailedPrecondition)
-
-	reverify := func(t *testing.T, subject string) error {
-		t.Helper()
-		started, err := start("sso", "/chat/-/settings/account?link_provider=discord")
-		if err != nil {
-			t.Fatalf("StartFreshAuthReverification: %v", err)
-		}
-		startURL, err := url.Parse(started.Msg.GetStartUrl())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if startURL.Path != "/auth/providers/sso" || startURL.Query().Get("intent") != "reverify" {
-			t.Fatalf("start url = %q", started.Msg.GetStartUrl())
-		}
-		handoff, err := env.core.ConsumeFreshAuthReverificationStart(ctx, startURL.Query().Get("reverify_start"))
-		if err != nil {
-			t.Fatalf("ConsumeFreshAuthReverificationStart: %v", err)
-		}
-		if handoff.BoundUserID != env.viewer.Id || handoff.ProviderID != "sso" || handoff.RedirectPath != "/chat/-/settings/account?link_provider=discord" {
-			t.Fatalf("handoff = %+v", handoff)
-		}
-		return env.core.CompleteFreshAuthReverification(ctx, handoff, issuer, subject, time.Now(), "")
+	started, err := start("sso", "/chat/-/settings/account?link_provider=discord")
+	if err != nil {
+		t.Fatalf("StartFreshAuthReverification: %v", err)
 	}
-
-	t.Run("identity of another account", func(t *testing.T) {
-		if err := reverify(t, "subject-other"); !errors.Is(err, core.ErrFreshAuthReverificationMismatch) {
-			t.Fatalf("CompleteFreshAuthReverification = %v, want mismatch", err)
-		}
-		requireConnectCode(t, startLink(), connect.CodeFailedPrecondition)
-	})
-
-	t.Run("same account", func(t *testing.T) {
-		if err := reverify(t, "subject-viewer"); err != nil {
-			t.Fatalf("CompleteFreshAuthReverification: %v", err)
-		}
-		if err := startLink(); err != nil {
-			t.Fatalf("StartExternalIdentityLink after re-verification: %v", err)
-		}
-	})
+	startURL, err := url.Parse(started.Msg.GetStartUrl())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if startURL.Path != "/auth/providers/sso" || startURL.Query().Get("intent") != "reverify" {
+		t.Fatalf("start url = %q", started.Msg.GetStartUrl())
+	}
+	handoff, err := env.core.ConsumeFreshAuthReverificationStart(ctx, startURL.Query().Get("reverify_start"))
+	if err != nil {
+		t.Fatalf("ConsumeFreshAuthReverificationStart: %v", err)
+	}
+	if handoff.BoundUserID != env.viewer.Id || handoff.ProviderID != "sso" || handoff.RedirectPath != "/chat/-/settings/account?link_provider=discord" {
+		t.Fatalf("handoff = %+v", handoff)
+	}
+	if err := env.core.CompleteFreshAuthReverification(ctx, handoff, issuer, "subject-viewer", time.Now(), cookieHandle); err != nil {
+		t.Fatalf("CompleteFreshAuthReverification: %v", err)
+	}
 }

@@ -65,14 +65,16 @@ func (c *ChattoCore) freshAuthReverificationStartKey(token string) string {
 }
 
 // CreateFreshAuthReverificationStart stores a one-time handoff that binds a
-// provider re-verification to the presented first-party credential. It
-// returns the raw handoff token for the provider start URL.
-func (c *ChattoCore) CreateFreshAuthReverificationStart(ctx context.Context, providerID, redirectPath, handle string, presentation AuthTokenPresentation) (string, error) {
+// provider re-verification to the presented cookie session. It returns the raw
+// handoff token for the provider start URL. Bearer credentials cannot
+// re-verify: the callback browser cannot prove that it holds them, so a
+// leaked bearer token could gain freshness from a phished provider sign-in.
+func (c *ChattoCore) CreateFreshAuthReverificationStart(ctx context.Context, providerID, redirectPath, cookieHandle string) (string, error) {
 	providerID = strings.TrimSpace(providerID)
 	if providerID == "" {
 		return "", ErrInvalidArgument
 	}
-	credential, err := c.validateRuntimeCredential(ctx, handle, presentation, authoritativeCredentialRead)
+	credential, err := c.validateRuntimeCredential(ctx, cookieHandle, AuthTokenPresentationCookie, authoritativeCredentialRead)
 	if err != nil {
 		return "", err
 	}
@@ -83,23 +85,11 @@ func (c *ChattoCore) CreateFreshAuthReverificationStart(ctx context.Context, pro
 		return "", err
 	}
 	record := &runtimestatev1.FreshAuthReverificationStart{
-		ProviderId:   providerID,
-		RedirectPath: strings.TrimSpace(redirectPath),
-		BoundUserId:  credential.UserID,
-		CreatedAt:    timestamppb.Now(),
-	}
-	switch presentation {
-	case AuthTokenPresentationBearer:
-		if credential.RenewableSessionID == "" {
-			return "", ErrFreshAuthRequired
-		}
-		record.CredentialKind = runtimestatev1.FreshAuthReverificationCredentialKind_FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_BEARER_SESSION
-		record.RenewableSessionId = credential.RenewableSessionID
-	case AuthTokenPresentationCookie:
-		record.CredentialKind = runtimestatev1.FreshAuthReverificationCredentialKind_FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_COOKIE_SESSION
-		record.CookieSessionDigest = c.runtimeTokenHash(freshAuthReverificationCookieScope, handle)
-	default:
-		return "", ErrFreshAuthRequired
+		ProviderId:          providerID,
+		RedirectPath:        strings.TrimSpace(redirectPath),
+		BoundUserId:         credential.UserID,
+		CookieSessionDigest: c.runtimeTokenHash(freshAuthReverificationCookieScope, cookieHandle),
+		CreatedAt:           timestamppb.Now(),
 	}
 	data, err := proto.Marshal(record)
 	if err != nil {
@@ -149,7 +139,7 @@ func (c *ChattoCore) loadFreshAuthReverificationStart(ctx context.Context, token
 		return nil, nil, fmt.Errorf("get fresh-auth re-verification start: %w", err)
 	}
 	var record runtimestatev1.FreshAuthReverificationStart
-	if err := proto.Unmarshal(entry.Value(), &record); err != nil || record.GetBoundUserId() == "" || record.GetProviderId() == "" || record.GetCreatedAt() == nil {
+	if err := proto.Unmarshal(entry.Value(), &record); err != nil || record.GetBoundUserId() == "" || record.GetProviderId() == "" || record.GetCookieSessionDigest() == "" || record.GetCreatedAt() == nil {
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return nil, nil, ErrExternalIdentityFlowNotFound
 	}
@@ -167,12 +157,11 @@ func (c *ChattoCore) loadFreshAuthReverificationStart(ctx context.Context, token
 	}, entry, nil
 }
 
-// CompleteFreshAuthReverification marks the bound credential fresh after a
-// provider verified issuer and subject with a sign-in at authTime. The
-// identity must belong to the bound account, and authTime must not be
-// earlier than the start. cookieHandle is the cookie session that the
-// callback request presented; a cookie-bound start requires the same one.
-// It never creates a session.
+// CompleteFreshAuthReverification marks the bound cookie session fresh after
+// a provider verified issuer and subject with a sign-in at authTime. The
+// identity must belong to the bound account, authTime must not be earlier
+// than the start, and cookieHandle, the cookie session that the callback
+// request presented, must be the bound one. It never creates a session.
 func (c *ChattoCore) CompleteFreshAuthReverification(ctx context.Context, start *FreshAuthReverificationStart, issuer, subject string, authTime time.Time, cookieHandle string) error {
 	if start == nil || start.record == nil {
 		return ErrExternalIdentityFlowNotFound
@@ -187,33 +176,18 @@ func (c *ChattoCore) CompleteFreshAuthReverification(ctx context.Context, start 
 	if authTime.IsZero() || authTime.Before(start.CreatedAt.Add(-freshAuthReverificationClockSkew)) {
 		return ErrFreshAuthReverificationStale
 	}
-	switch start.record.GetCredentialKind() {
-	case runtimestatev1.FreshAuthReverificationCredentialKind_FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_BEARER_SESSION:
-		sessionID := start.record.GetRenewableSessionId()
-		session, _, err := c.validateRenewableSession(ctx, sessionID, time.Now())
-		if err != nil {
-			return err
-		}
-		if session.UserID != start.BoundUserID {
-			return ErrFreshAuthReverificationMismatch
-		}
-		return c.markRenewableSessionFresh(ctx, sessionID, "external_identity", freshAuthReverificationSource, time.Now())
-	case runtimestatev1.FreshAuthReverificationCredentialKind_FRESH_AUTH_REVERIFICATION_CREDENTIAL_KIND_COOKIE_SESSION:
-		if cookieHandle == "" || !hmac.Equal(
-			[]byte(c.runtimeTokenHash(freshAuthReverificationCookieScope, cookieHandle)),
-			[]byte(start.record.GetCookieSessionDigest()),
-		) {
-			return ErrFreshAuthReverificationMismatch
-		}
-		credential, err := c.validateRuntimeCredential(ctx, cookieHandle, AuthTokenPresentationCookie, authoritativeCredentialRead)
-		if err != nil {
-			return err
-		}
-		if credential.UserID != start.BoundUserID {
-			return ErrFreshAuthReverificationMismatch
-		}
-		return c.MarkCookieSessionFresh(ctx, cookieHandle, "external_identity", freshAuthReverificationSource)
-	default:
-		return ErrFreshAuthRequired
+	if cookieHandle == "" || !hmac.Equal(
+		[]byte(c.runtimeTokenHash(freshAuthReverificationCookieScope, cookieHandle)),
+		[]byte(start.record.GetCookieSessionDigest()),
+	) {
+		return ErrFreshAuthReverificationMismatch
 	}
+	credential, err := c.validateRuntimeCredential(ctx, cookieHandle, AuthTokenPresentationCookie, authoritativeCredentialRead)
+	if err != nil {
+		return err
+	}
+	if credential.UserID != start.BoundUserID {
+		return ErrFreshAuthReverificationMismatch
+	}
+	return c.MarkCookieSessionFresh(ctx, cookieHandle, "external_identity", freshAuthReverificationSource)
 }

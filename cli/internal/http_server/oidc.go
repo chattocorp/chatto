@@ -302,11 +302,14 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 	} else if intent == "reverify" {
 		// Only OIDC can force a new provider sign-in and prove it. The
 		// callback consumes the token, so an abandoned attempt leaves it to
-		// expire.
+		// expire. Only a page of this server may start the navigation: a
+		// holder of a copied session must not be able to send the user a
+		// start link and have the user's sign-in make that session fresh.
 		token := c.Query("reverify_start")
+		sameOrigin := c.GetHeader("Sec-Fetch-Site") == "same-origin"
 		start, err := s.core.PeekFreshAuthReverificationStart(c.Request.Context(), token)
-		if err != nil || start.ProviderID != providerRuntime.config.ID || providerRuntime.config.Type != config.AuthProviderTypeOpenIDConnect {
-			log.Warn("Fresh-auth re-verification start rejected", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "token_valid", err == nil)
+		if !sameOrigin || err != nil || start.ProviderID != providerRuntime.config.ID || providerRuntime.config.Type != config.AuthProviderTypeOpenIDConnect {
+			log.Warn("Fresh-auth re-verification start rejected", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "token_valid", err == nil, "same_origin", sameOrigin)
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
 			return
 		}

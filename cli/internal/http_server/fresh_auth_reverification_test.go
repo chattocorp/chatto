@@ -81,7 +81,7 @@ func TestOIDCFreshAuthReverification(t *testing.T) {
 	const settingsPath = "/chat/-/settings/account?link_provider=other"
 	reverify := func(t *testing.T, subject string, authTime any) string {
 		t.Helper()
-		token, err := chattoCore.CreateFreshAuthReverificationStart(ctx, "sso", settingsPath, cookieHandle, core.AuthTokenPresentationCookie)
+		token, err := chattoCore.CreateFreshAuthReverificationStart(ctx, "sso", settingsPath, cookieHandle)
 		if err != nil {
 			t.Fatalf("CreateFreshAuthReverificationStart: %v", err)
 		}
@@ -90,7 +90,7 @@ func TestOIDCFreshAuthReverification(t *testing.T) {
 		if authTime != nil {
 			issuer.tokenClaims["auth_time"] = authTime
 		}
-		location := startNoEmailOIDC(t, client, ts.URL, "sso", url.Values{"intent": {"reverify"}, "reverify_start": {token}})
+		location := startReverification(t, client, ts.URL, token)
 		authURL, err := url.Parse(location)
 		if err != nil {
 			t.Fatal(err)
@@ -146,20 +146,70 @@ func TestOIDCFreshAuthReverification(t *testing.T) {
 	})
 
 	t.Run("token is single use", func(t *testing.T) {
-		token, err := chattoCore.CreateFreshAuthReverificationStart(ctx, "sso", settingsPath, cookieHandle, core.AuthTokenPresentationCookie)
+		token, err := chattoCore.CreateFreshAuthReverificationStart(ctx, "sso", settingsPath, cookieHandle)
 		if err != nil {
 			t.Fatalf("CreateFreshAuthReverificationStart: %v", err)
 		}
 		if _, err := chattoCore.ConsumeFreshAuthReverificationStart(ctx, token); err != nil {
 			t.Fatalf("ConsumeFreshAuthReverificationStart: %v", err)
 		}
-		resp, err := client.Get(ts.URL + "/auth/providers/sso?" + url.Values{"intent": {"reverify"}, "reverify_start": {token}}.Encode())
+		assertReverificationStartRejected(t, client, ts.URL, token, "same-origin")
+	})
+
+	// A start link from an email or another site must not let a holder of a
+	// copied session gain freshness from the user's provider sign-in.
+	t.Run("navigation from outside the server", func(t *testing.T) {
+		token, err := chattoCore.CreateFreshAuthReverificationStart(ctx, "sso", settingsPath, cookieHandle)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("CreateFreshAuthReverificationStart: %v", err)
 		}
-		resp.Body.Close()
-		if resp.StatusCode != http.StatusTemporaryRedirect || resp.Header.Get("Location") != "/login?error=provider_failed" {
-			t.Fatalf("consumed token start = %d %q, want provider failure", resp.StatusCode, resp.Header.Get("Location"))
+		for _, site := range []string{"", "none", "cross-site", "same-site"} {
+			assertReverificationStartRejected(t, client, ts.URL, token, site)
 		}
 	})
+}
+
+// startReverification starts a re-verification as a page of the server
+// would, visits the issuer, and returns the issuer authorization URL.
+func startReverification(t *testing.T, client *http.Client, baseURL, token string) string {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/auth/providers/sso?"+url.Values{"intent": {"reverify"}, "reverify_start": {token}}.Encode(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET re-verification start: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusTemporaryRedirect {
+		t.Fatalf("re-verification start status = %d", resp.StatusCode)
+	}
+	location := resp.Header.Get("Location")
+	authorizeResp, err := client.Get(location)
+	if err != nil {
+		t.Fatalf("GET issuer authorization: %v", err)
+	}
+	authorizeResp.Body.Close()
+	return location
+}
+
+func assertReverificationStartRejected(t *testing.T, client *http.Client, baseURL, token, site string) {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/auth/providers/sso?"+url.Values{"intent": {"reverify"}, "reverify_start": {token}}.Encode(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if site != "" {
+		req.Header.Set("Sec-Fetch-Site", site)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusTemporaryRedirect || resp.Header.Get("Location") != "/login?error=provider_failed" {
+		t.Fatalf("start with Sec-Fetch-Site %q = %d %q, want provider failure", site, resp.StatusCode, resp.Header.Get("Location"))
+	}
 }
