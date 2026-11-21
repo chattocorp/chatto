@@ -35,7 +35,7 @@ RUN apk add --no-cache ca-certificates tzdata \
     && chown authling:authling /data
 
 COPY --from=builder /out/authling /authling
-COPY LICENSE NOTICE /usr/share/doc/authling/
+COPY authling/LICENSE authling/NOTICE /usr/share/doc/authling/
 
 USER authling
 WORKDIR /data

@@ -6,7 +6,7 @@
 # ]
 # ///
 # SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: EUPL-1.2
 """Build the Twemoji color font that the frontend bundles.
 
 The frontend commits the result, so normal builds and CI never run this

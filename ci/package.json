@@ -2,7 +2,7 @@
   "name": "@chatto/ci",
   "private": true,
   "type": "module",
-  "license": "AGPL-3.0-or-later",
+  "license": "EUPL-1.2",
   "scripts": {
     "start": "runling serve --host 127.0.0.1",
     "runling": "runling",

@@ -11,7 +11,7 @@ RUN mv /usr/share/nginx/html/200.html /usr/share/nginx/200.html.template \
     && rm -f /usr/share/nginx/html/200.html.br /usr/share/nginx/html/200.html.gz
 COPY --chmod=755 docker/frontend-entrypoint.sh /usr/local/bin/frontend-entrypoint.sh
 COPY LICENSES/Apache-2.0.txt /usr/share/doc/chatto-client/LICENSE
-# The bundled @chatto/client code is MIT.
+# Retain the MIT text for bundled third-party dependencies.
 COPY LICENSES/MIT.txt /usr/share/doc/chatto-client/LICENSE.MIT
 COPY NOTICE /usr/share/doc/chatto-client/NOTICE
 

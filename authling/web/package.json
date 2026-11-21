@@ -1,7 +1,7 @@
 {
   "name": "authling-web-assets",
   "private": true,
-  "license": "AGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "build": "vite build"

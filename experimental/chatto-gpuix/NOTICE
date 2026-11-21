@@ -1,7 +1,7 @@
 Chatto GPUix experiment
 Copyright 2026 ChattoCorp GmbH
 
-This experiment is licensed under AGPL-3.0-or-later. Its package.json and the
+This experiment is licensed under EUPL-1.2. Its package.json and the
 root pnpm-lock.yaml record the dependency set, including transitive dependencies.
 
 The app uses these libraries and assets:

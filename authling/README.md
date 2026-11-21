@@ -1,5 +1,7 @@
 # Authling
 
+Licensed under Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
 Authling is a standalone, self-hostable OpenID Connect identity provider. Its
 experimental runtime currently provides verified-email signup, encrypted local
 credentials, password login and reset, verified email change, signed-in

@@ -1,5 +1,8 @@
 # ChattoBot
 
+Licensed under Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Earlier MIT grants remain valid.
+
 ChattoBot is the Chatto project's assistant. It runs in a Chatto server as a bot
 account. It answers questions about Chatto from the documentation, and
 maintainers can ask it to investigate source code and create or update GitHub issues.
@@ -598,23 +601,23 @@ where that account can.
 
 ## Settings
 
-| Setting                                                                                         | Description                                                                                                    |
-| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `CHATTO_URL`, `CHATTO_API_KEY`                                                                  | The Chatto server and the bot account's API key. Required.                                                     |
-| `CHATTO_AGENT_MODEL`                                                                            | The model, as `provider/model`, for example `openrouter/openai/gpt-5.5`. Required.                             |
-| `CHATTO_AGENT_THINKING`                                                                         | Reasoning effort: `off`, `minimal`, `low`, `medium` (default), `high`, `xhigh`, or `max`.                      |
-| `CHATTO_ALLOWED_USER_ID`                                                                        | Answer only this Chatto user ID. Use it for tests on a shared server.                                          |
-| `CHATTO_AUTO_ENGAGE_ROOM_IDS`                                                                   | Optional room IDs for automatic report intake, separated by commas or spaces. Disabled by default.             |
-| `CHATTO_INTAKE_DECISION_MODEL` | Optional OpenRouter Decisions model ID for participation checks. Requires `OPENROUTER_API_KEY`; unset uses the conversation model. |
-| `CHATTO_MAINTAINER_USER_IDS`                                                                    | Chatto user IDs of maintainers, separated by commas.                                                           |
-| `CHATTO_MAINTAINER_NAME`                                                                        | Optional Chatto user login to mention for maintainer input. Grants no permissions.                             |
-| `CHATTO_GITHUB_APP_CLIENT_ID`, `CHATTO_GITHUB_APP_PRIVATE_KEY_FILE`, `CHATTO_GITHUB_REPOSITORY` | GitHub access through a GitHub App, for one repository (`owner/repo`).                                         |
-| `CHATTO_TAVILY_API_KEY`                                                                         | Enables `webSearch`.                                                                                           |
-| `CHATTO_SOURCE_DIRECTORY`                                                                       | Dedicated Chatto checkout on `main`. Startup refresh loads `CHATTOBOT.md`; also enables maintainer investigations. |
-| `CHATTO_INVESTIGATION_MODEL`, `CHATTO_INVESTIGATION_THINKING`                                   | The investigator's model (default: `CHATTO_AGENT_MODEL`) and reasoning effort (default: `medium`).             |
-| `CHATTO_PASEO_URL`, `CHATTO_PASEO_REPOSITORY_PATH`, `CHATTO_PASEO_PASSWORD`                     | Optional Paseo daemon, repository on that host, and password. Enables workspace creation.                      |
-| `CHATTO_PASEO_AGENT_MODEL`, `CHATTO_PASEO_AGENT_MODE`, `CHATTO_PASEO_AGENT_THINKING`            | Coding `provider/model` enables implementation; optional provider permission mode and model thinking level.    |
-| `CHATTO_CLOUDFLARE_ACCOUNT_ID`, `CHATTO_CLOUDFLARE_API_TOKEN`                                   | Enables `browsePage`.                                                                                          |
+| Setting                                                                                         | Description                                                                                                                        |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `CHATTO_URL`, `CHATTO_API_KEY`                                                                  | The Chatto server and the bot account's API key. Required.                                                                         |
+| `CHATTO_AGENT_MODEL`                                                                            | The model, as `provider/model`, for example `openrouter/openai/gpt-5.5`. Required.                                                 |
+| `CHATTO_AGENT_THINKING`                                                                         | Reasoning effort: `off`, `minimal`, `low`, `medium` (default), `high`, `xhigh`, or `max`.                                          |
+| `CHATTO_ALLOWED_USER_ID`                                                                        | Answer only this Chatto user ID. Use it for tests on a shared server.                                                              |
+| `CHATTO_AUTO_ENGAGE_ROOM_IDS`                                                                   | Optional room IDs for automatic report intake, separated by commas or spaces. Disabled by default.                                 |
+| `CHATTO_INTAKE_DECISION_MODEL`                                                                  | Optional OpenRouter Decisions model ID for participation checks. Requires `OPENROUTER_API_KEY`; unset uses the conversation model. |
+| `CHATTO_MAINTAINER_USER_IDS`                                                                    | Chatto user IDs of maintainers, separated by commas.                                                                               |
+| `CHATTO_MAINTAINER_NAME`                                                                        | Optional Chatto user login to mention for maintainer input. Grants no permissions.                                                 |
+| `CHATTO_GITHUB_APP_CLIENT_ID`, `CHATTO_GITHUB_APP_PRIVATE_KEY_FILE`, `CHATTO_GITHUB_REPOSITORY` | GitHub access through a GitHub App, for one repository (`owner/repo`).                                                             |
+| `CHATTO_TAVILY_API_KEY`                                                                         | Enables `webSearch`.                                                                                                               |
+| `CHATTO_SOURCE_DIRECTORY`                                                                       | Dedicated Chatto checkout on `main`. Startup refresh loads `CHATTOBOT.md`; also enables maintainer investigations.                 |
+| `CHATTO_INVESTIGATION_MODEL`, `CHATTO_INVESTIGATION_THINKING`                                   | The investigator's model (default: `CHATTO_AGENT_MODEL`) and reasoning effort (default: `medium`).                                 |
+| `CHATTO_PASEO_URL`, `CHATTO_PASEO_REPOSITORY_PATH`, `CHATTO_PASEO_PASSWORD`                     | Optional Paseo daemon, repository on that host, and password. Enables workspace creation.                                          |
+| `CHATTO_PASEO_AGENT_MODEL`, `CHATTO_PASEO_AGENT_MODE`, `CHATTO_PASEO_AGENT_THINKING`            | Coding `provider/model` enables implementation; optional provider permission mode and model thinking level.                        |
+| `CHATTO_CLOUDFLARE_ACCOUNT_ID`, `CHATTO_CLOUDFLARE_API_TOKEN`                                   | Enables `browsePage`.                                                                                                              |
 
 Model providers use their own settings, for example `OPENROUTER_API_KEY`, or a
 Pi login on the bot host.

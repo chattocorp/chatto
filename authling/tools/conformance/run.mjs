@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdir, mkdtemp, rm, readFile, writeFile, open, unlink } from 'node:fs/promises';

@@ -1,7 +1,7 @@
 Chatto Native experiment
 Copyright 2026 ChattoCorp GmbH
 
-This experiment is licensed under AGPL-3.0-or-later. Its Cargo.toml and
+This experiment is licensed under EUPL-1.2. Its Cargo.toml and
 Cargo.lock record the dependency set, including transitive dependencies.
 
 The app uses GPUI (https://github.com/zed-industries/zed), licensed under
@@ -35,7 +35,7 @@ The app also uses these libraries:
   for Markdown parsing
 
 The app includes the Chatto Rust SDK experiment, licensed under
-AGPL-3.0-or-later.
+EUPL-1.2.
 
 The Rust client uses these libraries:
 - sha2 (https://github.com/RustCrypto/hashes) - MIT OR Apache-2.0
