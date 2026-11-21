@@ -1,30 +1,32 @@
+<!--
+@component
+Origin sign-in page. Without SSO providers, it shows the password form. With
+SSO providers, it shows only the provider choices, plus a link to the password
+login page when the server allows direct login.
+-->
 <script lang="ts">
   import { confirmPendingAtprotoHandle } from '$lib/atproto/rememberedHandle';
-  import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import {
     confirmProviderAccount,
     ProviderSignInError,
     type ProviderSignInResult
   } from '$lib/auth/providerSignIn';
-  import { signInWithPassword } from '$lib/auth/passwordSignIn';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
+  import { withReturnPath } from '$lib/auth/loginRoutes';
   import OriginProviderButtons from '$lib/components/auth/OriginProviderButtons.svelte';
+  import PasswordSignInSection from '$lib/components/auth/PasswordSignInSection.svelte';
   import { popupErrorMessage } from '$lib/oauth/popupError';
   import { isProviderContinuation } from '$lib/auth/providerContinuation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { Divider, Hint, PageTitle } from '$lib/ui';
-  import PasswordSignInForm from '$lib/components/auth/PasswordSignInForm.svelte';
   import { Button } from '$lib/ui/form';
 
   const { data } = $props();
 
-  let identifier = $state('');
-  let password = $state('');
   let error = $state('');
-  let isLoading = $state(false);
   let selectedProviderId = $state<string | null>(null);
   let pageErrorDismissed = $state(false);
 
@@ -33,11 +35,17 @@
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
   const directLoginEnabled = $derived(data.serverInfo?.directLoginEnabled ?? true);
-  const isAuthenticating = $derived(isLoading || selectedProviderId !== null);
   const pageError = $derived(
     pageErrorDismissed ? '' : loginErrorMessage(data.loginErrorCode || '')
   );
   const displayedError = $derived(error || pageError);
+  /** This page offers account creation through direct registration or provider auto-provisioning. */
+  const inviteOnlyNotice = $derived(
+    data.serverInfo?.accountCreationPolicy === 'invite_only' &&
+      (authProviders.length === 0
+        ? directRegistrationEnabled && directLoginEnabled
+        : authProviders.some((provider) => provider.autoProvision === true))
+  );
 
   function providerLoginHref(provider: PublicAuthProvider): string {
     return `${provider.loginUrl}?redirect=${encodeURIComponent(data.redirectUrl)}`;
@@ -76,30 +84,6 @@
     const resumed = await completeOriginAuthentication();
     if (!resumed) await navigateAfterAuthentication(data.redirectUrl);
   }
-
-  async function handleSubmit(e: Event) {
-    e.preventDefault();
-    error = '';
-    pageErrorDismissed = true;
-    isLoading = true;
-
-    try {
-      await signInWithPassword(identifier, password, m('auth.login.failed'));
-
-      // Session completion is only needed after a successful password login.
-      const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');
-      const resumedReturnNavigation = await completeOriginAuthentication({
-        resumeReturnNavigation: !isProviderContinuation(data.redirectUrl)
-      });
-      if (!resumedReturnNavigation) {
-        await navigateAfterAuthentication(data.redirectUrl);
-      }
-    } catch (err) {
-      error = errorMessage(err, m('auth.login.failed'));
-    } finally {
-      isLoading = false;
-    }
-  }
 </script>
 
 <PageTitle title={m('auth.login.title')} />
@@ -113,12 +97,22 @@
     </div>
   {/if}
 
-  {#if data.serverInfo?.accountCreationPolicy === 'invite_only' && (directRegistrationEnabled || authProviders.some((provider) => provider.autoProvision === true))}
+  {#if inviteOnlyNotice}
     <p class="mb-4 text-muted">{m('auth.login.invitation_notice')}</p>
   {/if}
 
-  <!-- SSO providers -->
-  {#if authProviders.length > 0}
+  {#if authProviders.length === 0}
+    {#if directLoginEnabled}
+      <PasswordSignInSection
+        redirectUrl={data.redirectUrl}
+        {directRegistrationEnabled}
+        {compact}
+        {pageError}
+      />
+    {:else if pageError}
+      <Hint tone="danger">{pageError}</Hint>
+    {/if}
+  {:else}
     <OriginProviderButtons
       providers={authProviders}
       bind:selectedProviderId
@@ -138,41 +132,24 @@
           popupErrorMessage(err, m('auth.login.failed'));
       }}
     />
-    {#if directLoginEnabled}<Divider label={m('common.or')} />{/if}
-  {/if}
 
-  {#if !directLoginEnabled && displayedError}
-    <Hint tone="danger">{displayedError}</Hint>
-  {/if}
+    {#if displayedError}
+      <div class="mt-4"><Hint tone="danger">{displayedError}</Hint></div>
+    {/if}
 
-  {#if directLoginEnabled}
-    <PasswordSignInForm
-      bind:identifier
-      bind:password
-      disabled={isAuthenticating}
-      loading={isLoading}
-      error={displayedError}
-      {compact}
-      autofocus
-      onsubmit={handleSubmit}
-    />
+    {#if directLoginEnabled}
+      <Divider label={m('common.or')} />
 
-    <div class="mt-4 text-center">
-      <a href={resolve('/forgot-password')} class="link">{m('auth.login.forgot_password')}</a>
-    </div>
-  {/if}
-
-  {#if directRegistrationEnabled}
-    <Divider label={m('common.or')} />
-
-    <Button
-      href={resolve('/register') +
-        (data.redirectUrl === '/' ? '' : `?${new URLSearchParams({ redirect: data.redirectUrl })}`)}
-      variant="secondary"
-      size={compact ? 'md' : 'lg'}
-      fullWidth
-    >
-      {m('common.create_account')}
-    </Button>
+      <Button
+        href={withReturnPath(resolve('/login/password'), data.redirectUrl)}
+        variant="secondary"
+        size={compact ? 'md' : 'lg'}
+        fullWidth
+        disabled={selectedProviderId !== null}
+      >
+        <span aria-hidden="true" class="iconify icon-[uil--lock] text-lg"></span>
+        {m('auth.login.continue_with_password')}
+      </Button>
+    {/if}
   {/if}
 </AuthLayout>

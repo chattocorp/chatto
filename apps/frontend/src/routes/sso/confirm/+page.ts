@@ -52,7 +52,7 @@ export const load: PageLoad = async ({ url, parent }): Promise<SSOConfirmLoadDat
     if (!user) {
       redirect(
         302,
-        `${resolve('/login')}?redirect=${encodeURIComponent(url.pathname + url.search)}`
+        `${resolve('/login/password')}?redirect=${encodeURIComponent(url.pathname + url.search)}`
       );
     }
     return { token, pending, loadError: null, existingAccount: true };

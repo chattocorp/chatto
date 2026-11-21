@@ -221,6 +221,7 @@ test.describe('Route accessibility', () => {
   test('public authentication routes meet WCAG A and AA rules', async ({ page }) => {
     for (const [state, route, heading] of [
       ['login', routes.login, /sign in/i],
+      ['password login', routes.passwordLogin, /sign in/i],
       ['registration', routes.register, /create.*account|register/i],
       ['forgot password', routes.forgotPassword, /forgot.*password|reset.*password/i]
     ] as const) {

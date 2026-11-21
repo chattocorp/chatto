@@ -516,7 +516,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 	// completes account creation via POST /auth/register/complete.
 	auth.POST("register", s.requireServerSetupComplete, func(c *gin.Context) {
 		// Check if registration is enabled
-		if !s.config.Auth.DirectRegistrationOrDefault() {
+		if !s.config.Auth.DirectRegistrationEnabled() {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Registration is disabled"})
 			return
 		}
@@ -623,7 +623,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 	// Registration code verification endpoint (step 2)
 	// Validates the emailed six-digit code and returns a short-lived completion token.
 	auth.POST("register/verify-code", s.requireServerSetupComplete, func(c *gin.Context) {
-		if !s.config.Auth.DirectRegistrationOrDefault() {
+		if !s.config.Auth.DirectRegistrationEnabled() {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Registration is disabled"})
 			return
 		}
@@ -663,7 +663,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		c.Header("Cache-Control", "no-store")
 		c.Header("Pragma", "no-cache")
 		// Check if registration is enabled
-		if !s.config.Auth.DirectRegistrationOrDefault() {
+		if !s.config.Auth.DirectRegistrationEnabled() {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Registration is disabled"})
 			return
 		}

@@ -70,7 +70,14 @@ CHATTO_AUTH_DIRECT_REGISTRATION=false
 
 With `direct_login = false`, the login page shows only the configured
 providers, and the password login endpoint returns `403`. Existing sessions
-stay valid. `direct_registration` controls registration separately.
+stay valid. Direct registration requires password login, so it is also
+disabled. Chatto logs a warning at startup if `direct_registration` is still
+`true`.
+
+When you configure providers and keep password login, the login page shows the
+providers and a **Continue with password** button. That button opens a
+separate page with the password form, password recovery, and, if registration
+is enabled, **Create Account**.
 
 Password changes and resets are unavailable while password login is disabled.
 Stored passwords and local operator recovery remain available. Before you disable

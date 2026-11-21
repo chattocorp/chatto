@@ -105,6 +105,9 @@ func runServer(configPath string) {
 	if cfg.Video.MaxUploadSize > 0 {
 		log.Warn("video.max_upload_size / CHATTO_VIDEO_MAX_UPLOAD_SIZE is deprecated; the larger upload limit now applies to all files. Set core.assets.max_upload_size / CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE and remove the video size setting")
 	}
+	if cfg.Auth.DirectRegistrationOrDefault() && !cfg.Auth.DirectLoginOrDefault() {
+		log.Warn("auth.direct_registration has no effect while auth.direct_login is false; direct registration is disabled")
+	}
 	log.Info("Starting Chatto", "version", Version)
 	if limit, err := memlimit.FromContainer(); err != nil {
 		log.Warn("Failed to set the Go memory limit from the container memory limit", "error", err)

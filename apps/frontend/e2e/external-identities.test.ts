@@ -161,8 +161,7 @@ test.describe('External identity confirmation flows', () => {
       page.getByRole('status').filter({ hasText: 'Continue in the other window.' })
     ).toBeVisible();
     await expect(page.getByRole('link', { name: 'Continue with Discord' })).toBeDisabled();
-    await expect(page.getByLabel('Username or Email')).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'Sign In' })).toBeDisabled();
+    await expect(page.getByRole('link', { name: 'Continue with password' })).toBeDisabled();
 
     const replacement = page.waitForEvent('popup');
     await page.getByRole('button', { name: 'Try Again' }).click();
@@ -299,7 +298,7 @@ test.describe('External identity confirmation flows', () => {
       'aria-busy',
       'true'
     );
-    await expect(page.getByLabel('Username or Email')).toBeEnabled();
+    await expect(page.getByRole('link', { name: 'Continue with password' })).toBeEnabled();
     await expect(page).toHaveURL(/\/login$/);
   });
 
@@ -403,7 +402,7 @@ test.describe('External identity confirmation flows', () => {
 
     await page.goto(flow.confirmUrl);
     await page.getByRole('link', { name: 'Sign in to existing account' }).click();
-    await page.waitForURL(/\/login\?redirect=/);
+    await page.waitForURL(/\/login\/password\?redirect=/);
 
     await page.goto(flow.confirmUrl);
     await expect(page.getByText('Signed in with GitHub')).toBeVisible();
@@ -543,7 +542,7 @@ test.describe('External identity confirmation flows', () => {
     await popup.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect.poll(() => popup.isClosed()).toBe(true);
     await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByLabel('Username or Email')).toBeEnabled();
+    await expect(page.getByRole('link', { name: 'Continue with password' })).toBeEnabled();
     await expect(page.getByText('Login failed')).toBeVisible();
   });
 

@@ -105,6 +105,9 @@ describe('origin sign-in page', () => {
     await expect.element(getByLabelText('Username or Email')).not.toBeInTheDocument();
     await expect.element(getByLabelText('Password')).not.toBeInTheDocument();
     await expect.element(getByRole('link', { name: 'Forgot password?' })).not.toBeInTheDocument();
+    await expect
+      .element(getByRole('link', { name: 'Continue with password' }))
+      .not.toBeInTheDocument();
   });
 
   it.each([true, false, null])(
@@ -153,7 +156,7 @@ describe('origin sign-in page', () => {
         data: {
           ...standaloneData,
           redirectUrl: '/oauth/authorize',
-          serverInfo: { ...serverInfo, directRegistrationEnabled: true }
+          serverInfo: { ...serverInfo, directRegistrationEnabled: true, directLoginEnabled: true }
         }
       }
     });
@@ -161,6 +164,42 @@ describe('origin sign-in page', () => {
     await expect
       .element(getByRole('link', { name: 'Create Account', exact: true }))
       .toHaveAttribute('href', '/register?redirect=%2Foauth%2Fauthorize');
+  });
+
+  it('shows only provider choices and a password login link when SSO and direct login are enabled', async () => {
+    const { getByRole, getByLabelText } = render(LoginPage, {
+      props: {
+        data: {
+          ...standaloneData,
+          redirectUrl: '/chat/abc',
+          serverInfo: {
+            ...serverInfo,
+            directRegistrationEnabled: true,
+            directLoginEnabled: true,
+            authProviders: [
+              {
+                id: 'company',
+                type: 'oidc',
+                issuerUrl: 'https://id.example',
+                label: 'Company SSO',
+                loginUrl: '/auth/providers/company',
+                autoProvision: false
+              }
+            ]
+          }
+        }
+      }
+    });
+
+    await expect.element(getByRole('link', { name: 'Continue with Company SSO' })).toBeVisible();
+    await expect
+      .element(getByRole('link', { name: 'Continue with password' }))
+      .toHaveAttribute('href', '/login/password?redirect=%2Fchat%2Fabc');
+    await expect.element(getByLabelText('Username or Email')).not.toBeInTheDocument();
+    await expect.element(getByRole('link', { name: 'Forgot password?' })).not.toBeInTheDocument();
+    await expect
+      .element(getByRole('link', { name: 'Create Account', exact: true }))
+      .not.toBeInTheDocument();
   });
 
   it('explains provider restriction denials without naming the rule', async () => {
