@@ -5,6 +5,9 @@ description: "Design rules concerning Chatto's ConnectRPC API, both resources an
 
 ### ConnectRPC Resource API
 
+- When a provider supplies resource metadata, apply the
+  [provider-defined facts rules](../../../proto/AGENTS.md#provider-defined-facts)
+  to the stored fact, public fields, and client display.
 - Define one canonical public protobuf for each resource. Reuse that protobuf
   across list, get, batch, and mutation-response surfaces when the
   authorization and lifecycle semantics are the same.
