@@ -25,3 +25,23 @@
     </div>
   </a>
 </Story>
+
+<Story name="Experiments" asChild>
+  <a
+    href={resolve('/chat/preferences/experiments')}
+    class="group hover-lift-group block w-56 max-w-full cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action"
+  >
+    <div class="flex hover-lift flex-col inset-frame">
+      <div class="overflow-hidden inset-content">
+        <SettingsCardArtwork
+          href="/chat/preferences/experiments"
+          icon="iconify icon-[uil--flask-potion]"
+        />
+      </div>
+      <div class="flex flex-col gap-2 p-3">
+        <span class="font-bold text-text-top">Experiments</span>
+        <p class="min-h-[3lh] text-sm text-muted">Experimental Features</p>
+      </div>
+    </div>
+  </a>
+</Story>

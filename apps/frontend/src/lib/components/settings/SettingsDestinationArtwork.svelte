@@ -368,6 +368,42 @@
         stroke-width="3"
       />
     </g>
+  {:else if kind === 'experiments'}
+    <path
+      class="pulse"
+      d="M58 34v20m-10-10h20M84 84v10m-5-5h10"
+      stroke="currentColor"
+      stroke-width="3"
+    />
+    <path
+      d="M128 18v38L86 118q-6 12 8 12h92q14 0 8-12L152 56V18"
+      class="fill-background stroke-border"
+      stroke-width="2"
+    />
+    <path d="M106 88h68l20 30q6 12-8 12H94q-14 0-8-12z" fill="currentColor" opacity=".3" />
+    <path d="M120 18h40" stroke="currentColor" stroke-width="5" />
+    {#each [{ x: 128, y: 112, r: 5 }, { x: 150, y: 106, r: 4 }, { x: 139, y: 96, r: 3 }] as bubble, index (index)}
+      <circle
+        class="bubble"
+        style:--delay={`${index * -1.3}s`}
+        cx={bubble.x}
+        cy={bubble.y}
+        r={bubble.r}
+        fill="currentColor"
+      />
+    {/each}
+    <g transform="rotate(8 228 90)">
+      <rect
+        x="196"
+        y="68"
+        width="64"
+        height="44"
+        rx="10"
+        class="fill-surface-emphasized stroke-border"
+      />
+      <rect x="210" y="82" width="36" height="16" rx="8" fill="currentColor" />
+      <circle cx="238" cy="90" r="5" class="fill-background" />
+    </g>
   {/if}
 </svg>
 
@@ -386,7 +422,8 @@
   .letter,
   .download,
   .draw,
-  .scan {
+  .scan,
+  .bubble {
     animation: pulse 4s ease-in-out infinite;
     animation-delay: var(--delay, 0s);
   }
@@ -403,7 +440,8 @@
       .letter,
       .download,
       .draw,
-      .scan
+      .scan,
+      .bubble
     ) {
     animation-name: none;
   }
@@ -438,6 +476,24 @@
   }
   .download {
     animation-name: download;
+  }
+  .bubble {
+    animation-name: bubble;
+    animation-timing-function: ease-in;
+  }
+  @keyframes bubble {
+    0% {
+      translate: 0 0;
+      opacity: 0;
+    }
+    15% {
+      opacity: 1;
+    }
+    60%,
+    100% {
+      translate: 0 -48px;
+      opacity: 0;
+    }
   }
   @keyframes download {
     0%,
