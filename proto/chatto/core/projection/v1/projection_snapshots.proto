@@ -444,6 +444,7 @@ message ProjectedUserProfileSnapshot {
   ProjectedEncryptedUserStringSnapshot bio = 12;
   // Event ID of the verified email selected for account-directed email.
   string primary_verified_email_event_id = 13;
+  ProjectedEncryptedUserStringSnapshot profile_links = 14;
 }
 
 message ProjectedEncryptedUserStringSnapshot {

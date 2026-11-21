@@ -148,7 +148,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "Ver no Bluesky",
+      "links": "Ligações",
+      "links_description": "Os membros podem adicionar ligações ao perfil.",
+      "links_hint": "Introduza um endereço por linha (até 10).",
       "verified_identities": "Identidades verificadas",
       "title": "Perfil",
       "fallback_title": "Perfil",

@@ -171,6 +171,7 @@ func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.Real
 		*evtv1.Event_UserCustomStatusSet,
 		*evtv1.Event_UserCustomStatusCleared,
 		*evtv1.Event_UserBioChanged,
+		*evtv1.Event_UserProfileLinksChanged,
 		*evtv1.Event_AssetCreated:
 		userID := core.UserIDOfPublicProfileEvent(source)
 		target.Event = &realtimev1.RealtimeEvent_UserProfileChanged{UserProfileChanged: &realtimev1.UserProfileChangedEvent{UserId: userID}}

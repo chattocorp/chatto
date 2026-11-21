@@ -74,14 +74,7 @@
     </UserCard>
     <VerifiedIdentitiesSection
       sidebarKey="story-profile-identities"
-      identities={[
-        {
-          method: 'atproto',
-          methodLabel: 'AT Protocol',
-          value: 'hmans.dev',
-          profileTypes: ['app.bsky.actor.profile']
-        }
-      ]}
+      identities={[{ method: 'atproto', methodLabel: 'AT Protocol', value: 'hmans.dev' }]}
     />
   </div>
 </Story>

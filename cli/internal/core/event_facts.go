@@ -141,6 +141,8 @@ func userIDOfUserEvent(event *evtv1.Event) string {
 		return payload.UserCustomStatusCleared.GetUserId()
 	case *evtv1.Event_UserBioChanged:
 		return payload.UserBioChanged.GetUserId()
+	case *evtv1.Event_UserProfileLinksChanged:
+		return payload.UserProfileLinksChanged.GetUserId()
 	case *evtv1.Event_UserServerPreferencesChanged:
 		return payload.UserServerPreferencesChanged.GetUserId()
 	case *evtv1.Event_AssetCreated:
@@ -172,6 +174,8 @@ func UserIDOfPublicProfileEvent(event *evtv1.Event) string {
 		return payload.UserCustomStatusCleared.GetUserId()
 	case *evtv1.Event_UserBioChanged:
 		return payload.UserBioChanged.GetUserId()
+	case *evtv1.Event_UserProfileLinksChanged:
+		return payload.UserProfileLinksChanged.GetUserId()
 	case *evtv1.Event_AssetCreated:
 		return payload.AssetCreated.GetUserId()
 	default:
@@ -514,6 +518,7 @@ func isDeliverableLiveEVTUserEventType(eventType string) bool {
 		evtstream.EventUserLoginChanged,
 		evtstream.EventUserDisplayNameChanged,
 		evtstream.EventUserBioChanged,
+		evtstream.EventUserProfileLinksChanged,
 		evtstream.EventUserAvatarSet,
 		evtstream.EventUserAvatarCleared,
 		evtstream.EventAssetCreated,

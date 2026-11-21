@@ -148,7 +148,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "Zobrazit na Bluesky",
+      "links": "Odkazy",
+      "links_description": "Členové mohou do svého profilu přidat odkazy.",
+      "links_hint": "Zadejte jednu webovou adresu na řádek (nejvýše 10).",
       "verified_identities": "Ověřené identity",
       "title": "Profil",
       "fallback_title": "Profil",

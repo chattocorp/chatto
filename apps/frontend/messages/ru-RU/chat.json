@@ -154,7 +154,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "Посмотреть в Bluesky",
+      "links": "Ссылки",
+      "links_description": "Участники могут добавлять ссылки в свой профиль.",
+      "links_hint": "Введите по одному веб-адресу в строке (до 10).",
       "verified_identities": "Подтверждённые идентификаторы",
       "title": "Профиль",
       "fallback_title": "Профиль",

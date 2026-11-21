@@ -105,6 +105,7 @@ func serverFeatureCatalog(locale string) []*discoveryv1.ServerFeature {
 			Description:       "Choose which protected roles to activate for 15 minutes.",
 			IntroducedVersion: "0.6.0-beta.0",
 		},
+		{Id: "profileLinks", Name: "Profile links", Description: "Members can add web links to their profiles.", IntroducedVersion: "0.6.0-beta.4"},
 	}
 	for _, feature := range features {
 		if text, ok := featureTranslation(locale, feature.Id); ok {

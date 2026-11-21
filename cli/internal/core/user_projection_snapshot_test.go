@@ -29,6 +29,9 @@ func TestUserProjectionSnapshotRoundTripExcludesAuthenticationState(t *testing.T
 	contentKey := &messageContentKey{epoch: 1, purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
 	createdAt := time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
 
+	const link = "https://alice.example/profile"
+	encryptedLinks, err := encryptUserPIIStringWithContentKey(contentKey, "E6", "U1", evtstream.EventUserProfileLinksChanged, "profile_links", link)
+	require.NoError(t, err)
 	eventsToApply := []*evtv1.Event{
 		{Id: "K1", Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: &evtv1.UserDEKGeneratedEvent{UserId: "U1", Epoch: 1, Purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, ContentKeyRef: "dek.test"}}},
 		userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "alice-private", "Alice Private")),
@@ -36,6 +39,7 @@ func TestUserProjectionSnapshotRoundTripExcludesAuthenticationState(t *testing.T
 		{Id: "E3", Event: &evtv1.Event_UserExternalIdentityLinked{UserExternalIdentityLinked: &evtv1.UserExternalIdentityLinkedEvent{UserId: "U1", Issuer: "https://private-issuer.example", Subject: "private-provider-subject", ProviderId: "private-provider"}}},
 		{Id: "E4", Event: &evtv1.Event_OauthConsentGranted{OauthConsentGranted: &evtv1.OAuthConsentGrantedEvent{UserId: "U1", RedirectOrigin: "https://private-client.example"}}},
 		userEvent("E5", createdAt.Add(time.Minute), &evtv1.Event{Event: &evtv1.Event_UserServerPreferencesChanged{UserServerPreferencesChanged: &evtv1.UserServerPreferencesChangedEvent{UserId: "U1", Preferences: &evtv1.ServerUserPreferences{Timezone: new("Europe/Berlin")}}}}),
+		{Id: "E6", Event: &evtv1.Event_UserProfileLinksChanged{UserProfileLinksChanged: &evtv1.UserProfileLinksChangedEvent{UserId: "U1", EncryptedLinks: encryptedLinks}}},
 	}
 	for i, event := range eventsToApply {
 		require.NoError(t, original.Apply(event, uint64(i+1)))
@@ -45,7 +49,7 @@ func TestUserProjectionSnapshotRoundTripExcludesAuthenticationState(t *testing.T
 	require.NoError(t, err)
 	require.NotEmpty(t, payload)
 	for _, secret := range [][]byte{
-		[]byte("alice-private"), []byte("Alice Private"), []byte("password-hash-secret"),
+		[]byte(link), []byte("alice-private"), []byte("Alice Private"), []byte("password-hash-secret"),
 		[]byte("private-issuer"), []byte("private-provider-subject"), []byte("private-provider"), []byte("private-client"),
 	} {
 		require.Falsef(t, bytes.Contains(payload, secret), "snapshot contains forbidden value %q", secret)
@@ -55,6 +59,7 @@ func TestUserProjectionSnapshotRoundTripExcludesAuthenticationState(t *testing.T
 	require.NoError(t, restored.Restore(payload))
 	user, ok := restored.Get("U1")
 	require.True(t, ok)
+	require.Equal(t, []string{link}, user.ProfileLinks)
 	require.Equal(t, "alice-private", user.GetLogin())
 	require.Equal(t, "Alice Private", user.GetDisplayName())
 	preferences, ok := restored.Preferences("U1")
@@ -263,6 +268,7 @@ func TestUserProjectionSnapshotSchemaExcludesPlaintextUserFields(t *testing.T) {
 	require.Nil(t, fields.ByName("login"))
 	require.Nil(t, fields.ByName("display_name"))
 	require.Nil(t, fields.ByName("bio"))
+	require.Nil(t, fields.ByName("profile_links"))
 
 	// Even an accidentally hydrated retained model cannot add plaintext fields
 	// to the dedicated snapshot record.

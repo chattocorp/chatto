@@ -148,7 +148,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "Vidi ĉe Bluesky",
+      "links": "Ligiloj",
+      "links_description": "Membroj povas aldoni ligilojn al sia profilo.",
+      "links_hint": "Enigu unu retadreson en ĉiu linio (maksimume 10).",
       "verified_identities": "Konfirmitaj identecoj",
       "title": "Profilo",
       "fallback_title": "Profilo",

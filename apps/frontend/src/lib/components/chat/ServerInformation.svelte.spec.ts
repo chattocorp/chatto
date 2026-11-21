@@ -158,10 +158,10 @@ describe('ServerInformation', () => {
     };
     const screen = render(ServerInformation, props);
     await expect
-      .element(screen.getByRole('heading', { name: 'Affected features (5)' }))
+      .element(screen.getByRole('heading', { name: 'Affected features (6)' }))
       .toBeVisible();
     const report = screen.container.querySelector('[data-testid="feature-limitations"]');
-    expect(report?.querySelectorAll('section')).toHaveLength(5);
+    expect(report?.querySelectorAll('section')).toHaveLength(6);
     expect(report?.querySelector('#threadViews')).not.toBeNull();
     expect(report?.querySelector('#frontend-future')).not.toBeNull();
     for (const row of report?.querySelectorAll('section') ?? []) {

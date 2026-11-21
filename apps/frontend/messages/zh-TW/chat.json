@@ -148,7 +148,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "在 Bluesky 上查看",
+      "links": "連結",
+      "links_description": "成員可以在個人檔案中新增連結。",
+      "links_hint": "每行輸入一個網址（最多 10 個）。",
       "verified_identities": "已驗證的身分",
       "title": "個人資料",
       "fallback_title": "個人資料",

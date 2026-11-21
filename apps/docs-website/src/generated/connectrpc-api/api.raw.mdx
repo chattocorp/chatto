@@ -4787,7 +4787,7 @@ Batch user directory response.
 
 ### UpdateUserProfile
 
-Updates the target user's login, display name, and/or bio. Users can
+Updates the selected profile fields, including the member’s web links. Users can
 update themselves. Updating another human requires user.manage-accounts.
 A caller who updates another bot needs ownership of the bot,
 user.manage-accounts, or bot.manage. Bot callers use the same permission checks.
@@ -4816,7 +4816,8 @@ to apply or reset. Fields outside the mask stay unchanged.
 | `display_name` | `optional string` | New non-empty display name. The server also rejects control and confusing invisible characters. |
 | `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
 | `bio` | `optional string` | New Markdown biography, when changing it. Empty clears the bio. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, login, bio. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, login, bio, profile_links. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `profile_links` | `repeated string` | Replace the ordered public links. Select this field with an empty list to clear it. |
 
 
 <a id="chatto-api-v1-UpdateUserProfileResponse"></a>
@@ -5320,6 +5321,7 @@ Public user fields.
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
 | `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
 | `deactivated` | `bool` | True while the account cannot use this server. Data is retained and access can be restored. |
+| `profile_links` | `repeated string` | Public HTTP or HTTPS links in the order chosen by the member. |
 
 
 
@@ -5336,7 +5338,6 @@ Each (method, value) pair occurs once per profile. Clients can display unfamilia
 | `method` | `string` | Stable, extensible verification method key, for example "atproto". |
 | `method_label` | `string` | Human-readable name of the method, for example "AT Protocol". |
 | `value` | `string` | Public identity text for display, for example an AT Protocol handle without @. |
-| `profile_types` | `repeated string` | Public profile types reported for this identity, sorted and unique. Identifiers are specific to the verification method. An empty list means the server has no reported types. Clients can ignore unfamiliar types. |
 
 
 

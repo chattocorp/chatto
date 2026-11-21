@@ -83,6 +83,7 @@ describe('Profile settings page', () => {
         displayName: input.displayName ?? server.currentUser.user!.displayName,
         login: input.login ?? server.currentUser.user!.login,
         avatarUrl: server.currentUser.user!.avatarUrl,
+        profileLinks: input.profileLinks ?? server.currentUser.user!.profileLinks,
         bio: input.bio ?? server.currentUser.user!.bio
       })
     );
@@ -146,6 +147,26 @@ describe('Profile settings page', () => {
       await expect.element(displayNameInput).toHaveValue('[DEV] 🕹️ Ada  Lovelace');
     }
   );
+
+  it('adds and clears member-authored links without a sign-in identity', async () => {
+    const { container } = render(ProfilePage);
+    await settle();
+    const input = q(container, '#profile-links') as HTMLTextAreaElement;
+    const submit = q(container, 'button[type="submit"]') as HTMLButtonElement;
+    setInputValue(input, 'https://example.test/\nhttps://bsky.app/profile/alice.test');
+    submit.click();
+    await vi.waitFor(() =>
+      expect(mocks.updateProfile).toHaveBeenCalledWith('user-1', {
+        profileLinks: ['https://example.test/', 'https://bsky.app/profile/alice.test']
+      })
+    );
+    await settle();
+    setInputValue(input, '');
+    submit.click();
+    await vi.waitFor(() =>
+      expect(mocks.updateProfile).toHaveBeenCalledWith('user-1', { profileLinks: [] })
+    );
+  });
 
   it('sends a trimmed sparse bio update', async () => {
     const { container } = render(ProfilePage);

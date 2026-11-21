@@ -31,6 +31,8 @@ export type CurrentUser = {
   deleted?: boolean;
   avatarUrl?: string | null;
   bio?: string | null;
+  /** Member-authored public web links in display order. */
+  profileLinks?: string[];
   /** Time zone currently exposed on this user's public profile. */
   publicTimezone?: string | null;
   customStatus?: CustomUserStatus | null;
@@ -188,6 +190,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
       deleted: user.deleted ?? false,
       avatarUrl: user.avatarUrl ?? null,
       bio: user.bio ?? null,
+      ...(user.profileLinks?.length ? { profileLinks: [...user.profileLinks] } : {}),
       publicTimezone: user.timezone ?? null,
       customStatus: user.customStatus
         ? {

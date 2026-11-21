@@ -78,11 +78,7 @@ type VerifiedIdentity struct {
 	// Human-readable name of the method, for example "AT Protocol".
 	MethodLabel string `protobuf:"bytes,2,opt,name=method_label,json=methodLabel,proto3" json:"method_label,omitempty"`
 	// Public identity text for display, for example an AT Protocol handle without @.
-	Value string `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
-	// Public profile types reported for this identity, sorted and unique.
-	// Identifiers are specific to the verification method. An empty list means
-	// the server has no reported types. Clients can ignore unfamiliar types.
-	ProfileTypes  []string `protobuf:"bytes,4,rep,name=profile_types,json=profileTypes,proto3" json:"profile_types,omitempty"`
+	Value         string `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -138,13 +134,6 @@ func (x *VerifiedIdentity) GetValue() string {
 	return ""
 }
 
-func (x *VerifiedIdentity) GetProfileTypes() []string {
-	if x != nil {
-		return x.ProfileTypes
-	}
-	return nil
-}
-
 // Public user fields.
 type User struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -171,7 +160,9 @@ type User struct {
 	// Present for a bot identity; absent for humans and deleted-account references.
 	Bot *BotInfo `protobuf:"bytes,11,opt,name=bot,proto3" json:"bot,omitempty"`
 	// True while the account cannot use this server. Data is retained and access can be restored.
-	Deactivated   bool `protobuf:"varint,12,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
+	Deactivated bool `protobuf:"varint,12,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
+	// Public HTTP or HTTPS links in the order chosen by the member.
+	ProfileLinks  []string `protobuf:"bytes,13,rep,name=profile_links,json=profileLinks,proto3" json:"profile_links,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -283,18 +274,24 @@ func (x *User) GetDeactivated() bool {
 	return false
 }
 
+func (x *User) GetProfileLinks() []string {
+	if x != nil {
+		return x.ProfileLinks
+	}
+	return nil
+}
+
 var File_chatto_api_v1_users_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\n" +
 	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"-\n" +
 	"\aBotInfo\x12\"\n" +
-	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"\x88\x01\n" +
+	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"c\n" +
 	"\x10VerifiedIdentity\x12\x16\n" +
 	"\x06method\x18\x01 \x01(\tR\x06method\x12!\n" +
 	"\fmethod_label\x18\x02 \x01(\tR\vmethodLabel\x12\x14\n" +
-	"\x05value\x18\x03 \x01(\tR\x05value\x12#\n" +
-	"\rprofile_types\x18\x04 \x03(\tR\fprofileTypes\"\xd1\x03\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\"\xf6\x03\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -308,7 +305,8 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\btimezone\x18\n" +
 	" \x01(\tH\x02R\btimezone\x88\x01\x01\x12(\n" +
 	"\x03bot\x18\v \x01(\v2\x16.chatto.api.v1.BotInfoR\x03bot\x12 \n" +
-	"\vdeactivated\x18\f \x01(\bR\vdeactivatedB\r\n" +
+	"\vdeactivated\x18\f \x01(\bR\vdeactivated\x12#\n" +
+	"\rprofile_links\x18\r \x03(\tR\fprofileLinksB\r\n" +
 	"\v_avatar_urlB\x06\n" +
 	"\x04_bioB\v\n" +
 	"\t_timezoneJ\x04\b\b\x10\tR\x06is_botB\xb7\x01\n" +

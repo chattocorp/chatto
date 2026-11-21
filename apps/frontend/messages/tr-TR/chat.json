@@ -148,7 +148,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "Bluesky’da görüntüleyin",
+      "links": "Bağlantılar",
+      "links_description": "Üyeler profillerine bağlantı ekleyebilir.",
+      "links_hint": "Her satıra bir web adresi girin (en fazla 10).",
       "verified_identities": "Doğrulanmış kimlikler",
       "title": "Profil",
       "fallback_title": "Profil",

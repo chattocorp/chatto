@@ -79,15 +79,6 @@ export class VerifiedIdentity extends Message<VerifiedIdentity> {
    */
   value = "";
 
-  /**
-   * Public profile types reported for this identity, sorted and unique.
-   * Identifiers are specific to the verification method. An empty list means
-   * the server has no reported types. Clients can ignore unfamiliar types.
-   *
-   * @generated from field: repeated string profile_types = 4;
-   */
-  profileTypes: string[] = [];
-
   constructor(data?: PartialMessage<VerifiedIdentity>) {
     super();
     proto3.util.initPartial(data, this);
@@ -99,7 +90,6 @@ export class VerifiedIdentity extends Message<VerifiedIdentity> {
     { no: 1, name: "method", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "method_label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "profile_types", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): VerifiedIdentity {
@@ -204,6 +194,13 @@ export class User extends Message<User> {
    */
   deactivated = false;
 
+  /**
+   * Public HTTP or HTTPS links in the order chosen by the member.
+   *
+   * @generated from field: repeated string profile_links = 13;
+   */
+  profileLinks: string[] = [];
+
   constructor(data?: PartialMessage<User>) {
     super();
     proto3.util.initPartial(data, this);
@@ -223,6 +220,7 @@ export class User extends Message<User> {
     { no: 10, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 11, name: "bot", kind: "message", T: BotInfo },
     { no: 12, name: "deactivated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 13, name: "profile_links", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): User {

@@ -55,24 +55,36 @@ describe('server compatibility evaluation', () => {
     [
       '0.5.0-beta.11',
       'limited',
-      ['threadViews', 'independentSlowMode', 'backgroundJobs', 'shieldRoleSelection']
+      [
+        'threadViews',
+        'independentSlowMode',
+        'backgroundJobs',
+        'shieldRoleSelection',
+        'profileLinks'
+      ]
     ],
     [
       '0.5.0-beta.15-custom',
       'limited',
-      ['threadViews', 'independentSlowMode', 'backgroundJobs', 'shieldRoleSelection']
+      [
+        'threadViews',
+        'independentSlowMode',
+        'backgroundJobs',
+        'shieldRoleSelection',
+        'profileLinks'
+      ]
     ],
     [
       '0.5.0-beta.16',
       'supported',
-      ['independentSlowMode', 'backgroundJobs', 'shieldRoleSelection']
+      ['independentSlowMode', 'backgroundJobs', 'shieldRoleSelection', 'profileLinks']
     ],
     [
       '0.5.0-beta.16-custom+build.2',
       'supported',
-      ['independentSlowMode', 'backgroundJobs', 'shieldRoleSelection']
+      ['independentSlowMode', 'backgroundJobs', 'shieldRoleSelection', 'profileLinks']
     ],
-    ['0.5.0', 'supported', ['backgroundJobs', 'shieldRoleSelection']],
+    ['0.5.0', 'supported', ['backgroundJobs', 'shieldRoleSelection', 'profileLinks']],
     ['0.6.0', 'supported', []],
     ['dev', 'unknown', []],
     ['', 'unknown', []]
@@ -96,7 +108,8 @@ describe('server compatibility evaluation', () => {
     expect(serverFeatureSupport('dev', 'independentSlowMode')).toBe('unknown');
     expect(limitedServerFeatures('0.5.0-beta.18')).toEqual([
       'backgroundJobs',
-      'shieldRoleSelection'
+      'shieldRoleSelection',
+      'profileLinks'
     ]);
     expect(isConnectableServerVersion('0.5.0-beta.17')).toBe(true);
   });
@@ -115,7 +128,7 @@ describe('server compatibility evaluation', () => {
       reason: 'server-too-old'
     });
     expect(MINIMUM_CONNECTABLE_SERVER_VERSION).toBe('0.5.0-beta.9');
-    expect(MINIMUM_SUPPORTED_SERVER_VERSION).toBe('0.6.0-beta.0');
+    expect(MINIMUM_SUPPORTED_SERVER_VERSION).toBe('0.6.0-beta.4');
   });
 
   it.each([
@@ -225,8 +238,8 @@ describe('server compatibility evaluation', () => {
   it('reports supported versions only for parseable releases at or above the minimum', () => {
     expect(isSupportedServerVersion('0.6.0')).toBe(true);
     expect(isSupportedServerVersion('0.6.0-dev')).toBe(true);
-    expect(isSupportedServerVersion('0.6.0-beta.0')).toBe(true);
-    expect(isSupportedServerVersion('0.6.0-beta.1')).toBe(true);
+    expect(isSupportedServerVersion('0.6.0-beta.0')).toBe(false);
+    expect(isSupportedServerVersion('0.6.0-beta.1')).toBe(false);
     expect(isSupportedServerVersion('0.5.0')).toBe(false);
     expect(isSupportedServerVersion('0.5.0-beta.18')).toBe(false);
     expect(isSupportedServerVersion('0.5.0-beta.15')).toBe(false);

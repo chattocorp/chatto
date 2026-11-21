@@ -35,6 +35,7 @@ profile settings.
   import ParticipantAudioControls from '$lib/components/voice/ParticipantAudioControls.svelte';
   import type { ParticipantVolumeControl } from '$lib/state/server/callPreferences.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
+  import ProfileLinks from '$lib/components/users/ProfileLinks.svelte';
   import UserBio from '$lib/components/users/UserBio.svelte';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { serverIdToSegment } from '$lib/navigation';
@@ -85,6 +86,7 @@ profile settings.
       deleted?: boolean;
       avatarUrl?: string | null;
       bio?: string | null;
+      profileLinks?: string[];
       timezone?: string | null;
       presenceStatus: PresenceStatus;
       customStatus?: CustomUserStatus | null;
@@ -216,6 +218,12 @@ profile settings.
   {#if !user.isBot && !user.deleted}
     <ProfileVerifiedIdentities userId={user.id} />
   {/if}
+
+  <ProfileLinks
+    links={serverScope.store.projection.users?.get(user.id)?.user?.profileLinks ??
+      user.profileLinks}
+    class="menu-section px-3 py-2 text-start"
+  />
 
   {#if bio || localTime}
     <div class="space-y-1 menu-section px-3 py-2 text-start">

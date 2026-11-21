@@ -148,7 +148,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "Vis på Bluesky",
+      "links": "Lenker",
+      "links_description": "Medlemmer kan legge til lenker i profilen sin.",
+      "links_hint": "Skriv én nettadresse per linje (opptil 10).",
       "verified_identities": "Bekreftede identiteter",
       "title": "Profil",
       "fallback_title": "Profil",

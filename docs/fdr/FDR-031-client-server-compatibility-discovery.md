@@ -25,7 +25,7 @@ Chatto's pre-1.0 API remains experimental.
   one server is registered. Retry, sign-in/out, and removal form the final group.
   The menu header shows the name and hostname; the version is on the information page.
 - Remote servers have two version thresholds. Full feature support requires
-  `0.6.0-beta.0`. The minimum connectable release is `0.5.0-beta.9`.
+  `0.6.0-beta.4` for member-authored profile links. The minimum connectable release is `0.5.0-beta.9`.
   Between these thresholds, the client attempts the normal UI and realtime
   connection. The server menu shows a short summary and a Server information
   action. The Compatibility section of that page lists known feature limitations,

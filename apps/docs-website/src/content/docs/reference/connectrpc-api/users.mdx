@@ -130,7 +130,7 @@ Batch user directory response.
 
 ### UpdateUserProfile
 
-Updates the target user's login, display name, and/or bio. Users can
+Updates the selected profile fields, including the member’s web links. Users can
 update themselves. Updating another human requires user.manage-accounts.
 A caller who updates another bot needs ownership of the bot,
 user.manage-accounts, or bot.manage. Bot callers use the same permission checks.
@@ -159,7 +159,8 @@ to apply or reset. Fields outside the mask stay unchanged.
 | `display_name` | `optional string` | New non-empty display name. The server also rejects control and confusing invisible characters. |
 | `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
 | `bio` | `optional string` | New Markdown biography, when changing it. Empty clears the bio. |
-| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, login, bio. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, login, bio, profile_links. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
+| `profile_links` | `repeated string` | Replace the ordered public links. Select this field with an empty list to clear it. |
 
 
 <a id="chatto-api-v1-UpdateUserProfileResponse"></a>

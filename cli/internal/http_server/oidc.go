@@ -464,15 +464,6 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		return
 	}
 
-	// Refresh only the link that this sign-in verified. Profile metadata is optional.
-	syncProfileType := func(userID string) {
-		if identity.profileType != "" {
-			if err := s.core.SyncExternalIdentityProfileType(ctx, userID, providerRuntime.config.Type, identity.issuer, identity.subject, identity.profileType, identity.profileFound); err != nil {
-				log.Warn("Failed to update external identity profile type", "provider_id", providerRuntime.config.ID)
-			}
-		}
-	}
-
 	// The authenticated link-start handoff already records consent and binds the
 	// target account. Complete it only after the provider identity is verified;
 	// linking must never replace the browser's current login session.
@@ -489,7 +480,6 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", errorCode))
 			return
 		}
-		syncProfileType(linkUserID)
 		// The link is committed. A failed sync is repeated at the next sign-in.
 		if err := s.core.SyncProviderGroupRoles(ctx, linkUserID, core.ProviderRoleSource{ProviderID: providerRuntime.config.ID, Issuer: identity.issuer, Subject: identity.subject}, providerRuntime.config.GroupRoleMappings(), identity.groups); err != nil {
 			log.Warn("Provider group role sync failed after link", "provider_id", providerRuntime.config.ID, "userId", linkUserID, "error", err)
@@ -533,7 +523,6 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		return
 	}
 
-	syncProfileType(user.Id)
 	if identity.avatarURL != "" {
 		existingAvatar, _ := s.core.GetUserAvatar(ctx, user.Id)
 		if existingAvatar == nil {
@@ -565,13 +554,10 @@ type authProviderRuntime struct {
 }
 
 type resolvedProviderIdentity struct {
-	issuer        string
-	subject       string
-	verifiedEmail string
-	avatarURL     string
-	// profileType identifies the public profile checked by the provider.
-	profileType      string
-	profileFound     bool
+	issuer           string
+	subject          string
+	verifiedEmail    string
+	avatarURL        string
 	loginHint        string
 	providerUsername string
 	displayNameHint  string
@@ -1070,9 +1056,6 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		GroupsKnown:      identity.groups.Known,
 		RedirectPath:     returnPath,
 		InvitationID:     invitationID,
-	}
-	if identity.profileFound {
-		flow.ProfileTypes = []string{identity.profileType}
 	}
 	if popup {
 		// The opening window owns the destination after account creation.

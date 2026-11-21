@@ -148,7 +148,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "Bekijken op Bluesky",
+      "links": "Links",
+      "links_description": "Leden kunnen weblinks aan hun profiel toevoegen.",
+      "links_hint": "Voer één webadres per regel in (maximaal 10).",
       "verified_identities": "Geverifieerde identiteiten",
       "title": "Profiel",
       "fallback_title": "Profiel",

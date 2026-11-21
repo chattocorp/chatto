@@ -22,10 +22,6 @@ message VerifiedIdentity {
   string method_label = 2;
   // Public identity text for display, for example an AT Protocol handle without @.
   string value = 3;
-  // Public profile types reported for this identity, sorted and unique.
-  // Identifiers are specific to the verification method. An empty list means
-  // the server has no reported types. Clients can ignore unfamiliar types.
-  repeated string profile_types = 4;
 }
 
 // Public user fields.
@@ -56,4 +52,6 @@ message User {
   BotInfo bot = 11;
   // True while the account cannot use this server. Data is retained and access can be restored.
   bool deactivated = 12;
+  // Public HTTP or HTTPS links in the order chosen by the member.
+  repeated string profile_links = 13;
 }

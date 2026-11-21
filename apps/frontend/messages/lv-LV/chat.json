@@ -151,7 +151,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "Skatīt platformā Bluesky",
+      "links": "Saites",
+      "links_description": "Dalībnieki var pievienot saites savam profilam.",
+      "links_hint": "Ievadiet vienu tīmekļa adresi katrā rindā (līdz 10).",
       "verified_identities": "Apstiprinātās identitātes",
       "title": "Profils",
       "fallback_title": "Profils",

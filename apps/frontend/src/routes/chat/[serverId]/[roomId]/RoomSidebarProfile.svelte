@@ -18,6 +18,7 @@ fields as realtime changes arrive.
   import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import { serverStorageKey } from '@chatto/client/storage/serverStorage';
+  import ProfileLinks from '$lib/components/users/ProfileLinks.svelte';
   import UserBio from '$lib/components/users/UserBio.svelte';
   import { m } from '$lib/i18n/messages';
   import Interval from '$lib/lifecycle/Interval.svelte';
@@ -156,6 +157,8 @@ fields as realtime changes arrive.
         sidebarKey={serverStorageKey(serverScope.serverId, 'profile-verified-identities-collapsed')}
       />
     {/if}
+
+    <ProfileLinks links={baseUser.profileLinks} class="mt-6" />
 
     {#if bio}
       <div class="-mx-4 mt-6">

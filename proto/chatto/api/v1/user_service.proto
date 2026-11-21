@@ -89,11 +89,13 @@ message UpdateUserProfileRequest {
   }];
   // New Markdown biography, when changing it. Empty clears the bio.
   optional string bio = 4 [(buf.validate.field).string.max_len = 1000];
-  // Editable fields to apply or reset: display_name, login, bio.
+  // Editable fields to apply or reset: display_name, login, bio, profile_links.
   // Omit to infer populated fields; * selects all editable fields. An explicit
   // empty mask is invalid. Unselected values are ignored. Selected absent values
   // reset the field to its default, subject to field validation.
   google.protobuf.FieldMask update_mask = 5;
+  // Replace the ordered public links. Select this field with an empty list to clear it.
+  repeated string profile_links = 6 [(buf.validate.field).repeated = {max_items: 10, items: {string: {max_bytes: 2048}}}];
 }
 
 // Result of a user profile update.
@@ -144,7 +146,7 @@ service UserService {
   // Gets visible user rows for multiple stable user IDs. Unknown IDs are
   // omitted from the response.
   rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse);
-  // Updates the target user's login, display name, and/or bio. Users can
+  // Updates the selected profile fields, including the member’s web links. Users can
   // update themselves. Updating another human requires user.manage-accounts.
   // A caller who updates another bot needs ownership of the bot,
   // user.manage-accounts, or bot.manage. Bot callers use the same permission checks.

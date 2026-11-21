@@ -41,7 +41,7 @@ opaque ID and delivery policy. See [`email_jobs.go`](../../cli/internal/core/ema
 ## KV buckets
 
 Pending external identity creation records include the verified provider username
-for managed assignment and the public profile types found by the sign-in provider. Core evaluates the serving replica's provider policy at
+for managed assignment. Core evaluates the serving replica's provider policy at
 confirmation. The username shares the existing pending-flow TTL and storage
 boundary; no provider-ownership record is added. See
 [provider account policy](../../cli/internal/core/provider_account_policy.go).

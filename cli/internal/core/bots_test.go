@@ -1573,7 +1573,7 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 	login := "renamed_profile_bot"
 	displayName := "Renamed Profile Bot"
 	bio := "Answers questions about the deploy pipeline."
-	updated, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, &login, &displayName, &bio)
+	updated, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, &login, &displayName, &bio, nil)
 	if err != nil {
 		t.Fatalf("UpdateManagedUserProfile owner: %v", err)
 	}
@@ -1597,7 +1597,7 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 
 	// The bot's cooldown applies to its owner and to bot managers.
 	secondLogin := "profile_bot_again"
-	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, &secondLogin, nil, nil); !errors.Is(err, ErrLoginChangeCooldown) {
+	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, &secondLogin, nil, nil, nil); !errors.Is(err, ErrLoginChangeCooldown) {
 		t.Fatalf("second owner rename err = %v, want ErrLoginChangeCooldown", err)
 	}
 	botManager, err := c.CreateUser(ctx, SystemActorID, "profile-bot-manager", "Profile Bot Manager", "password123")
@@ -1607,12 +1607,12 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 	if err := c.GrantUserPermission(ctx, SystemActorID, botManager.GetId(), PermBotManage); err != nil {
 		t.Fatalf("grant bot.manage: %v", err)
 	}
-	if _, err := c.UpdateManagedUserProfile(ctx, botManager.GetId(), botID, &secondLogin, nil, nil); !errors.Is(err, ErrLoginChangeCooldown) {
+	if _, err := c.UpdateManagedUserProfile(ctx, botManager.GetId(), botID, &secondLogin, nil, nil, nil); !errors.Is(err, ErrLoginChangeCooldown) {
 		t.Fatalf("bot manager rename err = %v, want ErrLoginChangeCooldown", err)
 	}
 	// Other profile fields have no cooldown.
 	laterBio := "Still editable during the cooldown."
-	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, nil, nil, &laterBio); err != nil {
+	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, nil, nil, &laterBio, nil); err != nil {
 		t.Fatalf("owner bio edit during cooldown: %v", err)
 	}
 
@@ -1624,7 +1624,7 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 	if err := c.GrantUserPermission(ctx, SystemActorID, accountManager.GetId(), PermUserManageAccounts); err != nil {
 		t.Fatalf("grant user.manage-accounts: %v", err)
 	}
-	if _, err := c.UpdateManagedUserProfile(ctx, accountManager.GetId(), botID, &secondLogin, nil, nil); err != nil {
+	if _, err := c.UpdateManagedUserProfile(ctx, accountManager.GetId(), botID, &secondLogin, nil, nil, nil); err != nil {
 		t.Fatalf("account manager rename during cooldown: %v", err)
 	}
 	afterBypass, err := c.GetLastLoginChange(ctx, botID)
@@ -1636,13 +1636,13 @@ func TestBotOwnerUpdatesBotProfile(t *testing.T) {
 	}
 
 	strangerBio := "Hijacked."
-	if _, err := c.UpdateManagedUserProfile(ctx, stranger.GetId(), botID, nil, nil, &strangerBio); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := c.UpdateManagedUserProfile(ctx, stranger.GetId(), botID, nil, nil, &strangerBio, nil); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("stranger update err = %v, want ErrPermissionDenied", err)
 	}
-	if _, err := c.UpdateManagedUserProfile(ctx, botID, owner.GetId(), nil, nil, &strangerBio); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := c.UpdateManagedUserProfile(ctx, botID, owner.GetId(), nil, nil, &strangerBio, nil); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("bot updates owner err = %v, want ErrPermissionDenied", err)
 	}
-	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, nil, nil, nil); !errors.Is(err, ErrInvalidArgument) {
+	if _, err := c.UpdateManagedUserProfile(ctx, owner.GetId(), botID, nil, nil, nil, nil); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("empty update err = %v, want ErrInvalidArgument", err)
 	}
 }

@@ -148,7 +148,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "Visa på Bluesky",
+      "links": "Länkar",
+      "links_description": "Medlemmar kan lägga till länkar i sin profil.",
+      "links_hint": "Ange en webbadress per rad (högst 10).",
       "verified_identities": "Verifierade identiteter",
       "title": "Profil",
       "fallback_title": "Profil",

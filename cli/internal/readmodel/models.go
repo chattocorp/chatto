@@ -10,6 +10,7 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"slices"
 )
 
 // Room is a detached room read model. Notice content is member-only.
@@ -235,7 +236,7 @@ func (x *RoomMembership) GetRoomId() string {
 	return ""
 }
 
-// User is a hydrated user read model. Login, DisplayName, and Bio must not enter snapshot storage.
+// User is a hydrated user read model. Login, DisplayName, Bio, and ProfileLinks contain plaintext PII.
 type User struct {
 	Id           string
 	Login        string // Unique login identifier
@@ -251,6 +252,8 @@ type User struct {
 	// Current public bio, hydrated at read boundaries from encrypted projected
 	// state. Never persisted in plaintext here.
 	Bio string
+	// ProfileLinks contains the member-authored URLs in display order.
+	ProfileLinks []string
 	// Deactivated accounts retain their data but cannot authenticate.
 	Deactivated bool
 }
@@ -338,6 +341,7 @@ func (x *User) Clone() *User {
 		return nil
 	}
 	result := *x
+	result.ProfileLinks = slices.Clone(x.ProfileLinks)
 	if x.CreatedAt != nil {
 		result.CreatedAt = proto.Clone(x.CreatedAt).(*timestamppb.Timestamp)
 	}

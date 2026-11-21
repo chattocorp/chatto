@@ -160,7 +160,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "اعرض على Bluesky",
+      "links": "الروابط",
+      "links_description": "يمكن للأعضاء إضافة روابط إلى ملفاتهم الشخصية.",
+      "links_hint": "أدخل عنوان ويب واحدًا في كل سطر (حتى 10).",
       "verified_identities": "الهويات التي تم التحقق منها",
       "title": "الملف الشخصي",
       "fallback_title": "الملف الشخصي",

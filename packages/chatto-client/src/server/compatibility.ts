@@ -35,7 +35,9 @@ export const SERVER_FEATURE_REQUIREMENTS = {
    */
   backgroundJobs: '0.6.0-beta.0',
   /** Select individual protected roles when activating Shield Mode. */
-  shieldRoleSelection: '0.6.0-beta.0'
+  shieldRoleSelection: '0.6.0-beta.0',
+  /** Member-authored links on public profiles. */
+  profileLinks: '0.6.0-beta.4'
 } as const;
 
 /** A capability whose server requirement the client knows. */

@@ -82,7 +82,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{roomGroupLayoutSnapshotContractID, "v1", &projectionv1.RoomGroupLayoutProjectionSnapshot{}},
 		{roomTimelineSnapshotContractID, "v11", &projectionv1.RoomTimelineProjectionSnapshot{}},
 		{threadSnapshotContractID, "v3", &projectionv1.ThreadProjectionSnapshot{}},
-		{userSnapshotContractID, "v4", &projectionv1.UserProfileProjectionSnapshot{}},
+		{userSnapshotContractID, "v5", &projectionv1.UserProfileProjectionSnapshot{}},
 	}
 	for _, tt := range tests {
 		require.Equal(t, snapshotContractID(tt.semantics, tt.message), tt.contract)
@@ -96,6 +96,7 @@ func TestPrivacyBoundaryProjectionContractsRejectPreRequestSnapshots(t *testing.
 		old     string
 	}{
 		{userSnapshotContractID, snapshotContractID("v2", &projectionv1.UserProfileProjectionSnapshot{})},
+		{userSnapshotContractID, snapshotContractID("v4", &projectionv1.UserProfileProjectionSnapshot{})},
 		{userSnapshotContractID, snapshotContractID("v3", &projectionv1.UserProfileProjectionSnapshot{})},
 		{mentionablesSnapshotContractID, snapshotContractID("v1", &projectionv1.MentionablesProjectionSnapshot{})},
 		{roomTimelineSnapshotContractID, snapshotContractID("v5", &projectionv1.RoomTimelineProjectionSnapshot{})},

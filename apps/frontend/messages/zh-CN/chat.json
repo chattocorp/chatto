@@ -148,7 +148,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "在 Bluesky 上查看",
+      "links": "链接",
+      "links_description": "成员可以在个人资料中添加链接。",
+      "links_hint": "每行输入一个网址（最多 10 个）。",
       "verified_identities": "已验证的身份",
       "title": "个人资料",
       "fallback_title": "个人资料",

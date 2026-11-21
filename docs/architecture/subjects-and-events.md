@@ -369,6 +369,7 @@ reaction projection and read behavior.
 | `evt.user.{userId}.bot_incoming_webhook_disabled` | `BotIncomingWebhookRevokedEvent`; webhook ID that invalidates the selected verifier. The legacy `disabled` subject token remains stable |
 | `evt.user.{userId}.login_changed` | `UserLoginChangedEvent` |
 | `evt.user.{userId}.display_name_changed` | `UserDisplayNameChangedEvent` |
+| `evt.user.{userId}.profile_links_changed` | `UserProfileLinksChangedEvent` replaces the ordered, encrypted web addresses. An empty payload clears them. |
 | `evt.user.{userId}.bio_changed` | `UserBioChangedEvent`; encrypted PII bio text (empty payload clears the bio) |
 | `evt.user.{userId}.avatar_set` | `UserAvatarSetEvent` |
 | `evt.user.{userId}.avatar_cleared` | `UserAvatarClearedEvent` |
@@ -378,7 +379,7 @@ reaction projection and read behavior.
 | `evt.user.{userId}.primary_email_changed` | `UserPrimaryEmailChangedEvent`; references the selected verified-email event without duplicating user PII |
 | `evt.user.{userId}.password_hash_changed` | `UserPasswordHashChangedEvent` |
 | `evt.user.{userId}.oidc_subject_linked` | `UserOIDCSubjectLinkedEvent` (legacy replay) |
-| `evt.user.{userId}.external_identity_linked` | `UserExternalIdentityLinkedEvent` records the link and its observed public profile types. Older events have an empty list. |
+| `evt.user.{userId}.external_identity_linked` | `UserExternalIdentityLinkedEvent` |
 | `evt.user.{userId}.external_identity_unlinked` | `UserExternalIdentityUnlinkedEvent` |
 | `evt.user.{userId}.server_preferences_changed` | `UserServerPreferencesChangedEvent` |
 | `evt.user.{userId}.login_cooldown_started` | `UserLoginCooldownStartedEvent` |

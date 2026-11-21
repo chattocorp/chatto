@@ -305,7 +305,6 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 				SubjectHash:  externalIdentityHash(flow.Issuer, flow.Subject),
 				ProviderId:   flow.ProviderID,
 				ProviderType: flow.ProviderType,
-				ProfileTypes: flow.ProfileTypes,
 			},
 		}})
 		externalEvent.CreatedAt = now

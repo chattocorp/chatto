@@ -25,11 +25,11 @@ func TestBotAdministrativeAccountOperations(t *testing.T) {
 	require.NoError(t, err)
 	botCtx := authctx.WithCredential(ctx, authctx.RuntimeCredential{Kind: authctx.RuntimeCredentialKindBotAPIKey, UserID: bot.User.Id})
 	name := "Updated by automation"
-	_, err = c.UpdateManagedUserProfile(botCtx, bot.User.Id, target.Id, nil, &name, nil)
+	_, err = c.UpdateManagedUserProfile(botCtx, bot.User.Id, target.Id, nil, &name, nil, nil)
 	require.ErrorIs(t, err, ErrPermissionDenied)
 	scope := PermissionTargetScope{Kind: MatrixScopeServer}
 	require.NoError(t, c.SetUserPermissionState(ctx, owner.Id, bot.User.Id, scope, PermUserManageAccounts, PermissionStateAllow))
-	updated, err := c.UpdateManagedUserProfile(botCtx, bot.User.Id, target.Id, nil, &name, nil)
+	updated, err := c.UpdateManagedUserProfile(botCtx, bot.User.Id, target.Id, nil, &name, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, name, updated.GetDisplayName())
 	_, err = c.UpdateUserAvatar(botCtx, bot.User.Id, target.Id, createTestImage(32, 32))
@@ -41,12 +41,12 @@ func TestBotAdministrativeAccountOperations(t *testing.T) {
 
 	// Permission loss takes effect for a previously accepted bot credential.
 	require.NoError(t, c.DenyUserPermission(ctx, SystemActorID, owner.Id, PermUserManageAccounts))
-	_, err = c.UpdateManagedUserProfile(botCtx, bot.User.Id, target.Id, nil, &name, nil)
+	_, err = c.UpdateManagedUserProfile(botCtx, bot.User.Id, target.Id, nil, &name, nil, nil)
 	require.ErrorIs(t, err, ErrPermissionDenied)
 	_, err = c.ClearUserAvatar(botCtx, bot.User.Id, target.Id)
 	require.ErrorIs(t, err, ErrPermissionDenied)
 	require.NoError(t, c.ClearUserPermissionState(ctx, SystemActorID, owner.Id, PermUserManageAccounts))
-	_, err = c.UpdateManagedUserProfile(botCtx, bot.User.Id, target.Id, nil, &name, nil)
+	_, err = c.UpdateManagedUserProfile(botCtx, bot.User.Id, target.Id, nil, &name, nil, nil)
 	require.NoError(t, err)
 
 	// The caller kind no longer blocks administration; target authentication

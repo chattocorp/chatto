@@ -392,11 +392,13 @@ type UpdateUserProfileRequest struct {
 	Login *string `protobuf:"bytes,3,opt,name=login,proto3,oneof" json:"login,omitempty"`
 	// New Markdown biography, when changing it. Empty clears the bio.
 	Bio *string `protobuf:"bytes,4,opt,name=bio,proto3,oneof" json:"bio,omitempty"`
-	// Editable fields to apply or reset: display_name, login, bio.
+	// Editable fields to apply or reset: display_name, login, bio, profile_links.
 	// Omit to infer populated fields; * selects all editable fields. An explicit
 	// empty mask is invalid. Unselected values are ignored. Selected absent values
 	// reset the field to its default, subject to field validation.
-	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,5,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	UpdateMask *fieldmaskpb.FieldMask `protobuf:"bytes,5,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	// Replace the ordered public links. Select this field with an empty list to clear it.
+	ProfileLinks  []string `protobuf:"bytes,6,rep,name=profile_links,json=profileLinks,proto3" json:"profile_links,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -462,6 +464,13 @@ func (x *UpdateUserProfileRequest) GetBio() string {
 func (x *UpdateUserProfileRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 	if x != nil {
 		return x.UpdateMask
+	}
+	return nil
+}
+
+func (x *UpdateUserProfileRequest) GetProfileLinks() []string {
+	if x != nil {
+		return x.ProfileLinks
 	}
 	return nil
 }
@@ -730,7 +739,7 @@ const file_chatto_api_v1_user_service_proto_rawDesc = "" +
 	"\buser_ids\x18\x01 \x03(\tB\x10\xbaH\r\x92\x01\n" +
 	"\b\x01\x10d\"\x04r\x02\x10\x01R\auserIds\"M\n" +
 	"\x15BatchGetUsersResponse\x124\n" +
-	"\x05users\x18\x01 \x03(\v2\x1e.chatto.api.v1.DirectoryMemberR\x05users\"\x97\x02\n" +
+	"\x05users\x18\x01 \x03(\v2\x1e.chatto.api.v1.DirectoryMemberR\x05users\"\xcd\x02\n" +
 	"\x18UpdateUserProfileRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x121\n" +
 	"\fdisplay_name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 H\x00R\vdisplayName\x88\x01\x01\x12%\n" +
@@ -738,7 +747,9 @@ const file_chatto_api_v1_user_service_proto_rawDesc = "" +
 	"\xbaH\ar\x05\x10\x02\x18\xfe\x01H\x01R\x05login\x88\x01\x01\x12\x1f\n" +
 	"\x03bio\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\xe8\aH\x02R\x03bio\x88\x01\x01\x12;\n" +
 	"\vupdate_mask\x18\x05 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMaskB\x0f\n" +
+	"updateMask\x124\n" +
+	"\rprofile_links\x18\x06 \x03(\tB\x0f\xbaH\f\x92\x01\t\x10\n" +
+	"\"\x05r\x03(\x80\x10R\fprofileLinksB\x0f\n" +
 	"\r_display_nameB\b\n" +
 	"\x06_loginB\x06\n" +
 	"\x04_bio\"D\n" +

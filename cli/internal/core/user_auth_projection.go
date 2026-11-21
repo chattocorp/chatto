@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"crypto/subtle"
-	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -258,8 +257,7 @@ func (p *UserAuthProjection) applyExternalIdentityLinked(e *evtv1.UserExternalId
 	}
 	p.identityIndex[hash] = e.GetUserId()
 	u.externalIdentities[hash] = ExternalIdentity{
-		ProfileTypes: slices.Clone(e.GetProfileTypes()),
-		ProviderID:   providerID, ProviderType: providerType, Issuer: e.GetIssuer(), Subject: e.GetSubject(), SubjectHash: hash,
+		ProviderID: providerID, ProviderType: providerType, Issuer: e.GetIssuer(), Subject: e.GetSubject(), SubjectHash: hash,
 	}
 }
 
@@ -698,7 +696,6 @@ func (p *UserAuthProjection) ExternalIdentities(userID string) []ExternalIdentit
 	}
 	identities := make([]ExternalIdentity, 0, len(u.externalIdentities))
 	for _, identity := range u.externalIdentities {
-		identity.ProfileTypes = slices.Clone(identity.ProfileTypes)
 		identities = append(identities, identity)
 	}
 	sort.Slice(identities, func(i, j int) bool {

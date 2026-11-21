@@ -148,7 +148,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "Auf Bluesky ansehen",
+      "links": "Links",
+      "links_description": "Mitglieder können Weblinks zu ihrem Profil hinzufügen.",
+      "links_hint": "Gib pro Zeile eine Webadresse ein (bis zu 10).",
       "verified_identities": "Verifizierte Identitäten",
       "title": "Profil",
       "fallback_title": "Profil",

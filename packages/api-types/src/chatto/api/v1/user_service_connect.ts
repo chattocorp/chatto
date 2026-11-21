@@ -51,7 +51,7 @@ export const UserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates the target user's login, display name, and/or bio. Users can
+     * Updates the selected profile fields, including the member’s web links. Users can
      * update themselves. Updating another human requires user.manage-accounts.
      * A caller who updates another bot needs ownership of the bot,
      * user.manage-accounts, or bot.manage. Bot callers use the same permission checks.

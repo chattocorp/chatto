@@ -43,8 +43,6 @@ type ExternalIdentity struct {
 	Issuer       string
 	Subject      string
 	SubjectHash  string
-	// ProfileTypes holds the public profile identifiers observed by this provider.
-	ProfileTypes []string
 }
 
 type PendingExternalIdentityLinkStart struct {
@@ -55,17 +53,16 @@ type PendingExternalIdentityLinkStart struct {
 }
 
 type PendingExternalIdentityFlow struct {
-	Kind          string   `json:"kind"`
-	ProviderID    string   `json:"provider_id"`
-	ProviderType  string   `json:"provider_type"`
-	ProviderLabel string   `json:"provider_label"`
-	Issuer        string   `json:"issuer"`
-	Subject       string   `json:"subject"`
-	SubjectHash   string   `json:"subject_hash"`
-	VerifiedEmail string   `json:"verified_email,omitempty"`
-	AvatarURL     string   `json:"avatar_url,omitempty"`
-	ProfileTypes  []string `json:"profile_types,omitempty"`
-	LoginHint     string   `json:"login_hint,omitempty"`
+	Kind          string `json:"kind"`
+	ProviderID    string `json:"provider_id"`
+	ProviderType  string `json:"provider_type"`
+	ProviderLabel string `json:"provider_label"`
+	Issuer        string `json:"issuer"`
+	Subject       string `json:"subject"`
+	SubjectHash   string `json:"subject_hash"`
+	VerifiedEmail string `json:"verified_email,omitempty"`
+	AvatarURL     string `json:"avatar_url,omitempty"`
+	LoginHint     string `json:"login_hint,omitempty"`
 	// ProviderUsername is the verified username without email/display-name fallback.
 	ProviderUsername string    `json:"provider_username,omitempty"`
 	DisplayNameHint  string    `json:"display_name_hint,omitempty"`

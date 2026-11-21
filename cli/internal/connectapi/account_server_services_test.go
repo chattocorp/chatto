@@ -1899,46 +1899,8 @@ func TestGetUserVerifiedIdentities(t *testing.T) {
 	}
 	require.Empty(t, read(false))
 	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "alice.example"}}, read(true))
-	require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", linked.Issuer, linked.Subject, "app.bsky.actor.profile", true))
 	directory.Insert(identity.Identity{DID: "did:plc:member", Handle: "new.example"})
-	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "new.example", ProfileTypes: []string{"app.bsky.actor.profile"}}}, read(true))
-	require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", linked.Issuer, linked.Subject, "example.actor.profile", true))
-	require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", linked.Issuer, linked.Subject, "app.bsky.actor.profile", false))
-	links, err := env.core.ExternalIdentitiesForUser(ctx, target.Id)
-	require.NoError(t, err)
-	linked.ProfileTypes = []string{"example.actor.profile"}
-	require.Contains(t, links, linked)
-	require.Equal(t, []string{"example.actor.profile"}, read(true)[0].ProfileTypes)
-	// Another provider can report overlapping types for the same verified handle.
-	second, err := env.core.LinkExternalIdentityAs(ctx, target.Id, "other", "atproto", "other", linked.Subject, target.Id)
-	require.NoError(t, err)
-	for _, profileType := range []string{"example.actor.profile", "another.profile"} {
-		require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", second.Issuer, second.Subject, profileType, true))
-	}
-	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "new.example", ProfileTypes: []string{"another.profile", "example.actor.profile"}}}, read(true))
-	require.NoError(t, env.core.DisconnectExternalIdentityAs(ctx, target.Id, target.Id, second.SubjectHash, core.ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}))
+	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "new.example"}}, read(true))
 	require.NoError(t, env.core.DisconnectExternalIdentityAs(ctx, target.Id, target.Id, linked.SubjectHash, core.ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}))
-	require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", linked.Issuer, linked.Subject, "app.bsky.actor.profile", true))
 	require.Empty(t, read(true))
-}
-
-func TestVerifiedIdentityFromATProtoSignup(t *testing.T) {
-	env := newConnectAPITestEnv(t)
-	directory := identity.NewMockDirectory()
-	env.api.atprotoDirectory = func() identity.Directory { return directory }
-	const did = "did:plc:member"
-	directory.Insert(identity.Identity{DID: did, Handle: "alice.example"})
-	token, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
-		ProviderID: "at", ProviderType: "atproto", Issuer: "at", Subject: did, ProfileTypes: []string{"app.bsky.actor.profile"},
-	})
-	require.NoError(t, err)
-	flow, err := env.core.GetPendingExternalIdentityCreateFlow(env.ctx, token)
-	require.NoError(t, err)
-	member, err := env.core.CreateUserForExternalIdentity(env.ctx, "signup-member", "Member", flow)
-	require.NoError(t, err)
-	response, err := env.users.GetUser(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetUserRequest{
-		Target: &apiv1.GetUserRequest_UserId{UserId: member.Id}, IncludeVerifiedIdentities: true,
-	}))
-	require.NoError(t, err)
-	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "alice.example", ProfileTypes: []string{"app.bsky.actor.profile"}}}, response.Msg.VerifiedIdentities)
 }

@@ -87,22 +87,6 @@ For public API packages:
   clearly named operational details; do not reuse those shapes as client or
   integration contracts.
 
-## Provider-defined facts
-
-- When an external provider defines the possible values, model the fact in
-  both stored events and public resources with a domain-specific field and
-  stable identifiers. Document which provider or method gives each identifier
-  its meaning. A second value of the same kind should fit the existing schema.
-  Keep explicit typed fields for concepts whose values and behavior Chatto owns.
-- The provider integration detects the fact. The core preserves it. The public
-  API exposes the part the caller can see, and clients decide which labels,
-  links, or actions to offer. Preserve unfamiliar public identifiers so another
-  client can use them even when the bundled frontend has no action for them.
-- For example, `VerifiedIdentity.profile_types` can include
-  `app.bsky.actor.profile` for the `atproto` method. The frontend uses that
-  pair to show **View on Bluesky**. Another profile type can use the same
-  field without adding a service-specific flag.
-
 ## Presence And API Shape
 
 ### Action Availability

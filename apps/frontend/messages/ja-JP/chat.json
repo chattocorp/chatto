@@ -148,7 +148,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "Blueskyで見る",
+      "links": "リンク",
+      "links_description": "メンバーはプロフィールにリンクを追加できます。",
+      "links_hint": "1 行に 1 件ずつ、最大 10 件の URL を入力してください。",
       "verified_identities": "確認済みのID",
       "title": "プロフィール",
       "fallback_title": "プロフィール",

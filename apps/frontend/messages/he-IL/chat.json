@@ -151,7 +151,9 @@
       }
     },
     "profile": {
-      "view_on_bluesky": "הצג ב-Bluesky",
+      "links": "קישורים",
+      "links_description": "חברים יכולים להוסיף קישורים לפרופיל שלהם.",
+      "links_hint": "הזן כתובת אחת בכל שורה (עד 10).",
       "verified_identities": "זהויות מאומתות",
       "title": "פרופיל",
       "fallback_title": "פרופיל",

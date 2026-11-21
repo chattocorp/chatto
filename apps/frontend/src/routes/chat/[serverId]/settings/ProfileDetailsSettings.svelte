@@ -9,12 +9,14 @@
   import Interval from '$lib/lifecycle/Interval.svelte';
   import { Code, ConnectError } from '@connectrpc/connect';
   import type { UpdateUserProfileInput, UserAPI } from '@chatto/client/api/users';
+  import { serverIdToSegment } from '$lib/navigation';
+  import FeatureCompatibilityNotice from '$lib/components/chat/FeatureCompatibilityNotice.svelte';
   import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
   import { profileSaveErrorMessage } from '$lib/components/users/profileSaveError';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { Panel, ConfirmDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
-  import { Button, Form, TextInput } from '$lib/ui/form';
+  import { Button, Form, TextArea, TextInput } from '$lib/ui/form';
   import {
     MAX_BIO_LENGTH,
     startsLoginCooldown,
@@ -35,12 +37,14 @@
   const seed = {
     displayName: currentUser.user?.displayName ?? '',
     login: currentUser.user?.login ?? '',
-    bio: currentUser.user?.bio ?? ''
+    bio: currentUser.user?.bio ?? '',
+    links: (currentUser.user?.profileLinks ?? []).join('\n')
   };
   let baseline = $state(seed);
   let displayName = $state(seed.displayName);
   let login = $state(seed.login);
   let bio = $state(seed.bio);
+  let links = $state(seed.links);
   let isSaving = $state(false);
   let error = $state('');
   let successMessage = $state('');
@@ -56,7 +60,9 @@
   const displayNameModified = $derived(displayName !== baseline.displayName);
   const loginModified = $derived(login !== baseline.login);
   const bioModified = $derived(bio !== baseline.bio);
-  const isModified = $derived(displayNameModified || loginModified || bioModified);
+  const isModified = $derived(
+    displayNameModified || loginModified || bioModified || links !== baseline.links
+  );
   const canBypassLoginCooldown = $derived(serverScope.store.permissions.canAdminManageAccounts);
   const usernameAvailability = $derived(
     currentUser.user?.actions?.changeUsername ??
@@ -109,7 +115,13 @@
       input.bio = validation.normalized;
     }
 
-    if (!input.displayName && !input.login && input.bio === undefined) return;
+    if (links !== baseline.links) {
+      input.profileLinks = links
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+    }
+    if (!Object.keys(input).length) return;
 
     if (input.login) {
       pendingUpdate = input;
@@ -144,6 +156,7 @@
         displayName: updated.displayName,
         login: updated.login,
         bio: updated.bio ?? '',
+        profileLinks: updated.profileLinks ?? [],
         lastLoginChange: startedCooldown ? new Date().toISOString() : user.lastLoginChange,
         actions: input.login ? undefined : user.actions
       }));
@@ -151,11 +164,13 @@
       baseline = {
         displayName: updated.displayName,
         login: updated.login,
-        bio: updated.bio ?? ''
+        bio: updated.bio ?? '',
+        links: (updated.profileLinks ?? []).join('\n')
       };
       displayName = baseline.displayName;
       login = baseline.login;
       bio = baseline.bio;
+      links = baseline.links;
 
       if (startedCooldown) localLastLoginChange = new Date();
 
@@ -211,6 +226,22 @@
       oninput={clearMessages}
     />
 
+    {#if !serverScope.store.serverInfo.limitedFeatures.includes('profileLinks')}
+      <TextArea
+        id="profile-links"
+        label={m('chat.profile.links')}
+        description={m('chat.profile.links_hint')}
+        bind:value={links}
+        placeholder="https://example.com"
+        disabled={isSaving}
+        oninput={clearMessages}
+      />
+    {:else}
+      <FeatureCompatibilityNotice
+        serverSegment={serverIdToSegment(serverScope.serverId)}
+        features={['profileLinks']}
+      />
+    {/if}
     {#if successMessage}
       <Hint tone="success">{successMessage}</Hint>
     {/if}

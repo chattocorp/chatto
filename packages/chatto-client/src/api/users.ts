@@ -19,14 +19,15 @@ export { mapUserSummary, mapOptionalUserSummary, type UserSummary } from './user
 import { mapUserSummary, type UserSummary } from './userSummary.js';
 
 /** Public profile identity as reported by the server. Method keys are extensible. */
-export type VerifiedIdentity = Pick<APIVerifiedIdentity, 'method' | 'methodLabel' | 'value'> &
-  Partial<Pick<APIVerifiedIdentity, 'profileTypes'>>;
+export type VerifiedIdentity = Pick<APIVerifiedIdentity, 'method' | 'methodLabel' | 'value'>;
 
 /** Profile fields to change. Omitted fields stay unchanged; an empty bio clears it. */
 export type UpdateUserProfileInput = {
   displayName?: string;
   login?: string;
   bio?: string;
+  /** Replace public links in display order. An empty list clears them. */
+  profileLinks?: string[];
 };
 
 export function createUserAPI(config: ConnectAPIConfig) {
@@ -82,7 +83,7 @@ export function createUserAPI(config: ConnectAPIConfig) {
         const response = await client.updateUserProfile({
           userId,
           ...input,
-          updateMask: updateMask(input, ['displayName', 'login', 'bio'])
+          updateMask: updateMask(input, ['displayName', 'login', 'bio', 'profileLinks'])
         });
         return requiredUser(response.user);
       });

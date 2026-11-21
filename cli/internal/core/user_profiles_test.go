@@ -661,7 +661,7 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 			t.Fatalf("CreateUser target: %v", err)
 		}
 		login := "adminauth-renamed"
-		_, err = c.UpdateManagedUserProfile(ctx, "", target.Id, &login, nil, nil)
+		_, err = c.UpdateManagedUserProfile(ctx, "", target.Id, &login, nil, nil, nil)
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Fatalf("UpdateManagedUserProfile err = %v, want ErrNotAuthenticated", err)
 		}
@@ -682,7 +682,7 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 			t.Fatalf("CreateUser target: %v", err)
 		}
 		login := "adminauth-denied"
-		_, err = c.UpdateManagedUserProfile(ctx, regular.Id, target.Id, &login, nil, nil)
+		_, err = c.UpdateManagedUserProfile(ctx, regular.Id, target.Id, &login, nil, nil, nil)
 		if !errors.Is(err, ErrPermissionDenied) {
 			t.Fatalf("UpdateManagedUserProfile err = %v, want ErrPermissionDenied", err)
 		}
@@ -711,7 +711,7 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		login := "adminauth-updated"
 		displayName := "Admin Updated"
 		bio := "Updated by an admin."
-		updated, err := c.UpdateManagedUserProfile(ctx, admin.Id, target.Id, &login, &displayName, &bio)
+		updated, err := c.UpdateManagedUserProfile(ctx, admin.Id, target.Id, &login, &displayName, &bio, nil)
 		if err != nil {
 			t.Fatalf("UpdateManagedUserProfile: %v", err)
 		}
@@ -816,7 +816,7 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		if err := c.AdminClearLoginChangeCooldown(ctx, user.Id, user.Id); !errors.Is(err, ErrPermissionDenied) {
 			t.Fatalf("AdminClearLoginChangeCooldown self err = %v, want ErrPermissionDenied", err)
 		}
-		updated, err := c.UpdateManagedUserProfile(ctx, user.Id, user.Id, &login, nil, nil)
+		updated, err := c.UpdateManagedUserProfile(ctx, user.Id, user.Id, &login, nil, nil, nil)
 		if err != nil {
 			t.Fatalf("UpdateManagedUserProfile self: %v", err)
 		}
@@ -824,7 +824,7 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 			t.Fatalf("updated login = %q, want %q", updated.GetLogin(), login)
 		}
 		secondLogin := "adminauth-self-again"
-		if _, err := c.UpdateManagedUserProfile(ctx, user.Id, user.Id, &secondLogin, nil, nil); !errors.Is(err, ErrLoginChangeCooldown) {
+		if _, err := c.UpdateManagedUserProfile(ctx, user.Id, user.Id, &secondLogin, nil, nil, nil); !errors.Is(err, ErrLoginChangeCooldown) {
 			t.Fatalf("second self login change err = %v, want ErrLoginChangeCooldown", err)
 		}
 	})

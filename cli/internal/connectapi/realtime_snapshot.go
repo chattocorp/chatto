@@ -260,6 +260,7 @@ func (a *API) realtimeSnapshotUser(ctx context.Context, content *core.HydratedUs
 	if user.GetIsBot() && !user.GetDeleted() {
 		summary.Bot = &apiv1.BotInfo{OwnerUserId: user.GetBotOwnerUserId()}
 	}
+	summary.ProfileLinks = user.ProfileLinks
 	if user.GetBio() != "" {
 		bio := user.GetBio()
 		summary.Bio = &bio

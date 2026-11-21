@@ -23,9 +23,6 @@ import (
 // (FDR-058).
 const atprotoIdentityScope = "atproto"
 
-// blueskyProfileType is the AT Protocol collection for a Bluesky profile.
-const blueskyProfileType = "app.bsky.actor.profile"
-
 // atprotoHandlePagePath is the frontend page that asks for the handle when a
 // sign-in starts without one. It continues the same start URL with
 // `login_hint`.
@@ -132,9 +129,8 @@ type atprotoAccount struct {
 	Handle string
 	// DisplayName and AvatarURL come from the public Bluesky profile record,
 	// when the repository has one. They are hints for a new account only.
-	DisplayName       string
-	AvatarURL         string
-	HasBlueskyProfile bool
+	DisplayName string
+	AvatarURL   string
 }
 
 // atprotoProfileRecordLimit bounds the profile record that sign-in reads.
@@ -154,7 +150,7 @@ func (p *atprotoProvider) callback(ctx context.Context, session sessions.Session
 		if !ident.Handle.IsInvalidHandle() {
 			account.Handle = ident.Handle.String()
 		}
-		account.DisplayName, account.AvatarURL, account.HasBlueskyProfile = p.profile(ctx, ident.PDSEndpoint(), data.AccountDID)
+		account.DisplayName, account.AvatarURL = p.profile(ctx, ident.PDSEndpoint(), data.AccountDID)
 	}
 	return account, nil
 }
@@ -162,27 +158,26 @@ func (p *atprotoProvider) callback(ctx context.Context, session sessions.Session
 // profile reads the public app.bsky.actor.profile record of did from its PDS.
 // The record is optional: AT Protocol accounts outside Bluesky can lack it,
 // and any failure returns empty values.
-func (p *atprotoProvider) profile(ctx context.Context, pds string, did syntax.DID) (displayName, avatarURL string, found bool) {
+func (p *atprotoProvider) profile(ctx context.Context, pds string, did syntax.DID) (displayName, avatarURL string) {
 	if !strings.HasPrefix(pds, "https://") {
-		return "", "", false
+		return "", ""
 	}
 	base := strings.TrimRight(pds, "/")
-	query := url.Values{"repo": {did.String()}, "collection": {blueskyProfileType}, "rkey": {"self"}}
+	query := url.Values{"repo": {did.String()}, "collection": {"app.bsky.actor.profile"}, "rkey": {"self"}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/xrpc/com.atproto.repo.getRecord?"+query.Encode(), nil)
 	if err != nil {
-		return "", "", false
+		return "", ""
 	}
 	resp, err := p.app.Client.Do(req)
 	if err != nil {
-		return "", "", false
+		return "", ""
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", "", false
+		return "", ""
 	}
 	var record struct {
 		Value struct {
-			Type        string `json:"$type"`
 			DisplayName string `json:"displayName"`
 			Avatar      *struct {
 				Ref struct {
@@ -191,15 +186,15 @@ func (p *atprotoProvider) profile(ctx context.Context, pds string, did syntax.DI
 			} `json:"avatar"`
 		} `json:"value"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, atprotoProfileRecordLimit)).Decode(&record); err != nil || record.Value.Type != blueskyProfileType {
-		return "", "", false
+	if err := json.NewDecoder(io.LimitReader(resp.Body, atprotoProfileRecordLimit)).Decode(&record); err != nil {
+		return "", ""
 	}
 	displayName = strings.TrimSpace(record.Value.DisplayName)
 	if avatar := record.Value.Avatar; avatar != nil && avatar.Ref.Link != "" {
 		blob := url.Values{"did": {did.String()}, "cid": {avatar.Ref.Link}}
 		avatarURL = base + "/xrpc/com.atproto.sync.getBlob?" + blob.Encode()
 	}
-	return displayName, avatarURL, true
+	return displayName, avatarURL
 }
 
 // clientMetadata returns the client metadata document. Loopback clients have
@@ -285,8 +280,6 @@ func (r *authProviderRuntime) resolveATProtoIdentity(c *gin.Context, session ses
 		issuer:          r.config.ID,
 		subject:         account.DID.String(),
 		avatarURL:       account.AvatarURL,
-		profileType:     blueskyProfileType,
-		profileFound:    account.HasBlueskyProfile,
 		loginHint:       loginHintFromParts(account.Handle),
 		displayNameHint: displayNameHintFromParts(account.DisplayName, account.Handle),
 	}

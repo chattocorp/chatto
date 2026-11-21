@@ -240,6 +240,30 @@ func TestResourceUpdatesThroughJSON(t *testing.T) {
 	require.Contains(t, overrides, "replies")
 }
 
+func TestMemberProfileLinks(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	update := func(links []string, paths ...string) error {
+		_, err := env.users.UpdateUserProfile(ctx, connect.NewRequest(&apiv1.UpdateUserProfileRequest{UserId: env.viewer.Id,
+			ProfileLinks: links,
+			UpdateMask:   &fieldmaskpb.FieldMask{Paths: paths},
+		}))
+		return err
+	}
+	links := []string{"https://example.test/", "https://bsky.app/profile/alice.test"}
+	require.NoError(t, update(links, "profile_links"))
+	require.Error(t, update([]string{"javascript:alert(1)"}, "profile_links"))
+	require.NoError(t, update(nil, "bio"))
+	read := func() []string {
+		response, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: env.viewer.Id}}))
+		require.NoError(t, err)
+		return response.Msg.User.User.ProfileLinks
+	}
+	require.Equal(t, links, read())
+	require.NoError(t, update(nil, "profile_links"))
+	require.Empty(t, read())
+}
+
 func TestMyAccountProfileMaskBatch(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

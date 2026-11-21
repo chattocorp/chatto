@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
@@ -102,16 +105,32 @@ func normalizeBio(bio string) string {
 	return strings.TrimSpace(bio)
 }
 
+// validateProfileLinks accepts absolute web URLs suitable for display as links.
+// It never resolves or contacts the destination.
+func validateProfileLinks(links []string) error {
+	if len(links) > 10 {
+		return fmt.Errorf("%w: at most 10 profile links", ErrInvalidArgument)
+	}
+	for _, link := range links {
+		u, err := url.Parse(link)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil ||
+			len(link) > 2048 || strings.Contains(link, "\\") || strings.IndexFunc(link, unicode.IsSpace) >= 0 {
+			return fmt.Errorf("%w: invalid profile link", ErrInvalidArgument)
+		}
+	}
+	return nil
+}
+
 // UpdateOwnUserProfile applies one self-service identity patch as an atomic
 // batch. Omitted fields remain unchanged. Login changes retain the existing
 // cooldown and permission-based bypass. Conflicts are returned to the caller;
 // replacement values are never replayed after a concurrent profile edit.
 // Authorization: userID must identify the authenticated caller.
-func (c *ChattoCore) UpdateOwnUserProfile(ctx context.Context, userID string, login, displayName, bio *string) (*readmodel.User, error) {
+func (c *ChattoCore) UpdateOwnUserProfile(ctx context.Context, userID string, login, displayName, bio *string, links []string) (*readmodel.User, error) {
 	if err := requireAuthenticatedActor(userID); err != nil {
 		return nil, err
 	}
-	if login == nil && displayName == nil && bio == nil {
+	if login == nil && displayName == nil && bio == nil && links == nil {
 		return nil, ErrInvalidArgument
 	}
 	enforceCooldown := false
@@ -127,14 +146,14 @@ func (c *ChattoCore) UpdateOwnUserProfile(ctx context.Context, userID string, lo
 			return nil, err
 		}
 	}
-	return c.updateUserProfileWithCooldown(ctx, userID, userID, login, displayName, bio, false, enforceCooldown)
+	return c.updateUserProfileWithCooldown(ctx, userID, userID, login, displayName, bio, links, false, enforceCooldown)
 }
 
 func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts bool) (*readmodel.User, error) {
-	return c.updateUserProfileWithCooldown(ctx, actorID, userID, login, displayName, bio, retryConflicts, false)
+	return c.updateUserProfileWithCooldown(ctx, actorID, userID, login, displayName, bio, nil, retryConflicts, false)
 }
 
-func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts, enforceCooldown bool) (*readmodel.User, error) {
+func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID, userID string, login, displayName, bio *string, links []string, retryConflicts, enforceCooldown bool) (*readmodel.User, error) {
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -205,6 +224,10 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 		displayNameChanged = user.GetDisplayName() != nextDisplayName
 	}
 
+	if err := validateProfileLinks(links); err != nil {
+		return nil, err
+	}
+	linksChanged := links != nil && !slices.Equal(user.ProfileLinks, links)
 	var nextBio string
 	var bioChanged bool
 	if bio != nil {
@@ -264,6 +287,17 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(bioChangedEvent), Event: bioChangedEvent})
 	}
 
+	if linksChanged {
+		change := &evtv1.UserProfileLinksChangedEvent{UserId: userID}
+		event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserProfileLinksChanged{UserProfileLinksChanged: change}})
+		if len(links) > 0 {
+			change.EncryptedLinks, err = c.encryptUserPIIString(ctx, event.Id, userID, evtstream.EventUserProfileLinksChanged, "profile_links", strings.Join(links, "\n"))
+			if err != nil {
+				return nil, err
+			}
+		}
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
+	}
 	checkUserExists := func() error {
 		if actorID == userID && loginChanged && c.usernameManaged(userID) {
 			return ErrUsernameManaged
@@ -280,7 +314,7 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 		// case-only rename cannot bypass a concurrent rename's cooldown.
 		if !retryConflicts && ((login != nil && current.GetLogin() != user.GetLogin()) ||
 			(displayName != nil && current.GetDisplayName() != user.GetDisplayName()) ||
-			(bio != nil && current.GetBio() != user.GetBio())) {
+			(bio != nil && current.GetBio() != user.GetBio()) || (links != nil && !slices.Equal(current.ProfileLinks, user.ProfileLinks))) {
 			return events.ErrConflict
 		}
 		return nil
@@ -318,6 +352,9 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 	if displayNameChanged {
 		user.DisplayName = nextDisplayName
 	}
+	if linksChanged {
+		user.ProfileLinks = slices.Clone(links)
+	}
 	if bioChanged {
 		user.Bio = nextBio
 	}
@@ -337,15 +374,15 @@ func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID,
 // user.manage-accounts neither checks nor advances it. Conflicts are returned
 // to the caller; replacement values are never replayed after a concurrent
 // profile edit.
-func (c *ChattoCore) UpdateManagedUserProfile(ctx context.Context, actorID, targetUserID string, login, displayName, bio *string) (*readmodel.User, error) {
+func (c *ChattoCore) UpdateManagedUserProfile(ctx context.Context, actorID, targetUserID string, login, displayName, bio *string, links []string) (*readmodel.User, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	if login == nil && displayName == nil && bio == nil {
-		return nil, fmt.Errorf("%w: at least one of login, display_name, or bio must be provided", ErrInvalidArgument)
+	if login == nil && displayName == nil && bio == nil && links == nil {
+		return nil, fmt.Errorf("%w: at least one profile field must be provided", ErrInvalidArgument)
 	}
 	if actorID == targetUserID {
-		return c.UpdateOwnUserProfile(ctx, actorID, login, displayName, bio)
+		return c.UpdateOwnUserProfile(ctx, actorID, login, displayName, bio, links)
 	}
 	enforceCooldown := false
 	if err := c.authorizeAtStableInputs(ctx, func() error {
@@ -364,7 +401,7 @@ func (c *ChattoCore) UpdateManagedUserProfile(ctx context.Context, actorID, targ
 	}); err != nil {
 		return nil, err
 	}
-	return c.updateUserProfileWithCooldown(ctx, actorID, targetUserID, login, displayName, bio, false, enforceCooldown)
+	return c.updateUserProfileWithCooldown(ctx, actorID, targetUserID, login, displayName, bio, links, false, enforceCooldown)
 }
 
 // AdminClearLoginChangeCooldown clears a human account's login cooldown.

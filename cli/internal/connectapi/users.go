@@ -41,6 +41,7 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *readmodel.User
 	if user.GetIsBot() && !user.GetDeleted() {
 		summary.Bot = &apiv1.BotInfo{OwnerUserId: user.GetBotOwnerUserId()}
 	}
+	summary.ProfileLinks = user.ProfileLinks
 	if user.GetBio() != "" {
 		bio := user.GetBio()
 		summary.Bio = &bio

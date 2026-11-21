@@ -12,7 +12,7 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
-var userSnapshotContractID = snapshotContractID("v4", &projectionv1.UserProfileProjectionSnapshot{})
+var userSnapshotContractID = snapshotContractID("v5", &projectionv1.UserProfileProjectionSnapshot{})
 
 func (*UserProjection) SnapshotContractID() string { return userSnapshotContractID }
 
@@ -31,6 +31,7 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 			Login:                       snapshotProjectedUserPII(u.login),
 			LoginHash:                   u.loginHash,
 			DisplayName:                 snapshotProjectedUserPII(u.displayName),
+			ProfileLinks:                snapshotProjectedUserPII(u.profileLinks),
 			Bio:                         snapshotProjectedUserPII(u.bio),
 			Deleted:                     u.deleted,
 			Shredded:                    u.shredded,
@@ -154,6 +155,10 @@ func (p *UserProjection) Restore(data []byte) error {
 		if err != nil {
 			return fmt.Errorf("user profile snapshot bio for %q: %w", userID, err)
 		}
+		profileLinks, err := restoreProjectedUserPII(entry.GetProfileLinks())
+		if err != nil {
+			return fmt.Errorf("user profile snapshot links for %q: %w", userID, err)
+		}
 		if (login == nil) != (entry.GetLoginHash() == "") {
 			return fmt.Errorf("user profile snapshot has inconsistent login for %q", userID)
 		}
@@ -161,16 +166,16 @@ func (p *UserProjection) Restore(data []byte) error {
 		if active && (entry.GetUser() == nil || login == nil || displayName == nil) {
 			return fmt.Errorf("user profile snapshot has incomplete active user %q", userID)
 		}
-		if !active && (login != nil || entry.GetLoginHash() != "" || displayName != nil || bio != nil || len(entry.GetVerifiedEmails()) > 0 || entry.GetPrimaryVerifiedEmailEventId() != "" || entry.GetPreferences() != nil || entry.GetLoginChangedAt() != nil) {
+		if !active && (login != nil || entry.GetLoginHash() != "" || displayName != nil || bio != nil || profileLinks != nil || len(entry.GetVerifiedEmails()) > 0 || entry.GetPrimaryVerifiedEmailEventId() != "" || entry.GetPreferences() != nil || entry.GetLoginChangedAt() != nil) {
 			return fmt.Errorf("user profile snapshot has profile state on inactive user %q", userID)
 		}
-		for name, pii := range map[string]*projectedUserPII{"login": login, "display name": displayName, "bio": bio} {
+		for name, pii := range map[string]*projectedUserPII{"login": login, "display name": displayName, "bio": bio, "profile links": profileLinks} {
 			if pii != nil && !restored.hasUserPIIKeyLocked(userID, pii.encrypted.GetContentKeyEpoch()) {
 				return fmt.Errorf("user profile snapshot %s for %q has no matching DEK", name, userID)
 			}
 		}
 		u := &projectedUser{
-			login: login, loginHash: entry.GetLoginHash(), displayName: displayName, bio: bio,
+			login: login, loginHash: entry.GetLoginHash(), displayName: displayName, bio: bio, profileLinks: profileLinks,
 			deleted: entry.GetDeleted(), shredded: entry.GetShredded(), verifiedEmail: make(map[string]projectedVerifiedEmail),
 			primaryVerifiedEmailEventID: entry.GetPrimaryVerifiedEmailEventId(),
 		}

@@ -29,9 +29,9 @@ func TestManagedProviderAccountPolicy(t *testing.T) {
 	require.True(t, managed)
 	_, err = c.UpdateUserLogin(ctx, user.Id, "edited")
 	require.ErrorIs(t, err, ErrUsernameManaged)
-	_, err = c.UpdateOwnUserProfile(ctx, user.Id, new("edited"), nil, nil)
+	_, err = c.UpdateOwnUserProfile(ctx, user.Id, new("edited"), nil, nil, nil)
 	require.ErrorIs(t, err, ErrUsernameManaged)
-	_, err = c.UpdateOwnUserProfile(ctx, user.Id, nil, new("New display name"), nil)
+	_, err = c.UpdateOwnUserProfile(ctx, user.Id, nil, new("New display name"), nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, c.SyncProviderUsername(ctx, user.Id, "company", "changed"))
 	unchanged, err := c.GetUser(ctx, user.Id)
@@ -86,7 +86,7 @@ func TestManagedProviderProfileKeepsUsername(t *testing.T) {
 	for _, login := range []string{"alice", "  alice  "} {
 		t.Run(fmt.Sprintf("unchanged %q", login), func(t *testing.T) {
 			displayName, bio := "Updated "+login, "Updated bio "+login
-			updated, err := c.UpdateOwnUserProfile(ctx, user.Id, &login, &displayName, &bio)
+			updated, err := c.UpdateOwnUserProfile(ctx, user.Id, &login, &displayName, &bio, nil)
 			require.NoError(t, err)
 			require.Equal(t, "alice", updated.Login)
 			require.Equal(t, NormalizeDisplayName(displayName), updated.DisplayName)
@@ -105,7 +105,7 @@ func TestManagedProviderProfileKeepsUsername(t *testing.T) {
 	require.NoError(t, err)
 	for _, login := range []string{"renamed", "Alice"} {
 		t.Run("reject "+login, func(t *testing.T) {
-			_, err := c.UpdateOwnUserProfile(ctx, user.Id, &login, new("Must not save"), new("Must not save"))
+			_, err := c.UpdateOwnUserProfile(ctx, user.Id, &login, new("Must not save"), new("Must not save"), nil)
 			require.ErrorIs(t, err, ErrUsernameManaged)
 			stored, err := c.GetUser(ctx, user.Id)
 			require.NoError(t, err)
@@ -238,7 +238,7 @@ func TestManagedProviderDoesNotRestrictBotUsername(t *testing.T) {
 	bot, err := c.CreateBot(ctx, owner.Id, "policy-bot", "Bot")
 	require.NoError(t, err)
 	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "company", Type: "github", ManageUsernames: true}}
-	_, err = c.UpdateOwnUserProfile(ctx, bot.User.Id, new("renamed-bot"), nil, nil)
+	_, err = c.UpdateOwnUserProfile(ctx, bot.User.Id, new("renamed-bot"), nil, nil, nil)
 	require.NoError(t, err)
 }
 
@@ -253,7 +253,7 @@ func TestManagedProviderLegacyOIDCRestrictions(t *testing.T) {
 		UserOidcSubjectLinked: &evtv1.UserOIDCSubjectLinkedEvent{UserId: user.Id, SubjectHash: hash},
 	}}), "", nil)
 	require.NoError(t, err)
-	_, err = c.UpdateOwnUserProfile(ctx, user.Id, new("bypass"), nil, nil)
+	_, err = c.UpdateOwnUserProfile(ctx, user.Id, new("bypass"), nil, nil, nil)
 	require.ErrorIs(t, err, ErrUsernameManaged)
 	err = c.DisconnectExternalIdentityAs(ctx, user.Id, user.Id, hash, ExternalIdentitySignInPolicy{PasswordLoginEnabled: true})
 	require.ErrorIs(t, err, ErrExternalIdentityUnlinkDisabled)

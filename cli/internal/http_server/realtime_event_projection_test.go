@@ -240,6 +240,7 @@ func TestProjectRealtimeEventCollapsesDurableProfileFacts(t *testing.T) {
 		{name: "current avatar", event: &evtv1.Event{Event: &evtv1.Event_AssetCreated{AssetCreated: &evtv1.AssetCreatedEvent{UserId: "U1", Asset: &evtv1.AssetRecord{Id: "A1"}}}}},
 		{name: "custom status", event: &evtv1.Event{Event: &evtv1.Event_UserCustomStatusSet{UserCustomStatusSet: &evtv1.UserCustomStatusSetEvent{UserId: "U1"}}}},
 		{name: "custom status cleared", event: &evtv1.Event{Event: &evtv1.Event_UserCustomStatusCleared{UserCustomStatusCleared: &evtv1.UserCustomStatusClearedEvent{UserId: "U1"}}}},
+		{name: "profile links", event: &evtv1.Event{Event: &evtv1.Event_UserProfileLinksChanged{UserProfileLinksChanged: &evtv1.UserProfileLinksChangedEvent{UserId: "U1"}}}},
 		{name: "bio", event: &evtv1.Event{Event: &evtv1.Event_UserBioChanged{UserBioChanged: &evtv1.UserBioChangedEvent{UserId: "U1"}}}},
 	}
 	for _, test := range tests {

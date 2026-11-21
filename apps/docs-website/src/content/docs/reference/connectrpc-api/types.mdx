@@ -156,6 +156,7 @@ Public user fields.
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
 | `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
 | `deactivated` | `bool` | True while the account cannot use this server. Data is retained and access can be restored. |
+| `profile_links` | `repeated string` | Public HTTP or HTTPS links in the order chosen by the member. |
 
 <a id="chatto-api-v1-VerifiedIdentity"></a>
 
@@ -170,7 +171,6 @@ Each (method, value) pair occurs once per profile. Clients can display unfamilia
 | `method` | `string` | Stable, extensible verification method key, for example "atproto". |
 | `method_label` | `string` | Human-readable name of the method, for example "AT Protocol". |
 | `value` | `string` | Public identity text for display, for example an AT Protocol handle without @. |
-| `profile_types` | `repeated string` | Public profile types reported for this identity, sorted and unique. Identifiers are specific to the verification method. An empty list means the server has no reported types. Clients can ignore unfamiliar types. |
 
 <a id="chatto-api-v1-CapabilityGrant"></a>
 
