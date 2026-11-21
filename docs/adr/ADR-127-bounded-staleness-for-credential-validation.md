@@ -13,13 +13,16 @@ user. This is the strict auth generation check. It runs on every request.
 
 We propose that a replica remembers a strict check that accepted a user for
 60 seconds. During that time, request validation for that user reads the local
-projection and sends nothing to the stream leader. Two gates end the window
-early when the replica knows that its projection is possibly not fed.
+projection and sends nothing to the stream leader.
 
 **The changed guarantee:** a replica can accept a revoked credential for a
 maximum of 60 seconds after the revocation, and only while its User Auth
 projection has not applied the revoking event. Today that time is zero. In
 usual operation the projection applies the event in milliseconds.
+
+The window is the guarantee. Two gates end it early when the replica detects
+that it has no NATS connection or that its projector failed. They are a small
+improvement for those clear cases. They do not make the worst case shorter.
 
 ## Context
 
