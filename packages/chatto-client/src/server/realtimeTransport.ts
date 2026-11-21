@@ -22,6 +22,7 @@ import {
   type RealtimeEvent
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { RealtimeResourceUpdate } from '../api/realtimeResources.js';
+import { applyPresentableDisplayNames } from '../api/presentableUsers.js';
 import {
   ListRoomGroupsResponse,
   ListRoomsResponse
@@ -420,6 +421,7 @@ export class EventBusManager {
             let frame: RealtimeServerFrame;
             try {
               frame = RealtimeServerFrame.fromBinary(await messageDataToBytes(message.data));
+              applyPresentableDisplayNames(frame);
             } catch (error) {
               console.error(`[eventBus:${serverId}] failed to decode realtime frame`, error);
               // Never continue past a frame we could not understand: a later

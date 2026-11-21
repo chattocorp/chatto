@@ -11,6 +11,7 @@ import {
 } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { MethodIdempotency, type ServiceType } from '@bufbuild/protobuf';
+import { presentableDisplayNamesInterceptor } from './presentableUsers.js';
 
 /** Request header for a read that must include an accepted realtime boundary. */
 export const REALTIME_MINIMUM_CURSOR_HEADER = 'Chatto-Realtime-Minimum-Cursor';
@@ -257,6 +258,7 @@ export function createChattoTransport(
     authenticationRequiredInterceptor(config),
     ...(config.dataGeneration ? [dataGenerationInterceptor(config.dataGeneration)] : []),
     bearerRenewalInterceptor(config),
+    presentableDisplayNamesInterceptor,
     // Innermost, so each attempt is one transport request.
     networkRetryInterceptor(config)
   ];
