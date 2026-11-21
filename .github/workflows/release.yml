@@ -1,9 +1,34 @@
 name: release
 
+# publish-releases.yml calls this for each Chatto version that Sweet tags in a
+# checked push. Manual runs build an image or desktop bundle for verification
+# and publish nothing.
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Sweet tag, such as v0.6.0.'
+        required: true
+        type: string
+      commit:
+        description: 'Tagged commit to build.'
+        required: true
+        type: string
+      version:
+        description: 'Release version, such as 0.6.0.'
+        required: true
+        type: string
+      prerelease:
+        description: 'Sweet tag entry: the version has a prerelease suffix.'
+        required: true
+        type: boolean
+      highest:
+        description: 'Sweet tag entry: the version is the highest stable Chatto version.'
+        required: true
+        type: boolean
+    # The caller passes GORELEASER_GITHUB_TOKEN and HOMEBREW_TAP_GITHUB_TOKEN.
+    # The signing jobs read their secrets from their protected environments.
+    # No `secrets:` list here: a list hides environment secrets from actionlint.
   workflow_dispatch:
     inputs:
       target:
@@ -43,36 +68,7 @@ jobs:
 
       - name: Resolve image metadata
         id: image
-        run: |
-          set -euo pipefail
-
-          sha="$(git rev-parse HEAD)"
-          development_version="$(mise env --json | jq -r '.CHATTO_DEVELOPMENT_VERSION // empty')"
-          if [[ -n "$development_version" ]]; then
-            version="${development_version}+${sha:0:12}"
-          else
-            # Historical refs predate CHATTO_DEVELOPMENT_VERSION. Preserve the
-            # arbitrary-ref build contract by using their checked-in release
-            # version instead.
-            release_version="$(sed -n 's/.*Version = "\([^"]*\)".*/\1/p' cli/version.go)"
-            if [[ -z "$release_version" ]]; then
-              echo "::error::Could not determine the Chatto version."
-              exit 1
-            fi
-            version="${release_version}+${sha:0:12}"
-          fi
-
-          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-
-          {
-            echo "### Image"
-            echo
-            echo "- Commit: \`${sha}\`"
-            echo "- Version: \`${version}\`"
-            echo "- Image: \`ghcr.io/chattocorp/chatto:${sha}\`"
-            echo "- Platform: \`linux/amd64\`"
-          } >> "$GITHUB_STEP_SUMMARY"
+        run: bash tools/release/image-metadata.sh
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -138,10 +134,10 @@ jobs:
             org.opencontainers.image.version=${{ steps.image.outputs.version }}
             org.opencontainers.image.licenses=AGPL-3.0-or-later
 
-  # All protected environments request approval at the start of a tagged run.
+  # All protected environments request approval at the start of a release run.
   # Keep this job independent of builds so one review can approve all three.
   approve-release:
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    if: ${{ inputs.tag != '' }}
     environment: chatto-release
     runs-on: ubuntu-latest
     permissions: {}
@@ -151,14 +147,19 @@ jobs:
 
   publish-chatto-client:
     needs: [approve-release, build-server-release, assemble-desktop-release]
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-    uses: ./.github/workflows/publish-chatto-client.yml
+    if: ${{ inputs.tag != '' }}
+    uses: ./.github/workflows/npm.yml
     permissions:
       contents: read
       id-token: write
+    with:
+      package: packages/chatto-client
+      commit: ${{ inputs.commit }}
+      prerelease: ${{ inputs.prerelease }}
+      highest: ${{ inputs.highest }}
 
   build-desktop-release:
-    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
+    if: ${{ inputs.tag != '' || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
     name: build-desktop-release (${{ matrix.platform }})
     environment: ${{ matrix.environment }}
     timeout-minutes: 45
@@ -197,26 +198,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.commit || inputs.ref || github.ref }}
           fetch-depth: 0
 
+      # Keep these two checks inline. They run before any repository code, and a
+      # script from the checkout would come from the ref that they check.
       - name: Verify trusted desktop ref
         shell: bash
         run: |
           set -euo pipefail
 
           git fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/release-*:refs/remotes/origin/release-*'
-          trusted=false
           while IFS= read -r ref; do
             if git merge-base --is-ancestor HEAD "$ref"; then
-              trusted=true
-              break
+              exit 0
             fi
           done < <(git for-each-ref --format='%(refname)' refs/remotes/origin/main 'refs/remotes/origin/release-*')
-          if [[ "$trusted" != true ]]; then
-            echo "::error::Desktop signing is restricted to commits reachable from origin/main or an origin/release-* branch."
-            exit 1
-          fi
+
+          echo "::error::Desktop signing is restricted to commits reachable from origin/main or an origin/release-* branch."
+          exit 1
 
       - name: Verify immutable GitHub OIDC subject
         if: runner.os == 'Windows'
@@ -237,7 +237,7 @@ jobs:
             exit 1
           fi
 
-          expected_configuration="$(printf 'true\ttrue\t%s' "$EXPECTED_SUBJECT_PREFIX")"
+          expected_configuration="$(printf 'true\ttrue\t%s' "${EXPECTED_SUBJECT_PREFIX:?}")"
           if [[ "$configuration" != "$expected_configuration" ]]; then
             echo "::error::Enable the repository's default immutable GitHub OIDC subject before configuring Azure federation. Expected prefix '${EXPECTED_SUBJECT_PREFIX}'."
             exit 1
@@ -252,53 +252,9 @@ jobs:
       - name: Resolve desktop version
         id: version
         shell: bash
-        run: |
-          set -euo pipefail
-
-          version="$(jq -r '.version' apps/desktop/package.json)"
-          frontend_package_version="$(jq -r '.version' apps/frontend/package.json)"
-          sha="$(git rev-parse HEAD)"
-
-          if [[ -z "$version" || "$version" == "null" ]]; then
-            echo "::error::Could not determine the Chatto Desktop version."
-            exit 1
-          fi
-          if [[ -z "$sha" ]]; then
-            echo "::error::Could not determine the checked-out commit."
-            exit 1
-          fi
-
-          if [[ "$version" != "$frontend_package_version" ]]; then
-            echo "::error::Desktop and frontend package versions must match."
-            exit 1
-          fi
-          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            if [[ "$version" != "${GITHUB_REF_NAME#v}" ]]; then
-              echo "::error::The Chatto tag and package versions must match."
-              exit 1
-            fi
-            frontend_version="$version"
-          else
-            development_version="$(mise env --json | jq -r '.CHATTO_DEVELOPMENT_VERSION // empty')"
-            if [[ -z "$development_version" ]]; then
-              echo "::error::CHATTO_DEVELOPMENT_VERSION is required for verification builds."
-              exit 1
-            fi
-            frontend_version="${development_version}+${sha:0:12}"
-          fi
-          {
-            echo "version=${version}"
-            echo "sha=${sha}"
-            echo "frontend_version=${frontend_version}"
-          } >> "$GITHUB_OUTPUT"
-
-          {
-            echo "### Chatto Desktop"
-            echo
-            echo "- Commit: \`${sha}\`"
-            echo "- Desktop version: \`${version}\`"
-            echo "- Bundled frontend version: \`${frontend_version}\`"
-          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: bash tools/release/desktop-version.sh
 
       - name: Check and test desktop shell
         run: mise test-desktop
@@ -316,65 +272,7 @@ jobs:
           NOTARY_API_KEY_BASE64: ${{ secrets.CHATTO_MACOS_NOTARY_API_KEY_BASE64 }}
           NOTARY_API_KEY_ID: ${{ secrets.CHATTO_MACOS_NOTARY_API_KEY_ID }}
           NOTARY_API_ISSUER_ID: ${{ secrets.CHATTO_MACOS_NOTARY_API_ISSUER_ID }}
-        run: |
-          set -euo pipefail
-
-          for variable in \
-            CERTIFICATE_BASE64 \
-            CERTIFICATE_PASSWORD \
-            NOTARY_API_KEY_BASE64 \
-            NOTARY_API_KEY_ID \
-            NOTARY_API_ISSUER_ID; do
-            if [[ -z "${!variable}" ]]; then
-              echo "::error::The ${variable} macOS release secret is not configured."
-              exit 1
-            fi
-          done
-
-          certificate_path="$RUNNER_TEMP/chatto-developer-id.p12"
-          api_key_path="$RUNNER_TEMP/AuthKey_${NOTARY_API_KEY_ID}.p8"
-          keychain_path="$RUNNER_TEMP/chatto-signing.keychain-db"
-          keychain_password="$(openssl rand -hex 24)"
-
-          {
-            echo "CHATTO_MACOS_NOTARY_API_KEY=${api_key_path}"
-            echo "CHATTO_MACOS_SIGNING_KEYCHAIN=${keychain_path}"
-            echo "CHATTO_MACOS_SIGNING_CERTIFICATE=${certificate_path}"
-          } >> "$GITHUB_ENV"
-
-          printf '%s' "$CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
-          printf '%s' "$NOTARY_API_KEY_BASE64" | base64 --decode > "$api_key_path"
-          chmod 600 "$certificate_path" "$api_key_path"
-
-          security create-keychain -p "$keychain_password" "$keychain_path"
-          security set-keychain-settings -lut 21600 "$keychain_path"
-          security unlock-keychain -p "$keychain_password" "$keychain_path"
-          security import "$certificate_path" \
-            -k "$keychain_path" \
-            -P "$CERTIFICATE_PASSWORD" \
-            -T /usr/bin/codesign \
-            -T /usr/bin/security
-          security set-key-partition-list \
-            -S apple-tool:,apple: \
-            -s \
-            -k "$keychain_password" \
-            "$keychain_path"
-          security list-keychains -d user -s "$keychain_path"
-
-          signing_identity="$(
-            security find-identity -v -p codesigning "$keychain_path" |
-              awk '/Developer ID Application:/ { print $2; exit }'
-          )"
-          if [[ -z "$signing_identity" ]]; then
-            echo "::error::The certificate does not contain a Developer ID Application identity."
-            exit 1
-          fi
-
-          {
-            echo "CHATTO_MACOS_SIGN_IDENTITY=${signing_identity}"
-            echo "CHATTO_MACOS_NOTARY_API_KEY_ID=${NOTARY_API_KEY_ID}"
-            echo "CHATTO_MACOS_NOTARY_API_ISSUER_ID=${NOTARY_API_ISSUER_ID}"
-          } >> "$GITHUB_ENV"
+        run: bash tools/release/configure-macos-signing.sh
 
       - name: Validate Windows signing configuration
         if: runner.os == 'Windows'
@@ -409,7 +307,7 @@ jobs:
         shell: bash
         env:
           CHATTO_BUILD_VERSION: ${{ steps.version.outputs.frontend_version }}
-          CHATTO_DESKTOP_AUTO_UPDATE: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          CHATTO_DESKTOP_AUTO_UPDATE: ${{ inputs.tag != '' && 'true' || 'false' }}
           CHATTO_WINDOWS_EXPECTED_PUBLISHER: ${{ vars.CHATTO_WINDOWS_EXPECTED_PUBLISHER }}
         run: |
           if [[ "$RUNNER_OS" == "macOS" ]]; then
@@ -610,7 +508,7 @@ jobs:
           retention-days: 1
 
   assemble-desktop-release:
-    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
+    if: ${{ inputs.tag != '' || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
     needs: build-desktop-release
     runs-on: ubuntu-latest
     permissions:
@@ -619,7 +517,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.commit || inputs.ref || github.ref }}
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -656,107 +554,20 @@ jobs:
 
   build-server-release:
     needs: approve-release
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    if: ${{ inputs.tag != '' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    outputs:
-      is_stable: ${{ steps.release_meta.outputs.is_stable }}
-      version: ${{ steps.release_meta.outputs.version }}
-      make_latest: ${{ steps.release_meta.outputs.push_latest }}
+    env:
+      VERSION: ${{ inputs.version }}
     steps:
+      # GoReleaser reads the release tag from the full history.
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: ${{ inputs.commit }}
           fetch-depth: 0
-
-      - name: Fetch release branches
-        run: git fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/release-*:refs/remotes/origin/release-*'
-
-      - name: Verify release tag
-        id: release_meta
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          tag_commit="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
-
-          source_branch=""
-          if git merge-base --is-ancestor "$tag_commit" origin/main; then
-            source_branch="main"
-          else
-            while IFS= read -r ref; do
-              if git merge-base --is-ancestor "$tag_commit" "$ref"; then
-                source_branch="${ref#refs/remotes/origin/}"
-                break
-              fi
-            done < <(git for-each-ref --format='%(refname)' 'refs/remotes/origin/release-*')
-          fi
-
-          if [[ -z "$source_branch" ]]; then
-            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit is not reachable from origin/main or an origin/release-* branch."
-            exit 1
-          fi
-
-          echo "source_branch=${source_branch}" >> "$GITHUB_OUTPUT"
-
-          parent_count="$(git rev-list --parents -n 1 "$tag_commit" | awk '{ print NF - 1 }')"
-          if [[ "$parent_count" -lt 1 ]]; then
-            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit has no parent to compare against."
-            exit 1
-          fi
-
-          disallowed=()
-          while IFS= read -r path; do
-            case "$path" in
-              .sweet.yml|\
-              .sweet/*.md|\
-              CHANGELOG.md|\
-              cli/version.go|\
-              apps/frontend/package.json|\
-              apps/desktop/package.json|\
-              packages/chatto-client/package.json)
-                ;;
-              *)
-                disallowed+=("$path")
-                ;;
-            esac
-          done < <(git diff --name-only "${tag_commit}^" "$tag_commit")
-
-          if (( ${#disallowed[@]} > 0 )); then
-            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit contains non-release files."
-            printf 'Disallowed file: %s\n' "${disallowed[@]}"
-            exit 1
-          fi
-
-          version="${GITHUB_REF_NAME#v}"
-          if [[ -f .sweet.yml ]]; then
-            manifest_version="$(sed -n 's/^version: //p' .sweet.yml)"
-            [[ "$version" == "$manifest_version" ]] || { echo 'Tag and manifest version differ'; exit 1; }
-          fi
-          push_latest=false
-          is_stable=false
-          if [[ "$version" != *-* ]]; then
-            is_stable=true
-            highest_stable="$(
-              git tag --list 'v[0-9]*.[0-9]*.[0-9]*' |
-                sed 's/^v//' |
-                grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' |
-                sort -V |
-                tail -n 1
-            )"
-
-            if [[ "$version" == "$highest_stable" ]]; then
-              push_latest=true
-            fi
-          fi
-
-          {
-            echo "version=${version}"
-            echo "push_latest=${push_latest}"
-            echo "is_stable=${is_stable}"
-          } >> "$GITHUB_OUTPUT"
 
       - name: Setup environment
         uses: ./.github/actions/setup
@@ -766,7 +577,7 @@ jobs:
       - name: Build frontend once
         run: mise build-frontend
         env:
-          CHATTO_BUILD_VERSION: ${{ steps.release_meta.outputs.version }}
+          CHATTO_BUILD_VERSION: ${{ inputs.version }}
           CHATTO_FRONTEND_PRECOMPRESS: '1'
 
       - name: Set up QEMU
@@ -793,7 +604,9 @@ jobs:
           args: release --clean --skip=publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CHATTO_PUSH_LATEST: ${{ steps.release_meta.outputs.push_latest }}
+          # Several packages can tag the same commit. Name the Chatto tag.
+          GORELEASER_CURRENT_TAG: ${{ inputs.tag }}
+          CHATTO_PUSH_LATEST: ${{ inputs.highest }}
 
       # Build each platform locally so no registry writes occur before approval.
       - name: Build frontend release image (amd64)
@@ -803,18 +616,16 @@ jobs:
           file: docker/Dockerfile.frontend.prebuilt
           load: true
           platforms: linux/amd64
-          tags: ghcr.io/chattocorp/chatto-client:${{ steps.release_meta.outputs.version }}-amd64
+          tags: ghcr.io/chattocorp/chatto-client:${{ inputs.version }}-amd64
           cache-from: type=gha,scope=chatto-client-amd64
           cache-to: type=gha,scope=chatto-client-amd64,mode=max
           labels: |
             org.opencontainers.image.source=https://github.com/chattocorp/chatto
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.release_meta.outputs.version }}
+            org.opencontainers.image.revision=${{ inputs.commit }}
+            org.opencontainers.image.version=${{ inputs.version }}
             org.opencontainers.image.licenses=Apache-2.0
 
       - name: Check frontend release image on a read-only file system
-        env:
-          VERSION: ${{ steps.release_meta.outputs.version }}
         run: sh docker/frontend-image_test.sh "ghcr.io/chattocorp/chatto-client:${VERSION}-amd64"
 
       - name: Build frontend release image (arm64)
@@ -824,19 +635,17 @@ jobs:
           file: docker/Dockerfile.frontend.prebuilt
           load: true
           platforms: linux/arm64
-          tags: ghcr.io/chattocorp/chatto-client:${{ steps.release_meta.outputs.version }}-arm64
+          tags: ghcr.io/chattocorp/chatto-client:${{ inputs.version }}-arm64
           cache-from: type=gha,scope=chatto-client-arm64
           cache-to: type=gha,scope=chatto-client-arm64,mode=max
           labels: |
             org.opencontainers.image.source=https://github.com/chattocorp/chatto
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.release_meta.outputs.version }}
+            org.opencontainers.image.revision=${{ inputs.commit }}
+            org.opencontainers.image.version=${{ inputs.version }}
             org.opencontainers.image.licenses=Apache-2.0
 
       - name: Save release images
         shell: bash
-        env:
-          VERSION: ${{ steps.release_meta.outputs.version }}
         run: |
           set -euo pipefail
           mkdir -p .context/release-images
@@ -868,20 +677,27 @@ jobs:
           retention-days: 7
 
   # Publication uses the initial approval and requires every build to succeed.
+  # Every step can run again: Sweet reuses the draft and leaves a published
+  # release unchanged, and the image tags point at the same images.
   release:
     needs: [approve-release, build-server-release, assemble-desktop-release, publish-chatto-client]
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    if: ${{ inputs.tag != '' }}
     runs-on: ubuntu-latest
     concurrency:
-      group: chatto-release-publication-${{ github.ref }}
+      group: chatto-release-publication-${{ inputs.tag }}
       cancel-in-progress: false
     permissions:
       contents: write
       packages: write
-    outputs:
-      is_stable: ${{ needs.build-server-release.outputs.is_stable }}
+    env:
+      TAG: ${{ inputs.tag }}
+      VERSION: ${{ inputs.version }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
 
       - name: Download server release archives
         uses: actions/download-artifact@v8
@@ -919,180 +735,44 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: jdx/mise-action@v3
-        with:
-          install: false
+      # Unreleased Sweet Release commit (PRs #62, #63, and #64, `sweet github release`):
+      # move to the next Sweet release tag. The action builds the CLI from this revision.
+      - uses: chattocorp/sweet-release/.github/actions/bootstrap@7e618be0b38acb105fe128f030f2f9b71527a0f6
 
-      - name: Create draft from change notes
+      # The draft gets the title `Chatto <version>` and the changelog entry.
+      - name: Upload assets to the draft release
         env:
           GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            mise x -- sweet changelog --version "${GITHUB_REF_NAME#v}" -- . > "$RUNNER_TEMP/release-notes.md"
-            flags=()
-            if [[ "$GITHUB_REF_NAME" == *-* ]]; then flags+=(--prerelease); fi
-            gh release create "$GITHUB_REF_NAME" --verify-tag --draft --latest=false \
-              --title "Chatto ${GITHUB_REF_NAME#v}" --notes-file "$RUNNER_TEMP/release-notes.md" "${flags[@]}"
-          fi
-
-      # Overwrite assets on a retry, including a retry after GitHub publication.
-      - name: Upload release assets
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          gh release view "$GITHUB_REF_NAME" > /dev/null
-          gh release upload "$GITHUB_REF_NAME" \
-            .context/server-release/* .context/desktop-release/* --clobber
+        run: sweet github release "$TAG" --draft .context/server-release/* .context/desktop-release/*
 
       - name: Publish release images
-        shell: bash
         env:
-          VERSION: ${{ needs.build-server-release.outputs.version }}
-          PUSH_LATEST: ${{ needs.build-server-release.outputs.make_latest }}
-        run: |
-          set -euo pipefail
-          for repository in chatto-client chatto; do
-            image="ghcr.io/chattocorp/${repository}"
-            docker push "${image}:${VERSION}-amd64"
-            docker push "${image}:${VERSION}-arm64"
-            tags=(--tag "${image}:${VERSION}")
-            if [[ "$VERSION" == *-* ]]; then
-              tags+=(--tag "${image}:next")
-            else
-              if [[ "$repository" == chatto ]]; then
-                tags+=(--tag "${image}:${VERSION%.*}")
-              fi
-              if [[ "$PUSH_LATEST" == true ]]; then
-                tags+=(--tag "${image}:latest")
-              fi
-            fi
-            docker buildx imagetools create "${tags[@]}" \
-              "${image}:${VERSION}-amd64" "${image}:${VERSION}-arm64"
-          done
+          PRERELEASE: ${{ inputs.prerelease }}
+          HIGHEST: ${{ inputs.highest }}
+        run: bash tools/release/publish-images.sh
 
+      # Sweet sets prerelease from the version and makes only the highest
+      # stable Chatto version the repository's Latest release.
       - name: Publish GitHub Release
-        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
-          VERSION: ${{ needs.build-server-release.outputs.version }}
-          MAKE_LATEST: ${{ needs.build-server-release.outputs.make_latest }}
-        run: |
-          set -euo pipefail
-
-          gh release edit "v${VERSION}" \
-            --repo chattocorp/chatto \
-            --draft=false \
-            --latest="$MAKE_LATEST"
+        run: sweet github release "$TAG"
 
       - name: Update Homebrew tap
-        if: ${{ needs.build-server-release.outputs.is_stable == 'true' }}
-        shell: bash
+        if: ${{ inputs.highest }}
         env:
           GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-          VERSION: ${{ needs.build-server-release.outputs.version }}
-        run: |
-          set -euo pipefail
-
-          if [[ -z "${HOMEBREW_TAP_GITHUB_TOKEN:-}" ]]; then
-            echo "::error::HOMEBREW_TAP_GITHUB_TOKEN is required to update chattocorp/homebrew-tap."
-            exit 1
-          fi
-
-          workdir="$(mktemp -d)"
-          checksums="${workdir}/chatto_${VERSION}_checksums.txt"
-
-          gh release download "v${VERSION}" \
-            --repo chattocorp/chatto \
-            --pattern "chatto_${VERSION}_checksums.txt" \
-            --dir "${workdir}"
-
-          checksum_for() {
-            awk -v artifact="$1" '$2 == artifact { print $1 }' "${checksums}"
-          }
-
-          darwin_arm64_sha="$(checksum_for chatto_Darwin_arm64.tar.gz)"
-          linux_arm64_sha="$(checksum_for chatto_Linux_arm64.tar.gz)"
-          linux_x86_64_sha="$(checksum_for chatto_Linux_x86_64.tar.gz)"
-
-          for checksum in darwin_arm64_sha linux_arm64_sha linux_x86_64_sha; do
-            if [[ -z "${!checksum}" ]]; then
-              echo "::error::Missing ${checksum} in ${checksums}."
-              exit 1
-            fi
-          done
-
-          tap_dir="${workdir}/homebrew-tap"
-          git clone "https://x-access-token:${HOMEBREW_TAP_GITHUB_TOKEN}@github.com/chattocorp/homebrew-tap.git" "${tap_dir}"
-
-          mkdir -p "${tap_dir}/Formula"
-          cat > "${tap_dir}/Formula/chatto.rb" <<FORMULA
-          class Chatto < Formula
-            desc "Real-time chat app CLI and server"
-            homepage "https://github.com/chattocorp/chatto"
-            version "${VERSION}"
-            license "AGPL-3.0-or-later"
-
-            on_macos do
-              on_arm do
-                url "https://github.com/chattocorp/chatto/releases/download/v#{version}/chatto_Darwin_arm64.tar.gz"
-                sha256 "${darwin_arm64_sha}"
-              end
-
-              on_intel do
-                odie "Chatto currently provides Homebrew builds for Apple Silicon macOS only."
-              end
-            end
-
-            on_linux do
-              on_arm do
-                url "https://github.com/chattocorp/chatto/releases/download/v#{version}/chatto_Linux_arm64.tar.gz"
-                sha256 "${linux_arm64_sha}"
-              end
-
-              on_intel do
-                url "https://github.com/chattocorp/chatto/releases/download/v#{version}/chatto_Linux_x86_64.tar.gz"
-                sha256 "${linux_x86_64_sha}"
-              end
-            end
-
-            def install
-              bin.install "chatto"
-              system "codesign", "--force", "--sign", "-", bin/"chatto" if OS.mac?
-            end
-
-            test do
-              assert_match "chatto version #{version}", shell_output("#{bin}/chatto version")
-            end
-          end
-          FORMULA
-
-          git -C "${tap_dir}" config user.name "github-actions[bot]"
-          git -C "${tap_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          if git -C "${tap_dir}" diff --quiet -- Formula/chatto.rb; then
-            echo "Homebrew tap already contains Chatto ${VERSION}."
-            exit 0
-          fi
-
-          git -C "${tap_dir}" add Formula/chatto.rb
-          git -C "${tap_dir}" commit -m "chore: update chatto to v${VERSION}"
-          git -C "${tap_dir}" push origin HEAD:main
+        run: bash tools/release/update-homebrew.sh
 
   publish-stable-docs:
     needs: release
-    if: ${{ github.event_name == 'push' && needs.release.outputs.is_stable == 'true' }}
+    if: ${{ inputs.highest }}
     permissions:
       contents: read
       packages: write
     uses: ./.github/workflows/build-docs-image.yml
     with:
       channel: stable
-      ref: ${{ github.ref }}
-    secrets: inherit
+      # The stable docs build reads its version from the exact tag.
+      ref: ${{ inputs.tag }}

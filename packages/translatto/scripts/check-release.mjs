@@ -2,16 +2,12 @@
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
-/** Check package identity and, when supplied, the release tag.
+/** Check package identity.
  * @param {{name: string, version: string}} manifest
- * @param {string} tag
  */
-export function assertRelease(manifest, tag = '') {
+export function assertRelease(manifest) {
   if (manifest.name !== '@chatto/translatto' || !/^\d+\.\d+\.\d+$/.test(manifest.version)) {
     throw new Error('Expected a stable @chatto/translatto release version');
-  }
-  if (tag && tag !== `translatto/v${manifest.version}`) {
-    throw new Error('Tag must match package version');
   }
 }
 
@@ -38,22 +34,18 @@ export async function assertUnusedVersion(version, request = fetch) {
 
 /** Check identity in every mode; only publication requires an unused version.
  * @param {{name: string, version: string}} manifest
- * @param {{tag?: string, verifyOnly?: boolean}} options
+ * @param {{verifyOnly?: boolean}} options
  * @param {typeof fetch} request
  */
-export async function checkRelease(
-  manifest,
-  { tag = '', verifyOnly = false } = {},
-  request = fetch
-) {
-  assertRelease(manifest, tag);
+export async function checkRelease(manifest, { verifyOnly = false } = {}, request = fetch) {
+  assertRelease(manifest);
   if (!verifyOnly) await assertUnusedVersion(manifest.version, request);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   const verifyOnly = process.argv.includes('--verify-only');
-  await checkRelease(manifest, { tag: process.env.RELEASE_TAG, verifyOnly });
+  await checkRelease(manifest, { verifyOnly });
   console.log(
     verifyOnly
       ? `Verified ${manifest.name}@${manifest.version} release identity.`

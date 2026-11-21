@@ -676,8 +676,9 @@ releases workflow manually to refresh a PR after unrelated changes or retry a
 failure. Correct release content on `main`; generated PR edits can be replaced.
 
 After all selected CI checks pass, CI tags each release commit in the full push
-range. Existing artifact workflows publish from those tags. The migration
-manifests record existing versions without creating replacement tags.
+range. The same CI run then publishes each tagged version. A manual tag push
+starts no build. The migration manifests record existing versions without
+creating replacement tags.
 
 Inspect pending notes with `mise x -- sweet status`. In a clean checkout, run
 `mise x -- sweet bump <package-path>` to preview a release and inspect the diff.

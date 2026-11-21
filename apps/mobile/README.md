@@ -60,8 +60,8 @@ service in this prototype. Native bridge logging is disabled.
 
 ## Automated TestFlight updates
 
-The `Publish iOS to TestFlight` workflow runs on Chatto `v*` tags, including
-prereleases. It rebuilds the shared frontend, signs an iOS device archive, and
+CI starts the `Publish iOS to TestFlight` workflow on each Chatto `v*` tag that
+it creates, including prereleases, as a manual run on the tag. It rebuilds the shared frontend, signs an iOS device archive, and
 uploads it to App Store Connect. To upload between releases, run the workflow
 manually from `main` in GitHub Actions. The selected commit must be reachable
 from `main` or a `release-*` branch. This workflow is independent of server and

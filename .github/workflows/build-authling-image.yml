@@ -16,8 +16,6 @@ on:
       - '!**/.sweet/**'
   push:
     branches: [main]
-    tags: ['authling/v*']
-    # GitHub does not apply path filters to tag pushes.
     paths:
       - 'authling/**'
       - 'pkg/**'
@@ -30,6 +28,13 @@ on:
       # Release notes and changelogs do not change the image.
       - '!**/CHANGELOG.md'
       - '!**/.sweet/**'
+  # publish-releases.yml calls this for each Authling version that Sweet tags.
+  workflow_call:
+    inputs:
+      release_tag:
+        description: 'Authling release tag to build and publish, such as authling/v0.2.0.'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       release_tag:
@@ -39,7 +44,7 @@ on:
 
 concurrency:
   # Release builds share a group because they all update the latest tag.
-  group: authling-image-${{ (inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/authling/v')) && 'latest' || github.ref }}
+  group: authling-image-${{ inputs.release_tag != '' && 'latest' || github.ref }}
   cancel-in-progress: false
 
 permissions:

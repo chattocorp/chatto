@@ -306,15 +306,16 @@ releases made in the former repository. New releases use tags such as
 `runling/v0.8.0`. Runling notes select only Runling releases.
 
 The Prepare releases workflow creates a PR from Runling notes. After it merges
-and CI succeeds, CI creates its version tag. A Runling tag starts `publish-runling.yml`, which
-checks the version, rejects versions previously published to npm, and tests
-the package. A separate job publishes that exact tarball with npm provenance.
-Manual workflow runs only test and save the tarball.
+and CI succeeds, CI creates its version tag. The same CI run calls `npm.yml`, which
+rejects versions previously published to npm and tests the package. A separate
+job publishes that exact tarball with npm provenance. Manual `npm.yml` runs only
+test and save the tarball.
 
 Before the first release from this repository, configure the `runling` npm
 package's [trusted publisher](https://docs.npmjs.com/trusted-publishers/) with
-owner `chattocorp`, repository `chatto`, workflow `publish-runling.yml`, and
-environment `npm`. Enable publishing for that trust relationship and configure
+owner `chattocorp`, repository `chatto`, workflow `ci.yml`, and
+environment `npm`. npm checks the workflow that started the run, not the
+reusable `npm.yml`. Enable publishing for that trust relationship and configure
 the GitHub `npm` environment's protection rules. The former repository's
 publisher configuration does not authorize this repository. Disable its
 release workflow when this migration is merged so only one repository owns
