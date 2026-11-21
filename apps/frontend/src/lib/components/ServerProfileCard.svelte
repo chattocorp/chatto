@@ -20,7 +20,7 @@ card. Callers supply trusted badges and actions through explicit props.
   import ServerLogo from '$lib/components/ServerLogo.svelte';
   import { m } from '$lib/i18n/messages';
   import { loadPublicServerImage, publicServerImageURL } from '$lib/publicServerImage';
-  import { Pill, ScrollFader } from '$lib/ui';
+  import { InlineMarkdown, Pill, ScrollFader } from '$lib/ui';
   import { getGradientForName } from '$lib/utils/gradients';
 
   let {
@@ -69,6 +69,8 @@ card. Callers supply trusted badges and actions through explicit props.
   /** Keep text selectable and preserve link modifiers through the scroll viewport. */
   function activateFromDescription(event: MouseEvent) {
     if (window.getSelection()?.toString()) return;
+    // Links in the description open their own target, not the card's.
+    if (event.target instanceof Element && event.target.closest('a')) return;
     if (cardAction instanceof HTMLAnchorElement) {
       cardAction.dispatchEvent(
         new MouseEvent('click', {
@@ -204,9 +206,12 @@ card. Callers supply trusted badges and actions through explicit props.
       data-press-feedback={interactive && !disabled ? 'surface' : undefined}
     >
       {#if profile?.description}
-        <p class="text-xs wrap-anywhere whitespace-pre-wrap text-muted @min-[16rem]/card:text-sm">
-          <bdi dir="auto">{profile.description}</bdi>
-        </p>
+        <div
+          class="prose max-w-none text-xs wrap-anywhere text-muted @min-[16rem]/card:text-sm"
+          dir="auto"
+        >
+          <InlineMarkdown text={profile.description} multiline />
+        </div>
       {:else if profile === null}
         <p class="text-text">{m('add_server.directory.profile_unavailable')}</p>
       {/if}

@@ -6,7 +6,7 @@ description, clamped to two lines. The window bar of a sign-in window shows the
 server's icon and name (`SignInWindowHeader`).
 -->
 <script lang="ts">
-  import { MarkdownHtml } from '$lib/ui';
+  import { InlineMarkdown, MarkdownHtml } from '$lib/ui';
 
   let {
     name,
@@ -66,7 +66,9 @@ server's icon and name (`SignInWindowHeader`).
   {/if}
 
   {#if description}
-    <p class={['text-center text-muted', compact && 'line-clamp-2']}>{description}</p>
+    <div class={['prose prose-center max-w-none text-muted', compact && 'line-clamp-2']} dir="auto">
+      <InlineMarkdown text={description} multiline />
+    </div>
   {/if}
 
   {#if welcomeMessage}

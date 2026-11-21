@@ -30,6 +30,7 @@ export { default as LoadingDots } from './LoadingDots.svelte';
 export { default as LoadingFog } from './LoadingFog.svelte';
 export { default as LoadRetry } from './LoadRetry.svelte';
 export { default as MarkdownHtml } from './MarkdownHtml.svelte';
+export { default as InlineMarkdown } from './InlineMarkdown.svelte';
 export { default as MenuItem } from './MenuItem.svelte';
 export { default as MenuSection } from './MenuSection.svelte';
 export { default as MotdContent } from './MotdContent.svelte';
