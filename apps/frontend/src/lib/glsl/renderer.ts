@@ -68,12 +68,6 @@ type Program = {
   timeDelta: WebGLUniformLocation | null;
   frame: WebGLUniformLocation | null;
   mouse: WebGLUniformLocation | null;
-  /**
-   * Drivers can finish compiling a program during its first draw. That draw
-   * can take far longer than later frames, so it does not count against the
-   * frame budget. A first draw that hangs the GPU still loses the context.
-   */
-  drawn: boolean;
 };
 
 let gl: WebGL2RenderingContext | null = null;
@@ -150,8 +144,7 @@ function program(source: string): Program | null {
         time: context_.getUniformLocation(linked, 'iTime'),
         timeDelta: context_.getUniformLocation(linked, 'iTimeDelta'),
         frame: context_.getUniformLocation(linked, 'iFrame'),
-        mouse: context_.getUniformLocation(linked, 'iMouse'),
-        drawn: false
+        mouse: context_.getUniformLocation(linked, 'iMouse')
       };
     } else {
       context_.deleteProgram(linked);
@@ -234,6 +227,14 @@ class Player {
   #playing = false;
   /** Paused for using up the frame budget. Pointer input does not redraw it. */
   #slowed = false;
+  /**
+   * Drivers can finish compiling a program during its first draw, which can
+   * take far longer than later frames. Each player's first draw therefore does
+   * not count against the frame budget. The exemption belongs to the player,
+   * not the cached program, so evicting and linking programs again cannot
+   * renew it. A first draw that hangs the GPU still loses the context.
+   */
+  #warm = false;
   #mouse: [number, number, number, number] = [0, 0, 0, 0];
   #events: ShaderPlayerEvents;
 
@@ -318,8 +319,8 @@ class Player {
     }
     this.#target.drawImage(context_.canvas, 0, 0);
     const elapsed = performance.now() - started;
-    if (!entry.drawn) {
-      entry.drawn = true;
+    if (!this.#warm) {
+      this.#warm = true;
       return 0;
     }
     return elapsed;
