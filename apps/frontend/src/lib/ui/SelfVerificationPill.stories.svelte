@@ -79,7 +79,7 @@
           method: 'atproto',
           methodLabel: 'AT Protocol',
           value: 'hmans.dev',
-          hasBlueskyProfile: true
+          profileTypes: ['app.bsky.actor.profile']
         }
       ]}
     />

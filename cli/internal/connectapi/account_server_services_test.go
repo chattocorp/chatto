@@ -1901,14 +1901,22 @@ func TestGetUserVerifiedIdentities(t *testing.T) {
 	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "alice.example"}}, read(true))
 	require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", linked.Issuer, linked.Subject, "app.bsky.actor.profile", true))
 	directory.Insert(identity.Identity{DID: "did:plc:member", Handle: "new.example"})
-	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "new.example", HasBlueskyProfile: true}}, read(true))
+	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "new.example", ProfileTypes: []string{"app.bsky.actor.profile"}}}, read(true))
 	require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", linked.Issuer, linked.Subject, "example.actor.profile", true))
 	require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", linked.Issuer, linked.Subject, "app.bsky.actor.profile", false))
 	links, err := env.core.ExternalIdentitiesForUser(ctx, target.Id)
 	require.NoError(t, err)
 	linked.ProfileTypes = []string{"example.actor.profile"}
 	require.Contains(t, links, linked)
-	require.False(t, read(true)[0].HasBlueskyProfile)
+	require.Equal(t, []string{"example.actor.profile"}, read(true)[0].ProfileTypes)
+	// Another provider can report overlapping types for the same verified handle.
+	second, err := env.core.LinkExternalIdentityAs(ctx, target.Id, "other", "atproto", "other", linked.Subject, target.Id)
+	require.NoError(t, err)
+	for _, profileType := range []string{"example.actor.profile", "another.profile"} {
+		require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", second.Issuer, second.Subject, profileType, true))
+	}
+	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "new.example", ProfileTypes: []string{"another.profile", "example.actor.profile"}}}, read(true))
+	require.NoError(t, env.core.DisconnectExternalIdentityAs(ctx, target.Id, target.Id, second.SubjectHash, core.ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}))
 	require.NoError(t, env.core.DisconnectExternalIdentityAs(ctx, target.Id, target.Id, linked.SubjectHash, core.ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}))
 	require.NoError(t, env.core.SyncExternalIdentityProfileType(ctx, target.Id, "atproto", linked.Issuer, linked.Subject, "app.bsky.actor.profile", true))
 	require.Empty(t, read(true))
@@ -1932,5 +1940,5 @@ func TestVerifiedIdentityFromATProtoSignup(t *testing.T) {
 		Target: &apiv1.GetUserRequest_UserId{UserId: member.Id}, IncludeVerifiedIdentities: true,
 	}))
 	require.NoError(t, err)
-	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "alice.example", HasBlueskyProfile: true}}, response.Msg.VerifiedIdentities)
+	require.Equal(t, []*apiv1.VerifiedIdentity{{Method: "atproto", MethodLabel: "AT Protocol", Value: "alice.example", ProfileTypes: []string{"app.bsky.actor.profile"}}}, response.Msg.VerifiedIdentities)
 }

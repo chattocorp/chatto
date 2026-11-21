@@ -22,8 +22,10 @@ message VerifiedIdentity {
   string method_label = 2;
   // Public identity text for display, for example an AT Protocol handle without @.
   string value = 3;
-  // True when the server found a Bluesky profile for this AT Protocol handle.
-  bool has_bluesky_profile = 4;
+  // Public profile types reported for this identity, sorted and unique.
+  // Identifiers are specific to the verification method. An empty list means
+  // the server has no reported types. Clients can ignore unfamiliar types.
+  repeated string profile_types = 4;
 }
 
 // Public user fields.

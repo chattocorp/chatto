@@ -2,9 +2,9 @@ package connectapi
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"errors"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -107,7 +107,7 @@ func (s *userService) GetUser(ctx context.Context, req *connect.Request[apiv1.Ge
 func (s *userService) verifiedIdentities(ctx context.Context, links []core.ExternalIdentity) []*apiv1.VerifiedIdentity {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	var identities []*apiv1.VerifiedIdentity
+	typesByHandle := make(map[string][]string)
 	for _, link := range links {
 		if link.ProviderType != config.AuthProviderTypeATProto {
 			continue
@@ -118,30 +118,20 @@ func (s *userService) verifiedIdentities(ctx context.Context, links []core.Exter
 		}
 		account, err := s.api.atprotoDirectory().LookupDID(ctx, did)
 		if err == nil && account.Handle != "" && !account.Handle.IsInvalidHandle() {
-			identities = append(identities, &apiv1.VerifiedIdentity{
-				Method:            config.AuthProviderTypeATProto,
-				MethodLabel:       "AT Protocol",
-				HasBlueskyProfile: slices.Contains(link.ProfileTypes, "app.bsky.actor.profile"),
-				Value:             account.Handle.Normalize().String(),
-			})
+			handle := account.Handle.Normalize().String()
+			typesByHandle[handle] = append(typesByHandle[handle], link.ProfileTypes...)
 		}
 	}
-	slices.SortFunc(identities, func(a, b *apiv1.VerifiedIdentity) int {
-		if order := cmp.Or(strings.Compare(a.Method, b.Method), strings.Compare(a.Value, b.Value)); order != 0 {
-			return order
-		}
-		// Keep a positive observation when several providers linked the same DID.
-		if a.HasBlueskyProfile != b.HasBlueskyProfile {
-			if a.HasBlueskyProfile {
-				return -1
-			}
-			return 1
-		}
-		return 0
-	})
-	return slices.CompactFunc(identities, func(a, b *apiv1.VerifiedIdentity) bool {
-		return a.Method == b.Method && a.Value == b.Value
-	})
+	var identities []*apiv1.VerifiedIdentity
+	for _, handle := range slices.Sorted(maps.Keys(typesByHandle)) {
+		types := typesByHandle[handle]
+		slices.Sort(types)
+		identities = append(identities, &apiv1.VerifiedIdentity{
+			Method: config.AuthProviderTypeATProto, MethodLabel: "AT Protocol",
+			Value: handle, ProfileTypes: slices.Compact(types),
+		})
+	}
+	return identities
 }
 
 func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[apiv1.BatchGetUsersRequest]) (*connect.Response[apiv1.BatchGetUsersResponse], error) {

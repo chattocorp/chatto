@@ -80,11 +80,13 @@ export class VerifiedIdentity extends Message<VerifiedIdentity> {
   value = "";
 
   /**
-   * True when the server found a Bluesky profile for this AT Protocol handle.
+   * Public profile types reported for this identity, sorted and unique.
+   * Identifiers are specific to the verification method. An empty list means
+   * the server has no reported types. Clients can ignore unfamiliar types.
    *
-   * @generated from field: bool has_bluesky_profile = 4;
+   * @generated from field: repeated string profile_types = 4;
    */
-  hasBlueskyProfile = false;
+  profileTypes: string[] = [];
 
   constructor(data?: PartialMessage<VerifiedIdentity>) {
     super();
@@ -97,7 +99,7 @@ export class VerifiedIdentity extends Message<VerifiedIdentity> {
     { no: 1, name: "method", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "method_label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "has_bluesky_profile", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "profile_types", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): VerifiedIdentity {

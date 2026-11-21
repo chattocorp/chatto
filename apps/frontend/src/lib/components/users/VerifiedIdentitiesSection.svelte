@@ -30,7 +30,7 @@ callers supply a storage key for the disclosure. Popups show the list directly.
           icon={providerIcon(entry.method)}
           identity={entry.value}
         />
-        {#if entry.method === 'atproto' && entry.hasBlueskyProfile}
+        {#if entry.method === 'atproto' && entry.profileTypes?.includes('app.bsky.actor.profile')}
           <a
             href={`https://bsky.app/profile/${encodeURIComponent(entry.value)}`}
             target="_blank"

@@ -128,10 +128,20 @@ describe('RoomSidebarProfile', () => {
         method: 'atproto',
         methodLabel: 'AT Protocol',
         value: 'alice.example',
-        hasBlueskyProfile: true
+        profileTypes: ['another.profile', 'app.bsky.actor.profile']
       },
-      { method: 'atproto', methodLabel: 'AT Protocol', value: 'other.example' },
-      { method: 'custom-directory', methodLabel: 'Community directory', value: 'Member 123' }
+      {
+        method: 'atproto',
+        methodLabel: 'AT Protocol',
+        value: 'other.example',
+        profileTypes: ['another.profile']
+      },
+      {
+        method: 'custom-directory',
+        methodLabel: 'Community directory',
+        value: 'Member 123',
+        profileTypes: ['app.bsky.actor.profile']
+      }
     ]);
     userStore().set(user.id, userProfileFixture(user));
     const { container } = renderProfile();

@@ -281,7 +281,7 @@ An empty search reads lifecycle and membership metadata without profile
 decryption. Name searches hydrate profiles to match login and display name.
 An optional presence-status filter uses the shared watcher snapshot before
 pagination. Counts describe the filtered set. It does not read per-user KV keys.
-`UserService.GetUser` returns public verified identities when the caller sets `include_verified_identities`. Each entry contains a method key, a method label, and the public identity value. The AT Protocol method resolves handles through a directory cache on each replica. Its entry also reports whether sign-in found a public Bluesky profile.
+`UserService.GetUser` returns public verified identities when the caller sets `include_verified_identities`. Each entry contains a method key, a method label, the public identity value, and the profile types reported for that identity. The AT Protocol method resolves handles through a directory cache on each replica.
 
 `UserService.BatchGetUsers` assembles requested profiles with bounded concurrency
 and one request-scoped encryption-key cache. See
