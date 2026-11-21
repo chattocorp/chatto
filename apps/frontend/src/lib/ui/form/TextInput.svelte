@@ -1,6 +1,6 @@
 <script lang="ts">
   import FormField from './FormField.svelte';
-  import { createByteLimit } from './byteLimit';
+  import { fitToBytes } from './byteLimit';
   import type { Snippet } from 'svelte';
   import type { HTMLInputAttributes } from 'svelte/elements';
 
@@ -49,7 +49,7 @@
     autocomplete?: HTMLInputAttributes['autocomplete'];
     minlength?: number;
     maxlength?: number;
-    /** Reject edits whose UTF-8 encoding would exceed this many bytes. */
+    /** Cut the text at the end so that its UTF-8 encoding fits this many bytes. */
     maxBytes?: number;
     autofocus?: boolean;
     /** Iconify class name (e.g. `'icon-[uil--search]'`). Renders a leading icon inside the input. */
@@ -71,14 +71,11 @@
     oninput?: (e: Event) => void;
   } = $props();
 
-  const byteLimit = createByteLimit(() => maxBytes ?? Infinity);
-
-  $effect(() => {
-    byteLimit.track(value);
-  });
-
   function handleInput(event: Event) {
-    value = byteLimit.accept(event.currentTarget as HTMLInputElement);
+    const field = event.currentTarget as HTMLInputElement;
+    const fitted = fitToBytes(field.value, maxBytes ?? Infinity);
+    if (fitted !== field.value) field.value = fitted;
+    value = fitted;
     oninput?.(event);
   }
 </script>

@@ -4,21 +4,17 @@ import { render } from 'vitest-browser-svelte';
 import TextInput from './TextInput.svelte';
 
 describe('TextInput', () => {
-  it('keeps the part of an edit that fits a UTF-8 byte limit', () => {
+  it('cuts text at the end to fit a UTF-8 byte limit', () => {
     const { container } = render(TextInput, {
       id: 'motd',
       label: 'Message of the Day',
-      value: '💬',
       maxBytes: 6
     });
     const input = container.querySelector('input')!;
 
     input.value = '💬abc';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(input.value).toBe('💬ab');
 
-    input.value = '💬abc';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
     expect(input.value).toBe('💬ab');
   });
 

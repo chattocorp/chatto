@@ -1,6 +1,6 @@
 <script lang="ts">
   import FormField from './FormField.svelte';
-  import { createByteLimit } from './byteLimit';
+  import { fitToBytes } from './byteLimit';
 
   let {
     label,
@@ -28,20 +28,17 @@
     disabled?: boolean;
     rows?: number;
     maxlength?: number;
-    /** Reject edits whose UTF-8 encoding would exceed this many bytes. */
+    /** Cut the text at the end so that its UTF-8 encoding fits this many bytes. */
     maxBytes?: number;
     oninput?: (e: Event) => void;
   } = $props();
 
   const effectiveMaxlength = $derived(maxlength ?? maxBytes);
-  const byteLimit = createByteLimit(() => maxBytes ?? Infinity);
-
-  $effect(() => {
-    byteLimit.track(value);
-  });
-
   function handleInput(event: Event) {
-    value = byteLimit.accept(event.currentTarget as HTMLTextAreaElement);
+    const field = event.currentTarget as HTMLTextAreaElement;
+    const fitted = fitToBytes(field.value, maxBytes ?? Infinity);
+    if (fitted !== field.value) field.value = fitted;
+    value = fitted;
     oninput?.(event);
   }
 </script>
