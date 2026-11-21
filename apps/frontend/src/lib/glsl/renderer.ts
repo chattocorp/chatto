@@ -8,8 +8,11 @@
  *
  * Shaders use the Shadertoy entry point
  * `void mainImage(out vec4 fragColor, in vec2 fragCoord)` with the uniforms
- * `iResolution`, `iTime`, `iTimeDelta`, `iFrame`, and `iMouse`. Textures,
- * buffers, and audio inputs are not supported.
+ * `iResolution`, `iTime`, `iTimeDelta`, `iFrame`, and `iMouse`. `iChannel0`
+ * is a font texture with Shadertoy's layout (see `./fontAtlas`), and
+ * `iChannelResolution[0]` is its size. Other textures, buffers, and audio
+ * inputs are not supported. The font texture is built only for shaders that
+ * mention `iChannel0`.
  *
  * `iMouse` follows Shadertoy: `xy` is the pointer position while a button is
  * down and keeps the last position after release. `zw` is the press position.
@@ -29,6 +32,8 @@ const FRAME_BUDGET_MS = 100;
 /** Keep a bounded number of linked programs. */
 const MAX_PROGRAMS = 16;
 
+import { FONT_ATLAS_SIZE, fontAtlas, loadFontAtlasFont } from './fontAtlas';
+
 const VERTEX_SOURCE = `#version 300 es
 void main() {
   vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
@@ -44,6 +49,8 @@ uniform float iTime;
 uniform float iTimeDelta;
 uniform int iFrame;
 uniform vec4 iMouse;
+uniform sampler2D iChannel0;
+uniform vec3 iChannelResolution[4];
 out vec4 chattoFragColor;
 #line 1
 ${source}
@@ -64,6 +71,8 @@ type Program = {
 };
 
 let gl: WebGL2RenderingContext | null = null;
+/** The context that has the font texture on texture unit 0. */
+let fontContext: WebGL2RenderingContext | null = null;
 /** Source of the latest draw, which receives the blame for a context loss. */
 let lastSource: string | undefined;
 // Insertion order gives least-recently-used eviction; `null` records a failure.
@@ -128,6 +137,7 @@ function program(source: string): Program | null {
     context_.attachShader(linked, fragment);
     context_.linkProgram(linked);
     if (context_.getProgramParameter(linked, context_.LINK_STATUS)) {
+      if (usesFont(source)) bindFont(context_, linked);
       result = {
         program: linked,
         resolution: context_.getUniformLocation(linked, 'iResolution'),
@@ -149,6 +159,50 @@ function program(source: string): Program | null {
     programs.delete(oldest);
   }
   return result;
+}
+
+function usesFont(source: string): boolean {
+  return /\biChannel0\b/.test(source);
+}
+
+/** Upload the font texture once per context, and point the program's channel at it. */
+function bindFont(context_: WebGL2RenderingContext, linked: WebGLProgram) {
+  if (fontContext !== context_) {
+    const texture = context_.createTexture();
+    context_.activeTexture(context_.TEXTURE0);
+    context_.bindTexture(context_.TEXTURE_2D, texture);
+    context_.texImage2D(
+      context_.TEXTURE_2D,
+      0,
+      context_.RGBA,
+      FONT_ATLAS_SIZE,
+      FONT_ATLAS_SIZE,
+      0,
+      context_.RGBA,
+      context_.UNSIGNED_BYTE,
+      fontAtlas()
+    );
+    context_.generateMipmap(context_.TEXTURE_2D);
+    context_.texParameteri(
+      context_.TEXTURE_2D,
+      context_.TEXTURE_MIN_FILTER,
+      context_.LINEAR_MIPMAP_LINEAR
+    );
+    context_.texParameteri(context_.TEXTURE_2D, context_.TEXTURE_MAG_FILTER, context_.LINEAR);
+    context_.texParameteri(context_.TEXTURE_2D, context_.TEXTURE_WRAP_S, context_.CLAMP_TO_EDGE);
+    context_.texParameteri(context_.TEXTURE_2D, context_.TEXTURE_WRAP_T, context_.CLAMP_TO_EDGE);
+    fontContext = context_;
+  }
+  context_.useProgram(linked);
+  context_.uniform1i(context_.getUniformLocation(linked, 'iChannel0'), 0);
+  const resolution = new Float32Array(12);
+  resolution.set([FONT_ATLAS_SIZE, FONT_ATLAS_SIZE, 1]);
+  context_.uniform3fv(context_.getUniformLocation(linked, 'iChannelResolution'), resolution);
+}
+
+/** Load what a shader needs before `isShaderUsable`, such as the font for `iChannel0`. */
+export async function loadShaderInputs(source: string): Promise<void> {
+  if (usesFont(source)) await loadFontAtlasFont();
 }
 
 /** Compile and link the shader. Returns false for invalid source or missing WebGL 2. */

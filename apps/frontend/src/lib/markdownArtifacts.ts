@@ -175,10 +175,11 @@ export function attachCodeFrames(
       /** Shaders draw on a canvas, outside the image cache and its size reservations. */
       async function startShader() {
         try {
-          const [{ isShaderUsable }, { ShaderPreview }] = await Promise.all([
+          const [{ isShaderUsable, loadShaderInputs }, { ShaderPreview }] = await Promise.all([
             import('./glsl/renderer'),
             import('$lib/ui/attachments')
           ]);
+          await loadShaderInputs(source);
           if (signal.aborted || failed) return;
           if (!isShaderUsable(source)) {
             fail();

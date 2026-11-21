@@ -221,6 +221,35 @@ describe('GLSL shader previews', () => {
     }
   });
 
+  it.skipIf(!webgl2)('provides the Shadertoy font layout in iChannel0', async () => {
+    // Red: the "M" cell has ink. Green: the channel size. Blue: the space cell is empty.
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown(
+        [
+          '```glsl rendered',
+          'float ink(int code) {',
+          '  vec2 cell = vec2(float(code % 16), float(15 - code / 16));',
+          '  float most = 0.0;',
+          '  for (int i = 0; i < 16; i++)',
+          '    for (int j = 0; j < 16; j++)',
+          '      most = max(most, textureLod(iChannel0, (cell + (vec2(i, j) + 0.5) / 16.0) / 16.0, 0.0).r);',
+          '  return most;',
+          '}',
+          'void mainImage(out vec4 c, in vec2 p) {',
+          '  c = vec4(ink(77) > 0.5 ? 1.0 : 0.0, iChannelResolution[0].x == 1024.0 ? 1.0 : 0.0, ink(32) < 0.01 ? 1.0 : 0.0, 1.0);',
+          '}',
+          '```'
+        ].join('\n'),
+        { shaders: true }
+      )
+    });
+    await expect.poll(() => container.querySelector('canvas.shader-preview')).not.toBeNull();
+    const canvas = container.querySelector<HTMLCanvasElement>('canvas.shader-preview')!;
+    expect([...canvas.getContext('2d')!.getImageData(0, 0, 1, 1).data]).toEqual([
+      255, 255, 255, 255
+    ]);
+  });
+
   it.skipIf(!webgl2)('reveals source when the shader does not compile', async () => {
     const { container } = render(MarkdownHtml, { html: await shader('c = missing;') });
     await expect
