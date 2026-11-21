@@ -51,9 +51,17 @@ Transient fetch failures retry in place. A deleted consumer stops its worker so
 the owning core process or supervised runtime unit can recreate the declared
 consumer instead of polling a stale handle indefinitely. Retry failures are
 logged on the first and exponentially sparse later attempts; terminated poison
-deliveries are always logged. Shutdown cancels outstanding pulls before active
-handlers and schedules redelivery beyond the maximum pull lifetime, preventing
-an orphaned server-side pull from reclaiming its own handoff.
+deliveries are always logged. Each worker has at most one outstanding pull.
+While no delivery is active, the pull waits up to 30 seconds, so an idle worker
+sends one pull request each 30 seconds. While a delivery is active, the pull
+waits up to `FetchMaxWait` (default one second). Shutdown cancels outstanding
+pulls before active handlers and schedules redelivery beyond `FetchMaxWait`,
+preventing an orphaned server-side pull from reclaiming its own handoff. Only a
+pull starts a delivery, so a long idle pull is never outstanding while a
+delivery is active, and the handoff delay stays short. nats-server does not
+wake waiting pulls when an operator resumes a paused consumer before its pause
+deadline. An idle worker then starts the pending work when its pull expires,
+within 30 seconds, or when a new message arrives.
 
 Owner-only admin diagnostics classify the known Chatto durable queues from
 their JetStream consumer state without adding process-local health as a source

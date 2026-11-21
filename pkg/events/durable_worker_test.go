@@ -2,6 +2,7 @@ package events_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/chattocorp/chatto/pkg/events"
@@ -397,6 +399,159 @@ func TestDurableWorkerCancellationReleasesIdleFetch(t *testing.T) {
 		info, err := consumer.Info(ctx)
 		return err == nil && info.NumWaiting == 0
 	})
+}
+
+func TestDurableWorkerIdlePullIsLong(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	consumer := createDurableWorkerTestConsumer(t, ctx, stream, "worker-idle-long", time.Second)
+	pulls := recordDurableWorkerPulls(t, js, "worker-idle-long")
+	worker, err := events.NewDurableWorker(consumer, func(context.Context, events.DurableDelivery) error {
+		t.Error("idle worker unexpectedly received a delivery")
+		return nil
+	}, events.DurableWorkerOptions{MaxConcurrent: 2, FetchMaxWait: 20 * time.Millisecond, Logger: testLogger()})
+	if err != nil {
+		t.Fatalf("NewDurableWorker: %v", err)
+	}
+	// The test context has a short deadline that would shorten the pull.
+	workerCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	t.Cleanup(cancel)
+	runErr := make(chan error, 1)
+	go func() { runErr <- worker.Run(workerCtx) }()
+
+	pull := nextDurableWorkerPull(t, pulls)
+	// FetchContext gives the server the remaining context lifetime minus at
+	// most one second, so a 30-second idle pull expires after almost 29 seconds.
+	if pull.Expires <= 28*time.Second || pull.Expires > 29*time.Second ||
+		pull.Heartbeat <= 9*time.Second || pull.Heartbeat > 10*time.Second || pull.Batch != 1 {
+		t.Fatalf("idle pull = %+v, want about 29s expiry, 10s heartbeat, batch 1", pull)
+	}
+	cancel()
+	if err := <-runErr; err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	select {
+	case pull := <-pulls:
+		t.Fatalf("idle worker sent another pull before its idle pull expired: %+v", pull)
+	default:
+	}
+}
+
+// TestDurableWorkerHandsOffPromptlyAfterIdlePull checks that the long idle pull
+// does not extend the shutdown handoff delay. The delivery arrives through the
+// long pull. While its handler is active, the worker starts only short pulls, so
+// cancellation hands the delivery off after FetchMaxWait plus a margin, not after
+// the idle pull lifetime.
+func TestDurableWorkerHandsOffPromptlyAfterIdlePull(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	// The ack wait is longer than the test deadline. Only the handoff can
+	// cause the redelivery.
+	consumer := createDurableWorkerTestConsumer(t, ctx, stream, "worker-idle-handoff", time.Minute)
+	pulls := recordDurableWorkerPulls(t, js, "worker-idle-handoff")
+
+	var calls sync.Map
+	started := make(chan struct{})
+	release := make(chan struct{})
+	worker, err := events.NewDurableWorker(consumer, func(_ context.Context, delivery events.DurableDelivery) error {
+		if _, loaded := calls.LoadOrStore(delivery.StreamSequence, true); loaded {
+			t.Errorf("stopping worker received stream sequence %d again", delivery.StreamSequence)
+			return nil
+		}
+		close(started)
+		<-release
+		return nil
+	}, events.DurableWorkerOptions{
+		MaxConcurrent:     2,
+		FetchMaxWait:      200 * time.Millisecond,
+		HeartbeatInterval: time.Minute,
+		Logger:            testLogger(),
+	})
+	if err != nil {
+		t.Fatalf("NewDurableWorker: %v", err)
+	}
+	// The test context has a short deadline that would shorten the pull.
+	workerCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	t.Cleanup(cancel)
+	runErr := make(chan error, 1)
+	go func() { runErr <- worker.Run(workerCtx) }()
+
+	if pull := nextDurableWorkerPull(t, pulls); pull.Expires < 10*time.Second {
+		t.Fatalf("first pull of an idle worker = %+v, want a long pull", pull)
+	}
+	if _, err := js.Publish(ctx, "evt.worker.idle-handoff", []byte("blocked")); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	<-started
+	// Every pull after the delivery starts while the handler is active. Wait
+	// for one so that the outstanding pull at cancellation is a short pull.
+	if pull := nextDurableWorkerPull(t, pulls); pull.Expires >= time.Second {
+		t.Fatalf("pull with an active delivery = %+v, want a short pull", pull)
+	}
+	cancel()
+
+	handoffStarted := time.Now()
+	redelivery := fetchDurableWorkerTestMessage(t, consumer)
+	if elapsed := time.Since(handoffStarted); elapsed >= 5*time.Second {
+		t.Fatalf("handoff redelivery took %v", elapsed)
+	}
+	if got := string(redelivery.Data()); got != "blocked" {
+		t.Fatalf("redelivery data = %q", got)
+	}
+	metadata, err := redelivery.Metadata()
+	if err != nil {
+		t.Fatalf("redelivery metadata: %v", err)
+	}
+	if metadata.NumDelivered != 2 {
+		t.Fatalf("redelivery attempt = %d, want 2", metadata.NumDelivered)
+	}
+	if err := redelivery.DoubleAck(ctx); err != nil {
+		t.Fatalf("acknowledge redelivery: %v", err)
+	}
+	close(release)
+	if err := <-runErr; err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+}
+
+type durableWorkerPull struct {
+	Batch     int           `json:"batch"`
+	Expires   time.Duration `json:"expires"`
+	Heartbeat time.Duration `json:"idle_heartbeat"`
+}
+
+// recordDurableWorkerPulls observes the pull requests that clients send for
+// one consumer of the test stream.
+func recordDurableWorkerPulls(t *testing.T, js jetstream.JetStream, consumerName string) <-chan durableWorkerPull {
+	t.Helper()
+	pulls := make(chan durableWorkerPull, 64)
+	subscription, err := js.Conn().Subscribe("$JS.API.CONSUMER.MSG.NEXT.EVENTS_TEST."+consumerName, func(msg *nats.Msg) {
+		var pull durableWorkerPull
+		if err := json.Unmarshal(msg.Data, &pull); err != nil {
+			t.Errorf("decode pull request %q: %v", msg.Data, err)
+			return
+		}
+		pulls <- pull
+	})
+	if err != nil {
+		t.Fatalf("subscribe to pull requests: %v", err)
+	}
+	if err := js.Conn().Flush(); err != nil {
+		t.Fatalf("flush pull request subscription: %v", err)
+	}
+	t.Cleanup(func() { _ = subscription.Unsubscribe() })
+	return pulls
+}
+
+func nextDurableWorkerPull(t *testing.T, pulls <-chan durableWorkerPull) durableWorkerPull {
+	t.Helper()
+	select {
+	case pull := <-pulls:
+		return pull
+	case <-time.After(5 * time.Second):
+		t.Fatal("worker sent no pull request")
+		return durableWorkerPull{}
+	}
 }
 
 func TestDurableWorkerReplenishesConcurrencyAroundBlockedDelivery(t *testing.T) {

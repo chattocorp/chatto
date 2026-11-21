@@ -250,7 +250,10 @@ for {
 
 `DurableWorker` runs an already configured JetStream pull consumer with bounded
 concurrency, progress heartbeats, confirmed acknowledgements, delayed retry,
-poison-delivery termination, and reconnect-safe fetch retries. It never
+poison-delivery termination, and reconnect-safe fetch retries. An idle worker
+holds one pull request for up to 30 seconds; a worker with an active delivery
+uses pulls of up to `FetchMaxWait`, which also sets the shutdown handoff delay.
+It never
 creates, deletes, or retires the consumer; those are application-owned
 resource migrations. A worker is single-use, and handlers must honor context
 cancellation and be safe under at-least-once delivery.
