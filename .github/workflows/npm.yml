@@ -1,0 +1,104 @@
+name: npm package
+
+# Checks, tests, and packs one npm release unit, then publishes that exact
+# tarball. publish-releases.yml calls this for Runling and Translatto, and
+# release.yml calls it for @chatto/client.
+#
+# npm trusted publishing checks the top-level workflow of the run, not this
+# reusable workflow. Releases run in ci.yml, so each package's npm trusted
+# publisher names workflow `ci.yml` and environment `npm`.
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: 'Package path, such as packages/runling.'
+        required: true
+        type: string
+      commit:
+        description: 'Tagged commit to check out and publish.'
+        required: true
+        type: string
+      prerelease:
+        description: 'Sweet tag entry: the version has a prerelease suffix.'
+        required: true
+        type: boolean
+      highest:
+        description: 'Sweet tag entry: the version is the highest stable version of the package.'
+        required: true
+        type: boolean
+  # Manual runs check and save a package without publishing it.
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to check'
+        required: true
+        type: choice
+        options:
+          - packages/chatto-client
+          - packages/runling
+          - packages/translatto
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      artifact: ${{ steps.artifact.outputs.name }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.commit || github.ref }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          turbo-remote-cache: 'false'
+          install-cli-deps: 'false'
+      # Artifact names cannot contain slashes, and one run can publish several packages.
+      - name: Name the package artifact
+        id: artifact
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: echo "name=npm-package-${PACKAGE//\//-}" >> "$GITHUB_OUTPUT"
+      - name: Check, test, and pack the release tarball
+        env:
+          NPM_PUBLISH: ${{ inputs.commit != '' }}
+          NPM_RELEASE_DIR: ${{ runner.temp }}/npm-release
+          PACKAGE: ${{ inputs.package }}
+        run: bash tools/release/npm-package.sh "$PACKAGE"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: ${{ runner.temp }}/npm-release/*.tgz
+          if-no-files-found: error
+
+  publish:
+    if: inputs.commit != ''
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.22.1'
+      - run: npm install --global npm@11.19.0
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.package.outputs.artifact }}
+          path: release
+      # Prereleases use `next`. Only the highest stable version moves `latest`,
+      # so a maintenance release of an older line uses `maintenance`.
+      - name: Publish the tested tarball with trusted publishing
+        env:
+          DIST_TAG: ${{ inputs.prerelease && 'next' || (inputs.highest && 'latest' || 'maintenance') }}
+        run: |
+          shopt -s nullglob
+          packages=(./release/*.tgz)
+          test "${#packages[@]}" -eq 1
+          npm publish "${packages[0]}" --tag "$DIST_TAG" --access public --provenance --ignore-scripts --registry=https://registry.npmjs.org

@@ -43,10 +43,11 @@ Use pnpm for publication from the package directory. `npm publish` does not
 apply pnpm's export overrides. CI packs with pnpm, tests the tarball, and
 publishes that exact artifact with npm.
 
-Translatto has independent Sweet releases. A `translatto/v<VERSION>`
-tag starts `publish-translatto.yml`. The workflow checks the version, tests
-the tarball, and publishes that artifact. A manual workflow run only tests
-and saves the artifact, including for an already published version. PR CI also
+Translatto has independent Sweet releases. When CI makes a
+`translatto/v<VERSION>` tag, the same CI run calls `npm.yml`. The workflow
+checks the version, tests the tarball, and publishes that artifact. A manual
+`npm.yml` run only tests and saves the artifact, including for an already
+published version. PR CI also
 uploads the tested tarball as `translatto-package`. Download this artifact to
 inspect it before merge.
 
@@ -55,10 +56,10 @@ published versions. Add notes with `mise x -- sweet change packages/translatto`
 from the repository root. The package manifest updates `package.json` and
 `version.txt` together. See [the release guide](../../docs/RELEASING.md).
 
-Before the next automated release, configure the npm trusted publisher for repository
-`chattocorp/chatto`, workflow `publish-translatto.yml`, and GitHub environment
-`npm`. Enable publishing. Configure this when the next release is ready:
-a new trust configuration must complete a successful publish within two days.
+The npm trusted publisher is repository `chattocorp/chatto`, workflow
+`ci.yml`, and GitHub environment `npm`. npm checks the workflow that started
+the run, not the reusable workflow. Enable publishing. A new trust
+configuration must complete a successful publish within two days.
 See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
 Do not run the publish job for `0.1.0` again.
 Later release tags publish through OIDC without an npm token in GitHub.

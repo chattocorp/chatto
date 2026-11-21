@@ -16,29 +16,27 @@ mise x -- pnpm --filter @chatto/client check:release
 The package test installs a tarball outside the workspace. It checks Node
 imports without Svelte, all client modules with Svelte, and TypeScript
 declarations. Set `CHATTO_CLIENT_RELEASE_DIR` to save the verified tarball.
-`check:release` rejects versions already in npm history. Set `RELEASE_TAG`
-to also check that the tag matches the package version.
+`check:release` rejects versions already in npm history.
 
 Sweet Release gives the client, Chatto server, frontend, and desktop the same
 version and release PR. Client changes contribute to the root changelog.
 Tags use `v<VERSION>`. After the `chatto-release` approval, server build, and
-desktop assembly succeed, `release.yml` calls the reusable
-`publish-chatto-client.yml` workflow. It checks and saves a tarball, then
-publishes that exact artifact. A failed server or desktop build prevents npm
-publication. A failed npm publication keeps the GitHub release in draft. Manual
-workflow runs verify and save an artifact without publishing it. Prereleases
-use the npm `next` tag; stable releases use `latest`.
+desktop assembly succeed, `release.yml` calls the reusable `npm.yml` workflow.
+It checks and saves a tarball, then publishes that exact artifact. A failed
+server or desktop build prevents npm publication. A failed npm publication keeps
+the GitHub release in draft. Manual `npm.yml` runs verify and save an artifact
+without publishing it. Prereleases use the npm `next` tag. The highest stable
+version uses `latest`, and an older stable version uses `maintenance`.
 
 The former `0.1.x` versions, `chatto-client/v*` tags, and package changelog remain
 historical records. The next client publication uses the next shared Chatto
 version. Matching client and server versions are not required to connect;
 the existing compatibility rules still apply.
 
-Before automated publication, configure an npm trusted publisher for
-`@chatto/client`: owner `chattocorp`, repository `chatto`, workflow
-`release.yml`, environment `npm`. Allow `npm publish`. Replace the previous
-`publish-chatto-client.yml` trusted publisher before the next release: npm
-checks the calling workflow identity for reusable workflows.
+The npm trusted publisher for `@chatto/client` is owner `chattocorp`,
+repository `chatto`, workflow `ci.yml`, environment `npm`. Allow `npm publish`.
+npm checks the workflow that started the run, not the reusable workflow:
+releases run in the CI run that makes the tag.
 See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
 Configure it when the release is ready, because a new configuration must
 complete its first successful publication within two days.

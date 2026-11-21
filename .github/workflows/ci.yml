@@ -16,8 +16,10 @@ on:
 
 concurrency:
   # PRs share a group so superseded revisions are cancelled. Pushes use their
-  # immutable commit SHA so each selected main commit can publish an image.
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  # branch and immutable commit SHA, so no push run is cancelled or replaced:
+  # each selected main commit can publish an image, and each push run tags
+  # and publishes the releases in its own commit range.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.ref, github.sha) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -178,8 +180,9 @@ jobs:
               # configuration and the workflows that do not run product jobs.
               - '!.sweet.yml'
               - '!.sweet.config.yml'
-              - '!.github/workflows/{release,release-components,bump-releases,mobile-testflight,experimental-go}.yml'
+              - '!.github/workflows/{release,npm,bump-releases,mobile-testflight,experimental-go}.yml'
               - '!.github/workflows/{publish-*,build-*-image}.yml'
+              - '!tools/release/**'
             # A change that has no file here is a release-only change. Keep
             # the version files current with the `.sweet.yml` manifests.
             non-release:
@@ -1394,9 +1397,17 @@ jobs:
       - run: pnpm turbo run check --filter=docs-website
       - run: pnpm run build:docs
 
-  tag-releases:
-    # Optional product jobs may be skipped; failures and cancellations block tags.
-    if: ${{ always() && !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+  # Tag the release versions of a checked push. Optional product jobs may be
+  # skipped; failures and cancellations block tags. A release-* branch tags its
+  # maintenance releases the same way. A new branch has no range of its own,
+  # so its creation tags nothing.
+  tag:
+    if: >-
+      ${{ always() && !cancelled() && github.event_name == 'push'
+          && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release-'))
+          && !github.event.created
+          && !contains(needs.*.result, 'failure')
+          && !contains(needs.*.result, 'cancelled') }}
     needs:
       - changes
       - test-translatto-package
@@ -1426,22 +1437,25 @@ jobs:
       - test-e2e-performance
       - publish-main-image
       - check-docs
-    runs-on: ubuntu-latest
-    concurrency:
-      group: sweet-tag-${{ github.sha }}
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
-          token: ${{ secrets.RELEASE_PLEASE_PAT }}
-      - uses: jdx/mise-action@v3
-        with:
-          install: false
-      - name: Tag committed package releases
-        shell: bash
-        env:
-          PUSH_BEFORE: ${{ github.event.before }}
-          PUSH_AFTER: ${{ github.sha }}
-        run: bash tools/tag-releases.sh
+    permissions:
+      contents: write
+    # Unreleased Sweet Release commit (PRs #62, #63, and #64, tag outputs and
+    # `sweet github release`): move to the next Sweet release tag. Tags pushed
+    # with GITHUB_TOKEN start no workflow; this run publishes them.
+    uses: chattocorp/sweet-release/.github/workflows/tag.yml@7e618be0b38acb105fe128f030f2f9b71527a0f6
+
+  publish-releases:
+    needs: tag
+    if: needs.tag.outputs.tags != '[]' && needs.tag.outputs.tags != ''
+    permissions:
+      actions: write
+      contents: write
+      id-token: write
+      packages: write
+    uses: ./.github/workflows/publish-releases.yml
+    with:
+      tags: ${{ needs.tag.outputs.tags }}
+      packages: ${{ needs.tag.outputs.packages }}
+    secrets:
+      GORELEASER_GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
+      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

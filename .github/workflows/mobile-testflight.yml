@@ -1,8 +1,9 @@
 name: Publish iOS to TestFlight
 
+# publish-releases.yml starts this on each Chatto `v*` tag that Sweet creates,
+# as a manual run on the tag. A separate run keeps this workflow's run number
+# for the build number. Run it manually from `main` to upload between releases.
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -54,10 +55,6 @@ jobs:
         run: |
           set -euo pipefail
           version="$(jq -r .version apps/frontend/package.json)"
-          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_NAME" != "v${version}" ]]; then
-            echo '::error::The tag must match the frontend package version.'
-            exit 1
-          fi
           if [[ ! "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)(-[0-9A-Za-z.-]+)?$ ]]; then
             echo '::error::Expected a release or prerelease version.'
             exit 1

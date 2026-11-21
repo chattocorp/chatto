@@ -16,8 +16,6 @@ on:
       - '!**/.sweet/**'
   push:
     branches: [main]
-    tags: ['authling/v*']
-    # GitHub does not apply path filters to tag pushes.
     paths:
       - 'authling/**'
       - 'pkg/**'
@@ -30,6 +28,17 @@ on:
       # Release notes and changelogs do not change the image.
       - '!**/CHANGELOG.md'
       - '!**/.sweet/**'
+  # publish-releases.yml calls this for each Authling version that Sweet tags.
+  workflow_call:
+    inputs:
+      release_tag:
+        description: 'Authling release tag to build and publish, such as authling/v0.2.0.'
+        required: true
+        type: string
+      highest:
+        description: 'Sweet tag entry: the version is the highest stable Authling version. Only then the image moves `latest`.'
+        required: true
+        type: boolean
   workflow_dispatch:
     inputs:
       release_tag:
@@ -39,7 +48,7 @@ on:
 
 concurrency:
   # Release builds share a group because they all update the latest tag.
-  group: authling-image-${{ (inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/authling/v')) && 'latest' || github.ref }}
+  group: authling-image-${{ inputs.release_tag != '' && 'latest' || github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -59,6 +68,8 @@ jobs:
         id: metadata
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
+          # Manual runs keep their earlier behavior and move `latest`.
+          MOVE_LATEST: ${{ inputs.highest == false && 'false' || 'true' }}
         shell: python
         run: |
           import json
@@ -79,7 +90,7 @@ jobs:
               if not ref.startswith(prefix):
                   raise SystemExit("Only authling/v release tags are supported")
               tag = ref[len(prefix):]
-              stream_tag = "latest"
+              stream_tag = "latest" if os.environ["MOVE_LATEST"] == "true" else ""
               # Docker tags cannot contain SemVer build metadata (+suffix).
               number = r"(?:0|[1-9][0-9]*)"
               identifier = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"

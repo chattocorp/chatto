@@ -242,7 +242,9 @@ test('files that have unconditional checks select no product jobs', () => {
     'cli/CHANGELOG.md',
     'tools/ci-selection.test.mjs',
     '.github/workflows/release.yml',
-    '.github/workflows/publish-runling.yml',
+    '.github/workflows/npm.yml',
+    '.github/workflows/publish-releases.yml',
+    'tools/release/publish-images.sh',
     '.github/workflows/build-docs-image.yml',
     'experimental/gobotto/main.go'
   ]) {

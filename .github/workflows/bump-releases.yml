@@ -16,6 +16,8 @@ permissions:
 
 jobs:
   bump:
-    uses: chattocorp/sweet-release/.github/workflows/bump.yml@11dc11d022585610ad9d751c3f0262f6ef754179 # sweet@0.4.0
+    # Unreleased Sweet Release commit (PRs #62, #63, and #64): keep it equal to the
+    # tag.yml pin in ci.yml, and move both to the next Sweet release tag.
+    uses: chattocorp/sweet-release/.github/workflows/bump.yml@7e618be0b38acb105fe128f030f2f9b71527a0f6
     secrets:
       release-token: ${{ secrets.RELEASE_PLEASE_PAT }}

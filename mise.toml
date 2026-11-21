@@ -216,7 +216,7 @@ run = "uvx --with charset-normalizer 'reuse==6.2.0' lint"
 
 [tasks.lint-actions]
 description = "Check GitHub Actions workflows and repository shell scripts"
-run = ["actionlint", "shellcheck --severity=warning tools/*.sh"]
+run = ["actionlint", "shellcheck --severity=warning tools/*.sh tools/release/*.sh"]
 
 [tasks.test-release-policy]
 description = "Test GitHub release publication and Latest selection"
