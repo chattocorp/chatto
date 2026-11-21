@@ -17,6 +17,13 @@ function isDisplayNameFormatChar(char: string): boolean {
 }
 
 /**
+ * Block mosaics, rejected like the server: Block Elements, Symbols for Legacy
+ * Computing, and its Supplement. They fill the complete character cell and
+ * form pixel lettering that is about twice as tall as the surrounding text.
+ */
+const MOSAIC_GLYPH = /[▀-▟\u{1FB00}-\u{1FBFF}\u{1CC00}-\u{1CEBF}]/u;
+
+/**
  * Validate an already trimmed display name. Letters, numbers, punctuation, and
  * symbols supply visible content; combining marks and format characters alone do
  * not. Call normalizeDisplayName first when validating user input.
@@ -38,6 +45,9 @@ export function validateDisplayName(name: string): ValidationResult {
         valid: false,
         error: m('settings.profile.display_name.invalid')
       };
+    }
+    if (MOSAIC_GLYPH.test(char)) {
+      return { valid: false, error: m('settings.profile.display_name.invalid') };
     }
     if (/\p{Cf}/u.test(char) && !isDisplayNameFormatChar(char)) {
       return { valid: false, error: m('settings.profile.display_name.invalid') };

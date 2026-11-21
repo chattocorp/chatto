@@ -17,6 +17,7 @@ func TestValidateDisplayName(t *testing.T) {
 		`Pre"quoted"`, "A&B", "star*", "100%", "John<3", "A+B", "co`de`",
 		"!!!", "-Alice", "_Alice", "🎮 Gamer", "🦄", "🇺🇸", "🕹️", "👩‍💻",
 		"👨‍👩‍👧‍👦", "1️⃣", "#️⃣", "🏴\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F",
+		"(╯°□°)╯︵ ┻━┻", "⣿ Braille", "𝐍𝐀𝐍𝐃𝐈", "ＮＡＮＤＩ",
 		"John  Doe", "John   Doe", "A\u00A0B", "e\u0301", "\u0301Alice",
 		"می\u200Cروم", "क्\u200Dष", strings.Repeat("田", 30),
 	}
@@ -34,6 +35,8 @@ func TestValidateDisplayName(t *testing.T) {
 		"John\u00ADDoe", "John\u061CDoe", "John\u202EDoe", "John\u2066Doe", "John\u2069Doe",
 		" ", "  ", "\u0301", "\u200C\u200D", "\uFE0F", "\U000E0067\U000E007F",
 		"\u115F", "\u1160", "\u3164", "\uFFA0", "\u2800",
+		// Block mosaics: Block Elements and Symbols for Legacy Computing (+ Supplement).
+		"\u2588\u2580\u2588", "A\u258CB", "\U0001FB15\U0001FB22\u258C\U0001FB1C", "\U0001CCD6\U0001CCD7",
 	}
 	for _, name := range invalid {
 		t.Run(name, func(t *testing.T) {
@@ -66,6 +69,26 @@ func TestNormalizeDisplayName(t *testing.T) {
 			result := NormalizeDisplayName(tt.input)
 			if result != tt.expected {
 				t.Errorf("NormalizeDisplayName(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPresentableDisplayName(t *testing.T) {
+	tests := []struct {
+		name, displayName, login, want string
+	}{
+		{"valid name unchanged", "Alice", "alice", "Alice"},
+		{"stylized name unchanged", "\U0001D400\U0001D401", "alice", "\U0001D400\U0001D401"},
+		{"mosaic name falls back to login", "\U0001FB15\U0001FB22\u258C\U0001FB1C\U0001FB0E\U0001FB13", "nandi", "nandi"},
+		{"mixed mosaic name falls back to login", "Hi \u2588", "nandi", "nandi"},
+		{"control character falls back to login", "A\u202EB", "nandi", "nandi"},
+		{"name over limit falls back to login", strings.Repeat("a", MaxDisplayNameLength+1), "nandi", "nandi"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := PresentableDisplayName(tt.displayName, tt.login); got != tt.want {
+				t.Fatalf("PresentableDisplayName(%q, %q) = %q, want %q", tt.displayName, tt.login, got, tt.want)
 			}
 		})
 	}
