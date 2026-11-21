@@ -1461,6 +1461,7 @@ jobs:
     with:
       tags: ${{ needs.tag.outputs.tags }}
       packages: ${{ needs.tag.outputs.packages }}
-    secrets:
-      GORELEASER_GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
-      HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+    # Environment secrets, such as the desktop signing keys, are empty in a
+    # called workflow unless every caller in the chain uses `secrets: inherit`
+    # (actions/runner#4453). Named secrets here would drop them.
+    secrets: inherit
