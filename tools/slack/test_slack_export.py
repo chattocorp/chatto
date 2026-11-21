@@ -1,4 +1,4 @@
-"""Synthetic Slack-to-interchange contracts; no private source or network access."""
+"""Synthetic Slack-to-CHIEF contracts; no private source or network access."""
 
 import contextlib
 from concurrent.futures import ThreadPoolExecutor

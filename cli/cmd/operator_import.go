@@ -29,7 +29,7 @@ func newOperatorImportCommand() *cobra.Command {
 	var validateOnly, acceptOmissions bool
 	var naming importNaming
 	var progress string
-	c := &cobra.Command{Use: "import PATH", Short: "Import a portable history archive (draft v1)", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+	c := &cobra.Command{Use: "import PATH", Short: "Import a CHIEF archive (draft v1)", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := interchange.ReadDirectory(args[0])
 		if err != nil {
 			return err

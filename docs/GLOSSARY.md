@@ -242,12 +242,14 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 domain fact. EVT stores this value. See
 [ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
-**Interchange archive** — Portable catalogs, an ordered event file, and local
+**CHIEF (Chatto Import/Export Format)** — The versioned JSON format for transferring channel history between platforms. See the [v1 specification](interchange/v1.md).
+
+**CHIEF archive** — Portable catalogs, an ordered event file, and local
 asset bytes for transferring supported channel history. Its draft contract is
 separate from EVT and server backups. See [the format specification](interchange/v1.md).
 
-**Interchange event** — A source historical fact or an explicit final-state
-snapshot in an interchange archive. Historical facts retain known occurrence
+**CHIEF event** — A source historical fact or an explicit final-state
+snapshot in a CHIEF archive. Historical facts retain known occurrence
 times. Snapshots preserve state without inventing timeline activity. They are
 not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 

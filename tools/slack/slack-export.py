@@ -3,7 +3,7 @@
 # requires-python = ">=3.11"
 # dependencies = ["jsonschema[format]==4.26.0"]
 # ///
-"""Convert a Slack export into a portable Chatto archive, without a server."""
+"""Convert a Slack export into a CHIEF archive, without a server."""
 
 import argparse
 import collections
@@ -396,7 +396,7 @@ def build_archive(plan, downloads=None, *, allow_missing_files=False,
             if original.get("blocks") or file_references(original) or original.get("attachments"):
                 raise ApplyError("Channel event contains unsupported message content.")
             if original.get("reactions") and subtype not in {"channel_join", "channel_leave"}:
-                raise ApplyError("Reactions on this channel event type are not supported by the interchange format and destination.")
+                raise ApplyError("Reactions on this channel event type are not supported by CHIEF and the destination.")
             event.update(occurred_at=row["created_at"], actor_id=author if author in logins else None)
             if subtype in {"channel_join", "channel_leave"}:
                 if author not in logins:
@@ -490,7 +490,7 @@ def validate_records(records):
         rows = [records["manifest"]] if name == "manifest" else records[name + "s"]
         for index, row in enumerate(rows):
             if next(validator.iter_errors(row), None) is not None:
-                raise ApplyError(f"Generated {name} record {index + 1} violates the interchange schema.")
+                raise ApplyError(f"Generated {name} record {index + 1} violates the CHIEF schema.")
 
 
 def write_archive(output, records, copies):

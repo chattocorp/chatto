@@ -223,7 +223,7 @@ description = "Test GitHub release publication and Latest selection"
 run = "node --test tools/release-policy.test.mjs"
 
 [tasks.test-interchange]
-description = "Validate draft interchange schemas and synthetic conformance fixtures"
+description = "Validate draft CHIEF schemas and synthetic conformance fixtures"
 run = "uv run --script tools/test_interchange.py"
 
 [tasks.test-slack]

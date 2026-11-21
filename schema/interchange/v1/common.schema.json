@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://chatto.chat/schema/interchange/v1/common.schema.json",
-  "description": "Shared values for the draft Chatto interchange format.",
+  "description": "Shared values for the draft CHIEF (Chatto Import/Export Format).",
   "$defs": {
     "id": {
       "type": "string",
