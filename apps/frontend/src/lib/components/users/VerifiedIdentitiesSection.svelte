@@ -8,7 +8,7 @@ callers supply a storage key for the disclosure. Popups show the list directly.
   import { providerIcon } from '$lib/auth/providerIcon';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import { m } from '$lib/i18n/messages';
-  import { SelfVerificationPill } from '$lib/ui';
+  import { SelfVerificationItem } from '$lib/ui';
 
   let {
     identities,
@@ -22,10 +22,10 @@ callers supply a storage key for the disclosure. Popups show the list directly.
 </script>
 
 {#snippet identityList()}
-  <ul aria-label={label} class="flex min-w-0 flex-wrap gap-1.5">
+  <ul aria-label={label} class="flex min-w-0 flex-col gap-1">
     {#each identities as entry (JSON.stringify([entry.method, entry.value]))}
       <li class="max-w-full leading-none">
-        <SelfVerificationPill
+        <SelfVerificationItem
           method={entry.methodLabel}
           icon={providerIcon(entry.method)}
           identity={entry.value}
