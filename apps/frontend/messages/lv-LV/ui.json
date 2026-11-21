@@ -96,8 +96,7 @@
       "error_future": "Derīguma termiņam jābūt nākotnē."
     },
     "form": {
-      "required": "Obligāti",
-      "max_bytes": "Maksimums {max} baiti; dažas rakstzīmes izmanto vairāk nekā vienu baitu."
+      "required": "Obligāti"
     },
     "dates": {
       "today": "Šodien",

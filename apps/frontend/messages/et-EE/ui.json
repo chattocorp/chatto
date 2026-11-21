@@ -96,8 +96,7 @@
       "error_future": "Kehtivusaeg peab olema tulevikus."
     },
     "form": {
-      "required": "Nõutav",
-      "max_bytes": "Maksimaalselt {max} baiti; mõned märgid kasutavad rohkem kui ühte baiti."
+      "required": "Nõutav"
     },
     "dates": {
       "today": "Täna",

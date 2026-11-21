@@ -96,8 +96,7 @@
       "error_future": "Der Ablauf muss in der Zukunft liegen."
     },
     "form": {
-      "required": "Erforderlich",
-      "max_bytes": "Maximal {max} Byte; manche Zeichen benötigen mehr als ein Byte."
+      "required": "Erforderlich"
     },
     "dates": {
       "today": "Heute",
