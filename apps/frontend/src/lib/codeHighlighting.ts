@@ -26,6 +26,9 @@ languageImporters.set('mermaid', () => import('./mermaid/highlight'));
 // message fences and both composers, without changing automatic detection.
 languageImporters.set('odin', () => import('highlightjs-odinlang'));
 
+// No Bend grammar exists for Highlight.js. Load the local one the same way.
+languageImporters.set('bend', () => import('./bendHighlight'));
+
 function normalizeLanguageToken(value: string): string | null {
   return (
     value
