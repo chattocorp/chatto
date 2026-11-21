@@ -22,8 +22,10 @@ for (const [path, importer] of Object.entries(languageModules)) {
 // the automatic language-detection set: rendering remains an explicit choice.
 languageImporters.set('mermaid', () => import('./mermaid/highlight'));
 
-// Odin ships separately from Highlight.js. Use the same lazy loading path for
-// message fences and both composers, without changing automatic detection.
+// Lean and Odin ship separately from Highlight.js. Use the same lazy loading
+// path for message fences and both composers, without changing automatic
+// detection.
+languageImporters.set('lean', () => import('highlightjs-lean'));
 languageImporters.set('odin', () => import('highlightjs-odinlang'));
 
 // No Bend grammar exists for Highlight.js. Load the local one the same way.
