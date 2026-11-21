@@ -384,9 +384,12 @@ test('a published image stays unchanged when a tag is published again', (t) => {
 }`,
     env: { VERSION: '0.6.0', PRERELEASE: 'false', HIGHEST: 'true' }
   });
-  assert.ok(
-    result.calls.every((call) => !call.includes('chatto-client')),
-    result.calls
+  // The published client image keeps its digest; only its other tags are set again.
+  assert.deepEqual(
+    result.calls.filter((call) => call.includes('chatto-client')),
+    [
+      'buildx imagetools create --tag ghcr.io/chattocorp/chatto-client:latest ghcr.io/chattocorp/chatto-client:0.6.0'
+    ]
   );
   assert.ok(result.calls.includes('push ghcr.io/chattocorp/chatto:0.6.0-amd64'));
 });

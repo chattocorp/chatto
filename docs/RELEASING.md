@@ -212,8 +212,10 @@ this is safe:
 
 - A GitHub release in draft is reused. A published GitHub release stays
   unchanged.
-- A container image tag that exists already stays unchanged. This includes the
-  Chatto server and frontend images and the Authling release image.
+- A container image version tag that exists already keeps its image. This
+  includes the Chatto server and frontend images and the Authling release
+  image. Their other tags, such as `next` and `latest`, are set again from that
+  image. Thus a run for an older prerelease moves `next` back to it.
 - An npm version with the same tarball content is skipped. An npm version with
   other content stops the run with an error, because npm versions never change.
   In that case, release a new version.

@@ -153,9 +153,13 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           # A published release image stays unchanged, so a run that publishes
-          # a tag again does not replace it with a rebuild.
+          # a tag again does not replace it with a rebuild. Its stream tag is set
+          # again from it, in case an earlier run failed before that push.
           if [ -n "$RELEASE_TAG" ] && docker buildx imagetools inspect "$IMAGE" > /dev/null 2>&1; then
             echo "::notice::${IMAGE} is already published; it stays unchanged."
+            if [ -n "$STREAM_TAG" ]; then
+              docker buildx imagetools create --tag "ghcr.io/chattocorp/authling:${STREAM_TAG}" "$IMAGE"
+            fi
             exit 0
           fi
           docker tag authling:check "$IMAGE"
