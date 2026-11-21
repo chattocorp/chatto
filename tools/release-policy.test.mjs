@@ -55,6 +55,14 @@ test('CI tags only after every other job and then publishes from the tag outputs
     publish.if.includes("needs.tag.result == 'success'"),
     'publish-releases checks the tag result'
   );
+  // Environment secrets (desktop signing) are empty in release.yml unless every
+  // caller in the chain uses `secrets: inherit` (actions/runner#4453).
+  assert.equal(publish.secrets, 'inherit', 'ci.yml passes every secret to publish-releases');
+  assert.equal(
+    releases.jobs.chatto.secrets,
+    'inherit',
+    'publish-releases passes every secret to release.yml'
+  );
   // Push runs are never cancelled or replaced: each run owns its commit range.
   assert.match(ci.concurrency.group, /github\.ref, github\.sha/);
   assert.equal(ci.concurrency['cancel-in-progress'], "${{ github.event_name == 'pull_request' }}");

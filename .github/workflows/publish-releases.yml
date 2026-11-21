@@ -19,11 +19,6 @@ on:
         description: 'Sweet tag.yml output `packages`: package path to its newest entry, or null.'
         required: true
         type: string
-    secrets:
-      GORELEASER_GITHUB_TOKEN:
-        required: true
-      HOMEBREW_TAP_GITHUB_TOKEN:
-        required: true
 
 permissions:
   contents: read
@@ -43,7 +38,8 @@ jobs:
       version: ${{ fromJSON(inputs.packages)['.'].version }}
       prerelease: ${{ fromJSON(inputs.packages)['.'].prerelease }}
       highest: ${{ fromJSON(inputs.packages)['.'].highest }}
-    # This workflow receives only the two release secrets declared above.
+    # Pass every secret on: release.yml reads environment secrets, which are
+    # empty without `secrets: inherit` at each level (actions/runner#4453).
     secrets: inherit
 
   runling:
