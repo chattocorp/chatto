@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0
+
+### Features
+
+- Account erasure now runs on the shared durable job queue. Authling creates the `AUTHLING_JOBS` stream and the `authling-jobs` consumer at startup. Account deletion behavior is unchanged, except for retry timing: a failed erasure attempt now waits one second before the next attempt, and the delay doubles up to 30 minutes. Before, every retry waited one second. ([#3598](https://github.com/chattocorp/chatto/pull/3598))
+- The authorization page now shows the requesting app and each item of shared information in a clearer list with icons. ([#3647](https://github.com/chattocorp/chatto/pull/3647))
+
+### Fixes
+
+- Queue signup, password-reset, email-change codes, and old-address security notices for delivery in the background. Accepted mail survives restarts and retries SMTP failures without blocking the request. Code delivery stops at the original expiry; security notices retry for up to 24 hours. ([#3656](https://github.com/chattocorp/chatto/pull/3656))
+
 ## 0.2.0
 
 ### Breaking changes
