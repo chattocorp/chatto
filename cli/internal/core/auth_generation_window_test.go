@@ -23,12 +23,23 @@ import (
 type fakeAuthClock struct {
 	mu  sync.Mutex
 	now time.Time
+	// tick moves the clock after each read when it is not zero, so two reads
+	// never return the same time, like a real clock.
+	tick time.Duration
 }
 
 func (c *fakeAuthClock) Now() time.Time {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.now
+	now := c.now
+	c.now = c.now.Add(c.tick)
+	return now
+}
+
+func (c *fakeAuthClock) setTick(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.tick = d
 }
 
 func (c *fakeAuthClock) Advance(d time.Duration) {
@@ -290,6 +301,31 @@ func TestAuthGenerationWindowRecords(t *testing.T) {
 		w.accepted("full", clock.Now(), 0)
 		if !w.allows("full", 0) || w.size() != 1 {
 			t.Fatalf("expired entries not pruned: size = %d", w.size())
+		}
+	})
+	t.Run("a full table is scanned at most once each interval", func(t *testing.T) {
+		w, clock := newWindow()
+		w.capacity = 2
+		w.accepted("a", clock.Now(), 0)
+		w.clear("b")
+		clock.Advance(window)
+		w.prune(clock.Now()) // empty table; the last prune is now
+		w.accepted("c", clock.Now(), 0)
+		w.accepted("d", clock.Now(), 0)
+		clock.Advance(window - time.Millisecond)
+		// "c" and "d" are still in the window: the table stays full.
+		w.accepted("e", clock.Now(), 0)
+		pruned := w.lastPrune
+		clock.Advance(time.Millisecond)
+		// The entries expired, but the last scan is less than the interval ago.
+		w.accepted("f", clock.Now(), 0)
+		if w.allows("f", 0) || w.lastPrune != pruned {
+			t.Fatal("full table scanned again within the interval")
+		}
+		clock.Advance(authGenerationWindowFullPruneInterval)
+		w.accepted("f", clock.Now(), 0)
+		if !w.allows("f", 0) {
+			t.Fatal("full table not scanned after the interval")
 		}
 	})
 	t.Run("entries are pruned once each window without a full table", func(t *testing.T) {
@@ -739,11 +775,19 @@ func TestAuthGenerationWindowConnectionGate(t *testing.T) {
 
 	core.natsRecoveryState.Store(natsRecoveryInProgress)
 	t.Cleanup(func() { core.natsRecoveryState.Store(natsRecoveryReady) })
-	if counts := countAuthChecks(core, func() { mustValidateCookie(t, core, sessionID) }); counts.fast != 0 || counts.strict["gate"] != 1 {
-		t.Fatalf("recovery in progress: checks = %+v, want one strict check for the gate", counts)
+	// Each clock read moves the clock, so the strict check that follows the
+	// closure starts after it.
+	clock.setTick(time.Nanosecond)
+	for range 2 {
+		if counts := countAuthChecks(core, func() { mustValidateCookie(t, core, sessionID) }); counts.fast != 0 || counts.strict["gate"] != 1 {
+			t.Fatalf("recovery in progress: checks = %+v, want one strict check for the gate", counts)
+		}
+	}
+	if core.authWindow.size() != 0 {
+		t.Fatal("strict check while the gate was closed started a window")
 	}
 	core.natsRecoveryState.Store(natsRecoveryReady)
-	clock.Advance(time.Nanosecond) // a strict check at the moment the gate closed is not recorded
+	clock.Advance(time.Millisecond)
 	if counts := countAuthChecks(core, func() { mustValidateCookie(t, core, sessionID) }); counts.fast != 0 || counts.strict["window"] != 1 {
 		t.Fatalf("after recovery: checks = %+v, want one strict check for the window", counts)
 	}
@@ -769,7 +813,7 @@ func TestAuthGenerationWindowReconnectEndsWindow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	sessionID := mustCreateCookieSession(t, core, user.Id)
+	mustCreateCookieSession(t, core, user.Id)
 	if !core.authWindow.allows(user.Id, core.natsReconnects()) {
 		t.Fatal("no window before the reconnect")
 	}
@@ -786,11 +830,11 @@ func TestAuthGenerationWindowReconnectEndsWindow(t *testing.T) {
 	}
 	// The reconnect counter changed, so the record is invalid whatever the
 	// state of the recovery.
+	// The test does not validate the credential during the recovery: a
+	// strict check then reads the EVT stream handle while verifyNATSRecovery
+	// calls its Info method, which nats.go does not synchronize.
 	if core.authWindow.allows(user.Id, core.natsReconnects()) {
 		t.Fatal("record valid after a reconnect")
-	}
-	if counts := countAuthChecks(core, func() { _, _ = core.ValidateCookieCredential(ctx, sessionID) }); counts.fast != 0 {
-		t.Fatalf("after reconnect: checks = %+v, want no fast check", counts)
 	}
 }
 

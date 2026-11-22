@@ -221,9 +221,11 @@ that is older than the window has no value and can be removed.
   reads the projection, and the projection usually applies an event in
   milliseconds. The window is the worst case, for a replica that is behind
   and whose gates have not detected it.
-- **Cost.** A replica runs a maximum of one strict check for each active user
-  in each 60-second window, and one each minute for each realtime connection.
-  Today it runs one for each request.
+- **Cost.** For sequential requests, a replica runs one strict check for each
+  active user in each 60-second window, and one each minute for each realtime
+  connection. Concurrent requests that find no valid window each run a strict
+  check, and each strict path of section 3 runs one on each call. Today it runs
+  one for each request.
 - **Availability does not change.** Gate 1 ends all windows when the replica
   detects that it has no NATS connection. It then rejects requests as it does
   today. Before the detection, it accepts recently checked users until their

@@ -27,11 +27,12 @@ func (c *ChattoCore) strictAuthGeneration(ctx context.Context, userID string, re
 		return 0, nil
 	}
 	c.authWindow.strictChecks[reason].Add(1)
-	// Take the start time and the reconnect count before the leader reads.
-	// The record then never claims a state newer than the one that the check
-	// confirmed.
+	// Take the start time, the reconnect count, and the gate state before the
+	// leader reads. The record then never claims a state newer than the one
+	// that the check confirmed.
 	startedAt := c.authWindow.now()
 	reconnects := c.natsReconnects()
+	gatesOpen := c.authGenerationGatesOpen()
 	if err := c.waitForUserAuthGenerationCurrent(ctx, userID); err != nil {
 		c.authWindow.clear(userID)
 		return 0, err
@@ -41,7 +42,11 @@ func (c *ChattoCore) strictAuthGeneration(ctx context.Context, userID string, re
 		c.authWindow.clear(userID)
 		return 0, ErrAuthenticationRevoked
 	}
-	c.authWindow.accepted(userID, startedAt, reconnects)
+	// A strict check while a gate is closed, or one that a gate closure
+	// interrupted, starts no window (ADR-127 section 4).
+	if gatesOpen && c.authGenerationGatesOpen() {
+		c.authWindow.accepted(userID, startedAt, reconnects)
+	}
 	return generation, nil
 }
 

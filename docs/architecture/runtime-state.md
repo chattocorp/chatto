@@ -371,12 +371,14 @@ time, and the time of the last strict check that did not accept the user. For
 60 seconds after an acceptance, the read-only first pass of request validation
 reads the local User Auth projection instead of the stream leader. The state
 uses no KV keys, is never persisted or shared between replicas, and is empty
-after a restart. A record older than 60 seconds has no value. The process
-removes these records when the table is full or once each 60 seconds. The
-table holds a maximum of 100,000 users. When it is full, the process records
-no more users, and their validations stay strict. A closed gate (NATS not
+after a restart. A record older than 60 seconds has no value. When the process adds a
+user, it removes these records if 60 seconds passed since the last removal.
+The table holds a maximum of 100,000 users. When it is full, the process
+removes expired records at most once each second, and between these scans it
+records no more users. Their validations stay strict. A closed gate (NATS not
 connected, reconnect recovery not complete, or User Auth projector failed or
-stalled) removes all records. The state contains user IDs only as map keys and
+stalled) removes all records when a validation finds it closed. A strict check
+records nothing unless the gates are open when it starts and when it ends. The state contains user IDs only as map keys and
 is not logged. `chatto_auth_generation_checks_total` and
 `chatto_auth_generation_strict_checks_total` count the checks. See
 [ADR-127](../adr/ADR-127-bounded-staleness-for-credential-validation.md) and

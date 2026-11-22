@@ -18,6 +18,10 @@ const authGenerationCheckWindow = 60 * time.Second
 // more users. Their validations then stay strict, which is always correct.
 const authGenerationWindowCapacity = 100_000
 
+// authGenerationWindowFullPruneInterval limits how often a full table is
+// scanned. Between scans, a full table records no new users.
+const authGenerationWindowFullPruneInterval = time.Second
+
 // strictAuthGenerationReason tells why an auth generation check was strict.
 // The values are metric labels. They contain no user data.
 type strictAuthGenerationReason int
@@ -179,10 +183,15 @@ func (w *authGenerationWindow) closeAll() {
 	clear(w.entries)
 }
 
-// makeRoom prunes entries when the table is full or one window passed since
-// the last prune, and reports whether a new entry fits. The caller holds mu.
+// makeRoom prunes entries when one window passed since the last prune, or
+// when the table is full and authGenerationWindowFullPruneInterval passed
+// since the last prune. It reports whether a new entry fits. The rate limit
+// keeps a full table from a scan on each request, because the scan holds mu.
+// The caller holds mu.
 func (w *authGenerationWindow) makeRoom(now time.Time) bool {
-	if len(w.entries) >= w.capacity || !w.inWindow(w.lastPrune, now) {
+	sinceLastPrune := now.Sub(w.lastPrune)
+	full := len(w.entries) >= w.capacity
+	if !w.inWindow(w.lastPrune, now) || (full && sinceLastPrune >= authGenerationWindowFullPruneInterval) {
 		w.prune(now)
 	}
 	return len(w.entries) < w.capacity

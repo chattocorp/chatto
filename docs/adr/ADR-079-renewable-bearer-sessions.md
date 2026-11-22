@@ -181,7 +181,8 @@ reuse detection remain authoritative for clients without Web Locks.
 Rotating the refresh credential does not immediately revoke the previous
 short-lived access token. Its fixed expiry bounds that overlap. Reuse detection,
 explicit logout, user auth-generation changes, and OAuth-client blocking revoke
-the stable authority, rejecting all overlap at its next validation. A user
+the stable authority, rejecting all overlap at its next validation on a
+current `RUNTIME_STATE` replica. A user
 auth-generation change rejects it within one minute in the worst case, on a
 replica whose User Auth projection lags (ADR-127). Established
 realtime sockets retain the same fixed-expiry bound described above.
