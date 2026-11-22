@@ -281,6 +281,10 @@ not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
 **Auth generation** — Per-user authentication epoch derived from durable user events. Cookie sessions, bearer tokens, and OAuth authorization codes are valid only when their stored generation matches the user's current generation. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 
+**Strict auth generation check** — Auth generation check that first reads from the `EVT` stream leader the newest position of each subject of the user that can change the result, then waits until the User Auth projection of the replica has applied them. A revocation that a different replica wrote cannot be missed. See [`docs/architecture/projections.md`](architecture/projections.md).
+
+**Auth generation check window** — Proposed time (60 seconds) during which a replica accepts a runtime credential from its local User Auth projection after a strict auth generation check accepted that user. The window ends early when the replica has no NATS connection or its User Auth projector failed or is stalled. Not implemented. See [ADR-127](adr/ADR-127-bounded-staleness-for-credential-validation.md).
+
 **External identity** — Provider-issued account identity linked to a user, keyed by verified issuer/provider namespace plus provider subject rather than email. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 
 **Verified identity** — A public identity that a Chatto server associates with a member through a verification method. Members trust the server operator for this association. See [FDR-058](fdr/FDR-058-atproto-sign-in.md) and [ADR-124](adr/ADR-124-atproto-handle-verification-needs-an-issuer.md).
