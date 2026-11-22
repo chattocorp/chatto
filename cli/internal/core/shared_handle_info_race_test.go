@@ -144,6 +144,10 @@ var sharedStorageRefresh = regexp.MustCompile(`\bstorage\.\w+\.(Info|Status|Seal
 
 // TestNoRefreshOfSharedStorageHandles keeps production code from refreshing a
 // shared storage handle. Use currentStreamInfo or a private handle instead.
+// The check is narrow: it finds only direct calls on a storage field, such as
+// c.storage.serverEvtStream.Info(ctx). It does not find calls through a local
+// variable or a handle in another struct. The race tests above cover those
+// callers.
 func TestNoRefreshOfSharedStorageHandles(t *testing.T) {
 	files, err := filepath.Glob("*.go")
 	if err != nil {
