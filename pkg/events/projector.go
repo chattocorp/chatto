@@ -1053,6 +1053,15 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 	// call, which can apply it first. The iterator resets the consumer inside
 	// Next. One goroutine calls Next and handles each message before it calls
 	// Next again, so delivery stays serial across resets.
+	//
+	// An earlier version used Consume because, with nats.go v1.48, the
+	// iterator made each process about 5 seconds slower in end-to-end tests,
+	// also with an empty stream. With nats.go v1.56, Next takes a context, so
+	// Run ends a waiting Next at once, and an idle iterator sends only the
+	// periodic pull requests and heartbeats that Consume also uses. The
+	// iterator costs some time on each message (nats.go creates and stops a
+	// heartbeat timer in every Next call). Ordered delivery is worth that
+	// cost.
 	messages, err := cons.Messages(jetstream.PullMaxBytes(projectionPullMaxBytes))
 	if err != nil {
 		return fmt.Errorf("start consume: %w", err)
@@ -1066,13 +1075,18 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 	}()
 	// Run returns only after the consume goroutine stops, so no event is
 	// applied after Run returns. The context ends a waiting Next. Stop runs
-	// after the goroutine returns because nats.go v1.54 does not synchronize
-	// Stop with the consumer reset inside Next. Only when the goroutine does
-	// not stop in time, for example because the reset retries while NATS is
-	// unavailable, does Stop run at the same time to cancel the reset. If a
-	// reset completes at that moment, nats.go v1.54 races on its current
-	// subscription, and the new subscription can stay open until the
-	// connection closes. nats.go v1.55 removes the race.
+	// after the goroutine returns: then no reset runs, and Stop stops the
+	// current subscription. A Stop during a successful reset can stop the
+	// old subscription just before Next installs the new one, which nats.go
+	// then leaves open until the connection closes.
+	//
+	// Next ignores the context while it resets the consumer, and the reset
+	// retries without limit, for example while NATS is unavailable or after
+	// the stream was deleted. Only when the goroutine does not stop in time
+	// does Stop run at the same time. Stop marks the iterator closed, so the
+	// reset ends at its next attempt. Stop waits for the consumer lock that
+	// the reset holds, which can take up to one retry delay and one request
+	// timeout (10 seconds each in nats.go v1.56).
 	defer func() {
 		stopConsume()
 		select {
@@ -1248,10 +1262,13 @@ func (p *Projector) consume(ctx context.Context, messages jetstream.MessagesCont
 		}
 		if err != nil {
 			// The ordered consumer resets itself for heartbeat, reconnect,
-			// sequence, and deleted-consumer errors. It returns other errors,
-			// for example a metadata error or a failure to start the new
-			// subscription after a reset. The next call continues, or it
-			// returns ErrMsgIteratorClosed, and then the projector fails.
+			// sequence, and deleted-consumer errors, and its reset retries
+			// without limit. In nats.go v1.56, Next returns only two other
+			// errors, and neither can repeat without a wait: a metadata error
+			// for one delivered message, after which the next call waits for
+			// the next message, and a failure to start the subscription after
+			// a reset, after which the stopped subscription makes the next
+			// call return ErrMsgIteratorClosed. Thus this loop cannot spin.
 			p.logger.Warn("Projection consumer error (auto-recovering)", "error", err)
 			continue
 		}
