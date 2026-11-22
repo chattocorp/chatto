@@ -3,11 +3,8 @@ package core
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	"github.com/chattocorp/chatto/cli/internal/parallel"
-	"github.com/chattocorp/chatto/pkg/events"
 )
 
 var ErrAuthenticationRevoked = errors.New("authentication revoked")
@@ -74,28 +71,9 @@ const usersProjectionAuthSubjects = 4
 // of this user and reads them concurrently. It does not wait for events of
 // other users or for other event types of the User Auth projection.
 func (c *ChattoCore) waitForUserAuthGenerationCurrent(ctx context.Context, userID string) error {
-	m := c.userModel
-	if m == nil || m.publisher == nil || m.users.Projector() == nil {
+	if c.userModel == nil {
 		return nil
 	}
-	positions, err := parallel.Map(ctx, 0, userAuthGenerationSubjects(userID), func(ctx context.Context, _ int, subject string) (events.StreamPosition, error) {
-		return m.publisher.LastSubjectPosition(ctx, subject)
-	})
-	if err != nil {
-		return fmt.Errorf("wait for user auth generation: read projection target seq: %w", err)
-	}
-	if target := newestStreamPosition(positions[:usersProjectionAuthSubjects]); !target.IsZero() {
-		if err := m.users.Projector().WaitFor(ctx, target); err != nil {
-			return fmt.Errorf("wait for user auth generation: wait for users projection: %w", err)
-		}
-	}
-	if m.auth.Projector() == nil || m.auth.Projection() == nil {
-		return nil
-	}
-	if target := newestStreamPosition(positions); !target.IsZero() {
-		if err := m.auth.Projector().WaitFor(ctx, target); err != nil {
-			return fmt.Errorf("wait for user auth generation: wait for user auth projection: %w", err)
-		}
-	}
-	return nil
+	subjects := userAuthGenerationSubjects(userID)
+	return c.userModel.waitForUserProjectionsCurrent(ctx, "user auth generation", subjects[:usersProjectionAuthSubjects], subjects)
 }

@@ -506,8 +506,9 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
   - Start a `testContext(t)` deadline after slow fixture setup. Otherwise the
     setup uses the deadline of the operation under test.
   - Do not count all subscriptions on a connection. Durable workers open and
-    close an inbox subscription for each JetStream pull. Count only the
-    subjects that the test is about.
+    close an inbox subscription for each JetStream pull. An idle worker keeps
+    one pull open for up to 30 seconds. Count only the subjects that the test
+    is about.
   - Give each simulated replica its own connection with `newReplicaConn` or
     `startReplica`, as in production. Replicas that share one connection seldom
     lag each other, and a stopped core's pull can stay open for a short time.

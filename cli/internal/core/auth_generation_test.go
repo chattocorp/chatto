@@ -5,7 +5,6 @@ import (
 	"errors"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -124,39 +123,17 @@ func TestCurrentAuthGenerationWaitsForEventFromOtherReplica(t *testing.T) {
 		generation uint64
 		err        error
 	}
-	// checkWhileHeld writes on the first replica while the User Auth
-	// projection of the second replica cannot apply events. It starts the
-	// check on the second replica for the user that write returns, then lets
-	// the projection continue.
-	checkWhileHeld := func(t *testing.T, write func() string) result {
+	// checkGeneration writes on the first replica while the User Auth
+	// projection of the second replica cannot apply events. Then it checks
+	// the auth generation of the user that write returns on the second
+	// replica.
+	checkGeneration := func(t *testing.T, write func() string) result {
 		t.Helper()
-		held, release, barrierDone := make(chan struct{}), make(chan struct{}), make(chan error, 1)
-		releaseOnce := sync.OnceFunc(func() { close(release) })
-		t.Cleanup(releaseOnce)
-		go func() {
-			barrierDone <- second.userModel.auth.Projector().WithReadBarrier(func(uint64) error {
-				close(held)
-				<-release
-				return nil
-			})
-		}()
-		<-held
-		userID := write()
-		checked := make(chan result, 1)
-		go func() {
+		var userID string
+		return checkWhileHeld(t, second.userModel.auth.Projector(), func() { userID = write() }, func() result {
 			generation, err := second.CurrentAuthGeneration(ctx, userID)
-			checked <- result{generation, err}
-		}()
-		select {
-		case got := <-checked:
-			t.Fatalf("check returned generation %d, err %v before the projection applied the event", got.generation, got.err)
-		case <-time.After(100 * time.Millisecond):
-		}
-		releaseOnce()
-		if err := <-barrierDone; err != nil {
-			t.Fatalf("read barrier: %v", err)
-		}
-		return <-checked
+			return result{generation, err}
+		})
 	}
 
 	for name, revoke := range map[string]func(userID string) *evtv1.Event{
@@ -174,7 +151,7 @@ func TestCurrentAuthGenerationWaitsForEventFromOtherReplica(t *testing.T) {
 			// An unknown user counts as revoked, so the check must wait for
 			// the account creation too.
 			var userID string
-			created := checkWhileHeld(t, func() string {
+			created := checkGeneration(t, func() string {
 				user, err := first.CreateUser(ctx, SystemActorID, strings.ReplaceAll(name, " ", "-"), "Replica User", "")
 				if err != nil {
 					t.Fatalf("CreateUser: %v", err)
@@ -185,7 +162,7 @@ func TestCurrentAuthGenerationWaitsForEventFromOtherReplica(t *testing.T) {
 			if created.err != nil || created.generation != 0 {
 				t.Fatalf("new account: generation = %d, err = %v, want 0, nil", created.generation, created.err)
 			}
-			revoked := checkWhileHeld(t, func() string {
+			revoked := checkGeneration(t, func() string {
 				if _, err := first.appendUserEvent(ctx, userID, newEvent(SystemActorID, revoke(userID)), "", nil); err != nil {
 					t.Fatalf("append event: %v", err)
 				}
