@@ -33,7 +33,11 @@ reverse proxy, the secrets, and the backups. This page describes both parts.
   refresh credential that changes at each renewal. Sessions end after 90 days
   without use. Change these durations with `auth.access_token_ttl` and
   `auth.token_ttl`.
-- A password change or reset makes older sessions and tokens invalid.
+- A password change or reset makes older sessions and tokens invalid. Account
+  deletion and deactivation also make sessions invalid. Each replica rejects
+  the old credential when it has applied the change, usually in milliseconds.
+  A replica that is behind can accept the old credential for a maximum of 60
+  seconds.
 - Sign-in, registration, and password reset give the same response for known
   and unknown accounts. This prevents account discovery.
 - Email verification codes expire after 30 minutes. Password reset links

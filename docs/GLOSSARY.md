@@ -283,7 +283,7 @@ not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
 **Strict auth generation check** — Auth generation check that first reads from the `EVT` stream leader the newest position of each subject of the user that can change the result, then waits until the User Auth projection of the replica has applied them. A revocation that a different replica wrote cannot be missed. See [`docs/architecture/projections.md`](architecture/projections.md).
 
-**Auth generation check window** — Proposed time (60 seconds) during which a replica accepts a runtime credential from its local User Auth projection after a strict auth generation check accepted that user. The window ends early when the replica has no NATS connection or its User Auth projector failed or is stalled. Not implemented. See [ADR-127](adr/ADR-127-bounded-staleness-for-credential-validation.md).
+**Auth generation check window** — Time (60 seconds) during which the read-only first pass of request validation on a replica accepts a runtime credential from its local User Auth projection after a strict auth generation check accepted that user. Only an acceptance can come from the local projection; every other answer runs the strict check. The window ends early when the replica has no NATS connection, has not completed reconnect recovery, or its User Auth projector failed or is stalled. See [ADR-127](adr/ADR-127-bounded-staleness-for-credential-validation.md).
 
 **External identity** — Provider-issued account identity linked to a user, keyed by verified issuer/provider namespace plus provider subject rather than email. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 

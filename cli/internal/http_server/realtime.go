@@ -803,11 +803,16 @@ func (s *HTTPServer) watchRealtimeAccountAccess(ctx context.Context, userID stri
 
 // revalidateRealtimeCredential checks the credential that authorized the socket and
 // reports whether the socket must reconnect to discard stale elevated authority.
+//
+// It always uses the strict auth generation check (ADR-127 section 5). With the
+// fast check, a socket on a replica that is behind could stay open for one
+// timer interval plus one auth generation check window.
 func (s *HTTPServer) revalidateRealtimeCredential(ctx context.Context) (bool, error) {
 	credential, ok := authctx.CredentialForContext(ctx)
 	if !ok {
 		return false, core.ErrNotAuthenticated
 	}
+	ctx = core.WithStrictAuthGenerationCheck(ctx)
 	// An inactive socket has no elevated authority to withdraw. Selections are
 	// sorted at activation; the deadline alone can be shared by two activations
 	// that both end at session expiry.

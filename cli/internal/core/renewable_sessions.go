@@ -424,7 +424,8 @@ func (c *ChattoCore) validateRenewableSession(ctx context.Context, sessionID str
 }
 
 // validateRenewableSessionWith applies expiry, OAuth client policy, and auth
-// generation to the session that read returns.
+// generation to the session that read returns. A fast read permits the fast
+// auth generation check; an authoritative read requires the strict check.
 func (c *ChattoCore) validateRenewableSessionWith(ctx context.Context, sessionID string, now time.Time, read credentialRead) (RenewableSession, jetstream.KeyValueEntry, error) {
 	session, entry, err := c.loadRenewableSessionWith(ctx, sessionID, read)
 	if err != nil {
@@ -446,7 +447,7 @@ func (c *ChattoCore) validateRenewableSessionWith(ctx context.Context, sessionID
 			return RenewableSession{}, nil, err
 		}
 	}
-	if err := c.RequireAuthenticationAllowed(ctx, session.UserID, session.AuthGeneration); err != nil {
+	if err := c.requireAuthenticationAllowed(ctx, session.UserID, session.AuthGeneration, authGenerationCheckFor(read)); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
 			return reject()
 		}

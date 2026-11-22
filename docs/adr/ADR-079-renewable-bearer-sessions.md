@@ -83,7 +83,11 @@ window. See [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md) and
   pass removes invalid records. Thus a request with an unknown token costs one
   leader read. An accepted credential can show privileged-mode, fresh-auth, or
   revocation state that is older by the replica lag. Fresh-authentication
-  checks therefore read through the leader.
+  checks therefore read through the leader. In this first pass, the auth
+  generation check can also read the local User Auth projection for the auth
+  generation check window of 60 seconds after a strict check accepted the user
+  ([ADR-127](ADR-127-bounded-staleness-for-credential-validation.md)). Only an
+  acceptance can come from that read.
 - `session.{hmac}` is one short-lived access-token verifier record. It includes
   its fixed expiry, renewable-session ID, access generation, user auth
   generation, and the established typed-credential metadata. Validation
@@ -177,7 +181,9 @@ reuse detection remain authoritative for clients without Web Locks.
 Rotating the refresh credential does not immediately revoke the previous
 short-lived access token. Its fixed expiry bounds that overlap. Reuse detection,
 explicit logout, user auth-generation changes, and OAuth-client blocking revoke
-the stable authority, rejecting all overlap at its next validation. Established
+the stable authority, rejecting all overlap at its next validation. A user
+auth-generation change rejects it within one minute in the worst case, on a
+replica whose User Auth projection lags (ADR-127). Established
 realtime sockets retain the same fixed-expiry bound described above.
 
 ### Client behavior

@@ -1,9 +1,7 @@
 # ADR-127: Bounded Staleness for Runtime Credential Validation
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-11-22
-
-This record is a proposal. No part of it is implemented.
 
 ## Summary
 

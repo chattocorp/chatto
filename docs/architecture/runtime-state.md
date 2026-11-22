@@ -161,7 +161,7 @@ choice before exposing a heartbeat. A second watcher handles liveness in
 | `link_preview_token.{hmac}`                                          | Short-lived composer link-preview token JSON referencing a cached preview URL. Uses per-key 30-minute TTL; raw tokens are only returned to the client.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `dek.{id}`                                                           | Wrapped purpose-scoped app DEK record (protobuf `UserDataEncryptionKey`). The complete object key is the content-key ref; it has no TTL and is shredded on account deletion.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
-After account deletion, the runtime credential cleanup job removes matching `renewable_session.*` and `session.*` records by owner and revision. An interrupted worker can retry. Authentication checks the account’s durable auth generation before cleanup finishes.
+After account deletion, the runtime credential cleanup job removes matching `renewable_session.*` and `session.*` records by owner and revision. An interrupted worker can retry. Authentication checks the account’s durable auth generation before cleanup finishes. A replica whose User Auth projection has not applied the deletion can accept a credential of the account for a maximum of 60 seconds (see [Auth generation check window](#auth-generation-check-window)).
 
 `FetchLinkPreview` creates `link_preview_token` records only when
 `omit_preview_token` is false. Display-only reads still use the shared preview
@@ -362,6 +362,25 @@ durable message-body references.
 
 S3 public delivery probes only `instance/{assetId}`. This route never probes
 private current or historical attachment prefixes. Disallowed classes return 404.
+
+## Auth generation check window
+
+Each server process keeps, for each user, the start time of the last strict
+auth generation check that accepted the user, the NATS reconnect count at that
+time, and the time of the last strict check that did not accept the user. For
+60 seconds after an acceptance, the read-only first pass of request validation
+reads the local User Auth projection instead of the stream leader. The state
+uses no KV keys, is never persisted or shared between replicas, and is empty
+after a restart. A record older than 60 seconds has no value. The process
+removes these records when the table is full or once each 60 seconds. The
+table holds a maximum of 100,000 users. When it is full, the process records
+no more users, and their validations stay strict. A closed gate (NATS not
+connected, reconnect recovery not complete, or User Auth projector failed or
+stalled) removes all records. The state contains user IDs only as map keys and
+is not logged. `chatto_auth_generation_checks_total` and
+`chatto_auth_generation_strict_checks_total` count the checks. See
+[ADR-127](../adr/ADR-127-bounded-staleness-for-credential-validation.md) and
+[`auth_generation_window.go`](../../cli/internal/core/auth_generation_window.go).
 
 ## LiveKit webhook diagnostics
 
