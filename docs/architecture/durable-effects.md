@@ -51,17 +51,36 @@ Transient fetch failures retry in place. A deleted consumer stops its worker so
 the owning core process or supervised runtime unit can recreate the declared
 consumer instead of polling a stale handle indefinitely. Retry failures are
 logged on the first and exponentially sparse later attempts; terminated poison
-deliveries are always logged. Each worker has at most one outstanding pull.
-While no delivery is active, the pull waits up to 30 seconds, so an idle worker
-sends one pull request each 30 seconds. While a delivery is active, the pull
-waits up to `FetchMaxWait` (default one second). Shutdown cancels outstanding
-pulls before active handlers and schedules redelivery beyond `FetchMaxWait`,
-preventing an orphaned server-side pull from reclaiming its own handoff. Only a
-pull starts a delivery, so a long idle pull is never outstanding while a
-delivery is active, and the handoff delay stays short. nats-server does not
-wake waiting pulls when an operator resumes a paused consumer before its pause
-deadline. An idle worker then starts the pending work when its pull expires,
-within 30 seconds, or when a new message arrives.
+deliveries are always logged.
+
+Each worker has at most one outstanding pull. A pull waits up to
+`FetchMaxWait` (default one second), except when the previous pull expired
+empty and no delivery is active. Then the worker is idle, and the pull waits up
+to 30 seconds (or the consumer's shorter `MaxRequestExpires`). An idle worker
+thus sends one pull request each 30 seconds. After a delivery or a failed
+pull, the next pull is short again, so a backlog uses only short pulls. A
+failed long pull also reads the consumer's current `MaxRequestExpires`.
+Shutdown cancels outstanding pulls before active handlers and schedules
+redelivery beyond `FetchMaxWait`, preventing an orphaned server-side pull from
+reclaiming its own handoff. Only a pull starts a delivery, so a long idle pull
+is never outstanding while a delivery is active, and the handoff delay stays
+short.
+
+The long idle pull has these limits:
+
+- A replica that disappears without closing its connection keeps an apparent
+  pull open on the server for up to about 29 seconds. Work that arrives in that
+  time goes to the dead pull, uses one delivery attempt, and reaches another
+  replica only after the consumer's `AckWait` (one minute for notification
+  alerts, two minutes for other jobs). With one-second pulls, this window was
+  about one second. A clean shutdown, a rolling deploy, and a crash that closes
+  the connection are not affected: the server removes a pull without interest.
+- A pull that the server loses, for example after a broker restart, fails
+  after two missed pull heartbeats, which is about 20 seconds.
+- nats-server does not wake waiting pulls when an operator resumes a paused
+  consumer before its pause deadline. Chatto never pauses or resumes its
+  consumers. After such a resume, an idle worker starts the pending work when
+  its pull expires (within 30 seconds) or when a new message arrives.
 
 Owner-only admin diagnostics classify the known Chatto durable queues from
 their JetStream consumer state without adding process-local health as a source
