@@ -47,11 +47,21 @@ const (
 	// PullMaxBytes, nats.go v1.56 sets the batch to 1,000,000 messages, and
 	// the iterator keeps a channel of that many pointers (8 MB) for its full
 	// life. With PullMaxMessagesWithBytesLimit, the server sends a "409 Batch
-	// Completed" status after each full batch. The status uses a place in the
-	// channel, which has space only for the batch. When the projector is
-	// behind, nats.go can then drop a message. The ordered consumer finds the
-	// gap only when the next message arrives. Without a byte limit, the server
-	// sends no such status, and the channel can hold all requested messages.
+	// Completed" status when a batch is full and bytes remain. The status
+	// uses a place in the channel, which has space only for the batch. When
+	// the projector is behind, nats.go then drops a message. The ordered
+	// consumer finds the gap only when a later message arrives. Without a
+	// byte limit, the server does not send that status.
+	//
+	// Known limits of this option:
+	//   - Idle heartbeats also use places in the channel. If Apply blocks for
+	//     longer than two heartbeat intervals (10 seconds) while the pull
+	//     waits, and then enough events arrive to fill the rest of the pull,
+	//     nats.go drops the last of them. A later event shows the gap, and
+	//     the ordered consumer resets. Until a later event arrives, the
+	//     projection does not apply the dropped event.
+	//   - No byte limit applies. A projector that is behind can buffer up to
+	//     this many events, whatever their size.
 	projectionPullMaxMessages     = 1000
 	projectionSnapshotLoadTimeout = 15 * time.Second
 	// Ordered pull consumers cannot issue another pull while a synchronous
