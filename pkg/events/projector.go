@@ -35,12 +35,24 @@ var ErrProjectionSequenceSubjectMismatch = errors.New("projection wait sequence 
 // cannot be restarted after its context is cancelled or its run fails.
 var ErrProjectorAlreadyStarted = errors.New("projector already started")
 
-// Projection replay is a sequential bulk read. NATS defaults to a 500-message
-// client buffer, which turns histories of many small event records into many
-// latency-bound pull requests on a remote JetStream cluster. A byte window
-// keeps those pulls large while bounding client-side memory.
+// Projection replay is a sequential bulk read.
 const (
-	projectionPullMaxBytes        = 16 * 1024 * 1024
+	// projectionPullMaxMessages sets the iterator buffer and the pull batch.
+	// The iterator asks for more when fewer than half of these messages are
+	// left, so each pull asks for at least 500 messages, and replay from a
+	// remote JetStream cluster does not wait for each pull. Each iterator
+	// keeps a channel of this many pointers (8 KB) while it runs.
+	//
+	// Do not use PullMaxBytes or PullMaxMessagesWithBytesLimit here. With
+	// PullMaxBytes, nats.go v1.56 sets the batch to 1,000,000 messages, and
+	// the iterator keeps a channel of that many pointers (8 MB) for its full
+	// life. With PullMaxMessagesWithBytesLimit, the server sends a "409 Batch
+	// Completed" status after each full batch. The status uses a place in the
+	// channel, which has space only for the batch. When the projector is
+	// behind, nats.go can then drop a message. The ordered consumer finds the
+	// gap only when the next message arrives. Without a byte limit, the server
+	// sends no such status, and the channel can hold all requested messages.
+	projectionPullMaxMessages     = 1000
 	projectionSnapshotLoadTimeout = 15 * time.Second
 	// Ordered pull consumers cannot issue another pull while a synchronous
 	// projection Apply is running. Keep their cleanup window comfortably above
@@ -1061,8 +1073,8 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 	// periodic pull requests and heartbeats that Consume also uses. The
 	// iterator costs some time on each message (nats.go creates and stops a
 	// heartbeat timer in every Next call). Ordered delivery is worth that
-	// cost.
-	messages, err := cons.Messages(jetstream.PullMaxBytes(projectionPullMaxBytes))
+	// cost. See projectionPullMaxMessages for the buffer size.
+	messages, err := cons.Messages(jetstream.PullMaxMessages(projectionPullMaxMessages))
 	if err != nil {
 		return fmt.Errorf("start consume: %w", err)
 	}
