@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/nats-io/nats-server/v2 v2.14.7
-	github.com/nats-io/nats.go v1.54.0
+	github.com/nats-io/nats.go v1.56.0
 	golang.org/x/sync v0.23.0
 )
 

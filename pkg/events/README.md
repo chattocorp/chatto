@@ -154,8 +154,20 @@ Shutdown can discard pending events. Replay starts from committed restore state,
 or from retained history when the projection has no restore capability. Other
 projections continue to receive individual `Apply` calls.
 
-On exit, `Run` stops consumption and attempts to delete its current ephemeral
-consumer with an independent two-second request timeout. Deletion failure does
+The projector reads its ordered consumer with one goroutine. It handles each
+message completely before it reads the next one. The ordered consumer resets
+itself between two reads, for example after a reconnect, missed heartbeats, or
+a deleted consumer, and continues after the last message that it returned.
+Thus the projector applies events in stream order and exactly once, also
+across a reset, and `LastSeq`, waiters, startup, snapshot cutoffs, and
+checkpoints never pass an event that is not applied. The projector ignores a
+message with a sequence that it already handled. When the consumer stops for
+a reason other than the end of `Run`, for example a closed connection, the
+projector fails.
+
+On exit, `Run` stops consumption, waits until the current message is handled,
+and attempts to delete its current ephemeral consumer with an independent
+two-second request timeout. Deletion failure does
 not replace the run error. Five-minute inactivity expiry remains the fallback
 after a crash or a failed cleanup request. Durable workers keep their consumers.
 Use `WaitFor`, `WaitForCurrent`, or a subject-aware `StreamPosition` when a

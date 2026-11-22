@@ -101,6 +101,14 @@ authorization, live events, backup and restore, and backend tests.
   through the stream leader. A hot path can read with `GetAnyReplica` to accept
   a result quickly. It must decide a miss or a rejection again with `Get`,
   unless a wrong negative result is harmless. Give the reason in a comment.
+- Never refresh a shared stream, consumer, key-value, or Object Store handle.
+  nats.go writes the cached information of a handle without a lock in
+  `Stream.Info`, `Consumer.Info`, `KeyValue.Status`, and `ObjectStore.Status`
+  or `Seal`. Reads through the same handle, including `GetMsg`, key reads,
+  and `CachedInfo`, read that cache. To get fresh information, use
+  `currentStreamInfo` or `currentConsumerInfo` in `core/storage.go`. They open
+  a private handle for the same cost of one JetStream API request.
+  `TestNoRefreshOfSharedStorageHandles` finds such calls on `storage` fields.
 - Classify an OCC conflict with `jetstreamutil.IsSequenceConflict`, not with
   `errors.Is(err, jetstream.ErrKeyExists)`. A replicated stream reports a
   conflict with a write in progress as code 10164. nats.go reports that code as
