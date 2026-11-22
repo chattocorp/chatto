@@ -59,6 +59,10 @@ const (
 	// still shows pending work.
 	projectionSourceCheckInterval = 30 * time.Second
 	projectionSourceCheckTimeout  = 10 * time.Second
+	// projectionWaitValidationDelay sets how long WaitFor waits before it
+	// reads the target message to make sure that the wait can end. Most waits
+	// end before this delay, so they do not read the stream at all.
+	projectionWaitValidationDelay = 100 * time.Millisecond
 )
 
 // ProjectorOperation names the work that a projector does at one moment.
@@ -596,9 +600,26 @@ func (p *Projector) ReplaySubjects() []string {
 // The stream sequence must belong to pos.SubjectFilter, and the sequence's
 // actual subject must match one of this projector's subject filters.
 //
-// After the stream position is validated, a call whose LastSeq() is already at
-// or beyond pos.Seq skips waiter registration. Otherwise it registers a waiter
-// and blocks.
+// A call whose LastSeq() is already at or beyond pos.Seq returns without a
+// stream read. Otherwise it registers a waiter and blocks. When the wait has
+// not ended after a short delay (at once when ctx has less than twice that
+// delay left), WaitFor reads the message at pos.Seq from the
+// stream leader. It returns an error when that message does not exist, does
+// not match pos.SubjectFilter, or has a subject that the projector does not
+// consume, because the projector cannot reach such a position. The read does
+// not delay the end of the wait: when the projector reaches pos.Seq, fails, or
+// ctx ends while the read runs, WaitFor returns at once and cancels the read.
+//
+// WaitFor always rejects, without a stream read, a pos.SubjectFilter that
+// cannot match a subject that the projector consumes: an exact subject that
+// the projector does not consume, or a wildcard filter that has no subject in
+// common with the projector's subject filters. Other wrong positions are
+// rejected only while the projector has not reached pos.Seq: a sequence whose
+// subject does not match pos.SubjectFilter, a sequence on a subject that the
+// projector does not consume, and a sequence that does not exist. When the
+// projector is already past such a position, WaitFor returns nil. The
+// projection then shows every consumed event through pos.Seq, so the result
+// is not stale, but the caller's mistake is not reported.
 //
 // Precondition: the projector's Run loop is expected to be active before any
 // code reaches WaitFor. Applications must order projector startup before
@@ -609,15 +630,35 @@ func (p *Projector) WaitFor(ctx context.Context, pos StreamPosition) error {
 	if pos.IsZero() {
 		return nil
 	}
-
-	if err := p.validateSeqSubject(ctx, pos); err != nil {
-		return err
+	if !p.filterCanMatchConsumed(pos.SubjectFilter) {
+		return fmt.Errorf("%w: subject filter %q not matched by filters %v",
+			ErrProjectionSubjectNotConsumed, pos.SubjectFilter, p.subjects)
 	}
-
-	return p.waitForSeq(ctx, pos.Seq)
+	return p.waitForSeq(ctx, pos.Seq, func(ctx context.Context) error {
+		return p.validateSeqSubject(ctx, pos)
+	})
 }
 
-func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
+// filterCanMatchConsumed reports whether some subject can match both filter
+// and one of the projector's subject filters. It reads no stream state.
+func (p *Projector) filterCanMatchConsumed(filter string) bool {
+	if !subjectHasWildcard(filter) {
+		return p.consumesSubject(filter)
+	}
+	for _, subject := range p.subjects {
+		if subjectFiltersOverlap(filter, subject) {
+			return true
+		}
+	}
+	return false
+}
+
+// waitForSeq blocks until LastSeq() >= seq, the projector fails at or before
+// seq, or ctx ends. A non-nil validate starts once, in its own goroutine,
+// when the wait has not ended after validationDelay(ctx). Its error ends the
+// wait. The wait does not wait for validate: when the wait ends first,
+// waitForSeq cancels the context of validate and returns.
+func (p *Projector) waitForSeq(ctx context.Context, seq uint64, validate func(context.Context) error) error {
 	p.mu.Lock()
 	if p.failedErr != nil && seq >= p.failedSeq {
 		err := p.failedErr
@@ -637,25 +678,62 @@ func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
 	p.waiters = slices.Insert(p.waiters, i, seqWaiter{seq: seq, ch: ch})
 	p.mu.Unlock()
 
-	select {
-	case <-ch:
-		p.mu.Lock()
-		err := p.failedErr
-		failedSeq := p.failedSeq
-		p.mu.Unlock()
-		if err != nil && seq >= failedSeq {
-			return err
-		}
-		return nil
-	case <-ctx.Done():
-		// Drop our waiter so we don't leak. The advance path tolerates
-		// already-closed channels (it doesn't close twice), and a small
-		// scan here is fine — waiters lists are short.
-		p.mu.Lock()
-		p.waiters = slices.DeleteFunc(p.waiters, func(w seqWaiter) bool { return w.ch == ch })
-		p.mu.Unlock()
-		return ctx.Err()
+	var validationDue <-chan time.Time
+	if validate != nil {
+		timer := time.NewTimer(validationDelay(ctx))
+		defer timer.Stop()
+		validationDue = timer.C
 	}
+	// validation is nil until the read starts. A nil channel never receives,
+	// so the select below ignores it before that.
+	var validation chan error
+	validationCtx, cancelValidation := context.WithCancel(ctx)
+	defer cancelValidation()
+	for {
+		select {
+		case <-ch:
+			p.mu.Lock()
+			err := p.failedErr
+			failedSeq := p.failedSeq
+			p.mu.Unlock()
+			if err != nil && seq >= failedSeq {
+				return err
+			}
+			return nil
+		case <-validationDue:
+			validationDue = nil
+			validation = make(chan error, 1)
+			go func() { validation <- validate(validationCtx) }()
+		case err := <-validation:
+			validation = nil
+			if err != nil {
+				p.removeWaiter(ch)
+				return err
+			}
+		case <-ctx.Done():
+			p.removeWaiter(ch)
+			return ctx.Err()
+		}
+	}
+}
+
+// validationDelay returns how long a wait waits before it validates its
+// position. A context with little time left validates at once, so that the
+// delay cannot turn a prompt validation error into a deadline error.
+func validationDelay(ctx context.Context) time.Duration {
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < 2*projectionWaitValidationDelay {
+		return 0
+	}
+	return projectionWaitValidationDelay
+}
+
+// removeWaiter drops the waiter of an ended wait so that it does not leak.
+// The advance path tolerates already-closed channels (it doesn't close
+// twice), and a small scan here is fine — waiters lists are short.
+func (p *Projector) removeWaiter(ch chan struct{}) {
+	p.mu.Lock()
+	p.waiters = slices.DeleteFunc(p.waiters, func(w seqWaiter) bool { return w.ch == ch })
+	p.mu.Unlock()
 }
 
 func (p *Projector) validateConsumesSubject(subject string) error {
@@ -693,7 +771,7 @@ func (p *Projector) WaitForCurrent(ctx context.Context) error {
 	if target.seq == 0 {
 		return nil
 	}
-	return p.waitForSeq(ctx, target.seq)
+	return p.waitForSeq(ctx, target.seq, nil)
 }
 
 // CurrentTargetSeq returns the highest stream sequence currently matching

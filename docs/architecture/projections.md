@@ -58,7 +58,9 @@ eight registered projectors before it completes boot.
 Writers wait for the relevant projector sequence before returning
 read-your-writes. Projection-aware domain models keep the projector references
 needed for those waits; the `ChattoCore` facade does not mirror every registered
-projector.
+projector. A wait reads the target message from the stream leader only when the
+projector has not reached it after 100 ms. That read rejects a position that the
+projector cannot reach, so that the wait cannot block until its deadline.
 
 `InvitationModel` derives a process-local 20-character invitation-code lookup
 index from the cold-replayed Invitation projection. The index contains no
