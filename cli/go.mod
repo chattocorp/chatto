@@ -61,7 +61,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/nats-io/jsm.go v0.4.1
 	github.com/nats-io/nats-server/v2 v2.14.7
-	github.com/nats-io/nats.go v1.54.0
+	github.com/nats-io/nats.go v1.56.0
 	github.com/nats-io/nkeys v0.4.16
 	github.com/otiai10/opengraph/v2 v2.2.0
 	github.com/pelletier/go-toml/v2 v2.4.3
