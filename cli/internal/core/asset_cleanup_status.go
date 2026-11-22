@@ -51,12 +51,12 @@ func (s *AssetModel) AdminCleanupStatus(ctx context.Context) (AssetCleanupAdminS
 		return status, fmt.Errorf("read latest asset deletion sequence: %w", err)
 	}
 	status.LatestDeletionSeq = latestSeq
-	info, err := s.cleanupConsumer.Info(ctx)
+	info, err := currentConsumerInfo(ctx, s.js, s.cleanupConsumer)
 	if err != nil {
 		return status, fmt.Errorf("read asset cleanup consumer: %w", err)
 	}
 	status.LastInspectedSeq = info.Delivered.Stream
-	jobs, err := jobsConsumer.Info(ctx)
+	jobs, err := currentConsumerInfo(ctx, s.js, jobsConsumer)
 	if err != nil {
 		return status, fmt.Errorf("read asset cleanup job consumer: %w", err)
 	}

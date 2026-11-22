@@ -43,7 +43,7 @@ func (c *ChattoCore) initializeServerSetup(ctx context.Context) error {
 		if seq != 0 {
 			return nil
 		}
-		info, err := c.storage.serverEvtStream.Info(ctx)
+		info, err := c.currentEventStreamInfo(ctx)
 		if err != nil {
 			return err
 		}

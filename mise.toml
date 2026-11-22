@@ -30,6 +30,9 @@ uv = "0.11.30"
 _.file = '.env'
 # Share Go build-cache entries across checkout paths; preserve incoming flags.
 GOFLAGS = "{{env.GOFLAGS | default(value='')}} -trimpath"
+# Use the Go version that mise pins. Do not download other toolchains to the
+# module cache. The cache never removes them.
+GOTOOLCHAIN = "local"
 # Use the numeric release version for development builds, including during a beta.
 CHATTO_DEVELOPMENT_VERSION = "{{ read_file(path='.sweet.yml') | split(pat='version: ') | nth(n=1) | split(pat='\n') | first | trim | regex_replace(pattern='[-+].*', rep='') }}-dev"
 # The development stack uses the workspace port block. The base is
