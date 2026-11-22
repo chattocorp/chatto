@@ -9,7 +9,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-func startTestNATS(t *testing.T) *nats.Conn {
+func startTestNATS(t testing.TB) *nats.Conn {
 	t.Helper()
 	natsServer, err := server.NewServer(&server.Options{
 		JetStream:  true,

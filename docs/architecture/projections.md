@@ -55,6 +55,15 @@ projector. `ServerContentView` and the six independent EVT projectors read
 filters, replay progress, failure state, and readiness. Chatto waits for all
 eight registered projectors before it completes boot.
 
+Each projector reads its ordered consumer with the nats.go `Messages`
+iterator on one goroutine and handles one message completely before it reads
+the next. The ordered consumer resets inside that read, for example after a
+reconnect or a NATS server change, and continues after the last returned
+message. Thus a reset cannot let a later event overtake an earlier event that
+is still in decode or apply. Do not change this to `Consume(handler)`: after a
+reset, `Consume` starts a new subscription goroutine while the previous
+handler can still run.
+
 Writers wait for the relevant projector sequence before returning
 read-your-writes. Projection-aware domain models keep the projector references
 needed for those waits; the `ChattoCore` facade does not mirror every registered
