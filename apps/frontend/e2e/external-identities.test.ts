@@ -195,6 +195,90 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
   });
 
+  test('links with the password in a link window opened from the legacy settings URL', async ({
+    page,
+    context,
+    authPage
+  }) => {
+    const user = await createAndLoginTestUser(page, { loginPrefix: 'linkwindow' });
+    const callback = `/chat/-/settings/account?link_provider=discord-main&link_user=${user.id}&link_complete=1`;
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'link',
+      providerId: 'discord-main',
+      providerType: 'discord',
+      providerLabel: 'Discord',
+      subject: `discord-window-${Date.now()}`,
+      boundUserId: user.id,
+      redirectPath: callback
+    });
+    // Model a verified callback that commits the link before it returns to the window.
+    await context.route('**/auth/providers/discord-main?**', async (route) => {
+      const response = await context.request.post(
+        '/api/connect/chatto.auth.v1.ExternalIdentityAuthService/ConfirmExternalIdentityLink',
+        { data: { token: flow.token } }
+      );
+      expect(response.ok()).toBe(true);
+      await route.fulfill({ status: 302, headers: { Location: callback } });
+    });
+    // Request fresh proof once without ageing the browser session. The server
+    // checks the password of the second request.
+    await context.route(
+      '**/chatto.api.v1.MyAccountService/StartExternalIdentityLink',
+      (route) =>
+        route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 'failed_precondition',
+            message: 'fresh authentication is required'
+          })
+        }),
+      { times: 1 }
+    );
+    await page.goto(routes.settingsAccount);
+    const row = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
+    await expect(row.getByRole('button', { name: 'Link', exact: true })).toBeVisible();
+
+    // Older clients open this URL. Its forward races the origin's first
+    // realtime snapshot in the new window, which discards reads in flight.
+    const popupPromise = page.waitForEvent('popup');
+    await page.evaluate((url) => {
+      window.open(url, '_blank');
+    }, `/chat/-/settings/account?link_provider=discord-main&link_user=${user.id}`);
+    const popup = await popupPromise;
+    await expect(popup).toHaveURL(/\/sso\/link\?/);
+    await expect(popup.getByRole('heading', { name: 'Link Discord?' })).toBeVisible();
+    await expect(popup.getByRole('button', { name: 'Toggle sidebar' })).toHaveCount(0);
+
+    await popup.getByRole('button', { name: 'Continue with Discord' }).click();
+    await popup.getByLabel('Chatto password').fill(user.password);
+    await popup.getByRole('button', { name: 'Continue with Discord' }).click();
+
+    await expect.poll(() => popup.isClosed()).toBe(true);
+    await expect(row.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();
+  });
+
+  test('signs in inside a signed-out link window and returns to the link', async ({
+    page,
+    authPage
+  }) => {
+    const login = `linksignin${Date.now()}`;
+    const user = await authPage.createUserViaApi(login, 'testpassword123');
+    await page.goto(`/sso/link?link_provider=discord-main&link_user=${user.id}`);
+    await expect(page).toHaveURL(/\/login\?redirect=/);
+    await expect(page.getByTestId('sign-in-window-header')).toBeVisible();
+
+    await page.getByRole('link', { name: 'Continue with password' }).click();
+    await expect(page).toHaveURL(/\/login\/password\?redirect=/);
+    await expect(page.getByTestId('sign-in-window-header')).toBeVisible();
+    await page.getByLabel('Username or Email').fill(login);
+    await page.getByLabel('Password', { exact: true }).fill('testpassword123');
+    await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+
+    await expect(page).toHaveURL(/\/sso\/link\?/);
+    await expect(page.getByRole('button', { name: 'Continue with Discord' })).toBeVisible();
+  });
+
   test('confirms the password in origin account settings before opening the provider popup', async ({
     page,
     context,
@@ -210,7 +294,7 @@ test.describe('External identity confirmation flows', () => {
       boundUserId: user.id,
       redirectPath: `/chat/-/settings/account?link_provider=discord-main&link_user=${user.id}&link_complete=1`
     });
-    // Model a verified callback that commits the link before returning to settings.
+    // Model a verified callback that commits the link before returning to the link window.
     // The real provider callback is covered by the backend OIDC integration test.
     await context.route('**/auth/providers/discord-main?**', async (route) => {
       const response = await context.request.post(

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isIdentityLinkPath } from '$lib/auth/identityLink';
   import { refreshExperimentalFeatures } from '$lib/state/experimentalFeatures.svelte';
   import { initialPageReveal } from '$lib/dom/initialPageReveal';
   import { watchMotionPreference } from '$lib/dom/motionPreference';
@@ -106,7 +107,8 @@
     if (
       page.route.id === '/oauth/consent' ||
       page.route.id === '/servers/authorize' ||
-      page.route.id === '/sso/handle'
+      page.route.id === '/sso/handle' ||
+      page.route.id === '/sso/link'
     )
       return true;
     if (page.route.id === '/servers/callback') {
@@ -119,11 +121,18 @@
         isSafeInternalPath(redirectPath) && isProviderCallback(new URL(redirectPath, page.url))
       );
     }
-    if (page.route.id !== '/login' && page.route.id !== '/register') return false;
+    if (
+      page.route.id !== '/login' &&
+      page.route.id !== '/login/password' &&
+      page.route.id !== '/register'
+    )
+      return false;
     const redirect = page.url.searchParams.get('redirect');
     if (!isSafeInternalPath(redirect)) return false;
     const target = new URL(redirect, page.url).pathname;
-    return target === '/oauth/authorize' || target === '/oauth/consent';
+    return (
+      target === '/oauth/authorize' || target === '/oauth/consent' || isIdentityLinkPath(target)
+    );
   });
 
   $effect(() => {
