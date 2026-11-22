@@ -1,5 +1,13 @@
-repository: https://github.com/chattocorp/chatto
+# Sweet repository configuration.
+# The sections appear in this order. The docs website changelog shows all of
+# them. The in-app help shows only Highlights.
 types:
+  # A short, user-facing summary of a notable change, in one or two sentences.
+  # Write it in addition to the feature or fix note of the same change. That
+  # note sets the version bump.
+  highlight:
+    bump: none
+    section: Highlights
   breaking:
     bump: minor
     section: Breaking changes
@@ -12,5 +20,9 @@ types:
   performance:
     bump: patch
     section: Performance
+  # Small visible changes that most readers can skip: spacing, colours, wording.
+  polish:
+    bump: patch
+    section: Smaller changes
   chore:
     bump: none

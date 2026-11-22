@@ -16,6 +16,8 @@ COPY apps/frontend apps/frontend
 COPY packages/api-types packages/api-types
 COPY packages/translatto packages/translatto
 COPY packages/chatto-client packages/chatto-client
+COPY CHANGELOG.md CHANGELOG.md
+COPY tools/changelog.mjs tools/changelog.mjs
 RUN pnpm --filter chatto-frontend build-storybook
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine

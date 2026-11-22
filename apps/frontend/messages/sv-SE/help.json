@@ -9,6 +9,14 @@
       "question": "Vem är med på nästa samtal?"
     },
     "overview": "Översikt",
+    "whats_new": {
+      "title": "Nyheter",
+      "description": "Höjdpunkterna i varje Chatto-version, på engelska.",
+      "full_changelog": "Fullständig ändringslogg",
+      "release_notes": "Versionsinformation för {version}",
+      "empty": "Det finns inga höjdpunkter än.",
+      "unreleased": "Ej släppt"
+    },
     "intro": "Korta guider för chatt och serveradministration.",
     "users": "För medlemmar",
     "admins": "För administratörer",

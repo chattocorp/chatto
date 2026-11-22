@@ -417,6 +417,8 @@ sources = [
     "{package.json,*config.*,scripts/*.mjs,.env*}",
     "../../{package.json,pnpm-*.yaml,.npmrc,.env*,turbo.json,tools/turbo.mjs,tools/prepare-embedded-frontend.sh}",
     "../../packages/{api-types,translatto,chatto-client}/{src/**,package.json,tsconfig*.json}",
+    # Help → What's new reads the release highlights at build time.
+    "../../{CHANGELOG.md,.sweet.config.yml,.sweet/*.md,tools/changelog.mjs}",
 ]
 outputs = [
     "build",

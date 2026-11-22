@@ -1,0 +1,102 @@
+---
+/**
+ * The changelog, generated from the root `CHANGELOG.md` that Sweet Release
+ * writes. Highlights come first in each release. Smaller changes are folded.
+ */
+import { getCollection } from 'astro:content';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { HIGHLIGHTS, releaseAnchor } from '../../../../tools/changelog.mjs';
+
+const SMALLER_CHANGES = 'Smaller changes';
+
+const releases = (await getCollection('changelog'))
+  .map(({ data }) => data)
+  .filter(({ sections }) => sections.some(({ notes }) => notes.length))
+  .sort((a, b) => a.order - b.order);
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Changelog',
+    description: 'What changed in each Chatto release, with the highlights first.'
+  }}
+  headings={releases.map(({ version }) => ({
+    depth: 2,
+    slug: releaseAnchor(version),
+    text: version
+  }))}
+>
+  <p>
+    What changed in each Chatto release, latest first. Downloads and release assets are on
+    <a href="https://github.com/chattocorp/chatto/releases">GitHub</a>.
+  </p>
+
+  {
+    releases.map(({ version, sections }) => (
+      <section class="changelog-release" aria-labelledby={releaseAnchor(version)}>
+        <h2 id={releaseAnchor(version)}>{version}</h2>
+        {sections.map(({ title, notes }) =>
+          title === HIGHLIGHTS ? (
+            <div class="changelog-highlights">
+              <h3>{title}</h3>
+              <ul>
+                {notes.map((note) => (
+                  <li set:html={note} />
+                ))}
+              </ul>
+            </div>
+          ) : title === SMALLER_CHANGES ? (
+            <details>
+              <summary>
+                {title} ({notes.length})
+              </summary>
+              <ul>
+                {notes.map((note) => (
+                  <li set:html={note} />
+                ))}
+              </ul>
+            </details>
+          ) : (
+            <>
+              <h3>{title}</h3>
+              <ul>
+                {notes.map((note) => (
+                  <li set:html={note} />
+                ))}
+              </ul>
+            </>
+          )
+        )}
+      </section>
+    ))
+  }
+</StarlightPage>
+
+<style>
+  .changelog-release {
+    margin-block-start: 3rem;
+  }
+
+  .changelog-highlights {
+    padding: 1rem 1.25rem;
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--sl-color-accent-low), transparent 30%);
+  }
+
+  .changelog-highlights h3 {
+    margin: 0;
+    color: var(--sl-color-accent-high);
+    font-size: var(--sl-text-sm);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .changelog-highlights li {
+    font-weight: 600;
+  }
+
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+</style>
