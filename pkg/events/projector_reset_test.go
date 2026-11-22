@@ -538,7 +538,7 @@ func TestProjectorResetDuringStartupReplay(t *testing.T) {
 // TestProjectorResetWithLiveBatch puts s in a live batch and forces a reset
 // before the batch flushes. The flush applies s and the later event in order,
 // and no waiter returns before the flush. The batch flushes by size, by the
-// timer in the Run goroutine, or holds s inside the flush.
+// timer in the Run goroutine (armed by the test), or holds s inside the flush.
 func TestProjectorResetWithLiveBatch(t *testing.T) {
 	for _, stage := range []string{"buffered", "timer", "flush"} {
 		t.Run(stage, func(t *testing.T) {
@@ -546,10 +546,9 @@ func TestProjectorResetWithLiveBatch(t *testing.T) {
 			projection := &resetBatchProjection{resetProjection: h.projection, startupSize: 1, liveSize: 2, liveDelay: time.Hour}
 			switch stage {
 			case "timer":
+				// The test arms the timer itself when both events wait in
+				// the batch, so the Run goroutine flushes them.
 				projection.liveSize = 10
-				// Long enough that waitLiveBatched sees the batch before
-				// the timer flushes it.
-				projection.liveDelay = time.Second
 			case "flush":
 				projection.liveSize = 1
 			}
@@ -580,6 +579,10 @@ func TestProjectorResetWithLiveBatch(t *testing.T) {
 				h.expectApplied(s, next)
 			case "timer":
 				next := h.append(resetConsumedSubject, "next")
+				h.waitLiveBatched(2)
+				h.projector.applyMu.Lock()
+				h.projector.liveFlushTimer.Reset(time.Millisecond)
+				h.projector.applyMu.Unlock()
 				h.waitFor(next)
 				h.expectApplied(s, next)
 			}
