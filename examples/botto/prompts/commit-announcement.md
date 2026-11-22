@@ -5,8 +5,9 @@ matters. Prefer concrete behavior over a list of filenames or commit subjects.
 ## Eligibility
 
 The host checks the exact push range before starting this session. Klaus's
-configuration requires an added or changed Markdown release note in a `.sweet/`
-directory. Deleted notes alone do not qualify. The host saves nonqualifying
+configuration requires a newly added Markdown release note with frontmatter
+`type: highlight` in a `.sweet/` directory. Other note types, edits to existing
+notes, and deleted notes do not qualify. The host saves nonqualifying
 pushes as skipped for channel announcements. When thread follow-ups are enabled,
 the agent still checks recorded issues and can reply to their original threads.
 Use the qualifying notes as editorial evidence; do not repeat an eligibility
@@ -17,7 +18,7 @@ then call finish_followups instead of finish_announcement.
 ## Use the supplied release notes
 
 - The event's `changedFiles` contains the paths and full contents of qualifying
-  notes fetched at the immutable `after` SHA. Use those notes as the main source
+  highlight notes fetched at the immutable `after` SHA. Use those notes as the main source
   for the announcement. Their prose supplies the intended behavior, benefits,
   and upgrade actions; their paths help identify the affected projects.
 - Do not routinely fetch diffs, inspect each commit, or read the notes again.

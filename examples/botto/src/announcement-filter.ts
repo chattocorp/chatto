@@ -14,6 +14,10 @@ function object(value: unknown): JsonObject {
 /** Filter credentials are explicit and independent of agent tool grants. */
 export interface ChangeFilter {
   pattern: string;
+  /** Optional expression applied to the complete immutable file content. */
+  contentPattern?: string;
+  /** Accept only paths absent at the previous push head. */
+  addedOnly?: boolean;
   appId: string;
   installationId: string;
   privateKeyPath: string;
@@ -75,6 +79,10 @@ export async function loadChangedFiles(
   signal.throwIfAborted();
   const token = await installationToken(config, signal, request);
   const matches = new RegExp(config.changeFilter.pattern);
+  const contentMatches = config.changeFilter.contentPattern
+    ? new RegExp(config.changeFilter.contentPattern)
+    : undefined;
+  const addedOnly = config.changeFilter.addedOnly === true;
   const base = `https://api.github.com/repos/${config.repository}`;
   const get = async (path: string) => {
     const response = await request(base + path, {
@@ -98,7 +106,9 @@ export async function loadChangedFiles(
         if (typeof file.filename !== 'string' || typeof file.status !== 'string')
           throw new Error('Invalid GitHub changed file.');
         if (
-          ['added', 'modified', 'renamed', 'changed', 'copied'].includes(file.status) &&
+          (addedOnly
+            ? file.status === 'added'
+            : ['added', 'modified', 'renamed', 'changed', 'copied'].includes(file.status)) &&
           matches.test(file.filename)
         )
           candidates.push(file.filename);
@@ -132,7 +142,9 @@ export async function loadChangedFiles(
   if (paths === undefined) {
     const before = await tree(push.before);
     const after = await tree(push.after);
-    paths = [...after].filter(([path, sha]) => before.get(path) !== sha).map(([path]) => path);
+    paths = [...after]
+      .filter(([path, sha]) => (addedOnly ? !before.has(path) : before.get(path) !== sha))
+      .map(([path]) => path);
   }
   // Do not silently omit or truncate notes: incomplete evidence stays queued for review/retry.
   if (paths.length > 100) throw new Error('Too many announcement source files.');
@@ -156,7 +168,8 @@ export async function loadChangedFiles(
     totalBytes += bytes.length;
     if (bytes.length !== file.size || totalBytes > 262144)
       throw new Error('Incomplete or oversized announcement source files.');
-    files.push({ path, content: new TextDecoder('utf-8', { fatal: true }).decode(bytes) });
+    const content = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    if (!contentMatches || contentMatches.test(content)) files.push({ path, content });
   }
   return files;
 }

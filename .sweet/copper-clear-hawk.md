@@ -14,10 +14,12 @@ Channel summaries are limited to 400 characters. Root and reply deliveries have 
 
 Botto can also announce published GitHub releases and prereleases in the configured room. Enable `releases` and set `release_prompt_file` in the existing announcement configuration. Klaus posts a short project and version summary with an inline release link, then highlights and useful upgrade guidance in a thread. Duplicate deliveries and release edits do not produce new posts; promotion from prerelease to stable can produce one new announcement.
 
-Klaus checks GitHub changes before starting an announcement agent and skips channel announcements unless the push adds or modifies a Sweet Release note. The required path pattern is configurable. Failed or incomplete GitHub reads stay queued for retry. Botto saves skipped decisions without posting a root message or reply, including across restart and redelivery. Published release announcements are unchanged.
+Klaus checks GitHub changes before starting an announcement agent and skips channel announcements unless the push adds a Sweet Release highlight note. The required path pattern is configurable. Failed or incomplete GitHub reads stay queued for retry. Botto saves skipped decisions without posting a root message or reply, including across restart and redelivery. Published release announcements are unchanged.
 
 Botto follows human replies in threads it opens for announcements, without requiring another mention. Participation survives restarts, and existing confirmed announcement threads are registered on startup. Klaus treats reports of missed messages as uncertain behavior to investigate instead of inventing routing explanations.
 
 Enable `thread_replies` to let Klaus notify the original reporting thread when an owner-authorized issue has a verified fix on the configured branch. Issue origins and delivery receipts use the existing Means collection. Later pushes can catch up on missed notifications, including pushes without new release notes. A fix notification does not imply that the change is released or deployed.
 
 Issue-thread notifications reject message bodies that contain only destination metadata before sending. Rejected metadata-only messages do not consume the delivery key. Notification instructions also require complete final text and prohibit placeholder or test sends.
+
+Klaus posts merge summaries only for newly added Sweet Release notes of type `highlight`, and uses only those highlights for the summary. Other note types, edits to existing notes, and deletions do not trigger a channel post. Issue-fix notices in the original reporting threads still run on pushes without highlights. Published release announcements are unchanged.

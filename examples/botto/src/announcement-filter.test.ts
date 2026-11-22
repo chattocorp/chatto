@@ -180,8 +180,27 @@ test('validates filter settings and resolves existing credential references with
     installationId: '456',
     privateKeyPath: '/config/key.pem'
   });
+  expect(
+    parseAnnouncements(
+      {
+        github: {
+          ...github,
+          required_changed_content: '^---',
+          added_files_only: true
+        }
+      },
+      { APP: '123' }
+    )?.changeFilter
+  ).toMatchObject({
+    contentPattern: '^---',
+    addedOnly: true
+  });
   for (const changes of [
     { required_changed_path: '[' },
+    { required_changed_content: '[' },
+    { added_files_only: 'yes' },
+    { required_changed_path: undefined, added_files_only: true },
+    { required_changed_path: undefined, required_changed_content: 'highlight' },
     { github_app_id: 'bad' },
     { github_installation_id: undefined },
     { github_private_key_path: undefined }
@@ -288,4 +307,84 @@ test('missing, oversized, invalid UTF-8 and incomplete note contents fail before
       )
     )
   ).rejects.toThrow('oversized');
+});
+
+const highlightFilter = {
+  ...config,
+  changeFilter: {
+    ...config.changeFilter,
+    addedOnly: true,
+    contentPattern: String.raw`^---\r?\n(?:(?!---\r?(?:\n|$))[^\n]*\n)*?type:[ \t]*(?:highlight|"highlight"|\x27highlight\x27)[ \t]*(?:#[^\r\n]*)?\r?\n`
+  }
+};
+const encodedNote = (content: string) => ({
+  ...note,
+  size: Buffer.byteLength(content),
+  content: Buffer.from(content).toString('base64')
+});
+
+test('highlight configuration accepts only new highlight notes and filters model evidence', async () => {
+  for (const [content, accepted] of [
+    ['---\ntype: highlight\n---\nA highlight.', true],
+    ['---\r\ntitle: Example\r\ntype: "highlight" # main benefit\r\n---\r\nUseful.', true],
+    ["---\ntype: 'highlight'\n---\nUseful.", true],
+    [noteContent, false],
+    ['---\ntype: fix\n---\ntype: highlight\n', false],
+    ['---\ntype: feature\n---\n---\ntype: highlight\n---\n', false],
+    ['type: highlight\n', false],
+    ['---\ntype: highlights\n---\n', false]
+  ] as const) {
+    const request = responses(
+      { token: 'token' },
+      comparison([
+        { filename: '.sweet/a.md', status: 'added' },
+        { filename: '.sweet/existing.md', status: 'modified' },
+        { filename: '.sweet/deleted.md', status: 'removed' }
+      ]),
+      encodedNote(content)
+    );
+    expect(await loadChangedFiles(highlightFilter, push, signal, request)).toEqual(
+      accepted ? [{ path: '.sweet/a.md', content }] : []
+    );
+    expect(request).toHaveBeenCalledTimes(3);
+  }
+});
+
+test('tree fallback excludes changed existing highlights but keeps new highlight paths', async () => {
+  const content = '---\ntype: highlight\n---\nNew benefit.';
+  const request = responses(
+    { token: 'token' },
+    { merge_base_commit: { sha: 'c'.repeat(40) } },
+    { tree: { sha: 'd'.repeat(40) } },
+    { truncated: false, tree: [{ path: '.sweet/old.md', type: 'blob', sha: 'old' }] },
+    { tree: { sha: 'e'.repeat(40) } },
+    {
+      truncated: false,
+      tree: [
+        { path: '.sweet/old.md', type: 'blob', sha: 'edited' },
+        { path: '.sweet/new.md', type: 'blob', sha: 'new' }
+      ]
+    },
+    encodedNote(content)
+  );
+  expect(await loadChangedFiles(highlightFilter, push, signal, request)).toEqual([
+    { path: '.sweet/new.md', content }
+  ]);
+  expect(request.mock.calls.at(-1)![0]).toContain('/contents/.sweet/new.md?ref=' + push.after);
+});
+
+test('mixed pushes supply only highlight notes, not accompanying fix notes', async () => {
+  const highlight = '---\ntype: highlight\n---\nUser-facing benefit.';
+  const request = responses(
+    { token: 'token' },
+    comparison([
+      { filename: '.sweet/a-fix.md', status: 'added' },
+      { filename: '.sweet/b-highlight.md', status: 'added' }
+    ]),
+    encodedNote(noteContent),
+    encodedNote(highlight)
+  );
+  expect(await loadChangedFiles(highlightFilter, push, signal, request)).toEqual([
+    { path: '.sweet/b-highlight.md', content: highlight }
+  ]);
 });

@@ -108,19 +108,23 @@ at the end of the thread details, in a separate paragraph. The root summary has
 no source link. Release announcements keep their release-notes link in the root
 summary.
 
-Klaus's local configuration requires an added or changed Markdown release note
-under a release unit's `.sweet/` directory. This check runs before the model
+Klaus's local configuration requires a newly added Markdown release note with
+frontmatter `type: highlight` under a release unit's `.sweet/` directory. This check runs before the model
 session starts. To use the same filter, add these fields to
 `[announcements.github]`:
 
 ```toml
 required_changed_path = '(^|/)\.sweet/[^/]+\.md$'
+required_changed_content = "^---\\r?\\n(?:(?!---\\r?(?:\\n|$))[^\\n]*\\n)*?type:[ \\t]*(?:highlight|\"highlight\"|\\x27highlight\\x27)[ \\t]*(?:#[^\\r\\n]*)?\\r?\\n"
+added_files_only = true
 github_app_id = "${BOTTO_GITHUB_APP_ID}"
 github_installation_id = "${BOTTO_GITHUB_APP_INSTALLATION_ID}"
 github_private_key_path = "${BOTTO_GITHUB_APP_PRIVATE_KEY_PATH}"
 ```
 
-The path setting is a regular expression; Botto does not hardcode Sweet Release.
+The path and content settings are regular expressions; Botto does not hardcode
+Sweet Release. The content expression above matches `type: highlight` only in
+the first frontmatter block. `added_files_only` excludes edits to existing notes.
 The key path is relative to the TOML file. The GitHub App must be installed on
 the configured repository with Contents read permission. These settings can use
 the same environment variables as the GitHub MCP connection. Botto creates a
@@ -130,13 +134,15 @@ permission. No additional credential is needed for Klaus.
 Botto requests the GitHub comparison for the signed before/after SHAs. If the
 changed-file list reaches GitHub's limit, or the push diverges from its old head,
 it compares the two Git trees instead. Added, modified, and renamed matching
-files qualify; deleted files alone and unchanged notes do not. API failures and
+files qualify by default; `added_files_only = true` selects only added paths.
+Deleted files alone and unchanged notes do not qualify. API failures and
 incomplete trees keep the event queued for retry without starting a model.
 For a qualifying push, Botto fetches every matched file at the immutable `after`
 SHA and supplies its path and UTF-8 contents in `changedFiles`. It accepts at most
 100 files, 64 KiB per file, and 256 KiB in total. Missing, invalid, or oversized
 contents keep the event queued; they do not start an agent with partial notes.
-The filter remains generic: the configured path expression selects the files.
+Only files that also match `required_changed_content`, when configured, enter
+the model context. Both additional settings require `required_changed_path`.
 A complete negative result saves a `skipped` receipt and posts neither channel
 message. With `thread_replies = true`, the agent first checks issue follow-ups
 and can notify original threads even when no release note qualifies.

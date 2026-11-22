@@ -36,7 +36,7 @@ export function parseAnnouncements(
 ): AnnouncementSettings | undefined {
   const fail = (): never => {
     throw new Error(
-      'Invalid announcements.github settings. Check repository, branch, room_id, webhook_secret, host, port, cloudflared_command, cloudflare_tunnel_token, prompt_file, releases, release_prompt_file, mcp_servers, thread_replies, required_changed_path, and GitHub App credentials.'
+      'Invalid announcements.github settings. Check repository, branch, room_id, webhook_secret, host, port, cloudflared_command, cloudflare_tunnel_token, prompt_file, releases, release_prompt_file, mcp_servers, thread_replies, required_changed_path, required_changed_content, added_files_only, and GitHub App credentials.'
     );
   };
   const table = (v: unknown): Record<string, unknown> => {
@@ -66,6 +66,8 @@ export function parseAnnouncements(
           'mcp_servers',
           'thread_replies',
           'required_changed_path',
+          'required_changed_content',
+          'added_files_only',
           'github_app_id',
           'github_installation_id',
           'github_private_key_path'
@@ -117,11 +119,21 @@ export function parseAnnouncements(
     }
     if (!prompt) return fail();
   }
+  if (config.added_files_only !== undefined && typeof config.added_files_only !== 'boolean')
+    return fail();
+  if (
+    config.required_changed_path === undefined &&
+    (config.required_changed_content !== undefined || config.added_files_only !== undefined)
+  )
+    return fail();
   let changeFilter: ChangeFilter | undefined;
   if (config.required_changed_path !== undefined) {
     const pattern = text('required_changed_path');
+    const contentPattern =
+      config.required_changed_content === undefined ? undefined : text('required_changed_content');
     try {
       new RegExp(pattern);
+      if (contentPattern) new RegExp(contentPattern);
     } catch {
       return fail();
     }
@@ -130,6 +142,10 @@ export function parseAnnouncements(
     if (!/^[0-9]+$/.test(appId) || !/^[0-9]+$/.test(installationId)) return fail();
     changeFilter = {
       pattern,
+      ...(contentPattern ? { contentPattern } : {}),
+      ...(config.added_files_only !== undefined
+        ? { addedOnly: config.added_files_only as boolean }
+        : {}),
       appId,
       installationId,
       privateKeyPath: resolve(directory, text('github_private_key_path'))
