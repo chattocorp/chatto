@@ -356,8 +356,9 @@ func (p *Projector) resolveCurrentStreamIdentity(ctx context.Context, resolve St
 
 // freshStreamInfo reads current stream metadata through a short-lived handle.
 // Info replaces a stream handle's cached info for all users of the handle.
-// Projector reads use the shared handle concurrently, so they must not see
-// that replacement.
+// Other users of the shared handle must keep the info that they read, so this
+// read uses its own handle. This is a cache isolation rule, not a data race
+// guard: nats.go v1.55.0 and later synchronize the cache.
 func (p *Projector) freshStreamInfo(ctx context.Context) (*jetstream.StreamInfo, error) {
 	streamName := p.stream.CachedInfo().Config.Name
 	stream, err := p.js.Stream(ctx, streamName)
