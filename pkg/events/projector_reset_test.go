@@ -547,7 +547,9 @@ func TestProjectorResetWithLiveBatch(t *testing.T) {
 			switch stage {
 			case "timer":
 				projection.liveSize = 10
-				projection.liveDelay = resetObservationWindow
+				// Long enough that waitLiveBatched sees the batch before
+				// the timer flushes it.
+				projection.liveDelay = time.Second
 			case "flush":
 				projection.liveSize = 1
 			}

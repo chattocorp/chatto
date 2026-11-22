@@ -1156,13 +1156,7 @@ func (p *Projector) reconcileStartup(ctx context.Context, previousHandledSeq uin
 
 	p.applyMu.Lock()
 	handledSeq, pending = p.startupProgress()
-	// An event that is delivered but not yet applied or buffered is still in
-	// decode or waits for applyMu. Its handling completes startup or makes
-	// progress, so do not complete startup before it.
-	p.mu.Lock()
-	inProgress := p.deliveredSeq > handledSeq
-	p.mu.Unlock()
-	if !pending || inProgress || current.seq > handledSeq {
+	if !pending || current.seq > handledSeq {
 		p.applyMu.Unlock()
 		return handledSeq
 	}
@@ -1174,6 +1168,15 @@ func (p *Projector) reconcileStartup(ctx context.Context, previousHandledSeq uin
 		return handledSeq
 	}
 	p.mu.Lock()
+	// An event that is delivered but not yet applied is still in decode or
+	// waits for applyMu. Its handling makes progress, so do not complete
+	// startup before it. The check and the lowered target use one critical
+	// section: an event delivered after it is past the lowered target.
+	if p.deliveredSeq > p.lastSeq {
+		p.mu.Unlock()
+		p.applyMu.Unlock()
+		return handledSeq
+	}
 	originalTarget := p.startupTargetSeq
 	if p.startupTargetSeq > p.lastSeq {
 		p.startupTargetSeq = p.lastSeq
