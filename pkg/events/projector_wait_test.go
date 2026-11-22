@@ -445,7 +445,10 @@ func TestSubjectFiltersOverlap(t *testing.T) {
 		{">", "evt.room.posted", true},
 		{"evt.>", "evt.>", true},
 		{"", "evt.>", false},
-		{"evt..x", "evt.*.x", false},
+		// Malformed filters never cause a rejection on this check alone.
+		{"evt..x", "evt.room.y", true},
+		{"a.>.x", "a.*", true},
+		{"a.>.", "a.*", true},
 	} {
 		if got := subjectFiltersOverlap(tc.a, tc.b); got != tc.want {
 			t.Errorf("subjectFiltersOverlap(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)

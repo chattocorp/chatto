@@ -162,8 +162,8 @@ Use `WaitFor`, `WaitForCurrent`, or a subject-aware `StreamPosition` when a
 caller needs read-your-writes visibility.
 
 `WaitFor` returns without a stream read when `LastSeq` already covers the
-position. Otherwise it waits. When the wait has not ended after 100 ms,
-`WaitFor` reads the message at the position from the stream leader once, in
+position. Otherwise it waits. When the wait has not ended after 100 ms (at
+once when the context has less than 200 ms left), `WaitFor` reads the message at the position from the stream leader once, in
 parallel with the wait. It returns an error when that message does not exist,
 does not match the position's subject filter, or has a subject that the
 projection does not consume, because the projector cannot reach such a

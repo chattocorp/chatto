@@ -602,7 +602,8 @@ func (p *Projector) ReplaySubjects() []string {
 //
 // A call whose LastSeq() is already at or beyond pos.Seq returns without a
 // stream read. Otherwise it registers a waiter and blocks. When the wait has
-// not ended after a short delay, WaitFor reads the message at pos.Seq from the
+// not ended after a short delay (at once when ctx has less than twice that
+// delay left), WaitFor reads the message at pos.Seq from the
 // stream leader. It returns an error when that message does not exist, does
 // not match pos.SubjectFilter, or has a subject that the projector does not
 // consume, because the projector cannot reach such a position. The read does
@@ -654,9 +655,9 @@ func (p *Projector) filterCanMatchConsumed(filter string) bool {
 
 // waitForSeq blocks until LastSeq() >= seq, the projector fails at or before
 // seq, or ctx ends. A non-nil validate starts once, in its own goroutine,
-// when the wait has not ended after projectionWaitValidationDelay. Its error
-// ends the wait. The wait does not wait for validate: when the wait ends
-// first, waitForSeq cancels the context of validate and returns.
+// when the wait has not ended after validationDelay(ctx). Its error ends the
+// wait. The wait does not wait for validate: when the wait ends first,
+// waitForSeq cancels the context of validate and returns.
 func (p *Projector) waitForSeq(ctx context.Context, seq uint64, validate func(context.Context) error) error {
 	p.mu.Lock()
 	if p.failedErr != nil && seq >= p.failedSeq {
@@ -679,7 +680,7 @@ func (p *Projector) waitForSeq(ctx context.Context, seq uint64, validate func(co
 
 	var validationDue <-chan time.Time
 	if validate != nil {
-		timer := time.NewTimer(projectionWaitValidationDelay)
+		timer := time.NewTimer(validationDelay(ctx))
 		defer timer.Stop()
 		validationDue = timer.C
 	}
@@ -714,6 +715,16 @@ func (p *Projector) waitForSeq(ctx context.Context, seq uint64, validate func(co
 			return ctx.Err()
 		}
 	}
+}
+
+// validationDelay returns how long a wait waits before it validates its
+// position. A context with little time left validates at once, so that the
+// delay cannot turn a prompt validation error into a deadline error.
+func validationDelay(ctx context.Context) time.Duration {
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < 2*projectionWaitValidationDelay {
+		return 0
+	}
+	return projectionWaitValidationDelay
 }
 
 // removeWaiter drops the waiter of an ended wait so that it does not leak.
