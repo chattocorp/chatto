@@ -19,36 +19,57 @@
   const origin = { name: 'Origin Server', logoUrl: null };
   const remote = { name: 'Remote Server', logoUrl: null };
   const legacy = { name: 'Legacy Server', logoUrl: null };
+
+  // The sidebar always makes the indicator clickable, which also sets its position.
+  const noop = () => {};
 </script>
 
 <Story name="Gutter states" asChild>
   <div class="inline-flex flex-col gap-2 rounded-xl border border-border bg-background p-2">
     <ServerIcon server={origin} href="/chat/-" title="Origin Server" selected />
-    <ServerIcon server={remote} href="/chat/remote" title="Remote Server needs sign-in" warning />
+    <ServerIcon
+      server={remote}
+      href="/chat/remote"
+      title="Remote Server needs sign-in"
+      appearance="sign-in"
+    />
+    <ServerIcon
+      server={remote}
+      href="#offline"
+      title="Remote Server — Connection unavailable"
+      appearance="faded"
+    />
+    <ServerIcon server={legacy} href="#limited" title="Legacy Server — Older server version" />
     <ServerIcon
       server={legacy}
       href="/chat/legacy"
       title="Legacy Server — Server version is not supported"
-      warning
+      appearance="faded"
     />
   </div>
 </Story>
 
-<Story name="Warning" asChild>
+<Story name="Sign-in required" asChild>
   <div class="inline-flex rounded-xl border border-border bg-background p-2">
-    <ServerIcon server={remote} href="/chat/remote" title="Remote Server needs sign-in" warning />
+    <ServerIcon
+      server={remote}
+      href="/chat/remote"
+      title="Remote Server needs sign-in"
+      appearance="sign-in"
+    />
   </div>
 </Story>
 
-<Story name="Warning and notification" asChild>
+<Story name="Offline with notification" asChild>
   <div class="inline-flex rounded-xl border border-border bg-background p-2">
     <ServerIcon
       server={origin}
       href="#origin"
-      title="Origin Server"
-      warning
+      title="Origin Server — Connection unavailable"
+      appearance="faded"
       selected
       indicator="notification"
+      onIndicatorClick={noop}
       notificationCount={3}
       importantNotificationCount={3}
     />
@@ -58,12 +79,19 @@
 <Story name="Route and attention" asChild>
   <div class="inline-flex flex-col gap-2 rounded-xl border border-border bg-background p-2">
     <ServerIcon server={origin} href="#origin" title="Origin Server" selected />
-    <ServerIcon server={remote} href="#remote" title="Remote Server" indicator="unread" />
+    <ServerIcon
+      server={remote}
+      href="#remote"
+      title="Remote Server"
+      indicator="unread"
+      onIndicatorClick={noop}
+    />
     <ServerIcon
       server={legacy}
       href="#legacy"
       title="Legacy Server"
       indicator="notification"
+      onIndicatorClick={noop}
       notificationCount={3}
       importantNotificationCount={3}
     />

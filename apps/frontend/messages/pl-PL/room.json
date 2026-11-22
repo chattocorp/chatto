@@ -211,6 +211,7 @@
       "delete_label": "Usuń załącznik",
       "delete_failed": "Nie udało się usunąć załącznika",
       "view_label": "Wyświetl {filename}",
+      "save_or_share": "Zapisz lub udostępnij…",
       "download_label": "Pobierz {filename}",
       "image_refresh_failed": "Nie można odświeżyć linku do obrazu",
       "download_refresh_failed": "Nie można odświeżyć linku do pobrania",

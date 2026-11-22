@@ -5,7 +5,7 @@
 
 ## Overview
 
-Operators will import and export channel history using one documented format.
+Operators will import and export channel history using CHIEF (Chatto Import/Export Format).
 Converters for Slack and other platforms will produce that format. The first
 implementation provides a draft specification, schemas, examples, conformance
 tests, and a native importer with durable recovery. Export remains planned.

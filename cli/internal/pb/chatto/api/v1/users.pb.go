@@ -68,6 +68,72 @@ func (x *BotInfo) GetOwnerUserId() string {
 	return ""
 }
 
+// A public identity that the server associates with a user through a verification method.
+// The server operator vouches for the association, including links the operator establishes.
+// Each (method, value) pair occurs once per profile. Clients can display unfamiliar methods.
+type VerifiedIdentity struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable, extensible verification method key, for example "atproto".
+	Method string `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"`
+	// Human-readable name of the method, for example "AT Protocol".
+	MethodLabel string `protobuf:"bytes,2,opt,name=method_label,json=methodLabel,proto3" json:"method_label,omitempty"`
+	// Public identity text for display, for example an AT Protocol handle without @.
+	Value         string `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifiedIdentity) Reset() {
+	*x = VerifiedIdentity{}
+	mi := &file_chatto_api_v1_users_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifiedIdentity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifiedIdentity) ProtoMessage() {}
+
+func (x *VerifiedIdentity) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_users_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifiedIdentity.ProtoReflect.Descriptor instead.
+func (*VerifiedIdentity) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *VerifiedIdentity) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *VerifiedIdentity) GetMethodLabel() string {
+	if x != nil {
+		return x.MethodLabel
+	}
+	return ""
+}
+
+func (x *VerifiedIdentity) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
 // Public user fields.
 type User struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -101,7 +167,7 @@ type User struct {
 
 func (x *User) Reset() {
 	*x = User{}
-	mi := &file_chatto_api_v1_users_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_users_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -113,7 +179,7 @@ func (x *User) String() string {
 func (*User) ProtoMessage() {}
 
 func (x *User) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_users_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_users_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -126,7 +192,7 @@ func (x *User) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use User.ProtoReflect.Descriptor instead.
 func (*User) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *User) GetId() string {
@@ -212,7 +278,11 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\n" +
 	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"-\n" +
 	"\aBotInfo\x12\"\n" +
-	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"\xd1\x03\n" +
+	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"c\n" +
+	"\x10VerifiedIdentity\x12\x16\n" +
+	"\x06method\x18\x01 \x01(\tR\x06method\x12!\n" +
+	"\fmethod_label\x18\x02 \x01(\tR\vmethodLabel\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\"\xd1\x03\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -245,16 +315,17 @@ func file_chatto_api_v1_users_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_users_proto_rawDescData
 }
 
-var file_chatto_api_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_api_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_chatto_api_v1_users_proto_goTypes = []any{
 	(*BotInfo)(nil),          // 0: chatto.api.v1.BotInfo
-	(*User)(nil),             // 1: chatto.api.v1.User
-	(PresenceStatus)(0),      // 2: chatto.api.v1.PresenceStatus
-	(*CustomUserStatus)(nil), // 3: chatto.api.v1.CustomUserStatus
+	(*VerifiedIdentity)(nil), // 1: chatto.api.v1.VerifiedIdentity
+	(*User)(nil),             // 2: chatto.api.v1.User
+	(PresenceStatus)(0),      // 3: chatto.api.v1.PresenceStatus
+	(*CustomUserStatus)(nil), // 4: chatto.api.v1.CustomUserStatus
 }
 var file_chatto_api_v1_users_proto_depIdxs = []int32{
-	2, // 0: chatto.api.v1.User.presence_status:type_name -> chatto.api.v1.PresenceStatus
-	3, // 1: chatto.api.v1.User.custom_status:type_name -> chatto.api.v1.CustomUserStatus
+	3, // 0: chatto.api.v1.User.presence_status:type_name -> chatto.api.v1.PresenceStatus
+	4, // 1: chatto.api.v1.User.custom_status:type_name -> chatto.api.v1.CustomUserStatus
 	0, // 2: chatto.api.v1.User.bot:type_name -> chatto.api.v1.BotInfo
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
@@ -270,14 +341,14 @@ func file_chatto_api_v1_users_proto_init() {
 	}
 	file_chatto_api_v1_presence_proto_init()
 	file_chatto_api_v1_user_status_proto_init()
-	file_chatto_api_v1_users_proto_msgTypes[1].OneofWrappers = []any{}
+	file_chatto_api_v1_users_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_users_proto_rawDesc), len(file_chatto_api_v1_users_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

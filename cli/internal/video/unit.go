@@ -54,6 +54,12 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		<-projectionDone
 		return err
 	}
+	// Standalone readiness probes match this message after projection replay and
+	// the connection to the media job consumer have succeeded.
+	env.Logger.Info("Asset-processing worker started",
+		"consumer", consumer.CachedInfo().Name,
+		"max_concurrent_jobs", env.Config.AssetProcessing.MaxConcurrentJobsOrDefault())
+
 	workerCtx, stopWorker := context.WithCancel(ctx)
 	workerDone := make(chan error, 1)
 	go func() {

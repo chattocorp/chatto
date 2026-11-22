@@ -54,7 +54,7 @@
       }
 
       // Success - redirect to login with message
-      const url = resolve('/login') + '?reset=success';
+      const url = resolve('/login/password') + '?reset=success';
       // eslint-disable-next-line svelte/no-navigation-without-resolve -- url is resolved above
       goto(url);
     } catch (err) {
@@ -120,7 +120,7 @@
 
     <p class="mt-6 text-center">
       {m('auth.forgot_password.remember_password')}
-      <a href={resolve('/login')} class="link">{m('common.sign_in')}</a>
+      <a href={resolve('/login/password')} class="link">{m('common.sign_in')}</a>
     </p>
   {/if}
 </AuthLayout>

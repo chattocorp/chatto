@@ -101,7 +101,7 @@ account-directed email. The first verified email becomes primary, and adding
 another address does not change the selection. See
 [FDR-018](fdr/FDR-018-account-lifecycle.md).
 
-**Internet Handle** — The UI name for an AT Protocol handle, such as `alice.bsky.social`, and for the default label of `atproto` login providers. AT Protocol handles are not limited to Bluesky. Chatto does not show handles as verified. See [FDR-058](fdr/FDR-058-atproto-sign-in.md) and [ADR-124](adr/ADR-124-atproto-handle-verification-needs-an-issuer.md).
+**Internet Handle** — The UI name for an AT Protocol handle, such as `alice.bsky.social`, and for the default label of `atproto` login providers. AT Protocol handles are not limited to Bluesky. The server can show a linked handle as a verified identity. See [FDR-058](fdr/FDR-058-atproto-sign-in.md) and [ADR-124](adr/ADR-124-atproto-handle-verification-needs-an-issuer.md).
 
 **Invitation Code** — A code that permits one new account on an invite-only server. Administrators issue and revoke codes, with optional expiry. Validation does not consume the code; successful account creation does. See [FDR-036](fdr/FDR-036-invite-links.md).
 
@@ -242,12 +242,14 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 domain fact. EVT stores this value. See
 [ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
-**Interchange archive** — Portable catalogs, an ordered event file, and local
+**CHIEF (Chatto Import/Export Format)** — The versioned JSON format for transferring channel history between platforms. See the [v1 specification](interchange/v1.md).
+
+**CHIEF archive** — Portable catalogs, an ordered event file, and local
 asset bytes for transferring supported channel history. Its draft contract is
 separate from EVT and server backups. See [the format specification](interchange/v1.md).
 
-**Interchange event** — A source historical fact or an explicit final-state
-snapshot in an interchange archive. Historical facts retain known occurrence
+**CHIEF event** — A source historical fact or an explicit final-state
+snapshot in a CHIEF archive. Historical facts retain known occurrence
 times. Snapshots preserve state without inventing timeline activity. They are
 not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
@@ -279,7 +281,13 @@ not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 
 **Auth generation** — Per-user authentication epoch derived from durable user events. Cookie sessions, bearer tokens, and OAuth authorization codes are valid only when their stored generation matches the user's current generation. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 
+**Strict auth generation check** — Auth generation check that first reads from the `EVT` stream leader the newest position of each subject of the user that can change the result, then waits until the User Auth projection of the replica has applied them. A revocation that a different replica wrote cannot be missed. See [`docs/architecture/projections.md`](architecture/projections.md).
+
+**Auth generation check window** — Time (60 seconds) during which the read-only first pass of request validation on a replica accepts a runtime credential from its local User Auth projection after a strict auth generation check accepted that user. Only an acceptance can come from the local projection; every other answer runs the strict check. The window ends early when the replica has no NATS connection, has not completed reconnect recovery, or its User Auth projector failed or is stalled. See [ADR-127](adr/ADR-127-bounded-staleness-for-credential-validation.md).
+
 **External identity** — Provider-issued account identity linked to a user, keyed by verified issuer/provider namespace plus provider subject rather than email. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
+
+**Verified identity** — A public identity that a Chatto server associates with a member through a verification method. Members trust the server operator for this association. See [FDR-058](fdr/FDR-058-atproto-sign-in.md) and [ADR-124](adr/ADR-124-atproto-handle-verification-needs-an-issuer.md).
 
 **CIMD (Client ID Metadata Document)** — Public OAuth client metadata served at the client's URL identifier and used by Chatto to bind that client identity to exact callbacks without prior operator registration. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md).
 

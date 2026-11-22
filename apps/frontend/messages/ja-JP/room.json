@@ -204,6 +204,7 @@
       "delete_label": "添付ファイルを削除",
       "delete_failed": "添付ファイルの削除に失敗しました",
       "view_label": "{filename}を表示",
+      "save_or_share": "保存または共有…",
       "download_label": "{filename}をダウンロード",
       "image_refresh_failed": "画像リンクを更新できませんでした",
       "download_refresh_failed": "ダウンロードリンクを更新できませんでした",

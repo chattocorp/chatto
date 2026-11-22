@@ -96,8 +96,7 @@
       "error_future": "Son kullanma tarihi gelecekte olmalıdır."
     },
     "form": {
-      "required": "Gerekli",
-      "max_bytes": "Maksimum {max} bayt; bazı karakterler birden fazla bayt kullanır."
+      "required": "Gerekli"
     },
     "dates": {
       "today": "Bugün",

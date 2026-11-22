@@ -14,6 +14,7 @@ Header, gallery controls and download stay outside the preview on all screens.
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
 
+  import AttachmentDownload from '$lib/attachments/AttachmentDownload.svelte';
   import Dialog from './Dialog.svelte';
 
   let {
@@ -27,6 +28,7 @@ Header, gallery controls and download stay outside the preview on all screens.
     size = null,
     sizeLoading = false,
     downloadUrl,
+    resolveDownloadUrl,
     imageViewer = false,
 
     busy = false,
@@ -47,6 +49,8 @@ Header, gallery controls and download stay outside the preview on all screens.
     size?: number | null;
     sizeLoading?: boolean;
     downloadUrl: string | null;
+    /** Resolve a fresh original-file URL after an explicit download request. */
+    resolveDownloadUrl?: () => Promise<string | null>;
     /** Use the image-first stage and optional details panel. */
     imageViewer?: boolean;
 
@@ -205,18 +209,14 @@ Header, gallery controls and download stay outside the preview on all screens.
             <span class="iconify icon-[uil--info-circle]" aria-hidden="true"></span>
             {m('ui.image_modal.details')}
           </button>
-          <a
-            href={downloadUrl ?? '#'}
-            download={filename}
-            target="_blank"
-            rel="external noopener noreferrer"
-            onclick={ondownload}
-            aria-disabled={busy}
-            class="btn-secondary shrink-0"
-          >
-            <span class="iconify icon-[uil--download-alt]" aria-hidden="true"></span>
-            {m('room.attachment.html_viewer.download')}
-          </a>
+          {#key index}<AttachmentDownload
+              {filename}
+              {contentType}
+              {downloadUrl}
+              {resolveDownloadUrl}
+              {ondownload}
+              {busy}
+            />{/key}
         </div>
       </div>
     </div>
@@ -301,18 +301,14 @@ Header, gallery controls and download stay outside the preview on all screens.
                 </button>
               </nav>
             {/if}
-            <a
-              href={downloadUrl ?? '#'}
-              download={filename}
-              target="_blank"
-              rel="external noopener noreferrer"
-              onclick={ondownload}
-              aria-disabled={busy}
-              class="btn-secondary shrink-0"
-            >
-              <span class="iconify icon-[uil--download-alt]" aria-hidden="true"></span>
-              {m('room.attachment.html_viewer.download')}
-            </a>
+            {#key index}<AttachmentDownload
+                {filename}
+                {contentType}
+                {downloadUrl}
+                {resolveDownloadUrl}
+                {ondownload}
+                {busy}
+              />{/key}
           </div>
         </div>
       </div>

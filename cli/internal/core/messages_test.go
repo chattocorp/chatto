@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -285,8 +286,27 @@ func TestPostMessageRejectsEchoAsThreadRoot(t *testing.T) {
 	require.ErrorIs(t, err, ErrInvalidArgument)
 }
 
+// postMessageAssetWaitKey marks the context of the PostMessage call under
+// test, so the asset wait override ignores waits from background workers.
+type postMessageAssetWaitKey struct{}
+
 func TestPostMessageWaitsForAssetProjectionMessageBody(t *testing.T) {
-	core, _ := setupTestCore(t)
+	core, _ := newTestCore(t)
+	// Install the override before startup: background workers also wait for
+	// the asset projection, so the field must not change while they run.
+	var (
+		waitMu sync.Mutex
+		waited events.StreamPosition
+	)
+	core.assetModel.waitForAssetsOverride = func(ctx context.Context, pos events.StreamPosition) error {
+		if ctx.Value(postMessageAssetWaitKey{}) != nil {
+			waitMu.Lock()
+			waited = pos
+			waitMu.Unlock()
+		}
+		return core.assetModel.assets.Projector().WaitFor(ctx, pos)
+	}
+	startCoreServices(t, core)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "asset-wait-user", "Asset Wait User", "password123")
 	if err != nil {
@@ -300,14 +320,12 @@ func TestPostMessageWaitsForAssetProjectionMessageBody(t *testing.T) {
 		t.Fatalf("JoinRoom: %v", err)
 	}
 
-	var waited events.StreamPosition
-	core.assetModel.waitForAssetsOverride = func(_ context.Context, pos events.StreamPosition) error {
-		waited = pos
-		return core.assetModel.assets.Projector().WaitFor(ctx, pos)
-	}
-	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "hello", nil, "", "", nil, false); err != nil {
+	postCtx := context.WithValue(ctx, postMessageAssetWaitKey{}, true)
+	if _, err := core.PostMessage(postCtx, KindChannel, room.Id, user.Id, "hello", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
+	waitMu.Lock()
+	defer waitMu.Unlock()
 	if waited.Seq == 0 || waited.SubjectFilter != evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageBody) {
 		t.Fatalf("asset projection wait = %+v, want message_body position", waited)
 	}

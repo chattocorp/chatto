@@ -58,7 +58,10 @@ This FDR covers human accounts from registration through deletion: signup, email
   to account deletion. The confirmation names the account and explains that
   access stops but data remains intact.
 - Deactivation blocks password and external-provider sign-in, invalidates
-  cookie and bearer sessions, and closes realtime connections. Password
+  cookie and bearer sessions, and closes realtime connections. A replica whose
+  User Auth projection has not applied the deactivation can accept a session
+  for a maximum of 60 seconds
+  ([ADR-127](../adr/ADR-127-bounded-staleness-for-credential-validation.md)). Password
   resets do not reactivate an account. Existing call connections lose access
   when the call service next checks participant permissions.
 - The profile, messages, files, room memberships, roles, login, email addresses,

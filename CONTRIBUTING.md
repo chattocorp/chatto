@@ -583,7 +583,7 @@ filter. Inspect the **Select jobs** step in CI to see the selection of a run.
 ## Repository Tooling Tests
 
 Run `mise test-repo-tooling` to test repository checks, release policy,
-build-output cleanup, development launchers, interchange schemas, and Slack
+build-output cleanup, development launchers, CHIEF schemas, and Slack
 import tooling. The task installs workspace dependencies and discovers
 `tools/*.test.mjs` files automatically. It runs Node test files one at a time,
 then runs the launcher shell test and the Python suites through
@@ -666,7 +666,15 @@ mise x -- sweet change authling
 
 Choose `fix` for a patch release, `feature` for a minor release, or `breaking`
 for a breaking change. While these packages are below 1.0, breaking changes use
-a minor release. Describe the changed behavior and any required action. Commit
+a minor release. In Chatto, use `performance` for a faster or lighter server or
+client, and `polish` for a small visible change that most readers can skip,
+such as spacing, colours, or wording. Both use a patch release.
+
+For a change that most Chatto members or operators will want to know about, also
+add a `highlight` note in one or two short sentences. A highlight does not
+change the version; the `feature` or `fix` note of the same change does. The
+docs website changelog shows highlights first. Help → What's new in the app
+shows only highlights. See [FDR-060](docs/fdr/FDR-060-release-highlights.md). Describe the changed behavior and any required action. Commit
 the package's `.sweet/*.md` file with the change. Internal changes do not need
 a release note. Commit titles do not supply release notes.
 
@@ -676,8 +684,9 @@ releases workflow manually to refresh a PR after unrelated changes or retry a
 failure. Correct release content on `main`; generated PR edits can be replaced.
 
 After all selected CI checks pass, CI tags each release commit in the full push
-range. Existing artifact workflows publish from those tags. The migration
-manifests record existing versions without creating replacement tags.
+range. The same CI run then publishes each tagged version. A manual tag push
+starts no build. The migration manifests record existing versions without
+creating replacement tags.
 
 Inspect pending notes with `mise x -- sweet status`. In a clean checkout, run
 `mise x -- sweet bump <package-path>` to preview a release and inspect the diff.

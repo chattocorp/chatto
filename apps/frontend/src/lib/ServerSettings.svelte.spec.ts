@@ -78,15 +78,6 @@ async function renderSettings() {
 
 function inputDescription(textarea: HTMLTextAreaElement, value: string) {
   textarea.select();
-  const beforeInput = new InputEvent('beforeinput', {
-    bubbles: true,
-    cancelable: true,
-    data: value,
-    inputType: 'insertText'
-  });
-  textarea.dispatchEvent(beforeInput);
-  if (beforeInput.defaultPrevented) return;
-
   textarea.setRangeText(value, textarea.selectionStart, textarea.selectionEnd, 'end');
   textarea.dispatchEvent(new Event('input', { bubbles: true }));
 }
@@ -109,27 +100,14 @@ describe('ServerSettings', () => {
     expect(mocks.getAuthenticatedServerState).toHaveBeenCalledTimes(2);
   });
 
-  it('communicates and enforces the 500-byte description limit', async () => {
+  it('limits each text field to the server length limit', async () => {
     const { container } = await renderSettings();
-    const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
+    const maxLength = (selector: string) =>
+      container.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector)!.maxLength;
 
-    expect(textarea.maxLength).toBe(500);
-    expect(container.textContent).toContain('Maximum 500 bytes');
-
-    inputDescription(textarea, 'a'.repeat(501));
-    expect(textarea.value).toBe('Original description');
-  });
-
-  it('enforces the description limit using UTF-8 bytes', async () => {
-    const { container } = await renderSettings();
-    const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
-
-    inputDescription(textarea, '💬'.repeat(125));
-    expect(textarea.value).toBe('💬'.repeat(125));
-
-    inputDescription(textarea, '💬'.repeat(126));
-
-    expect(textarea.value).toBe('💬'.repeat(125));
+    expect(maxLength('#description')).toBe(500);
+    expect(maxLength('#welcome-message')).toBe(10000);
+    expect(maxLength('#motd')).toBe(1000);
   });
 
   it('keeps the draft visible when the server rejects a save', async () => {

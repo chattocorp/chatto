@@ -220,6 +220,7 @@
       "delete_label": "حذف المرفق",
       "delete_failed": "فشل في حذف المرفق",
       "view_label": "عرض {filename}",
+      "save_or_share": "احفظ أو شارك…",
       "download_label": "تنزيل {filename}",
       "image_refresh_failed": "تعذر تحديث رابط الصورة",
       "download_refresh_failed": "تعذر تحديث رابط التنزيل",

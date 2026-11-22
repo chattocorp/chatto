@@ -1,7 +1,14 @@
 import { test, expect } from './setup';
 import { browserAuthenticationHeaders } from './fixtures/csrf';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { connectPost } from './fixtures/connectHelpers';
+import {
+  connectPost,
+  getRoomIdByNameViaConnect,
+  postMessageViaConnect,
+  postThreadReplyViaConnect
+} from './fixtures/connectHelpers';
+import { withBootstrapAdminRequest } from './fixtures/adminRequest';
+import { AuthPage } from './pages';
 import * as routes from './routes';
 
 interface E2EViewerResponse {
@@ -11,52 +18,55 @@ interface E2EViewerResponse {
 }
 
 test.describe('Return URL after login', () => {
-  test('redirects to original URL after email login', async ({ page, authPage }) => {
-    const timestamp = Date.now();
-    const testLogin = `returnurl${timestamp}`;
-    const testPassword = 'testpassword123';
+  test('opens the linked message after password login', async ({
+    page,
+    authPage,
+    context,
+    roomPage
+  }) => {
+    const user = await createAndLoginTestUser(page);
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
+    const body = 'The message from the guest link';
+    const rootId = await postMessageViaConnect(page, roomId, 'Thread with a shared reply');
+    const messageId = await postThreadReplyViaConnect(page, roomId, body, rootId);
+    await context.clearCookies();
 
-    // Create a user first
-    await authPage.createUserViaApi(testLogin, testPassword);
-
-    // Try to access a protected route directly (unauthenticated)
-    await page.goto(routes.settings);
-
-    // The [serverId] layout detects no auth and redirects to /login,
-    // saving the returnUrl in sessionStorage
-    await page.waitForURL('/login');
-
-    // sessionStorage should have the return URL stored
-    const returnUrl = await page.evaluate(() => sessionStorage.getItem('returnUrl'));
-    expect(returnUrl).toBe(routes.settings);
-
-    // Now login via the form
-    await authPage.gotoLogin();
-    await authPage.fillLoginForm(testLogin, testPassword);
+    const target = routes.messageLink(roomId, messageId);
+    await page.goto(target);
+    await expect(page).toHaveURL((url) => url.searchParams.get('redirect') === target);
+    await page.reload();
+    await authPage.fillLoginForm(user.login, user.password);
     await authPage.signInButton.click();
 
-    // Should be redirected to the original URL, not /chat
-    await page.waitForURL(routes.settings);
+    await expect(page).toHaveURL(routes.thread(roomId, rootId));
+    await expect(roomPage.threadPane.getByText(body, { exact: true })).toBeVisible();
   });
 
-  test('redirects to original URL after registration', async ({ page, authPage }) => {
-    const timestamp = Date.now();
-    const testLogin = `returnurlreg${timestamp}`;
-    const testEmail = `returnurlreg${timestamp}@example.com`;
-    const testPassword = 'testpassword123';
+  test('opens the linked room after registration', async ({ page, authPage, serverURL }) => {
+    const roomId = await withBootstrapAdminRequest(serverURL, (request) =>
+      getRoomIdByNameViaConnect(request, 'general')
+    );
+    const target = routes.room(roomId) + '?view=a%26b#details';
+    await page.goto(target);
+    await authPage.createAccountLink.click();
+    await expect(page).toHaveURL(
+      (url) => url.pathname === '/register' && url.searchParams.get('redirect') === target
+    );
+    await page.goBack();
+    await expect(authPage.signInHeading).toBeVisible();
+    await page.goForward();
+    await expect(authPage.emailInput).toBeVisible();
 
-    // Try to access a protected route directly (unauthenticated)
-    await page.goto(routes.serverAdminGeneral);
-
-    // The [serverId] layout detects no auth and redirects to /login,
-    // saving the returnUrl in sessionStorage
-    await page.waitForURL('/login');
-
-    // Register via the email → code → account-details flow
-    await authPage.register(testLogin, testEmail, testPassword);
-
-    // Should be redirected to the original URL, not /chat
-    await page.waitForURL(routes.serverAdminGeneral);
+    // A fresh tab has no queued return path from the guest's original visit.
+    const signupTab = await page.context().newPage();
+    await signupTab.goto(page.url());
+    const login = `returnurlreg${Date.now()}`;
+    await new AuthPage(signupTab).completeRegistration(
+      login,
+      `${login}@example.com`,
+      'testpassword123'
+    );
+    await expect(signupTab).toHaveURL(target);
   });
 
   test('redirects to original URL after OAuth login', async ({ page, authPage }) => {

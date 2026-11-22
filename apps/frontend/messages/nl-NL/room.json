@@ -204,6 +204,7 @@
       "delete_label": "Bijlage verwijderen",
       "delete_failed": "Kan bijlage niet verwijderen",
       "view_label": "Bekijk {filename}",
+      "save_or_share": "Opslaan of delen…",
       "download_label": "{filename} downloaden",
       "image_refresh_failed": "Kan afbeeldingslink niet vernieuwen",
       "download_refresh_failed": "Kan de downloadlink niet vernieuwen",

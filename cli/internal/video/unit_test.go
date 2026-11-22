@@ -1,8 +1,10 @@
 package video
 
 import (
+	"bytes"
 	"context"
 	"io"
+	"os"
 	"testing"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/chattocorp/chatto/cli/internal/core"
 	jobv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/job/v1"
 	"github.com/chattocorp/chatto/cli/internal/runtimeunit"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
@@ -63,4 +66,46 @@ func TestStandaloneMediaWorkerRunsOnlyMediaJobs(t *testing.T) {
 	info, err := stream.Info(ctx, jetstream.WithSubjectFilter("jobs.webhook.>"))
 	require.NoError(t, err)
 	require.Equal(t, map[string]uint64{"jobs.webhook.webhook-job.queued": 1}, info.State.Subjects)
+}
+
+// mediaStartupProbe matches the JSON log fragment used by deployed worker probes.
+type mediaStartupProbe struct{ ready context.CancelFunc }
+
+func (probe mediaStartupProbe) Write(line []byte) (int, error) {
+	if bytes.Contains(line, []byte(`"msg":"Asset-processing worker started"`)) {
+		probe.ready()
+	}
+	return len(line), nil
+}
+
+func TestMediaStartupProbeRequiresJobConsumer(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	js, err := jetstream.New(nc)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	_, err = js.CreateStream(ctx, jetstream.StreamConfig{Name: "EVT", Subjects: []string{"evt.>"}})
+	require.NoError(t, err)
+	_, err = js.CreateObjectStore(ctx, jetstream.ObjectStoreConfig{Bucket: "SERVER_ASSETS"})
+	require.NoError(t, err)
+
+	runCtx, stopOnReady := context.WithCancel(ctx)
+	defer stopOnReady()
+	logger := log.New(&mediaStartupProbe{ready: stopOnReady})
+	logger.SetFormatter(log.JSONFormatter)
+	env := runtimeunit.Env{NC: nc, JS: js, Logger: logger}
+	// No jobs are submitted, so neither media tool will be invoked.
+	env.Config.AssetProcessing.FFmpegPath, err = os.Executable()
+	require.NoError(t, err)
+	env.Config.AssetProcessing.FFprobePath = env.Config.AssetProcessing.FFmpegPath
+
+	require.ErrorIs(t, (Unit{}).Run(runCtx, env), jetstream.ErrStreamNotFound)
+	require.NoError(t, runCtx.Err(), "a failed startup must not signal readiness")
+
+	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{Name: "JOBS", Subjects: []string{"jobs.>"}, AllowMsgTTL: true})
+	require.NoError(t, err)
+	require.NoError(t, (Unit{}).Run(runCtx, env))
+	require.ErrorIs(t, runCtx.Err(), context.Canceled, "the probe must see the startup message")
+	_, err = stream.Consumer(ctx, core.JobsConsumerName(core.JobTypeMedia))
+	require.NoError(t, err)
 }

@@ -26,7 +26,8 @@ export const register = '/register';
 export const registerComplete = (token: string) => `/register/complete?token=${token}`;
 export const forgotPassword = '/forgot-password';
 export const resetPassword = (token: string) => `/reset-password?token=${token}`;
-export const loginResetSuccess = '/login?reset=success';
+export const passwordLogin = '/login/password';
+export const loginResetSuccess = '/login/password?reset=success';
 
 // --- Chat routes (home instance) ---
 

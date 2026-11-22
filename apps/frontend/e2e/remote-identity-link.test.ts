@@ -65,9 +65,11 @@ for (const signedInAtOrigin of [false, true]) {
       await page.getByRole('button', { name: 'Link', exact: true }).click();
       const popup = await popupPromise;
       popup.on('pageerror', (error) => errors.push(error.message));
+      await popup.getByRole('link', { name: 'Continue with password' }).click();
       await popup.getByLabel('Username or Email').fill('link-user');
       await popup.getByLabel('Password', { exact: true }).fill('testpassword123');
       await popup.getByRole('button', { name: 'Sign In', exact: true }).click();
+      await popup.getByRole('button', { name: 'Continue with Discord' }).click();
 
       // Do not focus, reload, or navigate the main page to trigger reconciliation.
       await expect(page.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();

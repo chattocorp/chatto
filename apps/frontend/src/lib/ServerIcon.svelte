@@ -5,6 +5,7 @@
   import { NotificationBadge, UnreadDot } from '$lib/ui';
   import type { ServerIndicator } from '$lib/state/server/serverUi';
   import type { Attachment } from 'svelte/attachments';
+  import type { ServerIconAppearance } from '$lib/state/server/serverStatus.svelte';
   import { m } from '$lib/i18n/messages';
 
   let {
@@ -19,7 +20,7 @@
     onIndicatorClick,
     contextMenuTrigger,
     title,
-    warning = false
+    appearance = null
   }: {
     /** Display data for the icon (server name + optional logo). */
     server?: { name: string; logoUrl?: string | null };
@@ -40,12 +41,8 @@
     /** Optional right-click/long-press behavior for the server link. */
     contextMenuTrigger?: Attachment<HTMLElement>;
     title?: string;
-    /**
-     * Show a non-interactive warning marker: the client could not use this
-     * server (sign-in, compatibility, or connection failure). The title names
-     * the problem.
-     */
-    warning?: boolean;
+    /** Fade unavailable servers or mark a required sign-in. The link title explains why. */
+    appearance?: ServerIconAppearance | null;
   } = $props();
 </script>
 
@@ -57,7 +54,8 @@
     aria-label={title ?? server?.name}
     class={[
       'server-icon server-gutter-item cursor-pointer',
-      selected && 'server-gutter-item-active'
+      selected && 'server-gutter-item-active',
+      appearance === 'faded' && '[&>div]:opacity-30'
     ]}
     data-testid={server ? 'server-icon' : icon ? 'nav-icon' : undefined}
   >
@@ -68,13 +66,13 @@
     {/if}
   </a>
 
-  {#if warning}
+  {#if appearance === 'sign-in'}
     <span
       class="pointer-events-none absolute -start-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning"
-      data-testid="server-warning"
+      data-testid="server-sign-in-marker"
       aria-hidden="true"
     >
-      <span class="iconify icon-[uil--exclamation-circle] text-xs" aria-hidden="true"></span>
+      <span class="iconify icon-[uil--key-skeleton] text-xs" aria-hidden="true"></span>
     </span>
   {/if}
 

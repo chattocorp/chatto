@@ -96,8 +96,7 @@
       "error_future": "La scadenza deve essere nel futuro."
     },
     "form": {
-      "required": "Obbligatorio",
-      "max_bytes": "Numero massimo di {max} byte; alcuni caratteri utilizzano più di un byte."
+      "required": "Obbligatorio"
     },
     "dates": {
       "today": "Oggi",

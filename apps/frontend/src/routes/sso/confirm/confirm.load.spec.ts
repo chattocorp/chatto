@@ -30,7 +30,7 @@ describe('SSO confirmation load', () => {
       load({ url, parent: async () => ({ user: null }) } as never)
     ).rejects.toMatchObject({
       status: 302,
-      location: '/login?redirect=%2Fsso%2Fconfirm%3Ftoken%3Dflow%26existing%3D1'
+      location: '/login/password?redirect=%2Fsso%2Fconfirm%3Ftoken%3Dflow%26existing%3D1'
     });
   });
 

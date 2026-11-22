@@ -102,7 +102,7 @@ func (c *ChattoCore) boundedProjectionEstimate(ctx context.Context, key string, 
 // server-admin UI. It is intentionally on-demand; the byte counts walk
 // in-memory projection state and are meant for operator pages, not hot paths.
 func (c *ChattoCore) ProjectionAdminStates(ctx context.Context) ([]ProjectionAdminState, error) {
-	info, err := c.storage.serverEvtStream.Info(ctx)
+	info, err := c.currentEventStreamInfo(ctx)
 	if err != nil {
 		return nil, err
 	}

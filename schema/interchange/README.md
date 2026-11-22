@@ -1,4 +1,4 @@
-# Chatto interchange format
+# CHIEF (Chatto Import/Export Format)
 
 **Status: draft v1.** This directory defines a portable JSON format for channel
 history. It is not a raw EVT dump or a server backup. Use

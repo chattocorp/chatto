@@ -9,6 +9,14 @@
       "question": "Qui participe au prochain appel ?"
     },
     "overview": "Vue d’ensemble",
+    "whats_new": {
+      "title": "Nouveautés",
+      "description": "Les points forts de chaque version de Chatto, en anglais.",
+      "full_changelog": "Journal des modifications complet",
+      "release_notes": "Notes de version {version}",
+      "empty": "Il n’y a pas encore de points forts.",
+      "unreleased": "Non publié"
+    },
     "intro": "Des guides courts pour discuter et administrer un serveur.",
     "users": "Pour les membres",
     "admins": "Pour les administrateurs",

@@ -342,7 +342,31 @@ func (c *ChattoCore) ExternalIdentitiesForUser(ctx context.Context, userID strin
 	if err := c.requireHumanUser(ctx, userID); err != nil {
 		return nil, err
 	}
+	// The account check proved that userID is the ID of a projected user, so
+	// it can go into a subject now.
+	if err := c.userModel.waitForUserAuthSubjectsCurrent(ctx, "external identities", userExternalIdentityAuthSubjects(userID)...); err != nil {
+		return nil, err
+	}
 	return c.userModel.externalIdentities(userID), nil
+}
+
+// userExternalIdentityAuthSubjects returns the subjects of the events of one
+// user that can change the result of UserAuthProjection.ExternalIdentities
+// for that user: the links, the unlinks, and the events that delete the
+// account. An event of another user cannot change it, because it changes
+// only the identity index, not the identity list of this user. Keep this list
+// complete when an event gets this effect. A missing subject lets a replica
+// decide from an old identity list until its projection applies the event.
+func userExternalIdentityAuthSubjects(userID string) []string {
+	agg := evtstream.UserAggregate(userID)
+	return []string{
+		agg.Subject(evtstream.EventUserOIDCSubjectLinked),
+		agg.Subject(evtstream.EventUserExternalIdentityLinked),
+		agg.Subject(evtstream.EventUserExternalIdentityUnlinked),
+		agg.Subject(evtstream.EventUserAccountDeleted),
+		agg.Subject(evtstream.EventUserKeyShreddingRequested),
+		agg.Subject(evtstream.EventUserKeyShredded),
+	}
 }
 
 // ExternalIdentitySignInPolicy describes the sign-in methods enabled on the
@@ -416,7 +440,10 @@ func (c *ChattoCore) DisconnectExternalIdentityAs(ctx context.Context, actorID, 
 		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(userFilter, userSeq)); err != nil {
 			return fmt.Errorf("wait for user projection: %w", err)
 		}
-		if err := c.userModel.waitForUserAuthCurrent(ctx, "user mutation"); err != nil {
+		// checkExternalIdentityDisconnect reads the identity list and the
+		// password of this user only.
+		if err := c.userModel.waitForUserAuthSubjectsCurrent(ctx, "external identity unlink",
+			slices.Concat(userExternalIdentityAuthSubjects(userID), userPasswordAuthSubjects(userID))...); err != nil {
 			return fmt.Errorf("wait for user auth projection: %w", err)
 		}
 		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(rbacFilter, rbacSeq)); err != nil {

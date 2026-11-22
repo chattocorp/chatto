@@ -96,8 +96,7 @@
       "error_future": "到期時間必須是未來時間。"
     },
     "form": {
-      "required": "必填",
-      "max_bytes": "上限為 {max} 位元組；部分字元會使用超過一個位元組。"
+      "required": "必填"
     },
     "dates": {
       "today": "今天",

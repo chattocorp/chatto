@@ -40,17 +40,17 @@ vi.mock('$lib/navigation', () => ({
 
 import { load } from './+layout';
 
-function routeLoad(user: { id: string } | null = { id: 'viewer-1' }, setupRequired = false) {
+function routeLoad(
+  user: { id: string } | null = { id: 'viewer-1' },
+  setupRequired = false,
+  path = '/chat/-/overview',
+  roomId?: string
+) {
   return load({
-    params: { serverId: '-' },
+    params: { serverId: '-', roomId },
     parent: async () => ({ user, serverInfo: { setupRequired } }),
-    url: new URL('https://chat.example.test/chat/-/overview')
+    url: new URL(path, 'https://chat.example.test')
   } as never);
-}
-
-async function expectLoginRedirect(user?: { id: string } | null): Promise<void> {
-  await expect(routeLoad(user)).rejects.toMatchObject({ status: 302, location: '/login' });
-  expect(mocks.saveReturnUrl).toHaveBeenCalledWith('/chat/-/overview');
 }
 
 describe('server route layout load', () => {
@@ -78,7 +78,8 @@ describe('server route layout load', () => {
   it('redirects an unresolved server before the layout component mounts', async () => {
     mocks.serverId = null;
 
-    await expectLoginRedirect();
+    await expect(routeLoad()).rejects.toMatchObject({ status: 302, location: '/login' });
+    expect(mocks.saveReturnUrl).toHaveBeenCalledWith('/chat/-/overview');
   });
 
   it('does not read the room param, so room switches do not re-run it', async () => {
@@ -107,9 +108,16 @@ describe('server route layout load', () => {
     expect(mocks.store.currentUser.load).not.toHaveBeenCalled();
   });
 
-  it('redirects an unauthenticated origin and records its return URL', async () => {
-    await expectLoginRedirect(null);
-  });
+  it.each(['/chat/-/room-1', '/chat/-/room-1/m/message-1?view=a%26b#reply'])(
+    'keeps the guest destination %s through the login redirect',
+    async (path) => {
+      await expect(routeLoad(null, false, path, 'room-1')).rejects.toMatchObject({
+        status: 302,
+        location: '/login?' + new URLSearchParams({ redirect: path })
+      });
+      expect(mocks.saveReturnUrl).toHaveBeenCalledWith(path);
+    }
+  );
 
   it('waits for the initial remote viewer request before deciding access', async () => {
     mocks.serverId = 'remote';

@@ -62,7 +62,8 @@
     </Hint>
 
     <p class="mt-6 text-center">
-      <a href={resolve('/login')} class="link">{m('auth.forgot_password.back_to_login')}</a>
+      <a href={resolve('/login/password')} class="link">{m('auth.forgot_password.back_to_login')}</a
+      >
     </p>
   {:else}
     <p class="mb-6 text-muted">
@@ -98,7 +99,7 @@
 
     <p class="mt-6 text-center">
       {m('auth.forgot_password.remember_password')}
-      <a href={resolve('/login')} class="link">{m('common.sign_in')}</a>
+      <a href={resolve('/login/password')} class="link">{m('common.sign_in')}</a>
     </p>
   {/if}
 </AuthLayout>

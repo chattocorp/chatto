@@ -11,13 +11,12 @@ import {
 } from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
 import { authorizationLaunchTarget } from '$lib/test-utils';
+import { profileVerifiedIdentitiesKey } from '$lib/query/keys';
 import { settingsQueryKeys } from '$lib/query/settings';
 import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
-    url: new URL('http://localhost/chat/-/settings/account'),
-    replaceState: vi.fn(),
     list: vi.fn(),
     startLink: vi.fn(),
     disconnect: vi.fn(),
@@ -50,21 +49,6 @@ vi.mock('$lib/client', async () => ({
     isOriginServer: (serverId: string) => serverId === 'origin',
     clearServerAuthentication: mocks.clearServerAuthentication
   }
-}));
-
-vi.mock('$app/state', () => ({
-  page: {
-    get url() {
-      return mocks.url;
-    },
-    state: {}
-  }
-}));
-vi.mock('$app/navigation', () => ({
-  replaceState: mocks.replaceState,
-  pushState: vi.fn(),
-  goto: vi.fn(),
-  invalidateAll: vi.fn()
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
@@ -112,7 +96,7 @@ async function settle(): Promise<void> {
 function renderSettings(user: CurrentUserState = currentUser) {
   mocks.accountId = user.user?.id ?? null;
   return render(ExternalIdentitySettings, {
-    props: { currentUser: user, accountSettingsPath: '/chat/-/settings/account' }
+    props: { currentUser: user }
   });
 }
 
@@ -145,10 +129,6 @@ describe('external identity settings query lifecycle', () => {
   beforeEach(() => {
     mocks.directLoginEnabled = true;
     queryClient.clear();
-    mocks.url = new URL('http://localhost/chat/-/settings/account');
-    mocks.replaceState.mockImplementation((url: string | URL) => {
-      mocks.url = new URL(url, mocks.url);
-    });
     vi.clearAllMocks();
     mocks.scopeCurrent = true;
     mocks.serverId = 'origin';
@@ -363,6 +343,13 @@ describe('external identity settings query lifecycle', () => {
   });
 
   it('refreshes identities without signing out after a successful disconnect', async () => {
+    const profileKey = profileVerifiedIdentitiesKey(
+      { serverId: 'origin', connection },
+      'user-alice'
+    );
+    queryClient.setQueryData(profileKey, [
+      { method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' }
+    ]);
     const view = renderSettings();
     await settle();
 
@@ -377,6 +364,7 @@ describe('external identity settings query lifecycle', () => {
     confirmButton?.click();
 
     await vi.waitFor(() => expect(mocks.list).toHaveBeenCalledTimes(2));
+    expect(queryClient.getQueryData(profileKey)).toBeUndefined();
     expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
     expect(mocks.hardRedirectAfterSignOut).not.toHaveBeenCalled();
     expect(mocks.notifyLogout).not.toHaveBeenCalled();
@@ -484,15 +472,11 @@ function unlinkedIdentityList() {
   return list;
 }
 
-describe('identity link popup and continuation', () => {
+describe('identity link popup', () => {
   beforeEach(() => {
     mocks.directLoginEnabled = true;
     queryClient.clear();
     vi.clearAllMocks();
-    mocks.url = new URL('http://localhost/chat/-/settings/account');
-    mocks.replaceState.mockImplementation((url: string | URL) => {
-      mocks.url = new URL(url, mocks.url);
-    });
     mocks.serverId = 'origin';
     mocks.scopeCurrent = true;
     connection.serverId = 'origin';
@@ -509,11 +493,6 @@ describe('identity link popup and continuation', () => {
     const popup = { closed: false, opener: {}, close: vi.fn() };
     const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
     return { popup, open };
-  }
-
-  function continuation(userId = 'user-alice', providerId = 'github-main') {
-    mocks.url.searchParams.set('link_provider', providerId);
-    mocks.url.searchParams.set('link_user', userId);
   }
 
   it('opens remote settings synchronously without submitting credentials to the remote API', async () => {
@@ -544,6 +523,12 @@ describe('identity link popup and continuation', () => {
       expect.any(String)
     );
     expect(popup.opener).toBeNull();
+    expect(mocks.startLink).toHaveBeenCalledWith({
+      providerId: 'github-main',
+      redirectPath:
+        '/chat/-/settings/account?link_provider=github-main&link_user=user-alice&link_complete=1',
+      currentPassword: undefined
+    });
   });
 
   it('refreshes after an isolated provider window returns to the origin', async () => {
@@ -557,12 +542,18 @@ describe('identity link popup and continuation', () => {
       .element(browserPage.getByRole('button', { name: 'Link', exact: true }))
       .toBeEnabled();
     mocks.list.mockResolvedValue(linkedIdentityList());
+    const profileKey = profileVerifiedIdentitiesKey(
+      { serverId: 'origin', connection },
+      'user-alice'
+    );
+    queryClient.setQueryData(profileKey, []);
     const callback = new BroadcastChannel('chatto-provider-linked');
     callback.postMessage('user-alice');
     callback.close();
     await expect
       .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
       .toBeVisible();
+    expect(queryClient.getQueryData(profileKey)).toBeUndefined();
   });
 
   it('keeps password errors in the original page and retries a blocked provider window', async () => {
@@ -719,104 +710,6 @@ describe('identity link popup and continuation', () => {
     }
   );
 
-  it('consumes a resumed continuation once and keeps password confirmation on the origin', async () => {
-    continuation();
-    const view = renderSettings();
-    await vi.waitFor(() => expect(mocks.startLink).toHaveBeenCalledOnce());
-    expect(mocks.replaceState).toHaveBeenCalledOnce();
-    expect(mocks.url.search).toBe('');
-    expect(mocks.startLink).toHaveBeenCalledWith({
-      providerId: 'github-main',
-      redirectPath:
-        '/chat/-/settings/account?link_provider=github-main&link_user=user-alice&link_complete=1',
-      currentPassword: undefined
-    });
-    await expect.element(browserPage.getByRole('dialog', { name: 'Link GitHub?' })).toBeVisible();
-    view.unmount();
-    renderSettings();
-    await settle();
-    expect(mocks.startLink).toHaveBeenCalledOnce();
-  });
-
-  it.each([
-    ['other-user', 'github-main', 'Sign in to the correct account on this server'],
-    ['user-alice', 'missing-provider', 'This sign-in provider is no longer available.'],
-    ['', 'github-main', 'Sign in to the correct account on this server']
-  ])('rejects a continuation for %s / %s', async (userId, providerId, error) => {
-    continuation(userId, providerId);
-    renderSettings();
-    await expect.element(browserPage.getByText(error, { exact: false })).toBeVisible();
-    expect(mocks.startLink).not.toHaveBeenCalled();
-    expect(mocks.url.search).toBe('');
-  });
-
-  it('does not restart an already linked provider', async () => {
-    const close = vi.spyOn(window, 'close').mockImplementation(() => {});
-    continuation();
-    mocks.list.mockResolvedValue(linkedIdentityList());
-    renderSettings();
-    await vi.waitFor(() => expect(mocks.replaceState).toHaveBeenCalledOnce());
-    expect(mocks.startLink).not.toHaveBeenCalled();
-    expect(close).toHaveBeenCalledOnce();
-    await expect
-      .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }))
-      .toBeVisible();
-  });
-
-  it.each([
-    ['user-alice', true, true],
-    ['other-user', true, false],
-    ['user-alice', false, false]
-  ])(
-    'closes a completed popup only for its linked account: %s / %s',
-    async (userId, linked, shouldClose) => {
-      const close = vi.spyOn(window, 'close').mockImplementation(() => {});
-      continuation(userId);
-      mocks.url.searchParams.set('link_complete', '1');
-      mocks.list.mockResolvedValue(linked ? linkedIdentityList() : unlinkedIdentityList());
-      renderSettings();
-      await vi.waitFor(() => expect(mocks.replaceState).toHaveBeenCalledOnce());
-      expect(close).toHaveBeenCalledTimes(shouldClose ? 1 : 0);
-      expect(mocks.startLink).not.toHaveBeenCalled();
-      expect(mocks.url.search).toBe('');
-    }
-  );
-
-  it.each([
-    [
-      'provider_access_denied',
-      'Your account at that sign-in provider is not allowed to sign in to this server.'
-    ],
-    [
-      'external_identity_conflict',
-      'That provider identity is already linked to a different account.'
-    ],
-    ['provider_failed', 'Failed to link sign-on provider']
-  ])('shows a link callback error in the popup: %s', async (errorCode, message) => {
-    const close = vi.spyOn(window, 'close').mockImplementation(() => {});
-    continuation();
-    mocks.url.searchParams.set('link_complete', '1');
-    mocks.url.searchParams.set('error', errorCode);
-    mocks.list.mockResolvedValue(unlinkedIdentityList());
-    renderSettings();
-    await expect.element(browserPage.getByText(message, { exact: false })).toBeVisible();
-    expect(close).not.toHaveBeenCalled();
-    expect(mocks.startLink).not.toHaveBeenCalled();
-    expect(mocks.url.search).toBe('');
-  });
-
-  it('requires SSO reauthentication instead of a stored password on SSO-only servers', async () => {
-    mocks.directLoginEnabled = false;
-    continuation();
-    renderSettings();
-    await expect
-      .element(browserPage.getByText(/Open account settings on the server that owns this account/))
-      .toBeVisible();
-    await expect
-      .element(browserPage.getByRole('dialog', { name: 'Link GitHub?' }))
-      .not.toBeInTheDocument();
-  });
-
   it('opens the password dialog ready for input', async () => {
     // A field that renders disabled and enables a tick later can lose typing
     // that starts in between.
@@ -832,8 +725,8 @@ describe('identity link popup and continuation', () => {
       attributeFilter: ['disabled']
     });
     try {
-      continuation();
       renderSettings();
+      await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
       await expect
         .element(browserPage.getByLabelText('Chatto password', { exact: true }))
         .toBeEnabled();
@@ -845,8 +738,8 @@ describe('identity link popup and continuation', () => {
   });
 
   it('shows a repeated freshness failure in the password dialog', async () => {
-    continuation();
     renderSettings();
+    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
     await browserPage.getByLabelText('Chatto password', { exact: true }).fill('test-password');
     await browserPage.getByRole('button', { name: 'Continue with GitHub', exact: true }).click();
     await expect

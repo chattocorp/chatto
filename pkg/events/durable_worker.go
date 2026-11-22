@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +20,30 @@ const (
 	defaultDurableWorkerRetryDelay        = 30 * time.Second
 	defaultDurableWorkerAckTimeout        = 5 * time.Second
 	defaultDurableWorkerHeartbeatInterval = 30 * time.Second
+
+	// durableWorkerIdleFetchWait is the pull lifetime of an idle worker (see
+	// Run). An idle worker sends one pull request for each interval instead of
+	// one for each FetchMaxWait. Idle polling is the main source of idle
+	// JetStream API traffic when many replicas run many workers.
+	//
+	// Trade-off: when a replica disappears without closing its connection, the
+	// server keeps apparent interest in its open pull until the pull expires.
+	// Work that arrives in that time goes to the dead pull, counts as a
+	// delivery attempt, and reaches another replica only after the consumer's
+	// AckWait. A longer idle pull makes that window longer (about 29 seconds
+	// instead of about one second). A clean shutdown or a connection close that
+	// the server detects removes the interest and the pull at once.
+	durableWorkerIdleFetchWait = 30 * time.Second
+	// durableWorkerMaxRequestExpiresRejection is the start of the description
+	// that nats-server sends in a 409 status when a pull is longer than the
+	// consumer's MaxRequestExpires. nats.go has no typed error for it.
+	durableWorkerMaxRequestExpiresRejection = "Exceeded MaxRequestExpires of "
+	// durableWorkerIdleFetchHeartbeats is the number of pull heartbeat
+	// intervals in one pull of 10 seconds or more. nats.go uses a 5-second
+	// heartbeat for such pulls by default; a longer interval sends fewer idle
+	// messages. nats.go fails a pull that misses two heartbeats, so a lost
+	// pull, for example after a broker restart, retries within two intervals.
+	durableWorkerIdleFetchHeartbeats = 3
 )
 
 // ErrDurableWorkerAlreadyStarted is returned when Run is called more than once
@@ -50,7 +75,11 @@ type DurableDeliveryHandler func(context.Context, DurableDelivery) error
 // remains responsible for the durable consumer's stream, name, filters,
 // acknowledgement policy, and rollout contract.
 type DurableWorkerOptions struct {
-	MaxConcurrent     int
+	MaxConcurrent int
+	// FetchMaxWait is the lifetime of a normal pull. It also sets the
+	// shutdown handoff delay. An idle worker uses a longer pull (30 seconds,
+	// or the consumer's MaxRequestExpires when that is shorter, but never
+	// shorter than FetchMaxWait). See Run.
 	FetchMaxWait      time.Duration
 	FetchRetryDelay   time.Duration
 	RetryDelay        time.Duration
@@ -65,8 +94,11 @@ type DurableWorker struct {
 	consumer jetstream.Consumer
 	handle   DurableDeliveryHandler
 	opts     DurableWorkerOptions
-	runMu    sync.Mutex
-	started  bool
+	// idleFetchWait is the lifetime of a long pull. Only the Run goroutine
+	// changes it after construction. See Run and adaptIdleFetchWait.
+	idleFetchWait time.Duration
+	runMu         sync.Mutex
+	started       bool
 }
 
 type retryDeliveryError struct {
@@ -151,7 +183,16 @@ func NewDurableWorker(
 		opts.HeartbeatInterval = defaultDurableWorkerHeartbeatInterval
 	}
 	opts.Logger = normalizeLogger(opts.Logger)
-	return &DurableWorker{consumer: consumer, handle: handle, opts: opts}, nil
+	var maxRequestExpires time.Duration
+	if info := consumer.CachedInfo(); info != nil {
+		maxRequestExpires = info.Config.MaxRequestExpires
+	}
+	return &DurableWorker{
+		consumer:      consumer,
+		handle:        handle,
+		opts:          opts,
+		idleFetchWait: idleFetchWait(opts.FetchMaxWait, maxRequestExpires),
+	}, nil
 }
 
 // Run fetches and processes deliveries until the context is cancelled. It may
@@ -161,6 +202,26 @@ func NewDurableWorker(
 // heartbeats and negatively acknowledges active deliveries before waiting for
 // their handlers to stop. This ordering prevents the stopping worker from
 // reclaiming its own handoffs through an outstanding pull.
+//
+// The worker has at most one outstanding pull. A pull is short (FetchMaxWait)
+// unless both of these are true:
+//
+//   - The previous pull ended empty because it expired.
+//   - No delivery is active.
+//
+// Then the pull is long (durableWorkerIdleFetchWait, limited by the consumer's
+// MaxRequestExpires), so an idle worker sends few pull requests. After a
+// delivery or a failed pull, the next pull is short. Thus a backlog uses only
+// short pulls, and a rejected long pull falls back to a short pull. The
+// consumer's MaxRequestExpires can become smaller while the worker runs. When
+// JetStream rejects a long pull for that reason, the worker takes the new limit
+// from the rejection. It does not read consumer information: Info on a shared
+// consumer handle replaces the cached information for all users of the handle.
+//
+// Only a pull can start a delivery, so no delivery is active while a long
+// pull is outstanding. Thus, when cancellation hands off active deliveries,
+// any orphaned pull of this worker is a short pull, and the handoff delay of
+// FetchMaxWait plus a margin still outlives it.
 func (w *DurableWorker) Run(ctx context.Context) error {
 	if w == nil || w.consumer == nil || w.handle == nil {
 		return fmt.Errorf("durable worker is not configured")
@@ -181,6 +242,8 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 	}()
 
 	active := make(chan struct{}, w.opts.MaxConcurrent)
+	// idle is true when the previous pull expired without a delivery.
+	idle := false
 	for ctx.Err() == nil {
 		select {
 		case active <- struct{}{}:
@@ -188,18 +251,29 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 			return nil
 		}
 
-		fetchCtx, cancelFetch := context.WithTimeout(ctx, w.opts.FetchMaxWait)
-		msg, err := w.consumer.Next(jetstream.FetchContext(fetchCtx))
-		fetchCtxErr := fetchCtx.Err()
+		// This loop holds one slot for the pull itself. One occupied slot thus
+		// means that no handler is active. A handler can release its slot
+		// concurrently; that only makes this check choose a short pull.
+		long := idle && len(active) == 1
+		fetchWait := w.opts.FetchMaxWait
+		if long {
+			fetchWait = w.idleFetchWait
+		}
+		fetchCtx, cancelFetch := context.WithTimeout(ctx, fetchWait)
+		msg, err := w.consumer.Next(fetchOptions(fetchCtx)...)
 		cancelFetch()
 		if err != nil {
 			<-active
 			if ctx.Err() != nil {
 				return nil
 			}
-			if errors.Is(fetchCtxErr, context.DeadlineExceeded) || errors.Is(err, nats.ErrTimeout) {
+			// Classify the returned error, not the fetch context: a pull can fail
+			// with a server or heartbeat error just before its deadline.
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, nats.ErrTimeout) {
+				idle = true
 				continue
 			}
+			idle = false
 			// A configured consumer disappearing is an application-owned
 			// lifecycle failure, not a transport interruption. Returning lets the
 			// application recreate or deliberately retire the consumer instead of
@@ -208,11 +282,15 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 				return fmt.Errorf("durable worker consumer is unavailable: %w", err)
 			}
 			w.opts.Logger.Warn("Durable work fetch failed; retrying", "error", err)
+			if long {
+				w.adaptIdleFetchWait(err)
+			}
 			if !waitForDurableWorkerRetry(ctx, w.opts.FetchRetryDelay) {
 				return nil
 			}
 			continue
 		}
+		idle = false
 		if ctx.Err() != nil {
 			if err := msg.Nak(); err != nil {
 				w.opts.Logger.Warn("Durable delivery handoff failed", "subject", msg.Subject(), "error", err)
@@ -228,6 +306,58 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 		}(msg)
 	}
 	return nil
+}
+
+// idleFetchWait returns the lifetime of a pull that starts while no delivery
+// is active. The consumer's MaxRequestExpires, when set, limits it, because
+// JetStream rejects a pull with a longer expiry. It is never shorter than
+// fetchMaxWait, which an application chooses for its consumer.
+func idleFetchWait(fetchMaxWait, maxRequestExpires time.Duration) time.Duration {
+	wait := durableWorkerIdleFetchWait
+	if maxRequestExpires > 0 {
+		wait = min(wait, maxRequestExpires)
+	}
+	return max(wait, fetchMaxWait)
+}
+
+// adaptIdleFetchWait shortens long pulls after JetStream rejected a long pull
+// because it is longer than the consumer's MaxRequestExpires. It takes the
+// limit from the rejection. If the rejection has no readable limit, it halves
+// the long pull, so that repeated rejections reach an accepted length. Other
+// failures, for example a missed heartbeat, do not change the long pull. The
+// worker does not lengthen the long pull again if the limit later increases.
+func (w *DurableWorker) adaptIdleFetchWait(err error) {
+	_, rest, found := strings.Cut(err.Error(), durableWorkerMaxRequestExpiresRejection)
+	if !found {
+		return
+	}
+	limit := w.idleFetchWait / 2
+	if fields := strings.Fields(rest); len(fields) > 0 {
+		if parsed, err := time.ParseDuration(fields[0]); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	w.idleFetchWait = idleFetchWait(w.opts.FetchMaxWait, min(limit, w.idleFetchWait))
+}
+
+// fetchOptions returns the pull options for one fetch that ends with ctx. A
+// parent deadline can make the pull shorter than the requested wait, so the
+// idle heartbeat comes from the remaining lifetime. Below 10 seconds, nats.go
+// sends no heartbeat by default, and the worker keeps that default.
+//
+// With a FetchMaxWait below 10 seconds, only long pulls have a heartbeat, and a
+// long pull starts only after an empty short pull. A FetchMaxWait of 10 seconds
+// or more gives short pulls a heartbeat too. Since nats.go v1.55.0, a fetch
+// stops its heartbeat and expiry timers when it completes. A timer callback
+// that has already started sees the completed fetch and returns.
+func fetchOptions(ctx context.Context) []jetstream.FetchOpt {
+	opts := []jetstream.FetchOpt{jetstream.FetchContext(ctx)}
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline); remaining >= 10*time.Second {
+			opts = append(opts, jetstream.FetchHeartbeat(remaining/durableWorkerIdleFetchHeartbeats))
+		}
+	}
+	return opts
 }
 
 func waitForDurableWorkerRetry(ctx context.Context, delay time.Duration) bool {
@@ -288,9 +418,11 @@ func (w *DurableWorker) process(ctx context.Context, msg jetstream.Msg) {
 func (w *DurableWorker) handoff(msg jetstream.Msg, delivery DurableDelivery) {
 	delay := durableWorkerHandoffDelay(w.opts.FetchMaxWait)
 	// Canceling a client-side pull does not guarantee that JetStream has already
-	// expired the corresponding server-side request. Delay redelivery past the
+	// expired the corresponding server-side request: nats.go removes the inbox
+	// interest asynchronously after Next returns. Delay redelivery past the
 	// maximum pull lifetime so an orphaned request from this stopping worker
-	// cannot reclaim the handoff.
+	// cannot reclaim the handoff. A worker with an active delivery starts only
+	// short pulls (see Run), so FetchMaxWait bounds that lifetime.
 	if err := msg.NakWithDelay(delay); err != nil {
 		w.opts.Logger.Warn("Durable delivery handoff failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "retry_delay", delay, "error", err)
 	}

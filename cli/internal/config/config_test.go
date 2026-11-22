@@ -326,14 +326,17 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	}
 }
 
-func TestReadConfig_RequiresWebserverURL(t *testing.T) {
+func TestReadConfig_WebserverURLRequiredOnlyForServer(t *testing.T) {
 	for _, raw := range []string{"", " ", "\t\n"} {
 		t.Run(fmt.Sprintf("%q", raw), func(t *testing.T) {
 			validCheckEnvironment(t)
 			t.Chdir(t.TempDir())
 			t.Setenv("CHATTO_WEBSERVER_URL", raw)
-			if _, err := ReadConfig(""); err == nil || !strings.Contains(err.Error(), "webserver.url is required") {
-				t.Fatalf("ReadConfig() = %v, want missing webserver.url error", err)
+			if _, err := ReadConfig(""); err != nil {
+				t.Fatalf("read standalone config: %v", err)
+			}
+			if _, err := ReadServerConfig(""); err == nil || !strings.Contains(err.Error(), "webserver.url is required") {
+				t.Fatalf("ReadServerConfig() = %v, want missing webserver.url error", err)
 			}
 		})
 	}
@@ -416,27 +419,6 @@ func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
 				t.Fatalf("Validate() error = %v, want to contain %q", err, tt.errorMsg)
 			}
 		})
-	}
-}
-
-func TestChattoConfig_Validate_RequiresWebserverURL(t *testing.T) {
-	for _, raw := range []string{"", " ", "\t\n"} {
-		t.Run(fmt.Sprintf("%q", raw), func(t *testing.T) {
-			cfg := validTestConfig()
-			cfg.Webserver.URL = raw
-			if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "webserver.url is required") {
-				t.Fatalf("Validate() = %v, want missing webserver.url error", err)
-			}
-		})
-	}
-}
-
-func TestChattoConfig_Validate_MCPRequiresPublicWebserverURL(t *testing.T) {
-	cfg := validTestConfig()
-	cfg.Webserver.URL = ""
-	cfg.MCP.Enabled = true
-	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "webserver.url is required") {
-		t.Fatalf("Validate() = %v, want missing webserver.url error", err)
 	}
 }
 

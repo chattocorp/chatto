@@ -90,6 +90,10 @@ URL refresh results cannot start a preview or download after this opening ends.
     }
   }
 
+  async function resolveDownloadUrl() {
+    return attachmentDownloadUrl(await currentUrl(modal));
+  }
+
   async function download(event: MouseEvent) {
     if (busy || !isCurrent(modal)) {
       event.preventDefault();
@@ -122,6 +126,7 @@ URL refresh results cannot start a preview or download after this opening ends.
   size={metadata.data?.size ?? null}
   sizeLoading={metadata.isPending}
   {downloadUrl}
+  {resolveDownloadUrl}
   {previewUrl}
   {busy}
   {error}

@@ -51,8 +51,8 @@ distinguish stable documentation from development documentation.
 
 - Check the homepage's `Release Notes` action in
   `apps/docs-website/src/content/docs/index.mdx`. It must link to the release
-  page for the latest stable minor version represented by the site. Preparing
-  an unreleased page alone does not make it the latest stable release.
+  page for the newest minor version included in that build of the site,
+  even when the page is marked unreleased.
 - Check release navigation in `apps/docs-website/astro.config.mjs` and links
   from guides to release notes. Verify that target pages and fragments exist
   and match the release discussed. Preserve intentional historical links.
@@ -66,6 +66,14 @@ distinguish stable documentation from development documentation.
 - Verify changed navigation links in a local browser preview. If checking a
   deployed site, report its channel and distinguish deployed behavior from
   local changes. Stable docs corrections ship with the next patch release.
+
+## Signing And Publication Approval
+
+When the tagged release workflow reaches **Review deployments**, stop and give
+the user the release tag and a link to the workflow run. Leave signing and
+publication approval to the user unless they explicitly ask you to approve
+that specific release. A request such as “release the next beta” still requires
+this handoff.
 
 ## After Publication
 

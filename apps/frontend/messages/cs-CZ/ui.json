@@ -96,8 +96,7 @@
       "error_future": "Platnost musí být v budoucnosti."
     },
     "form": {
-      "required": "Povinné",
-      "max_bytes": "Maximum {max} bajtů; některé znaky používají více než jeden bajt."
+      "required": "Povinné"
     },
     "dates": {
       "today": "dnes",

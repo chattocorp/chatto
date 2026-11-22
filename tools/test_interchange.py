@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = ["jsonschema[format]==4.26.0"]
 # ///
-"""Check draft interchange schemas and synthetic fixtures, without server access.
+"""Check draft CHIEF schemas and synthetic fixtures, without server access.
 
 The semantic checker below is a conformance-test oracle, not the production
 archive reader. It keeps small fixtures in memory and does not implement import,

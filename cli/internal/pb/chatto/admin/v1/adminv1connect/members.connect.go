@@ -98,7 +98,8 @@ type AdminUserServiceClient interface {
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 	// Deactivates or reactivates a human account. Requires user.manage-accounts.
 	// The caller cannot target their own account or an owner account.
-	// Deactivation immediately invalidates existing sessions and prevents sign-in.
+	// Deactivation invalidates existing sessions within one minute in the worst
+	// case and prevents sign-in.
 	// Reactivation permits new sign-ins; old sessions remain invalid.
 	// Repeating the current state succeeds without changing it.
 	SetUserDeactivated(context.Context, *connect.Request[v1.SetUserDeactivatedRequest]) (*connect.Response[v1.SetUserDeactivatedResponse], error)
@@ -275,7 +276,8 @@ type AdminUserServiceHandler interface {
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 	// Deactivates or reactivates a human account. Requires user.manage-accounts.
 	// The caller cannot target their own account or an owner account.
-	// Deactivation immediately invalidates existing sessions and prevents sign-in.
+	// Deactivation invalidates existing sessions within one minute in the worst
+	// case and prevents sign-in.
 	// Reactivation permits new sign-ins; old sessions remain invalid.
 	// Repeating the current state succeeds without changing it.
 	SetUserDeactivated(context.Context, *connect.Request[v1.SetUserDeactivatedRequest]) (*connect.Response[v1.SetUserDeactivatedResponse], error)

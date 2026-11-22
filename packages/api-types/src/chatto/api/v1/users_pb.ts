@@ -51,6 +51,65 @@ export class BotInfo extends Message<BotInfo> {
 }
 
 /**
+ * A public identity that the server associates with a user through a verification method.
+ * The server operator vouches for the association, including links the operator establishes.
+ * Each (method, value) pair occurs once per profile. Clients can display unfamiliar methods.
+ *
+ * @generated from message chatto.api.v1.VerifiedIdentity
+ */
+export class VerifiedIdentity extends Message<VerifiedIdentity> {
+  /**
+   * Stable, extensible verification method key, for example "atproto".
+   *
+   * @generated from field: string method = 1;
+   */
+  method = "";
+
+  /**
+   * Human-readable name of the method, for example "AT Protocol".
+   *
+   * @generated from field: string method_label = 2;
+   */
+  methodLabel = "";
+
+  /**
+   * Public identity text for display, for example an AT Protocol handle without @.
+   *
+   * @generated from field: string value = 3;
+   */
+  value = "";
+
+  constructor(data?: PartialMessage<VerifiedIdentity>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.VerifiedIdentity";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "method", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "method_label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "value", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): VerifiedIdentity {
+    return new VerifiedIdentity().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): VerifiedIdentity {
+    return new VerifiedIdentity().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): VerifiedIdentity {
+    return new VerifiedIdentity().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: VerifiedIdentity | PlainMessage<VerifiedIdentity> | undefined, b: VerifiedIdentity | PlainMessage<VerifiedIdentity> | undefined): boolean {
+    return proto3.util.equals(VerifiedIdentity, a, b);
+  }
+}
+
+/**
  * Public user fields.
  *
  * @generated from message chatto.api.v1.User

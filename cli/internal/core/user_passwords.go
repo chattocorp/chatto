@@ -81,8 +81,31 @@ func (c *ChattoCore) AdminSetUserPasswordAuthorized(ctx context.Context, actorID
 	return c.setPasswordHash(ctx, actorID, targetUserID, password, true, nil)
 }
 
+// userPasswordAuthSubjects returns the subjects of the events of one user that
+// can change the result of UserAuthProjection.PasswordHash for that user: the
+// password change and the events that delete the account. Keep this list
+// complete when an event gets this effect. A missing subject lets a replica
+// accept an old password, or reject a new one, until its projection applies
+// the event.
+func userPasswordAuthSubjects(userID string) []string {
+	agg := evtstream.UserAggregate(userID)
+	return []string{
+		agg.Subject(evtstream.EventUserPasswordHashChanged),
+		agg.Subject(evtstream.EventUserAccountDeleted),
+		agg.Subject(evtstream.EventUserKeyShreddingRequested),
+		agg.Subject(evtstream.EventUserKeyShredded),
+	}
+}
+
+// waitForUserPasswordCurrent waits for the account state and the password of
+// one user.
+func (c *ChattoCore) waitForUserPasswordCurrent(ctx context.Context, userID string) error {
+	return c.userModel.waitForUserProjectionsCurrent(ctx, "user password",
+		[]string{evtstream.UserAggregate(userID).AllEventsFilter()}, userPasswordAuthSubjects(userID))
+}
+
 func (c *ChattoCore) HasPassword(ctx context.Context, userID string) (bool, error) {
-	if err := c.userModel.waitForUsersCurrent(ctx, "user password", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
+	if err := c.waitForUserPasswordCurrent(ctx, userID); err != nil {
 		return false, err
 	}
 	_, ok, err := c.userModel.user(ctx, userID)
@@ -97,7 +120,7 @@ func (c *ChattoCore) HasPassword(ctx context.Context, userID string) (bool, erro
 }
 
 func (c *ChattoCore) VerifyUserPassword(ctx context.Context, userID, password string) error {
-	if err := c.userModel.waitForUsersCurrent(ctx, "user password", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
+	if err := c.waitForUserPasswordCurrent(ctx, userID); err != nil {
 		return err
 	}
 	return c.verifyUserPasswordCurrent(ctx, userID, password)

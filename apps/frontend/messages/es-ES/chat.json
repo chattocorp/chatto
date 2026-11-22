@@ -90,6 +90,7 @@
       "version": "Versión {version}",
       "unreachable": "Servidor inaccesible",
       "connection_unavailable": "Conexión no disponible",
+      "protocol_unsupported": "Este servidor no admite el protocolo en tiempo real que usa esta aplicación.",
       "compatibility_server_too_old": "Este servidor debe actualizarse a Chatto {version} o una versión posterior antes de que esta aplicación pueda conectarse.",
       "compatibility_unknown": "Esta aplicación no puede determinar la compatibilidad a partir de la versión del servidor.",
       "go_to_notifications_count": {
@@ -147,6 +148,7 @@
       }
     },
     "profile": {
+      "verified_identities": "Identidades verificadas",
       "title": "Perfil",
       "fallback_title": "Perfil",
       "not_found": "Usuario no encontrado",

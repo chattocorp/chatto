@@ -23,6 +23,10 @@ vi.mock('$lib/navigation', () => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'server-1',
+    connection: {
+      queryScope: 'identity-session',
+      getAPI: () => ({ getVerifiedIdentities: async () => [] })
+    },
     store: {
       permissions: {
         loaded: true,

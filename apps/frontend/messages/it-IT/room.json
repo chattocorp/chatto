@@ -204,6 +204,7 @@
       "delete_label": "Elimina allegato",
       "delete_failed": "Impossibile eliminare l'allegato",
       "view_label": "Visualizza {filename}",
+      "save_or_share": "Salva o condividi…",
       "download_label": "Scarica {filename}",
       "image_refresh_failed": "Impossibile aggiornare il collegamento dell'immagine",
       "download_refresh_failed": "Impossibile aggiornare il collegamento per il download",

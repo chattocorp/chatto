@@ -60,7 +60,6 @@ window; an optional native host capability enables inline password submission.
     name: serverDisplayName(store.serverInfo, registration.name),
     iconUrl: store.serverInfo.iconUrl ?? registration.iconUrl,
     bannerUrl: store.serverInfo.bannerUrl,
-    description: store.serverInfo.description,
     welcomeMessage: store.serverInfo.welcomeMessage
   });
 

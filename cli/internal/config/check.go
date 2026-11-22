@@ -37,7 +37,7 @@ func CheckConfig(path string) error {
 	if len(diagnostics) > 0 {
 		return errors.New(strings.Join(diagnostics, "\n"))
 	}
-	if _, err := ReadConfig(path); err != nil {
+	if _, err := ReadServerConfig(path); err != nil {
 		// Both decoder and validation errors can contain credentials, URLs, or PII.
 		return errors.New("configuration values failed decoding or validation; check required settings, types, ranges, and provider indexes against the configuration reference (values omitted)")
 	}

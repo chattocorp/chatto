@@ -7,7 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 import { DirectoryMember } from "./member_directory_pb.js";
-import { User } from "./users_pb.js";
+import { User, VerifiedIdentity } from "./users_pb.js";
 import { ImageUpload } from "./common_pb.js";
 
 /**
@@ -137,6 +137,13 @@ export class GetUserRequest extends Message<GetUserRequest> {
     case: "login";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
+  /**
+   * Include public identities that this server has verified for the user.
+   *
+   * @generated from field: bool include_verified_identities = 3;
+   */
+  includeVerifiedIdentities = false;
+
   constructor(data?: PartialMessage<GetUserRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -147,6 +154,7 @@ export class GetUserRequest extends Message<GetUserRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "target" },
     { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "target" },
+    { no: 3, name: "include_verified_identities", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserRequest {
@@ -179,6 +187,13 @@ export class GetUserResponse extends Message<GetUserResponse> {
    */
   user?: DirectoryMember;
 
+  /**
+   * Public identities, ordered by method and value. Empty unless requested.
+   *
+   * @generated from field: repeated chatto.api.v1.VerifiedIdentity verified_identities = 2;
+   */
+  verifiedIdentities: VerifiedIdentity[] = [];
+
   constructor(data?: PartialMessage<GetUserResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -188,6 +203,7 @@ export class GetUserResponse extends Message<GetUserResponse> {
   static readonly typeName = "chatto.api.v1.GetUserResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user", kind: "message", T: DirectoryMember },
+    { no: 2, name: "verified_identities", kind: "message", T: VerifiedIdentity, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserResponse {

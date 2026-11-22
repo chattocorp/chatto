@@ -85,10 +85,14 @@ Chatto's pre-1.0 API remains experimental.
   client attempts a connection and shows a warning.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
-- A server icon in the gutter has two states: normal and warning. The warning
-  appears for a connection problem or compatibility warning: a required
-  sign-in, an unreachable server, an unsupported or unknown server version, or
-  a failed connection. The icon is not dimmed.
+- An amber key at the top-start corner of the server icon marks a required sign-in. It is the
+  only server status icon. An unreachable server or a failed connection uses
+  30% artwork opacity. Changes to and from this opacity take 240 ms. With
+  reduced motion, the change is immediate. The same opacity applies when the server is below the
+  connection floor or rejects the client's realtime protocol. An older server
+  that can still connect and a server with an unknown version keep normal
+  opacity. The link and menu explain the status. Unread dots and notification
+  counts appear below the artwork.
 - Only the result of an attempt changes the state. A failed attempt shows the
   warning, and only a successful attempt removes it. A new attempt, an
   immediate retry after a dropped connection, or a credential renewal does not

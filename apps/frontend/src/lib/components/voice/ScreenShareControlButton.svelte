@@ -131,7 +131,7 @@ to the browser's `getDisplayMedia` picker through LiveKit.
       ? m('voice.stop_share_screen')
       : m('voice.share_screen')}
     {testId}
-    icon="icon-[uil--desktop]"
+    icon={voiceCallState.isScreenShareEnabled ? 'icon-[uil--desktop]' : 'icon-[uil--desktop-slash]'}
     {iconClass}
     onclick={() => void handleControl()}
     {pending}

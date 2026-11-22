@@ -907,7 +907,7 @@ func (p *UserProjection) hydrateUserSnapshot(ctx context.Context, snapshot *proj
 		return nil, false, nil
 	}
 	snapshot.user.Login = login
-	snapshot.user.DisplayName = displayName
+	snapshot.user.DisplayName = PresentableDisplayName(displayName, login)
 	if bio, ok, err := p.decryptPIISnapshot(ctx, snapshot.user.GetId(), snapshot.bio); err != nil {
 		return nil, false, err
 	} else if ok {

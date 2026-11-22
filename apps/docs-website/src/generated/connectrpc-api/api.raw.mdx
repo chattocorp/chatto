@@ -4735,6 +4735,7 @@ Request one visible user by stable user ID or login.
 | --- | --- | --- |
 | `target.user_id` | `string` | Target stable user ID. |
 | `target.login` | `string` | Target login identifier. |
+| `include_verified_identities` | `bool` | Include public identities that this server has verified for the user. |
 
 
 <a id="chatto-api-v1-GetUserResponse"></a>
@@ -4746,6 +4747,7 @@ User directory response.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user` | [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Requested user. |
+| `verified_identities` | repeated [`VerifiedIdentity`](#chatto-api-v1-VerifiedIdentity) | Public identities, ordered by method and value. Empty unless requested. |
 
 
 <a id="chatto-api-v1-UserService-BatchGetUsers"></a>
@@ -5318,6 +5320,22 @@ Public user fields.
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
 | `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
 | `deactivated` | `bool` | True while the account cannot use this server. Data is retained and access can be restored. |
+
+
+
+<a id="chatto-api-v1-VerifiedIdentity"></a>
+
+### VerifiedIdentity
+
+A public identity that the server associates with a user through a verification method.
+The server operator vouches for the association, including links the operator establishes.
+Each (method, value) pair occurs once per profile. Clients can display unfamiliar methods.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `method` | `string` | Stable, extensible verification method key, for example "atproto". |
+| `method_label` | `string` | Human-readable name of the method, for example "AT Protocol". |
+| `value` | `string` | Public identity text for display, for example an AT Protocol handle without @. |
 
 
 

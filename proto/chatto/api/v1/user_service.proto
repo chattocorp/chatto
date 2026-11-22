@@ -41,12 +41,16 @@ message GetUserRequest {
     // Target login identifier.
     string login = 2 [(buf.validate.field).string.min_len = 1];
   }
+  // Include public identities that this server has verified for the user.
+  bool include_verified_identities = 3;
 }
 
 // User directory response.
 message GetUserResponse {
   // Requested user.
   DirectoryMember user = 1;
+  // Public identities, ordered by method and value. Empty unless requested.
+  repeated VerifiedIdentity verified_identities = 2;
 }
 
 // Request user directory rows for a set of stable user IDs.

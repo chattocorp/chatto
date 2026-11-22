@@ -12,6 +12,18 @@ message BotInfo {
   string owner_user_id = 1;
 }
 
+// A public identity that the server associates with a user through a verification method.
+// The server operator vouches for the association, including links the operator establishes.
+// Each (method, value) pair occurs once per profile. Clients can display unfamiliar methods.
+message VerifiedIdentity {
+  // Stable, extensible verification method key, for example "atproto".
+  string method = 1;
+  // Human-readable name of the method, for example "AT Protocol".
+  string method_label = 2;
+  // Public identity text for display, for example an AT Protocol handle without @.
+  string value = 3;
+}
+
 // Public user fields.
 message User {
   // Stable user ID.

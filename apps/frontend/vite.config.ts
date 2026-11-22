@@ -6,6 +6,11 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, type Plugin, type UserConfig } from 'vite';
 
 import { catalogSections, catalogBoundary } from './src/lib/i18n/catalogSections.js';
+import {
+  readChangelog,
+  releaseHighlights as parseReleaseHighlights,
+  UNRELEASED
+} from '../../tools/changelog.mjs';
 
 // Backend target for dev proxy. Set CHATTO_BACKEND_URL to proxy to a remote
 // backend (e.g. "https://dev.chatto.run") instead of a local one.
@@ -127,6 +132,35 @@ function highlightLanguageMetadata(): Plugin {
   };
 }
 
+const releaseHighlightsModule = 'virtual:chatto-release-highlights';
+const resolvedReleaseHighlightsModule = `\0${releaseHighlightsModule}`;
+const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
+
+/**
+ * Provide the highlights of each release from the root `CHANGELOG.md` and the
+ * pending notes in `.sweet/`, so the app bundles only the highlights and not
+ * the complete changelog.
+ */
+function releaseHighlights(): Plugin {
+  return {
+    name: 'chatto-release-highlights',
+    resolveId(id) {
+      return id === releaseHighlightsModule ? resolvedReleaseHighlightsModule : null;
+    },
+    load(id) {
+      if (id !== resolvedReleaseHighlightsModule) return null;
+      for (const file of ['CHANGELOG.md', '.sweet.config.yml', '.sweet']) {
+        this.addWatchFile(`${repositoryRoot}${file}`);
+      }
+      const releases = parseReleaseHighlights(readChangelog(repositoryRoot)).map(
+        ({ version, highlights }) =>
+          version === UNRELEASED ? { highlights } : { version, highlights }
+      );
+      return `export default ${JSON.stringify(releases)};`;
+    }
+  };
+}
+
 async function createTestConfig(): Promise<NonNullable<UserConfig['test']>> {
   const [{ playwright }, { storybookTest }] = await Promise.all([
     import('@vitest/browser-playwright'),
@@ -202,7 +236,13 @@ export default defineConfig(async ({ command }) => {
 
   return {
     clearScreen: false,
-    plugins: [tailwindcss(), highlightLanguageMetadata(), sveltekit(), ...servePlugins],
+    plugins: [
+      tailwindcss(),
+      highlightLanguageMetadata(),
+      releaseHighlights(),
+      sveltekit(),
+      ...servePlugins
+    ],
     build: {
       reportCompressedSize: false,
       rolldownOptions: {

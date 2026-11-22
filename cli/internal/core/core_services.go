@@ -48,6 +48,7 @@ func assembleCore(
 	)
 
 	return &ChattoCore{
+		authWindow:       newAuthGenerationWindow(),
 		nc:               nc,
 		js:               infra.js,
 		logger:           logger,

@@ -43,55 +43,103 @@ A release PR that changes only these release files runs no product jobs in CI.
 The full checks run on `main` after the merge, before CI makes the tag. See
 [CI Job Selection](../CONTRIBUTING.md#ci-job-selection).
 
-After selected CI jobs succeed, tagging uses the push's complete before/after
-range. Tags point to the commits that introduced each version. Rerunning the
-original CI run retries missing remote pushes; a later push does not recover
-an earlier failed range. Tags are never moved. Pushes send tags individually
-so GitHub starts each artifact workflow.
+After all selected CI jobs succeed, the `tag` job in CI calls Sweet's `tag.yml`
+for the push's complete before/after range. Tags point to the commits that
+introduced each version. Tags are never moved. The job pushes tags with
+`GITHUB_TOKEN`, so a tag push starts no workflow. The same CI run publishes the
+tagged versions: the `publish-releases` job calls `publish-releases.yml`, which
+starts one publication job for each release unit from Sweet's tag outputs.
+
+| Release unit          | Publication                                                 |
+| --------------------- | ----------------------------------------------------------- |
+| `.` (Chatto)          | `release.yml`, and the TestFlight upload                    |
+| `authling`            | `build-authling-image.yml`, and a GitHub release with notes |
+| `packages/runling`    | `npm.yml`, and a GitHub release with notes                  |
+| `packages/translatto` | `npm.yml`, and a GitHub release with notes                  |
+| `pkg/*`               | A GitHub release with notes                                 |
+
+To retry a failed tag push or publication, rerun the failed jobs of the original
+CI run. Existing matching tags are kept, so the tag job pushes only the missing
+tags and returns the same outputs. A later push does not recover an earlier
+failed range. CI never cancels or replaces a push run, because each run owns
+its commit range. A manual tag push starts no build. If a newer version of the
+same package was released after the failure, rerun all jobs instead: the tag
+job then computes `highest` again, so the retry does not move `latest` back.
+
+Each publication job uses the newest version of its package in the push. If one
+push has two release commits of the same package, CI publishes only the newer
+version and shows a warning for the older tag.
+
+Each Sweet tag entry has `prerelease` and `highest` fields. `prerelease` is true
+for a version with a prerelease suffix. `highest` is true when the version is
+the highest stable version of its package. The publication jobs use these
+fields for release channels. They do not compare tags and version files again:
+Sweet made the tag from the committed version files of a checked commit.
 
 The migration commit is a baseline for all nine manifests. It must not tag
 existing versions again. Packages at `0.0.0` remain unreleased until a bump.
-The existing `RELEASE_PLEASE_PAT` secret is retained only as a credential name
-for PR creation and tag pushes; no release-please action or configuration remains.
-Use a token that can write contents and PRs and start downstream workflows.
+The Prepare releases workflow uses the `RELEASE_PLEASE_PAT` secret to create
+release PRs, so the PRs start CI. Tagging and publication do not use it.
+No release-please action or configuration remains.
+
+All Sweet references in the workflows use the same Sweet Release commit. This
+commit is not a Sweet release: it adds the tag outputs and
+`sweet github release`. Steps that use `sweet github release` build the Sweet
+CLI from that commit, because the `mise.toml` version does not have this
+command. Move all references to the next Sweet release tag when it is available.
 
 ## Prereleases
 
 To release prereleases of a package, set `prerelease: <label>` in its
 `.sweet.yml`, for example `prerelease: beta`. Remove the label to release the
 final version. Sweet finalizes a prerelease manifest version that has no label
-on its next bump. The artifact workflows accept prerelease tags.
+on its next bump. The publication workflows accept prerelease versions.
 
 ## GitHub Latest release
 
-Only the highest stable Chatto version claims **Latest**. The Chatto publication
-job creates its draft from the matching Sweet changelog entry and publishes it
-with the completed artifacts. Component tags start a separate notes workflow,
-which creates drafts and publishes them with `--latest=false`. Authling and npm
-artifact workflows run separately; a component GitHub release does not prove
-that its artifact publication succeeded. Check both runs.
+Only the highest stable Chatto version claims **Latest**. `sweet github release`
+creates each GitHub release as a draft, with the title `<name> <version>` and the
+matching Sweet changelog entry. It publishes the draft, marks prerelease versions
+as prereleases, and makes only the highest stable version of the root package
+Latest. Component releases never claim Latest.
 
-Rerun failed component notes jobs against the same tag. Existing releases are
-reused. Do not change published tag targets or rebuild a version with new content.
+The Chatto job publishes its release after all artifacts are complete. The
+`components` job publishes the notes of all other tags in the push. Authling and
+npm artifacts have separate jobs; a component GitHub release does not prove that
+its artifact publication succeeded. Check both jobs.
+
+A rerun reuses a draft and replaces its assets. A published release stays
+unchanged. Do not change published tag targets or rebuild a version with new
+content.
 
 ## iOS TestFlight
 
-Chatto `v*` tags also start the independent `Publish iOS to TestFlight` workflow.
-It rebuilds the bundled frontend and uploads a signed device build. Configure
+For each Chatto `v*` tag, CI also starts the independent `Publish iOS to
+TestFlight` workflow as a manual run on the tag. That workflow keeps its own run
+number for the iOS build number. It rebuilds the bundled frontend and uploads a
+signed device build. Configure
 its `mobile-testflight` environment and Apple credentials as described in the
 [mobile release guide](../apps/mobile/README.md#automated-testflight-updates).
 A successful server or desktop release does not confirm a TestFlight upload.
 The workflow can also run manually from `main`.
 
-## Current limits
+## Maintenance branches
 
-Preparation and tagging run on `main`. Maintenance-branch automation is not
-configured. Do not use old commit footers to request releases. Backport the
-release workflow explicitly before enabling releases on another branch.
+Release preparation runs on `main` only. CI also tags and publishes pushes to
+`release-[0-9]*` branches, with the same checks. To release a maintenance version,
+make the release commit on the branch with `mise x -- sweet bump <package-path>`
+and push it. Create the branch with a separate push first: CI does not tag the
+push that creates a branch. `highest` keeps a maintenance version from moving
+Latest, `latest` image tags, the npm `latest` tag, Homebrew, and the stable
+documentation. The environments `chatto-release`, `desktop-signing`, and
+`desktop-windows-signing` must allow the `release-[0-9]*` branches. Do not use
+`release-*`: it also matches the old, unprotected release-please branches. Do not use old
+commit footers to request releases. A branch that does not contain this release
+workflow does not publish its tags.
 
 ## Publication approval
 
-The tagged workflow requests all environment approvals at the start. In
+The Chatto release requests all environment approvals at the start. In
 **Review deployments**, select `chatto-release`, `desktop-signing`, and
 `desktop-windows-signing`, then approve them together. The `approve-release`
 job and the desktop signing jobs have no build dependencies, so all three
@@ -104,27 +152,77 @@ upload release assets or push release images to GHCR.
 
 After the approval job, all builds, and desktop assembly succeed, the `release`
 job continues automatically. It checks the archive checksums, uploads the
-assets, pushes the saved container images, and publishes the GitHub Release.
-Stable releases then
-update Homebrew and start the stable documentation build. There is no second
+assets to the draft release, pushes the saved container images, and publishes
+the GitHub Release. Every release gets its version image tags. A prerelease also
+gets `next`. A stable release gets the server's `<major>.<minor>` tag. The
+highest stable version also gets `latest`, then updates Homebrew and starts the
+stable documentation build. There is no second
 approval to make the GitHub Release public. Publication credentials are
 repository secrets; do not move them into `chatto-release`, because the
 publication job does not enter that environment. Signing secrets and Windows
 OIDC configuration remain in their existing environments. Keep the required
-reviewers and branch/tag policies on all three environments.
+reviewers on all three environments. The release jobs run in the CI run of a
+branch push, so the environments must allow `main` and the `release-[0-9]*`
+branches. Manual desktop verification builds also use `main`.
 
-The same `approve-release` job also gates the client npm workflow. Client
+The same `approve-release` job also gates the client npm publication. Client
 publication waits for the server build and desktop assembly to succeed.
-The npm job keeps its `npm` environment. Configure its trusted publisher with
-the calling workflow `release.yml`; see
-[client maintenance](../packages/chatto-client/MAINTAINING.md).
+
+All npm packages publish through `npm.yml` in the `npm` environment. Prereleases
+use the npm `next` tag. The highest stable version uses `latest`, and an older
+stable version uses `maintenance`. npm trusted publishing checks the workflow
+that started the run, not the reusable workflow. Thus the trusted publisher of
+`@chatto/client`, `runling`, and `@chatto/translatto` is owner `chattocorp`,
+repository `chatto`, workflow `ci.yml`, and environment `npm`. Run `npm.yml`
+manually to check and save a package tarball without publishing it.
 
 Publication across GitHub and GHCR is not atomic. If publication fails, some
 images or assets can already be available. Rerun the failed jobs on the same
-workflow run to reuse the saved artifacts; they are retained for seven days.
-Uploads replace matching assets, and image pushes can be repeated. A retry of
+CI run to reuse the saved artifacts; they are retained for seven days. Uploads
+replace the assets of a draft, and image pushes can be repeated. A published
+GitHub release stays unchanged. A retry of
 an environment-protected job can require approval again. Do not rebuild a
 published version to change its contents.
+
+## Publish a release tag again
+
+Use this procedure when the CI run of a tag can no longer publish it. For
+example, the run failed and a fix to the release workflows is now on `main`.
+Rerunning the old run uses the old workflows, so start a new run:
+
+1. In GitHub Actions, open the `ci` workflow and select **Run workflow**.
+2. Select the `main` branch. For a maintenance tag, you can also select its
+   `release-[0-9]*` branch. Runs from other refs stop before they publish.
+3. Enter the existing tag, for example `v0.6.0-beta.4`.
+4. Select **testflight** only to upload a TestFlight build for a Chatto tag.
+   Each TestFlight run uploads a new build.
+5. Approve the environments, as for a release from a push.
+
+The run does no CI checks: the tagged commit passed them before CI made the
+tag. The `describe-tag` job makes sure that the tag exists on origin, that it
+matches exactly one Sweet package, and that its commit is on `main` or a
+`release-[0-9]*` branch. Then it gives `publish-releases` the same entry as
+Sweet's `tag.yml`, with `prerelease`, and with `highest` for the tags on origin
+at the time of the run. The run uses the same trusted npm publisher (`ci.yml`,
+environment `npm`) and the same signing environments as a release from a push.
+
+The workflows and the publication scripts come from the selected branch. The
+builds use the tagged commit. A run publishes the same version again only where
+this is safe:
+
+- A GitHub release in draft is reused. A published GitHub release stays
+  unchanged.
+- A container image version tag that exists already keeps its image. This
+  includes the Chatto server and frontend images and the Authling release
+  image. Their other tags, such as `next` and `latest`, are set again from that
+  image. Thus a run for an older prerelease moves `next` back to it.
+- An npm version with the same tarball content is skipped. An npm version with
+  other content stops the run with an error, because npm versions never change.
+  In that case, release a new version.
+- The desktop builds are built and signed again. Only a draft release receives
+  them.
+- Homebrew and the stable documentation update only for the highest stable
+  Chatto version, as for a release from a push.
 
 ## Documentation channels
 
@@ -139,8 +237,8 @@ Relevant pushes to `main` publish an immutable docs image tagged as
 development docs site. The site identifies itself as unreleased, displays the
 source revision, and opts out of search indexing.
 
-After a stable `vX.Y.Z` release completes successfully, the release workflow
-builds the docs from that exact tag and publishes
+After the highest stable `vX.Y.Z` release completes successfully, the release
+workflow builds the docs from that exact tag and publishes
 `ghcr.io/chattocorp/chatto-docs:vX.Y.Z`. Flux selects the highest stable SemVer
 tag for `docs.chatto.run`. Prerelease tags never update the stable docs site.
 
@@ -151,8 +249,8 @@ existing `vX.Y.Z` image.
 ## Runling releases
 
 Runling is versioned independently under `packages/runling/`. Its releases
-use stable versions and `runling/vX.Y.Z` tags. The `publish-runling` workflow
-tests the npm tarball before publishing it. For the one-time npm trusted
+use `runling/vX.Y.Z` tags. The `npm.yml` workflow tests the npm tarball before
+publishing it. For the one-time npm trusted
 publisher setup and local verification commands, see
 [Runling development and releases](../packages/runling/README.md#monorepo-development-and-releases).
 
@@ -165,8 +263,8 @@ and the next Chatto release. The old desktop changelog and
 `chatto-desktop/v*` tags are historical records, not a separate release stream.
 
 Merging a Chatto release PR starts CI, which creates the shared tag after
-checks pass. The publication job creates the GitHub draft from the changelog. The release workflow checks and builds macOS, Windows, and Linux
-bundles from that tag, signs and notarises the macOS bundle, signs and verifies
+checks pass. The same CI run starts the release workflow. It checks and builds
+macOS, Windows, and Linux bundles from the tagged commit, signs and notarises the macOS bundle, signs and verifies
 every Windows executable, requires the expected ChattoCorp publisher on the
 main application, and uploads archives and SHA-256 checksums to that release.
 Windows releases also include a per-user `*_Windows_X64_Setup.exe` installer.
@@ -174,37 +272,29 @@ Its installer and embedded uninstaller are signed and verified before upload.
 The ZIP remains available. See the desktop README for installation and the
 interactive Windows verification checklist; PR builds are unsigned.
 Publication waits for server and desktop builds, including signing, to succeed.
-If signing fails, retry the failed jobs on the same tagged run. A signing
+If signing fails, retry the failed jobs on the same CI run. A signing
 outage blocks publication. Linux and ordinary CI artifacts remain unsigned
 experimental builds.
 Windows and macOS use separate protected signing environments. Signing-service
 provisioning, protected-environment settings, renewal, and emergency revocation
 are documented in [`apps/desktop/README.md`](../apps/desktop/README.md).
 
-Tagged desktop builds use the exact shared version for the shell and frontend.
+Release desktop builds use the exact shared version for the shell and frontend.
 Manual verification builds retain the checked-in package version for native
 packaging, but identify the frontend as `{development-version}+{commit-sha}`.
 Matching release versions do not require matching client and server versions;
 the existing client-server compatibility rules still apply. See
 [ADR-118](adr/ADR-118-synchronized-chatto-desktop-releases.md).
 
-Before publishing a tag, the release workflow can verify the complete desktop
+Before a release, the release workflow can verify the complete desktop
 packaging path without creating a release or building a Chatto server image.
 Run the `release` workflow manually, select the `desktop` target, and optionally
 provide a branch, tag, or commit reachable from `origin/main` or an
 `origin/release-*` branch in the `ref`
 input. Signed desktop builds reject other commits before running repository
 code or requesting signing credentials. The workflow builds and packages all
-three platforms, generates the same checksum file used by a tagged release, and
+three platforms, generates the same checksum file used by a release, and
 uploads the assembled files as a seven-day verification artifact.
 
-Desktop release tags must also point to commits reachable from `origin/main`
-or an `origin/release-*` branch.
-The signing jobs enforce this before running repository code.
-
-Before the first synchronized release, add the `v*` tag policy to both protected
-signing environments. After this change lands, close the pending independent
-Desktop release PR and remove the old `chatto-desktop/v*` environment policies.
-Keep required reviewers and the `main` policy for manual verification. Existing
-maintenance branches keep their old workflow until this release change is
-backported; do not rerun old tags to add synchronized desktop assets.
+Release commits are on `main` or a `release-*` branch, so the same check
+passes for them. Do not rerun old tags to add synchronized desktop assets.

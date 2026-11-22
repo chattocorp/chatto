@@ -149,11 +149,13 @@ auto_provision = true
 - Chatto requests only the `atproto` scope. It proves the account and gives
   Chatto no access to the user's posts or other data.
 - The account link uses the account's DID. A changed handle does not change
-  the link.
-- With `manage_usernames = true`, new accounts get the handle as their
-  username. Usernames have at most 32 characters, so people with longer
-  handles, for example on a custom domain, cannot create an account. Keep
-  `manage_usernames` disabled unless your users have short handles.
+  the link. Members can see linked handles on profile cards and full profiles.
+  For profile lookups, the server contacts the identity directory and handle
+  domain when it has no cached result.
+- With `manage_usernames = true`, new accounts use the handle as their
+  username. A handle that exceeds the server’s username limit cannot be used
+  to create an account this way. The default limit is 64 characters. Set
+  `core.accounts.max_login_length` to a value from 2 to 254 to change it.
 - New accounts get the display name and avatar of the person's public profile
   record (`app.bsky.actor.profile`), when they have one.
 

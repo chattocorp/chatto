@@ -8,6 +8,10 @@ import {
 
 describe('validateDisplayName', () => {
   const validNames = [
+    '(╯°□°)╯︵ ┻━┻',
+    '⣿ Braille',
+    '𝐍𝐀𝐍𝐃𝐈',
+    'ＮＡＮＤＩ',
     'John Doe',
     'Mary-Jane',
     "O'Brien",

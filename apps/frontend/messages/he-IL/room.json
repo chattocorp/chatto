@@ -208,6 +208,7 @@
       "delete_label": "מחק קובץ מצורף",
       "delete_failed": "נכשל מחיקת הקובץ המצורף",
       "view_label": "הצג {filename}",
+      "save_or_share": "שמור או שתף…",
       "download_label": "הורד את {filename}",
       "image_refresh_failed": "לא ניתן לרענן את הקישור לתמונה",
       "download_refresh_failed": "לא ניתן לרענן את קישור ההורדה",

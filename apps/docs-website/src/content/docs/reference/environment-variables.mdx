@@ -29,7 +29,7 @@ Commented values are examples; they do not override runtime defaults.
 ## Web Server
 
 <EnvVar name="CHATTO_WEBSERVER_URL" toml="webserver.url" required>
-  Required public HTTP or HTTPS URL of the server, used for absolute links, public API asset URLs, and OAuth redirects. Chatto does not start if this value is missing or blank. Set this to the external HTTPS origin when Chatto runs behind a reverse proxy; forwarded proxy headers are not trusted for public URL generation.
+  Public HTTP or HTTPS URL used for absolute links, public API asset URLs, and OAuth redirects. `chatto run` and `chatto config check` require this value. Standalone commands such as `chatto asset-processing` and `chatto search-provider` can omit it. Set this to the external HTTPS origin when Chatto runs behind a reverse proxy; forwarded proxy headers are not trusted for public URL generation.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_PORT" toml="webserver.port">
@@ -414,11 +414,11 @@ environment variables from your configuration. These settings no longer have an 
 ## Authentication
 
 <EnvVar name="CHATTO_AUTH_DIRECT_REGISTRATION" toml="auth.direct_registration" default="true">
-  Enable direct (email/password) registration. When `false`, the registration page is hidden and the registration API returns `403`. Existing users can still sign in through enabled password login or configured SSO providers.
+  Enable direct (email/password) registration. When `false`, the registration page is hidden and the registration API returns `403`. Existing users can still sign in through enabled password login or configured SSO providers. Direct registration requires direct login: while `auth.direct_login` is `false`, this setting has no effect and Chatto logs a warning at startup.
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_DIRECT_LOGIN" toml="auth.direct_login" default="true">
-  Enable direct sign-in with a username or email address and password. When `false`, the password login form and recovery link are hidden. Password sign-in, user password changes, and password recovery are disabled on the server. Account settings shows disabled password controls with an SSO notice. Sensitive account actions require fresh SSO authentication instead of local password proof. Existing sessions, stored passwords, registration, and operator recovery are unaffected.
+  Enable direct sign-in with a username or email address and password. When `false`, the password login form and recovery link are hidden. Password sign-in, user password changes, and password recovery are disabled on the server. Account settings shows disabled password controls with an SSO notice. Sensitive account actions require fresh SSO authentication instead of local password proof. Direct registration is also disabled. Existing sessions, stored passwords, and operator recovery are unaffected.
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_TOKEN_TTL" toml="auth.token_ttl" default="90d">

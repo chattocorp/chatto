@@ -11,6 +11,7 @@
     defaultAction = false,
     loadingText,
     href,
+    download,
     opensInNewTab = false,
     form,
     onclick,
@@ -42,6 +43,8 @@
     loadingText?: string;
     /** When provided, renders as an <a> link instead of a <button> */
     href?: string;
+    /** Suggest this filename when the link downloads a file. */
+    download?: string;
     /** Opens an href in a separate browsing context without opener access. */
     opensInNewTab?: boolean;
     /** ID of the form this button submits when rendered outside that form. */
@@ -104,8 +107,13 @@
   <!-- eslint-disable svelte/no-navigation-without-resolve -- href is a prop; callers pass resolved app paths or external URLs -->
   <a
     {href}
+    {download}
     target={opensInNewTab ? '_blank' : undefined}
-    rel={opensInNewTab ? 'noopener noreferrer' : undefined}
+    rel={download !== undefined
+      ? 'external noopener noreferrer'
+      : opensInNewTab
+        ? 'noopener noreferrer'
+        : undefined}
     onclick={handleClick}
     aria-busy={loading || undefined}
     aria-disabled={disabled || loading || undefined}

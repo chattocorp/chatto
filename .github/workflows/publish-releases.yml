@@ -1,0 +1,147 @@
+name: publish releases
+
+# ci.yml calls this after Sweet's tag.yml has tagged the release versions of a
+# checked push. Each job publishes one release unit from Sweet's tag entries:
+# `{package, version, tag, commit, prerelease, highest}`. Rerun a failed job to
+# retry its publication; every step can run again for the same tag.
+#
+# Each job publishes the newest version of its package in the push (`packages`).
+# A push with two release commits of one package publishes only the newer one;
+# the `components` job reports each skipped older tag as a warning.
+on:
+  workflow_call:
+    inputs:
+      tags:
+        description: 'Sweet tag.yml output `tags`: one entry for each tag in the push.'
+        required: true
+        type: string
+      packages:
+        description: 'Sweet tag.yml output `packages`: package path to its newest entry, or null.'
+        required: true
+        type: string
+      testflight:
+        description: 'Start a TestFlight upload for a Chatto tag.'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  chatto:
+    if: fromJSON(inputs.packages)['.'] != null
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+      packages: write
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ fromJSON(inputs.packages)['.'].tag }}
+      commit: ${{ fromJSON(inputs.packages)['.'].commit }}
+      version: ${{ fromJSON(inputs.packages)['.'].version }}
+      prerelease: ${{ fromJSON(inputs.packages)['.'].prerelease }}
+      highest: ${{ fromJSON(inputs.packages)['.'].highest }}
+    # Pass every secret on: release.yml reads environment secrets, which are
+    # empty without `secrets: inherit` at each level (actions/runner#4453).
+    secrets: inherit
+
+  runling:
+    if: fromJSON(inputs.packages)['packages/runling'] != null
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/npm.yml
+    with:
+      package: packages/runling
+      commit: ${{ fromJSON(inputs.packages)['packages/runling'].commit }}
+      prerelease: ${{ fromJSON(inputs.packages)['packages/runling'].prerelease }}
+      highest: ${{ fromJSON(inputs.packages)['packages/runling'].highest }}
+
+  translatto:
+    if: fromJSON(inputs.packages)['packages/translatto'] != null
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/npm.yml
+    with:
+      package: packages/translatto
+      commit: ${{ fromJSON(inputs.packages)['packages/translatto'].commit }}
+      prerelease: ${{ fromJSON(inputs.packages)['packages/translatto'].prerelease }}
+      highest: ${{ fromJSON(inputs.packages)['packages/translatto'].highest }}
+
+  authling:
+    if: fromJSON(inputs.packages)['authling'] != null
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-authling-image.yml
+    with:
+      release_tag: ${{ fromJSON(inputs.packages)['authling'].tag }}
+      highest: ${{ fromJSON(inputs.packages)['authling'].highest }}
+
+  # TestFlight build numbers come from that workflow's own run number, so it
+  # runs separately, as a manual run on the tag. GITHUB_TOKEN can start manual
+  # runs. A rerun of this job uploads another build.
+  testflight:
+    if: inputs.testflight && fromJSON(inputs.packages)['.'] != null
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Start the TestFlight upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ fromJSON(inputs.packages)['.'].tag }}
+        run: |
+          gh workflow run mobile-testflight.yml --ref "$TAG"
+          echo "Started \`Publish iOS to TestFlight\` on \`${TAG}\`; check its run separately." >> "$GITHUB_STEP_SUMMARY"
+
+  # Component releases carry change notes only. Sweet never makes a release of
+  # a non-root package the repository's Latest release. A published release is
+  # left unchanged, so a rerun completes only the missing releases.
+  components:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: component-releases-${{ github.sha }}
+      cancel-in-progress: false
+    steps:
+      # Expressions cannot filter arrays, so the job selects its tags first.
+      - name: Select component tags
+        id: select
+        env:
+          TAGS: ${{ inputs.tags }}
+          PACKAGES: ${{ inputs.packages }}
+        # Like the artifact jobs, use only the newest tag of each package, so no
+        # release note announces an artifact that was not published.
+        run: |
+          jq -r --argjson newest "$PACKAGES" \
+            '.[] | select(.tag != $newest[.package].tag) | "::warning::\(.tag) is not the newest \(.package) version in this push; it is not published."' \
+            <<< "$TAGS"
+          tags="$(jq -r '[to_entries[] | select(.key != "." and .value != null) | .value.tag] | join(" ")' <<< "$PACKAGES")"
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+      # The checkout has every changelog entry of the push.
+      - if: steps.select.outputs.tags != ''
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      # Unreleased Sweet Release commit (PRs #62, #63, and #64, `sweet github release`):
+      # move to the next Sweet release tag. The action builds the CLI from this revision.
+      - if: steps.select.outputs.tags != ''
+        uses: chattocorp/sweet-release/.github/actions/bootstrap@7e618be0b38acb105fe128f030f2f9b71527a0f6
+      - name: Publish component releases
+        if: steps.select.outputs.tags != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAGS: ${{ steps.select.outputs.tags }}
+        run: |
+          for tag in $TAGS; do
+            sweet github release "$tag"
+          done

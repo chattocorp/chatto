@@ -204,6 +204,7 @@
       "delete_label": "Kustuta manus",
       "delete_failed": "Manuse kustutamine ebaõnnestus",
       "view_label": "Kuva {filename}",
+      "save_or_share": "Salvesta või jaga…",
       "download_label": "Laadi alla {filename}",
       "image_refresh_failed": "Pildi linki ei saanud värskendada",
       "download_refresh_failed": "Allalaadimislinki ei saanud värskendada",

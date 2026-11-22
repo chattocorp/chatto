@@ -113,6 +113,9 @@ Other sections:
   Keep this target for unreleased pages even before it exists.
 - Do not force empty sections. Preserve existing sidebar order and labels when
   adding the page to `apps/docs-website/astro.config.mjs`.
+- When adding the newest minor release page, point the homepage's
+  `Release Notes` action in `apps/docs-website/src/content/docs/index.mdx`
+  to that page, including during prerelease preparation.
 
 ## Images
 

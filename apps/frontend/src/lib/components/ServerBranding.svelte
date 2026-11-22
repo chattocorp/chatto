@@ -1,12 +1,13 @@
 <!--
 @component
 Shared public server identity for authentication and server information pages.
-The compact form, used in sign-in windows, shows only a short banner and the
-description, clamped to two lines. The window bar of a sign-in window shows the
-server's icon and name (`SignInWindowHeader`).
+Sign-in pages pass the welcome message but not the description. The compact
+form, used in sign-in windows, shows only a short banner and the welcome
+message in a viewport of limited height, so the form stays visible. The window
+bar of a sign-in window shows the server's icon and name (`SignInWindowHeader`).
 -->
 <script lang="ts">
-  import { MarkdownHtml } from '$lib/ui';
+  import { MarkdownHtml, ScrollFader } from '$lib/ui';
 
   let {
     name,
@@ -66,11 +67,32 @@ server's icon and name (`SignInWindowHeader`).
   {/if}
 
   {#if description}
-    <p class={['text-center text-muted', compact && 'line-clamp-2']}>{description}</p>
+    <p class="text-center text-muted">{description}</p>
   {/if}
 
   {#if welcomeMessage}
-    <div class="prose w-full max-w-none rounded-lg border border-border bg-surface p-4 text-muted">
+    <div class="w-full rounded-lg border border-border bg-surface p-4 text-muted">
+      {#if compact}
+        <ScrollFader
+          top
+          bottom
+          mask
+          maskSize="1rem"
+          fill={false}
+          scrollClass="max-h-[clamp(5rem,25vh,12rem)]"
+          data-testid="compact-welcome-message"
+        >
+          {@render welcome()}
+        </ScrollFader>
+      {:else}
+        {@render welcome()}
+      {/if}
+    </div>
+  {/if}
+
+  <!-- Prose spaces its direct children, so it sits inside the scroll viewport. -->
+  {#snippet welcome()}
+    <div class="prose max-w-none">
       {#await welcomeHtml}
         <p>{welcomeMessage}</p>
       {:then html}
@@ -79,5 +101,5 @@ server's icon and name (`SignInWindowHeader`).
         <p>{welcomeMessage}</p>
       {/await}
     </div>
-  {/if}
+  {/snippet}
 </div>

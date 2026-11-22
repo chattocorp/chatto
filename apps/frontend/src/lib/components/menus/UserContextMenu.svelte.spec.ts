@@ -1,3 +1,4 @@
+import type { VerifiedIdentity } from '@chatto/client/api/users';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
@@ -15,6 +16,7 @@ const viewerSettingsState = {
 };
 const serverScopeMock = vi.hoisted(() => ({
   serverId: 'server-1',
+  getVerifiedIdentities: vi.fn<() => Promise<VerifiedIdentity[]>>(),
   permissions: {
     loaded: true,
     canAdminViewUsers: false,
@@ -41,6 +43,10 @@ vi.mock('$lib/navigation', () => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: serverScopeMock.serverId,
+    connection: {
+      queryScope: 'menu-session',
+      getAPI: () => ({ getVerifiedIdentities: serverScopeMock.getVerifiedIdentities })
+    },
     store: {
       get accountId() {
         return serverScopeMock.accountId;
@@ -115,6 +121,9 @@ afterAll(() => {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  serverScopeMock.getVerifiedIdentities
+    .mockReset()
+    .mockResolvedValue([{ method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' }]);
   serverScopeMock.serverId = 'server-1';
   serverScopeMock.permissions.loaded = true;
   serverScopeMock.permissions.canAdminViewUsers = false;
@@ -137,6 +146,24 @@ beforeEach(() => {
 });
 
 describe('UserContextMenu', () => {
+  it('shows cached identities on reopen while a stale lookup refreshes', async () => {
+    const first = renderMenu();
+    await expect.poll(() => first.container.textContent).toContain('alice.example');
+    first.unmount();
+    // Let any zero-delay cache eviction run before reopening.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Move past the session cache's freshness window while the popup is closed.
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 31_000);
+    const refresh = Promise.withResolvers<VerifiedIdentity[]>();
+    serverScopeMock.getVerifiedIdentities.mockReturnValueOnce(refresh.promise);
+    const second = renderMenu();
+    await expect.poll(() => serverScopeMock.getVerifiedIdentities.mock.calls.length).toBe(2);
+    expect(second.container.textContent).toContain('alice.example');
+    refresh.resolve([]);
+    await expect.poll(() => second.container.textContent).not.toContain('alice.example');
+  });
+
   it.each(['server-1', 'server-2'])(
     'links own profile settings within %s and closes the menu',
     (serverId) => {

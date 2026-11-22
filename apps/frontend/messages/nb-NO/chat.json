@@ -90,6 +90,7 @@
       "version": "Versjon {version}",
       "unreachable": "Tjeneren er utilgjengelig",
       "connection_unavailable": "Tilkoblingen er utilgjengelig",
+      "protocol_unsupported": "Serveren støtter ikke sanntidsprotokollen som appen bruker.",
       "compatibility_server_too_old": "Denne serveren må oppgraderes til Chatto {version} eller nyere før denne appen kan koble til.",
       "compatibility_unknown": "Denne appen kan ikke fastslå kompatibilitet ut fra serverversjonen.",
       "go_to_notifications_count": {
@@ -147,6 +148,7 @@
       }
     },
     "profile": {
+      "verified_identities": "Bekreftede identiteter",
       "title": "Profil",
       "fallback_title": "Profil",
       "not_found": "Brukeren ble ikke funnet",

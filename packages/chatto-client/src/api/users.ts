@@ -8,12 +8,18 @@ import {
 import { getUserStore } from '../server/users.js';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import type { User } from '@chatto/api-types/api/v1/users_pb';
+import type {
+  User,
+  VerifiedIdentity as APIVerifiedIdentity
+} from '@chatto/api-types/api/v1/users_pb';
 
 const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 
 export { mapUserSummary, mapOptionalUserSummary, type UserSummary } from './userSummary.js';
 import { mapUserSummary, type UserSummary } from './userSummary.js';
+
+/** Public profile identity as reported by the server. Method keys are extensible. */
+export type VerifiedIdentity = Pick<APIVerifiedIdentity, 'method' | 'methodLabel' | 'value'>;
 
 /** Profile fields to change. Omitted fields stay unchanged; an empty bio clears it. */
 export type UpdateUserProfileInput = {
@@ -39,6 +45,14 @@ export function createUserAPI(config: ConnectAPIConfig) {
   };
 
   return {
+    /** Read the public verified identities for a member profile. */
+    async getVerifiedIdentities(userId: string, signal?: AbortSignal): Promise<VerifiedIdentity[]> {
+      const response = await client.getUser(
+        { target: { case: 'userId', value: userId }, includeVerifiedIdentities: true },
+        { signal }
+      );
+      return response.verifiedIdentities;
+    },
     async batchGetUsers(userIds: string[], minimumCursor?: string): Promise<UserSummary[]> {
       const read = async (ids: string[]) =>
         (

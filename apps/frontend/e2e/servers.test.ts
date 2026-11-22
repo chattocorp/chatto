@@ -1,4 +1,5 @@
 import { test, expect } from './setup';
+import type { Locator } from '@playwright/test';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
@@ -122,6 +123,23 @@ test.describe('Server Directory (sidebar entry point)', () => {
   });
 });
 
+/** Index of the drag shadow among the gutter entries, or -1 outside a drag. */
+const shadowIndex = (zone: Locator) =>
+  zone.evaluate((node) =>
+    [...node.children].findIndex((child) => child.hasAttribute('data-is-dnd-shadow-item-hint'))
+  );
+
+/**
+ * Gutter entries slide into place. Measure positions only after they stop.
+ * Check the entries alone: icons inside them can run endless animations.
+ */
+const animationsSettled = async (zone: Locator) =>
+  expect
+    .poll(() =>
+      zone.evaluate((node) => [...node.children].some((entry) => entry.getAnimations().length))
+    )
+    .toBe(false);
+
 test.describe('Server gutter on hybrid-input devices', () => {
   test.use({ hasTouch: true, viewport: { width: 1280, height: 720 } });
 
@@ -231,6 +249,7 @@ test.describe('Server gutter on hybrid-input devices', () => {
       .toEqual(['order-0.localhost', originId]);
 
     // A completed mouse drag moves the origin back above the first remote.
+    await animationsSettled(zone);
     const origin = await icons.nth(1).boundingBox();
     const remote = await icons.first().boundingBox();
     expect(origin).not.toBeNull();
@@ -241,6 +260,7 @@ test.describe('Server gutter on hybrid-input devices', () => {
     await page.mouse.move(x, remote!.y + remote!.height / 2, { steps: 6 });
     await expect(page.locator('#dnd-action-dragged-el')).toBeVisible();
     await expect(zone.locator('[data-is-dnd-shadow-item-hint]')).toHaveCount(1);
+    await expect.poll(() => shadowIndex(zone)).toBe(0);
     await page.mouse.up();
     await expect
       .poll(async () => (await savedOrder()).slice(0, 2))
@@ -267,6 +287,7 @@ test.describe('Server gutter on hybrid-input devices', () => {
     for (let move = 0; move < 5; move += 1) {
       const sourceIndex = move % 2 === 0 ? 0 : 1;
       const targetIndex = sourceIndex === 0 ? 1 : 0;
+      await animationsSettled(zone);
       const source = await icons.nth(sourceIndex).boundingBox();
       expect(source).not.toBeNull();
       const x = source!.x + source!.width / 2;
@@ -287,6 +308,8 @@ test.describe('Server gutter on hybrid-input devices', () => {
       const target = await icons.nth(targetIndex).boundingBox();
       expect(target).not.toBeNull();
       await page.mouse.move(x, target!.y + target!.height / 2, { steps: 6 });
+      // Icons animate into place. Drop after the gap reaches the target, as a user does.
+      await expect.poll(() => shadowIndex(zone)).toBe(targetIndex);
       await page.mouse.up();
       await expect(page.locator('#dnd-action-dragged-el')).toHaveCount(0);
       await expect(zone.locator('[data-is-dnd-shadow-item-hint]')).toHaveCount(0);

@@ -13,7 +13,7 @@ task.source_freshness_hash_contents = true
 frontend_build_environment = "{{ env.CHATTO_BUILD_VERSION | default(value='') | hash(len=16) }}-{{ env.CHATTO_FRONTEND_PRECOMPRESS | default(value='') | hash(len=16) }}-{{ env.NODE_OPTIONS | default(value='') | hash(len=16) }}"
 
 [tools]
-"github:chattocorp/sweet-release" = "sweet@0.4.0"
+"github:chattocorp/sweet-release" = "sweet@0.5.0"
 actionlint = "1.7.12"
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:axllent/mailpit" = "1.30.6"
@@ -31,7 +31,11 @@ wrangler = { version = "latest", allow_builds = ["esbuild", "sharp", "workerd"] 
 _.file = '.env'
 # Share Go build-cache entries across checkout paths; preserve incoming flags.
 GOFLAGS = "{{env.GOFLAGS | default(value='')}} -trimpath"
-CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
+# Use the Go version that mise pins. Do not download other toolchains to the
+# module cache. The cache never removes them.
+GOTOOLCHAIN = "local"
+# Use the numeric release version for development builds, including during a beta.
+CHATTO_DEVELOPMENT_VERSION = "{{ read_file(path='.sweet.yml') | split(pat='version: ') | nth(n=1) | split(pat='\n') | first | trim | regex_replace(pattern='[-+].*', rep='') }}-dev"
 # The development stack uses the workspace port block. The base is
 # `GEORDI_PORT`, then `CONDUCTOR_PORT`, or 4000 outside these tools.
 # Each workspace needs ten ports. Tasks and scripts use these names, not offsets.
@@ -42,7 +46,7 @@ CHATTO_DEV_PORT_BASE = "{% if env.GEORDI_PORT | default(value='') != '' %}{{env.
 CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_CHATTO_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE)}}"
 # Vite frontend development server (`mise dev-frontend`).
 CHATTO_DEV_VITE_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}"
-CHATTO_DEV_AUTHLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 2}}"
+CHATTO_DEV_AUTHLING_PORT = "{{env.CHATTO_DEV_AUTHLING_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 2)}}"
 # Runling bot console.
 CHATTO_DEV_RUNLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 3}}"
 # Chatto embedded NATS.
@@ -216,14 +220,14 @@ run = "uvx --with charset-normalizer 'reuse==6.2.0' lint"
 
 [tasks.lint-actions]
 description = "Check GitHub Actions workflows and repository shell scripts"
-run = ["actionlint", "shellcheck --severity=warning tools/*.sh"]
+run = ["actionlint", "shellcheck --severity=warning tools/*.sh tools/release/*.sh"]
 
 [tasks.test-release-policy]
 description = "Test GitHub release publication and Latest selection"
 run = "node --test tools/release-policy.test.mjs"
 
 [tasks.test-interchange]
-description = "Validate draft interchange schemas and synthetic conformance fixtures"
+description = "Validate draft CHIEF schemas and synthetic conformance fixtures"
 run = "uv run --script tools/test_interchange.py"
 
 [tasks.test-slack]
@@ -414,6 +418,8 @@ sources = [
     "{package.json,*config.*,scripts/*.mjs,.env*}",
     "../../{package.json,pnpm-*.yaml,.npmrc,.env*,turbo.json,tools/turbo.mjs,tools/prepare-embedded-frontend.sh}",
     "../../packages/{api-types,translatto,chatto-client}/{src/**,package.json,tsconfig*.json}",
+    # Help → What's new reads the release highlights at build time.
+    "../../{CHANGELOG.md,.sweet.config.yml,.sweet/*.md,tools/changelog.mjs}",
 ]
 outputs = [
     "build",

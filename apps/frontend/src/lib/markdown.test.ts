@@ -686,6 +686,73 @@ describe('renderMarkdown', () => {
       );
     });
 
+    it('loads Bend on demand and highlights its syntax without changing source', async () => {
+      expect(isCodeLanguageLoaded('bend')).toBe(false);
+      expect(CODE_LANGUAGE_OPTIONS).toContainEqual({ value: 'bend', label: 'BEND' });
+      const source = [
+        '# Prove that adding zero changes nothing',
+        'law add_zero:',
+        '  for x: Nat',
+        '  {Nat.add(x, 0n) == x : Nat}',
+        '',
+        'def main() -> {Nat.add(2n, 0n) == 2n : Nat}:',
+        '  match 1.5:',
+        '    case _:',
+        '      IO.print("done")',
+        '      {==}'
+      ].join('\n');
+
+      const html = await renderMarkdown('```bend\n' + source + '\n```');
+
+      expect(isCodeLanguageLoaded('bend')).toBe(true);
+      expect(html).toContain('data-language="bend"');
+      expect(html).toContain('language-bend');
+      expect(html).toContain(
+        '<span class="hljs-comment"># Prove that adding zero changes nothing</span>'
+      );
+      expect(html).toContain(
+        '<span class="hljs-keyword">law</span> <span class="hljs-title function_">add_zero</span>'
+      );
+      expect(html).toContain(
+        '<span class="hljs-keyword">def</span> <span class="hljs-title function_">main</span>'
+      );
+      expect(html).toContain('<span class="hljs-keyword">for</span>');
+      expect(html).toContain('<span class="hljs-keyword">match</span>');
+      expect(html).toContain('<span class="hljs-type">Nat</span>');
+      expect(html).toContain('<span class="hljs-number">2n</span>');
+      expect(html).toContain('<span class="hljs-number">1.5</span>');
+      expect(html).toContain('<span class="hljs-operator">==</span>');
+      expect(html).toContain('<span class="hljs-operator">-&gt;</span>');
+      expect(html).toContain('<span class="hljs-string">&quot;done&quot;</span>');
+      expect(html).toContain('<span class="hljs-literal">{==}</span>');
+      expect(html).toContain(
+        `data-copy-source="${source.replaceAll('"', '&quot;').replaceAll('>', '&gt;')}\n"`
+      );
+    });
+
+    it('loads Lean on demand and highlights its syntax without changing source', async () => {
+      expect(isCodeLanguageLoaded('lean')).toBe(false);
+      expect(CODE_LANGUAGE_OPTIONS).toContainEqual({ value: 'lean', label: 'LEAN' });
+      const source = [
+        '-- Sum of a geometric series',
+        'theorem geometric_series_sum (x : Int) (n : Nat) :',
+        '  (x - 1) * ((List.range n).map (x ^ ·)).sum = x ^ n - 1 := by',
+        '  induction n <;> grind [List.range_succ]'
+      ].join('\n');
+
+      const html = await renderMarkdown('```lean\n' + source + '\n```');
+
+      expect(isCodeLanguageLoaded('lean')).toBe(true);
+      expect(html).toContain('data-language="lean"');
+      expect(html).toContain('language-lean');
+      expect(html).toContain('<span class="hljs-keyword">theorem</span>');
+      expect(html).toContain('<span class="hljs-number">1</span>');
+      expect(html).toContain('<span class="hljs-comment">-- Sum of a geometric series</span>');
+      expect(html).toContain(
+        `data-copy-source="${source.replaceAll('>', '&gt;').replaceAll('<', '&lt;')}\n"`
+      );
+    });
+
     it.each(['```js\nconst x = 1;\n```', '    indented code'])(
       'makes the code scroller keyboard focusable: %s',
       async (source) => {

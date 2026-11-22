@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // StringLengthError is returned when a persisted user-controlled string exceeds
@@ -31,6 +32,7 @@ func validateStringMaxLength(field, value string, max int) error {
 // ValidateDisplayName accepts single-line Unicode presentation text. A name must
 // contain a letter, number, punctuation mark, or symbol, not just combining marks
 // or whitespace. Joiners and emoji tags are the only permitted format characters.
+// Block mosaic glyphs (see isDisplayNameMosaicGlyph) are rejected.
 // Callers trim the name and check its length in Unicode code points separately.
 // An empty name is permitted here for creation paths that default to the login;
 // profile update paths reject empty names before they call this function.
@@ -45,6 +47,9 @@ func ValidateDisplayName(name string) error {
 			return ErrDisplayNameInvalidCharacter
 		}
 		if unicode.Is(unicode.Cf, r) && !isDisplayNameFormatChar(r) {
+			return ErrDisplayNameInvalidCharacter
+		}
+		if isDisplayNameMosaicGlyph(r) {
 			return ErrDisplayNameInvalidCharacter
 		}
 		// Hangul fillers are letters and Braille blank is a symbol, but neither
@@ -64,10 +69,32 @@ func isDisplayNameFormatChar(r rune) bool {
 	return r == '\u200C' || r == '\u200D' || (r >= '\U000E0020' && r <= '\U000E007F')
 }
 
-// NormalizeDisplayName trims whitespace and normalizes the display name.
-// Returns the normalized name. Use ValidateDisplayName after normalizing.
+// isDisplayNameMosaicGlyph reports block mosaic characters: Block Elements,
+// Symbols for Legacy Computing, and its Supplement. These glyphs fill the
+// complete character cell, from ascender to descender. Users combine them into
+// pixel lettering that is about twice as tall as the surrounding text.
+func isDisplayNameMosaicGlyph(r rune) bool {
+	return (r >= '\u2580' && r <= '\u259F') ||
+		(r >= '\U0001FB00' && r <= '\U0001FBFF') ||
+		(r >= '\U0001CC00' && r <= '\U0001CEBF')
+}
+
+// NormalizeDisplayName trims surrounding whitespace.
+// Use ValidateDisplayName after normalizing.
 func NormalizeDisplayName(name string) string {
 	return strings.TrimSpace(name)
+}
+
+// PresentableDisplayName returns the display name that read paths show for a
+// stored name. If a name stored under earlier rules is empty, too long, or
+// invalid now, the login is shown instead. Old names cannot bypass rules that
+// apply to new edits.
+func PresentableDisplayName(displayName, login string) string {
+	normalized := NormalizeDisplayName(displayName)
+	if normalized == "" || utf8.RuneCountInString(normalized) > MaxDisplayNameLength || ValidateDisplayName(normalized) != nil {
+		return LoginDisplayName(login)
+	}
+	return normalized
 }
 
 // LoginLengthLimit returns this server's maximum for new and changed usernames.

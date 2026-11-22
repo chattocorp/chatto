@@ -96,8 +96,7 @@
       "error_future": "有効期限は将来である必要があります。"
     },
     "form": {
-      "required": "必須",
-      "max_bytes": "最大{max}バイトです。一部の文字は複数のバイトを使用します。"
+      "required": "必須"
     },
     "dates": {
       "today": "今日",

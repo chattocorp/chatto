@@ -11,6 +11,9 @@
 !LICENSES/
 !LICENSES/Apache-2.0.txt
 !NOTICE
+!CHANGELOG.md
+!tools/
+!tools/changelog.mjs
 !apps/
 !apps/docs-website/
 !apps/docs-website/**

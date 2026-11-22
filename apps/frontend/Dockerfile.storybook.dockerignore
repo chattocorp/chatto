@@ -12,6 +12,9 @@
 !LICENSES/Apache-2.0.txt
 !LICENSES/MIT.txt
 !NOTICE
+!CHANGELOG.md
+!tools/
+!tools/changelog.mjs
 !apps/
 !apps/frontend/
 !apps/frontend/**

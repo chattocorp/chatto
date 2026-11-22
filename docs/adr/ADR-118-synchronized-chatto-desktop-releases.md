@@ -27,9 +27,10 @@ package version through the root manifest, as specified in
 [ADR-122](ADR-122-changeset-driven-releases.md). The former independent client
 tags and changelog remain historical records.
 
-Each shared tag starts the client npm publication workflow. Prereleases use
-the npm `next` tag; stable releases use `latest`. The workflow verifies the
-package version against the shared tag and publishes the tested tarball.
+Each shared release starts the client npm publication workflow. Prereleases use
+the npm `next` tag; stable releases use `latest`. The workflow publishes the
+tested tarball. ADR-122 later moved publication into the CI run that makes the
+tag; there, an older stable line uses the npm `maintenance` tag.
 [ADR-121](ADR-121-github-desktop-updates.md) requires the server build and desktop
 assembly to succeed before npm publication. GitHub release publication also
 requires npm publication to succeed. A failed npm job can be retried against

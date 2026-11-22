@@ -197,8 +197,9 @@ skills remain applicable when their trigger rules match. Repository skills do no
 - Authling's Sweet manifest is `.sweet.yml`, its version target is
   `version.go`, its changelog is `CHANGELOG.md`, and its tags use
   `authling/v<version>`. The slash follows Go's nested-module tag convention.
-- Authling tags start its container image workflow. GitHub release notes and
-  image publication are separate jobs; check both before announcing a release.
+- When CI tags an Authling version, the same CI run starts its container image
+  workflow. GitHub release notes and image publication are separate jobs; check
+  both before announcing a release.
 - Authling releases are independent from Chatto releases. An Authling-only
   commit must not require a Chatto release.
 - Treat persisted identity data, signing-key references, issuer identifiers,

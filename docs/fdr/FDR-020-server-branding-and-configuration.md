@@ -10,8 +10,8 @@ Operators can customize how their Chatto server presents itself. The server's na
 ## Behavior
 
 - **Server name** — appears in page titles, the chat header, installed app metadata, and OG metadata. Defaults to "Chatto".
-- **Description** — used in OG metadata for link previews when sharing the server URL.
-- **Welcome message** — shown on the login page. Markdown is supported.
+- **Description** — a short plain-text introduction. It is shown on server cards in the Server Directory and on the Server information page, and it is used in OG metadata for link previews when sharing the server URL. Sign-in pages do not show it.
+- **Welcome message** — shown on sign-in pages and on the Server information page. Compact sign-in windows show it in an area of limited height, which scrolls, so that the form stays visible. Markdown is supported.
 - **MOTD (message of the day)** — appears in a banner across the top of the
   chat surface for all members. The header shows a single-line Markdown preview
   with an ellipsis when space is limited. Click or tap the preview to open the

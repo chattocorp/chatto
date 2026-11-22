@@ -90,6 +90,7 @@
       "version": "Versioon {version}",
       "unreachable": "Server pole kättesaadav",
       "connection_unavailable": "Ühendus pole saadaval",
+      "protocol_unsupported": "See server ei toeta rakenduses kasutatavat reaalajaprotokolli.",
       "compatibility_server_too_old": "See server peab olema üle viidud versioonile Chatto {version} või uuemale, enne kui see rakendus saab ühenduse luua.",
       "compatibility_unknown": "See rakendus ei saa serveri versiooni järgi ühilduvust kindlaks teha.",
       "go_to_notifications_count": {
@@ -147,6 +148,7 @@
       }
     },
     "profile": {
+      "verified_identities": "Kinnitatud identiteedid",
       "title": "Profiil",
       "fallback_title": "Profiil",
       "not_found": "Kasutajat ei leitud",

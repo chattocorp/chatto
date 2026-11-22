@@ -20,6 +20,30 @@ func TestAuthConfig_DirectLogin(t *testing.T) {
 	}
 }
 
+func TestAuthConfig_DirectRegistrationEnabled(t *testing.T) {
+	enabled, disabled := true, false
+	tests := []struct {
+		name         string
+		registration *bool
+		login        *bool
+		want         bool
+	}{
+		{"defaults", nil, nil, true},
+		{"registration disabled", &disabled, nil, false},
+		{"login disabled", nil, &disabled, false},
+		{"registration enabled, login disabled", &enabled, &disabled, false},
+		{"both enabled", &enabled, &enabled, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := AuthConfig{DirectRegistration: tt.registration, DirectLogin: tt.login}
+			if got := cfg.DirectRegistrationEnabled(); got != tt.want {
+				t.Fatalf("DirectRegistrationEnabled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestAuthConfig_SessionTTLs(t *testing.T) {
 	defaults := AuthConfig{}
 	if got := defaults.TokenTTLOrDefault(); got != 90*24*time.Hour {

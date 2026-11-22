@@ -30,6 +30,16 @@ select versions or changelog content. Dependency updates are explicit; Sweet
 does not propagate releases to consumers. Maintainers review generated PRs.
 
 Sweet 0.3.0 bumps prerelease baselines to ordinary stable versions. Authling's
-next release may be stable. Prerelease channels and maintenance-branch automation
-remain future work. Component release notes and artifact publication are separate
-jobs and must both be checked.
+next release may be stable. Component release notes and artifact publication are
+separate jobs and must both be checked.
+
+## Amendment: publication from the tagging run (2026-11-21)
+
+Tag workflows no longer publish artifacts. CI calls Sweet's `tag.yml` with
+`GITHUB_TOKEN` after the checks, so tag pushes start no workflow. The same CI
+run publishes each tagged version from Sweet's tag outputs. The outputs give
+`prerelease` and `highest` for each tag, and `sweet github release` publishes
+the GitHub releases. Thus publication always starts from a checked commit, a
+manual tag push cannot start a build, and publication needs no personal token.
+CI also tags pushes to `release-*` branches. Release preparation stays on
+`main`. See [the release guide](../RELEASING.md).

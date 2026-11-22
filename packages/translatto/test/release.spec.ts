@@ -4,10 +4,8 @@ import { assertRelease, assertUnusedVersion, checkRelease } from '../scripts/che
 
 const manifest = { name: '@chatto/translatto', version: '0.1.0' };
 
-test('rejects mismatched tags and invalid package identities', () => {
-  expect(() => assertRelease(manifest, 'translatto/v0.1.0')).not.toThrow();
+test('rejects invalid package identities', () => {
   expect(() => assertRelease(manifest)).not.toThrow();
-  expect(() => assertRelease(manifest, 'translatto/v0.2.0')).toThrow('Tag must match');
   expect(() => assertRelease({ ...manifest, name: 'translatto' })).toThrow('Expected a stable');
   expect(() => assertRelease({ ...manifest, version: '0.1.0-alpha.1' })).toThrow(
     'Expected a stable'
@@ -65,14 +63,9 @@ test('verification does not query the registry for an already published package'
   });
   await expect(checkRelease(manifest, { verifyOnly: true }, request)).resolves.toBeUndefined();
   expect(request).not.toHaveBeenCalled();
-  await expect(
-    checkRelease(manifest, { verifyOnly: true, tag: 'translatto/v0.2.0' }, request)
-  ).rejects.toThrow('Tag must match');
 });
 
 test('publication still rejects an already published version', async () => {
   const request: typeof fetch = async () => Response.json({ versions: { '0.1.0': {} }, time: {} });
-  await expect(checkRelease(manifest, { tag: 'translatto/v0.1.0' }, request)).rejects.toThrow(
-    'already been published'
-  );
+  await expect(checkRelease(manifest, {}, request)).rejects.toThrow('already been published');
 });
