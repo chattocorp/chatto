@@ -57,7 +57,7 @@ const (
 	//   - Idle heartbeats also use places in the channel. If Apply blocks for
 	//     longer than two heartbeat intervals (10 seconds) while the pull
 	//     waits, and then enough events arrive to fill the rest of the pull,
-	//     nats.go drops the last of them. A later event shows the gap, and
+	//     nats.go can drop the last of them. A later event shows the gap, and
 	//     the ordered consumer resets. Until a later event arrives, the
 	//     projection does not apply the dropped event.
 	//   - No byte limit applies. A projector that is behind can buffer up to
