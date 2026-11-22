@@ -607,10 +607,9 @@ func (p *UserAuthProjection) BotIncomingWebhookCredentials(userID string) []BotI
 func (p *UserAuthProjection) watchBotAPIKeyInvalidated(userID string, verifier []byte) (<-chan struct{}, func()) {
 	invalidated := make(chan struct{})
 	p.Lock()
-	u := p.users[userID]
 	active := false
-	if u != nil && !u.deleted && !u.deactivated && u.isBot && p.users[u.botOwnerUserID] != nil && !p.users[u.botOwnerUserID].deactivated {
-		for _, credential := range u.botAPIKeys {
+	if _, ok := p.botAPIKeyAccessLocked(userID); ok {
+		for _, credential := range p.users[userID].botAPIKeys {
 			if bytes.Equal(credential.verifier, verifier) {
 				active = true
 				break
@@ -648,6 +647,25 @@ func (p *UserAuthProjection) watchBotAPIKeyInvalidated(userID string, verifier [
 			p.Unlock()
 		})
 	}
+}
+
+// BotAPIKeyAccess returns the owner of a bot and reports whether the bot and
+// its owner can use the bot's API keys in this projection state: the bot is a
+// projected, active bot, and its owner is projected and active.
+// watchBotAPIKeyInvalidated uses the same rule.
+func (p *UserAuthProjection) BotAPIKeyAccess(botID string) (ownerID string, active bool) {
+	p.RLock()
+	defer p.RUnlock()
+	return p.botAPIKeyAccessLocked(botID)
+}
+
+func (p *UserAuthProjection) botAPIKeyAccessLocked(botID string) (string, bool) {
+	u := p.users[botID]
+	if u == nil || u.deleted || u.deactivated || !u.isBot {
+		return "", false
+	}
+	owner := p.users[u.botOwnerUserID]
+	return u.botOwnerUserID, owner != nil && !owner.deactivated
 }
 
 func (p *UserAuthProjection) closeBotAPIKeyWatchersLocked(userID string) {
