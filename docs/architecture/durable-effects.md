@@ -58,8 +58,9 @@ Each worker has at most one outstanding pull. A pull waits up to
 empty and no delivery is active. Then the worker is idle, and the pull waits up
 to 30 seconds (or the consumer's shorter `MaxRequestExpires`). An idle worker
 thus sends one pull request each 30 seconds. After a delivery or a failed
-pull, the next pull is short again, so a backlog uses only short pulls. A
-failed long pull also reads the consumer's current `MaxRequestExpires`.
+pull, the next pull is short again, so a backlog uses only short pulls. When
+JetStream rejects a long pull because the consumer's `MaxRequestExpires`
+became smaller, the worker takes the new limit from the rejection.
 Shutdown cancels outstanding pulls before active handlers and schedules
 redelivery beyond `FetchMaxWait`, preventing an orphaned server-side pull from
 reclaiming its own handoff. Only a pull starts a delivery, so a long idle pull

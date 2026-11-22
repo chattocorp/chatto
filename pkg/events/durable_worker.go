@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,9 +34,10 @@ const (
 	// instead of about one second). A clean shutdown or a connection close that
 	// the server detects removes the interest and the pull at once.
 	durableWorkerIdleFetchWait = 30 * time.Second
-	// durableWorkerInfoTimeout bounds the consumer information request that
-	// refreshes MaxRequestExpires after a long pull fails.
-	durableWorkerInfoTimeout = 5 * time.Second
+	// durableWorkerMaxRequestExpiresRejection is the start of the description
+	// that nats-server sends in a 409 status when a pull is longer than the
+	// consumer's MaxRequestExpires. nats.go has no typed error for it.
+	durableWorkerMaxRequestExpiresRejection = "Exceeded MaxRequestExpires of "
 	// durableWorkerIdleFetchHeartbeats is the number of pull heartbeat
 	// intervals in one pull of 10 seconds or more. nats.go uses a 5-second
 	// heartbeat for such pulls by default; a longer interval sends fewer idle
@@ -93,7 +95,7 @@ type DurableWorker struct {
 	handle   DurableDeliveryHandler
 	opts     DurableWorkerOptions
 	// idleFetchWait is the lifetime of a long pull. Only the Run goroutine
-	// changes it after construction. See Run and idleFetchWait.
+	// changes it after construction. See Run and adaptIdleFetchWait.
 	idleFetchWait time.Duration
 	runMu         sync.Mutex
 	started       bool
@@ -210,9 +212,11 @@ func NewDurableWorker(
 // Then the pull is long (durableWorkerIdleFetchWait, limited by the consumer's
 // MaxRequestExpires), so an idle worker sends few pull requests. After a
 // delivery or a failed pull, the next pull is short. Thus a backlog uses only
-// short pulls, and a rejected long pull falls back to a short pull. A failed
-// long pull also refreshes MaxRequestExpires, because the consumer limit can
-// change while the worker runs.
+// short pulls, and a rejected long pull falls back to a short pull. The
+// consumer's MaxRequestExpires can become smaller while the worker runs. When
+// JetStream rejects a long pull for that reason, the worker takes the new limit
+// from the rejection. It does not read consumer information, because nats.go
+// does not synchronize the cached information of a shared consumer handle.
 //
 // Only a pull can start a delivery, so no delivery is active while a long
 // pull is outstanding. Thus, when cancellation hands off active deliveries,
@@ -257,14 +261,15 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 		}
 		fetchCtx, cancelFetch := context.WithTimeout(ctx, fetchWait)
 		msg, err := w.consumer.Next(fetchOptions(fetchCtx)...)
-		fetchCtxErr := fetchCtx.Err()
 		cancelFetch()
 		if err != nil {
 			<-active
 			if ctx.Err() != nil {
 				return nil
 			}
-			if errors.Is(fetchCtxErr, context.DeadlineExceeded) || errors.Is(err, nats.ErrTimeout) {
+			// Classify the returned error, not the fetch context: a pull can fail
+			// with a server or heartbeat error just before its deadline.
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, nats.ErrTimeout) {
 				idle = true
 				continue
 			}
@@ -278,7 +283,7 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 			}
 			w.opts.Logger.Warn("Durable work fetch failed; retrying", "error", err)
 			if long {
-				w.refreshIdleFetchWait(ctx)
+				w.adaptIdleFetchWait(err)
 			}
 			if !waitForDurableWorkerRetry(ctx, w.opts.FetchRetryDelay) {
 				return nil
@@ -315,24 +320,36 @@ func idleFetchWait(fetchMaxWait, maxRequestExpires time.Duration) time.Duration 
 	return max(wait, fetchMaxWait)
 }
 
-// refreshIdleFetchWait reads the consumer's current MaxRequestExpires after a
-// long pull failed. JetStream rejects a pull that is longer than this limit,
-// and the limit can change after the worker was constructed. If the request
-// fails, the worker keeps the previous value; the next pull is short anyway.
-func (w *DurableWorker) refreshIdleFetchWait(ctx context.Context) {
-	infoCtx, cancel := context.WithTimeout(ctx, durableWorkerInfoTimeout)
-	defer cancel()
-	info, err := w.consumer.Info(infoCtx)
-	if err != nil {
+// adaptIdleFetchWait shortens long pulls after JetStream rejected a long pull
+// because it is longer than the consumer's MaxRequestExpires. It takes the
+// limit from the rejection. If the rejection has no readable limit, it halves
+// the long pull, so that repeated rejections reach an accepted length. Other
+// failures, for example a missed heartbeat, do not change the long pull. The
+// worker does not lengthen the long pull again if the limit later increases.
+func (w *DurableWorker) adaptIdleFetchWait(err error) {
+	_, rest, found := strings.Cut(err.Error(), durableWorkerMaxRequestExpiresRejection)
+	if !found {
 		return
 	}
-	w.idleFetchWait = idleFetchWait(w.opts.FetchMaxWait, info.Config.MaxRequestExpires)
+	limit := w.idleFetchWait / 2
+	if fields := strings.Fields(rest); len(fields) > 0 {
+		if parsed, err := time.ParseDuration(fields[0]); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	w.idleFetchWait = idleFetchWait(w.opts.FetchMaxWait, min(limit, w.idleFetchWait))
 }
 
 // fetchOptions returns the pull options for one fetch that ends with ctx. A
 // parent deadline can make the pull shorter than the requested wait, so the
 // idle heartbeat comes from the remaining lifetime. Below 10 seconds, nats.go
 // sends no heartbeat by default, and the worker keeps that default.
+//
+// nats.go v1.54.0 does not stop the heartbeat timer of a completed fetch; the
+// timer callback runs two heartbeat intervals later and then releases the
+// fetch state. Only long pulls have a heartbeat, and a long pull starts only
+// after an empty short pull, so a worker holds at most one such timer for each
+// FetchMaxWait, also under load.
 func fetchOptions(ctx context.Context) []jetstream.FetchOpt {
 	opts := []jetstream.FetchOpt{jetstream.FetchContext(ctx)}
 	if deadline, ok := ctx.Deadline(); ok {

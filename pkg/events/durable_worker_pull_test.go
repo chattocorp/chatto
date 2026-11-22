@@ -115,7 +115,9 @@ func TestDurableWorkerIdlePullHonorsMaxRequestExpires(t *testing.T) {
 // TestDurableWorkerIdlePullFollowsChangedMaxRequestExpires checks that a
 // consumer limit that changes after construction does not stop delivery.
 // JetStream rejects the long pull; the worker falls back to a short pull and
-// reads the new limit for its next long pull.
+// takes the new limit from the rejection for its next long pull. The test
+// also uses the consumer handle while the worker runs: under the race
+// detector, this finds a worker that writes the handle's cached information.
 func TestDurableWorkerIdlePullFollowsChangedMaxRequestExpires(t *testing.T) {
 	js, stream := setupTestStream(t)
 	ctx := testContext(t)
@@ -143,6 +145,27 @@ func TestDurableWorkerIdlePullFollowsChangedMaxRequestExpires(t *testing.T) {
 		t.Fatalf("update worker consumer: %v", err)
 	}
 	cancel, runErr := startPullTestWorker(t, ctx, worker)
+	stopInfo := make(chan struct{})
+	infoDone := make(chan struct{})
+	go func() {
+		defer close(infoDone)
+		for {
+			select {
+			case <-stopInfo:
+				return
+			default:
+			}
+			if _, err := consumer.Info(ctx); err != nil {
+				t.Errorf("consumer info: %v", err)
+				return
+			}
+			_ = consumer.CachedInfo()
+		}
+	}()
+	defer func() {
+		close(stopInfo)
+		<-infoDone
+	}()
 
 	if pull := nextDurableWorkerPull(t, pulls); pull.long() {
 		t.Fatalf("first pull = %+v, want a short pull", pull)
@@ -287,22 +310,31 @@ func TestDurableWorkerLastHandlerFinishesDuringShortPull(t *testing.T) {
 	js, stream := setupTestStream(t)
 	ctx := testContext(t)
 	consumer := createDurableWorkerTestConsumer(t, ctx, stream, "pull-last-handler", time.Minute)
-	pulls := recordDurableWorkerPulls(t, js, "pull-last-handler", nil)
+	// secondPullSent closes when the server receives the second pull, which
+	// starts while the handler is active.
+	secondPullSent := make(chan struct{})
+	var observed atomic.Int32
+	pulls := recordDurableWorkerPulls(t, js, "pull-last-handler", func(durableWorkerPull) {
+		if observed.Add(1) == 2 {
+			close(secondPullSent)
+		}
+	})
 	started := make(chan struct{})
 	release := make(chan struct{})
 	finished := make(chan struct{})
 	var calls atomic.Int32
 	controlled := &controlledConsumer{Consumer: consumer, next: func(next func() (jetstream.Msg, error)) (jetstream.Msg, error) {
-		// The first call delivers the message. The second call starts while the
-		// handler is active. Let the handler finish while that pull is open.
 		if calls.Add(1) != 2 {
 			return next()
 		}
+		// Send the second pull, let the handler finish while that pull is
+		// open, and only then let Run see the result of the pull.
 		result := make(chan pullResult, 1)
 		go func() {
 			msg, err := next()
 			result <- pullResult{msg: msg, err: err}
 		}()
+		<-secondPullSent
 		close(release)
 		<-finished
 		got := <-result
