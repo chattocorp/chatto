@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"slices"
@@ -10,8 +11,11 @@ import (
 	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
 
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
@@ -60,11 +64,24 @@ type botReplicas struct {
 
 func startBotReplicas(t *testing.T) (*server.Server, botReplicas) {
 	t.Helper()
+	return startBotReplicasWith(t, nil)
+}
+
+// startBotReplicasWith is startBotReplicas, but it calls configureSecond
+// with the second replica before that replica starts its services.
+func startBotReplicasWith(t *testing.T, configureSecond func(*ChattoCore)) (*server.Server, botReplicas) {
+	t.Helper()
 	ns, _ := testutil.StartNATS(t)
-	replicas := botReplicas{
-		first:  startReplica(t, ns, testCoreConfig()),
-		second: startReplica(t, ns, testCoreConfig()),
+	replicas := botReplicas{first: startReplica(t, ns, testCoreConfig())}
+	second, err := NewChattoCore(testContext(t), newReplicaConn(t, ns), testCoreConfig())
+	if err != nil {
+		t.Fatalf("create replica: %v", err)
 	}
+	if configureSecond != nil {
+		configureSecond(second)
+	}
+	startCoreServices(t, second)
+	replicas.second = second
 	ctx := testContext(t)
 	owner, err := replicas.first.CreateUser(ctx, SystemActorID, "replica-bot-owner", "Replica Bot Owner", "")
 	if err != nil {
@@ -295,6 +312,139 @@ func TestBotAPIKeyAuthenticationWaitsForEventFromOtherReplica(t *testing.T) {
 		default:
 		}
 	})
+}
+
+// positionReadGate wraps the EVT stream of a user model. When armed, it holds
+// the read of the newest position of one subject until the test releases it,
+// and it reports when the reads of other subjects have returned. A test can
+// thus write an event after some position reads of a wait and before others.
+type positionReadGate struct {
+	jetstream.Stream
+
+	mu        sync.Mutex
+	held      string
+	release   chan struct{}
+	pending   map[string]bool
+	readsDone chan struct{}
+}
+
+// arm holds the next read of held. readsDone closes when one read of each
+// subject in others has returned.
+func (g *positionReadGate) arm(held string, others []string) (readsDone <-chan struct{}, release func()) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.held, g.release = held, make(chan struct{})
+	g.pending, g.readsDone = make(map[string]bool), make(chan struct{})
+	for _, subject := range others {
+		g.pending[subject] = true
+	}
+	return g.readsDone, sync.OnceFunc(func() { close(g.release) })
+}
+
+func (g *positionReadGate) GetLastMsgForSubject(ctx context.Context, subject string) (*jetstream.RawStreamMsg, error) {
+	g.mu.Lock()
+	release := g.release
+	held := subject == g.held
+	if held {
+		g.held = ""
+	}
+	g.mu.Unlock()
+	if held {
+		select {
+		case <-release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	msg, err := g.Stream.GetLastMsgForSubject(ctx, subject)
+	g.mu.Lock()
+	if g.pending[subject] {
+		delete(g.pending, subject)
+		if len(g.pending) == 0 {
+			close(g.readsDone)
+		}
+	}
+	g.mu.Unlock()
+	return msg, err
+}
+
+// A reassignment that another replica writes during a bot API key
+// authentication can reach the Users projection before the User Auth
+// projection, because the two position reads run concurrently. The test
+// forces that order: the User Auth position reads of the bot return before
+// the reassignment, and the Users position read of the bot returns after it.
+// The authentication then accepts the key for the new, active owner. It must
+// not return before the User Auth projection names that owner too, because
+// the realtime revocation watch reads the owner from that projection.
+func TestBotAPIKeyAuthenticationWaitsForReassignmentDuringAuthentication(t *testing.T) {
+	gate := &positionReadGate{}
+	_, r := startBotReplicasWith(t, func(second *ChattoCore) {
+		js, err := jetstream.New(second.nc)
+		if err != nil {
+			t.Fatalf("jetstream.New: %v", err)
+		}
+		stream, err := js.Stream(testContext(t), natsresources.EVT)
+		if err != nil {
+			t.Fatalf("EVT stream: %v", err)
+		}
+		gate.Stream = stream
+		second.userModel.publisher = evtstream.NewPublisher(js, gate, testCoreLogger())
+	})
+	ctx := testContext(t)
+	bot := r.newBot(t, "concurrent_reassigned_bot")
+	botID := bot.User.GetId()
+	next, err := r.first.CreateUser(ctx, SystemActorID, "next-owner", "Next Owner", "")
+	if err != nil {
+		t.Fatalf("CreateUser next owner: %v", err)
+	}
+	manager, err := r.first.CreateUser(ctx, SystemActorID, "reassign-manager", "Reassign Manager", "")
+	if err != nil {
+		t.Fatalf("CreateUser manager: %v", err)
+	}
+	if err := r.first.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
+		t.Fatalf("grant bot.manage: %v", err)
+	}
+	// With its owner deactivated, the bot cannot authenticate until the
+	// reassignment.
+	r.deactivate(t, r.ownerID)
+	if _, err := r.second.ValidateBotAPIKey(ctx, bot.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("key of bot with deactivated owner: err = %v, want ErrAuthTokenNotFound", err)
+	}
+
+	readsDone, release := gate.arm(evtstream.UserAggregate(botID).AllEventsFilter(), botAPIKeyAuthSubjects(botID))
+	t.Cleanup(release)
+	type result struct {
+		verifier []byte
+		err      error
+	}
+	results := make(chan result, 1)
+	go func() {
+		_, verifier, err := r.second.ValidateBotAPIKeyCredential(ctx, bot.APIKey)
+		results <- result{verifier, err}
+	}()
+	select {
+	case <-readsDone:
+	case <-ctx.Done():
+		t.Fatal("User Auth position reads of the bot did not return")
+	}
+	got := checkWhileHeld(t, r.second.userModel.auth.Projector(), func() {
+		if _, err := r.first.ReassignBotOwner(testContext(t), manager.GetId(), botID, next.GetId()); err != nil {
+			t.Fatalf("ReassignBotOwner: %v", err)
+		}
+	}, func() result {
+		release()
+		return <-results
+	})
+	if got.err != nil {
+		t.Fatalf("key after reassignment: %v", got.err)
+	}
+	invalidated, stop := r.second.WatchBotAPIKeyInvalidated(botID, got.verifier)
+	defer stop()
+	select {
+	case <-invalidated:
+		t.Fatal("watch closed for a valid key after reassignment")
+	default:
+	}
 }
 
 // Bot incoming webhook authentication must see every change of the bot's
