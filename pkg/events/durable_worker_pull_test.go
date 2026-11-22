@@ -52,9 +52,7 @@ func TestDurableWorkerIdlePullIsLong(t *testing.T) {
 }
 
 // TestDurableWorkerBacklogUsesOnlyShortPulls checks that a backlog never
-// selects a long pull. A long pull carries a heartbeat, and nats.go v1.54.0
-// does not stop the heartbeat timer of a completed fetch, so long pulls under
-// load would leave one pending timer for each delivery.
+// selects a long pull. Only an idle worker uses long pulls (see Run).
 func TestDurableWorkerBacklogUsesOnlyShortPulls(t *testing.T) {
 	for _, maxConcurrent := range []int{1, 4} {
 		t.Run(fmt.Sprintf("max concurrent %d", maxConcurrent), func(t *testing.T) {
@@ -116,8 +114,10 @@ func TestDurableWorkerIdlePullHonorsMaxRequestExpires(t *testing.T) {
 // consumer limit that changes after construction does not stop delivery.
 // JetStream rejects the long pull; the worker falls back to a short pull and
 // takes the new limit from the rejection for its next long pull. The test
-// also uses the consumer handle while the worker runs: under the race
-// detector, this finds a worker that writes the handle's cached information.
+// also reads the consumer handle while the worker runs. With nats.go before
+// v1.55.0, the race detector finds a worker that refreshes the handle's cached
+// information. Later versions synchronize the cache, so the race detector
+// cannot find it.
 func TestDurableWorkerIdlePullFollowsChangedMaxRequestExpires(t *testing.T) {
 	js, stream := setupTestStream(t)
 	ctx := testContext(t)

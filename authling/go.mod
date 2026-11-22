@@ -6,9 +6,15 @@ tool google.golang.org/protobuf/cmd/protoc-gen-go
 
 require (
 	github.com/a-h/templ v0.3.1020
+	github.com/chattocorp/chatto/pkg/appconfig v0.0.0
+	github.com/chattocorp/chatto/pkg/datacrypto v0.0.0
+	github.com/chattocorp/chatto/pkg/events v0.0.0
+	github.com/chattocorp/chatto/pkg/jetstreamutil v0.0.0
+	github.com/chattocorp/chatto/pkg/jobs v0.0.0
+	github.com/chattocorp/chatto/pkg/natsruntime v0.0.0
 	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/nats-io/nats-server/v2 v2.14.7
-	github.com/nats-io/nats.go v1.54.0
+	github.com/nats-io/nats.go v1.56.0
 	github.com/rs/cors v1.11.1
 	github.com/wneessen/go-mail v0.8.1
 	github.com/zitadel/oidc/v3 v3.51.8
@@ -16,12 +22,6 @@ require (
 	golang.org/x/sync v0.23.0
 	golang.org/x/text v0.42.0
 	google.golang.org/protobuf v1.36.12
-	github.com/chattocorp/chatto/pkg/appconfig v0.0.0
-	github.com/chattocorp/chatto/pkg/datacrypto v0.0.0
-	github.com/chattocorp/chatto/pkg/events v0.0.0
-	github.com/chattocorp/chatto/pkg/jetstreamutil v0.0.0
-	github.com/chattocorp/chatto/pkg/jobs v0.0.0
-	github.com/chattocorp/chatto/pkg/natsruntime v0.0.0
 )
 
 tool github.com/a-h/templ/cmd/templ
