@@ -6,10 +6,8 @@
   import { queryClient } from '$lib/query/queryClient';
   import { settingsQueryKeys } from '$lib/query/settings';
   import AccountName from '$lib/components/users/AccountName.svelte';
-  import { resolve } from '$app/paths';
   import { createAccountAPI } from '@chatto/client/api/account';
   import { Panel, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
-  import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import DeleteAccountSection from './DeleteAccountSection.svelte';
@@ -20,11 +18,6 @@
 
   const serverScope = useServerScope();
   const currentUser = $derived(serverScope.store.currentUser);
-  const serverId = serverScope.serverId;
-  const serverSegment = $derived(serverIdToSegment(serverId));
-  const accountSettingsPath = $derived(
-    resolve('/chat/[serverId]/settings/account', { serverId: serverSegment })
-  );
 
   function accountAPI() {
     return serverScope.connection.getAPI(createAccountAPI);
@@ -63,7 +56,7 @@
         {#key serverScope.store.accountId ?? ''}
           <VerifiedEmailSettings />
         {/key}
-        <ExternalIdentitySettings {currentUser} {accountSettingsPath} />
+        <ExternalIdentitySettings {currentUser} />
       {/snippet}
       {#snippet end()}
         <PasswordSettings

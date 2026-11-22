@@ -218,6 +218,9 @@ test('links a remote identity in one popup and refreshes the original client', a
     await linkPopup.getByLabel('Username or Email').fill('remote-link-user');
     await linkPopup.getByLabel('Password', { exact: true }).fill(password);
     await linkPopup.getByRole('button', { name: 'Sign In', exact: true }).click();
+    // The link window waits for a confirmation before it contacts the provider.
+    await expect(linkPopup).toHaveURL(/\/sso\/link\?/);
+    await linkPopup.getByRole('button', { name: 'Continue with Authling' }).click();
 
     // The same popup completes real provider authorization and closes itself.
     await linkPopup.getByLabel('Email address').fill(email);
