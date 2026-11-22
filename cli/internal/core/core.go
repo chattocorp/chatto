@@ -387,7 +387,7 @@ func (c *ChattoCore) Ready(ctx context.Context) error {
 	if c.natsRecoveredReconnects.Load() != c.nc.Stats().Reconnects {
 		return fmt.Errorf("NATS reconnect has not been recovered")
 	}
-	if _, err := c.storage.runtimeStateKV.Status(ctx); err != nil {
+	if err := c.runtimeStateReady(ctx); err != nil {
 		return fmt.Errorf("RUNTIME_STATE not ready: %w", err)
 	}
 	if _, err := c.currentEventStreamInfo(ctx); err != nil {

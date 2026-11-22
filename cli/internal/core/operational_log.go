@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
 	logv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/log/v1"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
@@ -118,7 +119,7 @@ func (c *ChattoCore) ListBotWebhookFailures(ctx context.Context, actorID, botID,
 	if _, err := c.readBotOutboundWebhook(ctx, actorID, botID, webhookID); err != nil {
 		return nil, err
 	}
-	info, err := c.storage.logStream.Info(ctx)
+	info, err := currentStreamInfo(ctx, c.js, natsresources.Log)
 	if err != nil {
 		return nil, err
 	}

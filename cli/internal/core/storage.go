@@ -359,14 +359,46 @@ func createJetStreamResourceWithRetry[T any](ctx context.Context, create func(co
 	}, create)
 }
 
-// currentEventStreamInfo uses a private handle because Stream.Info mutates its
-// cached metadata. The shared EVT handle also serves concurrent event reads.
-func (c *ChattoCore) currentEventStreamInfo(ctx context.Context) (*jetstream.StreamInfo, error) {
-	handle, err := c.js.Stream(ctx, natsresources.EVT)
+// currentStreamInfo returns the current information of a stream. It opens a
+// new, private handle, which costs one JetStream API request, the same as
+// Stream.Info.
+//
+// Never refresh a shared handle, such as a handle in coreStorage. nats.go
+// writes the cached information of a handle without a lock in Stream.Info,
+// Consumer.Info, and KeyValue.Status (through Stream.Info). Message and key
+// reads through the same handle read that cache. Thus, a refresh of a shared
+// handle is a data race with concurrent reads.
+func currentStreamInfo(ctx context.Context, js jetstream.JetStream, name string) (*jetstream.StreamInfo, error) {
+	handle, err := js.Stream(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 	return handle.CachedInfo(), nil
+}
+
+// currentConsumerInfo returns the current information of the consumer of a
+// shared handle from a new, private handle. See currentStreamInfo.
+func currentConsumerInfo(ctx context.Context, js jetstream.JetStream, shared jetstream.Consumer) (*jetstream.ConsumerInfo, error) {
+	cached := shared.CachedInfo()
+	handle, err := js.Consumer(ctx, cached.Stream, cached.Name)
+	if err != nil {
+		return nil, err
+	}
+	return handle.CachedInfo(), nil
+}
+
+// currentEventStreamInfo returns the current EVT information without a
+// refresh of the shared EVT handle. See currentStreamInfo.
+func (c *ChattoCore) currentEventStreamInfo(ctx context.Context) (*jetstream.StreamInfo, error) {
+	return currentStreamInfo(ctx, c.js, natsresources.EVT)
+}
+
+// runtimeStateReady checks that the RUNTIME_STATE bucket is available. It
+// opens a private handle, because KeyValue.Status refreshes the cached
+// information of the shared handle. See currentStreamInfo.
+func (c *ChattoCore) runtimeStateReady(ctx context.Context) error {
+	_, err := c.js.KeyValue(ctx, natsresources.RuntimeState)
+	return err
 }
 
 // jobsStreamConfig is the event log of background jobs. The stream has no

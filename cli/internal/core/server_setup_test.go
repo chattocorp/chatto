@@ -11,6 +11,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/natsresources"
 	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
@@ -201,22 +202,22 @@ func TestServerSetupLegacyHistoryStaysClosed(t *testing.T) {
 	}
 }
 
-// setupTrafficStream inserts an unrelated durable write after each Info read,
-// making a whole-stream OCC decision stale on every attempt.
-type setupTrafficStream struct {
-	jetstream.Stream
+// setupTrafficJetStream inserts an unrelated durable write after each EVT
+// information read, making a whole-stream OCC decision stale on every attempt.
+type setupTrafficJetStream struct {
+	jetstream.JetStream
 	afterInfo func() error
 }
 
-func (s setupTrafficStream) Info(ctx context.Context, opts ...jetstream.StreamInfoOpt) (*jetstream.StreamInfo, error) {
-	info, err := s.Stream.Info(ctx, opts...)
-	if err != nil {
-		return nil, err
+func (s setupTrafficJetStream) Stream(ctx context.Context, name string) (jetstream.Stream, error) {
+	stream, err := s.JetStream.Stream(ctx, name)
+	if err != nil || name != natsresources.EVT {
+		return stream, err
 	}
 	if err := s.afterInfo(); err != nil {
 		return nil, err
 	}
-	return info, nil
+	return stream, nil
 }
 
 func TestServerSetupUpgradeDoesNotContendWithChatTraffic(t *testing.T) {
@@ -229,7 +230,7 @@ func TestServerSetupUpgradeDoesNotContendWithChatTraffic(t *testing.T) {
 	if err := c.storage.serverEvtStream.DeleteMsg(ctx, seq); err != nil {
 		t.Fatal(err)
 	}
-	c.storage.serverEvtStream = setupTrafficStream{Stream: c.storage.serverEvtStream, afterInfo: func() error {
+	c.js = setupTrafficJetStream{JetStream: c.js, afterInfo: func() error {
 		event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerNameChanged{ServerNameChanged: &evtv1.ServerNameChangedEvent{Name: "Traffic"}}})
 		_, err := c.EventPublisher.AppendEventually(ctx, evtstream.ConfigSubjectAggregate(ConfigSubjectServer).SubjectFor(event), event)
 		return err

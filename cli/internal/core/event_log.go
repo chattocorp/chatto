@@ -83,7 +83,7 @@ func (c *ChattoCore) ListEventLog(ctx context.Context, userID string, query Even
 	}
 
 	stream := c.storage.serverEvtStream
-	info, err := stream.Info(ctx)
+	info, err := c.currentEventStreamInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("stream info: %w", err)
 	}
