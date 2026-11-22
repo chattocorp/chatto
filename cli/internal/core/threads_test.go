@@ -1,8 +1,8 @@
 package core
 
 import (
-	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,8 +17,94 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// gatedThreadProjection is a ThreadProjection whose Apply waits while its
+// gate is held. Tests use it to hold the room model's thread projection
+// behind EVT without replacing the projection on a running core.
+type gatedThreadProjection struct {
+	*ThreadProjection
+	gate *projectionApplyGate
+}
+
+// Apply waits for the gate and then applies the event to the embedded
+// projection.
+func (p *gatedThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
+	p.gate.wait()
+	return p.ThreadProjection.Apply(event, seq)
+}
+
+// OwnsProjection lets the embedded projection bind to this projector.
+func (p *gatedThreadProjection) OwnsProjection(projection events.SubjectProjection) bool {
+	inner, ok := projection.(*ThreadProjection)
+	return ok && inner == p.ThreadProjection
+}
+
+// projectionApplyGate blocks projection applies between hold and release.
+// It starts open.
+type projectionApplyGate struct {
+	mu      sync.Mutex
+	held    chan struct{}
+	blocked chan struct{}
+}
+
+func newProjectionApplyGate() *projectionApplyGate {
+	return &projectionApplyGate{blocked: make(chan struct{}, 1)}
+}
+
+// hold makes later applies wait until release.
+func (g *projectionApplyGate) hold() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.held == nil {
+		g.held = make(chan struct{})
+	}
+}
+
+// release lets waiting and later applies continue. It is idempotent.
+func (g *projectionApplyGate) release() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.held != nil {
+		close(g.held)
+		g.held = nil
+	}
+}
+
+// wait returns at once when the gate is open. Otherwise it signals blocked
+// and waits for release.
+func (g *projectionApplyGate) wait() {
+	g.mu.Lock()
+	held := g.held
+	g.mu.Unlock()
+	if held == nil {
+		return
+	}
+	select {
+	case g.blocked <- struct{}{}:
+	default:
+	}
+	<-held
+}
+
 func TestPostThreadReplyWaitsForFollowProjectionBeforePlanningNotifications(t *testing.T) {
-	chattoCore, _ := setupTestCore(t)
+	chattoCore, _ := newTestCore(t)
+	// Give the room model its own thread projection behind a gate before the
+	// core starts. The core's workers read roomModel.threads, so the test
+	// must not replace it later.
+	gate := newProjectionApplyGate()
+	gated := &gatedThreadProjection{ThreadProjection: NewThreadProjection(), gate: gate}
+	gatedHandle := mustProjector(evtstream.NewProjectionHandle(
+		chattoCore.js,
+		chattoCore.storage.serverEvtStream,
+		gated,
+		events.ProjectorOptions{},
+	))
+	chattoCore.roomModel.threads = evtstream.BindProjectionHandle(gated.ThreadProjection, gatedHandle.Projector())
+	testutil.StartService(t, "gated thread projector", gatedHandle.Projector().Run, gatedHandle.Projector().WaitForStartup)
+	// Cleanups run in reverse order: release a held apply before the
+	// projector stops.
+	t.Cleanup(gate.release)
+	startCoreServices(t, chattoCore)
+
 	ctx := testContext(t)
 	alice, err := chattoCore.CreateUser(ctx, SystemActorID, "thread-fence-alice", "Thread Fence Alice", "password")
 	if err != nil {
@@ -44,15 +130,31 @@ func TestPostThreadReplyWaitsForFollowProjectionBeforePlanningNotifications(t *t
 	if _, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, bob.Id, "first reply creates the thread", nil, root.Id, "", nil, false); err != nil {
 		t.Fatalf("PostMessage first reply: %v", err)
 	}
+	// The first reply made alice follow the thread. Unfollow now, then
+	// follow again behind the gate, so that only a projection that waited
+	// for the follow tail sees alice as a follower.
+	if err := chattoCore.UnfollowThread(ctx, KindChannel, alice.Id, room.Id, root.Id); err != nil {
+		t.Fatalf("UnfollowThread alice: %v", err)
+	}
 	testDeleteAllNotificationOccurrences(t, chattoCore, alice.Id)
 
-	delayedThreads := mustProjector(evtstream.NewProjectionHandle(
-		chattoCore.js,
-		chattoCore.storage.serverEvtStream,
-		NewThreadProjection(),
-		events.ProjectorOptions{},
-	))
-	chattoCore.roomModel.threads = delayedThreads
+	gate.hold()
+	follow := newEvent(alice.Id, &evtv1.Event{Event: &evtv1.Event_ThreadFollowed{ThreadFollowed: &evtv1.ThreadFollowedEvent{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		UserId:            alice.Id,
+		Source:            evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL,
+	}}})
+	agg := evtstream.RoomAggregate(room.Id)
+	if _, err := chattoCore.EventPublisher.AppendEventually(ctx, agg.SubjectFor(follow), follow); err != nil {
+		t.Fatalf("append thread follow: %v", err)
+	}
+	select {
+	case <-gate.blocked:
+	case <-ctx.Done():
+		t.Fatalf("gated thread projection did not reach the held follow: %v", ctx.Err())
+	}
+
 	type postResult struct {
 		event *evtv1.Event
 		err   error
@@ -64,21 +166,11 @@ func TestPostThreadReplyWaitsForFollowProjectionBeforePlanningNotifications(t *t
 	}()
 	select {
 	case early := <-result:
-		t.Fatalf("PostMessage returned before delayed thread projection started: (%+v, %v)", early.event, early.err)
+		t.Fatalf("PostMessage returned while the thread projection held the follow: (%+v, %v)", early.event, early.err)
 	case <-time.After(50 * time.Millisecond):
 	}
 
-	runCtx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- delayedThreads.Projector().Run(runCtx) }()
-	t.Cleanup(func() {
-		cancel()
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			t.Fatal("delayed thread projector did not stop")
-		}
-	})
+	gate.release()
 	select {
 	case posted := <-result:
 		if posted.err != nil || posted.event == nil {
