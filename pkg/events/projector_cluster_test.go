@@ -101,6 +101,9 @@ func TestProjectorClusterServerChange(t *testing.T) {
 			h.waitFor(later)
 			h.expectApplied(first, s, next, later)
 			nowConsumer, nowHost := h.projectorConsumer()
+			if change == "consumer host shutdown" && nowConsumer == consumer {
+				t.Fatalf("consumer %s was not replaced after its node stopped", consumer)
+			}
 			t.Logf("client on %s, client reconnects %d, consumer %s on %s, now %s on %s", client, h.conn.Stats().Reconnects, consumer, host, nowConsumer, nowHost)
 		})
 	}

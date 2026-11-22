@@ -769,15 +769,21 @@ func (p *Projector) validateSeqSubject(ctx context.Context, pos StreamPosition) 
 // stream message currently matching its subject filters. It is intended
 // for diagnostics and sequencing: call it after the projector is
 // running to ensure projection reads reflect the stream as of this call.
+// It also waits for every event that the projector has already received.
+// Such an event can be newer than the latest retained message when it was
+// deleted or expired after delivery.
 func (p *Projector) WaitForCurrent(ctx context.Context) error {
 	target, err := p.currentTarget(ctx)
 	if err != nil {
 		return err
 	}
-	if target.seq == 0 {
+	p.mu.Lock()
+	seq := max(target.seq, p.deliveredSeq)
+	p.mu.Unlock()
+	if seq == 0 {
 		return nil
 	}
-	return p.waitForSeq(ctx, target.seq, nil)
+	return p.waitForSeq(ctx, seq, nil)
 }
 
 // CurrentTargetSeq returns the highest stream sequence currently matching
@@ -1063,7 +1069,10 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 	// after the goroutine returns because nats.go v1.54 does not synchronize
 	// Stop with the consumer reset inside Next. Only when the goroutine does
 	// not stop in time, for example because the reset retries while NATS is
-	// unavailable, does Stop run at the same time to cancel the reset.
+	// unavailable, does Stop run at the same time to cancel the reset. If a
+	// reset completes at that moment, nats.go v1.54 races on its current
+	// subscription, and the new subscription can stay open until the
+	// connection closes. nats.go v1.55 removes the race.
 	defer func() {
 		stopConsume()
 		select {
@@ -1147,7 +1156,13 @@ func (p *Projector) reconcileStartup(ctx context.Context, previousHandledSeq uin
 
 	p.applyMu.Lock()
 	handledSeq, pending = p.startupProgress()
-	if !pending || current.seq > handledSeq {
+	// An event that is delivered but not yet applied or buffered is still in
+	// decode or waits for applyMu. Its handling completes startup or makes
+	// progress, so do not complete startup before it.
+	p.mu.Lock()
+	inProgress := p.deliveredSeq > handledSeq
+	p.mu.Unlock()
+	if !pending || inProgress || current.seq > handledSeq {
 		p.applyMu.Unlock()
 		return handledSeq
 	}
@@ -1231,7 +1246,9 @@ func (p *Projector) consume(ctx context.Context, messages jetstream.MessagesCont
 		if err != nil {
 			// The ordered consumer resets itself for heartbeat, reconnect,
 			// sequence, and deleted-consumer errors. It returns other errors,
-			// such as a failed reset attempt, and the next call tries again.
+			// for example a metadata error or a failure to start the new
+			// subscription after a reset. The next call continues, or it
+			// returns ErrMsgIteratorClosed, and then the projector fails.
 			p.logger.Warn("Projection consumer error (auto-recovering)", "error", err)
 			continue
 		}

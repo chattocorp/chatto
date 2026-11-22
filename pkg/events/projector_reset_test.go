@@ -137,6 +137,9 @@ type resetHarness struct {
 
 	mu          sync.Mutex
 	decodeHooks map[string]func()
+	gates       []*gate
+	// configure, when set, changes the projector before Run starts.
+	configure func(*Projector)
 }
 
 func newResetHarness(t *testing.T) *resetHarness {
@@ -158,8 +161,9 @@ func newResetHarnessOn(t *testing.T, ctx context.Context, conn *nats.Conn, js je
 	}
 }
 
-// start builds the projector for projection and runs it. Gates that the
-// test opens in its cleanup run before the projector stops.
+// start builds the projector for projection and runs it. Its cleanup opens
+// every gate of the harness before it stops the projector, so a failed test
+// cannot leave Run waiting for a held event.
 func (h *resetHarness) start(projection SubjectProjection, waitForStartup bool) {
 	h.t.Helper()
 	decoder := func(data []byte) (DecodedEvent[string], error) {
@@ -179,10 +183,14 @@ func (h *resetHarness) start(projection SubjectProjection, waitForStartup bool) 
 		}
 		return decode(data)
 	}
+	if h.configure != nil {
+		h.configure(h.projector)
+	}
 	runCtx, stop := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- h.projector.Run(runCtx) }()
 	h.t.Cleanup(func() {
+		h.openGates()
 		stop()
 		if err := <-done; err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, ErrProjectionFailed) && !errors.Is(err, jetstream.ErrMsgIteratorClosed) {
 			h.t.Errorf("Run: %v", err)
@@ -195,10 +203,28 @@ func (h *resetHarness) start(projection SubjectProjection, waitForStartup bool) 
 	}
 }
 
-// holdDecode makes the decoder hold event until the gate opens.
-func (h *resetHarness) holdDecode(event string) *gate {
+// gate returns a new gate that the harness opens before the projector stops.
+func (h *resetHarness) gate() *gate {
 	g := newGate()
 	h.t.Cleanup(g.open)
+	h.mu.Lock()
+	h.gates = append(h.gates, g)
+	h.mu.Unlock()
+	return g
+}
+
+func (h *resetHarness) openGates() {
+	h.mu.Lock()
+	gates := slices.Clone(h.gates)
+	h.mu.Unlock()
+	for _, g := range gates {
+		g.open()
+	}
+}
+
+// holdDecode makes the decoder hold event until the gate opens.
+func (h *resetHarness) holdDecode(event string) *gate {
+	g := h.gate()
 	h.mu.Lock()
 	h.decodeHooks[event] = g.hold
 	h.mu.Unlock()
@@ -207,8 +233,7 @@ func (h *resetHarness) holdDecode(event string) *gate {
 
 // holdApply makes Apply hold event until the gate opens.
 func (h *resetHarness) holdApply(event string) *gate {
-	g := newGate()
-	h.t.Cleanup(g.open)
+	g := h.gate()
 	h.projection.setHook(event, func() error { g.hold(); return nil })
 	return g
 }
@@ -307,12 +332,14 @@ func TestProjectorResetDoesNotOvertakeHeldEvent(t *testing.T) {
 			case "apply barrier":
 				// A read barrier holds applyMu, so s waits for it after its
 				// decoder returns.
-				held = newGate()
-				t.Cleanup(held.open)
+				held = h.gate()
 				barrier := waitAsync(func() error {
 					return h.projector.WithReadBarrier(func(uint64) error { held.hold(); return nil })
 				})
-				t.Cleanup(func() { <-barrier })
+				t.Cleanup(func() {
+					held.open()
+					<-barrier
+				})
 				receive(t, held.entered, "read barrier")
 				decoded = make(chan struct{})
 				h.mu.Lock()
@@ -420,8 +447,7 @@ func TestProjectorResetFailureOnHeldEvent(t *testing.T) {
 				event = "undecodable"
 				held = h.holdDecode(event)
 			} else {
-				held = newGate()
-				t.Cleanup(held.open)
+				held = h.gate()
 				h.projection.setHook(event, func() error {
 					held.hold()
 					return errors.New("apply failed")
@@ -511,13 +537,18 @@ func TestProjectorResetDuringStartupReplay(t *testing.T) {
 
 // TestProjectorResetWithLiveBatch puts s in a live batch and forces a reset
 // before the batch flushes. The flush applies s and the later event in order,
-// and no waiter returns before the flush.
+// and no waiter returns before the flush. The batch flushes by size, by the
+// timer in the Run goroutine, or holds s inside the flush.
 func TestProjectorResetWithLiveBatch(t *testing.T) {
-	for _, stage := range []string{"buffered", "flush"} {
+	for _, stage := range []string{"buffered", "timer", "flush"} {
 		t.Run(stage, func(t *testing.T) {
 			h := newResetHarness(t)
 			projection := &resetBatchProjection{resetProjection: h.projection, startupSize: 1, liveSize: 2, liveDelay: time.Hour}
-			if stage == "flush" {
+			switch stage {
+			case "timer":
+				projection.liveSize = 10
+				projection.liveDelay = resetObservationWindow
+			case "flush":
 				projection.liveSize = 1
 			}
 			h.start(projection, true)
@@ -529,18 +560,23 @@ func TestProjectorResetWithLiveBatch(t *testing.T) {
 			if held != nil {
 				receive(t, held.entered, "hold flush")
 			} else {
-				waitDelivered(t, h, s)
+				h.waitLiveBatched(1)
 			}
 			h.reconnect()
 			waitS := waitAsync(func() error { return h.projector.WaitFor(h.ctx, SubjectPosition(resetConsumedSubject, s)) })
-			if held != nil {
+			switch stage {
+			case "flush":
 				next := h.append(resetConsumedSubject, "next")
 				h.expectHeld("s is in a live batch flush", waitS)
 				held.open()
 				h.waitFor(next)
 				h.expectApplied(s, next)
-			} else {
+			case "buffered":
 				h.expectHeld("s is in an unflushed live batch", waitS)
+				next := h.append(resetConsumedSubject, "next")
+				h.waitFor(next)
+				h.expectApplied(s, next)
+			case "timer":
 				next := h.append(resetConsumedSubject, "next")
 				h.waitFor(next)
 				h.expectApplied(s, next)
@@ -552,13 +588,19 @@ func TestProjectorResetWithLiveBatch(t *testing.T) {
 	}
 }
 
-// waitDelivered waits until the projector reports seq as delivered.
-func waitDelivered(t *testing.T, h *resetHarness, seq uint64) {
-	t.Helper()
-	for h.projector.Status().ObservedSeq < seq {
+// waitLiveBatched waits until the live batch holds n events.
+func (h *resetHarness) waitLiveBatched(n int) {
+	h.t.Helper()
+	for {
+		h.projector.applyMu.Lock()
+		batched := len(h.projector.liveBatch)
+		h.projector.applyMu.Unlock()
+		if batched >= n {
+			return
+		}
 		select {
 		case <-h.ctx.Done():
-			t.Fatalf("seq %d was not delivered", seq)
+			h.t.Fatalf("live batch has %d events, want %d", batched, n)
 		case <-time.After(time.Millisecond):
 		}
 	}
@@ -652,8 +694,17 @@ func TestProjectorStopsDuringEndlessReset(t *testing.T) {
 	if err := projector.WaitForStartup(h.ctx); err != nil {
 		t.Fatal(err)
 	}
+	// The reset of the ordered consumer creates a new consumer. Wait for the
+	// first such request after the stream is gone.
+	createRequests, err := h.conn.SubscribeSync("$JS.API.CONSUMER.CREATE.EVENTS_RESET.>")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := h.js.DeleteStream(h.ctx, "EVENTS_RESET"); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := createRequests.NextMsgWithContext(h.ctx); err != nil {
+		t.Fatalf("consumer reset did not start: %v", err)
 	}
 	stop()
 	select {
@@ -664,4 +715,34 @@ func TestProjectorStopsDuringEndlessReset(t *testing.T) {
 	case <-h.ctx.Done():
 		t.Fatal("Run did not return while the consumer reset retried")
 	}
+}
+
+// TestProjectorStartupWaitsForEventDeletedInDecode holds the startup target
+// in its decoder and deletes it from the stream. Startup reconciliation then
+// sees only older retained events, but it must not complete startup, and
+// WaitForCurrent must not return, before the delivered event is applied.
+func TestProjectorStartupWaitsForEventDeletedInDecode(t *testing.T) {
+	h := newResetHarness(t)
+	first := h.append(resetConsumedSubject, "first")
+	s := h.append(resetConsumedSubject, "s")
+	held := h.holdDecode("s")
+	h.configure = func(p *Projector) { p.startupReconcileInterval = 10 * time.Millisecond }
+	h.start(h.projection, false)
+	receive(t, held.entered, "hold s")
+	if err := h.stream.DeleteMsg(h.ctx, s); err != nil {
+		t.Fatal(err)
+	}
+	waitStartup := waitAsync(func() error { return h.projector.WaitForStartup(h.ctx) })
+	waitCurrent := waitAsync(func() error { return h.projector.WaitForCurrent(h.ctx) })
+	if seq := <-h.projection.applied; seq != first {
+		t.Fatalf("applied %d first, want %d", seq, first)
+	}
+	h.expectHeld("the deleted target is in decode", waitStartup, waitCurrent)
+	held.open()
+	for _, waiter := range []<-chan error{waitStartup, waitCurrent} {
+		if err := <-waiter; err != nil {
+			t.Fatal(err)
+		}
+	}
+	h.expectApplied(first, s)
 }
