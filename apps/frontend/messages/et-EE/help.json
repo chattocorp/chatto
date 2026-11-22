@@ -9,6 +9,13 @@
       "question": "Kes liitub järgmise kõnega?"
     },
     "overview": "Ülevaade",
+    "whats_new": {
+      "title": "Mis on uut",
+      "description": "Chatto iga väljalaske olulisemad muudatused inglise keeles.",
+      "full_changelog": "Täielik muudatuste logi",
+      "release_notes": "Väljalaske {version} märkmed",
+      "empty": "Olulisi muudatusi veel pole."
+    },
     "intro": "Lühijuhendid vestlemiseks ja serveri haldamiseks.",
     "users": "Liikmetele",
     "admins": "Administraatoritele",

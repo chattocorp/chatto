@@ -9,6 +9,13 @@
       "question": "Quem vai participar na próxima chamada?"
     },
     "overview": "Vista geral",
+    "whats_new": {
+      "title": "Novidades",
+      "description": "Os destaques de cada versão do Chatto, em inglês.",
+      "full_changelog": "Registo de alterações completo",
+      "release_notes": "Notas da versão {version}",
+      "empty": "Ainda não há destaques."
+    },
     "intro": "Guias breves para conversar e administrar um servidor.",
     "users": "Para membros",
     "admins": "Para administradores",

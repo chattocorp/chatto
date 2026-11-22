@@ -9,6 +9,13 @@
       "question": "Wie doet mee aan het volgende gesprek?"
     },
     "overview": "Overzicht",
+    "whats_new": {
+      "title": "Wat is er nieuw",
+      "description": "De hoogtepunten van elke Chatto-versie, in het Engels.",
+      "full_changelog": "Volledig wijzigingslogboek",
+      "release_notes": "Release-opmerkingen voor {version}",
+      "empty": "Er zijn nog geen hoogtepunten."
+    },
     "intro": "Korte handleidingen voor chatten en serverbeheer.",
     "users": "Voor leden",
     "admins": "Voor beheerders",

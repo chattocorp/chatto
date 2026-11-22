@@ -9,6 +9,13 @@
       "question": "谁会参加下一次通话？"
     },
     "overview": "概览",
+    "whats_new": {
+      "title": "新功能",
+      "description": "Chatto 每个版本的亮点（英文）。",
+      "full_changelog": "完整更新日志",
+      "release_notes": "{version} 版本说明",
+      "empty": "暂无亮点。"
+    },
     "intro": "聊天和服务器管理的简短指南。",
     "users": "面向成员",
     "admins": "面向管理员",

@@ -13,6 +13,11 @@
       href: resolve('/help'),
       label: m('help.overview'),
       icon: 'iconify icon-[uil--question-circle]'
+    },
+    {
+      href: resolve('/help/whats-new'),
+      label: m('help.whats_new.title'),
+      icon: 'iconify icon-[uil--star]'
     }
   ]);
 </script>

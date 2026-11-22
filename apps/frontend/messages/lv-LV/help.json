@@ -9,6 +9,13 @@
       "question": "Kurš pievienosies nākamajam zvanam?"
     },
     "overview": "Pārskats",
+    "whats_new": {
+      "title": "Kas jauns",
+      "description": "Katras Chatto versijas galvenās izmaiņas angļu valodā.",
+      "full_changelog": "Pilns izmaiņu žurnāls",
+      "release_notes": "Versijas {version} piezīmes",
+      "empty": "Galveno izmaiņu vēl nav."
+    },
     "intro": "Īsas pamācības sarunām un servera pārvaldībai.",
     "users": "Dalībniekiem",
     "admins": "Administratoriem",
