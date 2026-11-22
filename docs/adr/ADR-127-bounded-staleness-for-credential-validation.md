@@ -137,9 +137,13 @@ little.
 ### 4. Two gates end the window early
 
 A replica uses the fast check only while it has reason to believe that its
-User Auth projection is fed. Each of these conditions ends the window
-immediately for all users on that replica. The next validation of each user
-is then strict.
+User Auth projection is fed. Each auth generation check, fast or strict,
+samples both gates. When a sample finds a gate closed, the window ends for all
+users on that replica, and the next validation of each user is strict. A
+strict check that finds a gate closed at its start or end starts no window.
+A gate that closes and opens again between two samples is not seen. The NATS
+reconnect count fences connection gaps between samples. For a stall between
+samples, the window stays the bound.
 
 1. **The NATS connection is not connected, or the recovery after a reconnect
    is not complete.** The strict check then fails and the replica rejects the

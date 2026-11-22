@@ -796,6 +796,36 @@ func TestAuthGenerationWindowConnectionGate(t *testing.T) {
 	}
 }
 
+// A strict check that finds a gate closed also ends every window, not only
+// the fast check.
+func TestAuthGenerationWindowStrictCheckWithClosedGateEndsEveryWindow(t *testing.T) {
+	core, _ := setupTestCore(t)
+	clock := installAuthClock(core)
+	clock.setTick(time.Nanosecond)
+	ctx := testContext(t)
+	first, err := core.CreateUser(ctx, SystemActorID, "gate-window-first", "Gate Window First", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	second, err := core.CreateUser(ctx, SystemActorID, "gate-window-second", "Gate Window Second", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	mustCreateCookieSession(t, core, first.Id)
+	if !core.authWindow.allows(first.Id, core.natsReconnects()) {
+		t.Fatal("no window for the first user")
+	}
+	core.natsRecoveryState.Store(natsRecoveryInProgress)
+	t.Cleanup(func() { core.natsRecoveryState.Store(natsRecoveryReady) })
+	if _, err := core.CurrentAuthGeneration(ctx, second.Id); err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	core.natsRecoveryState.Store(natsRecoveryReady)
+	if core.authWindow.allows(first.Id, core.natsReconnects()) || core.authWindow.size() != 0 {
+		t.Fatal("window survived a strict check that found a gate closed")
+	}
+}
+
 // Gate 1 also covers a reconnect that a replica sees before its recovery
 // starts: the reconnect counter differs from the recovered one. The test
 // forces a real reconnect of the replica's connection.

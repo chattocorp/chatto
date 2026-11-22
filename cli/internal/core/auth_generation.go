@@ -32,7 +32,7 @@ func (c *ChattoCore) strictAuthGeneration(ctx context.Context, userID string, re
 	// that the check confirmed.
 	startedAt := c.authWindow.now()
 	reconnects := c.natsReconnects()
-	gatesOpen := c.authGenerationGatesOpen()
+	gatesOpen := c.gatesOpenOrCloseAll()
 	if err := c.waitForUserAuthGenerationCurrent(ctx, userID); err != nil {
 		c.authWindow.clear(userID)
 		return 0, err
@@ -44,7 +44,7 @@ func (c *ChattoCore) strictAuthGeneration(ctx context.Context, userID string, re
 	}
 	// A strict check while a gate is closed, or one that a gate closure
 	// interrupted, starts no window (ADR-127 section 4).
-	if gatesOpen && c.authGenerationGatesOpen() {
+	if gatesOpen && c.gatesOpenOrCloseAll() {
 		c.authWindow.accepted(userID, startedAt, reconnects)
 	}
 	return generation, nil
@@ -130,8 +130,7 @@ const fastCheckAccepted = strictReasonCount
 // fastAuthGenerationCheck returns fastCheckAccepted when the fast check
 // accepts the credential, or else the reason why the check must be strict.
 func (c *ChattoCore) fastAuthGenerationCheck(userID string, authGeneration uint64) strictAuthGenerationReason {
-	if !c.authGenerationGatesOpen() {
-		c.authWindow.closeAll()
+	if !c.gatesOpenOrCloseAll() {
 		return strictReasonGate
 	}
 	if !c.authWindow.allows(userID, c.natsReconnects()) {
@@ -162,6 +161,18 @@ func (c *ChattoCore) authGenerationGatesOpen() bool {
 		return false
 	}
 	return userAuthProjectorGateOpen(c.userModel.auth.Projector().Status())
+}
+
+// gatesOpenOrCloseAll reports whether both gates are open. When a gate is
+// closed, it ends the window of every user. Every sample of the gates, by a
+// fast or a strict check, goes through it. A gate that closes and opens again
+// between two samples is not seen.
+func (c *ChattoCore) gatesOpenOrCloseAll() bool {
+	if c.authGenerationGatesOpen() {
+		return true
+	}
+	c.authWindow.closeAll()
+	return false
 }
 
 // userAuthProjectorGateOpen is gate 2 of ADR-127: the User Auth projector has
