@@ -347,9 +347,11 @@ func (w *DurableWorker) adaptIdleFetchWait(err error) {
 //
 // nats.go v1.54.0 does not stop the heartbeat timer of a completed fetch; the
 // timer callback runs two heartbeat intervals later and then releases the
-// fetch state. Only long pulls have a heartbeat, and a long pull starts only
-// after an empty short pull, so a worker holds at most one such timer for each
-// FetchMaxWait, also under load.
+// fetch state. With a FetchMaxWait below 10 seconds, only long pulls have a
+// heartbeat, and a long pull starts only after an empty short pull. A worker
+// thus starts at most one such timer for each short pull that expires empty
+// (about 0.9 times FetchMaxWait), also under load. A FetchMaxWait of 10 seconds
+// or more gives short pulls a heartbeat too.
 func fetchOptions(ctx context.Context) []jetstream.FetchOpt {
 	opts := []jetstream.FetchOpt{jetstream.FetchContext(ctx)}
 	if deadline, ok := ctx.Deadline(); ok {
