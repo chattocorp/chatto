@@ -355,8 +355,9 @@ func (p *Projector) resolveCurrentStreamIdentity(ctx context.Context, resolve St
 }
 
 // freshStreamInfo reads current stream metadata through a short-lived handle.
-// The NATS client mutates a stream handle's cached info during Info. Projector
-// reads can run concurrently, so they must not share that mutation.
+// Info replaces a stream handle's cached info for all users of the handle.
+// Projector reads use the shared handle concurrently, so they must not see
+// that replacement.
 func (p *Projector) freshStreamInfo(ctx context.Context) (*jetstream.StreamInfo, error) {
 	streamName := p.stream.CachedInfo().Config.Name
 	stream, err := p.js.Stream(ctx, streamName)

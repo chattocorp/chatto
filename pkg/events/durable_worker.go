@@ -215,8 +215,8 @@ func NewDurableWorker(
 // short pulls, and a rejected long pull falls back to a short pull. The
 // consumer's MaxRequestExpires can become smaller while the worker runs. When
 // JetStream rejects a long pull for that reason, the worker takes the new limit
-// from the rejection. It does not read consumer information, because nats.go
-// does not synchronize the cached information of a shared consumer handle.
+// from the rejection. It does not read consumer information: Info on a shared
+// consumer handle replaces the cached information for all users of the handle.
 //
 // Only a pull can start a delivery, so no delivery is active while a long
 // pull is outstanding. Thus, when cancellation hands off active deliveries,
@@ -345,13 +345,11 @@ func (w *DurableWorker) adaptIdleFetchWait(err error) {
 // idle heartbeat comes from the remaining lifetime. Below 10 seconds, nats.go
 // sends no heartbeat by default, and the worker keeps that default.
 //
-// nats.go v1.54.0 does not stop the heartbeat timer of a completed fetch; the
-// timer callback runs two heartbeat intervals later and then releases the
-// fetch state. With a FetchMaxWait below 10 seconds, only long pulls have a
-// heartbeat, and a long pull starts only after an empty short pull. A worker
-// thus starts at most one such timer for each short pull that expires empty
-// (about 0.9 times FetchMaxWait), also under load. A FetchMaxWait of 10 seconds
-// or more gives short pulls a heartbeat too.
+// With a FetchMaxWait below 10 seconds, only long pulls have a heartbeat, and a
+// long pull starts only after an empty short pull. A FetchMaxWait of 10 seconds
+// or more gives short pulls a heartbeat too. Since nats.go v1.55.0, a fetch
+// stops its heartbeat and expiry timers when it completes, so a completed pull
+// keeps no timer callback.
 func fetchOptions(ctx context.Context) []jetstream.FetchOpt {
 	opts := []jetstream.FetchOpt{jetstream.FetchContext(ctx)}
 	if deadline, ok := ctx.Deadline(); ok {
