@@ -28,7 +28,7 @@ To enable a multi-instance client — where a single frontend connects to multip
 **Opaque tokens in NATS KV:**
 
 - Simple random strings stored as keys in a KV bucket
-- Instant revocation (delete the key)
+- Fast revocation (delete the key)
 - Automatic expiry via NATS KV's built-in TTL
 - Consistent with the existing storage model (no new infrastructure)
 - Requires a KV lookup per request — but we already do one anyway for the user
@@ -75,8 +75,8 @@ credentials are never copied into runtime values or the event log.
 - **Renewal is a separate lifecycle concern**: ADR-079 adds rotating refresh
   credentials and lost-response recovery while retaining the opaque access
   token and server-side revocation properties selected here.
-- **Instant revocation**: Deleting a KV key immediately invalidates the token. No blocklist management or "wait for JWT expiry" window.
+- **Fast revocation**: Deleting a KV key invalidates the token when the KV replica that serves the validation has the deletion, usually at once (ADR-079). An auth-generation change, such as a password change or a deactivation, invalidates it within one minute in the worst case: a replica whose User Auth projection has not applied the event can accept the token for the auth generation check window ([ADR-127](ADR-127-bounded-staleness-for-credential-validation.md)). No blocklist management or "wait for JWT expiry" window.
 - **One KV lookup per request**: Token validation requires a `Get` on `RUNTIME_STATE`, but this is negligible given we already do a user load per authenticated request.
-- **No reverse index**: the account deletion JOBS worker scans `session.*` and stable `renewable_session.*` authorities and matches the stored user ID. Password changes and resets do not scan, because each scan reads every credential on the server. The revocation guarantee comes from the credential's stored auth generation being compared to the current user auth generation, so concurrent issuance cannot survive by missing either scan. A secondary index can be added later if credential counts make scans too expensive.
+- **No reverse index**: the account deletion JOBS worker scans `session.*` and stable `renewable_session.*` authorities and matches the stored user ID. Password changes and resets do not scan, because each scan reads every credential on the server. The revocation guarantee comes from the credential's stored auth generation being compared to the current user auth generation, so concurrent issuance cannot survive by missing either scan. This guarantee applies within one minute in the worst case (ADR-127). A secondary index can be added later if credential counts make scans too expensive.
 - **No origin setup**: Chatto permits cross-origin HTTP and realtime transport without credentialed CORS. Exact callback trust comes from CIMD or a built-in client registration instead of operator-managed origin lists.
 - **Open client ecosystem**: Any version-compatible public client may connect once it publishes valid CIMD metadata and the user consents. Stable client IDs support consent, audit, and future administrative policy without a preregistration table.

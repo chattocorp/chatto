@@ -91,6 +91,9 @@ type ChattoCore struct {
 	natsRecoveryState         atomic.Int32
 	natsRecoveryStartedAt     atomic.Int64
 	natsRecoveredReconnects   atomic.Uint64
+	// authWindow is the process-local auth generation check window state
+	// (ADR-127). It is never persisted or shared.
+	authWindow *authGenerationWindow
 
 	// VideoUploadsEnabled makes message commits enqueue durable processing work
 	// for accepted video-shaped attachments. Worker placement is configured

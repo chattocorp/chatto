@@ -603,14 +603,26 @@ realtime connections as the durable fact reaches each replica. They have no
 external effect or separate recovery store. See
 [account deactivation](../../cli/internal/core/user_deactivation.go).
 
-Each validation of a runtime credential checks the auth generation. Before
-the check reads the projection, it waits until the projection has applied the
-newest event of that user that can change the result: account creation,
-password change, external identity unlink, account deletion, deactivation
-change, and the two key-shredding events. It reads the position of each of
-these subjects from the stream leader, concurrently. It does not wait for
-events of other users or for other event types. See
+Each validation of a runtime credential checks the auth generation. The
+strict auth generation check waits, before it reads the projection, until the
+projection has applied the newest event of that user that can change the
+result: account creation, password change, external identity unlink, account
+deletion, deactivation change, and the two key-shredding events. It reads the
+position of each of these subjects from the stream leader, concurrently. It
+does not wait for events of other users or for other event types. See
 [auth generation](../../cli/internal/core/auth_generation.go).
+
+The read-only first pass of request validation can use the fast check
+instead: for 60 seconds after a strict check accepted a user, it reads the
+local projection and sends nothing to the stream leader. The fast check can
+only accept. Any other answer runs the strict check. The fast check is not
+used while the NATS connection is not connected, while reconnect recovery is
+not complete, or while the User Auth projector reports failure or stall.
+Every other caller, and the realtime credential timer, uses the strict check.
+Thus a replica whose projection has not applied a revocation can accept the
+revoked credential for a maximum of 60 seconds. See
+[ADR-127](../adr/ADR-127-bounded-staleness-for-credential-validation.md) and
+[auth generation window](../../cli/internal/core/auth_generation_window.go).
 
 The other reads of the projection also wait only for the subjects that can
 change the result. Each read keeps its list of subjects next to it. Bot API

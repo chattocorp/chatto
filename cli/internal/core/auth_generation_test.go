@@ -184,43 +184,7 @@ func TestCurrentAuthGenerationReadsOnlySubjectsOfTheUser(t *testing.T) {
 	userID := createGenerationZeroPasswordUser(t, core, "read-budget-user")
 	createGenerationZeroPasswordUser(t, core, "read-budget-other-user")
 
-	sub, err := nc.SubscribeSync("$JS.API.STREAM.MSG.GET.EVT")
-	if err != nil {
-		t.Fatalf("subscribe: %v", err)
-	}
-	if err := nc.Flush(); err != nil {
-		t.Fatalf("flush: %v", err)
-	}
-	mustCurrentAuthGeneration(t, core, userID)
-	// The check has the replies to its requests, so the server has sent the
-	// requests to this subscription already. The flush returns after them.
-	if err := nc.Flush(); err != nil {
-		t.Fatalf("flush: %v", err)
-	}
-	pending, _, err := sub.Pending()
-	if err != nil {
-		t.Fatalf("pending: %v", err)
-	}
-	var got []string
-	for range pending {
-		msg, err := sub.NextMsg(time.Second)
-		if err != nil {
-			t.Fatalf("next request: %v", err)
-		}
-		var request struct {
-			LastBySubject string `json:"last_by_subj"`
-		}
-		if err := json.Unmarshal(msg.Data, &request); err != nil {
-			t.Fatalf("decode request: %v", err)
-		}
-		// Background source checks read wildcard filters of the form
-		// evt.user.*.{type} at an interval. They cannot be told apart from a
-		// wildcard read of the check, so the test examines only the reads of
-		// subjects of one user.
-		if subject := request.LastBySubject; strings.HasPrefix(subject, "evt.user.") && !strings.HasPrefix(subject, "evt.user.*.") {
-			got = append(got, subject)
-		}
-	}
+	got := userLeaderReads(t, nc, userID, func() { mustCurrentAuthGeneration(t, core, userID) })
 	var want []string
 	for _, eventType := range []string{
 		"account_created", "password_hash_changed", "external_identity_unlinked", "account_deleted",
