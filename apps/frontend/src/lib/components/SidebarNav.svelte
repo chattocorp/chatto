@@ -64,15 +64,23 @@
   }
 </script>
 
+<!-- Labels can wrap. The icon box has the height of one text line, so the
+     icon stays centred on the first line. -->
+{#snippet iconLabel(icon: string, label: string)}
+  <span aria-hidden="true" class="flex h-lh shrink-0 items-center">
+    <span class="sidebar-icon {icon}"></span>
+  </span>
+  <span class="min-w-0 text-start">{label}</span>
+{/snippet}
+
 {#snippet groupedNavItem(item: GroupNavItem)}
   {@const active = isActive(item.href, allItems)}
   <a
     href={resolve(item.href as '/')}
     aria-current={active ? 'page' : undefined}
-    class="sidebar-item"
+    class="sidebar-item items-start"
   >
-    <span aria-hidden="true" class="sidebar-icon {item.icon}"></span>
-    {item.label}
+    {@render iconLabel(item.icon, item.label)}
   </a>
 {/snippet}
 
@@ -87,10 +95,9 @@
           <a
             href={resolve(item.href as '/')}
             aria-current={active ? 'page' : undefined}
-            class="sidebar-item"
+            class="sidebar-item items-start"
           >
-            <span aria-hidden="true" class="sidebar-icon {item.icon}"></span>
-            {item.label}
+            {@render iconLabel(item.icon, item.label)}
           </a>
         {/each}
       </div>
@@ -111,13 +118,12 @@
                 {#each group.actions as action (action.id)}
                   <button
                     type="button"
-                    class="sidebar-item disabled:cursor-not-allowed disabled:opacity-50"
+                    class="sidebar-item items-start disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={action.disabled}
                     data-testid="sidebar-nav-action-{action.id}"
                     onclick={action.onclick}
                   >
-                    <span aria-hidden="true" class="sidebar-icon {action.icon}"></span>
-                    {action.label}
+                    {@render iconLabel(action.icon, action.label)}
                   </button>
                 {/each}
               </div>
