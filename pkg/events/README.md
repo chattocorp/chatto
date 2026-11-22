@@ -161,6 +161,26 @@ after a crash or a failed cleanup request. Durable workers keep their consumers.
 Use `WaitFor`, `WaitForCurrent`, or a subject-aware `StreamPosition` when a
 caller needs read-your-writes visibility.
 
+`WaitFor` returns without a stream read when `LastSeq` already covers the
+position. Otherwise it waits. When the wait has not ended after 100 ms,
+`WaitFor` reads the message at the position from the stream leader once, in
+parallel with the wait. It returns an error when that message does not exist,
+does not match the position's subject filter, or has a subject that the
+projection does not consume, because the projector cannot reach such a
+position. When the projector reaches the position, fails, or the context ends
+first, `WaitFor` returns at once and cancels the read.
+
+`WaitFor` always rejects a subject filter that cannot match a consumed
+subject: an exact subject that the projection does not consume, or a wildcard
+filter that has no subject in common with the projection's subject filters.
+It needs no stream read for this check. It rejects the other wrong positions
+only while the projector has not reached them: a sequence whose subject does
+not match the filter, a sequence on a subject that the projection does not
+consume, and a sequence that does not exist. When `LastSeq` is already past
+such a position, `WaitFor` returns nil. The projection then shows every
+consumed event through that sequence, so the result is not stale, but the
+caller's mistake is not reported.
+
 ### Freshness and stalls
 
 `Status` returns at once, also while a commit blocks: it does not take the

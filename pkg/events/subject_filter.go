@@ -1,6 +1,7 @@
 package events
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -93,4 +94,50 @@ func matchesAnySubject(filters []compiledSubjectFilter, subject string) bool {
 		}
 	}
 	return false
+}
+
+// subjectHasWildcard reports whether a subject filter has a '*' or '>' token.
+// A filter without one matches exactly one subject.
+func subjectHasWildcard(filter string) bool {
+	for _, token := range splitSubjectTokens(filter) {
+		if token == "*" || token == ">" {
+			return true
+		}
+	}
+	return false
+}
+
+// subjectFiltersOverlap reports whether at least one subject matches both
+// filters. '*' matches exactly one token, and a terminal '>' matches one or
+// more tokens. An empty filter or an empty token matches no subject.
+func subjectFiltersOverlap(a, b string) bool {
+	at, bt := splitSubjectTokens(a), splitSubjectTokens(b)
+	if len(at) == 0 || len(bt) == 0 {
+		return false
+	}
+	for i := 0; ; i++ {
+		switch {
+		case i == len(at) && i == len(bt):
+			return true
+		case i == len(at) || i == len(bt):
+			return false
+		}
+		x, y := at[i], bt[i]
+		if x == "" || y == "" {
+			return false
+		}
+		if x == ">" || y == ">" {
+			// The other filter has a token here. A subject can supply the
+			// remaining tokens of the other filter, which are either literal
+			// or wildcards, unless they contain an empty token.
+			rest := at[i:]
+			if x == ">" {
+				rest = bt[i:]
+			}
+			return !slices.Contains(rest, "")
+		}
+		if x != "*" && y != "*" && x != y {
+			return false
+		}
+	}
 }
