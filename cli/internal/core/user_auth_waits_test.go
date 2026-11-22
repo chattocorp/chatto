@@ -841,3 +841,49 @@ func TestBotAPIKeyAuthenticationReadsOnlySubjectsOfBotAndOwner(t *testing.T) {
 		t.Fatalf("position reads of bot and owner subjects = %v, want %v", got, want)
 	}
 }
+
+// BotAPIKeyAccess is the rule that bot API key authentication compares with
+// its Users read, and that the realtime revocation watch applies.
+func TestUserAuthProjectionBotAPIKeyAccess(t *testing.T) {
+	p := newUserAuthProjection()
+	seq := uint64(0)
+	apply := func(event *evtv1.Event) {
+		t.Helper()
+		seq++
+		if err := p.Apply(event, seq); err != nil {
+			t.Fatalf("Apply: %v", err)
+		}
+	}
+	created := func(userID, ownerID string) *evtv1.Event {
+		return &evtv1.Event{Event: &evtv1.Event_UserAccountCreated{UserAccountCreated: &evtv1.UserAccountCreatedEvent{
+			UserId: userID, IsBot: ownerID != "", BotOwnerUserId: ownerID,
+		}}}
+	}
+	deactivation := func(userID string, deactivated bool) *evtv1.Event {
+		return &evtv1.Event{Event: &evtv1.Event_UserAccountDeactivationChanged{UserAccountDeactivationChanged: &evtv1.UserAccountDeactivationChangedEvent{
+			UserId: userID, Deactivated: deactivated,
+		}}}
+	}
+	requireAccess := func(wantOwner string, wantActive bool) {
+		t.Helper()
+		if owner, active := p.BotAPIKeyAccess("B1"); owner != wantOwner || active != wantActive {
+			t.Fatalf("BotAPIKeyAccess = %q, %v; want %q, %v", owner, active, wantOwner, wantActive)
+		}
+	}
+
+	requireAccess("", false)
+	apply(created("UA", ""))
+	apply(created("UB", ""))
+	apply(created("B1", "UA"))
+	requireAccess("UA", true)
+	apply(deactivation("UA", true))
+	requireAccess("UA", false)
+	apply(&evtv1.Event{Event: &evtv1.Event_BotOwnerReassigned{BotOwnerReassigned: &evtv1.BotOwnerReassignedEvent{UserId: "B1", OwnerUserId: "UB"}}})
+	requireAccess("UB", true)
+	apply(deactivation("B1", true))
+	requireAccess("", false)
+	apply(deactivation("B1", false))
+	requireAccess("UB", true)
+	apply(&evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: "B1"}}})
+	requireAccess("", false)
+}

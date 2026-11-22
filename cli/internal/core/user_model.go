@@ -305,6 +305,10 @@ func (m *UserModel) matchBotAPIKeyCredential(userID string, verifier []byte) (Bo
 	return m.auth.Projection().MatchBotAPIKeyCredential(userID, verifier)
 }
 
+func (m *UserModel) botAPIKeyAccess(botID string) (string, bool) {
+	return m.auth.Projection().BotAPIKeyAccess(botID)
+}
+
 func (m *UserModel) botAPIKeyCredentials(userID string) []BotAPIKeyCredential {
 	return m.auth.Projection().BotAPIKeyCredentials(userID)
 }

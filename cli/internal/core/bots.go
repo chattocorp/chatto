@@ -368,6 +368,20 @@ func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token stri
 	if err != nil || owner.GetIsBot() || owner.GetDeactivated() {
 		return nil, nil, ErrAuthTokenNotFound
 	}
+	// Each step reads the positions for the two projections concurrently. A
+	// change that another replica writes during the authentication, such as a
+	// reassignment or a reactivation, can thus reach the Users projection
+	// before the User Auth projection. The realtime revocation watch reads the
+	// owner and the account states from the User Auth projection, and it closes
+	// the connection when they disagree with this decision. In that case, wait
+	// for the User Auth projection again. The new position reads start after
+	// the Users reads, so they include the change.
+	if authOwnerID, active := c.userModel.botAPIKeyAccess(botID); authOwnerID != ownerID || !active {
+		if err := c.userModel.waitForUserAuthSubjectsCurrent(ctx, "bot API key access",
+			slices.Concat(botAPIKeyAuthSubjects(botID), botOwnerWatchAuthSubjects(ownerID))...); err != nil {
+			return nil, nil, err
+		}
+	}
 	c.credentialUsage.recordIfActive(botID, botAPIKeyUsageKey(credential.ID), time.Now(), func() bool {
 		current, exists := c.userModel.matchBotAPIKeyCredential(botID, presentedVerifier)
 		return exists && current.ID == credential.ID
