@@ -2,4 +2,4 @@
 type: highlight
 ---
 
-Type `#` in the composer to link a room or a server across all the servers you are connected to.
+Type `#` in the composer to link a room. If you use more than one server, the list also shows rooms and servers from your other servers.

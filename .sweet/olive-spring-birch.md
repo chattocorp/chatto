@@ -2,4 +2,4 @@
 type: highlight
 ---
 
-Chatto has its own emoji: every emoji uses the Twemoji set, so everyone sees the same artwork on every device.
+Emoji look the same everywhere: Chatto shows every emoji with the Twemoji set, so everyone sees the same artwork on every device.
