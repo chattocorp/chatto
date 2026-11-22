@@ -14,7 +14,8 @@
       "description": "Høydepunktene i hver Chatto-versjon, på engelsk.",
       "full_changelog": "Fullstendig endringslogg",
       "release_notes": "Versjonsmerknader for {version}",
-      "empty": "Det er ingen høydepunkter ennå."
+      "empty": "Det er ingen høydepunkter ennå.",
+      "unreleased": "Ikke utgitt"
     },
     "intro": "Korte veiledninger for chatting og serveradministrasjon.",
     "users": "For medlemmer",

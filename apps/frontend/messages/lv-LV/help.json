@@ -14,7 +14,8 @@
       "description": "Katras Chatto versijas galvenās izmaiņas angļu valodā.",
       "full_changelog": "Pilns izmaiņu žurnāls",
       "release_notes": "Versijas {version} piezīmes",
-      "empty": "Galveno izmaiņu vēl nav."
+      "empty": "Galveno izmaiņu vēl nav.",
+      "unreleased": "Nav izlaists"
     },
     "intro": "Īsas pamācības sarunām un servera pārvaldībai.",
     "users": "Dalībniekiem",

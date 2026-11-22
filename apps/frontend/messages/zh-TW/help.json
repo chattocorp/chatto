@@ -14,7 +14,8 @@
       "description": "Chatto 每個版本的亮點（英文）。",
       "full_changelog": "完整更新日誌",
       "release_notes": "{version} 版本說明",
-      "empty": "目前沒有亮點。"
+      "empty": "目前沒有亮點。",
+      "unreleased": "未發布"
     },
     "intro": "聊天與伺服器管理的簡短指南。",
     "users": "適用於成員",

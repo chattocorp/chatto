@@ -14,7 +14,8 @@
       "description": "Chatto iga väljalaske olulisemad muudatused inglise keeles.",
       "full_changelog": "Täielik muudatuste logi",
       "release_notes": "Väljalaske {version} märkmed",
-      "empty": "Olulisi muudatusi veel pole."
+      "empty": "Olulisi muudatusi veel pole.",
+      "unreleased": "Avaldamata"
     },
     "intro": "Lühijuhendid vestlemiseks ja serveri haldamiseks.",
     "users": "Liikmetele",

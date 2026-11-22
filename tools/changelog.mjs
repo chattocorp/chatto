@@ -8,7 +8,17 @@
  *
  * Entries through 0.5.0 have the release-please format, with a linked version
  * heading such as `## [0.5.0](...)`. The parser stops at the first of these.
+ *
+ * {@link readChangelog} adds the pending notes in `.sweet/` as an `Unreleased`
+ * release, so development builds show them. A release consumes these notes,
+ * so release builds have no `Unreleased` entry.
  */
+
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+/** The version heading of the pending notes in `.sweet/`. */
+export const UNRELEASED = 'Unreleased';
 
 /** The section title of the `highlight` type in `.sweet.config.yml`. */
 export const HIGHLIGHTS = 'Highlights';
@@ -85,4 +95,77 @@ export function releaseHighlights(markdown) {
  */
 export function releaseAnchor(version) {
   return `v${version.replace(/[^\w-]+/g, '-')}`;
+}
+
+/**
+ * Read `CHANGELOG.md` from the repository root, with the pending notes in
+ * `.sweet/` added as the first release, named {@link UNRELEASED}.
+ *
+ * @param {string} root The repository root directory.
+ * @returns {string} The changelog Markdown.
+ */
+export function readChangelog(root) {
+  const changelog = readFileSync(join(root, 'CHANGELOG.md'), 'utf8');
+  const unreleased = unreleasedChangelog(root);
+  const at = changelog.search(/^## /m);
+  return at < 0
+    ? changelog + unreleased
+    : changelog.slice(0, at) + unreleased + changelog.slice(at);
+}
+
+/**
+ * Render the pending notes in `.sweet/` as one changelog entry, in the section
+ * order of `.sweet.config.yml`. Return an empty string when there are none.
+ * A release consumes all notes, and Git then drops the empty directory, so a
+ * missing `.sweet/` means that there are no pending notes.
+ *
+ * @param {string} root The repository root directory.
+ */
+function unreleasedChangelog(root) {
+  const directory = join(root, '.sweet');
+  if (!existsSync(directory)) return '';
+  const sections = sweetSections(readFileSync(join(root, '.sweet.config.yml'), 'utf8'));
+  /** @type {Map<string, string[]>} */
+  const notes = new Map([...new Set(sections.values())].map((title) => [title, []]));
+  const files = readdirSync(directory)
+    .filter((file) => file.endsWith('.md'))
+    .sort();
+  for (const file of files) {
+    const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/.exec(
+      readFileSync(join(directory, file), 'utf8')
+    );
+    const type = match && /^type:\s*(\S+)\s*$/m.exec(match[1])?.[1];
+    const title = type && sections.get(type);
+    const body = match?.[2].trim();
+    if (title && body) notes.get(title)?.push(`- ${body.replace(/\n(?=.)/g, '\n  ')}`);
+  }
+  const groups = [...notes].filter(([, list]) => list.length);
+  if (!groups.length) return '';
+  return [
+    `## ${UNRELEASED}`,
+    ...groups.map(([title, list]) => `### ${title}\n\n${list.join('\n')}`)
+  ]
+    .join('\n\n')
+    .concat('\n\n');
+}
+
+/**
+ * Read the changelog section of each type from `.sweet.config.yml`, in file
+ * order. Types without a section are left out. This reads only the simple
+ * `types:` mapping that the file uses, so that no YAML parser is needed.
+ *
+ * @param {string} config The text of `.sweet.config.yml`.
+ * @returns {Map<string, string>} The section title of each type.
+ */
+function sweetSections(config) {
+  /** @type {Map<string, string>} */
+  const sections = new Map();
+  let type;
+  for (const line of config.split(/\r?\n/)) {
+    const key = /^ {2}([\w-]+):\s*$/.exec(line);
+    if (key) type = key[1];
+    const section = /^ {4}section:\s*(.+?)\s*$/.exec(line);
+    if (type && section) sections.set(type, section[1]);
+  }
+  return sections;
 }

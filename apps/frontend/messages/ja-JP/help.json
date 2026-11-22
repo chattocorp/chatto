@@ -14,7 +14,8 @@
       "description": "Chatto の各リリースの主な変更点（英語）。",
       "full_changelog": "すべての変更履歴",
       "release_notes": "{version} のリリースノート",
-      "empty": "主な変更点はまだありません。"
+      "empty": "主な変更点はまだありません。",
+      "unreleased": "未リリース"
     },
     "intro": "チャットとサーバー管理のための短いガイドです。",
     "users": "メンバー向け",

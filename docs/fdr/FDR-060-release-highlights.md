@@ -13,6 +13,8 @@ The docs website has a **Changelog** page in the **Releases** group. It shows ea
 
 In the app, **Help → What's new** shows the highlights of each release that has highlights, latest first. Each release links to its release notes on GitHub. The page also links to the docs website changelog. The app does not show releases without highlights. The highlight text is in English in every locale; the page controls are translated.
 
+Both pages also show the pending notes in `.sweet/` as **Unreleased**, above the latest release. Development and preview builds thus show what the next release will contain. A release consumes all pending notes, so release builds have no Unreleased entry.
+
 ## Rationale
 
 Most members do not read a full changelog. One or two sentences about each notable change tell them what is new without the fixes and internal details. A separate note type lets the author of a change write for this reader and keeps the full note for operators.
@@ -23,6 +25,7 @@ Entries through 0.5.0 have the release-please format and are not shown. The cura
 
 ## Implementation
 
-- `tools/changelog.mjs` parses the Sweet Release entries of `CHANGELOG.md`. The docs website and the frontend build use it.
+- `tools/changelog.mjs` reads `CHANGELOG.md` and the pending notes in `.sweet/`, and parses the Sweet Release entries. The docs website and the frontend build use it.
+- The frontend build caches of mise (`build-frontend` sources) and Turbo (`chatto-frontend#build` inputs) include `CHANGELOG.md`, `.sweet.config.yml`, `.sweet/*.md`, and the parser.
 - The docs website loads the changelog in the `changelog` content collection (`apps/docs-website/src/content.config.ts`) and shows it at `/changelog/`.
 - The frontend Vite plugin `chatto-release-highlights` provides only the highlights as `virtual:chatto-release-highlights`. The page is `apps/frontend/src/routes/help/whats-new/`.

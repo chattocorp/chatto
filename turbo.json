@@ -19,7 +19,11 @@
         "!src/**/*.spec.*",
         "!src/**/*.test.*",
         "!src/**/*.stories.*",
-        "!src/**/*TestHarness.svelte"
+        "!src/**/*TestHarness.svelte",
+        "$TURBO_ROOT$/CHANGELOG.md",
+        "$TURBO_ROOT$/.sweet.config.yml",
+        "$TURBO_ROOT$/.sweet/*.md",
+        "$TURBO_ROOT$/tools/changelog.mjs"
       ],
       "outputs": ["build/**", ".svelte-kit/output/client/.vite/manifest.json"],
       "env": ["CHATTO_BUILD_VERSION", "CHATTO_FRONTEND_PRECOMPRESS"]

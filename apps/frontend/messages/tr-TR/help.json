@@ -14,7 +14,8 @@
       "description": "Her Chatto sürümünün öne çıkanları, İngilizce.",
       "full_changelog": "Tüm değişiklik günlüğü",
       "release_notes": "{version} sürüm notları",
-      "empty": "Henüz öne çıkan bir değişiklik yok."
+      "empty": "Henüz öne çıkan bir değişiklik yok.",
+      "unreleased": "Yayımlanmadı"
     },
     "intro": "Sohbet ve sunucu yönetimi için kısa kılavuzlar.",
     "users": "Üyeler için",

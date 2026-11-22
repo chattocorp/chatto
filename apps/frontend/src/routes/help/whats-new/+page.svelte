@@ -3,7 +3,8 @@
 
 The highlights of each Chatto release, latest first. The highlights come from
 the `highlight` notes in the root `CHANGELOG.md` and stay in English. Each
-release links to its full release notes on GitHub.
+released version links to its full release notes on GitHub.
+Development builds also show the pending highlights, without a version.
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
@@ -57,8 +58,8 @@ release links to its full release notes on GitHub.
       {#await rendered}
         <LoadingDots class="h-40" />
       {:then releases}
-        {#each releases as release (release.version)}
-          <Panel title={release.version}>
+        {#each releases as release (release.version ?? '')}
+          <Panel title={release.version ?? m('help.whats_new.unreleased')}>
             <ul class="flex flex-col gap-3" lang="en" dir="ltr">
               {#each release.highlights as html, index (index)}
                 <li class="flex gap-3 leading-relaxed">
@@ -70,18 +71,20 @@ release links to its full release notes on GitHub.
                 </li>
               {/each}
             </ul>
-            <p class="mt-4 text-sm">
-              <a
-                href={`https://github.com/chattocorp/chatto/releases/tag/v${release.version}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center gap-1.5 link"
-              >
-                {m('help.whats_new.release_notes', {
-                  version: release.version
-                })}{@render externalIcon()}
-              </a>
-            </p>
+            {#if release.version}
+              <p class="mt-4 text-sm">
+                <a
+                  href={`https://github.com/chattocorp/chatto/releases/tag/v${release.version}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1.5 link"
+                >
+                  {m('help.whats_new.release_notes', {
+                    version: release.version
+                  })}{@render externalIcon()}
+                </a>
+              </p>
+            {/if}
           </Panel>
         {:else}
           <Hint>{m('help.whats_new.empty')}</Hint>

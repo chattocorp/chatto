@@ -14,7 +14,8 @@
       "description": "Hlavní novinky každého vydání Chatto, v angličtině.",
       "full_changelog": "Úplný seznam změn",
       "release_notes": "Poznámky k vydání {version}",
-      "empty": "Zatím zde nejsou žádné hlavní novinky."
+      "empty": "Zatím zde nejsou žádné hlavní novinky.",
+      "unreleased": "Nevydáno"
     },
     "intro": "Krátké návody pro chat a správu serveru.",
     "users": "Pro členy",

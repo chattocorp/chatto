@@ -6,7 +6,11 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, type Plugin, type UserConfig } from 'vite';
 
 import { catalogSections, catalogBoundary } from './src/lib/i18n/catalogSections.js';
-import { releaseHighlights as parseReleaseHighlights } from '../../tools/changelog.mjs';
+import {
+  readChangelog,
+  releaseHighlights as parseReleaseHighlights,
+  UNRELEASED
+} from '../../tools/changelog.mjs';
 
 // Backend target for dev proxy. Set CHATTO_BACKEND_URL to proxy to a remote
 // backend (e.g. "https://dev.chatto.run") instead of a local one.
@@ -130,11 +134,12 @@ function highlightLanguageMetadata(): Plugin {
 
 const releaseHighlightsModule = 'virtual:chatto-release-highlights';
 const resolvedReleaseHighlightsModule = `\0${releaseHighlightsModule}`;
-const changelogPath = fileURLToPath(new URL('../../CHANGELOG.md', import.meta.url));
+const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
 
 /**
- * Provide the highlights of each release from the root `CHANGELOG.md`, so the
- * app bundles only the highlights and not the complete changelog.
+ * Provide the highlights of each release from the root `CHANGELOG.md` and the
+ * pending notes in `.sweet/`, so the app bundles only the highlights and not
+ * the complete changelog.
  */
 function releaseHighlights(): Plugin {
   return {
@@ -144,8 +149,13 @@ function releaseHighlights(): Plugin {
     },
     load(id) {
       if (id !== resolvedReleaseHighlightsModule) return null;
-      this.addWatchFile(changelogPath);
-      const releases = parseReleaseHighlights(readFileSync(changelogPath, 'utf8'));
+      for (const file of ['CHANGELOG.md', '.sweet.config.yml', '.sweet']) {
+        this.addWatchFile(`${repositoryRoot}${file}`);
+      }
+      const releases = parseReleaseHighlights(readChangelog(repositoryRoot)).map(
+        ({ version, highlights }) =>
+          version === UNRELEASED ? { highlights } : { version, highlights }
+      );
       return `export default ${JSON.stringify(releases)};`;
     }
   };

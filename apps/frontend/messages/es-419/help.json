@@ -14,7 +14,8 @@
       "description": "Lo más destacado de cada versión de Chatto, en inglés.",
       "full_changelog": "Registro de cambios completo",
       "release_notes": "Notas de la versión {version}",
-      "empty": "Todavía no hay novedades destacadas."
+      "empty": "Todavía no hay novedades destacadas.",
+      "unreleased": "Sin publicar"
     },
     "intro": "Guías breves para conversar y administrar un servidor.",
     "users": "Para miembros",

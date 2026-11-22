@@ -1,8 +1,10 @@
 /** Check the Sweet Release changelog parser against the formats that Sweet writes. */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
-import { parseChangelog, releaseHighlights } from './changelog.mjs';
+import { parseChangelog, readChangelog, releaseHighlights } from './changelog.mjs';
 
 const changelog = `# Changelog
 
@@ -73,4 +75,33 @@ test('parses the repository changelog', () => {
     assert.match(version, /^\d+\.\d+\.\d+(-[\w.]+)?$/);
     for (const { notes } of sections) for (const note of notes) assert.notEqual(note, '');
   }
+});
+
+test('adds pending notes as the first release, in section order', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'chatto-changelog-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(join(root, 'CHANGELOG.md'), changelog);
+  writeFileSync(
+    join(root, '.sweet.config.yml'),
+    'types:\n  highlight:\n    bump: none\n    section: Highlights\n  fix:\n    bump: patch\n    section: Fixes\n  chore:\n    bump: none\n'
+  );
+  mkdirSync(join(root, '.sweet'));
+  const note = (name, type, body) =>
+    writeFileSync(join(root, '.sweet', name), `---\ntype: ${type}\n---\n\n${body}\n`);
+  note('a.md', 'fix', 'A pending fix.\n\nWith a second paragraph.');
+  note('b.md', 'highlight', 'A pending highlight.');
+  note('c.md', 'chore', 'Not in the changelog.');
+
+  const [unreleased, latest] = parseChangelog(readChangelog(root));
+  assert.deepEqual(unreleased, {
+    version: 'Unreleased',
+    sections: [
+      { title: 'Highlights', notes: ['A pending highlight.'] },
+      { title: 'Fixes', notes: ['A pending fix.\n\nWith a second paragraph.'] }
+    ]
+  });
+  assert.equal(latest.version, '0.6.0');
+
+  rmSync(join(root, '.sweet'), { recursive: true });
+  assert.equal(parseChangelog(readChangelog(root))[0].version, '0.6.0');
 });
