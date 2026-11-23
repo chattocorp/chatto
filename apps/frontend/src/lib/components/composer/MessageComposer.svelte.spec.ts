@@ -289,7 +289,14 @@ async function insertEditorLiteralText(editor: HTMLElement, text: string) {
   }
 }
 
+/**
+ * Place the DOM caret at the end of the editor. It first settles pending
+ * editor focus commands, such as the `focus('end')` that seeding an edit
+ * schedules. Otherwise, such a command can move the caret after this helper
+ * runs.
+ */
 async function placeCaretAtEditorEnd(editor: HTMLElement) {
+  await settleEditorFocus();
   editor.focus();
   const selection = window.getSelection();
   const range = document.createRange();
