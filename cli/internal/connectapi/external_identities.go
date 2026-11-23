@@ -39,6 +39,7 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 		}
 	}
 	pending := apiPendingExternalIdentity(flow)
+	pending.AvatarUrl = pendingAvatarPreviewURL(req.Msg.GetToken(), flow)
 	pending.ChooseUsername = authv1.UsernameChoiceAvailability_USERNAME_CHOICE_AVAILABILITY_ALLOWED.Enum()
 	if s.api.core.ProviderUsernameManaged(flow.ProviderID) {
 		pending.ChooseUsername = authv1.UsernameChoiceAvailability_USERNAME_CHOICE_AVAILABILITY_PROVIDER_MANAGED.Enum()
@@ -298,6 +299,16 @@ func apiPendingExternalIdentity(flow *core.PendingExternalIdentityFlow) *authv1.
 		BoundUserId:     flow.BoundUserID,
 		RedirectPath:    flow.RedirectPath,
 	}
+}
+
+// pendingAvatarPreviewURL returns the same-origin URL through which the server
+// serves the provider avatar of a pending flow, or an empty string when the
+// provider supplied no avatar. The browser never receives the provider URL.
+func pendingAvatarPreviewURL(token string, flow *core.PendingExternalIdentityFlow) string {
+	if flow.AvatarURL == "" {
+		return ""
+	}
+	return "/auth/external-identity-avatar?" + url.Values{"token": {token}}.Encode()
 }
 
 func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identities []core.ExternalIdentity) []*apiv1.ExternalIdentityProvider {

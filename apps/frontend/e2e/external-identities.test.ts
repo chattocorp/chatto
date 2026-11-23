@@ -1,6 +1,7 @@
 import { test, expect } from './setup';
 import { createAndLoginTestUser, logoutCurrentUser } from './fixtures/testUser';
 import * as routes from './routes';
+import { startOGMockServer, type OGMockServer } from './fixtures/ogMockServer';
 import { StartExternalIdentityLinkRequest } from '@chatto/api-types/api/v1/external_identities_pb';
 
 test.describe('Managed provider accounts', () => {
@@ -17,6 +18,16 @@ test.describe('Managed provider accounts', () => {
         CHATTO_AUTH_PROVIDERS_0_ALLOW_UNLINKING: 'false'
       }
     }
+  });
+
+  // The server fetches provider avatars for the preview. A local server stands
+  // in for the provider.
+  let avatarServer: OGMockServer;
+  test.beforeAll(async () => {
+    avatarServer = await startOGMockServer();
+  });
+  test.afterAll(async () => {
+    await avatarServer.close();
   });
 
   test('explains when the provider username cannot be assigned', async ({ page, authPage }) => {
@@ -47,11 +58,22 @@ test.describe('Managed provider accounts', () => {
       providerLabel: 'Company',
       subject: `managed-${Date.now()}`,
       providerUsername: 'e2eadmin',
-      displayNameHint: 'Managed Person'
+      displayNameHint: 'Managed Person',
+      avatarUrl: `${avatarServer.baseURL}/test-image.png`
     });
     await page.goto(flow.confirmUrl);
+    const preview = page.getByRole('region', { name: 'Profile preview' });
+    // The browser loads the avatar from this server, never from the provider.
+    const avatar = preview.getByRole('img', { name: 'e2eadmin-2' });
+    await expect(avatar).toHaveAttribute('src', /^\/auth\/external-identity-avatar\?token=/);
+    await expect
+      .poll(() => avatar.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
+      .toBeGreaterThan(0);
+    await expect(preview.getByText('Managed Person', { exact: true })).toBeVisible();
+    await expect(preview.getByText('@e2eadmin-2', { exact: true })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Username' })).toHaveValue('e2eadmin-2');
     await expect(page.getByRole('textbox', { name: 'Username' })).toBeDisabled();
+    await expect(page.getByText('Your sign-in provider sets this username.')).toBeVisible();
     await expect(page.getByLabel('Display Name')).toBeEnabled();
     await page.getByRole('button', { name: 'Create Account' }).click();
     await page.waitForURL(routes.patterns.chatRedirect);

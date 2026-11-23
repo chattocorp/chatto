@@ -594,6 +594,7 @@ export class AuthPage {
     loginHint?: string;
     providerUsername?: string;
     displayNameHint?: string;
+    avatarUrl?: string;
     boundUserId?: string;
     redirectPath?: string;
   }): Promise<{ token: string; confirmUrl: string }> {

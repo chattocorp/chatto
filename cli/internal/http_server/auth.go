@@ -128,6 +128,24 @@ func (s *HTTPServer) setupAuthRoutes() {
 		s.requestContextWithAuditMetadata(c)
 		c.Next()
 	})
+	// The account creation page shows the provider avatar of a pending flow
+	// through this route, so the browser does not contact the provider. The
+	// pending flow token authorizes the request; the server re-encodes the
+	// image and does not store it.
+	auth.GET("external-identity-avatar", func(c *gin.Context) {
+		avatar, err := s.core.PendingExternalIdentityAvatar(c.Request.Context(), c.Query("token"))
+		if err != nil {
+			if !errors.Is(err, core.ErrNotFound) && !errors.Is(err, core.ErrExternalIdentityFlowNotFound) {
+				s.logger.Warn("Failed to load provider avatar preview", "error", err)
+			}
+			c.Header("Cache-Control", "no-store")
+			c.Status(http.StatusNotFound)
+			return
+		}
+		c.Header("Cache-Control", "private, max-age=600")
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Data(http.StatusOK, "image/webp", avatar)
+	})
 	auth.GET("browser/csrf", func(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		c.Header("Pragma", "no-cache")

@@ -28,11 +28,14 @@ export function usernameChangeUnavailableMessage(
   return m('common.action_unavailable');
 }
 
-/** Signup username choice has no account cooldown or deletion policy. */
-export function usernameChoiceUnavailableMessage(action: UsernameChoiceAvailability): string {
-  if (action === UsernameChoiceAvailability.ALLOWED) return '';
+/**
+ * Hint below the username field during provider account creation. Signup
+ * username choice has no account cooldown or deletion policy.
+ */
+export function usernameChoiceHint(action: UsernameChoiceAvailability): string {
+  if (action === UsernameChoiceAvailability.ALLOWED) return m('auth.sso.username_help');
   return action === UsernameChoiceAvailability.PROVIDER_MANAGED
-    ? m('settings.account.sso.username_managed')
+    ? m('auth.sso.username_assigned')
     : m('common.action_unavailable');
 }
 
