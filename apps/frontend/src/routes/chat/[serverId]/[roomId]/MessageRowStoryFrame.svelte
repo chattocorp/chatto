@@ -12,6 +12,8 @@
   import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
   import type { UserAvatarUserView } from '@chatto/client/timeline/users';
   import type { MessageActionModel } from './messageActionModel';
+  import MessageReplyAttribution from './MessageReplyAttribution.svelte';
+  import type { MessageReplyPreview } from './messageEventModel';
   type Variant =
     | 'plain'
     | 'mobile-video'
@@ -19,7 +21,8 @@
     | 'footer-comparison'
     | 'compact-grouped'
     | 'search-result'
-    | 'deleted';
+    | 'deleted'
+    | 'thread-echo';
 
   let { variant }: { variant: Variant } = $props();
 
@@ -86,6 +89,15 @@
       ]
     }
   ];
+
+  /** The thread root that the echo and the reply below point to. */
+  const threadRootPreview: MessageReplyPreview = {
+    name: 'Bea',
+    body: 'Should we only report highlight features in this channel?',
+    attachmentSummary: null,
+    actor: bea,
+    deleted: false
+  };
 
   function noop() {}
   async function noopAsync() {}
@@ -186,6 +198,33 @@
       >
         {#snippet headerMeta()}<span class="text-xs text-muted">10:23</span>{/snippet}
       </MessageView>
+    {:else if variant === 'thread-echo'}
+      <div class="space-y-4">
+        <MessageView
+          eventId="evt-thread-echo"
+          actor={alice}
+          displayName="Alice"
+          body="I've made this change. Now only specific highlight features will be reported here."
+          avatarOffset
+        >
+          {#snippet prelude()}
+            <MessageReplyAttribution preview={threadRootPreview} kind="thread" onJump={noop} />
+          {/snippet}
+          {#snippet headerMeta()}<span class="text-xs text-muted">07:06</span>{/snippet}
+        </MessageView>
+        <MessageView
+          eventId="evt-thread-echo-reply"
+          actor={alice}
+          displayName="Alice"
+          body="Yes, this echoed reply answers the root directly."
+          avatarOffset
+        >
+          {#snippet prelude()}
+            <MessageReplyAttribution preview={threadRootPreview} onJump={noop} />
+          {/snippet}
+          {#snippet headerMeta()}<span class="text-xs text-muted">07:07</span>{/snippet}
+        </MessageView>
+      </div>
     {:else if variant === 'with-meta-bar'}
       <MessageView
         eventId="evt-with-meta"

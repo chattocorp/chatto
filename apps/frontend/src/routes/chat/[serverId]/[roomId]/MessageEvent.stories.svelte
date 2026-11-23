@@ -54,6 +54,10 @@
   <MessageRowStoryFrame variant="footer-comparison" />
 </Story>
 
+<Story name="Thread echo" asChild>
+  <MessageRowStoryFrame variant="thread-echo" />
+</Story>
+
 <Story name="Compact grouped message" asChild>
   <MessageRowStoryFrame variant="compact-grouped" />
 </Story>
