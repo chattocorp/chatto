@@ -537,7 +537,8 @@
         "reverification_mismatch": "Vous vous êtes connecté avec une identité qui appartient à un autre compte. Utilisez une identité liée à ce compte.",
         "reverify_modal": {
           "title": "Confirmez votre identité",
-          "body": "Pour votre sécurité, reconnectez-vous avec un fournisseur lié à ce compte. Chatto poursuivra ensuite votre action.",
+          "link_body": "Pour lier {provider}, Chatto doit d’abord confirmer votre identité. Reconnectez-vous avec un fournisseur déjà lié à ce compte. Chatto poursuivra ensuite avec {provider}.",
+          "disconnect_body": "Pour déconnecter {provider}, Chatto doit d’abord confirmer votre identité. Reconnectez-vous avec un fournisseur déjà lié à ce compte. Vous pourrez ensuite confirmer la déconnexion.",
           "action": "Se reconnecter avec {provider}"
         },
         "provider_unconfigured": "Le fournisseur n'est plus configuré",

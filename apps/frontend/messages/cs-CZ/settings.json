@@ -537,7 +537,8 @@
         "reverification_mismatch": "Přihlásili jste se identitou, která patří jinému účtu. Použijte identitu propojenou s tímto účtem.",
         "reverify_modal": {
           "title": "Potvrďte, že jste to vy",
-          "body": "Z bezpečnostních důvodů se znovu přihlaste přes poskytovatele propojeného s tímto účtem. Chatto pak vaši akci dokončí.",
+          "link_body": "Aby Chatto mohl propojit {provider}, musí nejprve ověřit, že jste to vy. Znovu se přihlaste přes poskytovatele, který je s tímto účtem už propojený. Potom Chatto pokračuje s {provider}.",
+          "disconnect_body": "Aby Chatto mohl odpojit {provider}, musí nejprve ověřit, že jste to vy. Znovu se přihlaste přes poskytovatele, který je s tímto účtem už propojený. Potom můžete odpojení potvrdit.",
           "action": "Znovu se přihlásit přes {provider}"
         },
         "provider_unconfigured": "Poskytovatel již není nakonfigurován",

@@ -537,7 +537,8 @@
         "reverification_mismatch": "Du loggade in med en identitet som tillhör ett annat konto. Använd en identitet som är kopplad till det här kontot.",
         "reverify_modal": {
           "title": "Bekräfta att det är du",
-          "body": "Av säkerhetsskäl behöver du logga in igen med en leverantör som är kopplad till det här kontot. Sedan fortsätter Chatto med din åtgärd.",
+          "link_body": "För att koppla {provider} måste Chatto först bekräfta att det är du. Logga in igen med en leverantör som redan är kopplad till det här kontot. Sedan fortsätter Chatto med {provider}.",
+          "disconnect_body": "För att koppla från {provider} måste Chatto först bekräfta att det är du. Logga in igen med en leverantör som redan är kopplad till det här kontot. Sedan kan du bekräfta frånkopplingen.",
           "action": "Logga in igen med {provider}"
         },
         "provider_unconfigured": "Leverantören är inte längre konfigurerad",

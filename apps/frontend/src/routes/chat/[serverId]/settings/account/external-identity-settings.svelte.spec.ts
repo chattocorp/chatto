@@ -856,14 +856,14 @@ describe('fresh sign-in through a linked provider', () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it('re-verifies in the provider window, which then continues in the link window', async () => {
+  it('opens the link window on the re-verification explanation', async () => {
     const popup = { closed: false, opener: {} };
     const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
     renderSettings();
     await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
     await vi.waitFor(() =>
       expect(open).toHaveBeenCalledWith(
-        reverifyUrl('sso', '/sso/link?link_provider=github-main&link_user=user-alice'),
+        '/sso/link?link_provider=github-main&link_user=user-alice&reverify=required',
         '_blank',
         expect.any(String)
       )
@@ -872,35 +872,45 @@ describe('fresh sign-in through a linked provider', () => {
     expect(mocks.leavePage).not.toHaveBeenCalled();
   });
 
-  it('lets the user choose when several providers can re-verify', async () => {
-    mocks.list.mockResolvedValue(reverifiableIdentityList(1));
-    renderSettings();
-    await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
-    const open = vi.spyOn(window, 'open').mockReturnValue(null);
-    const dialog = browserPage.getByRole('dialog', { name: 'Confirm it’s you' });
-    await expect.element(dialog).toBeVisible();
-    expect(open).not.toHaveBeenCalled();
-    await dialog.getByRole('button', { name: 'Sign in again with Other SSO 1' }).click();
-    await vi.waitFor(() =>
-      expect(open).toHaveBeenCalledWith(
-        reverifyUrl('sso-1', '/sso/link?link_provider=github-main&link_user=user-alice'),
-        '_blank',
-        expect.any(String)
-      )
-    );
-  });
-
-  it('re-verifies before a disconnect and returns to this page', async () => {
-    renderSettings();
-    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+  async function confirmDisconnect() {
+    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).first().click();
     await browserPage
       .getByRole('dialog', { name: 'Disconnect provider' })
       .getByRole('button', { name: 'Disconnect', exact: true })
       .click();
+  }
+
+  it('explains the re-verification before a disconnect leaves the page', async () => {
+    renderSettings();
+    await confirmDisconnect();
+    const dialog = browserPage.getByRole('dialog', { name: 'Confirm it’s you' });
+    await expect
+      .element(
+        dialog.getByText(/To disconnect Chatto ID, Chatto first needs to confirm that it’s you/)
+      )
+      .toBeVisible();
+    expect(mocks.leavePage).not.toHaveBeenCalled();
+    await dialog.getByRole('button', { name: 'Sign in again with Chatto ID' }).click();
     await vi.waitFor(() =>
       expect(mocks.leavePage).toHaveBeenCalledWith(
         reverifyUrl(
           'sso',
+          '/chat/-/settings/account?disconnect_identity=sso-subject-0&disconnect_user=user-alice'
+        )
+      )
+    );
+  });
+
+  it('lets the user choose when several providers can re-verify', async () => {
+    mocks.list.mockResolvedValue(reverifiableIdentityList(1));
+    renderSettings();
+    await confirmDisconnect();
+    const dialog = browserPage.getByRole('dialog', { name: 'Confirm it’s you' });
+    await dialog.getByRole('button', { name: 'Sign in again with Other SSO 1' }).click();
+    await vi.waitFor(() =>
+      expect(mocks.leavePage).toHaveBeenCalledWith(
+        reverifyUrl(
+          'sso-1',
           '/chat/-/settings/account?disconnect_identity=sso-subject-0&disconnect_user=user-alice'
         )
       )
@@ -935,10 +945,10 @@ describe('fresh sign-in through a linked provider', () => {
     await expect.element(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Cancel' }).click();
     await expect.element(dialog).not.toBeInTheDocument();
-    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await confirmDisconnect();
     await browserPage
-      .getByRole('dialog', { name: 'Disconnect provider' })
-      .getByRole('button', { name: 'Disconnect', exact: true })
+      .getByRole('dialog', { name: 'Confirm it’s you' })
+      .getByRole('button', { name: 'Sign in again with Chatto ID' })
       .click();
     await vi.waitFor(() =>
       expect(mocks.leavePage).toHaveBeenCalledWith(
