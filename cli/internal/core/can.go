@@ -381,16 +381,43 @@ func (a *AuthorizationModel) CanReadMessage(ctx context.Context, userID string, 
 }
 
 func (a *AuthorizationModel) canReadMessage(ctx context.Context, userID string, kind RoomKind, roomID, messageEventID string) (bool, error) {
-	broad, err := a.canReadMessages(ctx, userID, kind, roomID)
-	if err != nil || broad {
-		return broad, err
-	}
-	interactions, err := a.canReadMessageInteractions(ctx, userID, kind, roomID)
-	if err != nil || !interactions {
+	access, err := a.roomMessageReadAccess(ctx, userID, kind, roomID)
+	if err != nil {
 		return false, err
 	}
+	return a.canReadMessageWithAccess(access, userID, roomID, messageEventID), nil
+}
+
+// roomMessageReadAccess is the room-level part of canReadMessage. It does not
+// depend on the message, so a caller that checks many messages in one room
+// under one content-view barrier can resolve it once.
+type roomMessageReadAccess struct {
+	// broad permits every message in the room.
+	broad bool
+	// interactions permits messages in threads that the user interacts with.
+	interactions bool
+}
+
+func (a *AuthorizationModel) roomMessageReadAccess(ctx context.Context, userID string, kind RoomKind, roomID string) (roomMessageReadAccess, error) {
+	broad, err := a.canReadMessages(ctx, userID, kind, roomID)
+	if err != nil || broad {
+		return roomMessageReadAccess{broad: broad}, err
+	}
+	interactions, err := a.canReadMessageInteractions(ctx, userID, kind, roomID)
+	return roomMessageReadAccess{interactions: interactions && err == nil}, err
+}
+
+// canReadMessageWithAccess completes canReadMessage for one message with the
+// room-level access that roomMessageReadAccess returned in the same barrier.
+func (a *AuthorizationModel) canReadMessageWithAccess(access roomMessageReadAccess, userID, roomID, messageEventID string) bool {
+	if access.broad {
+		return true
+	}
+	if !access.interactions {
+		return false
+	}
 	rootID, ok := a.rooms.threadRootForMessage(roomID, messageEventID)
-	return ok && a.rooms.hasThreadInteraction(userID, roomID, rootID), nil
+	return ok && a.rooms.hasThreadInteraction(userID, roomID, rootID)
 }
 
 // CanReadMessageEvent reports whether the account can receive one durable

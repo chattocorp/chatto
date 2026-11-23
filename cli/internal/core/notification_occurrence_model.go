@@ -22,6 +22,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	"github.com/chattocorp/chatto/cli/internal/notificationstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/chattocorp/chatto/cli/internal/readmodel"
 	"github.com/chattocorp/chatto/pkg/events"
 )
 
@@ -915,8 +916,10 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 		// timeline entry that it sees. One barrier per chunk also avoids two
 		// barriers per occurrence, which serialize with event application.
 		err := m.core.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
+			// Room-level results hold only for this barrier.
+			rooms := make(map[string]notificationRoomVisibility)
 			for _, occurrence := range chunk {
-				allowed, err := m.targetVisibleFromCurrentProjections(readCtx, recipientID, occurrence)
+				allowed, err := m.targetVisibleFromCurrentProjections(readCtx, recipientID, occurrence, rooms)
 				if err != nil {
 					return err
 				}
@@ -933,10 +936,49 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 	return visible, nil
 }
 
+// notificationRoomVisibility is the part of a message-target check that
+// depends only on the recipient and the room. One value is valid only under
+// the content-view barrier that computed it.
+type notificationRoomVisibility struct {
+	// room is nil when the room does not exist.
+	room   *readmodel.Room
+	member bool
+	access roomMessageReadAccess
+	err    error
+}
+
+// roomVisibility resolves the room, the recipient's membership, and the
+// room-level read access once for each room in rooms. A room ID with no entry
+// is computed and stored. The order and the early exits match a check of one
+// occurrence, so a cached result gives the same answer and the same error.
+// Time-limited access, such as privileged mode or a temporary ban, is read
+// once for each room and barrier. The result is the access at the start of the
+// barrier, as for a request that the server read some microseconds earlier.
+func (m *NotificationOccurrenceModel) roomVisibility(ctx context.Context, recipientID, roomID string, rooms map[string]notificationRoomVisibility) notificationRoomVisibility {
+	if result, ok := rooms[roomID]; ok {
+		return result
+	}
+	var result notificationRoomVisibility
+	room, err := m.core.FindRoomByID(ctx, roomID)
+	switch {
+	case errors.Is(err, ErrNotFound):
+	case err != nil:
+		result.err = err
+	default:
+		result.room = room
+		result.member, result.err = m.core.RoomMembershipExists(ctx, KindOfRoom(room), recipientID, roomID)
+		if result.err == nil && result.member {
+			result.access, result.err = m.core.authorization.roomMessageReadAccess(ctx, recipientID, KindOfRoom(room), roomID)
+		}
+	}
+	rooms[roomID] = result
+	return result
+}
+
 // targetVisibleFromCurrentProjections checks one occurrence against in-memory
 // projections only. The caller must confirm that the recipient exists and hold
-// the content-view barrier.
-func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx context.Context, recipientID string, occurrence *notificationv1.NotificationOccurrence) (bool, error) {
+// the content-view barrier. rooms caches room-level results for that barrier.
+func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx context.Context, recipientID string, occurrence *notificationv1.NotificationOccurrence, rooms map[string]notificationRoomVisibility) (bool, error) {
 	if occurrence == nil || occurrence.GetRecipientId() != recipientID {
 		return false, nil
 	}
@@ -947,31 +989,26 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 	if message == nil || message.GetRoomId() == "" {
 		return false, nil
 	}
-	entry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
-	if !ok || entry == nil || entry.RoomID != message.GetRoomId() {
+	timeline := m.core.roomModel.timeline.Projection()
+	if roomID, ok := timeline.EventRoomID(message.GetEventId()); !ok || roomID != message.GetRoomId() {
 		return false, nil
 	}
-	room, err := m.core.FindRoomByID(ctx, message.GetRoomId())
-	if errors.Is(err, ErrNotFound) {
+	target := m.roomVisibility(ctx, recipientID, message.GetRoomId(), rooms)
+	if target.err != nil {
+		return false, target.err
+	}
+	if target.room == nil || !target.member {
 		return false, nil
 	}
-	if err != nil {
-		return false, err
-	}
-	member, err := m.core.RoomMembershipExists(ctx, KindOfRoom(room), recipientID, room.GetId())
-	if err != nil || !member {
-		return member, err
-	}
-	allowed, err := m.core.CanReadMessage(ctx, recipientID, KindOfRoom(room), room.GetId(), message.GetEventId())
-	if err != nil || !allowed {
-		return allowed, err
+	room := target.room
+	if !m.core.authorization.canReadMessageWithAccess(target.access, recipientID, room.GetId(), message.GetEventId()) {
+		return false, nil
 	}
 	messageVisible := func(eventID string) bool {
-		entry, ok := m.core.roomModel.timelineEntry(eventID)
-		if !ok || entry.RoomID != room.GetId() {
+		if roomID, ok := timeline.EventRoomID(eventID); !ok || roomID != room.GetId() {
 			return false
 		}
-		_, retracted, known := m.core.roomModel.latestBodyReference(eventID)
+		_, retracted, known := timeline.LatestBodyReference(eventID)
 		return known && !retracted
 	}
 	if !messageVisible(message.GetEventId()) || (message.GetThreadRootEventId() != "" && !messageVisible(message.GetThreadRootEventId())) {
