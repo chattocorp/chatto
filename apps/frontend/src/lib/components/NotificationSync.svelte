@@ -27,6 +27,7 @@ Include this component once in the application root so signed-out pages also cle
   import Deadline from '$lib/lifecycle/Deadline.svelte';
   import Interval from '$lib/lifecycle/Interval.svelte';
   import PushNotificationSync from './PushNotificationSync.svelte';
+  import { NOTIFICATION_RECONCILIATION_INTERVAL_MS } from '@chatto/client/server/notifications';
   import type { ProjectionHandler } from '@chatto/client/realtime/eventBus';
   import {
     desktopNotifications,
@@ -37,9 +38,6 @@ Include this component once in the application root so signed-out pages also cle
 
   $effect(() => listenForDesktopNotificationClicks());
 
-  const reconciliationIntervalMs = 60_000;
-  // Skip only near-simultaneous reads, so a missed hint still recovers on the next minute tick.
-  const recentNotificationReadMs = 5_000;
   const rememberedNotificationIds = 256;
 
   // Subscribe to notification events on all authenticated instance buses.
@@ -164,10 +162,11 @@ Include this component once in the application root so signed-out pages also cle
         />
       {/key}
     {/if}
-    <!-- Core NATS invalidations are latency hints; the notification stream is authoritative. -->
+    <!-- Core NATS invalidations are latency hints; the notification stream is authoritative.
+    The store skips the read while realtime keeps the list current. -->
     <Interval
-      milliseconds={reconciliationIntervalMs}
-      ontick={() => void stores.notifications.reconcile(recentNotificationReadMs)}
+      milliseconds={NOTIFICATION_RECONCILIATION_INTERVAL_MS}
+      ontick={() => void stores.reconcileNotifications()}
     />
 
     <!-- Stream expiry has no per-message projection callback. -->

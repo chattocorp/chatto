@@ -34,6 +34,7 @@ const { mocks } = vi.hoisted(() => {
         return this.currentUser.user.id;
       },
       waitForRealtimeResourceRefresh: vi.fn(async () => true),
+      reconcileNotifications: vi.fn(async () => {}),
       notifications: {
         occurrences: [] as Array<{
           id?: string;
@@ -45,8 +46,7 @@ const { mocks } = vi.hoisted(() => {
         importantUnreadNotificationCount: 0,
         hasLoaded: true,
         nextExpiryAt: null as string | null,
-        fetch: vi.fn(async () => {}),
-        reconcile: vi.fn(async () => {})
+        fetch: vi.fn(async () => {})
       },
       /** Notification attention over the notification mock. */
       attention: {
@@ -221,7 +221,7 @@ describe('NotificationSync', () => {
       store.notifications.hasLoaded = true;
       store.notifications.nextExpiryAt = null;
       store.notifications.fetch.mockClear();
-      store.notifications.reconcile.mockClear();
+      store.reconcileNotifications.mockClear();
       store.attention.needsAttention.mockReset().mockImplementation((row) => row.unread);
     }
   });
@@ -417,8 +417,8 @@ describe('NotificationSync', () => {
     try {
       await renderAndWaitForSubscription();
       await vi.advanceTimersByTimeAsync(60_000);
-      expect(mocks.stores.origin.notifications.reconcile).toHaveBeenCalledOnce();
-      expect(mocks.stores.origin.notifications.reconcile).toHaveBeenCalledWith(5_000);
+      // The store decides from the realtime state whether the tick reads.
+      expect(mocks.stores.origin.reconcileNotifications).toHaveBeenCalledOnce();
     } finally {
       vi.useRealTimers();
     }

@@ -22,7 +22,11 @@ import {
   serverPermissionsFromViewer,
   type ServerPermissions
 } from './permissions.js';
-import { NotificationStore } from './notifications.js';
+import {
+  NOTIFICATION_LIVE_SAFETY_READ_MS,
+  NOTIFICATION_RECENT_READ_MS,
+  NotificationStore
+} from './notifications.js';
 import { ServerPresence } from './presence.js';
 import { RoomListView } from './rooms.js';
 import { createNotificationAPI } from '../api/notifications.js';
@@ -714,6 +718,27 @@ export class ServerStateStore {
       succeeded = succeeded && result;
     }
     return succeeded;
+  }
+
+  /**
+   * Recover notification changes whose cursorless hint did not arrive. Hosts
+   * call this every `NOTIFICATION_RECONCILIATION_INTERVAL_MS`.
+   *
+   * While realtime keeps the notification list current, the call reads only
+   * when no notification read succeeded for {@link NOTIFICATION_LIVE_SAFETY_READ_MS}.
+   * Realtime keeps the list current when the live socket is caught up with
+   * current authority, or when the server is dormant: each inactive poll
+   * reads the list at its `caught_up`. In every other state, the call reads
+   * unless a read succeeded in the last {@link NOTIFICATION_RECENT_READ_MS}.
+   * Failed reads and resets never postpone a read.
+   */
+  reconcileNotifications(): Promise<void> {
+    const status = this.#serverConnection.status;
+    const deliveredByRealtime =
+      (status === 'connected' && this.realtimeSync.phase === 'ready') || status === 'dormant';
+    return this.notifications.reconcile(
+      deliveredByRealtime ? NOTIFICATION_LIVE_SAFETY_READ_MS : NOTIFICATION_RECENT_READ_MS
+    );
   }
 
   /**

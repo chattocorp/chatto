@@ -350,7 +350,8 @@ import { EventBusManager, setRealtimeSocketFactoryForTests } from './realtimeTra
 
 /** The realtime transports of the stores that {@link makeStore} creates. */
 const eventBusManager = new EventBusManager({ liveServers: 'selected' });
-import { ServerConnection } from './serverConnection.js';
+import { ServerConnection, type ConnectionStatus } from './serverConnection.js';
+import { createNotificationAPI } from '../api/notifications.js';
 import type { RegisteredServer } from './registry.js';
 
 class FakeServerConnection {
@@ -369,6 +370,7 @@ class FakeServerConnection {
       renewBearerToken: this.renewBearerToken
     };
   }
+  status: ConnectionStatus = 'connecting';
   setRealtimeConnectionStatus = vi.fn();
   registerRealtimeReconnect = vi.fn<ServerConnection['registerRealtimeReconnect']>(() => () => {});
   handleAuthenticationRequired = vi.fn();
@@ -735,6 +737,134 @@ describe('ServerStateStore catch-up', () => {
       stop();
       apiMocks.readRealtimeResource.mockReset().mockResolvedValue([]);
     }
+  });
+});
+
+describe('ServerStateStore notification reconciliation', () => {
+  const minute = 60_000;
+
+  /** A store whose last notification read just succeeded, and its list-read mock. */
+  function reconcilingStore(status: ConnectionStatus) {
+    vi.useFakeTimers();
+    const connection = new FakeServerConnection([]);
+    connection.status = status;
+    const store = makeStore(connection);
+    const listReads = vi.mocked(createNotificationAPI).mock.results.at(-1)!.value
+      .listNotificationOccurrences as ReturnType<typeof vi.fn>;
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        resource: new RealtimeResourceUpdate({
+          resource: { case: 'notifications', value: new ListNotificationOccurrencesResponse() }
+        })
+      })
+    );
+    return { connection, store, listReads };
+  }
+
+  /** Run the host's interval for `minutes` ticks. */
+  async function tick(store: ServerStateStore, minutes: number) {
+    for (let index = 0; index < minutes; index++) {
+      await vi.advanceTimersByTimeAsync(minute);
+      await store.reconcileNotifications();
+    }
+  }
+
+  it('does not read while the live socket is caught up, until the safety interval', async () => {
+    const { store, listReads } = reconcilingStore('connected');
+    store.realtimeSync.markCaughtUp('cursor');
+
+    await tick(store, 4);
+    expect(listReads).not.toHaveBeenCalled();
+
+    await tick(store, 1);
+    expect(listReads).toHaveBeenCalledOnce();
+
+    // The safety read starts the next interval.
+    await tick(store, 4);
+    expect(listReads).toHaveBeenCalledOnce();
+    await tick(store, 1);
+    expect(listReads).toHaveBeenCalledTimes(2);
+  });
+
+  it('restarts the safety interval after each realtime notification read', async () => {
+    const { store, listReads } = reconcilingStore('connected');
+    store.realtimeSync.markCaughtUp('cursor');
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'notifications'
+        ? [
+            new RealtimeResourceUpdate({
+              resource: { case: 'notifications', value: new ListNotificationOccurrencesResponse() }
+            })
+          ]
+        : []
+    );
+    try {
+      await tick(store, 4);
+      // A reconnect reads the list immediately at its caught_up.
+      await store.completeRealtimeCatchUp('cursor-2');
+      expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('notifications', 'cursor-2');
+      store.realtimeSync.markCaughtUp('cursor-2');
+      await tick(store, 4);
+      expect(listReads).not.toHaveBeenCalled();
+      await tick(store, 1);
+      expect(listReads).toHaveBeenCalledOnce();
+    } finally {
+      apiMocks.readRealtimeResource.mockReset().mockResolvedValue([]);
+    }
+  });
+
+  it('reads on the next tick when the socket leaves the caught-up state', async () => {
+    const { connection, store, listReads } = reconcilingStore('connected');
+    store.realtimeSync.markCaughtUp('cursor');
+    await tick(store, 2);
+    expect(listReads).not.toHaveBeenCalled();
+
+    connection.status = 'connecting';
+    await tick(store, 1);
+    expect(listReads).toHaveBeenCalledOnce();
+  });
+
+  it('reads on the next tick while authority is stale on a connected socket', async () => {
+    const { store, listReads } = reconcilingStore('connected');
+    store.realtimeSync.markCaughtUp('cursor');
+    store.realtimeSync.markStale();
+    await tick(store, 1);
+    expect(listReads).toHaveBeenCalledOnce();
+  });
+
+  it.each(['disconnected', 'connecting'] as const)(
+    'reads on every tick while %s',
+    async (status) => {
+      const { store, listReads } = reconcilingStore(status);
+      await tick(store, 3);
+      expect(listReads).toHaveBeenCalledTimes(3);
+    }
+  );
+
+  it('still skips a read that is only seconds old while disconnected', async () => {
+    const { store, listReads } = reconcilingStore('disconnected');
+    await vi.advanceTimersByTimeAsync(4_000);
+    await store.reconcileNotifications();
+    expect(listReads).not.toHaveBeenCalled();
+  });
+
+  it('relies on inactive polls while the server is dormant', async () => {
+    const { store, listReads } = reconcilingStore('dormant');
+    await tick(store, 4);
+    expect(listReads).not.toHaveBeenCalled();
+    await tick(store, 1);
+    expect(listReads).toHaveBeenCalledOnce();
+  });
+
+  it('reads at once after a failed read, even while live', async () => {
+    const { store, listReads } = reconcilingStore('connected');
+    store.realtimeSync.markCaughtUp('cursor');
+    listReads.mockRejectedValueOnce(new Error('unavailable'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await store.notifications.reconcile();
+    expect(listReads).toHaveBeenCalledOnce();
+    await tick(store, 1);
+    expect(listReads).toHaveBeenCalledTimes(2);
   });
 });
 
