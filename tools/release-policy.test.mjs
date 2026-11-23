@@ -658,3 +658,213 @@ test('npm publication fails for other content with a published version', (t) => 
     (error) => error.stdout.toString().includes('already on npm with other content')
   );
 });
+
+test('the Authling image builds in CI before tags and publishes from one workflow', () => {
+  const image = workflow('build-authling-image.yml');
+  // Only the callers start it: no path-filtered run, and no manual run that
+  // could move `latest`. ci.yml publishes a release tag again.
+  assert.deepEqual(Object.keys(image.on), ['workflow_call']);
+  assert.deepEqual(Object.keys(image.on.workflow_call.inputs).sort(), ['highest', 'release_tag']);
+  const job = ci.jobs['authling-image'];
+  assert.equal(job.uses, './.github/workflows/build-authling-image.yml');
+  assert.equal(job.with, undefined, 'CI builds the commit of its run');
+  assert.equal(job.if, "${{ needs.changes.outputs.authling == 'true' }}");
+  assert.ok(ci.jobs.tag.needs.includes('authling-image'));
+  assert.deepEqual(releases.jobs.authling.with, {
+    release_tag: "${{ fromJSON(inputs.packages)['authling'].tag }}",
+    highest: "${{ fromJSON(inputs.packages)['authling'].highest }}"
+  });
+  // Each platform builds and runs its check on a runner of its architecture.
+  const { build, metadata, publish } = image.jobs;
+  assert.deepEqual(
+    build.strategy.matrix.include.map(({ arch, runner }) => `${arch} ${runner}`),
+    ['amd64 ubuntu-latest', 'arm64 ubuntu-24.04-arm']
+  );
+  assert.equal(build.if, "needs.metadata.outputs.published != 'true'");
+  const check = build.steps.find((step) => step.name === 'Check executable');
+  assert.match(check.run, /--network none --read-only authling:check version/);
+  const push = build.steps.find((step) => step.id === 'push');
+  assert.match(push.with.outputs, /push-by-digest=true/);
+  assert.doesNotMatch(push.with.outputs, /:/, 'the platform images get no tag');
+  // The release tag reaches the scripts only through the environment, and the
+  // scripts come from this run, also for an older tag.
+  const resolve = metadata.steps.find((step) => step.id === 'metadata');
+  assert.equal(resolve.env.RELEASE_TAG, '${{ inputs.release_tag }}');
+  for (const step of [resolve, publish.steps.at(-1)]) {
+    assert.ok(!step.run.includes('${{'), step.run);
+  }
+  for (const job of [metadata, publish]) {
+    const tools = job.steps.find((step) => step.with?.['sparse-checkout'] === 'tools/release');
+    assert.equal(tools.with.ref, '${{ github.sha }}');
+  }
+  assert.equal(publish.concurrency['cancel-in-progress'], false);
+  assert.match(publish.if, /!cancelled\(\)/);
+});
+
+/** Run authling-image-metadata.sh on a source tree with the given versions. */
+function authlingMetadata(
+  t,
+  { version = '0.3.0', manifest = version, published = false, ...env } = {}
+) {
+  const source = mkdtempSync(path.join(os.tmpdir(), 'chatto-authling-image-'));
+  t.after(() => rmSync(source, { recursive: true, force: true }));
+  mkdirSync(path.join(source, 'authling'));
+  writeFileSync(
+    path.join(source, 'authling/version.go'),
+    `package authling\n\n// Version is the Authling release version.\nconst Version = "${version}" // sweet-version\n`
+  );
+  writeFileSync(
+    path.join(source, 'authling/.sweet.yml'),
+    `name: authling\nversion: ${manifest}\ntag-prefix: authling/v\n`
+  );
+  return run(t, script('authling-image-metadata.sh'), {
+    cwd: source,
+    stubs: `git() { echo 0123456789abcdef0123456789abcdef01234567; }
+docker() { record "$@"; [[ "$PUBLISHED" == true ]]; }`,
+    env: {
+      RELEASE_TAG: '',
+      HIGHEST: 'false',
+      GITHUB_EVENT_NAME: 'pull_request',
+      GITHUB_REF: 'refs/pull/1/merge',
+      PUBLISHED: String(published),
+      ...env
+    }
+  });
+}
+
+const authlingSha = '0123456789abcdef0123456789abcdef01234567';
+
+for (const [name, env, expected] of [
+  [
+    'the highest stable release moves latest',
+    { RELEASE_TAG: 'authling/v0.3.0', HIGHEST: 'true' },
+    { tag: '0.3.0', stream_tag: 'latest', publish: 'true' }
+  ],
+  [
+    'an older release keeps latest',
+    { RELEASE_TAG: 'authling/v0.3.0', HIGHEST: 'false' },
+    { tag: '0.3.0', stream_tag: '', publish: 'true' }
+  ],
+  [
+    'a prerelease keeps latest',
+    { RELEASE_TAG: 'authling/v0.3.0-beta.1', version: '0.3.0-beta.1', HIGHEST: 'false' },
+    { tag: '0.3.0-beta.1', stream_tag: '', publish: 'true' }
+  ],
+  [
+    'a push to main moves dev',
+    { GITHUB_EVENT_NAME: 'push', GITHUB_REF: 'refs/heads/main' },
+    { tag: authlingSha, stream_tag: 'dev', publish: 'true' }
+  ],
+  [
+    'a push to a release branch publishes nothing',
+    { GITHUB_EVENT_NAME: 'push', GITHUB_REF: 'refs/heads/release-0.5' },
+    { tag: authlingSha, stream_tag: '', publish: 'false' }
+  ],
+  ['a pull request publishes nothing', {}, { tag: authlingSha, stream_tag: '', publish: 'false' }]
+]) {
+  test(`Authling image metadata: ${name}`, (t) => {
+    const { output } = authlingMetadata(t, env);
+    assert.deepEqual(output, {
+      sha: authlingSha,
+      version: env.version ?? '0.3.0',
+      published: 'false',
+      ...expected
+    });
+  });
+}
+
+test('Authling image metadata reports a published release image', (t) => {
+  const { output, calls } = authlingMetadata(t, {
+    RELEASE_TAG: 'authling/v0.3.0',
+    HIGHEST: 'true',
+    published: true
+  });
+  assert.equal(output.published, 'true');
+  assert.deepEqual(calls, ['buildx imagetools inspect ghcr.io/chattocorp/authling:0.3.0']);
+});
+
+for (const [name, options, message] of [
+  ['a tag of another package', { RELEASE_TAG: 'v0.3.0' }, 'Only authling/v release tags'],
+  ['a tag without a version', { RELEASE_TAG: 'authling/v' }, 'not a supported SemVer'],
+  ['an invalid version', { RELEASE_TAG: 'authling/v0.3' }, 'not a supported SemVer'],
+  ['a leading zero', { RELEASE_TAG: 'authling/v0.03.0' }, 'not a supported SemVer'],
+  ['build metadata', { RELEASE_TAG: 'authling/v0.3.0+abc' }, 'not a supported SemVer'],
+  ['shell syntax', { RELEASE_TAG: 'authling/v0.3.0;id' }, 'not a supported SemVer'],
+  [
+    'a different version.go',
+    { RELEASE_TAG: 'authling/v0.3.0', version: '0.2.0', manifest: '0.3.0' },
+    'must agree'
+  ],
+  ['a different manifest', { RELEASE_TAG: 'authling/v0.3.0', manifest: '0.2.0' }, 'must agree']
+]) {
+  test(`Authling image metadata rejects ${name}`, (t) => {
+    assert.throws(
+      () => authlingMetadata(t, options),
+      (error) => error.stdout.toString().includes(message)
+    );
+  });
+}
+
+const amd64Digest = `sha256:${'a'.repeat(64)}`;
+const arm64Digest = `sha256:${'b'.repeat(64)}`;
+
+/** Run publish-authling-image.sh; `published` lists the tags in the registry. */
+function publishAuthling(t, env, published = []) {
+  return run(t, script('publish-authling-image.sh'), {
+    stubs: `docker() {
+  if [[ "$1 \${2:-} \${3:-}" == 'buildx imagetools inspect' ]]; then
+    # The summary reads the digest of the published index.
+    if [[ "\${5:-}" == --format ]]; then echo "sha256:\${4##*:}"; return 0; fi
+    [[ " $PUBLISHED_TAGS " == *" \${4##*:} "* ]]
+    return
+  fi
+  record "$@"
+}`,
+    env: {
+      STREAM_TAG: '',
+      DIGEST_AMD64: amd64Digest,
+      DIGEST_ARM64: arm64Digest,
+      PUBLISHED_TAGS: published.join(' '),
+      ...env
+    }
+  });
+}
+
+test('publishes the Authling release index and latest from both platforms', (t) => {
+  const image = 'ghcr.io/chattocorp/authling';
+  const { calls } = publishAuthling(t, { TAG: '0.3.0', STREAM_TAG: 'latest', RELEASE: 'true' });
+  assert.deepEqual(calls, [
+    `buildx imagetools create --tag ${image}:0.3.0 --tag ${image}:latest ${image}@${amd64Digest} ${image}@${arm64Digest}`
+  ]);
+});
+
+test('publishes the Authling commit image and dev from main', (t) => {
+  const image = 'ghcr.io/chattocorp/authling';
+  const { calls } = publishAuthling(t, { TAG: authlingSha, STREAM_TAG: 'dev', RELEASE: 'false' });
+  assert.deepEqual(calls, [
+    `buildx imagetools create --tag ${image}:${authlingSha} --tag ${image}:dev ${image}@${amd64Digest} ${image}@${arm64Digest}`
+  ]);
+});
+
+test('a published Authling release stays unchanged and sets latest again', (t) => {
+  const image = 'ghcr.io/chattocorp/authling';
+  const { calls } = publishAuthling(
+    t,
+    { TAG: '0.3.0', STREAM_TAG: 'latest', RELEASE: 'true', DIGEST_AMD64: '', DIGEST_ARM64: '' },
+    ['0.3.0']
+  );
+  assert.deepEqual(calls, [`buildx imagetools create --tag ${image}:latest ${image}:0.3.0`]);
+});
+
+test('Authling publication needs the digests of both platforms', (t) => {
+  for (const digests of [
+    { DIGEST_ARM64: '' },
+    { DIGEST_AMD64: 'sha256:short' },
+    { DIGEST_AMD64: `${amd64Digest} --tag x` }
+  ]) {
+    assert.throws(
+      () => publishAuthling(t, { TAG: '0.3.0', RELEASE: 'true', ...digests }),
+      (error) => error.stdout.toString().includes('digest is missing or not valid')
+    );
+  }
+});

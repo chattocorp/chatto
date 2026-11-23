@@ -58,6 +58,13 @@ starts one publication job for each release unit from Sweet's tag outputs.
 | `packages/translatto` | `npm.yml`, and a GitHub release with notes                  |
 | `pkg/*`               | A GitHub release with notes                                 |
 
+`build-authling-image.yml` builds the Authling image for `linux/amd64` and
+`linux/arm64`, each on a runner of that architecture, and checks the executable
+in each image. Then it publishes one multi-platform image. CI also calls it for
+each change that selects the Authling jobs, and `tag` waits for this build. A
+push to `main` publishes the commit image and moves `dev`. A release publishes
+`<version>`, and moves `latest` only for the highest stable version.
+
 To retry a failed tag push or publication, rerun the failed jobs of the original
 CI run. Existing matching tags are kept, so the tag job pushes only the missing
 tags and returns the same outputs. A later push does not recover an earlier

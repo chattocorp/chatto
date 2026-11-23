@@ -119,6 +119,10 @@ jobs:
               - 'cli/go.{mod,sum}'
               - 'authling/**'
               - 'pkg/**'
+              # The image build. Other image inputs, such as go.work and
+              # LICENSE, are common files and select all products.
+              - '.github/workflows/build-authling-image.yml'
+              - 'tools/release/{authling-image-metadata,publish-authling-image}.sh'
               - '!**/CHANGELOG.md'
               - '!**/.sweet/**'
             translatto:
@@ -1050,6 +1054,16 @@ jobs:
             authling/test-results/
           retention-days: 14
 
+  # Build and check the Authling image for both platforms. A push to main also
+  # publishes it and moves `dev`. Release images publish after `tag`.
+  authling-image:
+    needs: changes
+    if: ${{ needs.changes.outputs.authling == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-authling-image.yml
+
   test-e2e-shards:
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' }}
@@ -1457,6 +1471,7 @@ jobs:
       - test-oidc-conformance
       - test-cli
       - test-authling-e2e
+      - authling-image
       - test-e2e-shards
       - test-e2e
       - test-e2e-media
