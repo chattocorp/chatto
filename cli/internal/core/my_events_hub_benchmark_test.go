@@ -53,10 +53,10 @@ func runMyEventsHubRoomFanoutBenchmark(b *testing.B, audience, bystanders int) {
 		hub.nextID++
 		sub.id = hub.nextID
 		hub.subscribers[sub.id] = sub
-		hub.users[sub.principal] = &myEventsUserState{
+		hub.addUserLocked(sub.principal, &myEventsUserState{
 			memberRooms: memberRooms,
 			subscribers: map[uint64]*myEventsSubscription{sub.id: sub},
-		}
+		})
 		return sub
 	}
 	for _, id := range members {
