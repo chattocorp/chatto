@@ -166,6 +166,15 @@ func (p *ContentKeyProjection) Active(userID string, purpose evtv1.UserDEKPurpos
 	return p.getLocked(userID, contentKeyID{contentKeyPurposeID: legacy, epoch: epoch})
 }
 
+// UserShredded reports whether the projection removed the keys of userID for a
+// key-shredding request or a completed shredding.
+func (p *ContentKeyProjection) UserShredded(userID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	_, shredded := p.shreddedUsers[userID]
+	return shredded
+}
+
 func (p *ContentKeyProjection) Get(userID string, purpose evtv1.UserDEKPurpose, epoch int32) (*evtv1.UserDEKGeneratedEvent, bool) {
 	p.RLock()
 	defer p.RUnlock()

@@ -128,8 +128,9 @@ pubsub event still gets one envelope for each user. For a message
 post, the mapper does the work that does not depend on the viewer once for
 each envelope: the body lookup, the echo hydration, and the room-kind lookup.
 It keeps the result on the envelope and does not keep a failed result. Before
-each viewer uses the shared body, the mapper compares the body version in the
-room timeline projection. After an edit, a retraction, or a key-shredding
+each viewer uses the shared body, the mapper compares the body version from
+the room timeline and content-key projections. These projections apply a
+key-shredding request independently, so the mapper checks both. After an edit, a retraction, or a key-shredding
 request, the viewer gets a new mapping and not the shared body. Each viewer
 then gets a copy of the shared event. The mapper sets the per-viewer values on
 that copy, for example the mention `includes_viewer` values and the resume

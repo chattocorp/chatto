@@ -301,3 +301,47 @@ func TestRealtimeSharedMessagePostRunsOnceAcrossUsers(t *testing.T) {
 		t.Fatalf("second user body = %q", got)
 	}
 }
+
+func TestRealtimeSharedMessagePostDropsBodyAfterKeyShredding(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	ctx := env.ctx
+	author, err := env.core.CreateUser(ctx, core.SystemActorID, "shred-author", "Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	viewer, err := env.core.CreateUser(ctx, core.SystemActorID, "shred-viewer", "Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(ctx, viewer.Id, core.KindChannel, "", "shred-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, id := range []string{author.Id, viewer.Id} {
+		if _, err := env.core.JoinRoom(ctx, id, core.KindChannel, id, room.Id); err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+	}
+	durable, err := env.core.PostMessage(ctx, core.KindChannel, room.Id, author.Id, "secret body", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	envelope := core.NewEVTEventEnvelopeWithDeliverySeq(durable, 42)
+	first, err := env.httpServer.realtimeServerFrameForEvent(ctx, viewer.Id, envelope)
+	if err != nil {
+		t.Fatalf("realtimeServerFrameForEvent: %v", err)
+	}
+	if got := first.GetEvent().GetMessagePosted().GetBodyPlaintext(); got != "secret body" {
+		t.Fatalf("first viewer body = %q", got)
+	}
+	if err := env.core.DeleteUserEncryptionKeyAs(ctx, core.SystemActorID, author.Id); err != nil {
+		t.Fatalf("DeleteUserEncryptionKeyAs: %v", err)
+	}
+	later, err := env.httpServer.realtimeServerFrameForEvent(ctx, author.Id, envelope)
+	if err != nil {
+		t.Fatalf("realtimeServerFrameForEvent: %v", err)
+	}
+	if later.GetEvent().GetMessagePosted().BodyPlaintext != nil {
+		t.Fatal("viewer got the shared body after key shredding")
+	}
+}

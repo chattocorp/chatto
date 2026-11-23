@@ -181,18 +181,20 @@ func (c *ChattoCore) ResolveMessageContentID(roomID, eventID string) (string, er
 // MessageBodyVersion identifies the body that GetFullMessageBody reads for one
 // message. Two equal values mean that the body did not change between them.
 // An edit, a retraction, or a key-shredding request of the author changes the
-// value. The value is comparable with ==.
+// value. The room timeline and the content-key projections apply a
+// key-shredding request independently, so the value checks both. The value is
+// comparable with ==.
 type MessageBodyVersion struct {
 	reference TimelineBodyReference
 	current   bool
 }
 
 // CurrentMessageBodyVersion returns the body version of a message from the
-// room timeline projection. It does no I/O. Read it before GetFullMessageBody
+// room timeline and content-key projections. It does no I/O. Read it before GetFullMessageBody
 // to find out later whether a body read is still current.
 func (c *ChattoCore) CurrentMessageBodyVersion(eventID string) MessageBodyVersion {
 	reference, retracted, known := c.roomModel.latestBodyReference(eventID)
-	if !known || retracted || reference.StreamSeq == 0 {
+	if !known || retracted || reference.StreamSeq == 0 || c.userModel.contentKeysShredded(reference.AuthorID) {
 		return MessageBodyVersion{}
 	}
 	return MessageBodyVersion{reference: reference, current: true}

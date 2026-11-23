@@ -200,6 +200,13 @@ func (m *UserModel) contentKeyAtEpoch(userID string, purpose evtv1.UserDEKPurpos
 	return event, ok, nil
 }
 
+// contentKeysShredded reports whether the content keys of userID are gone
+// from the content-key projection. It reports true when the projection is not
+// available, so that a caller does not use a cached decryption.
+func (m *UserModel) contentKeysShredded(userID string) bool {
+	return m.contentKeys.Projection() == nil || m.contentKeys.Projection().UserShredded(userID)
+}
+
 func (m *UserModel) user(ctx context.Context, userID string) (*readmodel.User, bool, error) {
 	return m.users.Projection().GetContext(ctx, userID)
 }
