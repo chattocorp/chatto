@@ -33,6 +33,9 @@
         "join": "Aldoni konton al #{room}",
         "leave": "Forigi konton el #{room}",
         "unavailable": "Vi ne povas ŝanĝi ĉi tiun membrecon.",
+        "universal_joined": "#{room} estas universala. room.join aŭtomate aldonas ĉi tiun konton.",
+        "universal_not_joined": "#{room} estas universala. Permesu room.join por aŭtomate aldoni ĉi tiun konton.",
+        "universal_help": "En universala ĉambro, room.join regas membrecon. Por forigi konton, forigu room.join kie ĝi estas donita, aŭ suspendu la konton en tiu ĉambro.",
         "confirm_immediate": "Konfirmu por tuj apliki ĉi tiun membrecan ŝanĝon. La agorditaj permesoj restos senŝanĝaj."
       },
       "loading": "Ŝarĝante permesojn...",

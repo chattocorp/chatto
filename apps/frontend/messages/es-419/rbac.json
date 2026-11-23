@@ -33,6 +33,9 @@
         "join": "Añadir la cuenta a #{room}",
         "leave": "Quitar la cuenta de #{room}",
         "unavailable": "No puedes cambiar esta membresía.",
+        "universal_joined": "#{room} es universal. room.join agrega esta cuenta automáticamente.",
+        "universal_not_joined": "#{room} es universal. Permite room.join para agregar esta cuenta automáticamente.",
+        "universal_help": "En una sala universal, room.join controla la membresía. Para quitar una cuenta, borra room.join donde esté concedido o suspende la cuenta en esa sala.",
         "confirm_immediate": "Confirma para aplicar este cambio de membresía de inmediato. Los permisos configurados no cambiarán."
       },
       "loading": "Cargando permisos...",

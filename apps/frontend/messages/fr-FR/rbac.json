@@ -33,6 +33,9 @@
         "join": "Ajouter le compte à #{room}",
         "leave": "Retirer le compte de #{room}",
         "unavailable": "Tu ne peux pas modifier cette appartenance.",
+        "universal_joined": "#{room} est universel. room.join ajoute ce compte automatiquement.",
+        "universal_not_joined": "#{room} est universel. Autorisez room.join pour ajouter ce compte automatiquement.",
+        "universal_help": "Dans un salon universel, room.join contrôle l’adhésion. Pour retirer un compte, effacez room.join là où il est accordé, ou suspendez le compte dans ce salon.",
         "confirm_immediate": "Confirme pour appliquer immédiatement ce changement d’appartenance. Les permissions configurées resteront inchangées."
       },
       "loading": "Chargement des autorisations...",

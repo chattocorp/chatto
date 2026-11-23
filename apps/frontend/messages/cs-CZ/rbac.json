@@ -33,6 +33,9 @@
         "join": "Přidat účet do #{room}",
         "leave": "Odebrat účet z #{room}",
         "unavailable": "Toto členství nemůžeš změnit.",
+        "universal_joined": "#{room} je univerzální místnost. room.join tento účet přidá automaticky.",
+        "universal_not_joined": "#{room} je univerzální místnost. Povolte room.join, aby se tento účet přidal automaticky.",
+        "universal_help": "V univerzální místnosti řídí členství room.join. Chcete-li účet odebrat, zrušte room.join tam, kde je udělen, nebo účet v této místnosti pozastavte.",
         "confirm_immediate": "Potvrzením se členství okamžitě změní. Nastavená oprávnění zůstanou beze změny."
       },
       "loading": "Načítání oprávnění...",

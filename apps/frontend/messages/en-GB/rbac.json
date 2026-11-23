@@ -33,6 +33,9 @@
         "join": "Add account to #{room}",
         "leave": "Remove account from #{room}",
         "unavailable": "You cannot change this membership.",
+        "universal_joined": "#{room} is Universal. room.join adds this account automatically.",
+        "universal_not_joined": "#{room} is Universal. Allow room.join to add this account automatically.",
+        "universal_help": "In a Universal room, room.join controls membership. To remove an account, clear room.join where it is granted, or suspend the account in that room.",
         "confirm_immediate": "Confirm to apply this membership change immediately. Configured permissions will stay unchanged."
       },
       "loading": "Loading permissions...",

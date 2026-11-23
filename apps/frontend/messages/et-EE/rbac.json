@@ -33,6 +33,9 @@
         "join": "Lisa konto ruumi #{room}",
         "leave": "Eemalda konto ruumist #{room}",
         "unavailable": "Sa ei saa seda liikmesust muuta.",
+        "universal_joined": "#{room} on universaalne. room.join lisab selle konto automaatselt.",
+        "universal_not_joined": "#{room} on universaalne. Lubage room.join, et see konto automaatselt lisada.",
+        "universal_help": "Universaalses ruumis määrab liikmesuse room.join. Konto eemaldamiseks tühistage room.join seal, kus see on antud, või peatage konto selles ruumis.",
         "confirm_immediate": "Kinnita, et rakendada liikmesuse muudatus kohe. Seadistatud õigused ei muutu."
       },
       "loading": "Lubade laadimine...",

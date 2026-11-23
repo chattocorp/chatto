@@ -33,6 +33,9 @@
         "join": "Aggiungi l’account a #{room}",
         "leave": "Rimuovi l’account da #{room}",
         "unavailable": "Non puoi modificare questa appartenenza.",
+        "universal_joined": "#{room} è universale. room.join aggiunge questo account automaticamente.",
+        "universal_not_joined": "#{room} è universale. Consenti room.join per aggiungere questo account automaticamente.",
+        "universal_help": "In una stanza universale, room.join controlla l’appartenenza. Per rimuovere un account, cancella room.join dove è concesso, oppure sospendi l’account in quella stanza.",
         "confirm_immediate": "Conferma per applicare subito questa modifica all’appartenenza. I permessi configurati resteranno invariati."
       },
       "loading": "Caricamento permessi...",

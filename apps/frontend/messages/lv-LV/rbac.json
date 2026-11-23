@@ -33,6 +33,9 @@
         "join": "Pievienot kontu istabai #{room}",
         "leave": "Noņemt kontu no istabas #{room}",
         "unavailable": "Tu nevari mainīt šo dalību.",
+        "universal_joined": "#{room} ir universāla telpa. room.join automātiski pievieno šo kontu.",
+        "universal_not_joined": "#{room} ir universāla telpa. Atļaujiet room.join, lai automātiski pievienotu šo kontu.",
+        "universal_help": "Universālā telpā dalību nosaka room.join. Lai noņemtu kontu, notīriet room.join tur, kur tas piešķirts, vai apturiet kontu šajā telpā.",
         "confirm_immediate": "Apstiprini, lai nekavējoties piemērotu dalības izmaiņas. Konfigurētās atļaujas nemainīsies."
       },
       "loading": "Notiek atļauju ielāde...",

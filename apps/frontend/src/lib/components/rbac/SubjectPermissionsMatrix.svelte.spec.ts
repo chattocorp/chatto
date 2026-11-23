@@ -400,12 +400,16 @@ it('puts bot membership first and keeps it separate from filtered permission row
   await expect
     .element(page.getByRole('dialog', { name: 'Joined' }))
     .toHaveTextContent('Room membership does not grant message permissions.');
+  await expect
+    .element(page.getByRole('dialog', { name: 'Joined' }))
+    .toHaveTextContent('In a Universal room, room.join controls membership.');
 });
 
 it.each([
   { joined: false, automatic: false, canJoin: false, canLeave: false, disabled: true },
   { joined: true, automatic: false, canJoin: false, canLeave: true, disabled: false },
-  { joined: true, automatic: true, canJoin: false, canLeave: false, disabled: true }
+  { joined: true, automatic: true, canJoin: false, canLeave: false, disabled: true },
+  { joined: false, automatic: true, canJoin: false, canLeave: false, disabled: true }
 ])('respects bot membership action availability: %j', (membership) => {
   const onMembershipChange = vi.fn();
   const room = {
@@ -434,6 +438,13 @@ it.each([
   ) as HTMLButtonElement;
   expect(button.disabled).toBe(membership.disabled);
   expect(button.getAttribute('aria-pressed')).toBe(String(membership.joined));
+  if (membership.automatic) {
+    expect(button.title).toBe(
+      membership.joined
+        ? '#work is Universal. room.join adds this account automatically.'
+        : '#work is Universal. Allow room.join to add this account automatically.'
+    );
+  }
   button.click();
   expect(onMembershipChange).toHaveBeenCalledTimes(membership.disabled ? 0 : 1);
 });
