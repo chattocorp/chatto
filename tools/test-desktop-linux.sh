@@ -13,6 +13,9 @@ mkdir -p .context
 scratch="$(mktemp -d "$repository_root/.context/linux-desktop.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 
+# A static launcher can start without the host libfuse2 library.
+file -b "${appimages[0]}" | grep -E 'static(-pie|ally) linked'
+
 # --appimage-extract does not need FUSE or a graphical session.
 cd "$scratch"
 "${appimages[0]}" --appimage-extract > /dev/null
