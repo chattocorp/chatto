@@ -628,6 +628,27 @@ describe('identity link popup', () => {
     expect(mocks.list).not.toHaveBeenCalled();
   });
 
+  it('keeps monitoring a desktop window that an isolated provider page detached', async () => {
+    const { popup } = remote();
+    window.chattoDesktop = { onAuthorizationWindowClosed: () => () => {} };
+    try {
+      renderSettings();
+      await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
+      // The window handle reports closed while the native window stays open.
+      popup.closed = true;
+      mocks.list.mockClear();
+      await vi.waitFor(() => expect(mocks.list).toHaveBeenCalled(), { timeout: 5000 });
+      mocks.list.mockResolvedValue(linkedIdentityList());
+      await expect
+        .element(browserPage.getByRole('button', { name: 'Disconnect', exact: true }), {
+          timeout: 5000
+        })
+        .toBeVisible();
+    } finally {
+      delete window.chattoDesktop;
+    }
+  });
+
   it('keeps the popup open when only another provider is linked', async () => {
     const { popup } = remote();
     renderSettings();

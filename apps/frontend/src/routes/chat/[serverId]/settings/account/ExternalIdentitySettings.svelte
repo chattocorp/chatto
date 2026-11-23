@@ -17,6 +17,7 @@
     openAuthorizationWindow
   } from '$lib/oauth/authorizationWindow';
   import type { CurrentUserState } from '@chatto/client/auth/currentUser';
+  import { randomOAuthValue } from '@chatto/client/auth/oauth';
   import {
     createExternalIdentityAPI,
     type ExternalIdentityProviderInfo,
@@ -204,7 +205,10 @@
       provider.id,
       accountId
     );
-    const popup = openAuthorizationWindow('_blank', authorizationWindowFeatures(window));
+    const popup = openAuthorizationWindow(
+      `chatto-identity-link-${randomOAuthValue(12)}`,
+      authorizationWindowFeatures(window)
+    );
     if (!popup) {
       actionError = m('settings.account.sso.popup_blocked');
       return;

@@ -4,6 +4,12 @@ import { randomOAuthValue } from '@chatto/client/auth/oauth';
 export interface AuthorizationWindow {
   readonly messageSource: Window | null;
   close(): Promise<void>;
+  /**
+   * Whether the window is closed. In the desktop app, this is the native
+   * window state. In a browser, it is `Window.closed`, which can report a live
+   * window as closed after a provider page cuts its link to the opener with
+   * `Cross-Origin-Opener-Policy`.
+   */
   isClosed(): Promise<boolean>;
   navigate(url: string): Promise<void>;
   detachOpener(): void;
@@ -42,6 +48,9 @@ export function authorizationLaunchStorageKey(launchId: string): string {
  * The record stays until `close`, because more than one launch page can read
  * it; see `readAuthorizationLaunchTarget`. Opening a window also removes
  * expired records that a closed client left behind.
+ *
+ * Give each window a unique `target` name. The desktop app reports native
+ * window closure by this name.
  */
 export function openAuthorizationWindow(
   target: string,
@@ -54,6 +63,14 @@ export function openAuthorizationWindow(
   removeExpiredLaunchRecords(Date.now());
 
   const key = authorizationLaunchStorageKey(launchId);
+  // Electron keeps the native window open after a provider page cuts the link
+  // to the opener, so only the host knows when the window really closes.
+  let nativeClosed = false;
+  const unsubscribeClosed = window.chattoDesktop?.onAuthorizationWindowClosed?.((name) => {
+    if (name !== target) return;
+    nativeClosed = true;
+    unsubscribeClosed?.();
+  });
   return {
     messageSource: popup,
     close: async () => {
@@ -64,7 +81,7 @@ export function openAuthorizationWindow(
       }
       if (!popup.closed) popup.close();
     },
-    isClosed: async () => popup.closed,
+    isClosed: async () => (unsubscribeClosed ? nativeClosed : popup.closed),
     navigate: async (url) => {
       const record: AuthorizationLaunchRecord = { url, createdAt: Date.now() };
       try {
