@@ -38,13 +38,13 @@ test.describe('Direct-message thread echoes', () => {
         .getByTestId('room-main-pane')
         .locator('[role="article"]', { hasText: replyText });
       await expect(senderEcho).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      await expect(senderEcho.getByText('Thread')).toBeVisible();
+      await expect(senderEcho.getByText('Thread', { exact: true })).toBeVisible();
 
       const receiverEcho = page
         .getByTestId('room-main-pane')
         .locator('[role="article"]', { hasText: replyText });
       await expect(receiverEcho).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      await expect(receiverEcho.getByText('Thread')).toBeVisible();
+      await expect(receiverEcho.getByText('Thread', { exact: true })).toBeVisible();
     });
   });
 });
