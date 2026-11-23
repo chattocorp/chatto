@@ -442,8 +442,9 @@ safe fallback. Neither path advances the cursor past the fact.
 
 ## Process-wide live ingress
 
-`MyEventsHub` owns one NATS Core subscription to `live.sync.>` and one to
-`live.evt.>` per Chatto process. It classifies subjects before decoding, waits
+`MyEventsHub` owns one NATS Core subscription to `live.>` per Chatto process.
+This subscription receives both `live.sync.>` and `live.evt.>` in arrival
+order. It classifies subjects before decoding, waits
 for `ServerContentView` once for content facts, and fans immutable decoded
 events into count- and byte-bounded session queues. Sessions of one user with
 the same activation state and selected protected roles share room-visibility state. The hub makes each
@@ -462,8 +463,16 @@ have the same scope before authorization. Pubsub events have no replay
 contract. Durable facts continue through `live.evt.>`, and catch-up resource
 reads restore current latest-value state.
 
-A NATS continuity gap or projection-readiness failure quarantines the hub and
-closes current sessions. The replica admits a new hub generation only after
+The subscription uses the pending queue of the NATS client. When the hub is
+busy, for example while it waits for a projection, new messages wait in this
+queue. One message post can publish one `live.sync` invalidation for each
+member of the room, so a burst can be much larger than one room. The queue
+holds up to 64 MiB. NATS drops a message only when the queue is full.
+
+A dropped `live.sync` message can be a security control, such as session
+termination. A dropped `live.evt` message is a missing durable fact. Thus a
+NATS continuity gap on either root, or a projection-readiness failure,
+quarantines the hub and closes current sessions. The replica admits a new hub generation only after
 NATS resources, projections, and volatile watchers are current. A slow session
 that exceeds its queue count or byte limit closes independently.
 

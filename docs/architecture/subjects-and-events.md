@@ -141,8 +141,9 @@ complete retry. Pins reference the canonical message ID; Room Timeline removes
 an active association when that message is retracted.
 
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
-process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
-`live.evt.>`.
+process-wide `MyEventsHub` has one subscription to `live.>`. It receives both
+`live.sync.>` and `live.evt.>` in arrival order. A burst waits in the
+subscription's NATS pending queue (64 MiB) until the hub can process it.
 
 Ingress rejects non-deliverable event types from their subjects before protobuf
 decoding, including private `message_body` facts. It then decodes each event and
@@ -185,8 +186,8 @@ subscriptions use an exact authorized content snapshot or the caller's
 live-only fallback. Subscriber overflow closes only that session.
 
 Process-wide ingress loss or projection-readiness failure quarantines
-admission, closes every current session, flushes and drains the old
-subscriptions, and opens a fresh ingress generation. No session continues or
+admission, closes every current session, removes the old subscription and its
+backlog, and opens a fresh ingress generation. No session continues or
 reconnects across an unobservable gap.
 
 The bundled web client watches server heartbeats for silent stalls. Its
@@ -562,8 +563,9 @@ boundary for live delivery.
 
 The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvents`, which combines:
 
-- One process-wide `ChanSubscribe("live.sync.>")` for `PubSubEvent`
-  messages and one `ChanSubscribe("live.evt.>")` for raw committed EVT facts.
+- One process-wide `Subscribe("live.>")` for `PubSubEvent` messages on
+  `live.sync.>` and raw committed EVT facts on `live.evt.>`. A burst waits in
+  the NATS pending queue of that subscription.
   Subject classification and decoding happen once. Authorization then applies
   per connected user and privileged-mode state using shared room visibility,
   asset room membership,
