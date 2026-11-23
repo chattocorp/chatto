@@ -178,6 +178,28 @@ func (c *ChattoCore) ResolveMessageContentID(roomID, eventID string) (string, er
 // HydrateMessagePost resolves echo attribution and mentions for a read response.
 // The returned echo payload is detached from EVT. Missing originals never use old
 // copied echo metadata. Envelope identity and timeline routing remain unchanged.
+// MessageBodyVersion identifies the body that GetFullMessageBody reads for one
+// message. Two equal values mean that the body did not change between them.
+// An edit, a retraction, or a key-shredding request of the author changes the
+// value. The room timeline and the content-key projections apply a
+// key-shredding request independently, so the value checks both. The value is
+// comparable with ==.
+type MessageBodyVersion struct {
+	reference TimelineBodyReference
+	current   bool
+}
+
+// CurrentMessageBodyVersion returns the body version of a message from the
+// room timeline and content-key projections. It does no I/O. Read it before GetFullMessageBody
+// to find out later whether a body read is still current.
+func (c *ChattoCore) CurrentMessageBodyVersion(eventID string) MessageBodyVersion {
+	reference, retracted, known := c.roomModel.latestBodyReference(eventID)
+	if !known || retracted || reference.StreamSeq == 0 || c.userModel.contentKeysShredded(reference.AuthorID) {
+		return MessageBodyVersion{}
+	}
+	return MessageBodyVersion{reference: reference, current: true}
+}
+
 func (c *ChattoCore) HydrateMessagePost(ctx context.Context, event *evtv1.Event) (*evtv1.MessagePostedEvent, error) {
 	if post := event.GetMessagePosted(); post == nil || post.GetEchoOfEventId() == "" {
 		return post, nil

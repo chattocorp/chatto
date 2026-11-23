@@ -81,6 +81,9 @@ func TestContentKeyProjection_ShredRequestPermanentlyClearsKeys(t *testing.T) {
 	}, 1); err != nil {
 		t.Fatalf("Apply content key: %v", err)
 	}
+	if p.UserShredded("U1") {
+		t.Fatal("UserShredded before the shred request")
+	}
 	if err := p.Apply(&evtv1.Event{
 		Id: "E2",
 		Event: &evtv1.Event_UserKeyShreddingRequested{
@@ -100,6 +103,9 @@ func TestContentKeyProjection_ShredRequestPermanentlyClearsKeys(t *testing.T) {
 
 	if _, ok := p.Active("U1", purpose); ok {
 		t.Fatal("active content key should be cleared after shred")
+	}
+	if !p.UserShredded("U1") {
+		t.Fatal("UserShredded = false after the shred request")
 	}
 	if _, ok := p.Get("U1", purpose, 1); ok {
 		t.Fatal("epoch 1 content key should be cleared after shred")

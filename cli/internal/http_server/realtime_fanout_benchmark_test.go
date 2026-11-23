@@ -15,6 +15,11 @@ import (
 //
 // The hub fanout before this step and the WebSocket write after it are outside
 // the measurement. See BenchmarkMyEventsHubRoomFanout in the core package.
+//
+// All viewers get one envelope, because the hub gives the same envelope to
+// every user that receives a fact. The shared message-post mapping depends on
+// this. TestMyEventsHubSharesEnvelopeAcrossUsers in the core package protects
+// the assumption; if it fails, this benchmark no longer shows live delivery.
 func BenchmarkRealtimeMessagePostFrames(b *testing.B) {
 	const viewers = 100
 	env := setupWebSocketTestServer(b)
@@ -40,12 +45,13 @@ func BenchmarkRealtimeMessagePostFrames(b *testing.B) {
 	if err != nil {
 		b.Fatalf("PostMessage: %v", err)
 	}
-	envelope := core.NewEVTEventEnvelopeWithDeliverySeq(posted, 42)
-
 	b.ReportAllocs()
 	b.ResetTimer()
 	frameBytes := 0
 	for range b.N {
+		// Each delivery gets a new envelope, so per-event shared work counts
+		// once in each operation.
+		envelope := core.NewEVTEventEnvelopeWithDeliverySeq(posted, 42)
 		for _, viewerID := range viewerIDs {
 			frame, err := env.httpServer.realtimeServerFrameForEvent(env.ctx, viewerID, envelope)
 			if err != nil {

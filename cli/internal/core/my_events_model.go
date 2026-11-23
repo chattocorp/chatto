@@ -390,9 +390,13 @@ func liveEVTMsgSeq(msg *nats.Msg) uint64 {
 	return seq
 }
 
-func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, roomID string, event *evtv1.Event, seq uint64) (EventEnvelope, bool) {
+// filterReadyEVTRoomSubjectEvent reports whether one user can receive a live
+// room fact. It can change memberRooms for membership facts. It does not
+// create an envelope: the hub creates one envelope for each fact and gives it
+// to every user that passes, so per-event work on the envelope is shared.
+func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, roomID string, event *evtv1.Event, seq uint64) bool {
 	if roomID == "" || event == nil || !isDeliverableLiveEVTRoomEvent(event) || seq == 0 {
-		return nil, false
+		return false
 	}
 
 	_, isMember := memberRooms[roomID]
@@ -400,21 +404,21 @@ func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(ctx context.Context, user
 	case *evtv1.Event_RoomInvitationCreated:
 		v := e.RoomInvitationCreated
 		if v.RecipientId != userID && event.ActorId != userID {
-			return nil, false
+			return false
 		}
-		return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
+		return true
 	case *evtv1.Event_RoomInvitationAccepted:
 		v := e.RoomInvitationAccepted
 		if v.RecipientId != userID && v.SenderId != userID {
-			return nil, false
+			return false
 		}
-		return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
+		return true
 	case *evtv1.Event_RoomInvitationDeclined:
 		v := e.RoomInvitationDeclined
 		if v.RecipientId != userID && v.SenderId != userID {
-			return nil, false
+			return false
 		}
-		return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
+		return true
 	case *evtv1.Event_RoomCreated:
 		if e.RoomCreated.GetUniversal() {
 			if isEffective, err := s.core.RoomMembershipExists(ctx, KindChannel, userID, roomID); err == nil && isEffective {
@@ -467,43 +471,46 @@ func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(ctx context.Context, user
 		delete(memberRooms, roomID)
 	}
 	if followed := event.GetThreadFollowed(); followed != nil && followed.GetUserId() != userID {
-		return nil, false
+		return false
 	}
 	if unfollowed := event.GetThreadUnfollowed(); unfollowed != nil && unfollowed.GetUserId() != userID {
-		return nil, false
+		return false
 	}
 	if !isMember {
-		return nil, false
+		return false
 	}
 	if protectedRoomID, protected := s.core.MessageReadProtectedEventRoomID(event); protected {
 		kind, err := s.core.FindRoomKind(ctx, protectedRoomID)
 		if err != nil {
-			return nil, false
+			return false
 		}
 		canRead, err := s.core.CanReadMessageEvent(ctx, userID, kind, protectedRoomID, event)
 		if err != nil || !canRead {
-			return nil, false
+			return false
 		}
 	}
-	return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
+	return true
 }
 
-func (s *MyEventsModel) filterReadyEVTAssetSubjectEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, roomID string, event *evtv1.Event, seq uint64) (EventEnvelope, bool) {
+// filterReadyEVTAssetSubjectEvent reports whether one user can receive a live
+// asset fact. Like filterReadyEVTRoomSubjectEvent, it does not create an
+// envelope.
+func (s *MyEventsModel) filterReadyEVTAssetSubjectEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, roomID string, event *evtv1.Event, seq uint64) bool {
 	if roomID == "" || event == nil || !isDeliverableLiveEVTAssetEvent(event) || seq == 0 {
-		return nil, false
+		return false
 	}
 	if _, isMember := memberRooms[roomID]; !isMember {
-		return nil, false
+		return false
 	}
 	kind, err := s.core.FindRoomKind(ctx, roomID)
 	if err != nil {
-		return nil, false
+		return false
 	}
 	canRead, err := s.core.CanReadMessageEvent(ctx, userID, kind, roomID, event)
 	if err != nil || !canRead {
-		return nil, false
+		return false
 	}
-	return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
+	return true
 }
 
 func (s *MyEventsModel) waitForLiveEVTRoomEvent(ctx context.Context, subject string, event *evtv1.Event, seq uint64) error {

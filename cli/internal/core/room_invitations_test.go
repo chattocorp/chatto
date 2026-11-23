@@ -147,7 +147,7 @@ func TestRoomInvitationRealtimeRecipientWithoutMembership(t *testing.T) {
 	facts, seq, err := c.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomInvitationCreated))
 	require.NoError(t, err)
 	for _, user := range []string{sender.Id, recipient.Id, outsider.Id} {
-		_, visible := c.myEventsModel.filterReadyEVTRoomSubjectEvent(ctx, user, map[string]struct{}{}, room.Id, facts[0], seq)
+		visible := c.myEventsModel.filterReadyEVTRoomSubjectEvent(ctx, user, map[string]struct{}{}, room.Id, facts[0], seq)
 		require.Equal(t, user != outsider.Id, visible)
 	}
 	outside, err := c.PlanRealtimeReplay(ctx, outsider.Id, outsideBefore.BoundaryCursor, nil)

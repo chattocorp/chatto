@@ -476,15 +476,8 @@ func TestMyEventsFilter_DeliversUniversalDisableToPriorEffectiveMember(t *testin
 		},
 	}
 
-	delivered, ok := service.filterReadyEVTRoomSubjectEvent(context.Background(), viewer.Id, memberRooms, room.Id, event, 123)
-	if !ok || delivered == nil {
-		t.Fatalf("filterReadyEVTRoomSubjectEvent delivered %T/%v, want RoomUniversalChangedEvent", delivered, ok)
-	}
-	if delivered.EVTEvent() != event {
-		t.Fatalf("delivered EVT event = %p, want %p", delivered.EVTEvent(), event)
-	}
-	if delivered.DeliverySeq() != 123 {
-		t.Fatalf("DeliverySeq = %d, want 123", delivered.DeliverySeq())
+	if !service.filterReadyEVTRoomSubjectEvent(context.Background(), viewer.Id, memberRooms, room.Id, event, 123) {
+		t.Fatal("filterReadyEVTRoomSubjectEvent dropped RoomUniversalChangedEvent, want delivery")
 	}
 	if _, stillCached := memberRooms[room.Id]; stillCached {
 		t.Fatal("memberRooms still contains room after universal disable")
@@ -497,9 +490,8 @@ func TestMyEventsFilter_DeliversUniversalDisableToPriorEffectiveMember(t *testin
 			RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: room.Id},
 		},
 	}
-	delivered, ok = service.filterReadyEVTRoomSubjectEvent(context.Background(), viewer.Id, memberRooms, room.Id, nextEvent, 124)
-	if ok || delivered != nil {
-		t.Fatalf("next room event delivered %T/%v after universal disable, want dropped", delivered, ok)
+	if service.filterReadyEVTRoomSubjectEvent(context.Background(), viewer.Id, memberRooms, room.Id, nextEvent, 124) {
+		t.Fatal("next room event delivered after universal disable, want dropped")
 	}
 }
 
@@ -521,8 +513,8 @@ func TestMyEventsFilter_DropsMessageAndAssetFactsWithoutMessageRead(t *testing.T
 
 	service := NewMyEventsModel(chatto)
 	memberRooms := map[string]struct{}{room.Id: {}}
-	if delivered, ok := service.filterReadyEVTRoomSubjectEvent(context.Background(), viewer.Id, memberRooms, room.Id, message, 123); ok || delivered != nil {
-		t.Fatalf("message event delivered %T/%v without a message read mode, want dropped", delivered, ok)
+	if service.filterReadyEVTRoomSubjectEvent(context.Background(), viewer.Id, memberRooms, room.Id, message, 123) {
+		t.Fatal("message event delivered without a message read mode, want dropped")
 	}
 
 	assetEvent := &evtv1.Event{
@@ -531,8 +523,8 @@ func TestMyEventsFilter_DropsMessageAndAssetFactsWithoutMessageRead(t *testing.T
 			AssetId: "asset-1", MessageEventId: messageID,
 		}},
 	}
-	if delivered, ok := service.filterReadyEVTAssetSubjectEvent(context.Background(), viewer.Id, memberRooms, room.Id, assetEvent, 124); ok || delivered != nil {
-		t.Fatalf("asset event delivered %T/%v without a message read mode, want dropped", delivered, ok)
+	if service.filterReadyEVTAssetSubjectEvent(context.Background(), viewer.Id, memberRooms, room.Id, assetEvent, 124) {
+		t.Fatal("asset event delivered without a message read mode, want dropped")
 	}
 }
 
@@ -561,8 +553,8 @@ func TestMyEventsFilter_DeliversDMFactsDespiteMessageReadDenial(t *testing.T) {
 
 	service := NewMyEventsModel(chatto)
 	memberRooms := map[string]struct{}{dm.GetId(): {}}
-	if delivered, ok := service.filterReadyEVTRoomSubjectEvent(context.Background(), viewer.GetId(), memberRooms, dm.GetId(), message, 123); !ok || delivered == nil {
-		t.Fatalf("DM message event delivered %T/%v, want delivery", delivered, ok)
+	if !service.filterReadyEVTRoomSubjectEvent(context.Background(), viewer.GetId(), memberRooms, dm.GetId(), message, 123) {
+		t.Fatal("DM message event dropped, want delivery")
 	}
 	assetEvent := &evtv1.Event{
 		Id: NewEventID(),
@@ -570,8 +562,8 @@ func TestMyEventsFilter_DeliversDMFactsDespiteMessageReadDenial(t *testing.T) {
 			AssetId: "dm-asset-1", MessageEventId: message.GetId(),
 		}},
 	}
-	if delivered, ok := service.filterReadyEVTAssetSubjectEvent(context.Background(), viewer.GetId(), memberRooms, dm.GetId(), assetEvent, 124); !ok || delivered == nil {
-		t.Fatalf("DM asset event delivered %T/%v, want delivery", delivered, ok)
+	if !service.filterReadyEVTAssetSubjectEvent(context.Background(), viewer.GetId(), memberRooms, dm.GetId(), assetEvent, 124) {
+		t.Fatal("DM asset event dropped, want delivery")
 	}
 }
 
