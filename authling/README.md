@@ -27,23 +27,28 @@ The image includes the web assets and runs as UID 1000. Its default command is
 or configure it through environment variables. The development configuration
 is not loaded from the image's `/data` working directory.
 
-The `build Authling image` workflow builds and checks Linux amd64 images for
-pull requests. Relevant changes on `main` and manual workflow runs also publish
-`ghcr.io/chattocorp/authling:<full-commit-sha>` when run from a branch.
+Images are available for `linux/amd64` and `linux/arm64`. CI builds the image
+for each change to Authling. It builds each platform on a runner of the same
+architecture and runs `authling version` in each image. CI makes release tags
+only after this build succeeds. Each push to `main` that changes Authling
+publishes `ghcr.io/chattocorp/authling:<full-commit-sha>` and moves the `dev`
+tag to it.
 
 Merging Authling's Sweet release PR starts CI. Successful checks create its
 independent `authling/v<version>` tag. The same CI run then builds and publishes `ghcr.io/chattocorp/authling:<version>`;
-for example, `authling/v0.1.0-alpha.1` publishes `:0.1.0-alpha.1`. The workflow
-rejects a release tag that differs from `version.go` or `.sweet.yml`, and checks the executable's version before publishing. Manual runs
-on an Authling release tag use the same checks and versioned image name.
+for example, `authling/v0.3.0` publishes `:0.3.0`. Only the highest stable
+version also moves the `latest` tag. The workflow
+rejects a release tag that differs from `version.go` or `.sweet.yml`, and checks the executable's version before publishing.
 Release versions can include a prerelease suffix, but not `+` build metadata.
-The workflow does not publish floating `latest` or `stable` tags.
+A published release image stays unchanged: a run that publishes its tag again
+sets only `latest` again from it. To publish a release tag again, run CI
+manually with the tag (see [`docs/RELEASING.md`](../docs/RELEASING.md)).
 
 The workflow summary reports the published image digest. Deploy that digest to
 staging and verify the release image, then promote the same digest to production
 through a separate deployment PR. Flux applies the digest recorded in Git;
-publishing a release does not select or deploy a production version. A workflow
-rerun can rebuild a tag, so use the verified digest as the deployment identity.
+publishing a release does not select or deploy a production version. Use the
+verified digest as the deployment identity.
 Never rebuild an image as part of production promotion.
 
 For an external NATS server with a private CA, mount its CA in a dedicated

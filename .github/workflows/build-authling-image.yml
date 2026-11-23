@@ -1,113 +1,105 @@
 name: build Authling image
 
+# Build and check the Authling image for linux/amd64 and linux/arm64, each on
+# a runner of its own architecture. The two callers are:
+# - ci.yml, for each change that selects the Authling jobs. The `tag` job
+#   waits for this build. A push to main also publishes the commit image and
+#   moves `dev`.
+# - publish-releases.yml, for each Authling version that Sweet tags. The
+#   release image moves `latest` only for the highest stable version.
+#
+# To publish a release tag again, run ci.yml manually with the tag; see
+# docs/RELEASING.md.
 on:
-  pull_request:
-    paths:
-      - 'authling/**'
-      - 'pkg/**'
-      - 'go.work*'
-      - 'cli/go.mod'
-      - 'cli/go.sum'
-      - 'LICENSE'
-      - 'NOTICE'
-      - '.github/workflows/build-authling-image.yml'
-      # Release notes and changelogs do not change the image.
-      - '!**/CHANGELOG.md'
-      - '!**/.sweet/**'
-  push:
-    branches: [main]
-    paths:
-      - 'authling/**'
-      - 'pkg/**'
-      - 'go.work*'
-      - 'cli/go.mod'
-      - 'cli/go.sum'
-      - 'LICENSE'
-      - 'NOTICE'
-      - '.github/workflows/build-authling-image.yml'
-      # Release notes and changelogs do not change the image.
-      - '!**/CHANGELOG.md'
-      - '!**/.sweet/**'
-  # publish-releases.yml calls this for each Authling version that Sweet tags.
   workflow_call:
     inputs:
       release_tag:
-        description: 'Authling release tag to build and publish, such as authling/v0.2.0.'
-        required: true
+        description: 'Authling release tag to build and publish, such as authling/v0.3.0. Empty builds the commit of the calling run.'
+        required: false
+        default: ''
         type: string
       highest:
         description: 'Sweet tag entry: the version is the highest stable Authling version. Only then the image moves `latest`.'
-        required: true
-        type: boolean
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: 'Existing Authling release tag to build (for example authling/v0.1.0-alpha.3); empty builds the selected ref'
         required: false
-        type: string
-
-concurrency:
-  # Release builds share a group because they all update the latest tag.
-  group: authling-image-${{ inputs.release_tag != '' && 'latest' || github.ref }}
-  cancel-in-progress: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
 jobs:
-  image:
+  metadata:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
-      packages: write
+      packages: read
+    outputs:
+      sha: ${{ steps.metadata.outputs.sha }}
+      version: ${{ steps.metadata.outputs.version }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      stream_tag: ${{ steps.metadata.outputs.stream_tag }}
+      publish: ${{ steps.metadata.outputs.publish }}
+      published: ${{ steps.metadata.outputs.published }}
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.release_tag || github.ref }}
+          ref: ${{ inputs.release_tag }}
+          persist-credentials: false
+      # The scripts come from this run, also for an older release tag.
+      - name: Check out the publication scripts
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          path: .context/release-tools
+          persist-credentials: false
+          sparse-checkout: tools/release
+      - name: Log in to GitHub Container Registry
+        if: inputs.release_tag != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Resolve image metadata
         id: metadata
         env:
+          # Untrusted input: the script validates it.
           RELEASE_TAG: ${{ inputs.release_tag }}
-          # Manual runs keep their earlier behavior and move `latest`.
-          MOVE_LATEST: ${{ inputs.highest == false && 'false' || 'true' }}
-        shell: python
-        run: |
-          import json
-          import os
-          import pathlib
-          import re
-          import subprocess
+          HIGHEST: ${{ inputs.highest }}
+        run: bash .context/release-tools/tools/release/authling-image-metadata.sh
 
-          sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-          source = pathlib.Path("authling/version.go").read_text()
-          version = re.search(r'const Version = "([^"]+)"', source).group(1)
-          release_tag = os.environ.get("RELEASE_TAG", "")
-          ref = f"refs/tags/{release_tag}" if release_tag else os.environ["GITHUB_REF"]
-          tag = sha
-          stream_tag = "dev" if ref == "refs/heads/main" else ""
-          if ref.startswith("refs/tags/"):
-              prefix = "refs/tags/authling/v"
-              if not ref.startswith(prefix):
-                  raise SystemExit("Only authling/v release tags are supported")
-              tag = ref[len(prefix):]
-              stream_tag = "latest" if os.environ["MOVE_LATEST"] == "true" else ""
-              # Docker tags cannot contain SemVer build metadata (+suffix).
-              number = r"(?:0|[1-9][0-9]*)"
-              identifier = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
-              semver = rf"{number}\.{number}\.{number}(?:-{identifier}(?:\.{identifier})*)?"
-              if not re.fullmatch(semver, tag) or len(tag) > 128:
-                  raise SystemExit("Release version is not a supported SemVer image tag")
-              manifest_path = pathlib.Path("authling/.sweet.yml")
-              if manifest_path.exists():
-                  manifest = re.search(r"(?m)^version: ([^\r\n]+)$", manifest_path.read_text()).group(1)
-              else:
-                  # Existing release tags can predate the Sweet Release migration.
-                  manifest = json.loads(pathlib.Path(".release-please-manifest.json").read_text())["authling"]
-              if tag != version or tag != manifest:
-                  raise SystemExit("Release tag, version.go and release manifest must agree")
-          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              output.write(f"sha={sha}\nversion={version}\ntag={tag}\nstream_tag={stream_tag}\n")
-
+  # An already published release image stays unchanged, so it needs no build.
+  build:
+    needs: metadata
+    if: needs.metadata.outputs.published != 'true'
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    # Each matrix job sets only the output of its own architecture.
+    outputs:
+      digest-amd64: ${{ steps.digest.outputs.amd64 }}
+      digest-arm64: ${{ steps.digest.outputs.arm64 }}
+    env:
+      IMAGE_LABELS: |
+        org.opencontainers.image.source=https://github.com/chattocorp/chatto
+        org.opencontainers.image.revision=${{ needs.metadata.outputs.sha }}
+        org.opencontainers.image.version=${{ needs.metadata.outputs.version }}
+        org.opencontainers.image.licenses=AGPL-3.0-or-later
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag }}
+          persist-credentials: false
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
@@ -117,65 +109,88 @@ jobs:
           buildkitd-config-inline: |
             [registry."docker.io"]
               mirrors = ["mirror.gcr.io"]
-      - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build image for verification
         uses: docker/build-push-action@v6
         with:
           context: .
           file: authling/Dockerfile
-          platforms: linux/amd64
+          platforms: linux/${{ matrix.arch }}
           load: true
           tags: authling:check
-          cache-from: type=gha,scope=authling-amd64
-          cache-to: type=gha,mode=max,scope=authling-amd64
-          labels: |
-            org.opencontainers.image.source=https://github.com/chattocorp/chatto
-            org.opencontainers.image.revision=${{ steps.metadata.outputs.sha }}
-            org.opencontainers.image.version=${{ steps.metadata.outputs.version }}
-            org.opencontainers.image.licenses=AGPL-3.0-or-later
+          cache-from: type=gha,scope=authling-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=authling-${{ matrix.arch }}
+          labels: ${{ env.IMAGE_LABELS }}
       - name: Check executable
         env:
-          VERSION: ${{ steps.metadata.outputs.version }}
+          VERSION: ${{ needs.metadata.outputs.version }}
         run: |
           actual="$(docker run --rm --network none --read-only authling:check version)"
           test "$actual" = "authling version ${VERSION}"
-      - name: Publish verified image
-        if: github.event_name != 'pull_request'
+      - name: Log in to GitHub Container Registry
+        if: needs.metadata.outputs.publish == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # The builder has the checked build in its cache, so this pushes the
+      # same image. It gets no tag: the publish job tags the image index.
+      - name: Push checked image
+        id: push
+        if: needs.metadata.outputs.publish == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: authling/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=ghcr.io/chattocorp/authling,push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=authling-${{ matrix.arch }}
+          labels: ${{ env.IMAGE_LABELS }}
+      - name: Record image digest
+        id: digest
+        if: needs.metadata.outputs.publish == 'true'
         env:
-          IMAGE: ghcr.io/chattocorp/authling:${{ steps.metadata.outputs.tag }}
-          STREAM_TAG: ${{ steps.metadata.outputs.stream_tag }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: |
-          # A published release image stays unchanged, so a run that publishes
-          # a tag again does not replace it with a rebuild. Its stream tag is set
-          # again from it, in case an earlier run failed before that push.
-          if [ -n "$RELEASE_TAG" ] && docker buildx imagetools inspect "$IMAGE" > /dev/null 2>&1; then
-            echo "::notice::${IMAGE} is already published; it stays unchanged."
-            if [ -n "$STREAM_TAG" ]; then
-              docker buildx imagetools create --tag "ghcr.io/chattocorp/authling:${STREAM_TAG}" "$IMAGE"
-            fi
-            exit 0
-          fi
-          docker tag authling:check "$IMAGE"
-          docker push "$IMAGE"
-          if [ -n "$STREAM_TAG" ]; then
-            stream_image="ghcr.io/chattocorp/authling:${STREAM_TAG}"
-            docker tag authling:check "$stream_image"
-            docker push "$stream_image"
-          fi
-          digest_ref="$(docker image inspect "$IMAGE" --format '{{range .RepoDigests}}{{println .}}{{end}}' | awk '/^ghcr.io\/chattocorp\/authling@sha256:/ {print; exit}')"
-          test -n "$digest_ref"
-          {
-            echo "Published ${IMAGE} (linux/amd64)."
-            echo
-            echo "Digest: ${digest_ref}"
-            if [ -n "$STREAM_TAG" ]; then
-              echo "Published stream image ${stream_image}; Flux tracks its digest."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          ARCH: ${{ matrix.arch }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: echo "${ARCH}=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: [metadata, build]
+    if: >-
+      ${{ !cancelled() && needs.metadata.outputs.publish == 'true'
+          && (needs.build.result == 'success'
+              || (needs.build.result == 'skipped' && needs.metadata.outputs.published == 'true')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Release publications share a group because they all can move `latest`.
+    # A push to main uses a group of its own run: GitHub cancels a pending job
+    # when a newer job waits in its group, and a cancelled job in ci.yml stops
+    # the release tags. Thus two close pushes to main can set `dev` out of order
+    # until the next Authling change.
+    concurrency:
+      group: authling-image-${{ inputs.release_tag != '' && 'release' || github.run_id }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out the publication scripts
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: tools/release
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish multi-platform image
+        env:
+          TAG: ${{ needs.metadata.outputs.tag }}
+          STREAM_TAG: ${{ needs.metadata.outputs.stream_tag }}
+          RELEASE: ${{ inputs.release_tag != '' }}
+          DIGEST_AMD64: ${{ needs.build.outputs.digest-amd64 }}
+          DIGEST_ARM64: ${{ needs.build.outputs.digest-arm64 }}
+        run: bash tools/release/publish-authling-image.sh

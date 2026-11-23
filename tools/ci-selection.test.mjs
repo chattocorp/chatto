@@ -226,6 +226,25 @@ test('desktop changes and pushes build all desktop platforms', () => {
   }
 });
 
+test('Authling image inputs select the Authling jobs, which build the image', () => {
+  for (const file of [
+    'authling/Dockerfile',
+    '.github/workflows/build-authling-image.yml',
+    'tools/release/authling-image-metadata.sh',
+    'tools/release/publish-authling-image.sh'
+  ]) {
+    assert.ok(selected([file]).includes('authling'), file);
+  }
+  // Image inputs at the root are common files.
+  for (const file of ['go.work', 'go.work.sum', 'LICENSE']) {
+    assert.deepEqual(selected([file]), everything, file);
+  }
+  assert.equal(
+    workflow.jobs['authling-image'].if,
+    "${{ needs.changes.outputs.authling == 'true' }}"
+  );
+});
+
 test('shared build and dependency configuration selects all jobs', () => {
   for (const file of [
     'mise.toml',
