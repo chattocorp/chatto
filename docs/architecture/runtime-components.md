@@ -70,8 +70,9 @@ The free list keeps at most four idle writers, of about 1 MiB each, also
 after a garbage collection. A response that finds no idle writer makes a new
 one. The garbage collector frees that writer if the free list is full when the
 response is complete. Connect's default gzip support has a separate
-`sync.Pool` for each procedure. That pool kept up to one writer for each
-processor and dropped its writers after garbage collections.
+`sync.Pool` for each procedure. That pool kept a private writer for each
+processor that served the procedure, and it dropped writers that stayed unused
+for two garbage collections.
 
 The HTTP server owns a process-local
 [`imageTransforms`](../../cli/internal/http_server/image_transforms.go)

@@ -24,12 +24,13 @@ var idleGzipWriters = make(chan *gzip.Writer, idleGzipWriterLimit)
 // support. Only the reuse of writers is different.
 //
 // Connect keeps a sync.Pool of compressors for each procedure handler, and
-// Chatto mounts more than 250 procedures. A sync.Pool keeps one entry in a
-// private slot for each processor (GOMAXPROCS), which other processors cannot
-// use, and it drops all its entries after two garbage collections. With the
-// default compressor, each procedure thus kept up to GOMAXPROCS writers of
-// about 1 MiB, and a procedure that was called less often than the collector
-// ran made a new writer for each compressed response.
+// Chatto mounts more than 250 procedures. A sync.Pool keeps a private entry
+// for each processor (GOMAXPROCS), which other processors cannot take, and it
+// drops entries that stay unused for two garbage collections. With the
+// default compressor, each procedure thus kept its own idle writers of about
+// 1 MiB, often one or more for each processor that served it, and a procedure
+// that was called less often than the collector ran made a new writer for
+// each compressed response.
 //
 // The compressor that Connect pools here is a small pooledGzipWriter. It gets
 // a real gzip writer from idleGzipWriters for each response and releases it
