@@ -499,7 +499,10 @@
     {:else}
       <ul class="divide-y divide-border">
         {#each providers as provider (provider.id)}
-          <li class="flex items-center justify-between gap-4 px-4 py-3">
+          <li
+            data-testid="sso-provider-row"
+            class="flex items-center justify-between gap-4 px-4 py-3"
+          >
             {@render identity(
               provider.type,
               provider.label,
@@ -542,7 +545,10 @@
         {/each}
 
         {#each unconfiguredLinkedIdentities as linkedIdentity (linkedIdentity.subjectHash)}
-          <li class="flex items-center justify-between gap-4 px-4 py-3">
+          <li
+            data-testid="sso-provider-row"
+            class="flex items-center justify-between gap-4 px-4 py-3"
+          >
             {@render identity(
               linkedIdentity.providerType,
               linkedIdentity.providerLabel,

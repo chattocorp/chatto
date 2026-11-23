@@ -207,7 +207,7 @@ test('links a remote identity in one popup and refreshes the original client', a
     // session intact. This exercises continuation through first-party sign-in.
     await clientContext.clearCookies({ domain: '127.0.0.1' });
     await clientPage.goto('/chat/127.0.0.1/settings/account');
-    const remoteRow = clientPage.locator('div.rounded.border').filter({ hasText: 'Authling' });
+    const remoteRow = clientPage.getByTestId('sso-provider-row').filter({ hasText: 'Authling' });
     const linkPopupPromise = clientPage.waitForEvent('popup');
     await remoteRow.getByRole('button', { name: 'Link', exact: true }).click();
     const linkPopup = await linkPopupPromise;
