@@ -271,7 +271,8 @@ func (h *MyEventsHub) drainIngressBacklog(ctx context.Context, msgChan <-chan *n
 	}
 	remaining := pending() + len(msgChan)
 	for remaining > 0 {
-		if len(msgChan) == 0 && pending() == 0 {
+		// Read the pending queue first, for the same reason as above.
+		if pending() == 0 && len(msgChan) == 0 {
 			return "", false, nil
 		}
 		select {
