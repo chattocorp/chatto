@@ -508,22 +508,24 @@
   function startReverification(provider: ExternalIdentityProviderInfo, action: ProtectedAction) {
     const userId = accountId;
     if (!userId) return;
+    // A link continues in the link window; a disconnect returns to this page.
+    const startUrl = reverificationStartUrl(
+      provider,
+      action.kind === 'link'
+        ? identityLinkPath(action.provider.id, userId)
+        : disconnectContinuationPath(page.url.pathname, action.subjectHash, userId)
+    );
+    if (!startUrl) {
+      reverificationPrompt = { action, error: m('settings.account.sso.reverification_failed') };
+      return;
+    }
     actionError = '';
     reverificationPrompt = null;
     if (action.kind === 'link') {
-      // The provider returns to the link window, which starts the link.
-      launchProviderWindow(
-        action.provider,
-        reverificationStartUrl(provider, identityLinkPath(action.provider.id, userId))
-      );
+      launchProviderWindow(action.provider, startUrl);
     } else {
       reverifyingProviderId = provider.id;
-      leavePage(
-        reverificationStartUrl(
-          provider,
-          disconnectContinuationPath(page.url.pathname, action.subjectHash, userId)
-        )
-      );
+      leavePage(startUrl);
     }
   }
 

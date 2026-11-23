@@ -126,9 +126,17 @@ a way out: try again when that can help, and close the window.
 
   /** Re-verify the user, then return to this window, which starts the link. */
   function startReverification(target: ExternalIdentityProviderInfo) {
+    const startUrl = reverificationStartUrl(
+      target,
+      identityLinkPath(request.providerId, request.userId)
+    );
+    if (!startUrl) {
+      offerReverification(m('settings.account.sso.reverification_failed'));
+      return;
+    }
     reverifyingProviderId = target.id;
     // Keep the buttons disabled while the browser leaves the page.
-    leavePage(reverificationStartUrl(target, identityLinkPath(request.providerId, request.userId)));
+    leavePage(startUrl);
   }
 
   async function startLink(target: ExternalIdentityProviderInfo, currentPassword?: string) {

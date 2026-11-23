@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExternalIdentityProviderInfo } from '$lib/api/externalIdentities';
 import {
   reverificationErrorMessage,
@@ -25,13 +25,27 @@ function provider(
 }
 
 describe('fresh-auth re-verification', () => {
+  beforeEach(() => vi.stubGlobal('location', { origin: 'https://chat.example' }));
+  afterEach(() => vi.unstubAllGlobals());
+
   it('starts on the provider login URL with the return path', () => {
-    const url = new URL(
-      reverificationStartUrl(provider('sso', true, true), '/sso/link?link_provider=github')
+    const start = reverificationStartUrl(
+      provider('sso', true, true),
+      '/sso/link?link_provider=github'
     );
+    expect(start).not.toBeNull();
+    const url = new URL(start!);
     expect(url.origin + url.pathname).toBe('https://chat.example/auth/providers/sso');
     expect(url.searchParams.get('intent')).toBe('reverify');
     expect(url.searchParams.get('redirect')).toBe('/sso/link?link_provider=github');
+  });
+
+  it.each([
+    'javascript:alert(document.domain)',
+    'data:text/html,<script>alert(1)</script>',
+    'https://evil.example/auth/providers/sso'
+  ])('refuses a provider login URL off this origin: %s', (loginUrl) => {
+    expect(reverificationStartUrl({ ...provider('sso', true, true), loginUrl }, '/')).toBeNull();
   });
 
   it('offers only linked providers that the server marks available', () => {
