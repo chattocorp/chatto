@@ -33,8 +33,10 @@ const (
 	// notificationAlertRetryDelay is the first delay of the job backoff. With
 	// doubling delays, attempts run 0, 15, 45, and 105 seconds after the
 	// first one, so four attempts fit into the delivery window.
-	notificationAlertRetryDelay   = 15 * time.Second
-	notificationAlertDeliveryTTL  = 2 * time.Minute
+	notificationAlertRetryDelay  = 15 * time.Second
+	notificationAlertDeliveryTTL = 2 * time.Minute
+	// notificationAlertReconcileInterval is the interval of reconcileExpired.
+	notificationAlertReconcileInterval = 15 * time.Second
 )
 
 // notificationAlertDelivery consumes immutable NotificationSignalled facts
@@ -143,19 +145,18 @@ func (d *notificationAlertDelivery) processDelivery(ctx context.Context, deliver
 
 // reconcileExpired closes PENDING alert state if its immutable source signal
 // was removed or unavailable before the durable consumer processed it.
+//
+// Every replica runs one pass each notificationAlertReconcileInterval. A pass
+// reads no NATS data. It scans the in-memory projection rows under the
+// projection lock and copies only the occurrences with a pending alert past its
+// deadline. completeAlertDelivery then runs for each copy after the lock is
+// released.
 func (d *notificationAlertDelivery) reconcileExpired(ctx context.Context) error {
-	ticker := time.NewTicker(15 * time.Second)
+	ticker := time.NewTicker(notificationAlertReconcileInterval)
 	defer ticker.Stop()
 	for {
 		now := d.core.notificationOccurrences.now().UTC()
-		for _, occurrence := range d.core.notificationOccurrences.projection.Projection().allOccurrences(now) {
-			if !NotificationAlertPending(occurrence) {
-				continue
-			}
-			deadline := NotificationAlertDeadline(occurrence)
-			if !deadline.IsZero() && now.Before(deadline) {
-				continue
-			}
+		for _, occurrence := range d.core.notificationOccurrences.projection.Projection().dueAlertOccurrences(now) {
 			if err := d.core.notificationOccurrences.completeAlertDelivery(ctx, occurrence, false); err != nil {
 				return err
 			}
