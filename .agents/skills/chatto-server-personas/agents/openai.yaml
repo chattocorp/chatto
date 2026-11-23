@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chatto Server Personas"
+  short_description: "Check features against self-hosted server types"
+  default_prompt: "Use $chatto-server-personas to audit Chatto setup and administration gaps for each server persona."
