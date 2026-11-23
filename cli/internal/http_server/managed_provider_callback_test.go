@@ -70,7 +70,7 @@ func TestManagedOAuthCallbackCreatesAccount(t *testing.T) {
 				profiles.Add(1)
 				_, _ = w.Write([]byte(tc.profile))
 			})}
-			s.router.GET("/auth/providers/company", func(c *gin.Context) { s.handleProviderStart(c, runtime) })
+			s.router.GET("/auth/providers/company", func(c *gin.Context) { s.handleProviderStart(c, runtime, providerStartIntent(c)) })
 			s.router.GET("/auth/providers/company/callback", func(c *gin.Context) { s.handleProviderCallback(c, runtime) })
 			ts, client := managedProviderBrowser(t, s)
 			_, err = s.core.CreateUser(t.Context(), core.SystemActorID, tc.wantBase, "Existing", "password123")

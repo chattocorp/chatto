@@ -152,6 +152,19 @@ func TestOIDCFreshAuthReverification(t *testing.T) {
 		assertReturn(t, resp.Header.Get("Location"), "error", "provider_denied")
 	})
 
+	// An older replica serves only the general start route. That route must
+	// never run a re-verification, so the dedicated route is the only entry.
+	t.Run("general start route does not re-verify", func(t *testing.T) {
+		location := startNoEmailOIDC(t, client, ts.URL, "sso", url.Values{"intent": {"reverify"}, "redirect": {settingsPath}})
+		authURL, err := url.Parse(location)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if authURL.Query().Has("prompt") || authURL.Query().Has("max_age") {
+			t.Fatalf("general start sent forced sign-in parameters: %q", authURL.RawQuery)
+		}
+	})
+
 	t.Run("start without a browser session", func(t *testing.T) {
 		anonymous := &http.Client{CheckRedirect: client.CheckRedirect}
 		assertReverificationStartRejected(t, anonymous, ts.URL, settingsPath, "same-origin")
@@ -167,7 +180,7 @@ func TestOIDCFreshAuthReverification(t *testing.T) {
 }
 
 func reverificationStartURL(baseURL, redirect string) string {
-	return baseURL + "/auth/providers/sso?" + url.Values{"intent": {"reverify"}, "redirect": {redirect}}.Encode()
+	return baseURL + "/auth/providers/sso/reverify?" + url.Values{"redirect": {redirect}}.Encode()
 }
 
 // startReverification starts a re-verification as a page of the server

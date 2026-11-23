@@ -60,8 +60,7 @@ function open(
 
 /** The re-verification start URL that the page builds for a provider. */
 function reverifyUrl(providerId: string, redirect: string) {
-  const url = new URL(`/auth/providers/${providerId}`, window.location.origin);
-  url.searchParams.set('intent', 'reverify');
+  const url = new URL(`/auth/providers/${providerId}/reverify`, window.location.origin);
   url.searchParams.set('redirect', redirect);
   return url.href;
 }

@@ -226,7 +226,19 @@ func (s *HTTPServer) setupOIDCRoutes() {
 			return
 		}
 
-		s.handleProviderStart(c, providerRuntime)
+		s.handleProviderStart(c, providerRuntime, providerStartIntent(c))
+	})
+
+	// Re-verification has its own route and callback state. An older replica
+	// has neither, so it cannot run the attempt as an ordinary sign-in.
+	auth.GET("providers/:providerID/reverify", func(c *gin.Context) {
+		providerRuntime := configured[c.Param("providerID")]
+		if providerRuntime == nil {
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_not_found")
+			return
+		}
+
+		s.handleProviderStart(c, providerRuntime, "reverify")
 	})
 
 	auth.GET("providers/:providerID"+atprotoClientMetadataPath, func(c *gin.Context) {
@@ -251,7 +263,7 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 	if legacyOIDCRuntime != nil {
 		auth.GET("oidc", func(c *gin.Context) {
-			s.handleProviderStart(c, legacyOIDCRuntime)
+			s.handleProviderStart(c, legacyOIDCRuntime, providerStartIntent(c))
 		})
 		auth.GET("oidc/callback", func(c *gin.Context) {
 			s.handleProviderCallback(c, legacyOIDCRuntime)
@@ -259,7 +271,18 @@ func (s *HTTPServer) setupOIDCRoutes() {
 	}
 }
 
-func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authProviderRuntime) {
+// providerStartIntent returns the intent of a request on the general provider
+// start route. Re-verification starts only on its own route.
+func providerStartIntent(c *gin.Context) string {
+	if intent := c.Query("intent"); intent == "link" {
+		return intent
+	}
+	return "login"
+}
+
+// handleProviderStart begins a provider flow with intent: "login", "link", or
+// "reverify".
+func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authProviderRuntime, intent string) {
 	session := sessions.Default(c)
 
 	// AT Protocol needs the handle first. Ask for it on the handle page, and
@@ -281,8 +304,10 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		}
 	}
 
-	intent := c.Query("intent")
 	linkStartRedirect := ""
+	// Re-verification keeps its state under its own key, so an older replica's
+	// callback, which reads only the sign-in state, rejects it.
+	stateKey := "state"
 	if intent == "link" {
 		start, err := s.core.ConsumePendingExternalIdentityLinkStart(c.Request.Context(), c.Query("link_start"))
 		if err != nil || start.ProviderID != providerRuntime.config.ID {
@@ -305,7 +330,9 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		if !ok {
 			return
 		}
-		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "reverify")
+		stateKey = "reverify_state"
+		session.Delete(providerSessionKey(providerRuntime.config.ID, "state"))
+		session.Delete(providerSessionKey(providerRuntime.config.ID, "intent"))
 		session.Set(providerSessionKey(providerRuntime.config.ID, "reverify_user_id"), userID)
 		session.Set(providerSessionKey(providerRuntime.config.ID, "reverify_started_at"), strconv.FormatInt(time.Now().Unix(), 10))
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
@@ -337,7 +364,7 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		return
 	}
 
-	session.Set(providerSessionKey(providerRuntime.config.ID, "state"), state)
+	session.Set(providerSessionKey(providerRuntime.config.ID, stateKey), state)
 
 	var authURL string
 	if providerRuntime.atproto != nil {
@@ -415,9 +442,13 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	session := sessions.Default(c)
 	ctx := c.Request.Context()
 
-	// Verify state
+	// Verify state. A re-verification has its own state key, which also
+	// selects its intent.
 	expectedState, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "state")).(string)
-	if expectedState == "" || c.Query("state") != expectedState {
+	reverifyState, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "reverify_state")).(string)
+	reverifying := reverifyState != "" && c.Query("state") == reverifyState
+	session.Delete(providerSessionKey(providerRuntime.config.ID, "reverify_state"))
+	if !reverifying && (expectedState == "" || c.Query("state") != expectedState) {
 		log.Warn("Provider callback state mismatch", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "state"))
 		deleteProviderExchangeState(session, providerRuntime.config.ID)
@@ -429,6 +460,11 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "state"))
 	intent, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "intent")).(string)
+	if reverifying {
+		intent = "reverify"
+	} else if intent == "reverify" {
+		intent = "login"
+	}
 	linkUserID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "link_user_id")).(string)
 	invitationID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "invitation_id")).(string)
 	reverifyUserID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "reverify_user_id")).(string)
@@ -908,6 +944,7 @@ func (s *HTTPServer) startFreshAuthReverification(c *gin.Context, providerConfig
 // deleteReverificationState removes the re-verification binding from the
 // provider-flow session. The caller saves the session.
 func deleteReverificationState(session sessions.Session, providerID string) {
+	session.Delete(providerSessionKey(providerID, "reverify_state"))
 	session.Delete(providerSessionKey(providerID, "reverify_user_id"))
 	session.Delete(providerSessionKey(providerID, "reverify_started_at"))
 }

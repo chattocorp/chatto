@@ -28,24 +28,21 @@ describe('fresh-auth re-verification', () => {
   beforeEach(() => vi.stubGlobal('location', { origin: 'https://chat.example' }));
   afterEach(() => vi.unstubAllGlobals());
 
-  it('starts on the provider login URL with the return path', () => {
-    const start = reverificationStartUrl(
-      provider('sso', true, true),
-      '/sso/link?link_provider=github'
-    );
-    expect(start).not.toBeNull();
-    const url = new URL(start!);
-    expect(url.origin + url.pathname).toBe('https://chat.example/auth/providers/sso');
-    expect(url.searchParams.get('intent')).toBe('reverify');
-    expect(url.searchParams.get('redirect')).toBe('/sso/link?link_provider=github');
-  });
-
-  it.each([
-    'javascript:alert(document.domain)',
-    'data:text/html,<script>alert(1)</script>',
-    'https://evil.example/auth/providers/sso'
-  ])('refuses a provider login URL off this origin: %s', (loginUrl) => {
-    expect(reverificationStartUrl({ ...provider('sso', true, true), loginUrl }, '/')).toBeNull();
+  it('starts on this origin, whatever login URL the server lists', () => {
+    for (const loginUrl of [
+      'https://chat.example/auth/providers/sso',
+      'javascript:alert(document.domain)',
+      'https://evil.example/auth/providers/sso'
+    ]) {
+      const url = new URL(
+        reverificationStartUrl(
+          { ...provider('sso', true, true), loginUrl },
+          '/sso/link?link_provider=github'
+        )
+      );
+      expect(url.origin + url.pathname).toBe('https://chat.example/auth/providers/sso/reverify');
+      expect(url.searchParams.get('redirect')).toBe('/sso/link?link_provider=github');
+    }
   });
 
   it('offers only linked providers that the server marks available', () => {

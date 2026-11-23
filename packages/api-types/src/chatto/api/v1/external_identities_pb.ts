@@ -89,7 +89,7 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
 
   /**
    * True when the signed-in browser can confirm a recent sign-in through this
-   * provider by opening its login URL with `intent=reverify` and a `redirect`
+   * provider by opening `/auth/providers/{id}/reverify` with a `redirect`
    * path. The provider must be an OpenID Connect provider linked to the user,
    * and the request must use a browser cookie session. A successful
    * re-verification marks the current session fresh for 30 minutes and returns

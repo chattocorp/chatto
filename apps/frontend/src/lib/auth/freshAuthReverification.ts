@@ -17,25 +17,17 @@ export function wasReverified(url: URL): boolean {
 
 /**
  * Browser URL that re-verifies the user through provider and then returns to
- * redirectPath on the same origin. Open it from a page of the server: the
- * server accepts only a same-origin navigation from the browser that holds
- * the session. Returns null when the provider login URL is not an http(s) URL
- * on this page's origin, so a server response cannot send the page elsewhere.
+ * redirectPath. The URL is always on this page's origin: the server accepts
+ * only a same-origin navigation from the browser that holds the session.
  */
 export function reverificationStartUrl(
   provider: ExternalIdentityProviderInfo,
   redirectPath: string
-): string | null {
-  const origin = globalThis.location?.origin;
-  if (!origin) return null;
-  let url: URL;
-  try {
-    url = new URL(provider.loginUrl, origin);
-  } catch {
-    return null;
-  }
-  if ((url.protocol !== 'https:' && url.protocol !== 'http:') || url.origin !== origin) return null;
-  url.searchParams.set('intent', 'reverify');
+): string {
+  const url = new URL(
+    `/auth/providers/${encodeURIComponent(provider.id)}/reverify`,
+    globalThis.location.origin
+  );
   url.searchParams.set('redirect', redirectPath);
   return url.href;
 }

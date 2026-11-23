@@ -801,8 +801,7 @@ describe('identity link popup', () => {
 
 /** The re-verification start URL that the page builds for a provider. */
 function reverifyUrl(providerId: string, redirect: string) {
-  const url = new URL(`/auth/providers/${providerId}`, window.location.origin);
-  url.searchParams.set('intent', 'reverify');
+  const url = new URL(`/auth/providers/${providerId}/reverify`, window.location.origin);
   url.searchParams.set('redirect', redirect);
   return url.href;
 }
@@ -925,6 +924,30 @@ describe('fresh sign-in through a linked provider', () => {
       .element(browserPage.getByText(/sign in again before you change your sign-in methods/))
       .toBeVisible();
     expect(mocks.leavePage).not.toHaveBeenCalled();
+  });
+
+  it('re-verifies again after a cancelled resumed disconnect', async () => {
+    mocks.url.searchParams.set('disconnect_identity', 'sso-subject-0');
+    mocks.url.searchParams.set('disconnect_user', 'user-alice');
+    mocks.url.searchParams.set('reverified', '1');
+    renderSettings();
+    const dialog = browserPage.getByRole('dialog', { name: 'Disconnect provider' });
+    await expect.element(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect.element(dialog).not.toBeInTheDocument();
+    await browserPage.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await browserPage
+      .getByRole('dialog', { name: 'Disconnect provider' })
+      .getByRole('button', { name: 'Disconnect', exact: true })
+      .click();
+    await vi.waitFor(() =>
+      expect(mocks.leavePage).toHaveBeenCalledWith(
+        reverifyUrl(
+          'sso',
+          '/chat/-/settings/account?disconnect_identity=sso-subject-0&disconnect_user=user-alice'
+        )
+      )
+    );
   });
 
   it('offers another attempt after an identity of another account', async () => {

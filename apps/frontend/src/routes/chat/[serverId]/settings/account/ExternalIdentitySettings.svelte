@@ -380,6 +380,7 @@
   function closeDisconnectDialog() {
     if (disconnectingSubjectHash) return;
     disconnectTarget = null;
+    disconnectReverified = false;
   }
 
   function closeDisconnectFreshAuthDialog() {
@@ -405,6 +406,8 @@
     currentPassword?: string
   ) {
     const { subjectHash, providerLabel } = target;
+    const reverifiedAttempt = disconnectReverified;
+    disconnectReverified = false;
     const variables: DisconnectVariables = {
       ...session.snapshot(),
       subjectHash,
@@ -465,7 +468,7 @@
           disconnectCurrentPassword = '';
           disconnectFreshAuthError = '';
         } else if (
-          !disconnectReverified &&
+          !reverifiedAttempt &&
           reverifiers.length > 0 &&
           serverRegistry.isOriginServer(serverScope.serverId)
         ) {
@@ -493,8 +496,9 @@
 
   // Linked providers that can confirm a recent sign-in without a password.
   const reverifiers = $derived(reverificationProviders(providers));
-  // This page returned from a re-verification for a disconnect. A repeated
-  // freshness failure then shows the fallback instead of another round trip.
+  // The open disconnect confirmation resumes a re-verification. A freshness
+  // failure of that attempt shows the fallback instead of another round trip.
+  // The flag covers only that one attempt.
   let disconnectReverified = false;
   let reverificationPrompt = $state.raw<{ action: ProtectedAction; error: string } | null>(null);
   let reverifyingProviderId = $state('');
@@ -515,10 +519,6 @@
         ? identityLinkPath(action.provider.id, userId)
         : disconnectContinuationPath(page.url.pathname, action.subjectHash, userId)
     );
-    if (!startUrl) {
-      reverificationPrompt = { action, error: m('settings.account.sso.reverification_failed') };
-      return;
-    }
     actionError = '';
     reverificationPrompt = null;
     if (action.kind === 'link') {
