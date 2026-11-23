@@ -373,7 +373,7 @@ describe('MessageEvent action model integration', () => {
     });
     try {
       await expect
-        .element(q(rendered.container, '[aria-label="in reply to a message"]'))
+        .element(q(rendered.container, '[aria-label="in reply to Message"]'))
         .toBeInTheDocument();
       await vi.waitFor(() => expect(messages.getMessage).toHaveBeenCalledOnce());
       finishRead();
