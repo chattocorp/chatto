@@ -117,6 +117,7 @@ profile or sign out registered servers.
 ### Linux downloads
 
 Linux releases provide AppImage and `.tar.gz` downloads for x64 and ARM64.
+The AppImage uses FUSE to mount and runs without the host `libfuse2` library.
 Choose `Linux_X64` for x64 systems or `Linux_ARM64` for 64-bit ARM systems.
 Build the AppImage on a Linux host with the same architecture as the bundle.
 

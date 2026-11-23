@@ -77,7 +77,8 @@ system-browser authentication, and clean-machine media behavior are hardened.
   helper disconnects its LiveKit companion and exits. Hosts without this
   capability keep the browser's ordinary source chooser.
 - macOS, Windows, and Linux bundles are built in CI. Linux x64 and ARM64
-  builds each provide an AppImage and a tarball. AppImage update manifests
+  builds each provide an AppImage and a tarball. The AppImage includes a static
+  runtime so users can launch it without installing `libfuse2`. AppImage update manifests
   select the same architecture as the installed app. macOS builds provide
   Apple Silicon, Intel, and universal DMG and ZIP downloads. Automatic updates install the universal app on both architectures.
   Release macOS artifacts are Developer ID signed and notarised. Release
