@@ -824,6 +824,15 @@ run = [
     "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionRetainedHeap$' -benchmem -benchtime=1x -count=${CHATTO_BENCH_COUNT:-5}",
 ]
 
+[tasks.bench-realtime-fanout]
+description = "Benchmark realtime hub fanout and per-viewer frame encoding for one message post"
+depends = ["setup-cli"]
+dir = "cli"
+run = [
+    "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkMyEventsHubRoomFanout$' -benchmem -benchtime=200x -count=${CHATTO_BENCH_COUNT:-5}",
+    "go test -trimpath -tags test_endpoints ./internal/http_server -run '^$' -bench '^BenchmarkRealtimeMessagePostFrames$' -benchmem -benchtime=50x -count=${CHATTO_BENCH_COUNT:-5}",
+]
+
 [tasks.bench-import]
 description = "Measure fresh synthetic imports through the Operator API"
 depends = ["setup-cli"]
