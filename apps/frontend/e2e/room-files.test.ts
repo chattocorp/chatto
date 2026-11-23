@@ -158,11 +158,8 @@ test('Files keeps its rows and scroll position during room and closed-thread pos
 
   await withServerUser(browser, serverURL, async ({ page: sender, chatPage }) => {
     await chatPage.enterRoom('general');
-    const roomUpdate = page.waitForResponse(
-      (response) => response.url().endsWith('/BatchGetMessages') && response.ok()
-    );
+    // A text-only room post is complete in its realtime event and needs no read.
     await postMessageViaConnect(sender, roomId, 'Receiver room update');
-    await roomUpdate;
     await expect(page.getByText('Receiver room update', { exact: true })).toBeVisible();
     const threadUpdate = page.waitForResponse(
       (response) => response.url().endsWith('/BatchGetMessages') && response.ok()

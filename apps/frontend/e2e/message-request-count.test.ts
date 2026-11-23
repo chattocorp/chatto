@@ -2,9 +2,7 @@ import { test, expect } from './setup';
 import { loginAndEnterRoom, withServerUser } from './fixtures/serverUser';
 import { TIMEOUTS } from './constants';
 
-test('warm room posts share reconciliation reads and mark the visible message read', async ({
-  page
-}) => {
+test('warm room posts make no message read and mark the visible message read', async ({ page }) => {
   const { roomPage } = await loginAndEnterRoom(page);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -31,7 +29,8 @@ test('warm room posts share reconciliation reads and mark the visible message re
     await page.waitForTimeout(TIMEOUTS.SERVER_MUTATION_SYNC);
     await page.waitForLoadState('networkidle');
     page.off('request', record);
-    expect(methods.sort()).toEqual(['BatchGetMessages', 'CreateMessage', 'MarkRoomAsRead']);
+    // The realtime event of a text-only room post is complete. It needs no read.
+    expect(methods.sort()).toEqual(['CreateMessage', 'MarkRoomAsRead']);
   }
   expect(errors).toEqual([]);
 });

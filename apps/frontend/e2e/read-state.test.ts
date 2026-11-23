@@ -1,5 +1,6 @@
 /** Verify persisted read positions across browser visibility, scrolling, and RPC failures. */
 import { expect, type Page } from '@playwright/test';
+import { RealtimeServerFrame } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
 import { loginAndEnterRoom, withLoggedInServerWindow } from './fixtures/serverUser';
@@ -10,6 +11,20 @@ import {
   waitForReadMarkerViaConnect
 } from './fixtures/connectHelpers';
 import * as routes from './routes';
+
+/** Record the bodies of message posts that the page's realtime sockets receive. */
+function recordDeliveredPosts(page: Page): string[] {
+  const bodies: string[] = [];
+  page.on('websocket', (socket) =>
+    socket.on('framereceived', ({ payload }) => {
+      if (typeof payload === 'string') return;
+      const frame = RealtimeServerFrame.fromBinary(payload).frame;
+      if (frame.case === 'event' && frame.value.event.case === 'messagePosted')
+        bodies.push(frame.value.event.value.bodyPlaintext ?? '');
+    })
+  );
+  return bodies;
+}
 
 /** Synthetic visibility avoids dependence on how headless Chromium focuses windows. */
 async function setVisible(page: Page, visible: boolean) {
@@ -97,6 +112,7 @@ for (const kind of ['room', 'thread'] as const) {
       browser,
       serverURL
     }) => {
+      const delivered = recordDeliveredPosts(page);
       const { roomPage, user } = await loginAndEnterRoom(page);
       const roomId = new URL(page.url()).pathname.split('/').at(-1)!;
       const root = await roomPage.sendMessage('Read-state root');
@@ -132,16 +148,11 @@ for (const kind of ['room', 'thread'] as const) {
         };
         page.on('request', record);
         try {
-          const hydrated = page.waitForResponse(
-            async (response) =>
-              response.url().endsWith('/BatchGetMessages') &&
-              response.ok() &&
-              (await response.text()).includes('Own message from the other session')
-          );
           const arrival = await post(sender, 'Own message from the other session');
-          // An offscreen row is not in the virtual DOM. Its hydration response
-          // proves realtime delivery without scrolling it into view.
-          await hydrated;
+          // An offscreen row is not in the virtual DOM. The received realtime
+          // frame proves delivery without scrolling it into view. A complete
+          // room post makes no message read, so a read response cannot prove it.
+          await expect.poll(() => delivered).toContain('Own message from the other session');
           // Observe beyond the partial-read debounce. An immediate negative
           // assertion could miss an incorrect delayed read while away.
           await page.waitForTimeout(TIMEOUTS.SERVER_MUTATION_SYNC);
