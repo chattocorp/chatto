@@ -186,10 +186,14 @@ bash tools/test-desktop-macos-dmg.sh apps/desktop/dist/dmg/*.dmg
 ```
 
 The output is in `apps/desktop/dist/dmg/`. Local and PR disk images are unsigned.
-The release workflow adds `--release` to sign, notarise, staple, and validate
-the disk image with the existing macOS release credentials. It preserves the
-app's existing signature and notarisation ticket. CI mounts the image, copies
-the app to a temporary folder, and checks the copied signature and native helper.
+The release workflow adds `--release`. With the macOS release credentials, it
+signs the disk image and sends it to Apple's notary service. This is the only
+submission for the build: Apple also notarises the app inside the disk image.
+The script then staples and validates the disk image, staples and validates
+`dist/Chatto.app`, and checks both with `spctl`. It does not change the app's
+signature. The release workflow packages the stapled `dist/Chatto.app` as the
+ZIP. CI mounts the image, copies the app to a temporary folder, and checks the
+copied signature and native helper.
 
 Before release, test a signed DMG downloaded through a browser on a clean Mac
 with Gatekeeper enabled. Check installation, launch, login, microphone, camera,
@@ -393,9 +397,9 @@ The environment permits deployments only from `v*` tags and the
 reviewer must approve a release before any matrix runner can access the signing
 secrets. The desktop release workflow then fails closed when any secret is
 absent. On its macOS runner it imports the certificate into a temporary
-keychain, signs every nested executable in dependency order, submits the app to
-Apple's notary service, and removes the temporary credentials even when the
-build fails.
+keychain, signs every nested executable in dependency order, submits the disk
+image to Apple's notary service, and removes the temporary credentials even when
+the build fails.
 
 Every macOS release attempt uploads a `desktop-notarisation-log-*` artifact with
 90-day retention. The log includes the complete JSON response from
@@ -406,8 +410,9 @@ used for submission. Check accepted submissions for warnings before publishing
 the resulting archive.
 
 For a local Developer ID build, install the certificate in the login keychain
-and set the signing identity and all three notarisation variables before running
-`mise desktop-build`:
+and set the signing identity and all three notarisation variables.
+`mise desktop-build` signs the app. `build:macos-dmg --release` notarises the
+disk image and the app, then staples both:
 
 ```sh
 export CHATTO_MACOS_SIGN_IDENTITY='Developer ID Application: ChattoCorp GmbH (TEAMID)'
@@ -415,6 +420,7 @@ export CHATTO_MACOS_NOTARY_API_KEY="$PWD/AuthKey_KEY_ID.p8"
 export CHATTO_MACOS_NOTARY_API_KEY_ID='KEY_ID'
 export CHATTO_MACOS_NOTARY_API_ISSUER_ID='ISSUER_UUID'
 mise desktop-build
+mise x -- pnpm --filter chatto-desktop build:macos-dmg --release
 ```
 
 ### Configure Windows release signing

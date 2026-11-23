@@ -308,10 +308,24 @@ signing keeps the private key out of GitHub while a protected environment and
 least-privilege Azure role restrict which revisions can request signatures.
 Windows and macOS use separate protected environments so neither platform's
 runner can access the other platform's signing credentials.
+Each macOS release build sends one notarisation submission: the signed DMG.
+Apple issues a ticket for the DMG and for each nested code item, so the same
+submission also notarises the app inside the DMG. CI builds the DMG from the
+signed app, then signs, submits, staples, and validates the DMG. It then
+staples and validates the same signed app and packages that app as the updater
+ZIP. The app inside the DMG has no stapled ticket of its own. The ticket
+stapled to the DMG covers the DMG and the app. Gatekeeper reads that ticket
+when the user opens the DMG in Finder, so a later first launch of the copied
+app does not need a network connection. If a tool mounts the DMG without a
+Gatekeeper check, for example `hdiutil attach`, the first launch of a copied
+app needs a network connection. The app in the ZIP has its own stapled ticket.
 App and DMG ticket stapling and validation use `p-retry` for temporary Apple
 connection failures (exit status 68). Each command can retry four times, after
 15, 30, 60, and 120 seconds. Retries use the same signed file without a new
 notarisation submission. Other errors and exhausted retries stop the release.
+Apple's packaging guide tells developers to notarise only the outermost
+container. One submission for each build removes one wait for Apple and halves
+the number of submissions.
 **Tradeoff:** Ordinary CI artifacts remain unsigned, Windows signing depends on
 Azure availability and organization validation, and CI signature checks do not
 replace clean-machine installation or WebRTC verification.
