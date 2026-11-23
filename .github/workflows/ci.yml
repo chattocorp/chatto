@@ -56,7 +56,7 @@ jobs:
       go: ${{ steps.select.outputs.go }}
       web: ${{ steps.select.outputs.web }}
       desktop: ${{ steps.select.outputs.desktop }}
-      desktop-full: ${{ steps.select.outputs.desktop-full }}
+      desktop-capture: ${{ steps.select.outputs.desktop-capture }}
       desktop-matrix: ${{ steps.select.outputs.desktop-matrix }}
       authling: ${{ steps.select.outputs.authling }}
       translatto: ${{ steps.select.outputs.translatto }}
@@ -161,6 +161,11 @@ jobs:
               - 'tools/test-desktop-*'
               - '!**/CHANGELOG.md'
               - '!**/.sweet/**'
+            # The native macOS capture helper has its own Swift tests.
+            desktop-capture:
+              - 'apps/desktop/native/**'
+              - 'tools/test-desktop-macos-capture.sh'
+              - '.github/actions/cache-macos-capture-probe/**'
             # Inputs that the desktop app shares with the browser frontend
             # select one build for each operating system.
             # Ordinary frontend changes use the browser build and tests.
@@ -575,8 +580,9 @@ jobs:
 
   desktop-macos-capture:
     needs: changes
-    # Only desktop sources can change the native helper.
-    if: ${{ needs.changes.outputs.desktop == 'true' && needs.changes.outputs.desktop-full == 'true' }}
+    # Only the helper sources, its test script and its cache can change the
+    # result. Shared build configuration selects it through `common`.
+    if: ${{ needs.changes.outputs.desktop-capture == 'true' }}
     runs-on: macos-15
     timeout-minutes: 15
     steps:
