@@ -57,6 +57,7 @@ separately:
 | Requests without a token, per client network | 5 requests per second, burst 20. |
 | Requests without a token, all together | 20 requests per second, burst 40. |
 | Tokens that do not authenticate, per client network | 10, then 1 more each 5 seconds. After that, no caller on that network can present tokens until the allowance refills. |
+| Requests with new credentials that wait for verification, per client network | At most 10 at the same time. |
 
 A client network is one IPv4 address or one IPv6 `/64` prefix. Behind a
 reverse proxy, set `webserver.trusted_proxies` so Chatto sees each client

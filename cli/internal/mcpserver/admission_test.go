@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,14 +24,27 @@ type admissionFixture struct {
 	verified  int
 	// storageDown makes the stub verifier fail with a backend error.
 	storageDown bool
+	// verifyGate, when set, makes the stub verifier wait for it or for the
+	// request to end for tokens that start with "fake-", as a slow credential
+	// read does.
+	verifyGate chan struct{}
+	verifying  chan struct{}
 }
 
 func newAdmissionFixture(t *testing.T, accounts map[string]string, next http.Handler) *admissionFixture {
 	t.Helper()
 	f := &admissionFixture{admission: newAdmission(), now: time.Unix(1_700_000_000, 0)}
 	f.admission.now = func() time.Time { return f.now }
-	verifier := func(_ context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
+	verifier := func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		f.verified++
+		if f.verifyGate != nil && strings.HasPrefix(token, "fake-") {
+			f.verifying <- struct{}{}
+			select {
+			case <-f.verifyGate:
+			case <-ctx.Done():
+				return nil, fmt.Errorf("read credential: %w", ctx.Err())
+			}
+		}
 		if f.storageDown {
 			return nil, errors.New("credential storage unavailable")
 		}
@@ -205,6 +219,40 @@ func TestMCPAdmissionIgnoresBackendVerificationErrors(t *testing.T) {
 	f.now = f.now.Add(time.Second)
 	if code := f.serve("192.0.2.10", "token").Code; code != http.StatusOK {
 		t.Fatalf("after recovery = %d, want 200", code)
+	}
+}
+
+func TestMCPAdmissionBoundsConcurrentNewCredentialsPerNetwork(t *testing.T) {
+	f := newAdmissionFixture(t, map[string]string{"victim-key": "victim"}, nil)
+	f.verifyGate = make(chan struct{})
+	f.verifying = make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan int, failedAuthNetworkMaxInFlight)
+	for i := range failedAuthNetworkMaxInFlight {
+		request := httptest.NewRequestWithContext(ctx, http.MethodPost, "/mcp", nil)
+		request.RemoteAddr = "198.51.100.7:40000"
+		request.Header.Set("Authorization", fmt.Sprintf("Bearer fake-%d", i))
+		go func() {
+			response := httptest.NewRecorder()
+			f.handler.ServeHTTP(response, request)
+			done <- response.Code
+		}()
+		<-f.verifying
+	}
+	assertAdmissionFailure(t, f.serve("198.51.100.7", "fake-extra"), 1)
+
+	// Another network still verifies new credentials.
+	if code := f.serve("192.0.2.10", "victim-key").Code; code != http.StatusOK {
+		t.Fatalf("other network = %d, want 200", code)
+	}
+
+	// Callers that disconnect during verification still count as failures.
+	cancel()
+	for range failedAuthNetworkMaxInFlight {
+		<-done
+	}
+	if delay := f.admission.failedAuthNetwork.wait("198.51.100.7", f.now); delay == 0 {
+		t.Fatal("cancelled verifications did not count as failures")
 	}
 }
 

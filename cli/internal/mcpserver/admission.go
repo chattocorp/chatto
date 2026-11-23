@@ -34,6 +34,9 @@ const (
 	// tokens until the allowance refills.
 	failedAuthNetworkRate  = rate.Limit(1.0 / 5) // one failure every 5 seconds
 	failedAuthNetworkBurst = 10
+	// At most this many requests with new credentials from one client network
+	// can wait for verification at the same time.
+	failedAuthNetworkMaxInFlight = 10
 
 	// A credential that has not authenticated on this replica yet has its own
 	// allowance before verification, so that one flooding caller cannot use
@@ -75,7 +78,7 @@ func newAdmission() *admission {
 	return &admission{
 		anonymousNetwork:  newKeyedLimiter(anonymousNetworkRate, anonymousNetworkBurst, 0),
 		anonymousTotal:    rate.NewLimiter(anonymousTotalRate, anonymousTotalBurst),
-		failedAuthNetwork: newKeyedLimiter(failedAuthNetworkRate, failedAuthNetworkBurst, 0),
+		failedAuthNetwork: newKeyedLimiter(failedAuthNetworkRate, failedAuthNetworkBurst, failedAuthNetworkMaxInFlight),
 		credential:        newKeyedLimiter(credentialRate, credentialBurst, 0),
 		credentialTotal:   rate.NewLimiter(credentialTotalRate, credentialTotalBurst),
 		account:           newKeyedLimiter(accountRate, accountBurst, accountMaxInFlight),
@@ -110,7 +113,10 @@ func (a *admission) wrap(authenticate func(http.Handler) http.Handler, next http
 func (a *admission) verifier(inner auth.TokenVerifier) auth.TokenVerifier {
 	return func(ctx context.Context, token string, r *http.Request) (*auth.TokenInfo, error) {
 		info, err := inner(ctx, token, r)
-		if err != nil && !errors.Is(err, auth.ErrInvalidToken) {
+		// A cancelled or expired request is not a backend error: a caller
+		// could otherwise disconnect during verification to avoid the count.
+		if err != nil && !errors.Is(err, auth.ErrInvalidToken) &&
+			r.Context().Err() == nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			if state, ok := r.Context().Value(admissionStateKey{}).(*admissionState); ok {
 				state.backendError = true
 			}
@@ -159,6 +165,15 @@ func (a *admission) guard(next http.Handler) http.Handler {
 			}
 			state.accountCharged = true
 		} else {
+			// Bound concurrent verifications of new credentials per network.
+			// Failures are counted after verification, so without this
+			// bound parallel requests could all pass the failure gate.
+			release, delay := a.failedAuthNetwork.hold(network, now)
+			if delay > 0 {
+				writeAdmissionFailure(w, delay)
+				return
+			}
+			defer release()
 			if delay := a.credential.take(state.credentialKey, now); delay > 0 {
 				writeAdmissionFailure(w, delay)
 				return

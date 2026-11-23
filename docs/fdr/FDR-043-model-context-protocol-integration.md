@@ -312,7 +312,9 @@ allowance of another caller:
   client network has 5 such requests per second with a burst of 20. All of
   them together have 20 per second with a burst of 40.
 - Each request with a bearer token that does not authenticate is a failure.
-  A backend error during verification is not a failure.
+  A backend error during verification is not a failure; a cancelled or
+  expired request is. At most 10 requests with new credentials from one
+  client network can wait for verification at the same time.
   A client network can have 10 failures, plus one more each 5 seconds. After
   that, the network cannot present tokens until the allowance refills. Chatto
   does not read the credential store for a blocked request.
