@@ -241,6 +241,52 @@ func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
 	}
 }
 
+// TestMyEventsHubSharesEnvelopeAcrossUsers protects an assumption of the
+// realtime API: the hub gives the same envelope to every user that can receive
+// a fact, so per-event work on the envelope runs once for all users. The
+// realtime fanout benchmark passes one envelope to all viewers for this reason.
+func TestMyEventsHubSharesEnvelopeAcrossUsers(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := core.CreateUser(ctx, SystemActorID, "envelope-author", "Envelope Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, SystemActorID, "envelope-viewer", "Envelope Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "envelope-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, id := range []string{author.Id, viewer.Id} {
+		if _, err := core.JoinRoom(ctx, id, KindChannel, id, room.Id); err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+	}
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	authorStream, err := core.StreamMyEventsWithOptions(streamCtx, author.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents author: %v", err)
+	}
+	viewerStream, err := core.StreamMyEventsWithOptions(streamCtx, viewer.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents viewer: %v", err)
+	}
+
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "shared envelope", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	authorEnvelope := receiveEnvelopeByID(t, authorStream, posted.Id)
+	viewerEnvelope := receiveEnvelopeByID(t, viewerStream, posted.Id)
+	if authorEnvelope != viewerEnvelope {
+		t.Fatal("users received different envelopes for one event")
+	}
+}
+
 // liveSubscriptionCount returns the number of subscriptions that nc has on
 // ns for the realtime live subjects. It does not use nc.NumSubscriptions:
 // durable workers on the same connection open and close an inbox
@@ -1035,6 +1081,12 @@ func TestMyEventsHubSeparatesOwnerSessionsByPrivilegedMode(t *testing.T) {
 
 func receiveEVTEventByID(t *testing.T, stream <-chan EventEnvelope, eventID string) *evtv1.Event {
 	t.Helper()
+	return receiveEnvelopeByID(t, stream, eventID).EVTEvent()
+}
+
+// receiveEnvelopeByID returns the first durable envelope with eventID.
+func receiveEnvelopeByID(t *testing.T, stream <-chan EventEnvelope, eventID string) EventEnvelope {
+	t.Helper()
 	timer := time.NewTimer(2 * time.Second)
 	defer timer.Stop()
 	for {
@@ -1044,7 +1096,7 @@ func receiveEVTEventByID(t *testing.T, stream <-chan EventEnvelope, eventID stri
 				t.Fatal("event stream closed")
 			}
 			if envelope.ID() == eventID && envelope.EVTEvent() != nil {
-				return envelope.EVTEvent()
+				return envelope
 			}
 		case <-timer.C:
 			t.Fatalf("event %q was not delivered", eventID)

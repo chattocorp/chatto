@@ -229,3 +229,75 @@ func TestRealtimeSharedMessagePostDropsBodyAfterRetraction(t *testing.T) {
 		})
 	}
 }
+
+// TestRealtimeSharedMessagePostRunsOnceAcrossUsers maps a message post that
+// two different users get from the live hub. The second user must reuse the
+// mapping of the first one.
+func TestRealtimeSharedMessagePostRunsOnceAcrossUsers(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	ctx := env.ctx
+	author, err := env.core.CreateUser(ctx, core.SystemActorID, "hub-shared-author", "Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	viewer, err := env.core.CreateUser(ctx, core.SystemActorID, "hub-shared-viewer", "Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(ctx, author.Id, core.KindChannel, "", "hub-shared-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, id := range []string{author.Id, viewer.Id} {
+		if _, err := env.core.JoinRoom(ctx, id, core.KindChannel, id, room.Id); err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+	}
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	authorStream, err := env.core.StreamMyEventsWithOptions(streamCtx, author.Id, core.StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+	viewerStream, err := env.core.StreamMyEventsWithOptions(streamCtx, viewer.Id, core.StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+	posted, err := env.core.PostMessage(ctx, core.KindChannel, room.Id, author.Id, "one mapping", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	receive := func(stream <-chan core.EventEnvelope) core.EventEnvelope {
+		t.Helper()
+		for {
+			select {
+			case envelope, ok := <-stream:
+				if !ok {
+					t.Fatal("event stream closed")
+				}
+				if envelope.ID() == posted.GetId() {
+					return envelope
+				}
+			case <-ctx.Done():
+				t.Fatal("message post was not delivered")
+			}
+		}
+	}
+	authorEnvelope := receive(authorStream)
+	viewerEnvelope := receive(viewerStream)
+	if _, err := env.httpServer.realtimeServerFrameForEvent(ctx, author.Id, authorEnvelope); err != nil {
+		t.Fatalf("realtimeServerFrameForEvent: %v", err)
+	}
+	if _, err := viewerEnvelope.SharedRealtimeMapping(func() (any, error) {
+		return nil, errors.New("mapping computed again")
+	}); err != nil {
+		t.Fatalf("second user: %v", err)
+	}
+	frame, err := env.httpServer.realtimeServerFrameForEvent(ctx, viewer.Id, viewerEnvelope)
+	if err != nil {
+		t.Fatalf("realtimeServerFrameForEvent: %v", err)
+	}
+	if got := frame.GetEvent().GetMessagePosted().GetBodyPlaintext(); got != "one mapping" {
+		t.Fatalf("second user body = %q", got)
+	}
+}

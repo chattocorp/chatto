@@ -121,7 +121,10 @@ events. Public events do not
 expose raw EVT bytes, ciphertext, nonces, storage pointers, private moderation
 data, subjects, stream identities, or sequence numbers.
 
-The hub gives the same envelope to each subscriber of an event. For a message
+For a durable room or asset fact, the hub creates one envelope. It gives that
+envelope to each user and session that passes the filter. The filter only
+decides delivery and does not keep a value for one user on the envelope. A
+pubsub event still gets one envelope for each user. For a message
 post, the mapper does the work that does not depend on the viewer once for
 each envelope: the body lookup, the echo hydration, and the room-kind lookup.
 It keeps the result on the envelope and does not keep a failed result. Before

@@ -721,13 +721,15 @@ func isKnownNonRealtimeEVTSubject(subject string) bool {
 type roomProjectionFanoutCandidate struct {
 	principal  myEventsPrincipal
 	state      *myEventsUserState
-	envelope   EventEnvelope
 	wasVisible bool
 	visible    bool
 	err        error
 }
 
 func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, event *evtv1.Event, seq uint64, bytes int64) {
+	// Every recipient gets the same envelope, so that per-event work on it,
+	// such as the realtime mapping, runs once for all users.
+	envelope := NewEVTEventEnvelopeWithDeliverySeq(event, seq)
 	h.mu.Lock()
 	if eventChangesRoomVisibility(event) {
 		h.visibilityVersion++
@@ -737,7 +739,7 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 		if seq <= state.roomSnapshotSeq {
 			continue
 		}
-		envelope, ok := h.model.filterReadyEVTRoomSubjectEvent(principal.authorizationContext(context.Background()), principal.userID, state.memberRooms, roomID, event, seq)
+		ok := h.model.filterReadyEVTRoomSubjectEvent(principal.authorizationContext(context.Background()), principal.userID, state.memberRooms, roomID, event, seq)
 		projectionVisibilityChange := eventChangesUserRoomVisibility(event, principal.userID)
 		if !isRoomDirectoryProjectionEvent(event) && !projectionVisibilityChange {
 			if ok {
@@ -751,7 +753,7 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 		}
 		_, wasVisible := state.visibleRooms[roomID]
 		candidates = append(candidates, roomProjectionFanoutCandidate{
-			principal: principal, state: state, envelope: envelope, wasVisible: wasVisible,
+			principal: principal, state: state, wasVisible: wasVisible,
 		})
 	}
 	h.mu.Unlock()
@@ -793,10 +795,6 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 			continue
 		}
 
-		envelope := candidate.envelope
-		if envelope == nil {
-			envelope = NewEVTEventEnvelopeWithDeliverySeq(event, seq)
-		}
 		for _, sub := range state.subscribers {
 			h.enqueueSubscriberLocked(sub, envelope, bytes)
 		}
@@ -822,11 +820,11 @@ func (h *MyEventsHub) canSeeProjectionRoom(ctx context.Context, userID, roomID s
 }
 
 func (h *MyEventsHub) fanoutReadyAssetEvent(roomID string, event *evtv1.Event, seq uint64, bytes int64) {
+	envelope := NewEVTEventEnvelopeWithDeliverySeq(event, seq)
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for principal, state := range h.users {
-		envelope, ok := h.model.filterReadyEVTAssetSubjectEvent(principal.authorizationContext(context.Background()), principal.userID, state.memberRooms, roomID, event, seq)
-		if ok {
+		if h.model.filterReadyEVTAssetSubjectEvent(principal.authorizationContext(context.Background()), principal.userID, state.memberRooms, roomID, event, seq) {
 			h.enqueueUserLocked(state, envelope, bytes)
 		}
 	}
