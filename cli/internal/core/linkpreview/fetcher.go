@@ -25,6 +25,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chattocorp/chatto/cli/internal/assets"
+	"github.com/chattocorp/chatto/cli/internal/core/remoteimage"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
@@ -626,47 +627,9 @@ func (f *Fetcher) downloadAndStoreImage(ctx context.Context, imageURL string) (*
 }
 
 func (f *Fetcher) downloadAndStoreImageWithLimit(ctx context.Context, imageURL string, maxBytes int64) (*evtv1.AssetRecord, int64, error) {
-	// Create request with context
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, imageURL, nil)
+	imageData, consumed, err := remoteimage.FetchCounted(ctx, f.imageClient, imageURL, maxBytes)
 	if err != nil {
-		return nil, 0, fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("User-Agent", "ChattoBot/1.0 (Link Preview)")
-
-	// Fetch the image
-	resp, err := f.imageClient.Do(req)
-	if err != nil {
-		return nil, 0, fmt.Errorf("fetch image: %w", err)
-	}
-	defer resp.Body.Close()
-
-	f.logger.Debug("Image fetch response",
-		"status", resp.StatusCode,
-		"content_length", resp.ContentLength,
-	)
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, 0, fmt.Errorf("image returned status %d", resp.StatusCode)
-	}
-
-	// Check content type - be lenient since some servers don't set it properly
-	contentType := resp.Header.Get("Content-Type")
-	if contentType != "" && !strings.HasPrefix(contentType, "image/") && contentType != "application/octet-stream" {
-		return nil, 0, fmt.Errorf("not an image: %s", contentType)
-	}
-	if resp.ContentLength > maxBytes {
-		return nil, 0, fmt.Errorf("image too large (>%d bytes)", maxBytes)
-	}
-
-	// Read with size limit
-	limitedReader := io.LimitReader(resp.Body, maxBytes+1)
-	imageData, err := io.ReadAll(limitedReader)
-	if err != nil {
-		return nil, int64(len(imageData)), fmt.Errorf("read image: %w", err)
-	}
-	consumed := int64(len(imageData))
-	if consumed > maxBytes {
-		return nil, consumed, fmt.Errorf("image too large (>%d bytes)", maxBytes)
+		return nil, consumed, fmt.Errorf("fetch image: %w", err)
 	}
 
 	f.logger.Debug("Downloaded image data", "size", len(imageData))

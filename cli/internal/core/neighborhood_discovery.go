@@ -1,16 +1,13 @@
 package core
 
 import (
-	"bytes"
 	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -20,11 +17,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/chattocorp/chatto/cli/internal/assets"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
 	"github.com/chattocorp/chatto/cli/internal/core/neighborhood"
-	"github.com/chattocorp/chatto/cli/internal/parallel"
 	cachestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
 	"github.com/chattocorp/chatto/pkg/jetstreamutil"
 	jobqueue "github.com/chattocorp/chatto/pkg/jobs"
@@ -52,28 +47,12 @@ const (
 	neighborhoodCheckInterval = 5 * time.Second
 	// neighborhoodFailureBackoff is the wait after a failed check or job attempt.
 	neighborhoodFailureBackoff = time.Minute
-	// neighborhoodPassTimeout bounds one pass, including image downloads.
+	// neighborhoodPassTimeout bounds one pass.
 	neighborhoodPassTimeout = 20 * time.Minute
-	// Renew retained images before the shared asset cache's seven-day TTL.
-	neighborhoodImageRewriteAge = 3 * 24 * time.Hour
 	// maxNeighborhoodDirectoryBytes keeps the stored directory below the
 	// default NATS payload limit.
 	maxNeighborhoodDirectoryBytes = 900 << 10
 )
-
-// neighborhoodImageName matches the content-addressed object names in
-// ASSET_CACHE's neighborhood_image namespace (without the storage prefix).
-var neighborhoodImageName = regexp.MustCompile(`^[0-9a-f]{64}$`)
-
-// ErrNeighborhoodImageNotFound means that a Neighborhood image does not exist
-// or has expired.
-var ErrNeighborhoodImageNotFound = errors.New("Neighborhood image not found")
-
-// neighborhoodFetcher loads remote discovery data and profile images.
-type neighborhoodFetcher interface {
-	neighborhood.Fetcher
-	FetchImage(ctx context.Context, origin, rawURL string) ([]byte, error)
-}
 
 // neighborhoodDiscovery schedules and performs refreshes of the shared directory.
 type neighborhoodDiscovery struct {
@@ -82,11 +61,9 @@ type neighborhoodDiscovery struct {
 	lastEnqueued string
 	enqueue      func(context.Context, jobqueue.Spec) error
 	kv           jetstream.KeyValue
-	images       jetstream.ObjectStore
-	fetcher      neighborhoodFetcher
+	fetcher      neighborhood.Fetcher
 	selfOrigins  []string
 	neighbors    func() []string
-	assetsCfg    assets.Config
 	limits       neighborhood.Limits
 	logger       *log.Logger
 	now          func() time.Time
@@ -197,25 +174,18 @@ func (d *neighborhoodDiscovery) refresh(ctx context.Context, sources []string, f
 		return fmt.Errorf("discover Neighborhood: %w", err)
 	}
 
-	previousImages := make(map[string]*cachestatev1.NeighborhoodServerRecord, len(previous.GetServers()))
-	for _, record := range previous.GetServers() {
-		previousImages[record.GetOrigin()] = record
-	}
-	records, err := parallel.Map(passCtx, d.limits.Concurrency, result.Servers, func(ctx context.Context, _ int, server neighborhood.Server) (*cachestatev1.NeighborhoodServerRecord, error) {
-		prior := previousImages[server.Origin]
-		return &cachestatev1.NeighborhoodServerRecord{
+	records := make([]*cachestatev1.NeighborhoodServerRecord, 0, len(result.Servers))
+	for _, server := range result.Servers {
+		records = append(records, &cachestatev1.NeighborhoodServerRecord{
 			Origin:               server.Origin,
 			Name:                 server.Profile.Name,
 			Version:              server.Profile.Version,
 			Description:          server.Profile.Description,
 			DirectNeighbor:       server.DirectNeighbor,
 			RecommendedByOrigins: server.RecommendedBy,
-			Logo:                 d.storeImage(ctx, server.Origin, server.Profile.LogoURL, prior.GetLogo(), assets.ProcessAvatarImageWithConfig),
-			Banner:               d.storeImage(ctx, server.Origin, server.Profile.BannerURL, prior.GetBanner(), assets.ProcessLinkPreviewImageWithConfig),
-		}, nil
-	})
-	if err != nil {
-		return fmt.Errorf("store Neighborhood images: %w", err)
+			Logo:                 neighborhoodImage(server.Origin, server.Profile.LogoURL),
+			Banner:               neighborhoodImage(server.Origin, server.Profile.BannerURL),
+		})
 	}
 
 	directory := &cachestatev1.NeighborhoodDirectory{
@@ -270,67 +240,18 @@ func marshalNeighborhoodDirectory(directory *cachestatev1.NeighborhoodDirectory)
 	}
 }
 
-type neighborhoodImageProcessor func(io.Reader, assets.Config) (io.Reader, error)
-
-// storeImage returns a cached copy of one remote profile image, or nil when
-// the image is absent or unusable. It reuses the previous copy while the
-// source URL is unchanged.
-func (d *neighborhoodDiscovery) storeImage(ctx context.Context, origin, sourceURL string, previous *cachestatev1.NeighborhoodImage, process neighborhoodImageProcessor) *cachestatev1.NeighborhoodImage {
-	if sourceURL == "" {
+// neighborhoodImage returns the record of one remote profile image with its absolute
+// source URL, or nil when there is no usable URL. The remote image proxy
+// fetches the image when a client first shows it (ADR-128).
+func neighborhoodImage(origin, rawURL string) *cachestatev1.NeighborhoodImage {
+	if rawURL == "" {
 		return nil
 	}
-	if previous.GetSourceUrl() == sourceURL && d.keepImage(ctx, previous.GetObjectName()) {
-		return previous
-	}
-	requestCtx, cancel := context.WithTimeout(ctx, d.limits.RequestTimeout)
-	defer cancel()
-	data, err := d.fetcher.FetchImage(requestCtx, origin, sourceURL)
-	if err != nil {
+	sourceURL, ok := neighborhood.ResolveImageURL(origin, rawURL)
+	if !ok {
 		return nil
 	}
-	processed, err := process(bytes.NewReader(data), d.assetsCfg)
-	if err != nil {
-		return nil
-	}
-	encoded, err := io.ReadAll(processed)
-	if err != nil {
-		return nil
-	}
-	sum := sha256.Sum256(encoded)
-	name := hex.EncodeToString(sum[:])
-	if !d.imageIsFresh(ctx, name) {
-		if _, err := d.images.Put(ctx, jetstream.ObjectMeta{
-			Name:    neighborhoodImageKey(name),
-			Headers: map[string][]string{"Content-Type": {"image/webp"}},
-		}, bytes.NewReader(encoded)); err != nil {
-			d.logger.Warn("Neighborhood image storage failed", "stage", "image_put", "error", err)
-			return nil
-		}
-	}
-	return &cachestatev1.NeighborhoodImage{SourceUrl: sourceURL, ObjectName: name}
-}
-
-// keepImage reports whether a previous image still exists. It rewrites an
-// older image so that the object store TTL does not remove an image in use.
-func (d *neighborhoodDiscovery) keepImage(ctx context.Context, name string) bool {
-	info, err := d.images.GetInfo(ctx, neighborhoodImageKey(name))
-	if err != nil {
-		return false
-	}
-	if d.now().Sub(info.ModTime) < neighborhoodImageRewriteAge {
-		return true
-	}
-	data, err := d.images.GetBytes(ctx, neighborhoodImageKey(name))
-	if err != nil {
-		return false
-	}
-	_, err = d.images.Put(ctx, jetstream.ObjectMeta{Name: neighborhoodImageKey(name), Headers: info.Headers}, bytes.NewReader(data))
-	return err == nil
-}
-
-func (d *neighborhoodDiscovery) imageIsFresh(ctx context.Context, name string) bool {
-	info, err := d.images.GetInfo(ctx, neighborhoodImageKey(name))
-	return err == nil && d.now().Sub(info.ModTime) < neighborhoodImageRewriteAge
+	return &cachestatev1.NeighborhoodImage{SourceUrl: sourceURL}
 }
 
 func loadNeighborhoodDirectory(ctx context.Context, kv jetstream.KeyValue) (jetstream.KeyValueEntry, *cachestatev1.NeighborhoodDirectory, error) {
@@ -372,44 +293,10 @@ func (c *ChattoCore) NeighborhoodDirectory(ctx context.Context) (*cachestatev1.N
 	return directory, err
 }
 
-// neighborhoodImageKey isolates public Neighborhood images from other cache entries.
-// The directory and public URL retain the unprefixed content hash.
-func neighborhoodImageKey(name string) string {
-	return "neighborhood_image." + name
-}
-
-// NeighborhoodImagePath returns the public server-relative URL path of one
-// cached Neighborhood image.
-func NeighborhoodImagePath(name string) string {
-	return "/assets/neighborhood/" + name
-}
-
-// OpenNeighborhoodImage returns one cached Neighborhood image. The caller
-// must close the returned reader.
-func (c *ChattoCore) OpenNeighborhoodImage(ctx context.Context, name string) (io.ReadCloser, *jetstream.ObjectInfo, error) {
-	if !neighborhoodImageName.MatchString(name) {
-		return nil, nil, ErrNeighborhoodImageNotFound
-	}
-	result, err := c.storage.imageCacheStore.Get(ctx, neighborhoodImageKey(name))
-	if errors.Is(err, jetstream.ErrObjectNotFound) {
-		return nil, nil, ErrNeighborhoodImageNotFound
-	}
-	if err != nil {
-		return nil, nil, fmt.Errorf("read Neighborhood image: %w", err)
-	}
-	info, err := result.Info()
-	if err != nil {
-		_ = result.Close()
-		return nil, nil, fmt.Errorf("read Neighborhood image info: %w", err)
-	}
-	return result, info, nil
-}
-
 func initializeNeighborhoodDiscovery(core *ChattoCore, infra *coreInfrastructure, cfg config.CoreConfig, logger *log.Logger) {
 	core.neighborhoodDiscovery = &neighborhoodDiscovery{
 		enqueue:     core.jobs.Enqueue,
 		kv:          infra.storage.memoryCacheKV,
-		images:      infra.storage.imageCacheStore,
 		fetcher:     neighborhood.RemoteFetcher{Client: newNeighborhoodHTTPClient()},
 		selfOrigins: slices.Clone(cfg.ServerOrigins),
 		neighbors: func() []string {
@@ -420,10 +307,9 @@ func initializeNeighborhoodDiscovery(core *ChattoCore, infra *coreInfrastructure
 			}
 			return origins
 		},
-		assetsCfg: core.AssetsConfig(),
-		limits:    neighborhood.DefaultLimits,
-		logger:    logger.WithPrefix("core.NeighborhoodDiscovery"),
-		now:       time.Now,
+		limits: neighborhood.DefaultLimits,
+		logger: logger.WithPrefix("core.NeighborhoodDiscovery"),
+		now:    time.Now,
 	}
 }
 

@@ -220,6 +220,8 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **System actor** — Synthetic actor ID used when Chatto itself, bootstrap code, or trusted operator automation performs a domain write. It is not a login-capable user account.
 
+**Remote image proxy** — Server route that serves images from other hosts, such as provider avatars and Neighborhood logos, so the browser does not contact those hosts. The server fetches each image and resizes it to a preset (`avatar` or `banner`) with the image transform pipeline, which caches the result in `ASSET_CACHE`. It serves only the combinations of preset and source URL that it signed itself, at `/assets/remote/{preset}/...`. Implemented in `cli/internal/core/remoteimage` and `cli/internal/http_server/remote_images.go`. See [ADR-128](adr/ADR-128-remote-image-proxy.md).
+
 **Admin API** — Public ConnectRPC administrative surface in `chatto.admin.v1`. On the public web listener it uses normal user authentication and RBAC. It is separate from the local Operator API. See [FDR-028](fdr/FDR-028-operator-api-and-cli.md).
 
 **Operator API** — Root-equivalent local ConnectRPC surface in `chatto.operator.v1`, served only on the configured Unix socket. Socket filesystem permissions are the access boundary; anyone who can connect to the socket can perform operator actions as the system actor. See [FDR-028](fdr/FDR-028-operator-api-and-cli.md).

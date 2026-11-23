@@ -21,6 +21,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/core/remoteimage"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
@@ -476,7 +477,7 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	if pending.Msg.Pending.GetKind() != authv1.ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT || pending.Msg.Pending.GetProviderId() != "github-main" {
 		t.Fatalf("pending = %+v", pending.Msg.Pending)
 	}
-	if got, want := pending.Msg.Pending.GetAvatarUrl(), "/auth/external-identity-avatar?token="+url.QueryEscape(createToken); got != want {
+	if got, want := pending.Msg.Pending.GetAvatarUrl(), env.core.RemoteImagePath(remoteimage.PresetAvatar, "https://avatars.example.test/u/12345"); got != want {
 		t.Fatalf("pending avatar URL = %q", got)
 	}
 

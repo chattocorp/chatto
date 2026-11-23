@@ -5,10 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"image"
-	"image/color"
-	"image/png"
-	"io"
 	"net/http"
 	"slices"
 	"sync"
@@ -21,7 +17,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core/neighborhood"
 	cachestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
@@ -34,9 +29,7 @@ type fakeNeighborhoodFetcher struct {
 	mu          sync.Mutex
 	directories map[string][]string
 	profiles    map[string]neighborhood.Profile
-	image       []byte
 	listCalls   int
-	imageCalls  int
 }
 
 func (f *fakeNeighborhoodFetcher) ListNeighbors(_ context.Context, origin string) ([]string, error) {
@@ -54,26 +47,10 @@ func (f *fakeNeighborhoodFetcher) GetProfile(_ context.Context, origin string) (
 	return profile, nil
 }
 
-func (f *fakeNeighborhoodFetcher) FetchImage(context.Context, string, string) ([]byte, error) {
+func (f *fakeNeighborhoodFetcher) counts() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.imageCalls++
-	return f.image, nil
-}
-
-func (f *fakeNeighborhoodFetcher) counts() (int, int) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.listCalls, f.imageCalls
-}
-
-func testPNG(t *testing.T) []byte {
-	t.Helper()
-	img := image.NewNRGBA(image.Rect(0, 0, 4, 4))
-	img.Set(1, 1, color.NRGBA{R: 255, A: 255})
-	var buf bytes.Buffer
-	require.NoError(t, png.Encode(&buf, img))
-	return buf.Bytes()
+	return f.listCalls
 }
 
 func newTestNeighborhoodDiscovery(t *testing.T) (*ChattoCore, *neighborhoodDiscovery, *fakeNeighborhoodFetcher, *time.Time) {
@@ -86,20 +63,17 @@ func newTestNeighborhoodDiscovery(t *testing.T) (*ChattoCore, *neighborhoodDisco
 		},
 		profiles: map[string]neighborhood.Profile{
 			"https://a.example": {Name: "A", Version: "0.5.0", Description: "First", LogoURL: "https://a.example/logo.png", BannerURL: "https://a.example/banner.png"},
-			"https://b.example": {Name: "B", Version: "0.5.0"},
+			"https://b.example": {Name: "B", Version: "0.5.0", LogoURL: "/logo.png"},
 		},
-		image: testPNG(t),
 	}
 	// Object store modification times use the wall clock.
 	now := time.Now().UTC()
 	neighbors := []string{"https://a.example"}
 	discovery := &neighborhoodDiscovery{
 		kv:          core.storage.memoryCacheKV,
-		images:      core.storage.imageCacheStore,
 		fetcher:     fetcher,
 		selfOrigins: []string{neighborhoodTestSelf},
 		neighbors:   func() []string { return neighbors },
-		assetsCfg:   core.AssetsConfig(),
 		limits:      neighborhood.DefaultLimits,
 		logger:      core.logger,
 		now:         func() time.Time { return now },
@@ -111,7 +85,7 @@ func newTestNeighborhoodDiscovery(t *testing.T) (*ChattoCore, *neighborhoodDisco
 	return core, discovery, fetcher, &now
 }
 
-func TestNeighborhoodDiscoveryStoresDirectoryAndImages(t *testing.T) {
+func TestNeighborhoodDiscoveryStoresDirectoryAndImageURLs(t *testing.T) {
 	core, discovery, fetcher, now := newTestNeighborhoodDiscovery(t)
 	ctx := testContext(t)
 
@@ -133,100 +107,24 @@ func TestNeighborhoodDiscoveryStoresDirectoryAndImages(t *testing.T) {
 	require.True(t, first.GetDirectNeighbor())
 	require.Equal(t, []string{"https://b.example"}, first.GetRecommendedByOrigins())
 	require.Equal(t, "https://a.example/logo.png", first.GetLogo().GetSourceUrl())
-	require.NotNil(t, first.GetBanner())
+	require.Empty(t, first.GetLogo().GetObjectName())
+	require.Equal(t, "https://a.example/banner.png", first.GetBanner().GetSourceUrl())
 	second := directory.GetServers()[1]
 	require.Equal(t, "https://b.example", second.GetOrigin())
 	require.False(t, second.GetDirectNeighbor())
-	require.Nil(t, second.GetLogo())
-
-	reader, info, err := core.OpenNeighborhoodImage(ctx, first.GetLogo().GetObjectName())
-	require.NoError(t, err)
-	data, err := io.ReadAll(reader)
-	require.NoError(t, reader.Close())
-	require.NoError(t, err)
-	require.Equal(t, int(info.Size), len(data))
-	require.Equal(t, "RIFF", string(data[:4]))
-
-	_, _, err = core.OpenNeighborhoodImage(ctx, "../"+first.GetLogo().GetObjectName())
-	require.ErrorIs(t, err, ErrNeighborhoodImageNotFound)
-	_, _, err = core.OpenNeighborhoodImage(ctx, first.GetBanner().GetObjectName()[:63]+"0")
-	require.ErrorIs(t, err, ErrNeighborhoodImageNotFound)
+	// A relative image URL resolves against the origin of the server.
+	require.Equal(t, "https://b.example/logo.png", second.GetLogo().GetSourceUrl())
 
 	// A fresh directory is not refreshed again.
-	lists, images := fetcher.counts()
+	lists := fetcher.counts()
 	require.NoError(t, discovery.refreshIfDue(ctx))
-	lists2, images2 := fetcher.counts()
+	lists2 := fetcher.counts()
 	require.Equal(t, lists, lists2)
-	require.Equal(t, images, images2)
 
-	// An hourly refresh reuses images while their source URLs are unchanged.
+	// An hourly refresh reads the directories again.
 	*now = now.Add(neighborhoodRefreshAge)
 	require.NoError(t, discovery.refreshIfDue(ctx))
-	lists3, images3 := fetcher.counts()
-	require.Greater(t, lists3, lists2)
-	require.Equal(t, images2, images3)
-	refreshed, err := core.NeighborhoodDirectory(ctx)
-	require.NoError(t, err)
-	require.Equal(t, first.GetLogo().GetObjectName(), refreshed.GetServers()[0].GetLogo().GetObjectName())
-}
-
-func TestNeighborhoodImageRenewalAndRegeneration(t *testing.T) {
-	core, discovery, fetcher, now := newTestNeighborhoodDiscovery(t)
-	ctx := testContext(t)
-	require.NoError(t, discovery.refreshIfDue(ctx))
-	directory, err := core.NeighborhoodDirectory(ctx)
-	require.NoError(t, err)
-	name := directory.GetServers()[0].GetLogo().GetObjectName()
-	key := neighborhoodImageKey(name)
-	before, err := discovery.images.GetInfo(ctx, key)
-	require.NoError(t, err)
-	_, images := fetcher.counts()
-	*now = before.ModTime.Add(neighborhoodImageRewriteAge + time.Second)
-	require.NoError(t, discovery.refreshIfDue(ctx))
-	after, err := discovery.images.GetInfo(ctx, key)
-	require.NoError(t, err)
-	require.True(t, after.ModTime.After(before.ModTime))
-	_, renewedImages := fetcher.counts()
-	require.Equal(t, images, renewedImages, "renewal must reuse stored bytes")
-
-	// A missing entry, including one removed by expiry, is fetched again.
-	require.NoError(t, discovery.images.Delete(ctx, key))
-	*now = now.Add(neighborhoodRefreshAge)
-	require.NoError(t, discovery.refreshIfDue(ctx))
-	_, err = discovery.images.GetInfo(ctx, key)
-	require.NoError(t, err)
-	_, regeneratedImages := fetcher.counts()
-	require.Greater(t, regeneratedImages, renewedImages)
-
-	resizeKey := ImageCacheKey(ServerAssetSignResource, "test-avatar", 64, 64, "cover")
-	require.NoError(t, core.StoreCachedResize(ctx, resizeKey, []byte("resize")))
-	count, err := core.mediaModel.DeleteCachedResizesForServerAsset(ctx, "test-avatar")
-	require.NoError(t, err)
-	require.Equal(t, 1, count)
-	_, err = discovery.images.GetInfo(ctx, key)
-	require.NoError(t, err, "resize cleanup must retain Neighborhood images")
-}
-
-func TestNeighborhoodImageExpiry(t *testing.T) {
-	core, discovery, _, _ := newTestNeighborhoodDiscovery(t)
-	ctx := testContext(t)
-	// Shorten only this test bucket's TTL to exercise actual NATS expiry.
-	cfg := assetCacheConfig(config.CoreConfig{})
-	cfg.TTL = time.Second
-	_, err := core.js.CreateOrUpdateObjectStore(ctx, cfg)
-	require.NoError(t, err)
-	require.NoError(t, discovery.refreshIfDue(ctx))
-	directory, err := core.NeighborhoodDirectory(ctx)
-	require.NoError(t, err)
-	name := directory.GetServers()[0].GetLogo().GetObjectName()
-	require.Eventually(t, func() bool {
-		reader, _, err := core.OpenNeighborhoodImage(ctx, name)
-		if reader != nil {
-			_ = reader.Close()
-		}
-		return errors.Is(err, ErrNeighborhoodImageNotFound)
-	}, 5*time.Second, 20*time.Millisecond)
-	require.False(t, discovery.keepImage(ctx, name))
+	require.Greater(t, fetcher.counts(), lists2)
 }
 
 func TestNeighborhoodDiscoveryPicksUpNeighborChanges(t *testing.T) {
@@ -347,15 +245,13 @@ func TestNeighborhoodRefreshWithoutNeighbors(t *testing.T) {
 	checkEmpty := func() {
 		t.Helper()
 		jobsBefore := queued
-		before, imagesBefore := fetcher.counts()
+		before := fetcher.counts()
 		require.NoError(t, discovery.refreshIfDue(ctx))
 		directory, err := core.NeighborhoodDirectory(ctx)
 		require.NoError(t, err)
 		require.Equal(t, now.UnixNano(), directory.GetRefreshedAt().AsTime().UnixNano())
 		require.Empty(t, directory.GetServers())
-		after, imagesAfter := fetcher.counts()
-		require.Equal(t, before, after)
-		require.Equal(t, imagesBefore, imagesAfter)
+		require.Equal(t, before, fetcher.counts())
 		require.Equal(t, jobsBefore, queued)
 	}
 	checkEmpty()
@@ -418,7 +314,7 @@ func TestNeighborhoodRefreshSurvivesWriterCrash(t *testing.T) {
 			info, err := survivor.jobConsumers[jobTypeNeighborhoodRefresh].Info(ctx)
 			require.NoError(t, err)
 			require.EqualValues(t, 1, info.NumPending)
-			lists, _ := fetcher.counts()
+			lists := fetcher.counts()
 			require.Zero(t, lists)
 			if tc.midCrawl {
 				blocked := &blockedNeighborhoodCrawl{fetcher, make(chan struct{})}
@@ -460,7 +356,7 @@ func TestNeighborhoodRefreshSurvivesWriterCrash(t *testing.T) {
 			require.EqualValues(t, tc.attempts, job.Attempts)
 			// Redelivery after publication cannot crawl again.
 			require.NoError(t, survivor.neighborhoodDiscovery.performJob(ctx, job))
-			lists, _ = fetcher.counts()
+			lists = fetcher.counts()
 			require.Equal(t, 1, lists)
 		})
 	}
