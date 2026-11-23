@@ -40,12 +40,13 @@ func BenchmarkRealtimeMessagePostFrames(b *testing.B) {
 	if err != nil {
 		b.Fatalf("PostMessage: %v", err)
 	}
-	envelope := core.NewEVTEventEnvelopeWithDeliverySeq(posted, 42)
-
 	b.ReportAllocs()
 	b.ResetTimer()
 	frameBytes := 0
 	for range b.N {
+		// Each delivery gets a new envelope, so per-event shared work counts
+		// once in each operation.
+		envelope := core.NewEVTEventEnvelopeWithDeliverySeq(posted, 42)
 		for _, viewerID := range viewerIDs {
 			frame, err := env.httpServer.realtimeServerFrameForEvent(env.ctx, viewerID, envelope)
 			if err != nil {

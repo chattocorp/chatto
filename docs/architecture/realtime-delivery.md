@@ -121,6 +121,15 @@ events. Public events do not
 expose raw EVT bytes, ciphertext, nonces, storage pointers, private moderation
 data, subjects, stream identities, or sequence numbers.
 
+The hub gives the same envelope to each subscriber of an event. For a message
+post, the mapper does the work that does not depend on the viewer once for
+each envelope: the body lookup, the echo hydration, and the room-kind lookup.
+It keeps the result on the envelope and does not keep a failed result. Each
+viewer then gets a copy of the shared event with its own mention
+`includes_viewer` values and its own resume cursor. Authorization, the
+per-viewer cases of the mapper, and all other event types still run for each
+viewer. Each connection encodes its own frame and applies its own compression.
+
 Event authorization must make every delivered field safe for that viewer. A
 future field with narrower visibility needs an explicit viewer-aware mapping
 rule or a separate authorized shape.

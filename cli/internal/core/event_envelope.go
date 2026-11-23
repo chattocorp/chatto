@@ -1,6 +1,8 @@
 package core
 
 import (
+	"sync"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -21,9 +23,39 @@ type EventEnvelope interface {
 	EVTEvent() *evtv1.Event
 	PubSubEvent() *pubsubv1.PubSubEvent
 	Heartbeat() bool
+	// SharedRealtimeMapping returns the viewer-independent realtime mapping of
+	// the envelope. The first successful compute result is stored on the
+	// envelope and returned to all later callers, so concurrent connections
+	// that get the same envelope from the hub do the work once. An error is
+	// returned only to its caller and is not stored; the next caller computes
+	// again. The realtime API owns this slot. The value must be safe to share:
+	// it must not hold a value for one viewer, and callers must not change it.
+	SharedRealtimeMapping(compute func() (any, error)) (any, error)
+}
+
+// envelopeMemo stores one shared value for the lifetime of its envelope.
+type envelopeMemo struct {
+	mu    sync.Mutex
+	done  bool
+	value any
+}
+
+func (m *envelopeMemo) SharedRealtimeMapping(compute func() (any, error)) (any, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.done {
+		return m.value, nil
+	}
+	value, err := compute()
+	if err != nil {
+		return nil, err
+	}
+	m.value, m.done = value, true
+	return value, nil
 }
 
 type evtEventEnvelope struct {
+	envelopeMemo
 	event       *evtv1.Event
 	deliverySeq uint64
 }
@@ -45,6 +77,7 @@ func (e *evtEventEnvelope) PubSubEvent() *pubsubv1.PubSubEvent { return nil }
 func (e *evtEventEnvelope) Heartbeat() bool                    { return false }
 
 type pubsubEventEnvelope struct {
+	envelopeMemo
 	event *pubsubv1.PubSubEvent
 }
 
@@ -68,6 +101,7 @@ func (e *pubsubEventEnvelope) PubSubEvent() *pubsubv1.PubSubEvent {
 func (e *pubsubEventEnvelope) Heartbeat() bool { return false }
 
 type heartbeatEventEnvelope struct {
+	envelopeMemo
 	id        string
 	createdAt *timestamppb.Timestamp
 }

@@ -908,7 +908,13 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 			return nil, core.ErrPermissionDenied
 		}
 	}
-	projected, err := s.projectViewerRealtimeEvent(ctx, viewerID, durable)
+	var projected *realtimev1.RealtimeEvent
+	var err error
+	if durable.GetMessagePosted() != nil {
+		projected, err = s.viewerMessagePostedEvent(ctx, viewerID, event)
+	} else {
+		projected, err = s.projectViewerRealtimeEvent(ctx, viewerID, durable)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -942,26 +948,6 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 			value.AssetDeleted.MessageEventId = messageID
 		}
 	}
-	if durable != nil && durable.GetMessagePosted() != nil {
-		post, err := s.core.HydrateMessagePost(ctx, durable)
-		if err != nil {
-			return nil, err
-		}
-		projected.GetMessagePosted().InReplyTo = post.GetInReplyTo()
-		projected.GetMessagePosted().Mentions = realtimeMentions(viewerID, post.GetMentions())
-		body, err := s.core.GetFullMessageBody(ctx, durable.GetId())
-		if err != nil {
-			return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)
-		}
-		kind, err := s.core.FindRoomKind(ctx, durable.GetMessagePosted().GetRoomId())
-		if err != nil {
-			return nil, fmt.Errorf("resolve realtime room kind: %w", err)
-		}
-		projected.GetMessagePosted().RoomKind = realtimeRoomKind(core.ProtoKindForRoomKind(kind))
-		if body != nil {
-			projected.GetMessagePosted().BodyPlaintext = new(body.Body)
-		}
-	}
 	if sequence := event.DeliverySeq(); sequence > 0 {
 		cursor, err := s.core.RealtimeCursorForSequence(viewerID, sequence)
 		if err != nil {
@@ -970,6 +956,70 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 		projected.Cursor = &cursor
 	}
 	return projected, nil
+}
+
+// sharedMessagePost is the viewer-independent public mapping of one message
+// post. It is computed once per envelope and shared by all connections that
+// get the envelope. Do not change it after it is stored.
+type sharedMessagePost struct {
+	// event is the complete public event without a resume cursor. Its mentions
+	// have includes_viewer set to false for all targets.
+	event *realtimev1.RealtimeEvent
+	// mentions are the hydrated stored mention rows. Each viewer gets its own
+	// public mentions from these rows.
+	mentions []*evtv1.MessageMention
+}
+
+// viewerMessagePostedEvent returns the public message-post event for one
+// viewer. The hub already authorized the viewer for the event. The body
+// lookup, echo hydration, and room-kind lookup do not depend on the viewer,
+// so they run once per envelope. The viewer gets a copy of the shared event
+// with its own mention flags. The caller adds the resume cursor.
+func (s *HTTPServer) viewerMessagePostedEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeEvent, error) {
+	value, err := event.SharedRealtimeMapping(func() (any, error) {
+		return s.mapSharedMessagePost(ctx, event.EVTEvent())
+	})
+	if err != nil {
+		return nil, err
+	}
+	shared := value.(*sharedMessagePost)
+	if shared == nil {
+		return nil, nil
+	}
+	projected := proto.CloneOf(shared.event)
+	projected.GetMessagePosted().Mentions = realtimeMentions(viewerID, shared.mentions)
+	return projected, nil
+}
+
+// mapSharedMessagePost maps a message post without a viewer. Put each new
+// viewer-independent field of the public message post here. A field that
+// depends on the viewer must not go into the shared event; set it in
+// viewerMessagePostedEvent.
+func (s *HTTPServer) mapSharedMessagePost(ctx context.Context, durable *evtv1.Event) (*sharedMessagePost, error) {
+	projected := projectRealtimeEvent("", durable)
+	if projected == nil {
+		return nil, nil
+	}
+	post, err := s.core.HydrateMessagePost(ctx, durable)
+	if err != nil {
+		return nil, err
+	}
+	message := projected.GetMessagePosted()
+	message.InReplyTo = post.GetInReplyTo()
+	message.Mentions = realtimeMentions("", post.GetMentions())
+	body, err := s.core.GetFullMessageBody(ctx, durable.GetId())
+	if err != nil {
+		return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)
+	}
+	kind, err := s.core.FindRoomKind(ctx, durable.GetMessagePosted().GetRoomId())
+	if err != nil {
+		return nil, fmt.Errorf("resolve realtime room kind: %w", err)
+	}
+	message.RoomKind = realtimeRoomKind(core.ProtoKindForRoomKind(kind))
+	if body != nil {
+		message.BodyPlaintext = new(body.Body)
+	}
+	return &sharedMessagePost{event: projected, mentions: post.GetMentions()}, nil
 }
 
 // projectViewerRealtimeEvent maps one durable fact to its public semantic
