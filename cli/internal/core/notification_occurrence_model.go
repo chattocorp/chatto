@@ -951,6 +951,9 @@ type notificationRoomVisibility struct {
 // room-level read access once for each room in rooms. A room ID with no entry
 // is computed and stored. The order and the early exits match a check of one
 // occurrence, so a cached result gives the same answer and the same error.
+// Time-limited access, such as privileged mode or a temporary ban, is read
+// once for each room and barrier. The result is the access at the start of the
+// barrier, as for a request that the server read some microseconds earlier.
 func (m *NotificationOccurrenceModel) roomVisibility(ctx context.Context, recipientID, roomID string, rooms map[string]notificationRoomVisibility) notificationRoomVisibility {
 	if result, ok := rooms[roomID]; ok {
 		return result
