@@ -76,6 +76,11 @@ its handle from subsequent server reads. The popup and sidebar share a session
 cache. Reopening either view shows cached identities immediately. After 30 seconds,
 reopening also refreshes them in the background. The cache drops unused results
 after five minutes.
+**Account settings:** The Single Sign-On panel shows the handle of a linked AT
+Protocol account next to its **Linked** status. `ListExternalIdentities`
+returns it as `account_label`, from the same directory lookup as the profile.
+A missing handle or failed lookup leaves the label empty. Other provider types
+store only an opaque subject, so their label stays empty.
 
 ### 3. A remembered handle instead of a device session
 

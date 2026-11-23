@@ -258,7 +258,7 @@ test.describe('External identity confirmation flows', () => {
       { times: 1 }
     );
     await page.goto(routes.settingsAccount);
-    const row = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
+    const row = page.getByTestId('sso-provider-row').filter({ hasText: 'Discord' });
     await expect(row.getByRole('button', { name: 'Link', exact: true })).toBeVisible();
 
     // Older clients open this URL. Its forward races the origin's first
@@ -332,7 +332,7 @@ test.describe('External identity confirmation flows', () => {
       });
     });
     await page.goto(routes.settingsAccount);
-    const row = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
+    const row = page.getByTestId('sso-provider-row').filter({ hasText: 'Discord' });
     // Request fresh proof on the first attempt without ageing the browser session.
     await page.route(
       '**/chatto.api.v1.MyAccountService/StartExternalIdentityLink',
@@ -455,7 +455,7 @@ test.describe('External identity confirmation flows', () => {
 
     await page.goto(routes.settingsAccount);
     await expect(page.getByText('GitHub', { exact: true })).toBeVisible();
-    const githubRow = page.locator('div.rounded.border').filter({ hasText: 'GitHub' });
+    const githubRow = page.getByTestId('sso-provider-row').filter({ hasText: 'GitHub' });
     await expect(githubRow.getByText('Linked')).toBeVisible();
 
     let disconnectRequestCount = 0;
@@ -605,7 +605,7 @@ test.describe('External identity confirmation flows', () => {
       await expect.poll(() => popup.isClosed()).toBe(true);
       if (outcome === 'linked') {
         await expect(page).toHaveURL(new URL(destination, serverURL).href);
-        const row = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
+        const row = page.getByTestId('sso-provider-row').filter({ hasText: 'Discord' });
         await expect(row.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();
         await page.reload();
         await expect(row.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();
@@ -678,8 +678,8 @@ test.describe('External identity confirmation flows', () => {
     await page.goto(routes.settingsAccount);
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
     await expect(page.getByText('Discord', { exact: true })).toBeVisible();
-    const discordRow = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
-    const githubRow = page.locator('div.rounded.border').filter({ hasText: 'GitHub' });
+    const discordRow = page.getByTestId('sso-provider-row').filter({ hasText: 'Discord' });
+    const githubRow = page.getByTestId('sso-provider-row').filter({ hasText: 'GitHub' });
     await expect(discordRow.getByText('Linked')).toBeVisible();
 
     let releaseDisconnectRequest: (() => void) | undefined;
@@ -730,7 +730,7 @@ test.describe('External identity confirmation flows', () => {
     await page.waitForURL(routes.patterns.chatRedirect);
 
     await page.goto(routes.settingsAccount);
-    const retiredRow = page.locator('div.rounded.border').filter({ hasText: 'retired-provider' });
+    const retiredRow = page.getByTestId('sso-provider-row').filter({ hasText: 'retired-provider' });
     await expect(retiredRow.getByText('Provider no longer configured')).toBeVisible();
 
     await retiredRow.getByRole('button', { name: 'Disconnect' }).click();

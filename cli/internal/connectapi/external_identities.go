@@ -229,8 +229,12 @@ func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.
 		return nil, err
 	}
 	linked := apiLinkedExternalIdentities(identities, s.api.providerLabels())
+	// Handle lookups are best effort: a slow directory must not block the list.
+	lookupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	for index, identity := range linked {
 		identity.DisconnectEligibility = disconnectAvailability(s.api, identities[index], identities, hasPassword)
+		identity.AccountLabel = s.api.atprotoHandle(lookupCtx, identities[index])
 	}
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{
 		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities),

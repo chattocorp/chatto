@@ -109,19 +109,11 @@ func (s *userService) verifiedIdentities(ctx context.Context, links []core.Exter
 	defer cancel()
 	var identities []*apiv1.VerifiedIdentity
 	for _, link := range links {
-		if link.ProviderType != config.AuthProviderTypeATProto {
-			continue
-		}
-		did, err := syntax.ParseDID(link.Subject)
-		if err != nil {
-			continue
-		}
-		account, err := s.api.atprotoDirectory().LookupDID(ctx, did)
-		if err == nil && account.Handle != "" && !account.Handle.IsInvalidHandle() {
+		if handle := s.api.atprotoHandle(ctx, link); handle != "" {
 			identities = append(identities, &apiv1.VerifiedIdentity{
 				Method:      config.AuthProviderTypeATProto,
 				MethodLabel: "AT Protocol",
-				Value:       account.Handle.Normalize().String(),
+				Value:       handle,
 			})
 		}
 	}
@@ -131,6 +123,24 @@ func (s *userService) verifiedIdentities(ctx context.Context, links []core.Exter
 	return slices.CompactFunc(identities, func(a, b *apiv1.VerifiedIdentity) bool {
 		return a.Method == b.Method && a.Value == b.Value
 	})
+}
+
+// atprotoHandle resolves the current public handle of an AT Protocol link,
+// without @. It returns an empty string for other provider types, invalid
+// DIDs, failed lookups, and invalid handles. The directory caches lookups.
+func (a *API) atprotoHandle(ctx context.Context, link core.ExternalIdentity) string {
+	if link.ProviderType != config.AuthProviderTypeATProto {
+		return ""
+	}
+	did, err := syntax.ParseDID(link.Subject)
+	if err != nil {
+		return ""
+	}
+	account, err := a.atprotoDirectory().LookupDID(ctx, did)
+	if err != nil || account.Handle == "" || account.Handle.IsInvalidHandle() {
+		return ""
+	}
+	return account.Handle.Normalize().String()
 }
 
 func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[apiv1.BatchGetUsersRequest]) (*connect.Response[apiv1.BatchGetUsersResponse], error) {

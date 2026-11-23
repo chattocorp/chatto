@@ -42,6 +42,11 @@ export type LinkedExternalIdentityInfo = {
   subjectHash: string;
   /** Listing-time eligibility; unspecified on older servers. */
   disconnectEligibility: DisconnectEligibility;
+  /**
+   * Name of the linked account at the provider, such as an AT Protocol handle
+   * without @. Null when the server cannot resolve one, and on older servers.
+   */
+  accountLabel: string | null;
 };
 
 export type ExternalIdentityProviderInfo = {
@@ -199,7 +204,8 @@ function linkedIdentity(identity?: APILinkedExternalIdentity): LinkedExternalIde
     providerType: identity.providerType,
     providerLabel: identity.providerLabel,
     subjectHash: identity.subjectHash,
-    disconnectEligibility: identity.disconnectEligibility
+    disconnectEligibility: identity.disconnectEligibility,
+    accountLabel: identity.accountLabel || null
   };
 }
 

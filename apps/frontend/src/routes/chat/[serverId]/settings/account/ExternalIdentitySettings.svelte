@@ -266,6 +266,11 @@
     return disconnectAvailability(subjectHash) === DisconnectEligibility.ALLOWED;
   }
 
+  /** Name of the linked account at the provider, when the server resolved one. */
+  function linkedAccountLabel(subjectHash: string | null) {
+    return linkedIdentities.find((identity) => identity.subjectHash === subjectHash)?.accountLabel;
+  }
+
   function disconnectAvailability(subjectHash: string | null) {
     const identity = linkedIdentities.find((identity) => identity.subjectHash === subjectHash);
     return disconnectEligibilityWithFallback(
@@ -480,119 +485,136 @@
   <Interval milliseconds={2000} ontick={checkProviderLinkResult} />
 {/if}
 
-<Panel title={m('settings.account.sso.title')} icon="iconify icon-[uil--link]">
-  <div class="flex max-w-md flex-col gap-4">
-    {#if loading}
-      <LoadingDots class="h-32 w-full" label={m('settings.account.sso.loading')} />
-    {:else}
-      {#if error}
+<Panel title={m('settings.account.sso.title')} icon="iconify icon-[uil--link]" noPadding>
+  {#if loading}
+    <LoadingDots class="h-32 w-full" label={m('settings.account.sso.loading')} />
+  {:else}
+    {#if error}
+      <div class="p-4">
         <Hint tone="danger">{error}</Hint>
-      {/if}
-      {#if !hasRows}
-        <p class="text-sm text-muted">{m('settings.account.sso.none_configured')}</p>
-      {:else}
-        <div class="flex flex-col gap-3">
-          {#each providers as provider (provider.id)}
-            <div class="flex items-center justify-between gap-3 rounded border border-border p-3">
-              <div class="flex min-w-0 items-center gap-3">
-                <span
-                  aria-hidden="true"
-                  class={['iconify text-lg text-muted', providerIcon(provider.type)]}
-                ></span>
-                <div class="min-w-0">
-                  <div class="truncate text-sm font-medium">{provider.label}</div>
-                  <div class="text-xs text-muted">
-                    {#if provider.linked}
-                      {m('settings.account.sso.linked')}
-                      {#if !canDisconnectIdentity(provider.linkedIdentitySubjectHash)}
-                        <p>
-                          {identityDisconnectUnavailableMessage(
-                            disconnectAvailability(provider.linkedIdentitySubjectHash),
-                            provider.label
-                          )}
-                        </p>
-                      {/if}
-                    {:else}
-                      {m('settings.account.sso.not_linked')}
-                    {/if}
-                  </div>
-                </div>
-              </div>
-              {#if provider.linked}
-                {#if provider.linkedIdentitySubjectHash}
-                  <Button
-                    variant="danger-secondary"
-                    size="sm"
-                    loading={disconnectingSubjectHash === provider.linkedIdentitySubjectHash}
-                    disabled={!canDisconnectIdentity(provider.linkedIdentitySubjectHash) ||
-                      linkingProviderId !== '' ||
-                      disconnectingSubjectHash !== ''}
-                    onclick={() => openDisconnectProvider(provider)}
-                  >
-                    <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
-                    {disconnectButtonLabel(provider.linkedIdentitySubjectHash)}
-                  </Button>
-                {:else}
-                  <span class="text-sm text-muted">{m('settings.account.sso.linked')}</span>
-                {/if}
-              {:else}
+      </div>
+    {/if}
+    {#if !hasRows}
+      <p class="p-4 text-sm text-muted">{m('settings.account.sso.none_configured')}</p>
+    {:else}
+      <ul class="divide-y divide-border">
+        {#each providers as provider (provider.id)}
+          <li
+            data-testid="sso-provider-row"
+            class="flex items-center justify-between gap-4 px-4 py-3"
+          >
+            {@render identity(
+              provider.type,
+              provider.label,
+              provider.linked,
+              provider.linked
+                ? m('settings.account.sso.linked')
+                : m('settings.account.sso.not_linked'),
+              provider.linkedIdentitySubjectHash
+            )}
+            {#if provider.linked}
+              {#if provider.linkedIdentitySubjectHash}
                 <Button
-                  variant="secondary"
+                  variant="danger-secondary"
                   size="sm"
-                  loading={linkingProviderId === provider.id}
-                  disabled={linkingProviderId !== '' ||
-                    disconnectingSubjectHash !== '' ||
-                    providerLinkWindow !== null}
-                  onclick={() => openProviderLink(provider)}
+                  loading={disconnectingSubjectHash === provider.linkedIdentitySubjectHash}
+                  disabled={!canDisconnectIdentity(provider.linkedIdentitySubjectHash) ||
+                    linkingProviderId !== '' ||
+                    disconnectingSubjectHash !== ''}
+                  onclick={() => openDisconnectProvider(provider)}
                 >
-                  <span aria-hidden="true" class="iconify icon-[uil--link]"></span>
-                  {m('settings.account.sso.link_button')}
+                  <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
+                  {disconnectButtonLabel(provider.linkedIdentitySubjectHash)}
                 </Button>
               {/if}
-            </div>
-          {/each}
-
-          {#each unconfiguredLinkedIdentities as identity (identity.subjectHash)}
-            <div class="flex items-center justify-between gap-3 rounded border border-border p-3">
-              <div class="flex min-w-0 items-center gap-3">
-                <span
-                  aria-hidden="true"
-                  class={['iconify text-lg text-muted', providerIcon(identity.providerType)]}
-                ></span>
-                <div class="min-w-0">
-                  <div class="truncate text-sm font-medium">{identity.providerLabel}</div>
-                  <div class="text-xs text-muted">
-                    {m('settings.account.sso.provider_unconfigured')}
-                    {#if !canDisconnectIdentity(identity.subjectHash)}
-                      <p>
-                        {identityDisconnectUnavailableMessage(
-                          disconnectAvailability(identity.subjectHash),
-                          identity.providerLabel
-                        )}
-                      </p>
-                    {/if}
-                  </div>
-                </div>
-              </div>
+            {:else}
               <Button
-                variant="danger-secondary"
+                variant="secondary"
                 size="sm"
-                loading={disconnectingSubjectHash === identity.subjectHash}
-                disabled={!canDisconnectIdentity(identity.subjectHash) ||
-                  linkingProviderId !== '' ||
-                  disconnectingSubjectHash !== ''}
-                onclick={() => openDisconnectIdentity(identity)}
+                loading={linkingProviderId === provider.id}
+                disabled={linkingProviderId !== '' ||
+                  disconnectingSubjectHash !== '' ||
+                  providerLinkWindow !== null}
+                onclick={() => openProviderLink(provider)}
               >
-                <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
-                {disconnectButtonLabel(identity.subjectHash)}
+                <span aria-hidden="true" class="iconify icon-[uil--link]"></span>
+                {m('settings.account.sso.link_button')}
               </Button>
-            </div>
-          {/each}
-        </div>
-      {/if}
+            {/if}
+          </li>
+        {/each}
+
+        {#each unconfiguredLinkedIdentities as linkedIdentity (linkedIdentity.subjectHash)}
+          <li
+            data-testid="sso-provider-row"
+            class="flex items-center justify-between gap-4 px-4 py-3"
+          >
+            {@render identity(
+              linkedIdentity.providerType,
+              linkedIdentity.providerLabel,
+              false,
+              m('settings.account.sso.provider_unconfigured'),
+              linkedIdentity.subjectHash
+            )}
+            <Button
+              variant="danger-secondary"
+              size="sm"
+              loading={disconnectingSubjectHash === linkedIdentity.subjectHash}
+              disabled={!canDisconnectIdentity(linkedIdentity.subjectHash) ||
+                linkingProviderId !== '' ||
+                disconnectingSubjectHash !== ''}
+              onclick={() => openDisconnectIdentity(linkedIdentity)}
+            >
+              <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
+              {disconnectButtonLabel(linkedIdentity.subjectHash)}
+            </Button>
+          </li>
+        {/each}
+      </ul>
     {/if}
-  </div>
+  {/if}
 </Panel>
+
+<!-- Provider icon, name, link status, and any reason the identity cannot be disconnected. -->
+{#snippet identity(
+  type: string,
+  label: string,
+  linked: boolean,
+  status: string,
+  subjectHash: string | null
+)}
+  {@const account = linkedAccountLabel(subjectHash)}
+  <div class="flex min-w-0 items-center gap-3">
+    <span
+      class={[
+        'flex size-10 shrink-0 items-center justify-center rounded-md bg-surface text-xl',
+        linked ? 'text-text' : 'text-muted'
+      ]}
+    >
+      <span aria-hidden="true" class={['iconify', providerIcon(type)]}></span>
+    </span>
+    <div class="min-w-0">
+      <div class="truncate font-medium">{label}</div>
+      <div class="flex min-w-0 items-center gap-1 text-sm text-muted">
+        <span class={['flex shrink-0 items-center gap-1', linked && 'text-success']}>
+          {#if linked}
+            <span aria-hidden="true" class="iconify icon-[uil--check-circle]"></span>
+          {/if}
+          {status}
+        </span>
+        {#if account}
+          <span aria-hidden="true">·</span>
+          <bdi class="truncate" dir="ltr" title={account}>{account}</bdi>
+        {/if}
+      </div>
+      {#if subjectHash && !canDisconnectIdentity(subjectHash)}
+        <p class="text-sm text-muted">
+          {identityDisconnectUnavailableMessage(disconnectAvailability(subjectHash), label)}
+        </p>
+      {/if}
+    </div>
+  </div>
+{/snippet}
 
 {#if disconnectTarget}
   <ConfirmDialog

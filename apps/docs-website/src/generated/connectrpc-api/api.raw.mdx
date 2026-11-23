@@ -6213,6 +6213,7 @@ Linked provider identity metadata for the authenticated user's settings UI.
 | `provider_label` | `string` | Current or fallback provider label. |
 | `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
 | `disconnect_eligibility` | [`DisconnectEligibility`](#chatto-api-v1-DisconnectEligibility) | Disconnect eligibility evaluated by ListExternalIdentities. |
+| `account_label` | `string` | Human-readable name of the linked account at the provider, for example an AT Protocol handle without @. Empty when the server cannot resolve one, including for provider types that do not supply a public account name. |
 
 
 

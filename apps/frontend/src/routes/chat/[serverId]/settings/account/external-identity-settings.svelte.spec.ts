@@ -150,6 +150,14 @@ describe('external identity settings query lifecycle', () => {
     expect(mocks.disconnect).not.toHaveBeenCalled();
   });
 
+  it('names the linked account when the server resolved one', async () => {
+    const list = linkedIdentityList();
+    Object.assign(list.linkedIdentities[0], { accountLabel: 'alice.example' });
+    mocks.list.mockResolvedValue(list);
+    renderSettings();
+    await expect.element(browserPage.getByText('alice.example', { exact: true })).toBeVisible();
+  });
+
   it('uses the server hint instead of counting unusable linked identities', async () => {
     mocks.directLoginEnabled = false;
     const list = linkedIdentityList();
