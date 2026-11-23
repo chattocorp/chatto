@@ -5,7 +5,7 @@
 
 import { ChangePasswordRequest, ChangePasswordResponse, ConfirmEmailVerificationRequest, ConfirmEmailVerificationResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, GetSettingsRequest, GetSettingsResponse, ListVerifiedEmailsRequest, ListVerifiedEmailsResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, RequestEmailVerificationRequest, RequestEmailVerificationResponse, SetPrimaryEmailRequest, SetPrimaryEmailResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse, StartFreshAuthReverificationRequest, StartFreshAuthReverificationResponse } from "./external_identities_pb.js";
+import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { GetPresencePreferenceRequest, GetPresencePreferenceResponse, RefreshPresenceRequest, RefreshPresenceResponse, SetPresencePreferenceRequest, SetPresencePreferenceResponse, SetPresenceRequest, SetPresenceResponse } from "./presence_pb.js";
 import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, SetCustomStatusRequest, SetCustomStatusResponse } from "./user_status_pb.js";
 
@@ -136,27 +136,6 @@ export const MyAccountService = {
       name: "StartExternalIdentityLink",
       I: StartExternalIdentityLinkRequest,
       O: StartExternalIdentityLinkResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Creates a short-lived browser URL that confirms a recent sign-in through
-     * a provider already linked to the authenticated account. The provider must
-     * ask for credentials again. When the callback verifies an identity of the
-     * same account, the server marks the calling session fresh for 30 minutes,
-     * so that actions such as StartExternalIdentityLink and
-     * DisconnectExternalIdentity succeed without a password. The callback does
-     * not create a new session. Only a browser cookie session on the account's
-     * server can re-verify: the same browser must open start_url from a page on
-     * that server and complete the callback. Returns NOT_FOUND for an unknown
-     * provider and FAILED_PRECONDITION for a bearer credential, or when the
-     * provider is not linked or cannot force a new sign-in.
-     *
-     * @generated from rpc chatto.api.v1.MyAccountService.StartFreshAuthReverification
-     */
-    startFreshAuthReverification: {
-      name: "StartFreshAuthReverification",
-      I: StartFreshAuthReverificationRequest,
-      O: StartFreshAuthReverificationResponse,
       kind: MethodKind.Unary,
     },
     /**

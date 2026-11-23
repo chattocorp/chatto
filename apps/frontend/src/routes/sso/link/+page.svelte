@@ -17,7 +17,8 @@ a way out: try again when that can help, and close the window.
   import ReverificationChoice from '$lib/components/auth/ReverificationChoice.svelte';
   import {
     reverificationErrorMessage,
-    reverificationProviders
+    reverificationProviders,
+    reverificationStartUrl
   } from '$lib/auth/freshAuthReverification';
   import { repeatDiscardedRead } from '$lib/api/repeatDiscardedRead';
   import {
@@ -124,19 +125,10 @@ a way out: try again when that can help, and close the window.
   }
 
   /** Re-verify the user, then return to this window, which starts the link. */
-  async function startReverification(target: ExternalIdentityProviderInfo) {
+  function startReverification(target: ExternalIdentityProviderInfo) {
     reverifyingProviderId = target.id;
-    try {
-      const startUrl = await externalIdentityAPI().startReverification({
-        providerId: target.id,
-        redirectPath: identityLinkPath(request.providerId, request.userId)
-      });
-      // Keep the buttons disabled while the browser leaves the page.
-      leavePage(startUrl);
-    } catch (err) {
-      reverifyingProviderId = '';
-      offerReverification(errorMessage(err, m('settings.account.sso.reverification_failed')));
-    }
+    // Keep the buttons disabled while the browser leaves the page.
+    leavePage(reverificationStartUrl(target, identityLinkPath(request.providerId, request.userId)));
   }
 
   async function startLink(target: ExternalIdentityProviderInfo, currentPassword?: string) {
@@ -160,7 +152,7 @@ a way out: try again when that can help, and close the window.
       });
       if (failure.kind === 'password_required') view = 'password';
       else if (failure.kind === 'reverification_required') {
-        if (reverifiers.length === 1) void startReverification(reverifiers[0]);
+        if (reverifiers.length === 1) startReverification(reverifiers[0]);
         else offerReverification();
       } else if (failure.kind === 'password_rejected') passwordError = failure.message;
       else fail(failure.message, failure.retryable);

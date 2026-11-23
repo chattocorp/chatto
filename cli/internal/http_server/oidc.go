@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -295,34 +296,23 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		}
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "link")
 		session.Set(providerSessionKey(providerRuntime.config.ID, "link_user_id"), start.BoundUserID)
-		session.Delete(providerSessionKey(providerRuntime.config.ID, "reverify_start"))
+		deleteReverificationState(session, providerRuntime.config.ID)
 		if isValidInternalRedirect(start.RedirectPath) {
 			linkStartRedirect = start.RedirectPath
 		}
 	} else if intent == "reverify" {
-		// Only OIDC can force a new provider sign-in and prove it. The
-		// callback consumes the token, so an abandoned attempt leaves it to
-		// expire. Only a page of this server may start the navigation: a
-		// holder of a copied session must not be able to send the user a
-		// start link and have the user's sign-in make that session fresh.
-		token := c.Query("reverify_start")
-		sameOrigin := c.GetHeader("Sec-Fetch-Site") == "same-origin"
-		start, err := s.core.PeekFreshAuthReverificationStart(c.Request.Context(), token)
-		if !sameOrigin || err != nil || start.ProviderID != providerRuntime.config.ID || providerRuntime.config.Type != config.AuthProviderTypeOpenIDConnect {
-			log.Warn("Fresh-auth re-verification start rejected", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "token_valid", err == nil, "same_origin", sameOrigin)
-			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+		userID, ok := s.startFreshAuthReverification(c, providerRuntime.config)
+		if !ok {
 			return
 		}
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "reverify")
-		session.Set(providerSessionKey(providerRuntime.config.ID, "reverify_start"), token)
+		session.Set(providerSessionKey(providerRuntime.config.ID, "reverify_user_id"), userID)
+		session.Set(providerSessionKey(providerRuntime.config.ID, "reverify_started_at"), strconv.FormatInt(time.Now().Unix(), 10))
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
-		if isValidInternalRedirect(start.RedirectPath) {
-			linkStartRedirect = start.RedirectPath
-		}
 	} else {
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "login")
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
-		session.Delete(providerSessionKey(providerRuntime.config.ID, "reverify_start"))
+		deleteReverificationState(session, providerRuntime.config.ID)
 		invitationID, _ := s.registrationInvitation(c, c.Query("admission"))
 		if invitationID != "" {
 			session.Set(providerSessionKey(providerRuntime.config.ID, "invitation_id"), invitationID)
@@ -441,11 +431,12 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	intent, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "intent")).(string)
 	linkUserID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "link_user_id")).(string)
 	invitationID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "invitation_id")).(string)
-	reverifyToken, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "reverify_start")).(string)
+	reverifyUserID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "reverify_user_id")).(string)
+	reverifyStartedAt, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "reverify_started_at")).(string)
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "intent"))
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "invitation_id"))
-	session.Delete(providerSessionKey(providerRuntime.config.ID, "reverify_start"))
+	deleteReverificationState(session, providerRuntime.config.ID)
 
 	// Check for error from provider
 	if errCode := c.Query("error"); errCode != "" {
@@ -520,7 +511,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	}
 
 	if intent == "reverify" {
-		s.completeFreshAuthReverification(c, session, providerRuntime.config, identity, reverifyToken)
+		s.completeFreshAuthReverification(c, session, providerRuntime.config, identity, reverifyUserID, reverifyStartedAt)
 		return
 	}
 
@@ -875,20 +866,64 @@ func idTokenAuthTime(decode func(any) error) time.Time {
 	return time.Unix(int64(seconds), 0)
 }
 
-// completeFreshAuthReverification consumes the re-verification handoff and
-// marks the bound credential fresh when the verified identity belongs to the
-// bound account. It never creates a session. The browser returns to the
-// handoff's path with reverified=1, or with an error code.
-func (s *HTTPServer) completeFreshAuthReverification(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, token string) {
+// startFreshAuthReverification checks a re-verification start and returns
+// the user of the browser's cookie session. Only a page of this server may
+// start it, so a holder of a copied session cannot send the user a start
+// link and gain freshness from the user's sign-in. Only an OIDC provider
+// linked to that user can re-verify, because only OIDC can force a new
+// provider sign-in and prove it. A rejected start returns to its redirect
+// path with an error, or to the login page.
+func (s *HTTPServer) startFreshAuthReverification(c *gin.Context, providerConfig config.AuthProviderConfig) (string, bool) {
+	ctx := c.Request.Context()
+	reject := func(reason string, err error) (string, bool) {
+		log.Warn("Fresh-auth re-verification start rejected", "provider_id", providerConfig.ID, "reason", reason, "error", err)
+		destination := "/login?error=provider_failed"
+		if redirect := c.Query("redirect"); isValidInternalRedirect(redirect) {
+			destination = withQueryParam(redirect, "error", "reverification_failed")
+		}
+		c.Redirect(http.StatusTemporaryRedirect, destination)
+		return "", false
+	}
+	if c.GetHeader("Sec-Fetch-Site") != "same-origin" {
+		return reject("cross_origin", nil)
+	}
+	cookieHandle, ok := s.browserSessionID(c)
+	if !ok {
+		return reject("no_session", nil)
+	}
+	userID, err := s.core.CookieSessionUser(ctx, cookieHandle)
+	if err != nil {
+		return reject("invalid_session", err)
+	}
+	identities, err := s.core.ExternalIdentitiesForUser(ctx, userID)
+	if err != nil {
+		return reject("identities_unavailable", err)
+	}
+	if !core.ProviderCanReverify(providerConfig, identities) {
+		return reject("provider_unavailable", nil)
+	}
+	return userID, true
+}
+
+// deleteReverificationState removes the re-verification binding from the
+// provider-flow session. The caller saves the session.
+func deleteReverificationState(session sessions.Session, providerID string) {
+	session.Delete(providerSessionKey(providerID, "reverify_user_id"))
+	session.Delete(providerSessionKey(providerID, "reverify_started_at"))
+}
+
+// completeFreshAuthReverification marks the browser's cookie session fresh
+// when the verified identity and that session belong to the user who started
+// the re-verification. It never creates a session. The browser returns to the
+// saved path with reverified=1, or with an error code.
+func (s *HTTPServer) completeFreshAuthReverification(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, userID, startedAt string) {
 	ctx := c.Request.Context()
 	returnPath := providerReturnPath(session, "/")
-	start, err := s.core.ConsumeFreshAuthReverificationStart(ctx, token)
-	if err == nil && start.ProviderID != providerConfig.ID {
-		err = core.ErrFreshAuthReverificationMismatch
-	}
-	if err == nil {
+	startedUnix, parseErr := strconv.ParseInt(startedAt, 10, 64)
+	err := core.ErrFreshAuthReverificationMismatch
+	if parseErr == nil {
 		cookieHandle, _ := s.browserSessionID(c)
-		err = s.core.CompleteFreshAuthReverification(ctx, start, identity.issuer, identity.subject, identity.authTime, cookieHandle)
+		err = s.core.CompleteFreshAuthReverification(ctx, userID, time.Unix(startedUnix, 0), identity.issuer, identity.subject, identity.authTime, cookieHandle)
 	}
 	if err != nil {
 		errorCode := "reverification_failed"
@@ -899,7 +934,7 @@ func (s *HTTPServer) completeFreshAuthReverification(c *gin.Context, session ses
 		c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "error", errorCode))
 		return
 	}
-	log.Info("Fresh-auth re-verification succeeded", "provider_id", providerConfig.ID, "userId", start.BoundUserID)
+	log.Info("Fresh-auth re-verification succeeded", "provider_id", providerConfig.ID, "userId", userID)
 	c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "reverified", "1"))
 }
 

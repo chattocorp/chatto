@@ -20,7 +20,6 @@ const { mocks } = vi.hoisted(() => ({
     url: new URL('http://localhost/chat/-/settings/account'),
     replaceState: vi.fn(),
     leavePage: vi.fn(),
-    startReverification: vi.fn(),
     list: vi.fn(),
     startLink: vi.fn(),
     disconnect: vi.fn(),
@@ -43,7 +42,6 @@ const connection = {
   getAPI: () => ({
     list: mocks.list,
     startLink: mocks.startLink,
-    startReverification: mocks.startReverification,
     disconnect: mocks.disconnect
   })
 };
@@ -801,18 +799,29 @@ describe('identity link popup', () => {
   });
 });
 
+/** The re-verification start URL that the page builds for a provider. */
+function reverifyUrl(providerId: string, redirect: string) {
+  const url = new URL(`/auth/providers/${providerId}`, window.location.origin);
+  url.searchParams.set('intent', 'reverify');
+  url.searchParams.set('redirect', redirect);
+  return url.href;
+}
+
 function reverifiableIdentityList(extraProviders = 0) {
   const list = unlinkedIdentityList();
-  const ssoProviders = Array.from({ length: 1 + extraProviders }, (_, index) => ({
-    id: index === 0 ? 'sso' : `sso-${index}`,
-    type: 'oidc',
-    label: index === 0 ? 'Chatto ID' : `Other SSO ${index}`,
-    loginUrl: '/auth/providers/sso',
-    linkUrl: '/auth/providers/sso?intent=link',
-    linked: true,
-    linkedIdentitySubjectHash: `sso-subject-${index}`,
-    reverificationAvailable: true
-  }));
+  const ssoProviders = Array.from({ length: 1 + extraProviders }, (_, index) => {
+    const id = index === 0 ? 'sso' : `sso-${index}`;
+    return {
+      id,
+      type: 'oidc',
+      label: index === 0 ? 'Chatto ID' : `Other SSO ${index}`,
+      loginUrl: `/auth/providers/${id}`,
+      linkUrl: `/auth/providers/${id}?intent=link`,
+      linked: true,
+      linkedIdentitySubjectHash: `sso-subject-${index}`,
+      reverificationAvailable: true
+    };
+  });
   return {
     providers: [...list.providers, ...ssoProviders],
     linkedIdentities: ssoProviders.map((provider) => ({
@@ -845,7 +854,6 @@ describe('fresh sign-in through a linked provider', () => {
     mocks.disconnect.mockRejectedValue(
       new ConnectError('fresh authentication is required', Code.FailedPrecondition)
     );
-    mocks.startReverification.mockResolvedValue('https://chat.example.test/auth/reverify');
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -855,14 +863,8 @@ describe('fresh sign-in through a linked provider', () => {
     renderSettings();
     await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
     await vi.waitFor(() =>
-      expect(mocks.startReverification).toHaveBeenCalledWith({
-        providerId: 'sso',
-        redirectPath: '/sso/link?link_provider=github-main&link_user=user-alice'
-      })
-    );
-    await vi.waitFor(() =>
       expect(open).toHaveBeenCalledWith(
-        'https://chat.example.test/auth/reverify',
+        reverifyUrl('sso', '/sso/link?link_provider=github-main&link_user=user-alice'),
         '_blank',
         expect.any(String)
       )
@@ -875,13 +877,16 @@ describe('fresh sign-in through a linked provider', () => {
     mocks.list.mockResolvedValue(reverifiableIdentityList(1));
     renderSettings();
     await browserPage.getByRole('button', { name: 'Link', exact: true }).click();
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
     const dialog = browserPage.getByRole('dialog', { name: 'Confirm it’s you' });
     await expect.element(dialog).toBeVisible();
-    expect(mocks.startReverification).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
     await dialog.getByRole('button', { name: 'Sign in again with Other SSO 1' }).click();
     await vi.waitFor(() =>
-      expect(mocks.startReverification).toHaveBeenCalledWith(
-        expect.objectContaining({ providerId: 'sso-1' })
+      expect(open).toHaveBeenCalledWith(
+        reverifyUrl('sso-1', '/sso/link?link_provider=github-main&link_user=user-alice'),
+        '_blank',
+        expect.any(String)
       )
     );
   });
@@ -894,14 +899,12 @@ describe('fresh sign-in through a linked provider', () => {
       .getByRole('button', { name: 'Disconnect', exact: true })
       .click();
     await vi.waitFor(() =>
-      expect(mocks.startReverification).toHaveBeenCalledWith({
-        providerId: 'sso',
-        redirectPath:
+      expect(mocks.leavePage).toHaveBeenCalledWith(
+        reverifyUrl(
+          'sso',
           '/chat/-/settings/account?disconnect_identity=sso-subject-0&disconnect_user=user-alice'
-      })
-    );
-    await vi.waitFor(() =>
-      expect(mocks.leavePage).toHaveBeenCalledWith('https://chat.example.test/auth/reverify')
+        )
+      )
     );
   });
 
@@ -921,7 +924,7 @@ describe('fresh sign-in through a linked provider', () => {
     await expect
       .element(browserPage.getByText(/sign in again before you change your sign-in methods/))
       .toBeVisible();
-    expect(mocks.startReverification).not.toHaveBeenCalled();
+    expect(mocks.leavePage).not.toHaveBeenCalled();
   });
 
   it('offers another attempt after an identity of another account', async () => {
@@ -934,6 +937,13 @@ describe('fresh sign-in through a linked provider', () => {
       .element(dialog.getByText(/identity that belongs to a different account/))
       .toBeVisible();
     await dialog.getByRole('button', { name: 'Sign in again with Chatto ID' }).click();
-    await vi.waitFor(() => expect(mocks.startReverification).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(mocks.leavePage).toHaveBeenCalledWith(
+        reverifyUrl(
+          'sso',
+          '/chat/-/settings/account?disconnect_identity=sso-subject-0&disconnect_user=user-alice'
+        )
+      )
+    );
   });
 });

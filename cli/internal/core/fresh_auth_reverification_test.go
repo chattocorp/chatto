@@ -4,11 +4,14 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/chattocorp/chatto/cli/internal/config"
 )
 
 // A re-verification upgrades a stale cookie session only when the provider
-// identity belongs to the bound account, the provider signed the user in
-// during the attempt, and the callback presents the bound cookie session.
+// identity and the presented cookie session belong to the user who started
+// it, and the provider signed the user in during the attempt. Another
+// session of the same user stays stale.
 func TestFreshAuthReverification(t *testing.T) {
 	c, _ := setupTestCore(t)
 	const issuer = "https://idp.example"
@@ -48,38 +51,30 @@ func TestFreshAuthReverification(t *testing.T) {
 	}
 	requireStale(t)
 
-	complete := func(t *testing.T, subject string, authTime time.Time, presented string) error {
+	startedAt := time.Now()
+	complete := func(t *testing.T, userID, subject string, authTime time.Time, presented string) error {
 		t.Helper()
-		token, err := c.CreateFreshAuthReverificationStart(ctx, "sso", "/chat/-/settings/account", cookie)
-		if err != nil {
-			t.Fatalf("CreateFreshAuthReverificationStart: %v", err)
-		}
-		start, err := c.ConsumeFreshAuthReverificationStart(ctx, token)
-		if err != nil {
-			t.Fatalf("ConsumeFreshAuthReverificationStart: %v", err)
-		}
-		if _, err := c.ConsumeFreshAuthReverificationStart(ctx, token); !errors.Is(err, ErrExternalIdentityFlowNotFound) {
-			t.Fatalf("second consume = %v, want not found", err)
-		}
-		return c.CompleteFreshAuthReverification(ctx, start, issuer, subject, authTime, presented)
+		return c.CompleteFreshAuthReverification(ctx, userID, startedAt, issuer, subject, authTime, presented)
 	}
 
 	for _, tc := range []struct {
 		name      string
+		userID    string
 		subject   string
 		authTime  time.Time
 		presented string
 		want      error
 	}{
-		{"identity of another account", "subject-other", time.Now(), cookie, ErrFreshAuthReverificationMismatch},
-		{"unlinked identity", "subject-unknown", time.Now(), cookie, ErrFreshAuthReverificationMismatch},
-		{"another browser", "subject-owner", time.Now(), otherBrowser, ErrFreshAuthReverificationMismatch},
-		{"no browser session", "subject-owner", time.Now(), "", ErrFreshAuthReverificationMismatch},
-		{"earlier provider sign-in", "subject-owner", time.Now().Add(-time.Hour), cookie, ErrFreshAuthReverificationStale},
-		{"missing auth_time", "subject-owner", time.Time{}, cookie, ErrFreshAuthReverificationStale},
+		{"identity of another account", owner.Id, "subject-other", time.Now(), cookie, ErrFreshAuthReverificationMismatch},
+		{"unlinked identity", owner.Id, "subject-unknown", time.Now(), cookie, ErrFreshAuthReverificationMismatch},
+		{"session of another account", other.Id, "subject-other", time.Now(), cookie, ErrFreshAuthReverificationMismatch},
+		{"no browser session", owner.Id, "subject-owner", time.Now(), "", ErrFreshAuthReverificationMismatch},
+		{"no start", "", "subject-owner", time.Now(), cookie, ErrFreshAuthReverificationMismatch},
+		{"earlier provider sign-in", owner.Id, "subject-owner", time.Now().Add(-time.Hour), cookie, ErrFreshAuthReverificationStale},
+		{"missing auth_time", owner.Id, "subject-owner", time.Time{}, cookie, ErrFreshAuthReverificationStale},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := complete(t, tc.subject, tc.authTime, tc.presented); !errors.Is(err, tc.want) {
+			if err := complete(t, tc.userID, tc.subject, tc.authTime, tc.presented); !errors.Is(err, tc.want) {
 				t.Fatalf("CompleteFreshAuthReverification = %v, want %v", err, tc.want)
 			}
 			requireStale(t)
@@ -87,7 +82,7 @@ func TestFreshAuthReverification(t *testing.T) {
 	}
 
 	t.Run("same account", func(t *testing.T) {
-		if err := complete(t, "subject-owner", time.Now(), cookie); err != nil {
+		if err := complete(t, owner.Id, "subject-owner", time.Now(), cookie); err != nil {
 			t.Fatalf("CompleteFreshAuthReverification: %v", err)
 		}
 		if err := c.RequireFreshAuthForCookieSession(ctx, cookie); err != nil {
@@ -97,4 +92,27 @@ func TestFreshAuthReverification(t *testing.T) {
 			t.Fatalf("other browser session = %v, want still stale", err)
 		}
 	})
+}
+
+func TestProviderCanReverify(t *testing.T) {
+	identities := []ExternalIdentity{
+		{ProviderID: "sso", ProviderType: "oidc", Issuer: "https://idp.example"},
+		{ProviderID: "gh", ProviderType: "github", Issuer: "gh"},
+	}
+	for _, tc := range []struct {
+		name     string
+		provider config.AuthProviderConfig
+		want     bool
+	}{
+		{"linked OIDC provider", config.AuthProviderConfig{ID: "sso", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: "https://idp.example"}, true},
+		{"OIDC provider with the linked issuer", config.AuthProviderConfig{ID: "renamed", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: "https://idp.example"}, true},
+		{"unlinked OIDC provider", config.AuthProviderConfig{ID: "other", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: "https://other.example"}, false},
+		{"linked provider that cannot force a sign-in", config.AuthProviderConfig{ID: "gh", Type: config.AuthProviderTypeGitHub}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ProviderCanReverify(tc.provider, identities); got != tc.want {
+				t.Fatalf("ProviderCanReverify = %v, want %v", got, tc.want)
+			}
+		})
+	}
 }

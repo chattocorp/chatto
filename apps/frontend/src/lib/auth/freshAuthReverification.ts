@@ -15,6 +15,22 @@ export function wasReverified(url: URL): boolean {
   return url.searchParams.get(REVERIFIED_PARAM) === '1';
 }
 
+/**
+ * Browser URL that re-verifies the user through provider and then returns to
+ * redirectPath on the same origin. Open it from a page of the server: the
+ * server accepts only a same-origin navigation from the browser that holds
+ * the session.
+ */
+export function reverificationStartUrl(
+  provider: ExternalIdentityProviderInfo,
+  redirectPath: string
+): string {
+  const url = new URL(provider.loginUrl, globalThis.location?.origin);
+  url.searchParams.set('intent', 'reverify');
+  url.searchParams.set('redirect', redirectPath);
+  return url.href;
+}
+
 /** Linked providers that can confirm a recent sign-in for the caller. */
 export function reverificationProviders(
   providers: readonly ExternalIdentityProviderInfo[]

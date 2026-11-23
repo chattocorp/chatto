@@ -81,16 +81,12 @@ func TestOIDCFreshAuthReverification(t *testing.T) {
 	const settingsPath = "/chat/-/settings/account?link_provider=other"
 	reverify := func(t *testing.T, subject string, authTime any) string {
 		t.Helper()
-		token, err := chattoCore.CreateFreshAuthReverificationStart(ctx, "sso", settingsPath, cookieHandle)
-		if err != nil {
-			t.Fatalf("CreateFreshAuthReverificationStart: %v", err)
-		}
 		issuer.SetSubject(subject)
 		issuer.tokenClaims = map[string]any{"name": "Owner", "preferred_username": "owner"}
 		if authTime != nil {
 			issuer.tokenClaims["auth_time"] = authTime
 		}
-		location := startReverification(t, client, ts.URL, token)
+		location := startReverification(t, client, ts.URL, settingsPath)
 		authURL, err := url.Parse(location)
 		if err != nil {
 			t.Fatal(err)
@@ -146,11 +142,7 @@ func TestOIDCFreshAuthReverification(t *testing.T) {
 	})
 
 	t.Run("provider error returns to settings", func(t *testing.T) {
-		token, err := chattoCore.CreateFreshAuthReverificationStart(ctx, "sso", settingsPath, cookieHandle)
-		if err != nil {
-			t.Fatalf("CreateFreshAuthReverificationStart: %v", err)
-		}
-		state := authStateFromLocation(t, startReverification(t, client, ts.URL, token))
+		state := authStateFromLocation(t, startReverification(t, client, ts.URL, settingsPath))
 		resp, err := client.Get(ts.URL + "/auth/providers/sso/callback?" + url.Values{"state": {state}, "error": {"access_denied"}}.Encode())
 		if err != nil {
 			t.Fatal(err)
@@ -160,35 +152,29 @@ func TestOIDCFreshAuthReverification(t *testing.T) {
 		assertReturn(t, resp.Header.Get("Location"), "error", "provider_denied")
 	})
 
-	t.Run("token is single use", func(t *testing.T) {
-		token, err := chattoCore.CreateFreshAuthReverificationStart(ctx, "sso", settingsPath, cookieHandle)
-		if err != nil {
-			t.Fatalf("CreateFreshAuthReverificationStart: %v", err)
-		}
-		if _, err := chattoCore.ConsumeFreshAuthReverificationStart(ctx, token); err != nil {
-			t.Fatalf("ConsumeFreshAuthReverificationStart: %v", err)
-		}
-		assertReverificationStartRejected(t, client, ts.URL, token, "same-origin")
+	t.Run("start without a browser session", func(t *testing.T) {
+		anonymous := &http.Client{CheckRedirect: client.CheckRedirect}
+		assertReverificationStartRejected(t, anonymous, ts.URL, settingsPath, "same-origin")
 	})
 
 	// A start link from an email or another site must not let a holder of a
 	// copied session gain freshness from the user's provider sign-in.
 	t.Run("navigation from outside the server", func(t *testing.T) {
-		token, err := chattoCore.CreateFreshAuthReverificationStart(ctx, "sso", settingsPath, cookieHandle)
-		if err != nil {
-			t.Fatalf("CreateFreshAuthReverificationStart: %v", err)
-		}
 		for _, site := range []string{"", "none", "cross-site", "same-site"} {
-			assertReverificationStartRejected(t, client, ts.URL, token, site)
+			assertReverificationStartRejected(t, client, ts.URL, settingsPath, site)
 		}
 	})
 }
 
+func reverificationStartURL(baseURL, redirect string) string {
+	return baseURL + "/auth/providers/sso?" + url.Values{"intent": {"reverify"}, "redirect": {redirect}}.Encode()
+}
+
 // startReverification starts a re-verification as a page of the server
 // would, visits the issuer, and returns the issuer authorization URL.
-func startReverification(t *testing.T, client *http.Client, baseURL, token string) string {
+func startReverification(t *testing.T, client *http.Client, baseURL, redirect string) string {
 	t.Helper()
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/auth/providers/sso?"+url.Values{"intent": {"reverify"}, "reverify_start": {token}}.Encode(), nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, reverificationStartURL(baseURL, redirect), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,9 +196,11 @@ func startReverification(t *testing.T, client *http.Client, baseURL, token strin
 	return location
 }
 
-func assertReverificationStartRejected(t *testing.T, client *http.Client, baseURL, token, site string) {
+// assertReverificationStartRejected checks that a start returns to its
+// redirect path with an error instead of going to the provider.
+func assertReverificationStartRejected(t *testing.T, client *http.Client, baseURL, redirect, site string) {
 	t.Helper()
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/auth/providers/sso?"+url.Values{"intent": {"reverify"}, "reverify_start": {token}}.Encode(), nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, reverificationStartURL(baseURL, redirect), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +212,20 @@ func assertReverificationStartRejected(t *testing.T, client *http.Client, baseUR
 		t.Fatal(err)
 	}
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusTemporaryRedirect || resp.Header.Get("Location") != "/login?error=provider_failed" {
-		t.Fatalf("start with Sec-Fetch-Site %q = %d %q, want provider failure", site, resp.StatusCode, resp.Header.Get("Location"))
+	want, err := url.Parse(redirect)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := got.Query()
+	if resp.StatusCode != http.StatusTemporaryRedirect || got.Path != want.Path || query.Get("error") != "reverification_failed" {
+		t.Fatalf("start with Sec-Fetch-Site %q = %d %q, want %s with error=reverification_failed", site, resp.StatusCode, got, want.Path)
+	}
+	query.Del("error")
+	if query.Encode() != want.Query().Encode() {
+		t.Fatalf("start with Sec-Fetch-Site %q dropped the redirect query: %q", site, got)
 	}
 }

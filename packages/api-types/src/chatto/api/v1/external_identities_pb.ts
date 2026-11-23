@@ -88,10 +88,13 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
   provider?: ProviderMetadata;
 
   /**
-   * True when the user can confirm a recent sign-in through this provider
-   * with StartFreshAuthReverification. The provider must be linked to the
-   * user and able to force a new provider sign-in, and the request must use a
-   * browser cookie session. Always false for bearer credentials.
+   * True when the signed-in browser can confirm a recent sign-in through this
+   * provider by opening its login URL with `intent=reverify` and a `redirect`
+   * path. The provider must be an OpenID Connect provider linked to the user,
+   * and the request must use a browser cookie session. A successful
+   * re-verification marks the current session fresh for 30 minutes and returns
+   * with `reverified=1`; a failure returns with an `error` code. Always false
+   * for bearer credentials.
    *
    * @generated from field: bool reverification_available = 9;
    */
@@ -390,99 +393,6 @@ export class StartExternalIdentityLinkResponse extends Message<StartExternalIden
 
   static equals(a: StartExternalIdentityLinkResponse | PlainMessage<StartExternalIdentityLinkResponse> | undefined, b: StartExternalIdentityLinkResponse | PlainMessage<StartExternalIdentityLinkResponse> | undefined): boolean {
     return proto3.util.equals(StartExternalIdentityLinkResponse, a, b);
-  }
-}
-
-/**
- * Request to confirm a recent sign-in through a provider that is already
- * linked to the current user.
- *
- * @generated from message chatto.api.v1.StartFreshAuthReverificationRequest
- */
-export class StartFreshAuthReverificationRequest extends Message<StartFreshAuthReverificationRequest> {
-  /**
-   * Provider ID to sign in again with. The provider must report
-   * reverification_available in ListExternalIdentities.
-   *
-   * @generated from field: string provider_id = 1;
-   */
-  providerId = "";
-
-  /**
-   * Internal path to return to after the provider callback. The server adds
-   * `reverified=1` on success, or an `error` code on failure.
-   *
-   * @generated from field: string redirect_path = 2;
-   */
-  redirectPath = "";
-
-  constructor(data?: PartialMessage<StartFreshAuthReverificationRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.StartFreshAuthReverificationRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "provider_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "redirect_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartFreshAuthReverificationRequest {
-    return new StartFreshAuthReverificationRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartFreshAuthReverificationRequest {
-    return new StartFreshAuthReverificationRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartFreshAuthReverificationRequest {
-    return new StartFreshAuthReverificationRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: StartFreshAuthReverificationRequest | PlainMessage<StartFreshAuthReverificationRequest> | undefined, b: StartFreshAuthReverificationRequest | PlainMessage<StartFreshAuthReverificationRequest> | undefined): boolean {
-    return proto3.util.equals(StartFreshAuthReverificationRequest, a, b);
-  }
-}
-
-/**
- * Result of preparing a fresh-auth re-verification.
- *
- * @generated from message chatto.api.v1.StartFreshAuthReverificationResponse
- */
-export class StartFreshAuthReverificationResponse extends Message<StartFreshAuthReverificationResponse> {
-  /**
-   * Browser URL that starts provider authorization on the target server origin.
-   *
-   * @generated from field: string start_url = 1;
-   */
-  startUrl = "";
-
-  constructor(data?: PartialMessage<StartFreshAuthReverificationResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.StartFreshAuthReverificationResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "start_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartFreshAuthReverificationResponse {
-    return new StartFreshAuthReverificationResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartFreshAuthReverificationResponse {
-    return new StartFreshAuthReverificationResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartFreshAuthReverificationResponse {
-    return new StartFreshAuthReverificationResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: StartFreshAuthReverificationResponse | PlainMessage<StartFreshAuthReverificationResponse> | undefined, b: StartFreshAuthReverificationResponse | PlainMessage<StartFreshAuthReverificationResponse> | undefined): boolean {
-    return proto3.util.equals(StartFreshAuthReverificationResponse, a, b);
   }
 }
 

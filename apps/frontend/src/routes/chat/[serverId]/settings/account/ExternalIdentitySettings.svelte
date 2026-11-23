@@ -5,7 +5,8 @@
   import { page } from '$app/state';
   import {
     reverificationErrorMessage,
-    reverificationProviders
+    reverificationProviders,
+    reverificationStartUrl
   } from '$lib/auth/freshAuthReverification';
   import ReverificationChoice from '$lib/components/auth/ReverificationChoice.svelte';
   import { leavePage } from '$lib/navigation/leavePage';
@@ -500,42 +501,29 @@
 
   // Re-verify through the only provider that can, or let the user choose.
   function requireReverification(action: ProtectedAction) {
-    if (reverifiers.length === 1) void startReverification(reverifiers[0], action);
+    if (reverifiers.length === 1) startReverification(reverifiers[0], action);
     else reverificationPrompt = { action, error: '' };
   }
 
-  async function startReverification(
-    provider: ExternalIdentityProviderInfo,
-    action: ProtectedAction
-  ) {
-    const scope = session.snapshot();
+  function startReverification(provider: ExternalIdentityProviderInfo, action: ProtectedAction) {
     const userId = accountId;
     if (!userId) return;
     actionError = '';
-    reverifyingProviderId = provider.id;
-    try {
-      const startUrl = await scope.connection
-        .getAPI(createExternalIdentityAPI)
-        .startReverification({
-          providerId: provider.id,
-          // A link continues in the link window; a disconnect returns here.
-          redirectPath:
-            action.kind === 'link'
-              ? identityLinkPath(action.provider.id, userId)
-              : disconnectContinuationPath(page.url.pathname, action.subjectHash, userId)
-        });
-      if (!session.isCurrent(scope) || userId !== accountId) return;
-      reverificationPrompt = null;
-      if (action.kind === 'link') launchProviderWindow(action.provider, startUrl);
-      else leavePage(startUrl);
-    } catch (err) {
-      if (!session.isCurrent(scope) || userId !== accountId) return;
-      reverificationPrompt = {
-        action,
-        error: errorMessage(err, m('settings.account.sso.reverification_failed'))
-      };
-    } finally {
-      reverifyingProviderId = '';
+    reverificationPrompt = null;
+    if (action.kind === 'link') {
+      // The provider returns to the link window, which starts the link.
+      launchProviderWindow(
+        action.provider,
+        reverificationStartUrl(provider, identityLinkPath(action.provider.id, userId))
+      );
+    } else {
+      reverifyingProviderId = provider.id;
+      leavePage(
+        reverificationStartUrl(
+          provider,
+          disconnectContinuationPath(page.url.pathname, action.subjectHash, userId)
+        )
+      );
     }
   }
 

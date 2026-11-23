@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
   url: new URL('https://chat.example/sso/link'),
   list: vi.fn(),
   startLink: vi.fn(),
-  startReverification: vi.fn(),
   leavePage: vi.fn()
 }));
 
@@ -27,8 +26,7 @@ vi.mock('$lib/client', async () => ({
     getClient: () => ({
       getAPI: () => ({
         list: mocks.list,
-        startLink: mocks.startLink,
-        startReverification: mocks.startReverification
+        startLink: mocks.startLink
       })
     })
   }
@@ -58,6 +56,14 @@ function open(
       data: { user: { id: 'user-alice', hasPassword }, directLoginEnabled }
     } as never
   });
+}
+
+/** The re-verification start URL that the page builds for a provider. */
+function reverifyUrl(providerId: string, redirect: string) {
+  const url = new URL(`/auth/providers/${providerId}`, window.location.origin);
+  url.searchParams.set('intent', 'reverify');
+  url.searchParams.set('redirect', redirect);
+  return url.href;
 }
 
 const link = { link_provider: 'github-main', link_user: 'user-alice' };
@@ -268,19 +274,16 @@ describe('identity-link window page', () => {
         providers: [provider(false), sso('Chatto ID')],
         linkedIdentities: []
       });
-      mocks.startReverification.mockResolvedValue('https://idp.example/authorize');
     });
 
     it('re-verifies with the only linked provider and returns to the window', async () => {
       const screen = open(link, ssoOnly);
       await confirm(screen);
       await vi.waitFor(() =>
-        expect(mocks.leavePage).toHaveBeenCalledWith('https://idp.example/authorize')
+        expect(mocks.leavePage).toHaveBeenCalledWith(
+          reverifyUrl('sso', '/sso/link?link_provider=github-main&link_user=user-alice')
+        )
       );
-      expect(mocks.startReverification).toHaveBeenCalledWith({
-        providerId: 'sso',
-        redirectPath: '/sso/link?link_provider=github-main&link_user=user-alice'
-      });
     });
 
     it('lets the user choose when several providers can re-verify', async () => {
@@ -293,8 +296,8 @@ describe('identity-link window page', () => {
       await expect.element(screen.getByRole('heading', { name: 'Confirm it’s you' })).toBeVisible();
       await screen.getByRole('button', { name: 'Sign in again with Company SSO' }).click();
       await vi.waitFor(() =>
-        expect(mocks.startReverification).toHaveBeenCalledWith(
-          expect.objectContaining({ providerId: 'company' })
+        expect(mocks.leavePage).toHaveBeenCalledWith(
+          reverifyUrl('company', '/sso/link?link_provider=github-main&link_user=user-alice')
         )
       );
     });
@@ -305,7 +308,7 @@ describe('identity-link window page', () => {
       await expect
         .element(screen.getByText(/sign in again before you change your sign-in methods/))
         .toBeVisible();
-      expect(mocks.startReverification).not.toHaveBeenCalled();
+      expect(mocks.leavePage).not.toHaveBeenCalled();
     });
 
     it('offers another attempt after an identity of another account', async () => {
@@ -315,7 +318,11 @@ describe('identity-link window page', () => {
         .toBeVisible();
       expect(mocks.startLink).not.toHaveBeenCalled();
       await screen.getByRole('button', { name: 'Sign in again with Chatto ID' }).click();
-      await vi.waitFor(() => expect(mocks.startReverification).toHaveBeenCalledOnce());
+      await vi.waitFor(() =>
+        expect(mocks.leavePage).toHaveBeenCalledWith(
+          reverifyUrl('sso', '/sso/link?link_provider=github-main&link_user=user-alice')
+        )
+      );
     });
   });
 });
