@@ -124,8 +124,11 @@ data, subjects, stream identities, or sequence numbers.
 The hub gives the same envelope to each subscriber of an event. For a message
 post, the mapper does the work that does not depend on the viewer once for
 each envelope: the body lookup, the echo hydration, and the room-kind lookup.
-It keeps the result on the envelope and does not keep a failed result. Each
-viewer then gets a copy of the shared event with its own mention
+It keeps the result on the envelope and does not keep a failed result. Before
+each viewer uses the shared body, the mapper compares the body version in the
+room timeline projection. After an edit, a retraction, or a key-shredding
+request, the viewer gets a new mapping and not the shared body. Each viewer
+then gets a copy of the shared event with its own mention
 `includes_viewer` values and its own resume cursor. Authorization, the
 per-viewer cases of the mapper, and all other event types still run for each
 viewer. Each connection encodes its own frame and applies its own compression.

@@ -168,3 +168,64 @@ func TestRealtimeSharedMessagePostConcurrentViewers(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRealtimeSharedMessagePostDropsBodyAfterRetraction(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	ctx := env.ctx
+	author, err := env.core.CreateUser(ctx, core.SystemActorID, "retract-author", "Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	viewer, err := env.core.CreateUser(ctx, core.SystemActorID, "retract-viewer", "Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(ctx, author.Id, core.KindChannel, "", "retract-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, id := range []string{author.Id, viewer.Id} {
+		if _, err := env.core.JoinRoom(ctx, id, core.KindChannel, id, room.Id); err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+	}
+	for name, change := range map[string]func(eventID string) error{
+		"retraction": func(eventID string) error {
+			return env.core.DeleteMessage(ctx, author.Id, core.KindChannel, room.Id, eventID)
+		},
+		"edit": func(eventID string) error {
+			return env.core.EditMessage(ctx, author.Id, core.KindChannel, room.Id, eventID, "edited body")
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			durable, err := env.core.PostMessage(ctx, core.KindChannel, room.Id, author.Id, "original body", nil, "", "", nil, false)
+			if err != nil {
+				t.Fatalf("PostMessage: %v", err)
+			}
+			envelope := core.NewEVTEventEnvelopeWithDeliverySeq(durable, 42)
+			first, err := env.httpServer.realtimeServerFrameForEvent(ctx, author.Id, envelope)
+			if err != nil {
+				t.Fatalf("realtimeServerFrameForEvent: %v", err)
+			}
+			if got := first.GetEvent().GetMessagePosted().GetBodyPlaintext(); got != "original body" {
+				t.Fatalf("first viewer body = %q", got)
+			}
+			if err := change(durable.GetId()); err != nil {
+				t.Fatalf("change message: %v", err)
+			}
+			later, err := env.httpServer.realtimeServerFrameForEvent(ctx, viewer.Id, envelope)
+			if err != nil {
+				t.Fatalf("realtimeServerFrameForEvent: %v", err)
+			}
+			want := legacyMessagePostedEvent(t, env.httpServer, viewer.Id, durable)
+			got := later.GetEvent()
+			got.Cursor = nil
+			if !proto.Equal(got, want) {
+				t.Fatalf("later viewer:\n got  %v\n want %v", got, want)
+			}
+			if got.GetMessagePosted().GetBodyPlaintext() == "original body" {
+				t.Fatal("later viewer got the body from before the change")
+			}
+		})
+	}
+}

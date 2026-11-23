@@ -968,6 +968,10 @@ type sharedMessagePost struct {
 	// mentions are the hydrated stored mention rows. Each viewer gets its own
 	// public mentions from these rows.
 	mentions []*evtv1.MessageMention
+	// bodyVersion is the body version read before the body lookup. A viewer
+	// whose mapping runs after an edit, a retraction, or a key-shredding
+	// request does not use the shared body.
+	bodyVersion core.MessageBodyVersion
 }
 
 // viewerMessagePostedEvent returns the public message-post event for one
@@ -983,6 +987,13 @@ func (s *HTTPServer) viewerMessagePostedEvent(ctx context.Context, viewerID stri
 		return nil, err
 	}
 	shared := value.(*sharedMessagePost)
+	if shared != nil && s.core.CurrentMessageBodyVersion(event.EVTEvent().GetId()) != shared.bodyVersion {
+		// The body changed after the shared mapping. Map this viewer again,
+		// so that it never gets a body that was retracted or shredded.
+		if shared, err = s.mapSharedMessagePost(ctx, event.EVTEvent()); err != nil {
+			return nil, err
+		}
+	}
 	if shared == nil {
 		return nil, nil
 	}
@@ -1007,6 +1018,7 @@ func (s *HTTPServer) mapSharedMessagePost(ctx context.Context, durable *evtv1.Ev
 	message := projected.GetMessagePosted()
 	message.InReplyTo = post.GetInReplyTo()
 	message.Mentions = realtimeMentions("", post.GetMentions())
+	bodyVersion := s.core.CurrentMessageBodyVersion(durable.GetId())
 	body, err := s.core.GetFullMessageBody(ctx, durable.GetId())
 	if err != nil {
 		return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)
@@ -1019,7 +1031,7 @@ func (s *HTTPServer) mapSharedMessagePost(ctx context.Context, durable *evtv1.Ev
 	if body != nil {
 		message.BodyPlaintext = new(body.Body)
 	}
-	return &sharedMessagePost{event: projected, mentions: post.GetMentions()}, nil
+	return &sharedMessagePost{event: projected, mentions: post.GetMentions(), bodyVersion: bodyVersion}, nil
 }
 
 // projectViewerRealtimeEvent maps one durable fact to its public semantic
