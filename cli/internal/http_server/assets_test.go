@@ -18,6 +18,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -28,9 +30,9 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/connectapi"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
+	"github.com/chattocorp/chatto/cli/internal/core/remoteimage"
 	"github.com/chattocorp/chatto/cli/internal/email"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	"github.com/chattocorp/chatto/cli/internal/natsresources"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1/apiv1connect"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
@@ -2428,67 +2430,206 @@ func TestAsset_InteractionReaderCanFetchStableURL(t *testing.T) {
 	}
 }
 
-func TestAsset_NeighborhoodImage(t *testing.T) {
+func TestAsset_RemoteImageRejectsUndecodableSources(t *testing.T) {
 	env := setupAssetTestServer(t)
-	store, err := env.js.ObjectStore(env.ctx, natsresources.AssetCache)
-	if err != nil {
-		t.Fatalf("open Neighborhood image store: %v", err)
+	valid := createAssetTestPNG(t, 64, 64)
+	bodies := map[string][]byte{
+		"/image.svg":     []byte(`<svg xmlns="http://www.w3.org/2000/svg"/>`),
+		"/corrupt.png":   append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte("x"), 64)...),
+		"/truncated.png": valid[:64],
 	}
-	name := strings.Repeat("b", 64)
-	// A valid hash outside the public namespace must remain inaccessible.
-	privateName := strings.Repeat("c", 64)
-	if _, err := store.Put(env.ctx, jetstream.ObjectMeta{Name: privateName}, bytes.NewReader([]byte("private cache"))); err != nil {
-		t.Fatal(err)
+	var mu sync.Mutex
+	requests := map[string]int{}
+	// test_endpoints lets the SSRF-safe client reach this loopback server.
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		requests[r.URL.Path]++
+		mu.Unlock()
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(bodies[r.URL.Path])
+	}))
+	t.Cleanup(source.Close)
+
+	for path := range bodies {
+		imagePath := env.core.RemoteImagePath(remoteimage.PresetAvatar, source.URL+path)
+		for attempt := range 2 {
+			resp, err := http.Get(env.url(imagePath))
+			if err != nil {
+				t.Fatalf("%s attempt %d: GET: %v", path, attempt, err)
+			}
+			resp.Body.Close()
+			if resp.StatusCode != http.StatusNotFound {
+				t.Errorf("%s attempt %d: status = %d, want 404", path, attempt, resp.StatusCode)
+			}
+			if got := resp.Header.Get("Cache-Control"); got != "public, max-age=300" {
+				t.Errorf("%s attempt %d: Cache-Control = %q", path, attempt, got)
+			}
+		}
 	}
-	imageData := []byte("RIFF\x00\x00\x00\x00WEBP")
-	if _, err := store.Put(env.ctx, jetstream.ObjectMeta{Name: "neighborhood_image." + name}, bytes.NewReader(imageData)); err != nil {
-		t.Fatalf("store Neighborhood image: %v", err)
+	mu.Lock()
+	defer mu.Unlock()
+	// Sources whose bytes are not a decodable image are marked as failed,
+	// so the second request does not fetch them again.
+	for _, path := range []string{"/image.svg", "/corrupt.png"} {
+		if requests[path] != 1 {
+			t.Errorf("%s: remote requests = %d, want 1", path, requests[path])
+		}
+	}
+}
+
+func TestAsset_RemoteImage(t *testing.T) {
+	env := setupAssetTestServer(t)
+	var pngData atomic.Pointer[[]byte]
+	initial := createAssetTestPNG(t, 800, 400)
+	pngData.Store(&initial)
+	var requests atomic.Int32
+	var failing atomic.Bool
+	// test_endpoints lets the SSRF-safe client reach this loopback server.
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		if r.URL.Path != "/logo.png" || failing.Load() {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(*pngData.Load())
+	}))
+	t.Cleanup(source.Close)
+	sourceURL := source.URL + "/logo.png"
+
+	get := func(path string) (*http.Response, []byte) {
+		t.Helper()
+		resp, err := http.Get(env.url(path))
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		return resp, body
 	}
 
-	resp, err := http.Get(env.url(core.NeighborhoodImagePath(name)))
-	if err != nil {
-		t.Fatalf("GET Neighborhood image: %v", err)
-	}
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		t.Fatalf("read Neighborhood image: %v", err)
-	}
+	avatarPath := env.core.RemoteImagePath(remoteimage.PresetAvatar, sourceURL)
+	resp, body := get(avatarPath)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
-	if !bytes.Equal(body, imageData) {
-		t.Fatalf("body = %q, want %q", body, imageData)
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("decode avatar: %v", err)
 	}
-	if got := resp.Header.Get("Content-Type"); got != "image/webp" {
-		t.Fatalf("Content-Type = %q, want image/webp", got)
+	if cfg.Width != 256 || cfg.Height != 128 {
+		t.Fatalf("avatar size = %dx%d, want 256x128", cfg.Width, cfg.Height)
 	}
-	if got := resp.Header.Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
+	if got := resp.Header.Get("Cache-Control"); got != "public, max-age=86400" {
 		t.Fatalf("Cache-Control = %q", got)
 	}
-	if got := resp.Header.Get("X-Content-Type-Options"); got != "nosniff" {
-		t.Fatalf("X-Content-Type-Options = %q, want nosniff", got)
+	avatarETag := resp.Header.Get("ETag")
+	if avatarETag == "" {
+		t.Fatal("missing ETag")
 	}
-	assertPublicImageRevalidation(t, env.url(core.NeighborhoodImagePath(name)), resp.Header.Get("ETag"))
 
-	for _, path := range []string{
-		core.NeighborhoodImagePath(strings.Repeat("c", 64)),
-		core.NeighborhoodImagePath("neighborhood_image." + name),
-		core.NeighborhoodImagePath(strings.ToUpper(name)),
-		core.NeighborhoodImagePath("not-a-hash"),
+	// The pipeline stores derivatives in the background. Once it has, the
+	// transform cache answers without a remote fetch.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		resp, _ := get(avatarPath)
+		if resp.Header.Get("X-Cache") == "HIT" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("avatar was not cached")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	fetches := requests.Load()
+	if resp, _ := get(avatarPath); resp.Header.Get("X-Cache") != "HIT" || requests.Load() != fetches {
+		t.Fatalf("cached read: X-Cache=%q, remote fetches %d -> %d", resp.Header.Get("X-Cache"), fetches, requests.Load())
+	}
+
+	// Another preset needs its own signed URL.
+	bannerPath := env.core.RemoteImagePath(remoteimage.PresetBanner, sourceURL)
+	resp, body = get(bannerPath)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("banner status = %d, want 200", resp.StatusCode)
+	}
+	if cfg, _, err = image.DecodeConfig(bytes.NewReader(body)); err != nil || cfg.Width != 800 || cfg.Height != 400 {
+		t.Fatalf("banner size = %dx%d (%v), want the 800x400 source", cfg.Width, cfg.Height, err)
+	}
+
+	missingPath := env.core.RemoteImagePath(remoteimage.PresetAvatar, source.URL+"/missing.png")
+	signature := remoteimage.Sign("wrong-secret", remoteimage.PresetAvatar, sourceURL)
+	for name, rejected := range map[string]string{
+		"missing source":  missingPath,
+		"wrong signature": remoteimage.RoutePrefix + "avatar/" + signature + "?url=" + url.QueryEscape(sourceURL),
+		"other preset":    strings.Replace(avatarPath, "/avatar/", "/banner/", 1),
+		"unknown preset":  strings.Replace(avatarPath, "/avatar/", "/original/", 1),
+		"other URL":       strings.Replace(avatarPath, "logo.png", "other.png", 1),
+		"missing URL":     avatarPath[:strings.Index(avatarPath, "?")],
 	} {
-		req, err := http.NewRequest(http.MethodGet, env.url(path), nil)
-		if err != nil {
-			t.Fatal(err)
+		if resp, _ := get(rejected); resp.StatusCode != http.StatusNotFound {
+			t.Errorf("%s: status = %d, want 404", name, resp.StatusCode)
 		}
-		req.Header.Set("If-None-Match", "*")
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Fatalf("GET %q: %v", path, err)
+	}
+	if resp, _ := get(missingPath); resp.Header.Get("Cache-Control") != "public, max-age=300" {
+		t.Errorf("failure Cache-Control = %q, want public, max-age=300", resp.Header.Get("Cache-Control"))
+	}
+
+	// A conditional request with the current ETag gets 304.
+	conditional, err := http.NewRequest(http.MethodGet, env.url(avatarPath), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conditional.Header.Set("If-None-Match", avatarETag)
+	notModified, err := http.DefaultClient.Do(conditional)
+	if err != nil {
+		t.Fatalf("conditional GET: %v", err)
+	}
+	notModified.Body.Close()
+	if notModified.StatusCode != http.StatusNotModified {
+		t.Fatalf("conditional status = %d, want 304", notModified.StatusCode)
+	}
+
+	// In the next cache generation, the server fetches the source again. A
+	// changed image gets another ETag, so a browser that revalidates sees the
+	// change.
+	now := time.Now()
+	t.Cleanup(func() { remoteImageNow = time.Now })
+	remoteImageNow = func() time.Time { return now.Add(remoteImageGenerationLength) }
+	changed := createAssetTestPNG(t, 400, 400)
+	pngData.Store(&changed)
+	resp, body = get(avatarPath)
+	if resp.StatusCode != http.StatusOK || resp.Header.Get("X-Cache") != "MISS" {
+		t.Fatalf("refresh: status %d, X-Cache %q; want 200 MISS", resp.StatusCode, resp.Header.Get("X-Cache"))
+	}
+	if cfg, _, err = image.DecodeConfig(bytes.NewReader(body)); err != nil || cfg.Width != 256 || cfg.Height != 256 {
+		t.Fatalf("refreshed avatar size = %dx%d (%v), want 256x256", cfg.Width, cfg.Height, err)
+	}
+	if resp.Header.Get("ETag") == avatarETag {
+		t.Fatal("changed image kept its ETag")
+	}
+
+	// When the source fails in a later generation, the server serves the
+	// copy of the previous generation. Wait until that copy is stored.
+	sourceID := remoteimage.SourceID(sourceURL)
+	refreshed := fmt.Sprintf("%s-%d", sourceID, remoteImageGeneration(sourceID, remoteImageNow()))
+	cacheKey := core.ImageCacheKey(remoteImageCachePrefix, refreshed, 256, 256, "contain")
+	deadline = time.Now().Add(5 * time.Second)
+	for {
+		if cached, err := env.core.GetCachedResize(env.ctx, cacheKey); err == nil && bytes.Equal(cached, body) {
+			break
 		}
-		resp.Body.Close()
-		if resp.StatusCode != http.StatusNotFound {
-			t.Fatalf("GET %q status = %d, want 404", path, resp.StatusCode)
+		if time.Now().After(deadline) {
+			t.Fatal("refreshed avatar was not cached")
 		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	remoteImageNow = func() time.Time { return now.Add(2 * remoteImageGenerationLength) }
+	failing.Store(true)
+	resp, staleBody := get(avatarPath)
+	if resp.StatusCode != http.StatusOK || resp.Header.Get("X-Cache") != "STALE" || !bytes.Equal(staleBody, body) {
+		t.Fatalf("failed source: status %d, X-Cache %q; want 200 STALE with the previous copy", resp.StatusCode, resp.Header.Get("X-Cache"))
 	}
 }

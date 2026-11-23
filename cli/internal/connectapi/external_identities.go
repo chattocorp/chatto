@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/core/remoteimage"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
 )
@@ -39,6 +40,9 @@ func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Con
 		}
 	}
 	pending := apiPendingExternalIdentity(flow)
+	if flow.AvatarURL != "" {
+		pending.AvatarUrl = s.api.core.RemoteImagePath(remoteimage.PresetAvatar, flow.AvatarURL)
+	}
 	pending.ChooseUsername = authv1.UsernameChoiceAvailability_USERNAME_CHOICE_AVAILABILITY_ALLOWED.Enum()
 	if s.api.core.ProviderUsernameManaged(flow.ProviderID) {
 		pending.ChooseUsername = authv1.UsernameChoiceAvailability_USERNAME_CHOICE_AVAILABILITY_PROVIDER_MANAGED.Enum()
@@ -228,8 +232,12 @@ func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.
 		return nil, err
 	}
 	linked := apiLinkedExternalIdentities(identities, s.api.providerLabels())
+	// Handle lookups are best effort: a slow directory must not block the list.
+	lookupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	for index, identity := range linked {
 		identity.DisconnectEligibility = disconnectAvailability(s.api, identities[index], identities, hasPassword)
+		identity.AccountLabel = s.api.atprotoHandle(lookupCtx, identities[index])
 	}
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{
 		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities),

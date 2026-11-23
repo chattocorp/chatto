@@ -469,3 +469,18 @@ type staticKeyWatcher struct {
 
 func (w *staticKeyWatcher) Updates() <-chan jetstream.KeyValueEntry { return w.updates }
 func (w *staticKeyWatcher) Stop() error                             { return nil }
+
+// A pass is expensive, so the next one waits a long time. A failed pass must
+// not wait that long, or a transient NATS failure delays the repair by the
+// full interval.
+func TestPushSubscriptionReconcileDelay(t *testing.T) {
+	if got := pushSubscriptionReconcileDelay(nil); got != pushSubscriptionReconcileEvery {
+		t.Fatalf("delay after a pass without error = %v, want %v", got, pushSubscriptionReconcileEvery)
+	}
+	if got := pushSubscriptionReconcileDelay(errors.New("list failed")); got != pushSubscriptionReconcileRetry {
+		t.Fatalf("delay after a failed pass = %v, want %v", got, pushSubscriptionReconcileRetry)
+	}
+	if pushSubscriptionReconcileRetry >= pushSubscriptionReconcileEvery {
+		t.Fatalf("retry delay %v must be shorter than the interval %v", pushSubscriptionReconcileRetry, pushSubscriptionReconcileEvery)
+	}
+}

@@ -2,6 +2,12 @@
   import { onMount } from 'svelte';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
+  import {
+    identityLinkReturnPath,
+    linkStartFailure,
+    onProviderLinked,
+    remoteIdentityLinkUrl
+  } from '$lib/auth/identityLink';
   import { DisconnectEligibility } from '@chatto/api-types/api/v1/external_identities_pb';
   import { disconnectEligibilityWithFallback } from '@chatto/client/api/actionAvailability';
   import { identityDisconnectUnavailableMessage } from '$lib/actionAvailability';
@@ -10,7 +16,6 @@
     authorizationWindowFeatures,
     openAuthorizationWindow
   } from '$lib/oauth/authorizationWindow';
-  import IdentityLinkContinuation from './IdentityLinkContinuation.svelte';
   import type { CurrentUserState } from '@chatto/client/auth/currentUser';
   import {
     createExternalIdentityAPI,
@@ -28,13 +33,7 @@
   import { createSessionGuard, type SessionSnapshot } from '$lib/state/server/sessionGuard.svelte';
   import { Button, TextInput } from '$lib/ui/form';
 
-  let {
-    currentUser,
-    accountSettingsPath
-  }: {
-    currentUser: CurrentUserState;
-    accountSettingsPath: string;
-  } = $props();
+  let { currentUser }: { currentUser: CurrentUserState } = $props();
 
   const serverScope = useServerScope();
   // Private identity data and provider links belong to the accepted account only.
@@ -54,7 +53,7 @@
       queryKey: settingsQueryKeys.externalIdentities(serverScope, activeUserId),
       queryFn: ({ signal }) => activeConnection.getAPI(createExternalIdentityAPI).list({ signal }),
       enabled: activeUserId !== '',
-      // A provider callback returns to this route and must not reuse the pre-link snapshot.
+      // The link window can link a provider while this page is not mounted.
       refetchOnMount: 'always' as const
     };
   });
@@ -81,23 +80,15 @@
   } | null>(null);
   let checkingLink = false;
 
-  // Provider isolation can make a live popup report closed. Its same-origin
-  // callback can still ask the original settings page to read the final state.
-  let linkUpdates: BroadcastChannel | undefined;
+  // Provider isolation can make a live popup report closed. The link window
+  // page on this origin can still ask this page to read the final state.
   onMount(() => {
-    if (
-      !serverRegistry.isOriginServer(serverScope.serverId) ||
-      typeof BroadcastChannel === 'undefined'
-    )
-      return;
-    linkUpdates = new BroadcastChannel('chatto-provider-linked');
-    linkUpdates.onmessage = ({ data }) => {
-      if (accountId && data === accountId) {
-        resetProfileIdentities(accountId);
-        void identitiesQuery.refetch();
-      }
-    };
-    return () => linkUpdates?.close();
+    if (!serverRegistry.isOriginServer(serverScope.serverId)) return;
+    return onProviderLinked((userId) => {
+      if (!accountId || userId !== accountId) return;
+      resetProfileIdentities(accountId);
+      void identitiesQuery.refetch();
+    });
   });
 
   function providerLinkIsCurrent() {
@@ -204,13 +195,15 @@
     actionError = '';
     if (!accountId) return;
     if (serverRegistry.isOriginServer(serverScope.serverId)) {
-      void startProviderLink(provider, 'popup');
+      void startProviderLink(provider);
       return;
     }
     // Remote passwords belong on the account server's origin.
-    const url = new URL('/chat/-/settings/account', serverScope.connection.connectBaseUrl);
-    url.searchParams.set('link_provider', provider.id);
-    url.searchParams.set('link_user', accountId);
+    const url = remoteIdentityLinkUrl(
+      serverScope.connection.connectBaseUrl,
+      provider.id,
+      accountId
+    );
     const popup = openAuthorizationWindow('_blank', authorizationWindowFeatures(window));
     if (!popup) {
       actionError = m('settings.account.sso.popup_blocked');
@@ -224,7 +217,7 @@
       providerId: provider.id
     };
     providerLinkWindow = pending;
-    void popup.navigate(url.href).catch(() => {
+    void popup.navigate(url).catch(() => {
       if (providerLinkWindow !== pending) return;
       if (providerLinkIsCurrent()) actionError = m('settings.account.sso.link_failed');
       providerLinkWindow = null;
@@ -232,51 +225,7 @@
     });
   }
 
-  function continueProviderLink(providerId: string, userId: string) {
-    if (!userId || userId !== accountId) {
-      actionError = m('settings.account.sso.account_mismatch');
-      return;
-    }
-    const provider = providers.find((provider) => provider.id === providerId);
-    if (!provider) {
-      actionError = m('settings.account.sso.provider_unavailable');
-      return;
-    }
-    if (provider.linked) window.close();
-    else void startProviderLink(provider, 'current');
-  }
-
-  function linkErrorMessage(errorCode: string): string {
-    switch (errorCode) {
-      case 'provider_access_denied':
-        return m('auth.login.error.provider_access_denied');
-      case 'external_identity_conflict':
-        return m('auth.login.error.external_identity_conflict');
-      default:
-        return m('settings.account.sso.link_failed');
-    }
-  }
-
-  function completeProviderLink(providerId: string, userId: string, errorCode: string) {
-    if (!userId || userId !== accountId) {
-      actionError = m('settings.account.sso.account_mismatch');
-      return;
-    }
-    // The provider callback returns here with an error when it did not link.
-    if (errorCode) {
-      actionError = linkErrorMessage(errorCode);
-      return;
-    }
-    if (providers.some((provider) => provider.id === providerId && provider.linked)) {
-      linkUpdates?.postMessage(userId);
-      window.close();
-    }
-  }
-
-  let linkConfirmation = $state.raw<{
-    provider: ExternalIdentityProviderInfo;
-    destination: 'popup' | 'current';
-  } | null>(null);
+  let linkConfirmation = $state.raw<{ provider: ExternalIdentityProviderInfo } | null>(null);
   let linkCurrentPassword = $state('');
   let linkFreshAuthError = $state('');
   let disconnectTarget = $state<{ subjectHash: string; providerLabel: string } | null>(null);
@@ -317,6 +266,11 @@
     return disconnectAvailability(subjectHash) === DisconnectEligibility.ALLOWED;
   }
 
+  /** Name of the linked account at the provider, when the server resolved one. */
+  function linkedAccountLabel(subjectHash: string | null) {
+    return linkedIdentities.find((identity) => identity.subjectHash === subjectHash)?.accountLabel;
+  }
+
   function disconnectAvailability(subjectHash: string | null) {
     const identity = linkedIdentities.find((identity) => identity.subjectHash === subjectHash);
     return disconnectEligibilityWithFallback(
@@ -328,13 +282,8 @@
 
   async function startProviderLink(
     provider: ExternalIdentityProviderInfo,
-    destination: 'popup' | 'current',
     currentPassword?: string
   ) {
-    const returnURL = new URL(accountSettingsPath, window.location.origin);
-    returnURL.searchParams.set('link_provider', provider.id);
-    returnURL.searchParams.set('link_user', accountId ?? '');
-    returnURL.searchParams.set('link_complete', '1');
     const scope = session.snapshot();
     const userId = accountId;
     actionError = '';
@@ -342,37 +291,29 @@
     try {
       const startUrl = await scope.connection.getAPI(createExternalIdentityAPI).startLink({
         providerId: provider.id,
-        redirectPath: returnURL.pathname + returnURL.search + returnURL.hash,
+        // The provider callback opens the link window in the popup.
+        redirectPath: identityLinkReturnPath(provider.id, accountId ?? ''),
         currentPassword
       });
       if (!session.isCurrent(scope) || userId !== accountId) return;
       linkConfirmation = null;
       linkCurrentPassword = '';
-      if (destination === 'popup') launchProviderWindow(provider, startUrl);
-      else window.location.href = startUrl;
+      launchProviderWindow(provider, startUrl);
     } catch (err) {
       if (!session.isCurrent(scope) || userId !== accountId) return;
-      if (
-        err instanceof ConnectError &&
-        err.code === Code.FailedPrecondition &&
-        canUsePasswordProof &&
-        currentPassword === undefined
-      ) {
-        linkConfirmation = { provider, destination };
+      const failure = linkStartFailure(err, {
+        passwordSent: currentPassword !== undefined,
+        canUsePasswordProof,
+        directLoginEnabled
+      });
+      if (failure.kind === 'password_required') {
+        linkConfirmation = { provider };
         linkCurrentPassword = '';
         linkFreshAuthError = '';
-      } else if (
-        err instanceof ConnectError &&
-        err.code === Code.FailedPrecondition &&
-        currentPassword === undefined
-      ) {
-        actionError = directLoginEnabled
-          ? m('settings.account.sso.fresh_auth_required')
-          : m('settings.account.sso.sso_fresh_auth_required');
-      } else if (currentPassword !== undefined) {
-        linkFreshAuthError = errorMessage(err, m('settings.account.sso.link_failed'));
+      } else if (failure.kind === 'password_rejected') {
+        linkFreshAuthError = failure.message;
       } else {
-        actionError = errorMessage(err, m('settings.account.sso.link_failed'));
+        actionError = failure.message;
       }
     } finally {
       linkingProviderId = '';
@@ -392,9 +333,9 @@
       linkFreshAuthError = m('settings.account.password.current_required');
       return;
     }
-    const { provider, destination } = linkConfirmation;
+    const { provider } = linkConfirmation;
     linkFreshAuthError = '';
-    await startProviderLink(provider, destination, linkCurrentPassword);
+    await startProviderLink(provider, linkCurrentPassword);
   }
 
   function openDisconnectProvider(provider: ExternalIdentityProviderInfo) {
@@ -544,123 +485,136 @@
   <Interval milliseconds={2000} ontick={checkProviderLinkResult} />
 {/if}
 
-{#if serverRegistry.isOriginServer(serverScope.serverId) && accountId && identitiesQuery.isSuccess && !identitiesQuery.isFetching}
-  <IdentityLinkContinuation oncontinue={continueProviderLink} oncomplete={completeProviderLink} />
-{/if}
-
-<Panel title={m('settings.account.sso.title')} icon="iconify icon-[uil--link]">
-  <div class="flex max-w-md flex-col gap-4">
-    {#if loading}
-      <LoadingDots class="h-32 w-full" label={m('settings.account.sso.loading')} />
-    {:else}
-      {#if error}
+<Panel title={m('settings.account.sso.title')} icon="iconify icon-[uil--link]" noPadding>
+  {#if loading}
+    <LoadingDots class="h-32 w-full" label={m('settings.account.sso.loading')} />
+  {:else}
+    {#if error}
+      <div class="p-4">
         <Hint tone="danger">{error}</Hint>
-      {/if}
-      {#if !hasRows}
-        <p class="text-sm text-muted">{m('settings.account.sso.none_configured')}</p>
-      {:else}
-        <div class="flex flex-col gap-3">
-          {#each providers as provider (provider.id)}
-            <div class="flex items-center justify-between gap-3 rounded border border-border p-3">
-              <div class="flex min-w-0 items-center gap-3">
-                <span
-                  aria-hidden="true"
-                  class={['iconify text-lg text-muted', providerIcon(provider.type)]}
-                ></span>
-                <div class="min-w-0">
-                  <div class="truncate text-sm font-medium">{provider.label}</div>
-                  <div class="text-xs text-muted">
-                    {#if provider.linked}
-                      {m('settings.account.sso.linked')}
-                      {#if !canDisconnectIdentity(provider.linkedIdentitySubjectHash)}
-                        <p>
-                          {identityDisconnectUnavailableMessage(
-                            disconnectAvailability(provider.linkedIdentitySubjectHash),
-                            provider.label
-                          )}
-                        </p>
-                      {/if}
-                    {:else}
-                      {m('settings.account.sso.not_linked')}
-                    {/if}
-                  </div>
-                </div>
-              </div>
-              {#if provider.linked}
-                {#if provider.linkedIdentitySubjectHash}
-                  <Button
-                    variant="danger-secondary"
-                    size="sm"
-                    loading={disconnectingSubjectHash === provider.linkedIdentitySubjectHash}
-                    disabled={!canDisconnectIdentity(provider.linkedIdentitySubjectHash) ||
-                      linkingProviderId !== '' ||
-                      disconnectingSubjectHash !== ''}
-                    onclick={() => openDisconnectProvider(provider)}
-                  >
-                    <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
-                    {disconnectButtonLabel(provider.linkedIdentitySubjectHash)}
-                  </Button>
-                {:else}
-                  <span class="text-sm text-muted">{m('settings.account.sso.linked')}</span>
-                {/if}
-              {:else}
+      </div>
+    {/if}
+    {#if !hasRows}
+      <p class="p-4 text-sm text-muted">{m('settings.account.sso.none_configured')}</p>
+    {:else}
+      <ul class="divide-y divide-border">
+        {#each providers as provider (provider.id)}
+          <li
+            data-testid="sso-provider-row"
+            class="flex items-center justify-between gap-4 px-4 py-3"
+          >
+            {@render identity(
+              provider.type,
+              provider.label,
+              provider.linked,
+              provider.linked
+                ? m('settings.account.sso.linked')
+                : m('settings.account.sso.not_linked'),
+              provider.linkedIdentitySubjectHash
+            )}
+            {#if provider.linked}
+              {#if provider.linkedIdentitySubjectHash}
                 <Button
-                  variant="secondary"
+                  variant="danger-secondary"
                   size="sm"
-                  loading={linkingProviderId === provider.id}
-                  disabled={linkingProviderId !== '' ||
-                    disconnectingSubjectHash !== '' ||
-                    providerLinkWindow !== null}
-                  onclick={() => openProviderLink(provider)}
+                  loading={disconnectingSubjectHash === provider.linkedIdentitySubjectHash}
+                  disabled={!canDisconnectIdentity(provider.linkedIdentitySubjectHash) ||
+                    linkingProviderId !== '' ||
+                    disconnectingSubjectHash !== ''}
+                  onclick={() => openDisconnectProvider(provider)}
                 >
-                  <span aria-hidden="true" class="iconify icon-[uil--link]"></span>
-                  {m('settings.account.sso.link_button')}
+                  <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
+                  {disconnectButtonLabel(provider.linkedIdentitySubjectHash)}
                 </Button>
               {/if}
-            </div>
-          {/each}
-
-          {#each unconfiguredLinkedIdentities as identity (identity.subjectHash)}
-            <div class="flex items-center justify-between gap-3 rounded border border-border p-3">
-              <div class="flex min-w-0 items-center gap-3">
-                <span
-                  aria-hidden="true"
-                  class={['iconify text-lg text-muted', providerIcon(identity.providerType)]}
-                ></span>
-                <div class="min-w-0">
-                  <div class="truncate text-sm font-medium">{identity.providerLabel}</div>
-                  <div class="text-xs text-muted">
-                    {m('settings.account.sso.provider_unconfigured')}
-                    {#if !canDisconnectIdentity(identity.subjectHash)}
-                      <p>
-                        {identityDisconnectUnavailableMessage(
-                          disconnectAvailability(identity.subjectHash),
-                          identity.providerLabel
-                        )}
-                      </p>
-                    {/if}
-                  </div>
-                </div>
-              </div>
+            {:else}
               <Button
-                variant="danger-secondary"
+                variant="secondary"
                 size="sm"
-                loading={disconnectingSubjectHash === identity.subjectHash}
-                disabled={!canDisconnectIdentity(identity.subjectHash) ||
-                  linkingProviderId !== '' ||
-                  disconnectingSubjectHash !== ''}
-                onclick={() => openDisconnectIdentity(identity)}
+                loading={linkingProviderId === provider.id}
+                disabled={linkingProviderId !== '' ||
+                  disconnectingSubjectHash !== '' ||
+                  providerLinkWindow !== null}
+                onclick={() => openProviderLink(provider)}
               >
-                <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
-                {disconnectButtonLabel(identity.subjectHash)}
+                <span aria-hidden="true" class="iconify icon-[uil--link]"></span>
+                {m('settings.account.sso.link_button')}
               </Button>
-            </div>
-          {/each}
-        </div>
-      {/if}
+            {/if}
+          </li>
+        {/each}
+
+        {#each unconfiguredLinkedIdentities as linkedIdentity (linkedIdentity.subjectHash)}
+          <li
+            data-testid="sso-provider-row"
+            class="flex items-center justify-between gap-4 px-4 py-3"
+          >
+            {@render identity(
+              linkedIdentity.providerType,
+              linkedIdentity.providerLabel,
+              false,
+              m('settings.account.sso.provider_unconfigured'),
+              linkedIdentity.subjectHash
+            )}
+            <Button
+              variant="danger-secondary"
+              size="sm"
+              loading={disconnectingSubjectHash === linkedIdentity.subjectHash}
+              disabled={!canDisconnectIdentity(linkedIdentity.subjectHash) ||
+                linkingProviderId !== '' ||
+                disconnectingSubjectHash !== ''}
+              onclick={() => openDisconnectIdentity(linkedIdentity)}
+            >
+              <span aria-hidden="true" class="iconify icon-[uil--link-broken]"></span>
+              {disconnectButtonLabel(linkedIdentity.subjectHash)}
+            </Button>
+          </li>
+        {/each}
+      </ul>
     {/if}
-  </div>
+  {/if}
 </Panel>
+
+<!-- Provider icon, name, link status, and any reason the identity cannot be disconnected. -->
+{#snippet identity(
+  type: string,
+  label: string,
+  linked: boolean,
+  status: string,
+  subjectHash: string | null
+)}
+  {@const account = linkedAccountLabel(subjectHash)}
+  <div class="flex min-w-0 items-center gap-3">
+    <span
+      class={[
+        'flex size-10 shrink-0 items-center justify-center rounded-md bg-surface text-xl',
+        linked ? 'text-text' : 'text-muted'
+      ]}
+    >
+      <span aria-hidden="true" class={['iconify', providerIcon(type)]}></span>
+    </span>
+    <div class="min-w-0">
+      <div class="truncate font-medium">{label}</div>
+      <div class="flex min-w-0 items-center gap-1 text-sm text-muted">
+        <span class={['flex shrink-0 items-center gap-1', linked && 'text-success']}>
+          {#if linked}
+            <span aria-hidden="true" class="iconify icon-[uil--check-circle]"></span>
+          {/if}
+          {status}
+        </span>
+        {#if account}
+          <span aria-hidden="true">·</span>
+          <bdi class="truncate" dir="ltr" title={account}>{account}</bdi>
+        {/if}
+      </div>
+      {#if subjectHash && !canDisconnectIdentity(subjectHash)}
+        <p class="text-sm text-muted">
+          {identityDisconnectUnavailableMessage(disconnectAvailability(subjectHash), label)}
+        </p>
+      {/if}
+    </div>
+  </div>
+{/snippet}
 
 {#if disconnectTarget}
   <ConfirmDialog

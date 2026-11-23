@@ -293,7 +293,11 @@ export class RoomPage {
    * Get a MessageComponent for a message containing the given text.
    */
   getMessage(text: string): MessageComponent {
-    const locator = this.page.locator('[role="article"]', { hasText: text });
+    // Skip messages that only quote the text in their reply or "From thread" attribution row.
+    const locator = this.page.locator('[role="article"]', {
+      hasText: text,
+      hasNot: this.page.getByTestId('reply-attribution').filter({ hasText: text })
+    });
     return new MessageComponent(this.page, locator);
   }
 

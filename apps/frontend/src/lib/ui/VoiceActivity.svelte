@@ -9,7 +9,7 @@ The getter reads a normalized level without updating the surrounding UI.
 
 <canvas
   {@attach voiceActivity(() => level())}
-  class="pointer-events-none absolute inset-0 -z-10 h-full w-full rounded-[inherit] text-action"
+  class="pointer-events-none absolute inset-0 -z-10 h-full w-full rounded-inherit text-action"
   aria-hidden="true"
   data-testid="voice-activity"
 ></canvas>

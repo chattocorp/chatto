@@ -157,7 +157,7 @@ const providerRoleRecheckTimeout = 10 * time.Second
 func (c *ChattoCore) revokeProviderGroupRolesWithoutIdentity(ctx context.Context, userID string, source ProviderRoleSource) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), providerRoleRecheckTimeout)
 	defer cancel()
-	if err := c.userModel.waitForUserAuthCurrent(ctx, "provider group roles"); err != nil {
+	if err := c.userModel.waitForUserAuthSubjectsCurrent(ctx, "provider group roles", userExternalIdentityAuthSubjects(userID)...); err != nil {
 		return err
 	}
 	if slices.ContainsFunc(c.userModel.externalIdentities(userID), func(identity ExternalIdentity) bool {

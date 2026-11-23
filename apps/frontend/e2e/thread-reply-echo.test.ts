@@ -119,7 +119,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
     await test.step('Verify echo has "Thread" badge', async () => {
       const echoArticle = page.locator('[role="article"]', { hasText: replyMessage });
-      const badge = echoArticle.getByText('Thread');
+      const badge = echoArticle.getByText('Thread', { exact: true });
       await expect(badge).toBeVisible();
     });
   });
@@ -210,7 +210,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
           // Verify it has the thread badge
           const echoArticle = page2.locator('[role="article"]', { hasText: replyMessage });
-          const badge = echoArticle.getByText('Thread');
+          const badge = echoArticle.getByText('Thread', { exact: true });
           await expect(badge).toBeVisible();
         });
       }
@@ -247,7 +247,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       const echoArticle = page.locator('[role="article"]', { hasText: replyMessage });
       await expect(echoArticle).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-      const threadLink = echoArticle.getByText('Thread');
+      const threadLink = echoArticle.getByText('Thread', { exact: true });
       await threadLink.click();
     });
 
@@ -908,7 +908,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
       // Check that "Thread" badge appears (on the echo)
       const echoArticle = page.locator('[role="article"]', { hasText: replyMessage });
-      const threadBadge = echoArticle.getByText('Thread');
+      const threadBadge = echoArticle.getByText('Thread', { exact: true });
       await expect(threadBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     });
   });

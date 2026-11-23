@@ -14,12 +14,16 @@ login page when the server allows direct login.
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { Divider, Hint, PageTitle } from '$lib/ui';
   import { Button } from '$lib/ui/form';
+  import { isIdentityLinkPath } from '$lib/auth/identityLink';
 
   const { data } = $props();
 
   let selectedProviderId = $state<string | null>(null);
 
-  const compact = $derived(data.redirectUrl.startsWith('/oauth/'));
+  // Sign-in windows show a compact page and continue provider sign-in in place.
+  const compact = $derived(
+    data.redirectUrl.startsWith('/oauth/') || isIdentityLinkPath(data.redirectUrl)
+  );
 
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);

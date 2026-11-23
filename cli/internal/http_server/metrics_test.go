@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"github.com/chattocorp/chatto/cli/internal/core"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -281,5 +282,45 @@ func TestMetricsServerServesEmbeddedSearchHealth(t *testing.T) {
 	}
 	if want := "chatto_search_provider_serving 0\n"; !strings.Contains(string(body), want) {
 		t.Fatalf("metrics body missing %q\n%s", want, body)
+	}
+}
+
+// The auth generation check counters of ADR-127 carry only the kind and the
+// reason, no user data.
+func TestMetricsServerCountsAuthGenerationChecks(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "metrics-auth-checks", "Metrics Auth Checks", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie, _, err := env.core.CreateCookieSession(env.ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.core.ValidateCookieCredential(env.ctx, cookie); err != nil {
+		t.Fatal(err)
+	}
+	metricsServer, err := env.httpServer.newMetricsServer()
+	if err != nil {
+		t.Fatalf("newMetricsServer() error = %v", err)
+	}
+	ts := httptest.NewServer(metricsServer.Handler)
+	t.Cleanup(ts.Close)
+
+	text := scrapeMetricsText(t, ts.URL+"/metrics")
+	for _, want := range []string{
+		`chatto_auth_generation_checks_total{kind="fast"}`,
+		`chatto_auth_generation_checks_total{kind="strict"}`,
+		`chatto_auth_generation_strict_checks_total{reason="path"}`,
+		`chatto_auth_generation_strict_checks_total{reason="window"}`,
+		`chatto_auth_generation_strict_checks_total{reason="gate"}`,
+		`chatto_auth_generation_strict_checks_total{reason="mismatch"}`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("metrics body missing %q\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, user.Id) {
+		t.Fatal("metrics body contains a user ID")
 	}
 }

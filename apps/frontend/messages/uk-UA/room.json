@@ -160,6 +160,7 @@
         "reaction_users_more": "+ ще {count}",
         "copy_link_title": "Натисніть, щоб скопіювати посилання на це повідомлення",
         "in_reply_to": "у відповідь на",
+        "from_thread": "З теми",
         "reply_preview_fallback": "Повідомлення",
         "deleted": "Це повідомлення видалено."
       },

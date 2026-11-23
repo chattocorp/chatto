@@ -116,7 +116,7 @@ card. Callers supply trusted badges and actions through explicit props.
       rel={opensInNewTab ? 'noopener noreferrer' : undefined}
       aria-label={accessibleActionLabel}
       aria-describedby={`${titleId} ${titleId}-host`}
-      class="absolute inset-0 z-10 cursor-pointer rounded-[inherit] transition-colors hover:bg-text/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action"
+      class="absolute inset-0 z-10 cursor-pointer rounded-inherit transition-colors hover:bg-text/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action"
       data-testid={`${testId}-action`}
       ><span class="sr-only">{actionLabel ?? logoServer.name}</span></a
     >
@@ -130,7 +130,7 @@ card. Callers supply trusted badges and actions through explicit props.
       {disabled}
       aria-label={accessibleActionLabel}
       aria-describedby={`${titleId} ${titleId}-host`}
-      class="absolute inset-0 z-10 cursor-pointer rounded-[inherit] transition-colors hover:bg-text/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action disabled:cursor-wait"
+      class="absolute inset-0 z-10 cursor-pointer rounded-inherit transition-colors hover:bg-text/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action disabled:cursor-wait"
       data-testid={`${testId}-action`}
       ><span class="sr-only">{actionLabel ?? logoServer.name}</span></button
     >

@@ -51,11 +51,28 @@ func (c *ChattoCore) HasOAuthClientScopedConsent(ctx context.Context, userID, cl
 		return false, nil
 	}
 	if c.userModel != nil {
-		if err := c.userModel.waitForUsersCurrent(ctx, "OAuth consent", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
+		if err := c.userModel.waitForUserAuthSubjectsCurrent(ctx, "OAuth consent", userOAuthConsentAuthSubjects(userID)...); err != nil {
 			return false, err
 		}
 	}
 	return c.userModel.hasOAuthConsent(userID, key), nil
+}
+
+// userOAuthConsentAuthSubjects returns the subjects of the events of one user
+// that can change the result of UserAuthProjection.HasOAuthConsent for that
+// user: the two consent grants and the events that delete the account. Keep
+// this list complete when an event gets this effect. A missing subject lets a
+// replica miss a consent that another replica recorded, or keep a consent of
+// a deleted account, until its projection applies the event.
+func userOAuthConsentAuthSubjects(userID string) []string {
+	agg := evtstream.UserAggregate(userID)
+	return []string{
+		agg.Subject(evtstream.EventOAuthConsentGranted),
+		agg.Subject(evtstream.EventOAuthScopedConsentGranted),
+		agg.Subject(evtstream.EventUserAccountDeleted),
+		agg.Subject(evtstream.EventUserKeyShreddingRequested),
+		agg.Subject(evtstream.EventUserKeyShredded),
+	}
 }
 
 func (c *ChattoCore) GrantOAuthConsent(ctx context.Context, userID, redirectOrigin string) error {

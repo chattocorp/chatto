@@ -278,6 +278,9 @@ importers:
       highlight.js:
         specifier: ^11.12.0
         version: 11.12.0
+      highlightjs-lean:
+        specifier: ^1.2.0
+        version: 1.2.0
       highlightjs-odinlang:
         specifier: ^1.5.1
         version: 1.5.1
@@ -5499,6 +5502,9 @@ packages:
   highlight.js@11.12.0:
     resolution: {integrity: sha512-nbfWpyRMcMrPMmDwJB+dhX/eiaPKtc2RB+0QZskqJ3WjRA/FDS0e9hZrx8EC/lbEv8gXy98FcDbNa/dspAaJMg==}
     engines: {node: '>=12.0.0'}
+
+  highlightjs-lean@1.2.0:
+    resolution: {integrity: sha512-GH4tsvbzzZVZiHfrZ7FyaSecnY1ba54XSZB19Iz7VG0N+YYeOPLf2vi0v7Sds+/shaTtRqqxK5Oss9f4wro+uQ==}
 
   highlightjs-odinlang@1.5.1:
     resolution: {integrity: sha512-eMSg5ZyiEz2HgkHiG+3UdQo10IwMximjnHbN9V/asABJhXjyooKjtm2w/r7Du8yobyulgfBLWt6ISF93r0PCmg==}
@@ -13973,6 +13979,8 @@ snapshots:
   highlight.js@11.11.2: {}
 
   highlight.js@11.12.0: {}
+
+  highlightjs-lean@1.2.0: {}
 
   highlightjs-odinlang@1.5.1: {}
 

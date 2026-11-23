@@ -4,7 +4,7 @@
 
 **Status:** Accepted
 
-**Updated:** 2026-10-08
+**Updated:** 2026-11-21
 
 ## Context
 
@@ -54,8 +54,8 @@ Chatto keeps one process-wide event ID table. The table interns event IDs as
 dense, one-based `uint32` handles. Handle zero means "no ID". The production
 wiring gives the same table to the Room Timeline, Threads, and Reactions
 components of the Server Content View and to the Notification Decisions
-projection. A projection that the production wiring does not create, for
-example in a test, owns a private table.
+and Notifications projections. A projection that the production wiring does
+not create, for example in a test, owns a private table.
 
 The table follows these rules:
 
@@ -115,6 +115,12 @@ results.
   and count it once as the `event_ids` component of the Server Content View.
 - Rollback to an earlier binary does not need a cold replay, because snapshot
   formats do not change.
+- The Notifications projection follows the same conventions since 2026-11-21.
+  A replay of the `NOTIFICATIONS` stream of the largest production server
+  (85,856 records, 39,384 current occurrences) retains about 11 MB instead of
+  32.8 MB, and takes 0.1 s instead of 26 s. Snapshot bytes and a digest of all
+  read results are the same as before. Notification IDs stay outside the
+  tables, because occurrences expire and the tables do not shrink.
 
 ## Related
 

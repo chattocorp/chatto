@@ -84,6 +84,7 @@ describe('new-account provider confirmation', () => {
       providerType: 'atproto',
       providerLabel: 'Internet Handle',
       loginHint: 'alice.example.social',
+      avatarUrl: '/assets/remote/avatar/signature?url=https%3A%2F%2Fcdn.example.test%2Falice.png',
       chooseUsername
     }
   });
@@ -99,9 +100,20 @@ describe('new-account provider confirmation', () => {
     await expect
       .element(screen.getByText('Signed in with Internet Handle', { exact: true }))
       .toBeVisible();
+    const preview = screen.getByRole('region', { name: 'Profile preview' });
+    await expect
+      .element(preview.getByRole('img', { name: 'alice.example.social' }))
+      .toHaveAttribute(
+        'src',
+        '/assets/remote/avatar/signature?url=https%3A%2F%2Fcdn.example.test%2Falice.png'
+      );
+    await expect.element(preview.getByText('@alice.example.social', { exact: true })).toBeVisible();
     const username = screen.getByRole('textbox', { name: 'Username' });
     await expect.element(username).toBeDisabled();
     await expect.element(username).toHaveValue('alice.example.social');
+    await expect
+      .element(screen.getByText('Your sign-in provider sets this username.', { exact: true }))
+      .toBeVisible();
     await expect
       .element(screen.getByLabelText('Display Name'))
       .toHaveAttribute('placeholder', 'alice.example.social');
@@ -126,5 +138,12 @@ describe('new-account provider confirmation', () => {
     const username = screen.getByRole('textbox', { name: 'Username' });
     await expect.element(username).toBeEnabled();
     await expect.element(username).toHaveValue('alice.example.social');
+
+    // The preview follows the form, so the user sees the profile they create.
+    const preview = screen.getByRole('region', { name: 'Profile preview' });
+    await username.fill('alice');
+    await screen.getByLabelText('Display Name').fill('Alice Liddell');
+    await expect.element(preview.getByText('Alice Liddell', { exact: true })).toBeVisible();
+    await expect.element(preview.getByText('@alice', { exact: true })).toBeVisible();
   });
 });

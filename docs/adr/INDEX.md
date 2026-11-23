@@ -120,7 +120,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-103](ADR-103-cached-first-client-startup.md)                        | Open a Saved Chat View Before Client Connection                  | Superseded           | 2026-09-23 |
 | [ADR-104](ADR-104-checkpointed-client-projection-snapshots.md)           | Persist Checkpointed Client Projections                          | Superseded           | 2026-09-25 |
 | [ADR-105](ADR-105-privileged-mode-gates-owner-override.md)               | Gate the Effective-Owner Override with Privileged Mode           | Accepted             | 2026-09-25 |
-| [ADR-106](ADR-106-server-side-neighborhood-discovery.md)                 | Discover the Neighborhood on the Server                          | Accepted             | 2026-09-25 |
+| [ADR-106](ADR-106-server-side-neighborhood-discovery.md)                 | Discover the Neighborhood on the Server                          | Partially superseded | 2026-09-25 |
 | [ADR-107](ADR-107-keep-chat-data-out-of-device-storage.md)               | Keep Chat Data Out of Device Storage                             | Accepted             | 2026-09-26 |
 | [ADR-108](ADR-108-compiled-loopback-development-stack.md)                | Run a Compiled Development Stack on Loopback Hostnames           | Accepted             | 2026-09-26 |
 | [ADR-109](ADR-109-compute-badge-attention-from-projections.md)           | Compute Badge Attention from Projections                         | Accepted             | 2026-09-27 |
@@ -140,3 +140,5 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-123](ADR-123-durable-background-jobs.md)                            | Durable Background Jobs                                          | Accepted             | 2026-11-14 |
 | [ADR-124](ADR-124-atproto-handle-verification-needs-an-issuer.md)        | Verified AT Protocol Handles Need an Independent Issuer          | Accepted             | 2026-11-12 |
 | [ADR-125](ADR-125-store-user-data-in-the-users-own-pds.md)               | Store User Data in the User's Own AT Protocol PDS                | Proposed             | 2026-11-19 |
+| [ADR-127](ADR-127-bounded-staleness-for-credential-validation.md)        | Bounded Staleness for Runtime Credential Validation              | Accepted             | 2026-11-22 |
+| [ADR-128](ADR-128-remote-image-proxy.md)                                 | Serve Remote Images Through a Signed Server Proxy                | Accepted             | 2026-11-23 |

@@ -1518,3 +1518,47 @@ func TestRealtimeWebSocketReportsCookieUserLookupFailureAsTemporary(t *testing.T
 	subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
 	readRealtimeCaughtUp(t, conn)
 }
+
+// The periodic credential validation of a realtime connection always uses the
+// strict auth generation check, also inside the auth generation check window
+// (ADR-127 section 5).
+func TestRealtimeCredentialRevalidationIsStrictInsideWindow(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "strict-realtime", "Strict Realtime", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie, _, err := env.core.CreateCookieSession(env.ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &HTTPServer{core: env.core}
+	for name, credential := range map[string]authctx.RuntimeCredential{
+		"cookie": {Kind: authctx.RuntimeCredentialKindCookieSession, UserID: user.Id, Handle: cookie},
+		"bearer": {Kind: authctx.RuntimeCredentialKindBearerToken, UserID: user.Id, Handle: token},
+	} {
+		t.Run(name, func(t *testing.T) {
+			// Issuance started a window, so request validation is fast.
+			before := env.core.AuthGenerationCheckMetrics()
+			if _, err := env.core.ValidateCookieCredential(env.ctx, cookie); err != nil {
+				t.Fatal(err)
+			}
+			if after := env.core.AuthGenerationCheckMetrics(); after.Fast != before.Fast+1 {
+				t.Fatalf("request validation: fast checks %d -> %d, want one fast check", before.Fast, after.Fast)
+			}
+
+			before = env.core.AuthGenerationCheckMetrics()
+			if _, err := s.revalidateRealtimeCredential(authctx.WithCredential(env.ctx, credential)); err != nil {
+				t.Fatal(err)
+			}
+			after := env.core.AuthGenerationCheckMetrics()
+			if after.Fast != before.Fast || after.Strict["path"] != before.Strict["path"]+1 {
+				t.Fatalf("realtime revalidation: fast %d -> %d, strict path %d -> %d; want one strict check", before.Fast, after.Fast, before.Strict["path"], after.Strict["path"])
+			}
+		})
+	}
+}

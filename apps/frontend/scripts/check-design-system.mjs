@@ -60,6 +60,10 @@ const checks = [
     pattern: /(?<![\w-])rounded-(?:ts|te|bs|be)(?:-[\w.[\]]+)?(?![\w-])/g
   },
   {
+    description: 'arbitrary inherited radius; use rounded-inherit',
+    pattern: /(?<![\w-])rounded-\[inherit\]/g
+  },
+  {
     description: 'important cursor override; use a disabled: or state variant',
     pattern: /(?:^|[\s"'`])!cursor-[a-z-]+/g
   },
@@ -199,6 +203,15 @@ for (const [consumer, primitive] of Object.entries(insetConsumers)) {
     failures.push(`src/app.css: ${consumer} must inherit its surface recipe from ${primitive}`);
   }
 }
+
+// Stylesheets apply rounded-inherit instead of repeating its declaration.
+// base.css defines the utility, so it is the one exception.
+for (const match of appCss.matchAll(/(?<![\w-])border-radius:\s*inherit/g)) {
+  const before = appCss.slice(0, match.index);
+  if (/@utility rounded-inherit \{[^}]*$/.test(before)) continue;
+  failures.push(`src/app.css: raw border-radius: inherit; use @apply rounded-inherit`);
+}
+
 const unusedStyleAllowlistEntries = new Set(styleBlockAllowlist);
 
 // Tailwind silently ignores color utilities whose token does not exist, so a

@@ -31,6 +31,8 @@ export type PendingExternalIdentityInfo = {
   redirectPath: string | null;
   /** A new identity needs admission before it can create an account. */
   invitationRequired: boolean;
+  /** Same-origin URL of the provider avatar preview, which the server serves. */
+  avatarUrl: string | null;
 };
 
 export type LinkedExternalIdentityInfo = {
@@ -40,6 +42,11 @@ export type LinkedExternalIdentityInfo = {
   subjectHash: string;
   /** Listing-time eligibility; unspecified on older servers. */
   disconnectEligibility: DisconnectEligibility;
+  /**
+   * Name of the linked account at the provider, such as an AT Protocol handle
+   * without @. Null when the server cannot resolve one, and on older servers.
+   */
+  accountLabel: string | null;
 };
 
 export type ExternalIdentityProviderInfo = {
@@ -156,7 +163,8 @@ function pendingIdentity(pending?: APIPendingExternalIdentity): PendingExternalI
     displayNameHint: pending.displayNameHint,
     boundUserId: pending.boundUserId || null,
     redirectPath: pending.redirectPath || null,
-    invitationRequired: pending.invitationRequired
+    invitationRequired: pending.invitationRequired,
+    avatarUrl: pending.avatarUrl || null
   };
 }
 
@@ -196,7 +204,8 @@ function linkedIdentity(identity?: APILinkedExternalIdentity): LinkedExternalIde
     providerType: identity.providerType,
     providerLabel: identity.providerLabel,
     subjectHash: identity.subjectHash,
-    disconnectEligibility: identity.disconnectEligibility
+    disconnectEligibility: identity.disconnectEligibility,
+    accountLabel: identity.accountLabel || null
   };
 }
 

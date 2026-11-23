@@ -12,7 +12,7 @@
     position: absolute;
     z-index: 30;
     inset: 0;
-    border-radius: inherit;
+    @apply rounded-inherit;
     overflow: hidden;
     pointer-events: none;
     @variant motion-reduce {
@@ -151,4 +151,9 @@ body[data-resizing-sidebar] {
 .composer-entity-preview:has(.entity-link, .url-link) + a:has(.composer-entity-source),
 .composer-entity-preview:has(.entity-link, .url-link) + .composer-entity-source {
   display: none;
+}
+
+/* Overlays, rings, and fills that match the corners of their parent. */
+@utility rounded-inherit {
+  border-radius: inherit;
 }

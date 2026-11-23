@@ -41,7 +41,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-029](FDR-029-chatto-shields.md)                        | Chatto Shields                        | Active       | 2026-08-23    |
 | [FDR-030](FDR-030-inline-message-timestamps.md)             | Inline Message Timestamps             | Active       | 2026-10-15    |
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-10-30    |
-| [FDR-032](FDR-032-message-formatting.md)                    | Message Formatting                    | Active       | 2026-11-15    |
+| [FDR-032](FDR-032-message-formatting.md)                    | Message Formatting                    | Active       | 2026-11-21    |
 | [FDR-033](FDR-033-message-search.md)                        | Message Search                        | Experimental | 2026-10-26    |
 | [FDR-034](FDR-034-chatto-desktop.md)                        | Chatto Desktop                        | Experimental | 2026-11-12    |
 | [FDR-035](FDR-035-slow-mode.md)                             | Slow Mode                             | Active       | 2026-10-15    |
@@ -69,3 +69,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-057](FDR-057-search-during-index-rebuild.md)           | Search During Index Rebuild           | Planned      | 2026-11-17    |
 | [FDR-058](FDR-058-atproto-sign-in.md)                       | AT Protocol Sign-In                   | Experimental | 2026-11-12    |
 | [FDR-059](FDR-059-client-experimental-features.md)          | Client Experimental Features          | Active       | 2026-11-19    |
+| [FDR-060](FDR-060-release-highlights.md)                    | Release Highlights and Changelog      | Active       | 2026-11-22    |

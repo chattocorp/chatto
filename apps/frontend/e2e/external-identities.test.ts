@@ -1,6 +1,7 @@
 import { test, expect } from './setup';
 import { createAndLoginTestUser, logoutCurrentUser } from './fixtures/testUser';
 import * as routes from './routes';
+import { startOGMockServer, type OGMockServer } from './fixtures/ogMockServer';
 import { StartExternalIdentityLinkRequest } from '@chatto/api-types/api/v1/external_identities_pb';
 
 test.describe('Managed provider accounts', () => {
@@ -17,6 +18,16 @@ test.describe('Managed provider accounts', () => {
         CHATTO_AUTH_PROVIDERS_0_ALLOW_UNLINKING: 'false'
       }
     }
+  });
+
+  // The server fetches provider avatars for the preview. A local server stands
+  // in for the provider.
+  let avatarServer: OGMockServer;
+  test.beforeAll(async () => {
+    avatarServer = await startOGMockServer();
+  });
+  test.afterAll(async () => {
+    await avatarServer.close();
   });
 
   test('explains when the provider username cannot be assigned', async ({ page, authPage }) => {
@@ -47,11 +58,22 @@ test.describe('Managed provider accounts', () => {
       providerLabel: 'Company',
       subject: `managed-${Date.now()}`,
       providerUsername: 'e2eadmin',
-      displayNameHint: 'Managed Person'
+      displayNameHint: 'Managed Person',
+      avatarUrl: `${avatarServer.baseURL}/test-image.png`
     });
     await page.goto(flow.confirmUrl);
+    const preview = page.getByRole('region', { name: 'Profile preview' });
+    // The browser loads the avatar from this server, never from the provider.
+    const avatar = preview.getByRole('img', { name: 'e2eadmin-2' });
+    await expect(avatar).toHaveAttribute('src', /^\/assets\/remote\/avatar\/[\w-]+\?url=/);
+    await expect
+      .poll(() => avatar.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
+      .toBeGreaterThan(0);
+    await expect(preview.getByText('Managed Person', { exact: true })).toBeVisible();
+    await expect(preview.getByText('@e2eadmin-2', { exact: true })).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Username' })).toHaveValue('e2eadmin-2');
     await expect(page.getByRole('textbox', { name: 'Username' })).toBeDisabled();
+    await expect(page.getByText('Your sign-in provider sets this username.')).toBeVisible();
     await expect(page.getByLabel('Display Name')).toBeEnabled();
     await page.getByRole('button', { name: 'Create Account' }).click();
     await page.waitForURL(routes.patterns.chatRedirect);
@@ -170,6 +192,90 @@ test.describe('External identity confirmation flows', () => {
     expect(context.pages()).toHaveLength(1);
   });
 
+  test('links with the password in a link window opened from the legacy settings URL', async ({
+    page,
+    context,
+    authPage
+  }) => {
+    const user = await createAndLoginTestUser(page, { loginPrefix: 'linkwindow' });
+    const callback = `/chat/-/settings/account?link_provider=discord-main&link_user=${user.id}&link_complete=1`;
+    const flow = await authPage.createExternalIdentityFlow({
+      kind: 'link',
+      providerId: 'discord-main',
+      providerType: 'discord',
+      providerLabel: 'Discord',
+      subject: `discord-window-${Date.now()}`,
+      boundUserId: user.id,
+      redirectPath: callback
+    });
+    // Model a verified callback that commits the link before it returns to the window.
+    await context.route('**/auth/providers/discord-main?**', async (route) => {
+      const response = await context.request.post(
+        '/api/connect/chatto.auth.v1.ExternalIdentityAuthService/ConfirmExternalIdentityLink',
+        { data: { token: flow.token } }
+      );
+      expect(response.ok()).toBe(true);
+      await route.fulfill({ status: 302, headers: { Location: callback } });
+    });
+    // Request fresh proof once without ageing the browser session. The server
+    // checks the password of the second request.
+    await context.route(
+      '**/chatto.api.v1.MyAccountService/StartExternalIdentityLink',
+      (route) =>
+        route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 'failed_precondition',
+            message: 'fresh authentication is required'
+          })
+        }),
+      { times: 1 }
+    );
+    await page.goto(routes.settingsAccount);
+    const row = page.getByTestId('sso-provider-row').filter({ hasText: 'Discord' });
+    await expect(row.getByRole('button', { name: 'Link', exact: true })).toBeVisible();
+
+    // Older clients open this URL. Its forward races the origin's first
+    // realtime snapshot in the new window, which discards reads in flight.
+    const popupPromise = page.waitForEvent('popup');
+    await page.evaluate((url) => {
+      window.open(url, '_blank');
+    }, `/chat/-/settings/account?link_provider=discord-main&link_user=${user.id}`);
+    const popup = await popupPromise;
+    await expect(popup).toHaveURL(/\/sso\/link\?/);
+    await expect(popup.getByRole('heading', { name: 'Link Discord?' })).toBeVisible();
+    await expect(popup.getByRole('button', { name: 'Toggle sidebar' })).toHaveCount(0);
+
+    await popup.getByRole('button', { name: 'Continue with Discord' }).click();
+    await popup.getByLabel('Chatto password').fill(user.password);
+    await popup.getByRole('button', { name: 'Continue with Discord' }).click();
+
+    await expect.poll(() => popup.isClosed()).toBe(true);
+    await expect(row.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();
+  });
+
+  test('signs in inside a signed-out link window and returns to the link', async ({
+    page,
+    authPage
+  }) => {
+    const login = `linksignin${Date.now()}`;
+    const user = await authPage.createUserViaApi(login, 'testpassword123');
+    await page.goto(`/sso/link?link_provider=discord-main&link_user=${user.id}`);
+    await expect(page).toHaveURL(/\/login\?redirect=/);
+    await expect(page.getByTestId('sign-in-window-header')).toBeVisible();
+
+    await page.getByRole('link', { name: 'Continue with password' }).click();
+    await expect(page).toHaveURL(/\/login\/password\?redirect=/);
+    await expect(page.getByTestId('sign-in-window-header')).toBeVisible();
+    await page.getByLabel('Username or Email').fill(login);
+    await page.getByLabel('Password', { exact: true }).fill('testpassword123');
+    await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+
+    await expect(page).toHaveURL(/\/sso\/link\?/);
+    await expect(page.getByRole('button', { name: 'Continue with Discord' })).toBeVisible();
+  });
+
   test('confirms the password in origin account settings before opening the provider popup', async ({
     page,
     context,
@@ -185,7 +291,7 @@ test.describe('External identity confirmation flows', () => {
       boundUserId: user.id,
       redirectPath: `/chat/-/settings/account?link_provider=discord-main&link_user=${user.id}&link_complete=1`
     });
-    // Model a verified callback that commits the link before returning to settings.
+    // Model a verified callback that commits the link before returning to the link window.
     // The real provider callback is covered by the backend OIDC integration test.
     await context.route('**/auth/providers/discord-main?**', async (route) => {
       const response = await context.request.post(
@@ -201,7 +307,7 @@ test.describe('External identity confirmation flows', () => {
       });
     });
     await page.goto(routes.settingsAccount);
-    const row = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
+    const row = page.getByTestId('sso-provider-row').filter({ hasText: 'Discord' });
     // Request fresh proof on the first attempt without ageing the browser session.
     await page.route(
       '**/chatto.api.v1.MyAccountService/StartExternalIdentityLink',
@@ -302,7 +408,7 @@ test.describe('External identity confirmation flows', () => {
 
     await page.goto(routes.settingsAccount);
     await expect(page.getByText('GitHub', { exact: true })).toBeVisible();
-    const githubRow = page.locator('div.rounded.border').filter({ hasText: 'GitHub' });
+    const githubRow = page.getByTestId('sso-provider-row').filter({ hasText: 'GitHub' });
     await expect(githubRow.getByText('Linked')).toBeVisible();
 
     let disconnectRequestCount = 0;
@@ -451,7 +557,7 @@ test.describe('External identity confirmation flows', () => {
       await expect(page).toHaveURL(
         new RegExp(`${destination}${outcome === 'linked' ? '$' : '\\?error='}`)
       );
-      const row = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
+      const row = page.getByTestId('sso-provider-row').filter({ hasText: 'Discord' });
       const linkedButton = outcome === 'linked' ? 'Disconnect' : 'Link';
       await expect(row.getByRole('button', { name: linkedButton, exact: true })).toBeVisible();
       if (outcome === 'linked') {
@@ -511,8 +617,8 @@ test.describe('External identity confirmation flows', () => {
     await page.goto(routes.settingsAccount);
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
     await expect(page.getByText('Discord', { exact: true })).toBeVisible();
-    const discordRow = page.locator('div.rounded.border').filter({ hasText: 'Discord' });
-    const githubRow = page.locator('div.rounded.border').filter({ hasText: 'GitHub' });
+    const discordRow = page.getByTestId('sso-provider-row').filter({ hasText: 'Discord' });
+    const githubRow = page.getByTestId('sso-provider-row').filter({ hasText: 'GitHub' });
     await expect(discordRow.getByText('Linked')).toBeVisible();
 
     let releaseDisconnectRequest: (() => void) | undefined;
@@ -563,7 +669,7 @@ test.describe('External identity confirmation flows', () => {
     await page.waitForURL(routes.patterns.chatRedirect);
 
     await page.goto(routes.settingsAccount);
-    const retiredRow = page.locator('div.rounded.border').filter({ hasText: 'retired-provider' });
+    const retiredRow = page.getByTestId('sso-provider-row').filter({ hasText: 'retired-provider' });
     await expect(retiredRow.getByText('Provider no longer configured')).toBeVisible();
 
     await retiredRow.getByRole('button', { name: 'Disconnect' }).click();

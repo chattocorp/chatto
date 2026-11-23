@@ -49,8 +49,7 @@ func TestMessageBodyErasureAfterWriterCrash(t *testing.T) {
 	}
 	stopWriter()
 	conn.Close()
-	_, err = stream.ResumeConsumer(ctx, messageBodyErasureConsumerName)
-	require.NoError(t, err)
+	resumeConsumerAndWakePulls(t, ctx, stream, messageBodyErasureConsumerName)
 
 	waitSucceeded := func(count int) {
 		t.Helper()
@@ -81,6 +80,23 @@ func TestMessageBodyErasureAfterWriterCrash(t *testing.T) {
 	waitSucceeded(3)
 	_, err = stream.GetMsg(ctx, current)
 	require.ErrorIs(t, err, jetstream.ErrMsgNotFound)
+}
+
+// resumeConsumerAndWakePulls ends a consumer pause so that waiting pulls get
+// the pending messages. nats-server does not wake waiting pulls when
+// ResumeConsumer ends a pause early. They wait until their expiry, which is 30
+// seconds for an idle durable worker. A pause deadline that ends by itself
+// wakes them. The response reports Paused only when the server scheduled that
+// wake-up, so the loop retries a deadline that passed before the server set it.
+func resumeConsumerAndWakePulls(t *testing.T, ctx context.Context, stream jetstream.Stream, name string) {
+	t.Helper()
+	for {
+		response, err := stream.PauseConsumer(ctx, name, time.Now().Add(50*time.Millisecond))
+		require.NoError(t, err)
+		if response.Paused {
+			return
+		}
+	}
 }
 
 // failBodyDeletion leaves one physical body intact until storage recovers.

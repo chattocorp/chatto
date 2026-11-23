@@ -19,16 +19,27 @@ const release = workflow('release.yml');
 const npm = workflow('npm.yml');
 const script = (name) => path.join(root, 'tools/release', name);
 
-test('every Sweet reference uses the same revision', () => {
+test('every Sweet reference uses the same release as mise.toml', () => {
+  const [, miseVersion] = read('mise.toml').match(
+    /"github:chattocorp\/sweet-release" = "(sweet@[^"]+)"/
+  );
   const pins = new Set();
-  for (const file of readdirSync(workflowsDir)) {
-    for (const [, revision] of read(`.github/workflows/${file}`).matchAll(
-      /uses: chattocorp\/sweet-release\/\S+@(\S+)/g
-    )) {
-      pins.add(revision);
+  const versions = new Set();
+  // Jobs and steps that call a Sweet workflow or action, with their `with` inputs.
+  const visit = (node) => {
+    if (Array.isArray(node)) return node.forEach(visit);
+    if (node === null || typeof node !== 'object') return;
+    if (typeof node.uses === 'string' && node.uses.startsWith('chattocorp/sweet-release/')) {
+      pins.add(node.uses.split('@')[1]);
+      versions.add(node.with?.['sweet-version']);
     }
-  }
-  assert.deepEqual([...pins], ['7e618be0b38acb105fe128f030f2f9b71527a0f6']);
+    Object.values(node).forEach(visit);
+  };
+  for (const file of readdirSync(workflowsDir)) visit(workflow(file));
+  // The commit of the sweet@0.5.0 release; a tag in `uses:` could move.
+  assert.deepEqual([...pins], ['70a402d3552871474f3a0f152fb2795592ec714a']);
+  // Install the released CLI instead of building it from source.
+  assert.deepEqual([...versions], [miseVersion]);
 });
 
 test('CI tags only after every other job and then publishes from the tag outputs', () => {

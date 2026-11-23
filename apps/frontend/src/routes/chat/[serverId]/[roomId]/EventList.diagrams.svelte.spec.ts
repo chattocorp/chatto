@@ -26,8 +26,12 @@ it('settles diagram rows in a thread', async () => {
   });
   view.container.style.cssText = 'display:flex;flex-direction:column;height:400px;width:360px';
   const scroller = view.container.querySelector<HTMLElement>('[data-testid="messages-container"]')!;
+  // The first image waits for lazily imported Markdown renderers. A cold
+  // browser-test worker can take longer than the default 1 s poll to load them.
   await expect
-    .poll(() => scroller.querySelector('[data-event-id="msg-29"] img')?.getAttribute('src'))
+    .poll(() => scroller.querySelector('[data-event-id="msg-29"] img')?.getAttribute('src'), {
+      timeout: 5000
+    })
     .toBeTruthy();
   for (const top of [scroller.scrollHeight, 0, 1500, 3000, scroller.scrollHeight]) {
     scroller.dispatchEvent(new WheelEvent('wheel', { deltaY: -1000, bubbles: true }));

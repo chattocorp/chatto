@@ -26,6 +26,7 @@ conversation**.
   when the echo is added or removed.
 - The echo in the room timeline shows a "Thread" indicator below the body; clicking it opens the thread.
 - If the original reply was attributed to a specific message, the echo shows the same reply-attribution byline. Clicking the byline on the echo opens the thread and highlights the referenced message inside it.
+- If the original reply has no reply attribution, the echo shows a "From thread" byline with the author and text of the thread root. Clicking it opens the thread and highlights the original reply inside it. The "Thread" indicator stays, because an echo with reply attribution has no other visible link to its thread.
 - Editing or deleting the original reply automatically affects the echo too — edit/delete events target the original reply, and read models apply the change to the linked echo.
 - Deleting the echo itself only hides that room-timeline copy. The original thread reply remains in the thread with its body readable.
 - Reactions shown on the original reply and its channel echo are the same reaction set; reacting in either place targets the original reply.

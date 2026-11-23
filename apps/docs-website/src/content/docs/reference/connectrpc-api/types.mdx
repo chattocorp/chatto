@@ -34,6 +34,7 @@ exposed; clients only need user-facing provider/profile hints.
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 | `choose_username` | optional [`UsernameChoiceAvailability`](#chatto-auth-v1-UsernameChoiceAvailability) | Whether the user can choose a username. When externally managed, the server assigns it and ignores client input. The login hint is not a reservation. |
 | `invitation_required` | `bool` | A create flow must first supply an invitation code. Existing-account sign-in is unaffected. |
+| `avatar_url` | `string` | Same-origin URL of a preview of the provider avatar, when the provider supplied one. The server fetches and re-encodes the image, so the browser does not contact the provider. Account creation imports the avatar. |
 
 <a id="chatto-discovery-v1-NeighborhoodServer"></a>
 
@@ -943,6 +944,7 @@ Linked provider identity metadata for the authenticated user's settings UI.
 | `provider_label` | `string` | Current or fallback provider label. |
 | `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
 | `disconnect_eligibility` | [`DisconnectEligibility`](#chatto-api-v1-DisconnectEligibility) | Disconnect eligibility evaluated by ListExternalIdentities. |
+| `account_label` | `string` | Human-readable name of the linked account at the provider, for example an AT Protocol handle without @. Empty when the server cannot resolve one, including for provider types that do not supply a public account name. |
 
 <a id="chatto-api-v1-AccountActions"></a>
 

@@ -1,7 +1,7 @@
 # ADR-106: Discover the Neighborhood on the Server
 
 **Date:** 2026-09-25
-**Status:** Accepted
+**Status:** Partially superseded by [ADR-128](ADR-128-remote-image-proxy.md), which serves Neighborhood images through the remote image proxy. Server-side discovery remains current.
 
 ## Context
 
@@ -38,26 +38,20 @@ with six active requests and a ten-second timeout for each request. It reads
 at most 100 origins from one remote directory and ignores advertised origins
 longer than 300 bytes. It truncates the stored name, version, and description.
 
-The server uses the link-preview HTTP client. That client checks each resolved
-address when it connects and rejects loopback, private, and link-local
-addresses. Discovery rejects redirects. It accepts a logo or banner from any
-public HTTP or HTTPS host, because a server builds its image URLs from its
-configured `webserver.url` and that host can differ from the advertised origin.
-It resolves a relative image URL against the advertised origin. It accepts an
-image only with a declared GIF, JPEG, PNG, or WebP media type, and only up to
-5 MiB. The server decodes the image with the normal bounded
-image decoder and stores a re-encoded WebP copy.
+The server uses the link-preview HTTP client for discovery requests. That
+client checks each resolved address when it connects and rejects loopback,
+private, and link-local addresses. Discovery rejects redirects. It accepts a
+logo or banner from any public HTTP or HTTPS host, because a server builds its
+image URLs from its configured `webserver.url` and that host can differ from
+the advertised origin. It resolves a relative image URL against the advertised
+origin. ADR-128 fetches, processes, and serves the images.
 
 The latest directory is one `cache_state.v1.NeighborhoodDirectory` value under
-`neighborhood.directory` in `MEMORY_CACHE`. Image copies are content-addressed
-objects under `neighborhood_image.{sha256}` in the shared `ASSET_CACHE`
-object store. The object store is always available and has a
-seven-day TTL. A pass rewrites an image that it still uses when the image is
-older than three days. Unused images expire without a cleanup pass. The public
-`/assets/neighborhood/{sha256}` route serves only names from this prefix.
-`ListNeighborhoodServers` returns each copy as this server-relative path. The
-client resolves the path against the origin that it called, also when the
-server does not configure that origin.
+`neighborhood.directory` in `MEMORY_CACHE`. Each image record holds the
+absolute source URL. `ListNeighborhoodServers` returns each
+image as a signed, server-relative remote image path (ADR-128). The client
+resolves the path against the origin that it called, also when the server
+does not configure that origin.
 
 Every replica runs one worker that checks the directory every five seconds. A
 check reads the directory and compares a hash of its Neighbor set with the
@@ -119,3 +113,11 @@ The server does not delete the old bucket. An operator can remove it after all
 replicas use the new version. Until then, older replicas can still use it and
 apply their configured TTL to `ASSET_CACHE`. The fixed TTL takes full effect
 after the rollout. Both cache buckets remain excluded from backups.
+
+## Remote image proxy (2026-11-23)
+
+ADR-128 replaces the image copies of this decision. Discovery no longer keeps
+content-addressed copies under `neighborhood_image.{sha256}` or rewrites them,
+and the `/assets/neighborhood/{sha256}` route is removed. The remote image
+proxy fetches, caches, and serves the images when a client shows them. Image fetches now follow redirects; the
+SSRF-safe client checks every address that a redirect reaches.

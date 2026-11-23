@@ -338,6 +338,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			LoginHint        string `json:"loginHint"`
 			ProviderUsername string `json:"providerUsername"`
 			DisplayNameHint  string `json:"displayNameHint"`
+			AvatarURL        string `json:"avatarUrl"`
 			BoundUserID      string `json:"boundUserId"`
 			RedirectPath     string `json:"redirectPath"`
 		}
@@ -359,6 +360,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			LoginHint:        req.LoginHint,
 			ProviderUsername: req.ProviderUsername,
 			DisplayNameHint:  req.DisplayNameHint,
+			AvatarURL:        req.AvatarURL,
 			RedirectPath:     req.RedirectPath,
 		}
 

@@ -94,3 +94,57 @@ func matchesAnySubject(filters []compiledSubjectFilter, subject string) bool {
 	}
 	return false
 }
+
+// subjectHasWildcard reports whether a subject filter has a '*' or '>' token.
+// A filter without one matches exactly one subject.
+func subjectHasWildcard(filter string) bool {
+	for _, token := range splitSubjectTokens(filter) {
+		if token == "*" || token == ">" {
+			return true
+		}
+	}
+	return false
+}
+
+// subjectFiltersOverlap reports whether at least one subject matches both
+// filters. '*' matches exactly one token, and a terminal '>' matches one or
+// more tokens. An empty filter matches no subject. A malformed filter, with an
+// empty token or a '>' that is not the last token, gives true: the caller then
+// does not reject a position on this check alone.
+func subjectFiltersOverlap(a, b string) bool {
+	at, bt := splitSubjectTokens(a), splitSubjectTokens(b)
+	if len(at) == 0 || len(bt) == 0 {
+		return false
+	}
+	if !wellFormedFilterTokens(at) || !wellFormedFilterTokens(bt) {
+		return true
+	}
+	for i := 0; ; i++ {
+		switch {
+		case i == len(at) && i == len(bt):
+			return true
+		case i == len(at) || i == len(bt):
+			return false
+		}
+		x, y := at[i], bt[i]
+		if x == ">" || y == ">" {
+			// The other filter has a token here. A subject can supply its
+			// remaining tokens, because they are literal or wildcards.
+			return true
+		}
+		if x != "*" && y != "*" && x != y {
+			return false
+		}
+	}
+}
+
+// wellFormedFilterTokens reports whether filter tokens have no empty token and
+// at most one '>', as the last token.
+func wellFormedFilterTokens(tokens []string) bool {
+	for i, token := range tokens {
+		if token == "" || token == ">" && i != len(tokens)-1 {
+			return false
+		}
+	}
+	return true
+}

@@ -91,6 +91,9 @@ type ChattoCore struct {
 	natsRecoveryState         atomic.Int32
 	natsRecoveryStartedAt     atomic.Int64
 	natsRecoveredReconnects   atomic.Uint64
+	// authWindow is the process-local auth generation check window state
+	// (ADR-127). It is never persisted or shared.
+	authWindow *authGenerationWindow
 
 	// VideoUploadsEnabled makes message commits enqueue durable processing work
 	// for accepted video-shaped attachments. Worker placement is configured
@@ -387,7 +390,7 @@ func (c *ChattoCore) Ready(ctx context.Context) error {
 	if c.natsRecoveredReconnects.Load() != c.nc.Stats().Reconnects {
 		return fmt.Errorf("NATS reconnect has not been recovered")
 	}
-	if _, err := c.storage.runtimeStateKV.Status(ctx); err != nil {
+	if err := c.runtimeStateReady(ctx); err != nil {
 		return fmt.Errorf("RUNTIME_STATE not ready: %w", err)
 	}
 	if _, err := c.currentEventStreamInfo(ctx); err != nil {

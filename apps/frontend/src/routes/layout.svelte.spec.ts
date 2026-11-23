@@ -305,7 +305,11 @@ describe('OAuth page layout', () => {
     ['/servers/callback', '?mode=popup'],
     ['/login', '?redirect=%2Foauth%2Fauthorize'],
     ['/login', '?redirect=%2Foauth%2Fauthorize%3Fclient_id%3Dtest'],
-    ['/login', '?redirect=%2Foauth%2Fconsent']
+    ['/login', '?redirect=%2Foauth%2Fconsent'],
+    ['/sso/link', '?link_provider=github-main&link_user=u1'],
+    ['/login', '?redirect=%2Fsso%2Flink%3Flink_provider%3Dgithub-main'],
+    ['/login/password', '?redirect=%2Fsso%2Flink%3Flink_provider%3Dgithub-main'],
+    ['/login/password', '?redirect=%2Foauth%2Fconsent']
   ] as const)('renders %s%s without app navigation', async (route, search) => {
     page.route.id = route;
     Object.assign(page, { url: new URL(route + search, 'https://chat.example.test') });

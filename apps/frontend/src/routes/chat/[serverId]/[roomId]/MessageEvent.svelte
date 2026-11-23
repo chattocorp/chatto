@@ -311,28 +311,31 @@
   // in a DM whose other participant was deleted.
   const isDeleted = $derived(msg ? isDeletedMessage(msg) : true);
 
-  const replyTarget = $derived.by(() => {
-    const replyToId = msg?.inReplyTo;
-    if (!replyToId) return null;
-    return messageStore?.getEventById(replyToId);
+  /**
+   * The attribution row above the message: the replied-to message, or the
+   * thread root for a channel echo that is not a reply.
+   */
+  const attribution = $derived.by((): { kind: 'reply' | 'thread'; eventId: string } | null => {
+    if (msg?.inReplyTo) return { kind: 'reply', eventId: msg.inReplyTo };
+    if (target.isEcho && msg?.echoFromThreadRootEventId) {
+      return { kind: 'thread', eventId: msg.echoFromThreadRootEventId };
+    }
+    return null;
   });
+  const attributionEventId = $derived(attribution?.eventId ?? null);
 
-  // Fetch reply target only when it is outside the already-loaded event window.
+  // Fetch the attribution target only when it is outside the already-loaded event window.
   $effect(() => {
-    const replyToId = msg?.inReplyTo;
-    if (!replyToId) return;
-    if (!messageStore) return;
-    untrack(() => messageStore.ensureEvent(replyToId));
+    const eventId = attributionEventId;
+    if (!eventId || !messageStore) return;
+    untrack(() => messageStore.ensureEvent(eventId));
   });
 
-  // Derive reply preview from locally fetched target
-  const replyPreview = $derived.by(() => {
-    const replyToId = msg?.inReplyTo;
-    if (!replyToId) return null;
-
+  const attributionPreview = $derived.by(() => {
+    if (!attributionEventId) return null;
     return buildMessageReplyPreview({
-      target: replyTarget,
-      missingName: 'a message',
+      target: messageStore?.getEventById(attributionEventId),
+      missingName: m('room.message.meta.reply_preview_fallback'),
       deletedName: m('common.deleted_user'),
       getDisplayName: (member) => getLiveDisplayName(member.id, member.displayName || member.login)
     });
@@ -376,8 +379,8 @@
     if (member) onOpenUser?.(member, anchorRect);
   }
 
-  function showPopoverForReplyAuthor(e: MouseEvent) {
-    showPopoverForUser(replyPreview?.actor ?? null, e);
+  function showPopoverForAttributionAuthor(e: MouseEvent) {
+    showPopoverForUser(attributionPreview?.actor ?? null, e);
   }
 
   function showPopoverForUser(user: UserAvatarUserView | RoomMember | null, event: MouseEvent) {
@@ -386,21 +389,20 @@
     onOpenUser?.(user, button?.getBoundingClientRect() ?? null);
   }
 
-  function scrollToReplyTarget() {
-    // For echo events, open the thread and highlight the replied-to message there
-    if (target.isEcho && msg?.inReplyTo && msg.echoFromThreadRootEventId && onOpenThread) {
+  function jumpToAttributionTarget() {
+    if (!attribution) return;
+
+    // An echo opens its thread and highlights the replied-to message or the echoed reply there.
+    if (target.isEcho && msg?.echoFromThreadRootEventId && onOpenThread) {
       onOpenThread(msg.echoFromThreadRootEventId, {
-        highlightEventId: msg.inReplyTo
+        highlightEventId: msg.inReplyTo || msg.echoOfEventId || undefined
       });
       return;
     }
 
-    const replyToId = msg?.inReplyTo;
-    if (!replyToId) return;
-
     // Use jump-to-message state which works with the virtualizer.
     // Every ConversationPane provides this context.
-    jumpState.jumpToMessage(replyToId);
+    if (attribution.kind === 'reply') jumpState.jumpToMessage(attribution.eventId);
   }
 
   /** Read only a selection wholly inside this message body, without quote normalization. */
@@ -474,7 +476,7 @@
     deleted={isDeleted}
     viewerLogin={currentUser.user?.login}
     {compact}
-    avatarOffset={!!replyPreview}
+    avatarOffset={!!attributionPreview}
     hasFooter={hasMessageFooter}
     class={[
       compact ? (hasVisualEmbed ? 'mt-1.5' : '') : 'mt-4',
@@ -516,15 +518,16 @@
     {/snippet}
 
     {#snippet prelude()}
-      {#if replyPreview}
+      {#if attribution && attributionPreview}
         <MessageReplyAttribution
-          preview={replyPreview}
+          preview={attributionPreview}
+          kind={attribution.kind}
           {compact}
-          callPresence={replyPreview.actor
-            ? activeCallRooms.getParticipantCallPresence(roomId, replyPreview.actor.id)
+          callPresence={attributionPreview.actor
+            ? activeCallRooms.getParticipantCallPresence(roomId, attributionPreview.actor.id)
             : null}
-          onJump={scrollToReplyTarget}
-          onAuthorClick={showPopoverForReplyAuthor}
+          onJump={jumpToAttributionTarget}
+          onAuthorClick={showPopoverForAttributionAuthor}
         />
       {/if}
     {/snippet}

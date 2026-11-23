@@ -36,11 +36,12 @@ recommendation, not a trust or reciprocal relationship.
   One pass permits at most 150 directory requests and 120 profile requests,
   with six active requests and a ten-second timeout for each request.
 - Neighborhood discovery rejects redirects and servers on loopback, private,
-  and link-local network addresses. It stores re-encoded copies of logos and
-  banners and serves them from the called server. A logo or banner URL can use
+  and link-local network addresses. The called server fetches, re-encodes, and
+  serves logos and banners through its remote image proxy (ADR-128), so the
+  browser does not contact the remote hosts. A logo or banner URL can use
   another public HTTP or HTTPS host than the advertised origin. The
-  `ListNeighborhoodServers` response gives each copy as a server-relative path
-  on the called server.
+  `ListNeighborhoodServers` response gives each image as a signed,
+  server-relative path on the called server.
 - The Add Server action in the Server Gutter opens `/chat/servers`. This is
   the only Server Directory surface. Back returns to the previous page.
   Static hosting and Desktop open this directory directly instead of a

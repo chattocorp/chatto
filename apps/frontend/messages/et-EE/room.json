@@ -160,6 +160,7 @@
         "reaction_users_more": "+ veel {count}",
         "copy_link_title": "Klõpsake selle sõnumi lingi kopeerimiseks",
         "in_reply_to": "vastuseks",
+        "from_thread": "Lõimest",
         "reply_preview_fallback": "Sõnum",
         "deleted": "See sõnum on kustutatud."
       },

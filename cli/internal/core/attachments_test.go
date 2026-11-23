@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
+	"github.com/chattocorp/chatto/cli/internal/core/remoteimage"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
@@ -1234,7 +1235,7 @@ func TestAttachmentCacheCleanupScansOnce(t *testing.T) {
 				ImageCacheKey(attachmentLegacyStableCacheResource, "asset", 64, 64, "cover"),
 			}
 			store := &cacheCleanupStore{}
-			for _, key := range append(slices.Clone(keys), neighborhoodImageKey("hash"), ImageCacheKey(AttachmentSignResource, "asset-other", 64, 64, "cover"), ImageCacheKey(ServerAssetSignResource, "asset", 64, 64, "cover")) {
+			for _, key := range append(slices.Clone(keys), ImageCacheKey("remote_image", remoteimage.SourceID("https://cdn.example.test/asset.png"), 256, 256, "contain"), ImageCacheKey(AttachmentSignResource, "asset-other", 64, 64, "cover"), ImageCacheKey(ServerAssetSignResource, "asset", 64, 64, "cover")) {
 				store.objects = append(store.objects, &jetstream.ObjectInfo{ObjectMeta: jetstream.ObjectMeta{Name: key}})
 			}
 			wantCount := len(keys)

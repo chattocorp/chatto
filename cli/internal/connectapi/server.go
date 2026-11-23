@@ -12,8 +12,10 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/config"
-	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/core/neighborhood"
+	"github.com/chattocorp/chatto/cli/internal/core/remoteimage"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
+	cachestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
 	"google.golang.org/protobuf/proto"
@@ -136,6 +138,21 @@ func (s *serverDiscoveryService) ListNeighbors(ctx context.Context, _ *connect.R
 	return connect.NewResponse(response), nil
 }
 
+// neighborhoodImageURL returns the signed remote image path of one
+// Neighborhood profile image, or nil when there is no usable image. Records
+// from older versions can hold a relative source URL, so the URL resolves
+// against the origin of the record.
+func (s *serverDiscoveryService) neighborhoodImageURL(origin string, image *cachestatev1.NeighborhoodImage, preset remoteimage.Preset) *string {
+	if image.GetSourceUrl() == "" {
+		return nil
+	}
+	sourceURL, ok := neighborhood.ResolveImageURL(origin, image.GetSourceUrl())
+	if !ok {
+		return nil
+	}
+	return new(s.api.core.RemoteImagePath(preset, sourceURL))
+}
+
 func (s *serverDiscoveryService) ListNeighborhoodServers(ctx context.Context, _ *connect.Request[discoveryv1.ListNeighborhoodServersRequest]) (*connect.Response[discoveryv1.ListNeighborhoodServersResponse], error) {
 	directory, err := s.api.core.NeighborhoodDirectory(ctx)
 	if err != nil {
@@ -145,20 +162,17 @@ func (s *serverDiscoveryService) ListNeighborhoodServers(ctx context.Context, _ 
 		Servers:     make([]*discoveryv1.NeighborhoodServer, 0, len(directory.GetServers())),
 		RefreshedAt: directory.GetRefreshedAt(),
 	}
-	// Image URLs are server-relative paths, so they always name the origin
-	// that the client called, also one that the server does not configure. A
-	// client accepts a cached image only from the server that it called.
+	// Image URLs are server-relative remote image paths, so they always name
+	// the origin that the client called, also one that the server does not
+	// configure. A client accepts a cached image only from the server that it
+	// called.
 	for _, record := range directory.GetServers() {
 		profile := &apiv1.ServerPublicProfile{Name: record.GetName(), Version: record.GetVersion()}
 		if description := record.GetDescription(); description != "" {
 			profile.Description = new(description)
 		}
-		if logo := record.GetLogo(); logo != nil {
-			profile.LogoUrl = new(core.NeighborhoodImagePath(logo.GetObjectName()))
-		}
-		if banner := record.GetBanner(); banner != nil {
-			profile.BannerUrl = new(core.NeighborhoodImagePath(banner.GetObjectName()))
-		}
+		profile.LogoUrl = s.neighborhoodImageURL(record.GetOrigin(), record.GetLogo(), remoteimage.PresetAvatar)
+		profile.BannerUrl = s.neighborhoodImageURL(record.GetOrigin(), record.GetBanner(), remoteimage.PresetBanner)
 		response.Servers = append(response.Servers, &discoveryv1.NeighborhoodServer{
 			Origin:               record.GetOrigin(),
 			Profile:              profile,
