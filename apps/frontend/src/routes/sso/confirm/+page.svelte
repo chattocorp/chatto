@@ -6,7 +6,6 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
-  import { isProviderCallback } from '$lib/auth/providerContinuation';
   import { providerIcon } from '$lib/auth/providerIcon';
   import { getAuthServerInfo } from '$lib/components/authServerInfo';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
@@ -99,13 +98,6 @@
         login: usernameManaged ? '' : login,
         displayName
       });
-      const returnURL = new URL(redirectPath, window.location.origin);
-      if (isProviderCallback(returnURL)) {
-        // The opening tab owns its saved return navigation. Complete this
-        // popup before any copied sessionStorage return path can take over.
-        await goto(resolve(redirectPath as '/'), { replaceState: true });
-        return;
-      }
       const resumedReturnNavigation = await completeOriginAuthentication();
       if (!resumedReturnNavigation) {
         goto(resolve(redirectPath as '/'), { replaceState: true });
@@ -159,7 +151,6 @@
       }
     }
     const returnURL = new URL(pending?.redirectPath || '/login', window.location.origin);
-    if (isProviderCallback(returnURL)) returnURL.searchParams.set('error', 'access_denied');
     goto(resolve((returnURL.pathname + returnURL.search + returnURL.hash) as '/login'), {
       replaceState: true
     });

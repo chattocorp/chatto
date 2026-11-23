@@ -1,19 +1,16 @@
 <script lang="ts">
   import { MAX_LOGIN_LENGTH } from '$lib/validation/login';
-  import { confirmPendingAtprotoHandle } from '$lib/atproto/rememberedHandle';
   import { goto } from '$app/navigation';
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import { onDestroy } from 'svelte';
-  import { confirmProviderAccount, type ProviderSignInResult } from '$lib/auth/providerSignIn';
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import { acceptRegistrationInvitation } from '$lib/auth/registrationAdmission';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import OriginProviderButtons from '$lib/components/auth/OriginProviderButtons.svelte';
-  import { popupErrorMessage } from '$lib/oauth/popupError';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import { Divider, Hint, PageTitle } from '$lib/ui';
@@ -46,7 +43,6 @@
   let error = $state('');
   let isLoading = $state(false);
   let isResending = $state(false);
-  let providerError = $state('');
   let active = true;
   onDestroy(() => {
     active = false;
@@ -117,16 +113,6 @@
     } finally {
       isLoading = false;
     }
-  }
-
-  async function completeProviderSignIn(result: ProviderSignInResult) {
-    confirmPendingAtprotoHandle();
-    if (result.kind === 'confirm-account') {
-      await confirmProviderAccount(result.token, data.redirectUrl);
-      return;
-    }
-    if (!(await completeOriginAuthentication()))
-      await navigateAfterAuthentication(data.redirectUrl);
   }
 
   async function requestRegistrationCode(options: { resend?: boolean } = {}) {
@@ -278,19 +264,7 @@
     </form>
   {:else if step === 'email'}
     {#if registrationProviders.length > 0}
-      <OriginProviderButtons
-        providers={registrationProviders}
-        href={providerLoginHref}
-        popupUrl={compact ? undefined : providerLoginHref}
-        onstart={() => {
-          providerError = '';
-        }}
-        onresult={completeProviderSignIn}
-        onerror={(err) => {
-          providerError = popupErrorMessage(err, m('auth.register.failed'));
-        }}
-      />
-      <FormError error={providerError} />
+      <OriginProviderButtons providers={registrationProviders} href={providerLoginHref} {compact} />
     {/if}
 
     {#if registrationEnabled && registrationProviders.length > 0}

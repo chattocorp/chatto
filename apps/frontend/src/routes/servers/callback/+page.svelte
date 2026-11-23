@@ -44,9 +44,8 @@
   // Each registered callback carries a mode. A callback without one has no
   // waiting client, so this page never exchanges a code itself.
   onMount(() => {
-    const popupResponse = ['popup', 'provider'].includes(page.url.searchParams.get('mode') ?? '')
-      ? oauthPopupResponseFromURL(page.url)
-      : null;
+    const popupResponse =
+      page.url.searchParams.get('mode') === 'popup' ? oauthPopupResponseFromURL(page.url) : null;
     if (!popupResponse) {
       status = 'error';
       errorMessage = m('auth.callback.no_code');

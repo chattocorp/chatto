@@ -38,7 +38,7 @@ const data = {
     displayNameHint: '',
     verifiedEmail: null,
     boundUserId: null,
-    redirectPath: '/servers/callback?mode=provider&state=original-state'
+    redirectPath: '/chat/room'
   }
 };
 
@@ -65,14 +65,11 @@ describe('existing-account provider confirmation', () => {
     expect(mocks.startLink).toHaveBeenCalledTimes(2);
   });
 
-  it('returns cancellation to the opening window even when cleanup fails', async () => {
+  it('returns cancellation to the saved path even when cleanup fails', async () => {
     mocks.cancel.mockRejectedValue(new Error('Network unavailable'));
     const { getByRole } = render(ConfirmPage, { props: { data: data as never } });
     await getByRole('button', { name: 'Cancel', exact: true }).click();
-    expect(mocks.goto).toHaveBeenCalledWith(
-      '/servers/callback?mode=provider&state=original-state&error=access_denied',
-      { replaceState: true }
-    );
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/room', { replaceState: true });
     expect(mocks.startLink).not.toHaveBeenCalled();
   });
 });

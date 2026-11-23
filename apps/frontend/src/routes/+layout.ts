@@ -6,6 +6,7 @@ import { isBackendCapableOrigin } from '@chatto/client/util/runtimeOrigin';
 import { serverRegistry } from '$lib/client';
 import { registerOriginServer } from '$lib/serverCatalogue';
 import { deleteLegacySavedViews } from '$lib/storage/legacySavedViews';
+import { confirmPendingAtprotoHandle } from '$lib/atproto/rememberedHandle';
 import type { LayoutLoad } from './$types';
 
 // SPA mode - no server-side rendering
@@ -46,6 +47,9 @@ export const load: LayoutLoad = async ({ url }) => {
     serverInfoPromise,
     userPromise
   ]);
+
+  // A provider sign-in in this window ends with an origin session.
+  if (user) confirmPendingAtprotoHandle();
 
   // Child route loads need a settled origin registry to resolve the "-" URL
   // segment and make authentication decisions before components render.

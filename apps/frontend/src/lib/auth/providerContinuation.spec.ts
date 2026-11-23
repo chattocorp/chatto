@@ -6,7 +6,6 @@ vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
 describe('provider continuation navigation', () => {
   it.each([
     ['/sso/confirm?token=flow&existing=1', true],
-    ['/servers/callback?mode=provider&state=transaction', true],
     ['/servers/callback?mode=popup&state=transaction', false],
     ['/sso/confirm?token=flow', false],
     ['/sso/confirm?existing=1', false],

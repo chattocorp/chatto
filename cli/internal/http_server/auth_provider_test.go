@@ -200,9 +200,9 @@ func TestFetchGitHubVerifiedPrimaryEmail(t *testing.T) {
 	}
 }
 
-// Provider denial must finish the popup transaction without accepting an
-// unvalidated callback state or an external return URL.
-func TestProviderDenialReturnsToPopup(t *testing.T) {
+// Provider denial shows the error on the login page. It keeps a safe return
+// path and does not accept an unvalidated callback state or an external URL.
+func TestProviderDenialReturnsToLogin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	issuer := newNoEmailOIDCIssuer(t, "client-id")
 	defer issuer.Close()
@@ -213,15 +213,15 @@ func TestProviderDenialReturnsToPopup(t *testing.T) {
 		}}
 		s.setupOIDCRoutes()
 	})
-	const popupReturn = "/servers/callback?mode=provider&state=popup-state"
+	const returnPath = "/chat/room"
 	for _, tc := range []struct {
-		name, returnPath, wantPath, wantError string
-		badState                              bool
+		name, returnPath, wantRedirect, wantError string
+		badState                                  bool
 	}{
-		{"popup", popupReturn, "/servers/callback", "provider_denied", false},
-		{"no return path", "", "/login", "provider_denied", false},
-		{"external return path", "https://attacker.invalid/callback", "/login", "provider_denied", false},
-		{"invalid state", popupReturn, "/login", "provider_failed", true},
+		{"return path", returnPath, returnPath, "provider_denied", false},
+		{"no return path", "", "", "provider_denied", false},
+		{"external return path", "https://attacker.invalid/callback", "", "provider_denied", false},
+		{"invalid state", returnPath, "", "provider_failed", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			start := startNoEmailOIDC(t, client, ts.URL, "test-provider", url.Values{"redirect": {tc.returnPath}})
@@ -241,13 +241,10 @@ func TestProviderDenialReturnsToPopup(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if response.StatusCode != http.StatusTemporaryRedirect || location.Path != tc.wantPath || location.Query().Get("error") != tc.wantError {
-				t.Fatalf("denial return = %d %q, want %s with %s", response.StatusCode, location, tc.wantPath, tc.wantError)
+			if response.StatusCode != http.StatusTemporaryRedirect || location.Path != "/login" || location.Query().Get("error") != tc.wantError || location.Query().Get("redirect") != tc.wantRedirect {
+				t.Fatalf("denial return = %d %q, want /login with %s and redirect %q", response.StatusCode, location, tc.wantError, tc.wantRedirect)
 			}
-			if tc.wantPath == "/servers/callback" && (location.Query().Get("mode") != "provider" || location.Query().Get("state") != "popup-state") {
-				t.Fatalf("popup correlation was lost: %s", location)
-			}
-			// The state is consumed even on denial; replay cannot notify a popup.
+			// The state is consumed even on denial; a replay cannot use it.
 			replay, err := client.Get(callback)
 			if err != nil {
 				t.Fatal(err)
@@ -463,13 +460,13 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 	}
 
 	issuer.SetSubject("subject-conflict")
-	// Failed account-link authorization must notify the original popup owner.
-	const popupReturn = "/servers/callback?mode=provider&state=popup-state"
+	// Failed account-link authorization returns the error to the link's saved path.
+	const linkReturn = "/chat/-/settings/account?link_complete=1"
 	for _, tc := range []struct{ providerError, wantError string }{
 		{"access_denied", "provider_denied"},
 		{"", "provider_failed"},
 	} {
-		failedStart, err := chattoCore.CreatePendingExternalIdentityLinkStart(t.Context(), "oidc-no-email", popupReturn, linkUser.Id)
+		failedStart, err := chattoCore.CreatePendingExternalIdentityLinkStart(t.Context(), "oidc-no-email", linkReturn, linkUser.Id)
 		if err != nil {
 			t.Fatalf("create failed link start: %v", err)
 		}
@@ -489,8 +486,8 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if failedReturn.Path != "/servers/callback" || failedReturn.Query().Get("state") != "popup-state" || failedReturn.Query().Get("mode") != "provider" || failedReturn.Query().Get("error") != tc.wantError {
-			t.Fatalf("failed link return = %q, want popup callback with %s", failedReturn, tc.wantError)
+		if failedReturn.Path != "/chat/-/settings/account" || failedReturn.Query().Get("link_complete") != "1" || failedReturn.Query().Get("error") != tc.wantError {
+			t.Fatalf("failed link return = %q, want account settings with %s", failedReturn, tc.wantError)
 		}
 	}
 
@@ -1236,43 +1233,4 @@ func (i *noEmailOIDCIssuer) idToken(_ context.Context) string {
 		panic(err)
 	}
 	return raw
-}
-
-// A sign-in popup must not show the new-account confirmation itself. It hands
-// the pending token, or the unlinked error, to the window that opened it.
-func TestProviderPopupHandsNewAccountConfirmationToOpener(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	issuer := newNoEmailOIDCIssuer(t, "client-id")
-	defer issuer.Close()
-	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
-		s.config.Webserver.URL = "http://chat.example"
-		s.config.Auth.Providers = []config.AuthProviderConfig{
-			{ID: "open", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(), ClientID: "client-id", ClientSecret: "client-secret", AutoProvision: new(true)},
-			{ID: "closed", Type: config.AuthProviderTypeOpenIDConnect, IssuerURL: issuer.URL(), ClientID: "client-id", ClientSecret: "client-secret"},
-		}
-		s.setupOIDCRoutes()
-	})
-	const popupReturn = "/servers/callback?mode=provider&state=popup-state"
-
-	issuer.SetSubject("popup-new")
-	location, err := url.Parse(completeNoEmailOIDCLogin(t, client, ts.URL, "open", popupReturn))
-	require.NoError(t, err)
-	require.Equal(t, "/servers/callback", location.Path)
-	require.Equal(t, "popup-state", location.Query().Get("state"))
-	token := location.Query().Get("external_identity")
-	require.NotEmpty(t, token)
-	pending, err := chattoCore.GetPendingExternalIdentityFlow(t.Context(), token)
-	require.NoError(t, err)
-	require.Equal(t, "/", pending.RedirectPath, "the opening window owns the return navigation")
-
-	issuer.SetSubject("popup-unlinked")
-	location, err = url.Parse(completeNoEmailOIDCLogin(t, client, ts.URL, "closed", popupReturn))
-	require.NoError(t, err)
-	require.Equal(t, "/servers/callback", location.Path)
-	require.Equal(t, "external_identity_unlinked", location.Query().Get("error"))
-
-	// Without a popup, the confirmation stays in the same window.
-	issuer.SetSubject("full-page-new")
-	full := completeNoEmailOIDCLogin(t, client, ts.URL, "open", "/chat")
-	require.True(t, strings.HasPrefix(full, "/sso/confirm?"), full)
 }
