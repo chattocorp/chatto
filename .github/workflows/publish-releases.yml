@@ -131,10 +131,11 @@ jobs:
         uses: actions/checkout@v6
         with:
           persist-credentials: false
-      # Unreleased Sweet Release commit (PRs #62, #63, and #64, `sweet github release`):
-      # move to the next Sweet release tag. The action builds the CLI from this revision.
+      # Sweet Release 0.5.0, pinned by commit (see bump-releases.yml).
       - if: steps.select.outputs.tags != ''
-        uses: chattocorp/sweet-release/.github/actions/bootstrap@7e618be0b38acb105fe128f030f2f9b71527a0f6
+        uses: chattocorp/sweet-release/.github/actions/bootstrap@70a402d3552871474f3a0f152fb2795592ec714a # sweet@0.5.0
+        with:
+          sweet-version: sweet@0.5.0
       - name: Publish component releases
         if: steps.select.outputs.tags != ''
         env:
