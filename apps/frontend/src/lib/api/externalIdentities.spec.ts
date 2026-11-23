@@ -121,6 +121,14 @@ describe('createExternalIdentityAPI', () => {
     expect(result.linkedIdentities[0]?.disconnectEligibility).toBe(disconnectEligibility);
   });
 
+  it('passes through the linked account label', async () => {
+    account.listExternalIdentities.mockReturnValue({
+      linkedIdentities: [{ subjectHash: 'identity', accountLabel: 'alice.example' }]
+    });
+    const result = await createExternalIdentityAPI(config()).list();
+    expect(result.linkedIdentities[0]?.accountLabel).toBe('alice.example');
+  });
+
   it('lists providers and resolves provider links against the server origin', async () => {
     account.listExternalIdentities.mockReturnValue({
       providers: [
@@ -166,7 +174,8 @@ describe('createExternalIdentityAPI', () => {
           providerType: 'github',
           providerLabel: 'GitHub',
           subjectHash: 'abc123',
-          disconnectEligibility: DisconnectEligibility.UNSPECIFIED
+          disconnectEligibility: DisconnectEligibility.UNSPECIFIED,
+          accountLabel: null
         }
       ]
     });
