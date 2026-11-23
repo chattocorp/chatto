@@ -15,7 +15,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
-	"golang.org/x/time/rate"
 
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/config"
@@ -51,21 +50,21 @@ func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version st
 		return nil, fmt.Errorf("valid MCP resource URL is required")
 	}
 
-	limiter := rate.NewLimiter(20, 40)
+	admission := newAdmission()
 	handlers := make(map[string]http.Handler, len(resources))
 	for _, resource := range resources {
 		resourceURL, err := url.Parse(resource)
 		if err != nil || resourceURL.Path != "/mcp" || resourceURL.Host == "" {
 			return nil, fmt.Errorf("valid MCP resource URL is required")
 		}
-		handlers[strings.ToLower(resourceURL.Host)] = newResourceHandler(chattoCore, issuer, resource, version, limiter, cfg.Search.Enabled, deps)
+		handlers[strings.ToLower(resourceURL.Host)] = newResourceHandler(chattoCore, issuer, resource, version, admission, cfg.Search.Enabled, deps)
 	}
 	return requireConfiguredHost(handlers), nil
 }
 
 // newResourceHandler constructs one self-consistent MCP resource. The caller
 // must dispatch requests only when their Host matches the resource origin.
-func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version string, limiter *rate.Limiter, searchEnabled bool, deps handlerOptions) http.Handler {
+func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version string, admission *admission, searchEnabled bool, deps handlerOptions) http.Handler {
 	resourceURL, _ := url.Parse(resource)
 	metadataURL := resourceURL.Scheme + "://" + resourceURL.Host + "/.well-known/oauth-protected-resource/mcp"
 
@@ -141,14 +140,12 @@ func newResourceHandler(chattoCore *core.ChattoCore, issuer, resource, version s
 		// The outer handler validates the configured public Host exactly.
 		DisableLocalhostProtection: true,
 	})
-	protected := auth.RequireBearerToken(tokenVerifier(chattoCore, resource), &auth.RequireBearerTokenOptions{
+	mcpHandler := admission.wrap(auth.RequireBearerToken(admission.verifier(tokenVerifier(chattoCore, resource)), &auth.RequireBearerTokenOptions{
 		ResourceMetadataURL:    metadataURL,
 		AllowMissingExpiration: true,
-	})(requireToolScope(metadataURL, withRealtimeMinimum(chattoCore, streamable)))
+	}), requireToolScope(metadataURL, withRealtimeMinimum(chattoCore, streamable)))
 
 	mux := http.NewServeMux()
-	mcpHandler := http.NewCrossOriginProtection().Handler(withRequestDeadline(protected))
-	mcpHandler = withAdmissionLimit(limiter, mcpHandler)
 	mux.Handle("/mcp", mcpHandler)
 	mux.Handle("/.well-known/oauth-protected-resource/mcp", auth.ProtectedResourceMetadataHandler(&oauthex.ProtectedResourceMetadata{
 		Resource:             resource,
@@ -184,19 +181,6 @@ func requireConfiguredHost(handlers map[string]http.Handler) http.Handler {
 			return
 		}
 		handler.ServeHTTP(w, r)
-	})
-}
-
-func withAdmissionLimit(limiter *rate.Limiter, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !limiter.Allow() {
-			w.Header().Set("Retry-After", "1")
-			f := failure("rate_limited", "MCP request rate limit exceeded. Wait before trying again.", "retry", "after_delay")
-			f.RetryAfterMs = 1000
-			writeHTTPFailure(w, http.StatusTooManyRequests, f)
-			return
-		}
-		next.ServeHTTP(w, r)
 	})
 }
 

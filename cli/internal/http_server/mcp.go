@@ -26,7 +26,11 @@ func (s *HTTPServer) setupMCPRoutes() error {
 	if err != nil {
 		return fmt.Errorf("configure MCP routes: %w", err)
 	}
-	wrapped := gin.WrapH(handler)
+	// Pass the client IP that gin resolved through webserver.trusted_proxies,
+	// so that admission limits key callers behind a proxy correctly.
+	wrapped := func(c *gin.Context) {
+		handler.ServeHTTP(c.Writer, mcpserver.WithClientAddress(c.Request, c.ClientIP()))
+	}
 	s.router.Any(mcpPath, wrapped)
 	s.router.Any(mcpProtectedResourcePath, wrapped)
 	return nil

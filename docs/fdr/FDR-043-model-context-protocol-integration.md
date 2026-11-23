@@ -126,9 +126,9 @@ primitive.
   limits. Tool results do not contain raw broker coordinates or internal
   storage identifiers.
 - The endpoint requires a configured public server Host and rejects wildcard
-  or unknown hosts. It rejects cross-origin browser writes, limits admission
-  across all configured hosts to 20 requests per second with a burst of 40,
-  and gives each request 15 seconds.
+  or unknown hosts. It rejects cross-origin browser writes and gives each
+  request 15 seconds. Admission limits are separate for each caller; see
+  [decision 12](#12-separate-admission-limits-for-each-caller).
 - A listed tool can reject a specific target even when its scope is granted.
 - Every tool call applies current Chatto RBAC, room membership, message access,
   search visibility, and absence rules. A successful earlier call does not
@@ -302,6 +302,55 @@ write can still have a failed response. A keyed retry keeps the same message
 identity; an unkeyed post needs a result check. See
 [FDR-052](FDR-052-message-send-retries.md) and
 [ADR-117](../adr/ADR-117-message-post-idempotency.md).
+
+### 12. Separate admission limits for each caller
+
+**Decision:** Admit MCP requests in stages, so that one caller cannot use the
+allowance of another caller:
+
+- A request without a bearer token gets only an authentication challenge. Each
+  client network has 5 such requests per second with a burst of 20. All of
+  them together have 20 per second with a burst of 40.
+- Each request with a bearer token that does not authenticate is a failure.
+  A backend error during verification is not a failure; a cancelled or
+  expired request is. At most 10 requests with new credentials from one
+  client network can wait for verification at the same time.
+  A client network can have 10 failures, plus one more each 5 seconds. After
+  that, the network cannot present tokens until the allowance refills. Chatto
+  does not read the credential store for a blocked request.
+- After a credential authenticates, the replica keeps a bounded index from
+  the credential hash to its account. A later request with that credential
+  uses the allowance of its account before verification. Verification still
+  decides each request, and a failure removes the credential from the index.
+- A credential that is not in the index has 20 requests per second with a
+  burst of 40 before verification. All such credentials together have 200
+  requests per second with a burst of 400.
+- Each authenticated account has 20 requests per second with a burst of 40
+  across all of its credentials, and at most 8 requests that run at the same
+  time.
+- Cross-origin browser writes are rejected before these stages and use no
+  allowance.
+
+A client network is an IPv4 address or an IPv6 /64 prefix. Chatto gets it
+through `webserver.trusted_proxies`. A rejection returns HTTP `429`,
+`Retry-After`, and `retryAfterMs`. It does not identify the stage, network,
+credential, or account. Chatto keeps the keys only in memory and does not log
+them.
+**Why:** One shared limit in front of authentication let anonymous callers or
+one flooding bot block all authenticated callers (#2243). A caller-specific
+stage runs before each shared ceiling, so a flood from one caller does not use
+the shared ceilings. The credential index keeps an account with many
+credentials out of the shared ceiling. Bounded failure checks protect the
+credential store.
+**Tradeoff:** Each replica enforces the limits in its own memory, so N replicas
+admit up to N times the values. A caller on the same client network as a
+source of failed tokens cannot present tokens while the failure allowance is
+empty. A caller that uses many new valid credentials can still use the shared
+ceiling for their first requests. When a keyed limit holds 10,000 entries
+that all have requests in progress, it rejects new keys. Without correct
+`webserver.trusted_proxies`, all callers behind a proxy share one client
+network. A distributed flood with many networks can still reach the shared
+ceilings.
 
 ## Tool Admission Policy
 

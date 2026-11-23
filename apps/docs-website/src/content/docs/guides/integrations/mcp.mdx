@@ -41,6 +41,29 @@ origin does not work on another origin. The authorization server always uses
 the canonical `webserver.url` origin as its issuer. Bot API keys work on each
 configured endpoint. A reverse proxy needs no separate MCP upstream.
 
+## Request limits
+
+Each account has its own request allowance, so one caller cannot use the
+allowance of another account. Credentials that have not authenticated on a
+replica yet share a safety ceiling, and callers on one client network share the
+limit for tokens that do not authenticate. Each replica applies these limits
+separately:
+
+| Caller | Limit |
+| --- | --- |
+| Authenticated account | 20 requests per second, burst 40, across all of its credentials. At most 8 requests at the same time. |
+| A credential that has not authenticated on this replica yet | 20 requests per second, burst 40. |
+| All such credentials together | 200 requests per second, burst 400. |
+| Requests without a token, per client network | 5 requests per second, burst 20. |
+| Requests without a token, all together | 20 requests per second, burst 40. |
+| Tokens that do not authenticate, per client network | 10, then 1 more each 5 seconds. After that, no caller on that network can present tokens until the allowance refills. |
+| Requests with new credentials that wait for verification, per client network | At most 10 at the same time. |
+
+A client network is one IPv4 address or one IPv6 `/64` prefix. Behind a
+reverse proxy, set `webserver.trusted_proxies` so Chatto sees each client
+address. Without it, all callers share the address of the proxy. A rejected
+request gets HTTP `429` with `Retry-After`.
+
 ## Authenticate an agent host
 
 Human users authorize an MCP client through OAuth Authorization Code with S256
@@ -119,6 +142,7 @@ For a diagnostic client, see [MCP Inspector](/reference/mcp/#mcp-inspector).
 | `/mcp` returns `404` | Enable `[mcp].enabled` and check the public URL and reverse proxy. |
 | `initialize` returns method not found | Use a host with stateless `2026-07-28` support. In Inspector, select the modern protocol era. |
 | Consent rejects `redirect_uri` | Check the client's CIMD document. Runtime ports require a native client and a literal loopback IP callback. Named localhost callbacks must match exactly. |
+| A request returns `429` | Wait for `Retry-After`. If many callers share a proxy, check `webserver.trusted_proxies`. See [Request limits](#request-limits). |
 | A tool request returns `401` | Authorize the exact MCP URL again. Check grant expiry, client blocking, and the valid MCP scopes. A first-party token or a grant for another origin cannot be used. |
 | A tool is absent or returns `403 insufficient_scope` | Request its scope in a new OAuth consent flow. The Bearer challenge identifies the required scope. Keep any existing scopes that the host still needs. |
 | `search_messages` is absent with message-read access | Ask the operator to check that search is enabled on the server. |
