@@ -1191,3 +1191,62 @@ func TestMyEventsHubIngressGapClosesSubscribersForRecovery(t *testing.T) {
 		}
 	}
 }
+
+// TestMyEventsIngressBacklogCountsPendingQueue checks the admission boundary:
+// the backlog includes messages in the NATS pending queue, not only in the
+// hub channel. Reading the backlog must not wait for a message that does not
+// exist, and it must leave at most one received message.
+func TestMyEventsIngressBacklogCountsPendingQueue(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	const total = 100
+	msgChan := make(chan *nats.Msg, 4)
+	stop := make(chan struct{})
+	defer close(stop)
+	sub, err := nc.Subscribe("live.sync.user.backlog.test", func(msg *nats.Msg) {
+		select {
+		case msgChan <- msg:
+		case <-stop:
+		}
+	})
+	if err != nil {
+		t.Fatalf("Subscribe: %v", err)
+	}
+	defer sub.Unsubscribe()
+	for range total {
+		if err := nc.Publish("live.sync.user.backlog.test", []byte("x")); err != nil {
+			t.Fatalf("Publish: %v", err)
+		}
+	}
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		pending, _, _ := sub.Pending()
+		if len(msgChan)+pending >= total || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	backlog := ingressBacklog(msgChan, sub)
+	if backlog < total-1 || backlog > total {
+		t.Fatalf("backlog = %d, want %d or %d", backlog, total-1, total)
+	}
+	for i := range backlog {
+		select {
+		case <-msgChan:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("backlog message %d did not arrive", i)
+		}
+	}
+	select {
+	case <-msgChan:
+	case <-time.After(100 * time.Millisecond):
+	}
+	select {
+	case <-msgChan:
+		t.Fatal("more than one received message remained after the backlog")
+	case <-time.After(100 * time.Millisecond):
+	}
+}
