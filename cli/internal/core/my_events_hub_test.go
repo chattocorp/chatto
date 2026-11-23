@@ -1192,17 +1192,18 @@ func TestMyEventsHubIngressGapClosesSubscribersForRecovery(t *testing.T) {
 	}
 }
 
-// TestMyEventsIngressBacklogCountsPendingQueue checks the admission boundary:
-// the backlog includes messages in the NATS pending queue, not only in the
-// hub channel. Reading the backlog must not wait for a message that does not
-// exist, and it must leave at most one received message.
-func TestMyEventsIngressBacklogCountsPendingQueue(t *testing.T) {
+// TestMyEventsHubDrainsPendingQueueBeforeAdmission checks the admission
+// boundary: the drain includes messages in the NATS pending queue, not only
+// in the hub channel, and it does not wait for messages that do not exist.
+func TestMyEventsHubDrainsPendingQueueBeforeAdmission(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
+	hub := NewMyEventsModel(&ChattoCore{logger: testCoreLogger()}).hub
 	const total = 100
+	subject := "live.sync.user.backlog.test"
 	msgChan := make(chan *nats.Msg, 4)
 	stop := make(chan struct{})
 	defer close(stop)
-	sub, err := nc.Subscribe("live.sync.user.backlog.test", func(msg *nats.Msg) {
+	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
 		select {
 		case msgChan <- msg:
 		case <-stop:
@@ -1213,7 +1214,7 @@ func TestMyEventsIngressBacklogCountsPendingQueue(t *testing.T) {
 	}
 	defer sub.Unsubscribe()
 	for range total {
-		if err := nc.Publish("live.sync.user.backlog.test", []byte("x")); err != nil {
+		if err := nc.Publish(subject, []byte("not a protobuf")); err != nil {
 			t.Fatalf("Publish: %v", err)
 		}
 	}
@@ -1221,7 +1222,7 @@ func TestMyEventsIngressBacklogCountsPendingQueue(t *testing.T) {
 		t.Fatalf("Flush: %v", err)
 	}
 	deadline := time.Now().Add(5 * time.Second)
-	for {
+	for hub.decoded.Load() == 0 {
 		pending, _, _ := sub.Pending()
 		if len(msgChan)+pending >= total || time.Now().After(deadline) {
 			break
@@ -1229,24 +1230,19 @@ func TestMyEventsIngressBacklogCountsPendingQueue(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 
-	backlog := ingressBacklog(msgChan, sub)
-	if backlog < total-1 || backlog > total {
-		t.Fatalf("backlog = %d, want %d or %d", backlog, total-1, total)
-	}
-	for i := range backlog {
-		select {
-		case <-msgChan:
-		case <-time.After(5 * time.Second):
-			t.Fatalf("backlog message %d did not arrive", i)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if _, discontinuous, err := hub.drainIngressBacklog(testContext(t), msgChan, sub); discontinuous || err != nil {
+			t.Errorf("drain = discontinuous %v, error %v", discontinuous, err)
 		}
-	}
+	}()
 	select {
-	case <-msgChan:
-	case <-time.After(100 * time.Millisecond):
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("drain did not return")
 	}
-	select {
-	case <-msgChan:
-		t.Fatal("more than one received message remained after the backlog")
-	case <-time.After(100 * time.Millisecond):
+	if got := hub.decoded.Load(); got != total {
+		t.Fatalf("drained messages = %d, want %d", got, total)
 	}
 }

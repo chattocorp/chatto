@@ -192,6 +192,13 @@ func (h *MyEventsHub) Run(ctx context.Context) error {
 			end()
 			return fmt.Errorf("myEvents hub: activate ingress: %w", err)
 		}
+		if dropped, _ := ingressSub.Dropped(); dropped > 0 {
+			// The subscription lost a message before the listener existed.
+			// Admission is still closed, so start again with a new one.
+			h.model.core.logger.Warn("Slow consumer on process-wide live subscription during activation", "dropped", dropped)
+			end()
+			continue
+		}
 		h.beginGeneration()
 		h.readyOnce.Do(func() { close(h.ready) })
 
@@ -228,18 +235,9 @@ func (h *MyEventsHub) runGeneration(
 		case request := <-h.registrations:
 			// Preserve the old per-subscription live boundary: anything the
 			// process had already received before admission is not delivered to
-			// the new session. Snapshot the count so sustained traffic cannot
-			// starve registration.
-			for range ingressBacklog(msgChan, ingressSub) {
-				var msg *nats.Msg
-				select {
-				case msg = <-msgChan:
-				case <-ctx.Done():
-					return "hub stopped", ctx.Err()
-				}
-				if msg != nil && h.handleMessage(ctx, msg) {
-					return "projection readiness discontinuity", nil
-				}
+			// the new session.
+			if reason, discontinuous, err := h.drainIngressBacklog(ctx, msgChan, ingressSub); discontinuous || err != nil {
+				return reason, err
 			}
 			h.handleRegistration(request)
 		case msg := <-msgChan:
@@ -253,19 +251,43 @@ func (h *MyEventsHub) runGeneration(
 	}
 }
 
-// ingressBacklog returns the number of messages that the process received
-// before this call and that the hub did not process yet. These messages are
-// in msgChan or in the NATS pending queue of sub. NATS counts the message
-// that the callback forwards in the pending queue until the callback
-// returns. That message can also be in msgChan already, so the result does
-// not count one pending message. The hub then reads only messages that
-// exist, and at most one received message reaches a new session.
-func ingressBacklog(msgChan <-chan *nats.Msg, sub *nats.Subscription) int {
-	queued := len(msgChan)
-	if pending, _, err := sub.Pending(); err == nil && pending > 1 {
-		queued += pending - 1
+// drainIngressBacklog processes the messages that the process received
+// before the call, so that a new session does not get them. The messages are
+// in msgChan or in the NATS pending queue of sub. The count reads the pending
+// queue first and never counts too few. It can count too many: a message
+// that the callback moves into msgChan between the two reads, or the message
+// that the callback just forwarded, counts twice. The drain therefore stops
+// early when no received message remains. Messages that arrive during the
+// drain can also be processed before admission. This is safe because the
+// session captures its resume cutoff or snapshot after admission. The count
+// is fixed, so sustained traffic cannot starve registration.
+func (h *MyEventsHub) drainIngressBacklog(ctx context.Context, msgChan <-chan *nats.Msg, sub *nats.Subscription) (string, bool, error) {
+	pending := func() int {
+		n, _, err := sub.Pending()
+		if err != nil {
+			return 0
+		}
+		return n
 	}
-	return queued
+	remaining := pending() + len(msgChan)
+	for remaining > 0 {
+		if len(msgChan) == 0 && pending() == 0 {
+			return "", false, nil
+		}
+		select {
+		case msg := <-msgChan:
+			remaining--
+			if msg != nil && h.handleMessage(ctx, msg) {
+				return "projection readiness discontinuity", true, nil
+			}
+		case <-ctx.Done():
+			return "hub stopped", true, ctx.Err()
+		case <-time.After(time.Millisecond):
+			// The pending count can include the message that the callback
+			// has forwarded but not yet returned from. Check again.
+		}
+	}
+	return "", false, nil
 }
 
 func (h *MyEventsHub) Subscribe(ctx context.Context, userID string) (*myEventsSubscription, error) {
