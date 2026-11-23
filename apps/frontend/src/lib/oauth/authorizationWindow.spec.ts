@@ -77,6 +77,32 @@ describe('authorization window', () => {
     expect(popup.close).toHaveBeenCalledOnce();
   });
 
+  it('reports the native window state in the desktop app', async () => {
+    const popup = fakePopup();
+    let onClosed: (frameName: string) => void = () => {};
+    const unsubscribe = vi.fn();
+    vi.stubGlobal('window', {
+      location: { origin: 'https://app.example' },
+      open: vi.fn(() => popup),
+      chattoDesktop: {
+        onAuthorizationWindowClosed: (callback: (frameName: string) => void) => {
+          onClosed = callback;
+          return unsubscribe;
+        }
+      }
+    });
+    const authorizationWindow = openAuthorizationWindow('chatto-oauth', 'popup')!;
+
+    // A provider page cut the link to the opener; the native window is still open.
+    popup.closed = true;
+    expect(await authorizationWindow.isClosed()).toBe(false);
+    onClosed('another-window');
+    expect(await authorizationWindow.isClosed()).toBe(false);
+    onClosed('chatto-oauth');
+    expect(await authorizationWindow.isClosed()).toBe(true);
+    expect(unsubscribe).toHaveBeenCalledOnce();
+  });
+
   it('removes expired launch records that a closed client left behind', () => {
     const stale = authorizationLaunchStorageKey('stale');
     const fresh = authorizationLaunchStorageKey('fresh');
