@@ -4,8 +4,9 @@ The identity-link window: links a sign-in provider to the signed-in account in
 the window that account settings opened. The user confirms the link. When the
 server requires fresh proof, the page asks for the current password. Then it
 sends the window to the provider and receives the provider callback. When
-only a new provider sign-in gives fresh proof, the page first re-verifies the
-user through a linked provider and then starts the link by itself. After a
+only a new provider sign-in gives fresh proof, the page explains that the user
+must first sign in again with a provider that is already linked. After that
+re-verification, it starts the link by itself. After a
 successful link, it tells account settings and closes the window. Errors offer
 a way out: try again when that can help, and close the window.
 `$lib/auth/identityLink` defines the URL contract.
@@ -114,6 +115,9 @@ a way out: try again when that can help, and close the window.
     } else if (request.reverified) {
       // The user confirmed the link before the re-verification.
       void startLink(provider);
+    } else if (request.reverificationRequired && reverifiers.length > 0) {
+      // Account settings already found that the link needs a recent sign-in.
+      offerReverification();
     } else {
       view = 'confirm';
     }
@@ -151,10 +155,8 @@ a way out: try again when that can help, and close the window.
         canReverify: !request.reverified && reverifiers.length > 0
       });
       if (failure.kind === 'password_required') view = 'password';
-      else if (failure.kind === 'reverification_required') {
-        if (reverifiers.length === 1) startReverification(reverifiers[0]);
-        else offerReverification();
-      } else if (failure.kind === 'password_rejected') passwordError = failure.message;
+      else if (failure.kind === 'reverification_required') offerReverification();
+      else if (failure.kind === 'password_rejected') passwordError = failure.message;
       else fail(failure.message, failure.retryable);
     }
   }
@@ -225,6 +227,9 @@ a way out: try again when that can help, and close the window.
     <div class="flex flex-col gap-5">
       <ReverificationChoice
         providers={reverifiers}
+        body={m('settings.account.sso.reverify_modal.link_body', {
+          provider: provider?.label ?? request.providerId
+        })}
         error={reverifyError}
         busyProviderId={reverifyingProviderId}
         size="lg"

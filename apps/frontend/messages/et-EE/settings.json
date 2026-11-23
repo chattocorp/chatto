@@ -537,7 +537,8 @@
         "reverification_mismatch": "Logisite sisse identiteediga, mis kuulub teisele kontole. Kasutage selle kontoga seotud identiteeti.",
         "reverify_modal": {
           "title": "Kinnitage, et see olete teie",
-          "body": "Turvalisuse huvides logige uuesti sisse selle kontoga seotud teenusepakkuja kaudu. Seejärel jätkab Chatto teie toiminguga.",
+          "link_body": "Teenuse {provider} sidumiseks peab Chatto esmalt kinnitama, et see olete teie. Logige uuesti sisse teenusepakkujaga, mis on selle kontoga juba seotud. Seejärel jätkab Chatto teenusega {provider}.",
+          "disconnect_body": "Teenuse {provider} lahtisidumiseks peab Chatto esmalt kinnitama, et see olete teie. Logige uuesti sisse teenusepakkujaga, mis on selle kontoga juba seotud. Seejärel saate lahtisidumise kinnitada.",
           "action": "Logi uuesti sisse teenusega {provider}"
         },
         "provider_unconfigured": "Pakkuja pole enam konfigureeritud",

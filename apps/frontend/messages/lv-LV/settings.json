@@ -537,7 +537,8 @@
         "reverification_mismatch": "Jūs pierakstījāties ar identitāti, kas pieder citam kontam. Izmantojiet identitāti, kas saistīta ar šo kontu.",
         "reverify_modal": {
           "title": "Apstipriniet, ka tas esat jūs",
-          "body": "Drošības nolūkos pierakstieties vēlreiz ar nodrošinātāju, kas ir saistīts ar šo kontu. Pēc tam Chatto turpinās jūsu darbību.",
+          "link_body": "Lai piesaistītu {provider}, Chatto vispirms jāapstiprina, ka tas esat jūs. Pierakstieties vēlreiz ar nodrošinātāju, kas jau ir saistīts ar šo kontu. Pēc tam Chatto turpinās ar {provider}.",
+          "disconnect_body": "Lai atsaistītu {provider}, Chatto vispirms jāapstiprina, ka tas esat jūs. Pierakstieties vēlreiz ar nodrošinātāju, kas jau ir saistīts ar šo kontu. Pēc tam varēsiet apstiprināt atsaistīšanu.",
           "action": "Pierakstīties vēlreiz ar {provider}"
         },
         "provider_unconfigured": "Pakalpojumu sniedzējs vairs nav konfigurēts",

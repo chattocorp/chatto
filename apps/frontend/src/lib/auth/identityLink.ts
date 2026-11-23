@@ -27,6 +27,8 @@ const PROVIDER_PARAM = 'link_provider';
 const USER_PARAM = 'link_user';
 const COMPLETE_PARAM = 'link_complete';
 const ERROR_PARAM = 'error';
+/** Opens the window on the re-verification explanation (FDR-023). */
+const REVERIFY_PARAM = 'reverify';
 
 /** The link that a link window URL describes. */
 export type IdentityLinkRequest = {
@@ -39,6 +41,11 @@ export type IdentityLinkRequest = {
   errorCode: string;
   /** A fresh-auth re-verification succeeded just before the window opened. */
   reverified: boolean;
+  /**
+   * Account settings found that the link needs a re-verification first. The
+   * window explains that step before it sends the user to another provider.
+   */
+  reverificationRequired: boolean;
 };
 
 /** Whether a URL carries link window parameters. */
@@ -53,7 +60,8 @@ export function parseIdentityLinkRequest(url: URL): IdentityLinkRequest {
     userId: url.searchParams.get(USER_PARAM) ?? '',
     completed: url.searchParams.get(COMPLETE_PARAM) === '1',
     errorCode: url.searchParams.get(ERROR_PARAM) ?? '',
-    reverified: wasReverified(url)
+    reverified: wasReverified(url),
+    reverificationRequired: url.searchParams.get(REVERIFY_PARAM) === 'required'
   };
 }
 
@@ -80,6 +88,16 @@ export function isIdentityLinkPath(path: string): boolean {
 /** Internal path that starts the link again in the link window. */
 export function identityLinkPath(providerId: string, userId: string): string {
   const url = withLinkParams(resolve('/sso/link'), 'http://localhost', providerId, userId);
+  return url.pathname + url.search;
+}
+
+/**
+ * Internal path that opens the link window on the re-verification
+ * explanation. Account settings use it when the link needs a recent sign-in.
+ */
+export function identityLinkReverificationPath(providerId: string, userId: string): string {
+  const url = withLinkParams(resolve('/sso/link'), 'http://localhost', providerId, userId);
+  url.searchParams.set(REVERIFY_PARAM, 'required');
   return url.pathname + url.search;
 }
 

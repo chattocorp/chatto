@@ -537,7 +537,8 @@
         "reverification_mismatch": "You signed in with an identity that belongs to a different account. Use an identity that is linked to this account.",
         "reverify_modal": {
           "title": "Confirm it’s you",
-          "body": "For your security, sign in again with a provider that is linked to this account. Chatto then continues with your action.",
+          "link_body": "To link {provider}, Chatto first needs to confirm that it’s you. Sign in again with a provider that is already linked to this account. Then Chatto continues with {provider}.",
+          "disconnect_body": "To disconnect {provider}, Chatto first needs to confirm that it’s you. Sign in again with a provider that is already linked to this account. Then you can confirm the disconnection.",
           "action": "Sign in again with {provider}"
         },
         "provider_unconfigured": "Provider no longer configured",

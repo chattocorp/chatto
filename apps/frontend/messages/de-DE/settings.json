@@ -537,7 +537,8 @@
         "reverification_mismatch": "Du hast dich mit einer Identität angemeldet, die zu einem anderen Konto gehört. Verwende eine Identität, die mit diesem Konto verknüpft ist.",
         "reverify_modal": {
           "title": "Bestätige, dass du es bist",
-          "body": "Melde dich zu deiner Sicherheit erneut mit einem Anbieter an, der mit diesem Konto verknüpft ist. Danach setzt Chatto deine Aktion fort.",
+          "link_body": "Um {provider} zu verknüpfen, muss Chatto zuerst bestätigen, dass du es bist. Melde dich erneut mit einem Anbieter an, der bereits mit diesem Konto verknüpft ist. Danach fährt Chatto mit {provider} fort.",
+          "disconnect_body": "Um {provider} zu trennen, muss Chatto zuerst bestätigen, dass du es bist. Melde dich erneut mit einem Anbieter an, der bereits mit diesem Konto verknüpft ist. Danach kannst du das Trennen bestätigen.",
           "action": "Erneut mit {provider} anmelden"
         },
         "provider_unconfigured": "Anbieter ist nicht mehr konfiguriert",

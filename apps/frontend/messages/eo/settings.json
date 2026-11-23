@@ -537,7 +537,8 @@
         "reverification_mismatch": "Vi ensalutis per identeco, kiu apartenas al alia konto. Uzu identecon ligitan al ĉi tiu konto.",
         "reverify_modal": {
           "title": "Konfirmu, ke tio estas vi",
-          "body": "Pro via sekureco, ensalutu denove per provizanto ligita al ĉi tiu konto. Poste Chatto daŭrigos vian agon.",
+          "link_body": "Por ligi {provider}, Chatto unue devas konfirmi, ke tio estas vi. Ensalutu denove per provizanto, kiu jam estas ligita al ĉi tiu konto. Poste Chatto daŭrigas kun {provider}.",
+          "disconnect_body": "Por malligi {provider}, Chatto unue devas konfirmi, ke tio estas vi. Ensalutu denove per provizanto, kiu jam estas ligita al ĉi tiu konto. Poste vi povas konfirmi la malligon.",
           "action": "Ensaluti denove per {provider}"
         },
         "provider_unconfigured": "Provizanto ne plu agordita",
