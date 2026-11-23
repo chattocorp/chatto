@@ -41,6 +41,18 @@ durable worker resource ownership.
   status and freshness fields under the short status mutex, so diagnostics
   answer while a commit blocks. Stall detection reports only; it must not
   restart, reset, or delete projection state.
+- The projector reads its ordered consumer with `Messages` on one goroutine
+  and handles each message completely before it reads the next. Do not change
+  this to `Consume` with a handler: after a consumer reset, nats.go can call
+  the handler for the next message while the call for an earlier message
+  still runs, and events are then applied out of order.
+- Give `Messages` a message limit (`PullMaxMessages`), not only a byte limit.
+  With only `PullMaxBytes`, nats.go allocates a channel for one million
+  messages for each iterator. A change to these options needs a measurement of
+  retained heap for each projector, not only of time for each event.
+- A `DurableWorker` without an active delivery holds one long pull. Do not
+  replace this with a loop of short pulls: each pull on a replicated consumer
+  makes the NATS servers exchange many messages.
 - `DurableWorker` executes an already configured consumer; it must not infer
   consumer ownership from process lifecycle or create, delete, retire, or
   garbage-collect application consumers. Persisted names, inactivity policy,

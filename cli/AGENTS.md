@@ -170,6 +170,17 @@ authorization, live events, backup and restore, and backend tests.
   changes or failures rather than every successful renewal. Enforce a
   cluster-wide periodic rate with shared expiring state, not a per-replica
   timer; retain cooldowns only after successful work so failures can retry.
+- A periodic pass over a stream or a key-value bucket is not free: its cost
+  grows with the data and continues for as long as the server runs. Give each
+  pass a named interval constant, and write in its comment what one pass reads
+  and how many requests that is for a given number of records. Read records in
+  the listing where that is possible; do not get each record through the
+  stream leader in a loop. Use a long interval for a safety net behind a
+  durable job. After a pass that failed, use a shorter retry delay.
+- Do not add a read through the stream leader to a path that runs for each
+  request before you count the reads. Wait only for the subjects that the next
+  read depends on, read their positions concurrently, and keep the list of
+  subjects next to the read that it protects.
 - Subject/key shapes are part of the storage contract. When changing them,
   update constructors, parsers, tests, architecture docs, and e2e coverage.
 - For mixed records in one stream or KV bucket, encode discriminators in the key
@@ -619,6 +630,22 @@ server.
 - Validate connection-scaled memory with server RSS/runtime `Sys` deltas and
   active-connection heap profiles. Treat in-process `HeapAlloc` benchmarks as
   regression signals, not production RSS models.
+- A development server with seed data does not show a cost that grows with
+  the data. To find or confirm such a cost, restore a backup into a scratch
+  data directory with `chatto restore`, and start one local server on it. Use
+  a configuration without `[bootstrap]` sections, with `CHATTO_PUSH_ENABLED=false`
+  and with email off, so the server does not contact push services or send
+  mail. A message that you post in a room with a bot can call the outbound
+  webhook of that bot. The restored data is real user data, with encryption
+  keys if the backup includes them; delete it after use.
+- To see what a server sends to NATS, subscribe to all subjects of the
+  embedded NATS server for a fixed time, for example
+  `nats sub '>' --server nats://<token>@localhost:<port> --subjects-only`, and
+  count the subjects by family. Compare an idle server with a server that has
+  one connected client. The NATS servers also exchange messages for
+  replication that this method does not show.
+- `tools/canary-metrics.sh` prints the health and NATS load signals of one
+  deployment from Prometheus. Run it before and after a deploy.
 - Startup CPU profile:
   `CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE=.context/bench/startup.pprof`.
 - Runtime pprof: set `CHATTO_METRICS_ENABLED=true`,
