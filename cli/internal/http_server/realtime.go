@@ -961,6 +961,15 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 // sharedMessagePost is the viewer-independent public mapping of one message
 // post. It is computed once per envelope and shared by all connections that
 // get the envelope. Do not change it after it is stored.
+//
+// Privacy: the value holds the decrypted body and the hydrated mention rows in
+// process memory only, until no session queue or connection refers to the
+// envelope. Session queue limits (myEventsSubscriberBuffer,
+// myEventsSubscriberByteLimit) and realtimeWriteTimeout bound this time for a
+// slow session. After an edit, a retraction, or a key-shredding request, a
+// viewer does not get the cached body, but the body stays in memory until the
+// envelope is released. The maintainer accepted this retention; see
+// docs/architecture/realtime-delivery.md.
 type sharedMessagePost struct {
 	// event is the complete public event without a resume cursor. Its mentions
 	// have includes_viewer set to false for all targets.

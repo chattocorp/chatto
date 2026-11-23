@@ -30,6 +30,9 @@ type EventEnvelope interface {
 	// returned only to its caller and is not stored; the next caller computes
 	// again. The realtime API owns this slot. The value must be safe to share:
 	// it must not hold a value for one viewer, and callers must not change it.
+	// The value lives as long as the envelope: until no session queue or
+	// connection refers to it. It can contain decrypted message content, which
+	// stays only in process memory for that time.
 	SharedRealtimeMapping(compute func() (any, error)) (any, error)
 }
 

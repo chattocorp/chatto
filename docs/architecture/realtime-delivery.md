@@ -137,6 +137,29 @@ then gets a copy of the shared event with its own mention
 per-viewer cases of the mapper, and all other event types still run for each
 viewer. Each connection encodes its own frame and applies its own compression.
 
+The shared mapping keeps plaintext in memory for longer than one mapping. The
+maintainer accepted this retention. These are the rules:
+
+- What: the shared public event, which contains the decrypted message body,
+  and the hydrated mention rows of the post.
+- Where: only in process memory, on the envelope. The server does not write
+  this value to a projection, a projection snapshot, a log, NATS, or another
+  store.
+- When it starts: when the first connection maps the envelope.
+- When it stops: when no session queue or connection refers to the envelope.
+  That is, each session queue that holds the envelope has given it to its
+  connection, and each of these connections has written or dropped its frame.
+  Go frees the memory at a later garbage collection. It does not clear the
+  memory first.
+- Limit for a slow session: each session queue holds at most
+  `myEventsSubscriberBuffer` (256) envelopes and `myEventsSubscriberByteLimit`
+  (2 MiB) of event bytes. If the queue is full, the hub ends that session and
+  stops its queue. A WebSocket write that does not complete in
+  `realtimeWriteTimeout` (10 seconds) fails, and the connection closes.
+- After a retraction, an edit, or a key-shredding request, the mapper does not
+  send the cached body. The cached body stays in memory until the envelope is
+  released, as described above.
+
 Event authorization must make every delivered field safe for that viewer. A
 future field with narrower visibility needs an explicit viewer-aware mapping
 rule or a separate authorized shape.
