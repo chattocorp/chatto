@@ -713,10 +713,12 @@ function authlingMetadata(
     path.join(source, 'authling/version.go'),
     `package authling\n\n// Version is the Authling release version.\nconst Version = "${version}" // sweet-version\n`
   );
-  writeFileSync(
-    path.join(source, 'authling/.sweet.yml'),
-    `name: authling\nversion: ${manifest}\ntag-prefix: authling/v\n`
-  );
+  if (manifest !== null) {
+    writeFileSync(
+      path.join(source, 'authling/.sweet.yml'),
+      `name: authling\nversion: ${manifest}\ntag-prefix: authling/v\n`
+    );
+  }
   return run(t, script('authling-image-metadata.sh'), {
     cwd: source,
     stubs: `git() { echo 0123456789abcdef0123456789abcdef01234567; }
@@ -794,6 +796,11 @@ for (const [name, options, message] of [
     'a different version.go',
     { RELEASE_TAG: 'authling/v0.3.0', version: '0.2.0', manifest: '0.3.0' },
     'must agree'
+  ],
+  [
+    'a tag without a Sweet manifest',
+    { RELEASE_TAG: 'authling/v0.3.0', manifest: null },
+    'older than Sweet Release'
   ],
   ['a different manifest', { RELEASE_TAG: 'authling/v0.3.0', manifest: '0.2.0' }, 'must agree']
 ]) {

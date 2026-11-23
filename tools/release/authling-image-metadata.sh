@@ -46,6 +46,12 @@ if [[ -n "$release_tag" ]]; then
     echo "::error::The release version is not a supported SemVer image tag."
     exit 1
   fi
+  # Tags from before the Sweet Release migration have no manifest. Their
+  # images stay as they are: this workflow does not publish them again.
+  if [[ ! -f authling/.sweet.yml ]]; then
+    echo "::error::The release tag has no authling/.sweet.yml; it is older than Sweet Release."
+    exit 1
+  fi
   manifest="$(sed -n 's/^version: \([^[:space:]]*\)[[:space:]]*$/\1/p' authling/.sweet.yml)"
   if ! [[ "$tag" == "$version" && "$tag" == "$manifest" ]]; then
     echo "::error::The release tag, authling/version.go, and authling/.sweet.yml must agree."
