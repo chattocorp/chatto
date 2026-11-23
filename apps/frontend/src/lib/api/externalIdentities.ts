@@ -31,6 +31,8 @@ export type PendingExternalIdentityInfo = {
   redirectPath: string | null;
   /** A new identity needs admission before it can create an account. */
   invitationRequired: boolean;
+  /** Same-origin URL of the provider avatar preview, which the server serves. */
+  avatarUrl: string | null;
 };
 
 export type LinkedExternalIdentityInfo = {
@@ -156,7 +158,8 @@ function pendingIdentity(pending?: APIPendingExternalIdentity): PendingExternalI
     displayNameHint: pending.displayNameHint,
     boundUserId: pending.boundUserId || null,
     redirectPath: pending.redirectPath || null,
-    invitationRequired: pending.invitationRequired
+    invitationRequired: pending.invitationRequired,
+    avatarUrl: pending.avatarUrl || null
   };
 }
 

@@ -2,7 +2,7 @@
   import { MAX_LOGIN_LENGTH } from '$lib/validation/login';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { UsernameChoiceAvailability } from '@chatto/client/api/actionAvailability';
-  import { usernameChoiceUnavailableMessage } from '$lib/actionAvailability';
+  import { usernameChoiceHint } from '$lib/actionAvailability';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
@@ -10,6 +10,8 @@
   import { providerIcon } from '$lib/auth/providerIcon';
   import { getAuthServerInfo } from '$lib/components/authServerInfo';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import {
     createExternalIdentityFlowAPI,
     createExternalIdentityAPI,
@@ -35,6 +37,11 @@
       (usernameManaged ? '' : pending?.loginHint.slice(0, MAX_DISPLAY_NAME_LENGTH)) ||
       ''
   );
+
+  // The preview shows the profile as other members will see it: an empty
+  // display name falls back to the username, as on the server.
+  const previewLogin = $derived(login.trim());
+  const previewName = $derived(displayName.trim() || previewLogin);
 
   const loginSchema = z
     .string()
@@ -177,6 +184,42 @@
   </div>
 {/snippet}
 
+<!-- The new account as other members will see it, and who signed in. -->
+{#snippet profilePreview(info: NonNullable<typeof pending>)}
+  <section
+    aria-label={m('auth.sso.profile_preview')}
+    class="flex items-center gap-4 surface-box p-4"
+  >
+    <UserAvatar
+      size="xl"
+      useLiveProfile={false}
+      user={{
+        id: '',
+        login: previewLogin,
+        displayName: previewName,
+        avatarUrl: info.avatarUrl,
+        presenceStatus: PresenceStatus.UNSPECIFIED
+      }}
+    />
+    <div class="min-w-0">
+      {#if previewName}
+        <p class="text-lg font-semibold break-words"><bdi>{previewName}</bdi></p>
+      {/if}
+      {#if previewLogin}
+        <p class="break-words text-muted"><bdi>@{previewLogin}</bdi></p>
+      {/if}
+      <p class="mt-1 flex items-center gap-1.5 text-sm text-muted">
+        <span aria-hidden="true" class={['iconify shrink-0', providerIcon(info.providerType)]}
+        ></span>
+        {m('auth.sso.signed_in', { provider: info.providerLabel })}
+      </p>
+      {#if info.verifiedEmail}
+        <p class="text-sm break-words text-muted"><bdi>{info.verifiedEmail}</bdi></p>
+      {/if}
+    </div>
+  </section>
+{/snippet}
+
 {#snippet cancelButton()}
   <Button variant="ghost" onclick={handleCancel} disabled={submitting}>
     {m('common.cancel')}
@@ -205,18 +248,18 @@
     </p>
   {:else if pending && isCreate}
     <div class="mb-6">
-      {@render providerIdentity(pending)}
+      {@render profilePreview(pending)}
     </div>
 
     <form onsubmit={handleCreate} class="flex flex-col gap-4">
-      <!-- A provider-managed username shows as a disabled field. The server
-           assigns it and ignores any username that the client sends. -->
+      <!-- A provider-managed username shows as a disabled field with the
+           provider icon. The server assigns it and ignores any username that
+           the client sends. -->
       <TextInput
         id="sso-login"
         label={m('common.username')}
-        description={usernameChoice === UsernameChoiceAvailability.ALLOWED
-          ? m('auth.sso.username_help')
-          : usernameChoiceUnavailableMessage(usernameChoice)}
+        description={usernameChoiceHint(usernameChoice)}
+        leadingIcon={usernameManaged ? providerIcon(pending.providerType) : undefined}
         bind:value={login}
         placeholder={m('common.username_placeholder')}
         disabled={submitting || usernameChoice !== UsernameChoiceAvailability.ALLOWED}

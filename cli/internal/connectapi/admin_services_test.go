@@ -461,6 +461,7 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 		Subject:         "12345",
 		LoginHint:       "sso-user",
 		DisplayNameHint: "SSO User",
+		AvatarURL:       "https://avatars.example.test/u/12345",
 	})
 	if err != nil {
 		t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
@@ -474,6 +475,9 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	}
 	if pending.Msg.Pending.GetKind() != authv1.ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT || pending.Msg.Pending.GetProviderId() != "github-main" {
 		t.Fatalf("pending = %+v", pending.Msg.Pending)
+	}
+	if got, want := pending.Msg.Pending.GetAvatarUrl(), "/auth/external-identity-avatar?token="+url.QueryEscape(createToken); got != want {
+		t.Fatalf("pending avatar URL = %q", got)
 	}
 
 	created, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{

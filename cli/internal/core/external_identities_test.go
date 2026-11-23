@@ -584,3 +584,61 @@ func TestChattoCore_DisconnectExternalIdentityConcurrentDuplicate(t *testing.T) 
 		t.Fatalf("identities after concurrent disconnect = %+v, want empty", identities)
 	}
 }
+
+// This test does not call t.Parallel: it replaces the package-wide
+// providerAvatarClient.
+func TestChattoCore_PendingExternalIdentityAvatar(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	avatarServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/missing" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(createTestPNG(64, 64))
+	}))
+	defer avatarServer.Close()
+	previousAvatarClient := providerAvatarClient
+	providerAvatarClient = avatarServer.Client()
+	t.Cleanup(func() {
+		providerAvatarClient = previousAvatarClient
+	})
+
+	createFlow := func(avatarURL string) string {
+		t.Helper()
+		token, err := core.CreatePendingExternalIdentityCreateFlow(ctx, PendingExternalIdentityFlow{
+			ProviderID:   "github-main",
+			ProviderType: "github",
+			Issuer:       "github-main",
+			Subject:      "avatar-" + avatarURL,
+			AvatarURL:    avatarURL,
+		})
+		if err != nil {
+			t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
+		}
+		return token
+	}
+
+	avatar, err := core.PendingExternalIdentityAvatar(ctx, createFlow(avatarServer.URL+"/avatar.png"))
+	if err != nil {
+		t.Fatalf("PendingExternalIdentityAvatar: %v", err)
+	}
+	if len(avatar) < 12 || string(avatar[0:4]) != "RIFF" || string(avatar[8:12]) != "WEBP" {
+		t.Fatalf("avatar preview is not WebP: % x", avatar[:min(len(avatar), 12)])
+	}
+
+	for name, avatarURL := range map[string]string{
+		"no avatar":        "",
+		"provider 404":     avatarServer.URL + "/missing",
+		"unsupported type": "data:image/png;base64,AAAA",
+	} {
+		if _, err := core.PendingExternalIdentityAvatar(ctx, createFlow(avatarURL)); !errors.Is(err, ErrNotFound) {
+			t.Errorf("%s: err = %v, want ErrNotFound", name, err)
+		}
+	}
+
+	if _, err := core.PendingExternalIdentityAvatar(ctx, "unknown-token"); !errors.Is(err, ErrExternalIdentityFlowNotFound) {
+		t.Errorf("unknown token: err = %v, want ErrExternalIdentityFlowNotFound", err)
+	}
+}
