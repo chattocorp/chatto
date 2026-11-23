@@ -169,8 +169,12 @@ type LinkedExternalIdentity struct {
 	SubjectHash string `protobuf:"bytes,4,opt,name=subject_hash,json=subjectHash,proto3" json:"subject_hash,omitempty"`
 	// Disconnect eligibility evaluated by ListExternalIdentities.
 	DisconnectEligibility DisconnectEligibility `protobuf:"varint,5,opt,name=disconnect_eligibility,json=disconnectEligibility,proto3,enum=chatto.api.v1.DisconnectEligibility" json:"disconnect_eligibility,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Human-readable name of the linked account at the provider, for example an
+	// AT Protocol handle without @. Empty when the server cannot resolve one,
+	// including for provider types that do not supply a public account name.
+	AccountLabel  string `protobuf:"bytes,6,opt,name=account_label,json=accountLabel,proto3" json:"account_label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LinkedExternalIdentity) Reset() {
@@ -236,6 +240,13 @@ func (x *LinkedExternalIdentity) GetDisconnectEligibility() DisconnectEligibilit
 		return x.DisconnectEligibility
 	}
 	return DisconnectEligibility_DISCONNECT_ELIGIBILITY_UNSPECIFIED
+}
+
+func (x *LinkedExternalIdentity) GetAccountLabel() string {
+	if x != nil {
+		return x.AccountLabel
+	}
+	return ""
 }
 
 // Request to list configured and linked external identities for the current user.
@@ -543,14 +554,15 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\blink_url\x18\x05 \x01(\tR\alinkUrl\x12\x16\n" +
 	"\x06linked\x18\x06 \x01(\bR\x06linked\x12?\n" +
 	"\x1clinked_identity_subject_hash\x18\a \x01(\tR\x19linkedIdentitySubjectHash\x12;\n" +
-	"\bprovider\x18\b \x01(\v2\x1f.chatto.api.v1.ProviderMetadataR\bproviderJ\x04\b\x01\x10\x05R\x02idR\x04typeR\x05labelR\tlogin_url\"\x85\x02\n" +
+	"\bprovider\x18\b \x01(\v2\x1f.chatto.api.v1.ProviderMetadataR\bproviderJ\x04\b\x01\x10\x05R\x02idR\x04typeR\x05labelR\tlogin_url\"\xaa\x02\n" +
 	"\x16LinkedExternalIdentity\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12#\n" +
 	"\rprovider_type\x18\x02 \x01(\tR\fproviderType\x12%\n" +
 	"\x0eprovider_label\x18\x03 \x01(\tR\rproviderLabel\x12!\n" +
 	"\fsubject_hash\x18\x04 \x01(\tR\vsubjectHash\x12[\n" +
-	"\x16disconnect_eligibility\x18\x05 \x01(\x0e2$.chatto.api.v1.DisconnectEligibilityR\x15disconnectEligibility\"\x1f\n" +
+	"\x16disconnect_eligibility\x18\x05 \x01(\x0e2$.chatto.api.v1.DisconnectEligibilityR\x15disconnectEligibility\x12#\n" +
+	"\raccount_label\x18\x06 \x01(\tR\faccountLabel\"\x1f\n" +
 	"\x1dListExternalIdentitiesRequest\"\xbb\x01\n" +
 	"\x1eListExternalIdentitiesResponse\x12E\n" +
 	"\tproviders\x18\x01 \x03(\v2'.chatto.api.v1.ExternalIdentityProviderR\tproviders\x12R\n" +
