@@ -38,6 +38,9 @@ Also check these dimensions:
   root `AGENTS.md`).
 - **Multiple servers.** App Preferences apply to every server in the app.
   Server Configuration applies to one server only.
+- **Server types.** If operators are affected, check the change against the
+  [server personas](../chatto-server-personas/personas.md), such as SSO-only,
+  single-host, or Chatto Cloud servers.
 - **Privacy.** Name each external system that the feature contacts and the
   data it reveals, including IP addresses. Tell the user about necessary
   connections.
