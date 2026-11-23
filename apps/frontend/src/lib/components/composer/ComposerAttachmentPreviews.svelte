@@ -1,5 +1,6 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import { PreviewAction } from '$lib/ui';
   import {
     formatFileSize,
     type AttachmentsState,
@@ -96,30 +97,21 @@
               <span class="min-w-0 flex-1 truncate font-medium text-text" title={file.name}
                 >{file.name}</span
               >
+              <!-- Composer previews keep their actions visible while the draft is edited. -->
               <div class="flex shrink-0 items-center gap-0.5">
-                <button
-                  type="button"
+                <PreviewAction
+                  label={descriptionActionLabel}
+                  icon="icon-[uil--file-edit-alt]"
+                  active={Boolean(description)}
+                  {disabled}
                   onclick={() => ondescription(index)}
+                />
+                <PreviewAction
+                  label={m('composer.upload.remove', { filename: file.name })}
+                  icon="icon-[uil--times]"
                   {disabled}
-                  class={[
-                    'mini-icon-action h-5 w-5 items-center justify-center disabled:cursor-not-allowed disabled:opacity-50',
-                    description && 'text-action hover:text-action'
-                  ]}
-                  aria-label={descriptionActionLabel}
-                  title={descriptionActionLabel}
-                >
-                  <span class="iconify icon-[uil--file-edit-alt] text-sm" aria-hidden="true"></span>
-                </button>
-                <button
-                  type="button"
                   onclick={() => onremove(index)}
-                  {disabled}
-                  class="mini-icon-action h-5 w-5 items-center justify-center enabled:hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label={m('composer.upload.remove', { filename: file.name })}
-                  title={m('composer.upload.remove', { filename: file.name })}
-                >
-                  <span class="iconify icon-[uil--times] text-sm" aria-hidden="true"></span>
-                </button>
+                />
               </div>
             </div>
             <div class={['mt-0.5 truncate text-xs', failed ? 'text-danger' : 'text-muted']}>

@@ -259,11 +259,6 @@
     return `width: ${display.width}px; max-width: 100%`;
   }
 
-  /** Reserve a touch target on the rim without changing narrow image dimensions. */
-  function mediaActionMinWidth(): string {
-    return canDeleteAttachment || canEditAttachmentDescription ? 'min-w-14' : 'min-w-0';
-  }
-
   function imageAttachmentUrl(attachment: Attachment): string | null {
     return attachment.thumbnailUrl ?? attachment.url;
   }
@@ -426,13 +421,9 @@
     />
   {/snippet}
 
-  {#snippet attachmentControls(
-    attachment: Attachment,
-    showViewer = false,
-    layout: 'footer' | 'row' = 'footer'
-  )}
+  {#snippet attachmentControls(attachment: Attachment, showViewer = false)}
     {#if canDeleteAttachment || showViewer || canEditAttachmentDescription}
-      <PreviewToolbar {layout}>
+      <PreviewToolbar>
         {#snippet viewing()}
           {#if showViewer}{@render viewAttachmentButton(attachment)}{/if}
         {/snippet}
@@ -455,7 +446,6 @@
     <div
       class={[
         'group/preview attachment-media-frame preview-frame',
-        mediaActionMinWidth(),
         variant === 'gallery' ? 'shrink-0' : 'max-w-full'
       ]}
     >
@@ -555,7 +545,10 @@
           title={attachment.description || undefined}
         >
           {#await loadVideoPlayer(videoPlayerLoadAttempt)}
-            <div class="preview-media-frame my-1.5 preview-frame" style={loadingFrameStyle}>
+            <div
+              class="group/preview preview-media-frame relative my-1.5 preview-frame"
+              style={loadingFrameStyle}
+            >
               <LoadingFog class="h-full w-full" />
               {@render attachmentControls(attachment)}
             </div>
@@ -591,7 +584,10 @@
                 : undefined}
             />
           {:catch}
-            <div class="preview-media-frame my-1.5 preview-frame" style={loadingFrameStyle}>
+            <div
+              class="group/preview preview-media-frame relative my-1.5 preview-frame"
+              style={loadingFrameStyle}
+            >
               <LoadRetry class="h-full w-full" onretry={() => (videoPlayerLoadAttempt += 1)} />
               {@render attachmentControls(attachment)}
             </div>
@@ -628,7 +624,7 @@
         </div>
       {:else if attachment.contentType.startsWith('audio/') && attachment.url}
         <div
-          class="my-1.5 attachment-card w-[30rem] min-w-0 flex-wrap preview-frame"
+          class="group/preview attachment-card relative my-1.5 w-[30rem] min-w-0 flex-wrap preview-frame"
           data-attachment-media
           title={attachment.description || undefined}
         >
@@ -644,10 +640,12 @@
           >
             {attachment.filename}
           </audio>
-          {@render attachmentControls(attachment, true, 'row')}
+          {@render attachmentControls(attachment, true)}
         </div>
       {:else}
-        <div class="my-1.5 attachment-card min-w-[min(14rem,100%)] preview-frame">
+        <div
+          class="group/preview attachment-card relative my-1.5 min-w-[min(14rem,100%)] preview-frame"
+        >
           <button
             type="button"
             onclick={() => openAttachmentModal(attachment)}
@@ -674,7 +672,7 @@
               <span class="min-w-0 text-sm wrap-anywhere"><bdi>{attachment.filename}</bdi></span>
             </div>
           </button>
-          {@render attachmentControls(attachment, false, 'row')}
+          {@render attachmentControls(attachment)}
         </div>
       {/if}
       {#if attachment.description && !isGalleryImageAttachment(attachment)}

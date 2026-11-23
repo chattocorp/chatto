@@ -15,6 +15,7 @@ user types. A social post with a content warning shows no image or post text.
 <script lang="ts">
   import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';
   import { m } from '$lib/i18n/messages';
+  import { PreviewAction } from '$lib/ui';
   import { renderedLinkTarget, handleRenderedLinkClick } from '$lib/navigation/renderedLink';
 
   let { preview, onDismiss }: { preview: LinkPreviewView; onDismiss: () => void } = $props();
@@ -79,14 +80,7 @@ user types. A social post with a content warning shows no image or post text.
         <span class="truncate text-sm font-medium text-text" dir="auto">{title}</span>
       </div>
     </a>
-    <button
-      type="button"
-      onclick={onDismiss}
-      class="mini-icon-action h-8 w-8 items-center justify-center hover:text-danger comfortable-density:h-11 comfortable-density:w-11"
-      aria-label={m('preview.dismiss')}
-      title={m('preview.dismiss')}
-    >
-      <span class="iconify icon-[uil--times] text-base" aria-hidden="true"></span>
-    </button>
+    <!-- Composer previews keep their actions visible while the draft is edited. -->
+    <PreviewAction label={m('preview.dismiss')} icon="icon-[uil--times]" onclick={onDismiss} />
   </div>
 </div>

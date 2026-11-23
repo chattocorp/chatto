@@ -165,8 +165,11 @@
     @apply code-frame my-2;
   }
 
+  /* The header is the frame's preview header: the language label shares it
+   * with the preview actions. */
   & .markdown-code-header {
-    @apply code-frame-header;
+    @apply code-frame-header justify-start preview-actions-clearance;
+    height: auto;
   }
 
   /* Visual frames fit their image; failure recovery uses the regular code frame. */
@@ -180,15 +183,12 @@
     @apply preview-content;
   }
 
-  & .markdown-code-header [role='tablist'] {
-    @apply flex items-center gap-1;
+  /* The source/render tabs are two preview actions in one tab list. */
+  & .markdown-code-frame .preview-actions [role='tablist'] {
+    @apply flex items-center gap-0.5;
   }
 
-  & .markdown-code-header button {
-    @apply mini-icon-action size-5 items-center justify-center disabled:cursor-default disabled:opacity-50;
-  }
-
-  & .markdown-code-header [role='tab'][aria-selected='true'] {
+  & .markdown-code-frame .preview-actions [role='tab'][aria-selected='true'] {
     @apply text-action;
   }
 

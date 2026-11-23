@@ -58,6 +58,8 @@ preview-card styling. Its parent owns shared link-preview actions.
     return image.width && image.height ? `${image.width} / ${image.height}` : '16 / 9';
   }
 
+  const hasActions = $derived((showDismiss && Boolean(onDismiss)) || Boolean(onDelete));
+
   function showImage(event: Event): void {
     (event.currentTarget as HTMLImageElement).style.visibility = '';
   }
@@ -79,7 +81,7 @@ preview-card styling. Its parent owns shared link-preview actions.
     <a
       {...renderedLinkTarget(url)}
       onclick={(event) => handleRenderedLinkClick(event, url)}
-      class="flex min-w-0 items-center gap-2.5"
+      class="flex min-w-0 items-center gap-2.5 preview-actions-clearance"
     >
       {#if post.author?.avatarUrl}
         <img
@@ -298,16 +300,12 @@ preview-card styling. Its parent owns shared link-preview actions.
       {/if}
     {/if}
   </div>
-  {#if (showDismiss && onDismiss) || onDelete}
+  {#if hasActions}
     <PreviewToolbar>
       {#if showDismiss && onDismiss}
         <PreviewAction label={m('preview.dismiss')} icon="icon-[uil--times]" onclick={onDismiss} />
       {:else}
-        <PreviewAction
-          label={m('preview.delete')}
-          icon="icon-[uil--trash-alt]"
-          onclick={onDelete}
-        />
+        <PreviewAction label={m('preview.delete')} icon="icon-[uil--times]" onclick={onDelete} />
       {/if}
     </PreviewToolbar>
   {/if}

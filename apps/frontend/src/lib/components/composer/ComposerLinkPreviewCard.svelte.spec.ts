@@ -4,7 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';
 import ComposerLinkPreviewCard from './ComposerLinkPreviewCard.svelte';
 
-vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
+vi.mock('$app/navigation', () => ({ goto: vi.fn(), pushState: vi.fn() }));
 vi.mock('$lib/client', async () => (await import('$lib/test-utils/clientMock')).clientMockDefaults);
 
 function preview(o: Partial<LinkPreviewView> = {}): LinkPreviewView {

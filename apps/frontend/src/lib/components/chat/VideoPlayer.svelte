@@ -303,9 +303,8 @@
   <!-- Keep the same frame while loading, processing, and player registration change. -->
   <div
     class={[
-      'my-1.5 preview-frame',
-      viewer ? 'flex min-h-0 flex-col' : 'preview-media-frame',
-      actions && 'min-w-14'
+      'group/preview relative my-1.5 preview-frame',
+      viewer ? 'flex min-h-0 flex-col' : 'preview-media-frame'
     ]}
     style={frameStyle}
   >
@@ -384,8 +383,8 @@
     {#if actions}<PreviewToolbar>{@render actions()}</PreviewToolbar>{/if}
   </div>
 {:else if status === 'FAILED'}
-  <div class="my-1.5 preview-frame" style={frameStyle}>
-    <div class="flex items-center gap-3 px-4 py-3">
+  <div class="group/preview relative my-1.5 preview-frame" style={frameStyle}>
+    <div class="flex items-center gap-3 px-4 py-3 preview-actions-clearance">
       <span aria-hidden="true" class="iconify icon-[uil--exclamation-triangle] text-lg text-danger"
       ></span>
       <div class="text-sm text-muted">
@@ -398,8 +397,8 @@
     {#if actions}<PreviewToolbar>{@render actions()}</PreviewToolbar>{/if}
   </div>
 {:else}
-  <div class="my-1.5 preview-frame" style={frameStyle}>
-    <div class="flex items-center gap-2 px-3 py-2">
+  <div class="group/preview relative my-1.5 preview-frame" style={frameStyle}>
+    <div class="flex items-center gap-2 px-3 py-2 preview-actions-clearance">
       <span aria-hidden="true" class="iconify icon-[uil--video] text-lg text-muted"></span>
       <span class="text-sm">{filename}</span>
     </div>
@@ -424,8 +423,16 @@
     /* Match Vidstack's compact row: 2px padding, 36px buttons, 2.5px gaps. */
     --media-button-size: var(--video-sm-button-size, 36px);
     top: 2px;
-    inset-inline-end: calc(var(--video-sm-button-size, 36px) + 7px);
+    inset-inline-end: calc(
+      var(--video-sm-button-size, 36px) + 7px + var(--preview-actions-clearance, 0px)
+    );
     z-index: 10;
+  }
+
+  /* The compact top control row shares the frame corner with the preview
+   * actions. Like a text row, it keeps clear of them. */
+  :global(.vds-video-layout[data-sm] .vds-controls-group:first-child) {
+    padding-inline-end: var(--preview-actions-clearance, 2px);
   }
 
   /* Hide menus from Vidstack's default layout — not useful for embedded chat videos. */

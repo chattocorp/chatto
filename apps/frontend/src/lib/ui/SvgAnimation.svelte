@@ -128,7 +128,7 @@ The parent controls the SVG timeline. Offscreen and hidden frames pause work.
 
 <svelte:document onvisibilitychange={syncPlayback} />
 
-<div class="flex h-full w-full flex-col">
+<div class="group/preview relative flex h-full w-full flex-col">
   <div
     class={[
       'relative w-full',
@@ -159,7 +159,7 @@ The parent controls the SVG timeline. Offscreen and hidden frames pause work.
   </div>
   <span id={descriptionId} class="sr-only">{alt}</span>
   <div {@attach placeControls}>
-    <PreviewToolbar layout={viewerControls ? 'row' : 'footer'}>
+    <PreviewToolbar layout={viewerControls ? 'row' : 'corner'}>
       {#snippet viewing()}
         <PreviewAction
           label={m('ui.image_modal.pause_animation')}

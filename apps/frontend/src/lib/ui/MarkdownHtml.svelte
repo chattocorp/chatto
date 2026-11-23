@@ -118,7 +118,10 @@ targets are unique to each component, including when callers reuse rendered HTML
     // pointer events reach document-level outside-press dismissal handlers.
     const gestures = ['mousedown', 'mouseup', 'touchstart', 'touchend'] as const;
     const consumeControlGesture = (event: Event) => {
-      if (event.target instanceof Element && event.target.closest('.markdown-code-header button')) {
+      if (
+        event.target instanceof Element &&
+        event.target.closest('.markdown-code-frame .preview-actions button')
+      ) {
         event.stopPropagation();
       }
     };

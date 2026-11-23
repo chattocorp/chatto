@@ -45,11 +45,7 @@ browser to Vimeo. The parent supplies a URL from `vimeoEmbedUrl` and owns previe
       {#if showDismiss && onDismiss}
         <PreviewAction label={m('preview.dismiss')} icon="icon-[uil--times]" onclick={onDismiss} />
       {:else}
-        <PreviewAction
-          label={m('preview.delete')}
-          icon="icon-[uil--trash-alt]"
-          onclick={onDelete}
-        />
+        <PreviewAction label={m('preview.delete')} icon="icon-[uil--times]" onclick={onDelete} />
       {/if}
     </PreviewToolbar>
   {/if}

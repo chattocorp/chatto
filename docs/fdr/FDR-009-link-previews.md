@@ -23,7 +23,7 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 - When the server returns a preview to the composer, it also returns a short-lived opaque preview token.
 - When the message is sent, the client sends only the preview token. The server resolves the token to cached, server-fetched metadata and stores that metadata as part of the message body.
 - Stored preview metadata is size-limited before storage: URL 2,048 bytes, title 300 bytes, description 1,000 bytes, image asset ID 15 bytes, site name 200 bytes, embed type 64 bytes, and embed ID 256 bytes. Structured social-post fields use the corresponding text, URL, and asset limits, carry at most four images per post, and allow only one quoted-post level.
-- After posting, the message author can delete the preview from the message without deleting the message.
+- After posting, the message author can delete the preview from the message without deleting the message. Every preview, including social posts, message previews, and YouTube and Vimeo players, puts the dismiss or delete action in the shared corner pill of preview frames, with a close icon. The pill can cover a corner of an image or a player, including the player's own top end controls. A preview keeps space for it so that it never covers text. With a mouse or trackpad, the pill shows only when the pointer is on the preview or the action has keyboard focus. With touch input, it is always visible.
 
 ## Design Decisions
 

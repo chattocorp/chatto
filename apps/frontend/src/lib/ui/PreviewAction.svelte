@@ -9,6 +9,7 @@ Other native button attributes pass through unchanged.
   let {
     label,
     icon,
+    active = false,
     onclick,
     ...attributes
   }: Omit<HTMLButtonAttributes, 'children' | 'class' | 'aria-label' | 'title'> & {
@@ -16,13 +17,19 @@ Other native button attributes pass through unchanged.
     label: string;
     /** Iconify utility class for the decorative icon. */
     icon: string;
+    /**
+     * Tints the icon to show that the action's value is set, such as an
+     * existing description. The label must also say so. Use `aria-pressed`
+     * instead for toggles.
+     */
+    active?: boolean;
   } = $props();
 </script>
 
 <button
   type="button"
   {...attributes}
-  class="attachment-action-button"
+  class={['attachment-action-button', active && 'text-action not-disabled:hover:text-action']}
   aria-label={label}
   title={label}
   onclick={(event) => {

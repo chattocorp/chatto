@@ -240,7 +240,7 @@ preview on screen.
     onclick={openPreview}
     onkeydown={handlePreviewKeydown}
   >
-    <div class="flex min-w-0 items-center gap-2 px-2 py-1.5">
+    <div class="flex min-w-0 items-center gap-2 px-2 py-1.5 preview-actions-clearance">
       <div class="flex min-w-0 items-center gap-2">
         {#if preview.actor && !preview.actor.deleted}
           <UserAvatar user={preview.actor} size="xs" />
