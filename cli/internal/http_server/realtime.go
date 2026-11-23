@@ -960,14 +960,20 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 
 // sharedMessagePost is the viewer-independent public mapping of one message
 // post. It is computed once per envelope and shared by all connections that
-// get the envelope. Do not change it after it is stored.
+// get the envelope. Do not change it or the values it points to after it is
+// stored.
 type sharedMessagePost struct {
-	// event is the complete public event without a resume cursor. Its mentions
-	// have includes_viewer set to false for all targets.
+	// event is the complete public event without per-viewer values: it has no
+	// resume cursor, and its mentions have includes_viewer set to false.
 	event *realtimev1.RealtimeEvent
 	// mentions are the hydrated stored mention rows. Each viewer gets its own
 	// public mentions from these rows.
 	mentions []*evtv1.MessageMention
+	// kind and body are the room kind and the decrypted body that the shared
+	// event uses. A per-viewer step reads them instead of looking them up
+	// again. body is nil when the message has no readable body.
+	kind core.RoomKind
+	body *core.DecryptedMessageBody
 	// bodyVersion is the body version read before the body lookup. A viewer
 	// whose mapping runs after an edit, a retraction, or a key-shredding
 	// request does not use the shared body.
@@ -977,8 +983,9 @@ type sharedMessagePost struct {
 // viewerMessagePostedEvent returns the public message-post event for one
 // viewer. The hub already authorized the viewer for the event. The body
 // lookup, echo hydration, and room-kind lookup do not depend on the viewer,
-// so they run once per envelope. The viewer gets a copy of the shared event
-// with its own mention flags. The caller adds the resume cursor.
+// so they run once per envelope. The viewer gets a copy of the shared event.
+// Set each per-viewer value of the payload on that copy here, as for the
+// mention flags. The caller adds the resume cursor.
 func (s *HTTPServer) viewerMessagePostedEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeEvent, error) {
 	value, err := event.SharedRealtimeMapping(func() (any, error) {
 		return s.mapSharedMessagePost(ctx, event.EVTEvent())
@@ -998,13 +1005,15 @@ func (s *HTTPServer) viewerMessagePostedEvent(ctx context.Context, viewerID stri
 		return nil, nil
 	}
 	projected := proto.CloneOf(shared.event)
+	// Per-viewer values. They must never be set on shared.event.
 	projected.GetMessagePosted().Mentions = realtimeMentions(viewerID, shared.mentions)
 	return projected, nil
 }
 
 // mapSharedMessagePost maps a message post without a viewer. Put each new
 // viewer-independent field of the public message post here. A field that
-// depends on the viewer must not go into the shared event; set it in
+// depends on the viewer or on the viewer's session, or that is derived from
+// such a value, must not go into the shared event; set it in
 // viewerMessagePostedEvent.
 func (s *HTTPServer) mapSharedMessagePost(ctx context.Context, durable *evtv1.Event) (*sharedMessagePost, error) {
 	projected := projectRealtimeEvent("", durable)
@@ -1031,7 +1040,7 @@ func (s *HTTPServer) mapSharedMessagePost(ctx context.Context, durable *evtv1.Ev
 	if body != nil {
 		message.BodyPlaintext = new(body.Body)
 	}
-	return &sharedMessagePost{event: projected, mentions: post.GetMentions(), bodyVersion: bodyVersion}, nil
+	return &sharedMessagePost{event: projected, mentions: post.GetMentions(), kind: kind, body: body, bodyVersion: bodyVersion}, nil
 }
 
 // projectViewerRealtimeEvent maps one durable fact to its public semantic

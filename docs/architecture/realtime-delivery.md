@@ -128,8 +128,10 @@ It keeps the result on the envelope and does not keep a failed result. Before
 each viewer uses the shared body, the mapper compares the body version in the
 room timeline projection. After an edit, a retraction, or a key-shredding
 request, the viewer gets a new mapping and not the shared body. Each viewer
-then gets a copy of the shared event with its own mention
-`includes_viewer` values and its own resume cursor. Authorization, the
+then gets a copy of the shared event. The mapper sets the per-viewer values on
+that copy, for example the mention `includes_viewer` values and the resume
+cursor. A value that depends on the viewer or on the viewer's session is
+never in the shared event. Authorization, the
 per-viewer cases of the mapper, and all other event types still run for each
 viewer. Each connection encodes its own frame and applies its own compression.
 
