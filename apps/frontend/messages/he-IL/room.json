@@ -161,6 +161,7 @@
         "reaction_users_more": "+ {count} עוד",
         "copy_link_title": "לחץ כדי להעתיק את הקישור להודעה זו",
         "in_reply_to": "בתשובה ל",
+        "from_thread": "מהשרשור",
         "reply_preview_fallback": "הודעה",
         "deleted": "הודעה זו נמחקה."
       },

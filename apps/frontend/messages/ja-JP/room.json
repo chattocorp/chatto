@@ -160,6 +160,7 @@
         "reaction_users_more": "+ {count} 詳細",
         "copy_link_title": "クリックしてこのメッセージへのリンクをコピーします",
         "in_reply_to": "への返信",
+        "from_thread": "スレッドから",
         "reply_preview_fallback": "メッセージ",
         "deleted": "このメッセージは削除されました。"
       },

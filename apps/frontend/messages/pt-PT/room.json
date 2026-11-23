@@ -160,6 +160,7 @@
         "reaction_users_more": "+ {count} mais",
         "copy_link_title": "Clique para copiar o link desta mensagem",
         "in_reply_to": "em resposta a",
+        "from_thread": "Do tópico",
         "reply_preview_fallback": "Mensagem",
         "deleted": "Esta mensagem foi eliminada."
       },

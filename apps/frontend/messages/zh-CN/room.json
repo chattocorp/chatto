@@ -160,6 +160,7 @@
         "reaction_users_more": "另有 {count} 人",
         "copy_link_title": "点击复制此消息的链接",
         "in_reply_to": "回复",
+        "from_thread": "来自话题串",
         "reply_preview_fallback": "消息",
         "deleted": "此消息已被删除。"
       },

@@ -160,6 +160,7 @@
         "reaction_users_more": "另有 {count} 人",
         "copy_link_title": "點一下即可複製此訊息的連結",
         "in_reply_to": "回覆",
+        "from_thread": "來自討論串",
         "reply_preview_fallback": "訊息",
         "deleted": "此訊息已刪除。"
       },

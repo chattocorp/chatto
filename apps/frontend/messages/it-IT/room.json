@@ -160,6 +160,7 @@
         "reaction_users_more": "+ {count} altro",
         "copy_link_title": "Fare clic per copiare il collegamento a questo messaggio",
         "in_reply_to": "in risposta a",
+        "from_thread": "Dal filo",
         "reply_preview_fallback": "Messaggio",
         "deleted": "Questo messaggio è stato eliminato."
       },

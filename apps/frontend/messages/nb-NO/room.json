@@ -160,6 +160,7 @@
         "reaction_users_more": "+ {count} mer",
         "copy_link_title": "Klikk for å kopiere lenken til denne meldingen",
         "in_reply_to": "som svar på",
+        "from_thread": "Fra tråd",
         "reply_preview_fallback": "Melding",
         "deleted": "Denne meldingen er slettet."
       },

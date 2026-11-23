@@ -160,6 +160,7 @@
         "reaction_users_more": "+ {count} dalších",
         "copy_link_title": "Kliknutím zkopírujete odkaz na tuto zprávu",
         "in_reply_to": "v odpovědi na",
+        "from_thread": "Z vlákna",
         "reply_preview_fallback": "Zpráva",
         "deleted": "Tato zpráva byla smazána."
       },

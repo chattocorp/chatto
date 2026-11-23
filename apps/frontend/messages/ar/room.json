@@ -164,6 +164,7 @@
         "reaction_users_more": "+ {count} المزيد",
         "copy_link_title": "انقر لنسخ رابط هذه الرسالة",
         "in_reply_to": "ردًا على",
+        "from_thread": "من الموضوع",
         "reply_preview_fallback": "رسالة",
         "deleted": "تم حذف هذه الرسالة."
       },
