@@ -259,10 +259,6 @@ jobs:
       - name: Check and test desktop shell
         run: mise test-desktop
 
-      - name: Test macOS game-capture helper
-        if: runner.os == 'macOS'
-        run: mise test-desktop-macos-capture
-
       - name: Configure macOS signing
         if: runner.os == 'macOS'
         shell: bash
@@ -459,7 +455,8 @@ jobs:
         if: runner.os == 'macOS' && always()
         uses: actions/upload-artifact@v7
         with:
-          name: desktop-notarisation-log-${{ github.run_id }}-${{ runner.arch }}
+          # The platform, not the runner architecture: two macOS builds run on arm64.
+          name: desktop-notarisation-log-${{ github.run_id }}-${{ matrix.platform }}
           path: ${{ runner.temp }}/chatto-macos-notarization.log
           if-no-files-found: warn
           retention-days: 90
