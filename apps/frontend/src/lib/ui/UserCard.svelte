@@ -121,7 +121,7 @@ Actions are siblings of that button, so controls never nest inside a button.
     : undefined}
 >
   <div
-    class="relative isolate flex h-12 min-h-12 min-w-0 shrink-0 items-center gap-2 rounded-[inherit] px-2"
+    class="relative isolate flex h-12 min-h-12 min-w-0 shrink-0 items-center gap-2 rounded-inherit px-2"
   >
     {#if voiceLevel}<VoiceActivity level={voiceLevel} />{/if}
     {#if identityButton}

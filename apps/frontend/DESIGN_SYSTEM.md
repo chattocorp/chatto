@@ -1183,6 +1183,9 @@ the effective app motion preference requests reduced motion.
 - Outside labelled buttons and chat input surfaces, `rounded-xl` is reserved
   for softer product-specific objects, such as server tiles.
 - Nested rounded surfaces should be concentric when their padding is small.
+- Overlays, rings, and fills that match the corners of their parent use
+  `rounded-inherit`, not `rounded-[inherit]`. In `src/styles/`, write
+  `@apply rounded-inherit`. The design-system check enforces this.
 - Base text is the default. Use `text-sm` for secondary copy and `text-xs` for
   metadata, timestamps, and terse labels. These sizes are 16, 14, and 12 px at
   the browser default on all devices. Input capability changes target sizes,
