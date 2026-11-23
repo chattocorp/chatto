@@ -5,40 +5,30 @@ SSO providers, it shows only the provider choices, plus a link to the password
 login page when the server allows direct login.
 -->
 <script lang="ts">
-  import { confirmPendingAtprotoHandle } from '$lib/atproto/rememberedHandle';
   import { resolve } from '$app/paths';
-  import {
-    confirmProviderAccount,
-    ProviderSignInError,
-    type ProviderSignInResult
-  } from '$lib/auth/providerSignIn';
-  import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import { withReturnPath } from '$lib/auth/loginRoutes';
   import OriginProviderButtons from '$lib/components/auth/OriginProviderButtons.svelte';
   import PasswordSignInSection from '$lib/components/auth/PasswordSignInSection.svelte';
-  import { popupErrorMessage } from '$lib/oauth/popupError';
-  import { isProviderContinuation } from '$lib/auth/providerContinuation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { Divider, Hint, PageTitle } from '$lib/ui';
   import { Button } from '$lib/ui/form';
+  import { isIdentityLinkPath } from '$lib/auth/identityLink';
 
   const { data } = $props();
 
-  let error = $state('');
   let selectedProviderId = $state<string | null>(null);
-  let pageErrorDismissed = $state(false);
 
-  const compact = $derived(data.redirectUrl.startsWith('/oauth/'));
+  // Sign-in windows show a compact page and continue provider sign-in in place.
+  const compact = $derived(
+    data.redirectUrl.startsWith('/oauth/') || isIdentityLinkPath(data.redirectUrl)
+  );
 
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
   const directLoginEnabled = $derived(data.serverInfo?.directLoginEnabled ?? true);
-  const pageError = $derived(
-    pageErrorDismissed ? '' : loginErrorMessage(data.loginErrorCode || '')
-  );
-  const displayedError = $derived(error || pageError);
+  const pageError = $derived(loginErrorMessage(data.loginErrorCode || ''));
   /** This page offers account creation through direct registration or provider auto-provisioning. */
   const inviteOnlyNotice = $derived(
     data.serverInfo?.accountCreationPolicy === 'invite_only' &&
@@ -72,17 +62,6 @@ login page when the server allows direct login.
       default:
         return '';
     }
-  }
-
-  async function completeProviderSignIn(result: ProviderSignInResult) {
-    confirmPendingAtprotoHandle();
-    if (result.kind === 'confirm-account') {
-      await confirmProviderAccount(result.token, data.redirectUrl);
-      return;
-    }
-    const { completeOriginAuthentication } = await import('$lib/auth/originAuthentication');
-    const resumed = await completeOriginAuthentication();
-    if (!resumed) await navigateAfterAuthentication(data.redirectUrl);
   }
 </script>
 
@@ -118,23 +97,10 @@ login page when the server allows direct login.
       bind:selectedProviderId
       {compact}
       href={providerLoginHref}
-      popupUrl={compact || isProviderContinuation(data.redirectUrl)
-        ? undefined
-        : (provider) => provider.loginUrl}
-      onstart={() => {
-        error = '';
-        pageErrorDismissed = true;
-      }}
-      onresult={completeProviderSignIn}
-      onerror={(err) => {
-        error =
-          (err instanceof ProviderSignInError && loginErrorMessage(err.code)) ||
-          popupErrorMessage(err, m('auth.login.failed'));
-      }}
     />
 
-    {#if displayedError}
-      <div class="mt-4"><Hint tone="danger">{displayedError}</Hint></div>
+    {#if pageError}
+      <div class="mt-4"><Hint tone="danger">{pageError}</Hint></div>
     {/if}
 
     {#if directLoginEnabled}

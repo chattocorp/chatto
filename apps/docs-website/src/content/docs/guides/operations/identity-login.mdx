@@ -34,7 +34,8 @@ Deactivated accounts do not appear in new-conversation, mention, or invitation
 pickers. Existing messages and profiles remain readable. Reactivation restores
 these controls without a page reload. Administrative details remain private.
 
-Deactivation blocks sign-in and invalidates existing sessions. The profile,
+Deactivation blocks sign-in and invalidates existing sessions within one
+minute in the worst case. The profile,
 messages, files, memberships, and roles remain intact. The user's bots also
 lose access. Existing call connections are removed at the next participant
 permission check. The account's login and email addresses remain claimed.
@@ -239,7 +240,7 @@ renew the session in the background. A session that is not used for one full
 `auth.token_ttl` period expires, and the user must sign in again.
 
 A password change, a password reset, or account deletion makes older sessions
-invalid. Removing a login provider from an account keeps its sessions. See
+invalid within one minute in the worst case. Removing a login provider from an account keeps its sessions. See
 [Security & Privacy](/guides/operations/security/#accounts-and-sessions) for
 the durations.
 

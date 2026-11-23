@@ -160,6 +160,7 @@
         "reaction_users_more": "un vēl {count}",
         "copy_link_title": "Noklikšķiniet, lai kopētu saiti uz šo ziņojumu",
         "in_reply_to": "atbildot uz",
+        "from_thread": "No pavediena",
         "reply_preview_fallback": "Ziņa",
         "deleted": "Šis ziņojums ir izdzēsts."
       },

@@ -161,6 +161,15 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
    */
   invitationRequired = false;
 
+  /**
+   * Same-origin URL of a preview of the provider avatar, when the provider
+   * supplied one. The server fetches and re-encodes the image, so the browser
+   * does not contact the provider. Account creation imports the avatar.
+   *
+   * @generated from field: string avatar_url = 12;
+   */
+  avatarUrl = "";
+
   constructor(data?: PartialMessage<PendingExternalIdentity>) {
     super();
     proto3.util.initPartial(data, this);
@@ -180,6 +189,7 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
     { no: 9, name: "redirect_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "choose_username", kind: "enum", T: proto3.getEnumType(UsernameChoiceAvailability), opt: true },
     { no: 11, name: "invitation_required", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 12, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PendingExternalIdentity {

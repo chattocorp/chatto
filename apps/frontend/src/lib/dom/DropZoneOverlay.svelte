@@ -10,7 +10,7 @@
 
 {#if visible}
   <div
-    class="pointer-events-none absolute inset-0 z-50 flex items-center justify-center rounded-[inherit] bg-neutral-action/10 backdrop-blur-xs"
+    class="pointer-events-none absolute inset-0 z-50 flex items-center justify-center rounded-inherit bg-neutral-action/10 backdrop-blur-xs"
   >
     <div
       class="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-neutral-action bg-surface/90 px-8 py-6 shadow-lg"

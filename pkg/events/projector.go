@@ -35,18 +35,43 @@ var ErrProjectionSequenceSubjectMismatch = errors.New("projection wait sequence 
 // cannot be restarted after its context is cancelled or its run fails.
 var ErrProjectorAlreadyStarted = errors.New("projector already started")
 
-// Projection replay is a sequential bulk read. NATS defaults to a 500-message
-// client buffer, which turns histories of many small event records into many
-// latency-bound pull requests on a remote JetStream cluster. A byte window
-// keeps those pulls large while bounding client-side memory.
+// Projection replay is a sequential bulk read.
 const (
-	projectionPullMaxBytes        = 16 * 1024 * 1024
+	// projectionPullMaxMessages sets the iterator buffer and the pull batch.
+	// The iterator asks for more when fewer than half of these messages are
+	// left, so each pull asks for at least 500 messages, and replay from a
+	// remote JetStream cluster does not wait for each pull. Each iterator
+	// keeps a channel of this many pointers (8 KB) while it runs.
+	//
+	// Do not use PullMaxBytes or PullMaxMessagesWithBytesLimit here. With
+	// PullMaxBytes, nats.go v1.56 sets the batch to 1,000,000 messages, and
+	// the iterator keeps a channel of that many pointers (8 MB) for its full
+	// life. With PullMaxMessagesWithBytesLimit, the server sends a "409 Batch
+	// Completed" status when a batch is full and bytes remain. The status
+	// uses a place in the channel, which has space only for the batch. When
+	// the projector is behind, nats.go then drops a message. The ordered
+	// consumer finds the gap only when a later message arrives. Without a
+	// byte limit, the server does not send that status.
+	//
+	// Known limits of this option:
+	//   - Idle heartbeats also use places in the channel. If Apply blocks for
+	//     longer than two heartbeat intervals (10 seconds) while the pull
+	//     waits, and then enough events arrive to fill the rest of the pull,
+	//     nats.go can drop the last of them. A later event shows the gap, and
+	//     the ordered consumer resets. Until a later event arrives, the
+	//     projection does not apply the dropped event.
+	//   - No byte limit applies. A projector that is behind can buffer up to
+	//     this many events, whatever their size.
+	projectionPullMaxMessages     = 1000
 	projectionSnapshotLoadTimeout = 15 * time.Second
 	// Ordered pull consumers cannot issue another pull while a synchronous
 	// projection Apply is running. Keep their cleanup window comfortably above
 	// slow disk-backed commits so NATS cannot delete a live projector consumer.
 	projectionConsumerInactiveThreshold = 5 * time.Minute
 	projectionConsumerCleanupTimeout    = 2 * time.Second
+	// projectionConsumerStopTimeout sets how long Run waits for the consume
+	// goroutine to stop by itself before it stops the iterator.
+	projectionConsumerStopTimeout = 2 * time.Second
 	// While startup is incomplete, Run checks this often whether a deleted or
 	// expired startup target prevents completion. Each check reads the last
 	// message of every projection subject.
@@ -59,6 +84,10 @@ const (
 	// still shows pending work.
 	projectionSourceCheckInterval = 30 * time.Second
 	projectionSourceCheckTimeout  = 10 * time.Second
+	// projectionWaitValidationDelay sets how long WaitFor waits before it
+	// reads the target message to make sure that the wait can end. Most waits
+	// end before this delay, so they do not read the stream at all.
+	projectionWaitValidationDelay = 100 * time.Millisecond
 )
 
 // ProjectorOperation names the work that a projector does at one moment.
@@ -117,6 +146,9 @@ type Projector struct {
 	liveBatchDelay    time.Duration
 	liveBatch         []sequencedDecodedEvent
 	liveFlushTimer    *time.Timer // Armed only while liveBatch is non-empty.
+	// handledSeq is the stream sequence of the last message that
+	// handleMessage accepted. Only the consume goroutine uses it.
+	handledSeq uint64
 
 	subjects        []string
 	replaySubjects  []string
@@ -596,9 +628,26 @@ func (p *Projector) ReplaySubjects() []string {
 // The stream sequence must belong to pos.SubjectFilter, and the sequence's
 // actual subject must match one of this projector's subject filters.
 //
-// After the stream position is validated, a call whose LastSeq() is already at
-// or beyond pos.Seq skips waiter registration. Otherwise it registers a waiter
-// and blocks.
+// A call whose LastSeq() is already at or beyond pos.Seq returns without a
+// stream read. Otherwise it registers a waiter and blocks. When the wait has
+// not ended after a short delay (at once when ctx has less than twice that
+// delay left), WaitFor reads the message at pos.Seq from the
+// stream leader. It returns an error when that message does not exist, does
+// not match pos.SubjectFilter, or has a subject that the projector does not
+// consume, because the projector cannot reach such a position. The read does
+// not delay the end of the wait: when the projector reaches pos.Seq, fails, or
+// ctx ends while the read runs, WaitFor returns at once and cancels the read.
+//
+// WaitFor always rejects, without a stream read, a pos.SubjectFilter that
+// cannot match a subject that the projector consumes: an exact subject that
+// the projector does not consume, or a wildcard filter that has no subject in
+// common with the projector's subject filters. Other wrong positions are
+// rejected only while the projector has not reached pos.Seq: a sequence whose
+// subject does not match pos.SubjectFilter, a sequence on a subject that the
+// projector does not consume, and a sequence that does not exist. When the
+// projector is already past such a position, WaitFor returns nil. The
+// projection then shows every consumed event through pos.Seq, so the result
+// is not stale, but the caller's mistake is not reported.
 //
 // Precondition: the projector's Run loop is expected to be active before any
 // code reaches WaitFor. Applications must order projector startup before
@@ -609,15 +658,35 @@ func (p *Projector) WaitFor(ctx context.Context, pos StreamPosition) error {
 	if pos.IsZero() {
 		return nil
 	}
-
-	if err := p.validateSeqSubject(ctx, pos); err != nil {
-		return err
+	if !p.filterCanMatchConsumed(pos.SubjectFilter) {
+		return fmt.Errorf("%w: subject filter %q not matched by filters %v",
+			ErrProjectionSubjectNotConsumed, pos.SubjectFilter, p.subjects)
 	}
-
-	return p.waitForSeq(ctx, pos.Seq)
+	return p.waitForSeq(ctx, pos.Seq, func(ctx context.Context) error {
+		return p.validateSeqSubject(ctx, pos)
+	})
 }
 
-func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
+// filterCanMatchConsumed reports whether some subject can match both filter
+// and one of the projector's subject filters. It reads no stream state.
+func (p *Projector) filterCanMatchConsumed(filter string) bool {
+	if !subjectHasWildcard(filter) {
+		return p.consumesSubject(filter)
+	}
+	for _, subject := range p.subjects {
+		if subjectFiltersOverlap(filter, subject) {
+			return true
+		}
+	}
+	return false
+}
+
+// waitForSeq blocks until LastSeq() >= seq, the projector fails at or before
+// seq, or ctx ends. A non-nil validate starts once, in its own goroutine,
+// when the wait has not ended after validationDelay(ctx). Its error ends the
+// wait. The wait does not wait for validate: when the wait ends first,
+// waitForSeq cancels the context of validate and returns.
+func (p *Projector) waitForSeq(ctx context.Context, seq uint64, validate func(context.Context) error) error {
 	p.mu.Lock()
 	if p.failedErr != nil && seq >= p.failedSeq {
 		err := p.failedErr
@@ -637,25 +706,62 @@ func (p *Projector) waitForSeq(ctx context.Context, seq uint64) error {
 	p.waiters = slices.Insert(p.waiters, i, seqWaiter{seq: seq, ch: ch})
 	p.mu.Unlock()
 
-	select {
-	case <-ch:
-		p.mu.Lock()
-		err := p.failedErr
-		failedSeq := p.failedSeq
-		p.mu.Unlock()
-		if err != nil && seq >= failedSeq {
-			return err
-		}
-		return nil
-	case <-ctx.Done():
-		// Drop our waiter so we don't leak. The advance path tolerates
-		// already-closed channels (it doesn't close twice), and a small
-		// scan here is fine — waiters lists are short.
-		p.mu.Lock()
-		p.waiters = slices.DeleteFunc(p.waiters, func(w seqWaiter) bool { return w.ch == ch })
-		p.mu.Unlock()
-		return ctx.Err()
+	var validationDue <-chan time.Time
+	if validate != nil {
+		timer := time.NewTimer(validationDelay(ctx))
+		defer timer.Stop()
+		validationDue = timer.C
 	}
+	// validation is nil until the read starts. A nil channel never receives,
+	// so the select below ignores it before that.
+	var validation chan error
+	validationCtx, cancelValidation := context.WithCancel(ctx)
+	defer cancelValidation()
+	for {
+		select {
+		case <-ch:
+			p.mu.Lock()
+			err := p.failedErr
+			failedSeq := p.failedSeq
+			p.mu.Unlock()
+			if err != nil && seq >= failedSeq {
+				return err
+			}
+			return nil
+		case <-validationDue:
+			validationDue = nil
+			validation = make(chan error, 1)
+			go func() { validation <- validate(validationCtx) }()
+		case err := <-validation:
+			validation = nil
+			if err != nil {
+				p.removeWaiter(ch)
+				return err
+			}
+		case <-ctx.Done():
+			p.removeWaiter(ch)
+			return ctx.Err()
+		}
+	}
+}
+
+// validationDelay returns how long a wait waits before it validates its
+// position. A context with little time left validates at once, so that the
+// delay cannot turn a prompt validation error into a deadline error.
+func validationDelay(ctx context.Context) time.Duration {
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < 2*projectionWaitValidationDelay {
+		return 0
+	}
+	return projectionWaitValidationDelay
+}
+
+// removeWaiter drops the waiter of an ended wait so that it does not leak.
+// The advance path tolerates already-closed channels (it doesn't close
+// twice), and a small scan here is fine — waiters lists are short.
+func (p *Projector) removeWaiter(ch chan struct{}) {
+	p.mu.Lock()
+	p.waiters = slices.DeleteFunc(p.waiters, func(w seqWaiter) bool { return w.ch == ch })
+	p.mu.Unlock()
 }
 
 func (p *Projector) validateConsumesSubject(subject string) error {
@@ -685,15 +791,21 @@ func (p *Projector) validateSeqSubject(ctx context.Context, pos StreamPosition) 
 // stream message currently matching its subject filters. It is intended
 // for diagnostics and sequencing: call it after the projector is
 // running to ensure projection reads reflect the stream as of this call.
+// It also waits for every event that the projector has already received.
+// Such an event can be newer than the latest retained message when it was
+// deleted or expired after delivery.
 func (p *Projector) WaitForCurrent(ctx context.Context) error {
 	target, err := p.currentTarget(ctx)
 	if err != nil {
 		return err
 	}
-	if target.seq == 0 {
+	p.mu.Lock()
+	seq := max(target.seq, p.deliveredSeq)
+	p.mu.Unlock()
+	if seq == 0 {
 		return nil
 	}
-	return p.waitForSeq(ctx, target.seq)
+	return p.waitForSeq(ctx, seq, nil)
 }
 
 // CurrentTargetSeq returns the highest stream sequence currently matching
@@ -946,17 +1058,9 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 		return fmt.Errorf("create ordered consumer: %w", err)
 	}
 	// Registered before Stop so cleanup runs after consumption stops, including
-	// when Consume fails after the physical consumer was created.
+	// when Messages fails after the physical consumer was created.
 	defer p.deleteProjectionConsumer(cons)
 
-	// Use Consume(handler) — NOT Messages() iterator. The iterator path
-	// has an idle-cost behaviour in the SDK that adds ~5s per process to
-	// our e2e test runtime (measured at 6× slowdown on membership-heavy
-	// flows), even when the stream is empty. Consume(handler) on the
-	// same OrderedConsumer keeps all of OC's guarantees (stream-order
-	// delivery, gap detection, automatic reset) and is steady-state
-	// quiet when idle. See the perf-investigation notes accompanying
-	// this change.
 	var liveTick <-chan time.Time
 	if p.applyLiveBatch != nil {
 		p.liveFlushTimer = time.NewTimer(p.liveBatchDelay)
@@ -964,14 +1068,56 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 		defer p.liveFlushTimer.Stop()
 		liveTick = p.liveFlushTimer.C
 	}
-	cc, err := cons.Consume(p.handleMessage,
-		jetstream.PullMaxBytes(projectionPullMaxBytes),
-		jetstream.ConsumeErrHandler(p.handleConsumeErr),
-	)
+	// Read with the Messages iterator, not with Consume(handler). After a
+	// consumer reset, for example after a reconnect, Consume starts the new
+	// subscription while the handler for the previous message can still run.
+	// The new subscription then delivers the next message to a second handler
+	// call, which can apply it first. The iterator resets the consumer inside
+	// Next. One goroutine calls Next and handles each message before it calls
+	// Next again, so delivery stays serial across resets.
+	//
+	// An earlier version used Consume because, with nats.go v1.48, the
+	// iterator made each process about 5 seconds slower in end-to-end tests,
+	// also with an empty stream. With nats.go v1.56, Next takes a context, so
+	// Run ends a waiting Next at once, and an idle iterator sends only the
+	// periodic pull requests and heartbeats that Consume also uses. The
+	// iterator costs some time on each message (nats.go creates and stops a
+	// heartbeat timer in every Next call). Ordered delivery is worth that
+	// cost. See projectionPullMaxMessages for the buffer size.
+	messages, err := cons.Messages(jetstream.PullMaxMessages(projectionPullMaxMessages))
 	if err != nil {
 		return fmt.Errorf("start consume: %w", err)
 	}
-	defer cc.Stop()
+	consumeCtx, stopConsume := context.WithCancel(ctx)
+	consumeDone := make(chan struct{})
+	var consumeErr error
+	go func() {
+		defer close(consumeDone)
+		consumeErr = p.consume(consumeCtx, messages)
+	}()
+	// Run returns only after the consume goroutine stops, so no event is
+	// applied after Run returns. The context ends a waiting Next. Stop runs
+	// after the goroutine returns: then no reset runs, and Stop stops the
+	// current subscription. A Stop during a successful reset can stop the
+	// old subscription just before Next installs the new one, which nats.go
+	// then leaves open until the connection closes.
+	//
+	// Next ignores the context while it resets the consumer, and the reset
+	// retries without limit, for example while NATS is unavailable or after
+	// the stream was deleted. Only when the goroutine does not stop in time
+	// does Stop run at the same time. Stop marks the iterator closed, so the
+	// reset ends at its next attempt. Stop waits for the consumer lock that
+	// the reset holds, which can take up to one retry delay and one request
+	// timeout (10 seconds each in nats.go v1.56).
+	defer func() {
+		stopConsume()
+		select {
+		case <-consumeDone:
+		case <-time.After(projectionConsumerStopTimeout):
+		}
+		messages.Stop()
+		<-consumeDone
+	}()
 	sourceChecks, stopSourceChecks := context.WithCancel(ctx)
 	sourceChecksDone := make(chan struct{})
 	go func() {
@@ -1004,6 +1150,11 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 				return err
 			}
 			return ErrProjectionFailed
+		case <-consumeDone:
+			if consumeErr != nil {
+				return consumeErr
+			}
+			return ctx.Err()
 		case <-liveTick:
 			p.applyMu.Lock()
 			p.flushLiveBatch()
@@ -1053,6 +1204,15 @@ func (p *Projector) reconcileStartup(ctx context.Context, previousHandledSeq uin
 		return handledSeq
 	}
 	p.mu.Lock()
+	// An event that is delivered but not yet applied is still in decode or
+	// waits for applyMu. Its handling makes progress, so do not complete
+	// startup before it. The check and the lowered target use one critical
+	// section: an event delivered after it is past the lowered target.
+	if p.deliveredSeq > p.lastSeq {
+		p.mu.Unlock()
+		p.applyMu.Unlock()
+		return handledSeq
+	}
 	originalTarget := p.startupTargetSeq
 	if p.startupTargetSeq > p.lastSeq {
 		p.startupTargetSeq = p.lastSeq
@@ -1104,11 +1264,44 @@ func (p *Projector) deleteProjectionConsumer(consumer jetstream.Consumer) {
 	}
 }
 
-// handleMessage is the per-event callback wired into the OrderedConsumer's
-// Consume handler. The SDK invokes it in stream order. Projection callbacks
-// run under applyMu, so they never run concurrently and always see stream
-// order, including when reconcileStartup flushes a startup batch from the Run
-// goroutine.
+// consume reads the ordered consumer until ctx ends or the iterator stops.
+// It is the only caller of handleMessage, and it calls handleMessage for one
+// message at a time. The ordered consumer returns messages in stream order
+// and resets itself inside Next, between two handleMessage calls. Thus each
+// event is handled completely before the next one is delivered, also across a
+// reconnect or another consumer reset. consume returns nil when ctx ends and
+// an error when the iterator stops for another reason.
+func (p *Projector) consume(ctx context.Context, messages jetstream.MessagesContext) error {
+	// Build the option once: Next is on the replay hot path.
+	next := []jetstream.NextOpt{jetstream.NextContext(ctx)}
+	for {
+		msg, err := messages.Next(next...)
+		if ctx.Err() != nil {
+			return nil
+		}
+		if errors.Is(err, jetstream.ErrMsgIteratorClosed) {
+			return fmt.Errorf("projection consumer stopped: %w", err)
+		}
+		if err != nil {
+			// The ordered consumer resets itself for heartbeat, reconnect,
+			// sequence, and deleted-consumer errors, and its reset retries
+			// without limit. In nats.go v1.56, Next returns only two other
+			// errors, and neither can repeat without a wait: a metadata error
+			// for one delivered message, after which the next call waits for
+			// the next message, and a failure to start the subscription after
+			// a reset, after which the stopped subscription makes the next
+			// call return ErrMsgIteratorClosed. Thus this loop cannot spin.
+			p.logger.Warn("Projection consumer error (auto-recovering)", "error", err)
+			continue
+		}
+		p.handleMessage(msg)
+	}
+}
+
+// handleMessage handles one delivered message. Only consume calls it, one
+// message at a time and in stream order. Projection callbacks run under
+// applyMu, so they also do not overlap the batch flushes that the Run
+// goroutine starts, such as the live batch timer and reconcileStartup.
 //
 // Errors from the projection's Apply mark the projector as failed. Waiters
 // for the failed sequence (or later) return ErrProjectionFailed instead of
@@ -1127,6 +1320,13 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 		p.fail(0, fmt.Errorf("message metadata for subject %q: %w", msg.Subject(), err))
 		return
 	}
+
+	// Delivery is serial and in stream order. Thus a sequence that is not
+	// greater than the last handled one is a redelivery of a handled event.
+	if seq <= p.handledSeq {
+		return
+	}
+	p.handledSeq = seq
 
 	if !p.consumesSubject(msg.Subject()) {
 		return
@@ -1432,14 +1632,6 @@ func (p *Projector) logStartupComplete(summary startupSummary) {
 		"restore", summary.restore,
 		"last_seq", summary.lastSeq,
 	)
-}
-
-// handleConsumeErr is invoked by the SDK when the OrderedConsumer's
-// background machinery hits a transient problem (missed heartbeat,
-// reset attempt, etc.). OrderedConsumer recovers internally; we log
-// and stay running.
-func (p *Projector) handleConsumeErr(_ jetstream.ConsumeContext, err error) {
-	p.logger.Warn("Projection consumer error (auto-recovering)", "error", err)
 }
 
 func (p *Projector) setStartupTarget(seq uint64) {

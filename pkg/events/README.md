@@ -154,12 +154,44 @@ Shutdown can discard pending events. Replay starts from committed restore state,
 or from retained history when the projection has no restore capability. Other
 projections continue to receive individual `Apply` calls.
 
-On exit, `Run` stops consumption and attempts to delete its current ephemeral
-consumer with an independent two-second request timeout. Deletion failure does
+The projector reads its ordered consumer with one goroutine. It handles each
+message completely before it reads the next one. The ordered consumer resets
+itself between two reads, for example after a reconnect, missed heartbeats, or
+a deleted consumer, and continues after the last message that it returned.
+Thus the projector applies events in stream order and exactly once, also
+across a reset, and `LastSeq`, waiters, startup, snapshot cutoffs, and
+checkpoints never pass an event that is not applied. The projector ignores a
+message with a sequence that it already handled. When the consumer stops for
+a reason other than the end of `Run`, for example a closed connection, the
+projector fails.
+
+On exit, `Run` stops consumption, waits until the current message is handled,
+and attempts to delete its current ephemeral consumer with an independent
+two-second request timeout. Deletion failure does
 not replace the run error. Five-minute inactivity expiry remains the fallback
 after a crash or a failed cleanup request. Durable workers keep their consumers.
 Use `WaitFor`, `WaitForCurrent`, or a subject-aware `StreamPosition` when a
 caller needs read-your-writes visibility.
+
+`WaitFor` returns without a stream read when `LastSeq` already covers the
+position. Otherwise it waits. When the wait has not ended after 100 ms (at
+once when the context has less than 200 ms left), `WaitFor` reads the message at the position from the stream leader once, in
+parallel with the wait. It returns an error when that message does not exist,
+does not match the position's subject filter, or has a subject that the
+projection does not consume, because the projector cannot reach such a
+position. When the projector reaches the position, fails, or the context ends
+first, `WaitFor` returns at once and cancels the read.
+
+`WaitFor` always rejects a subject filter that cannot match a consumed
+subject: an exact subject that the projection does not consume, or a wildcard
+filter that has no subject in common with the projection's subject filters.
+It needs no stream read for this check. It rejects the other wrong positions
+only while the projector has not reached them: a sequence whose subject does
+not match the filter, a sequence on a subject that the projection does not
+consume, and a sequence that does not exist. When `LastSeq` is already past
+such a position, `WaitFor` returns nil. The projection then shows every
+consumed event through that sequence, so the result is not stale, but the
+caller's mistake is not reported.
 
 ### Freshness and stalls
 
@@ -250,7 +282,14 @@ for {
 
 `DurableWorker` runs an already configured JetStream pull consumer with bounded
 concurrency, progress heartbeats, confirmed acknowledgements, delayed retry,
-poison-delivery termination, and reconnect-safe fetch retries. It never
+poison-delivery termination, and reconnect-safe fetch retries. A worker pulls
+for up to `FetchMaxWait`, which also sets the shutdown handoff delay. After a
+pull expires empty while no delivery is active, the worker is idle and holds
+one pull request for up to 30 seconds, or for the consumer's shorter
+`MaxRequestExpires`. A backlog uses only short pulls. A replica that disappears
+without closing its connection can keep its idle pull for up to about 29
+seconds; work assigned to it in that time waits for the consumer's `AckWait`.
+It never
 creates, deletes, or retires the consumer; those are application-owned
 resource migrations. A worker is single-use, and handlers must honor context
 cancellation and be safe under at-least-once delivery.

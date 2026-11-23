@@ -55,10 +55,21 @@ projector. `ServerContentView` and the six independent EVT projectors read
 filters, replay progress, failure state, and readiness. Chatto waits for all
 eight registered projectors before it completes boot.
 
+Each projector reads its ordered consumer with the nats.go `Messages`
+iterator on one goroutine and handles one message completely before it reads
+the next. The ordered consumer resets inside that read, for example after a
+reconnect or a NATS server change, and continues after the last returned
+message. Thus a reset cannot let a later event overtake an earlier event that
+is still in decode or apply. Do not change this to `Consume(handler)`: after a
+reset, `Consume` starts a new subscription goroutine while the previous
+handler can still run.
+
 Writers wait for the relevant projector sequence before returning
 read-your-writes. Projection-aware domain models keep the projector references
 needed for those waits; the `ChattoCore` facade does not mirror every registered
-projector.
+projector. A wait reads the target message from the stream leader only when the
+projector has not reached it after 100 ms. That read rejects a position that the
+projector cannot reach, so that the wait cannot block until its deadline.
 
 `InvitationModel` derives a process-local 20-character invitation-code lookup
 index from the cold-replayed Invitation projection. The index contains no
@@ -356,8 +367,8 @@ assignments but do not identify table instances. Read and snapshot boundaries
 resolve IDs to strings through the owning table.
 
 The Room Timeline, Threads, and Reactions components of the Server Content
-View and the Notification Decisions projection intern event IDs in one
-process-wide event ID table (ADR-110). The table holds each event ID once for all of
+View and the Notification Decisions and Notifications projections intern event
+IDs in one process-wide event ID table (ADR-110). The table holds each event ID once for all of
 them. They store `uint32` handles instead of ID strings. The table contains
 no projection state, so projections with independent replay frontiers can
 share it. The table keeps ID bytes in an append-only arena and
@@ -413,7 +424,21 @@ has a short slice of active reactions, sorted by emoji and user handles.
 Emoji handles retain exact case-sensitive reaction names, including names outside
 the bundled catalogue. Replay does not resolve aliases or require emoji assets.
 
-Timeline, Threads, and Reactions construct detached read results.
+Notifications keeps one compact row for each occurrence. The row holds
+handles for the recipient, actor, and room in a model-local table, handles for
+the message and thread root event IDs in the shared event ID table, times as
+Unix nanoseconds, and read and alert state as flags. It keeps the notification
+ID as a string, because occurrences expire and the tables do not shrink. For
+the same reason, it keeps a source event ID that is not the message ID, for
+example the ID of a reaction event, as a string. When the compact fields cannot reproduce an occurrence, for example
+for an invitation or for a signal kind from a newer server version, the row
+also keeps the complete occurrence. One index for each recipient and one for
+each read-boundary scope refer to the rows. The projection records the
+earliest expiry time, so an expiry check before that time does not scan the
+rows.
+
+Timeline, Threads, Reactions, and Notifications construct detached read
+results.
 
 Compact records store times as Unix nanoseconds, where zero means "no time".
 Room Timeline, Threads, Reactions, and Content Keys each keep their
@@ -519,7 +544,7 @@ read models, but only their parent projector is started by `ChattoCore.Run`.
 `chatto_projection_component_estimated_bytes` reports separate room-timeline,
 threads, reactions, and shared event ID table (`event_ids`) estimates inside
 the Server Content View. The component estimates and the Notification
-Decisions estimate do not include the shared table. These estimates are
+Decisions and Notifications estimates do not include the shared table. These estimates are
 diagnostic approximations; retained-heap benchmarks measure their actual Go
 heap cost. `BenchmarkProjectionRetainedHeapFromStore` replays the `EVT` stream
 of a copied NATS data directory from `CHATTO_BENCH_EVT_STORE_DIR` to measure
@@ -577,6 +602,38 @@ rejects credentials while deactivated. Its process-local access watchers close
 realtime connections as the durable fact reaches each replica. They have no
 external effect or separate recovery store. See
 [account deactivation](../../cli/internal/core/user_deactivation.go).
+
+Each validation of a runtime credential checks the auth generation. The
+strict auth generation check waits, before it reads the projection, until the
+projection has applied the newest event of that user that can change the
+result: account creation, password change, external identity unlink, account
+deletion, deactivation change, and the two key-shredding events. It reads the
+position of each of these subjects from the stream leader, concurrently. It
+does not wait for events of other users or for other event types. See
+[auth generation](../../cli/internal/core/auth_generation.go).
+
+The read-only first pass of request validation can use the fast check
+instead: for 60 seconds after a strict check accepted a user, it reads the
+local projection and sends nothing to the stream leader. The fast check can
+only accept. Any other answer runs the strict check. The fast check is not
+used while the NATS connection is not connected, while reconnect recovery is
+not complete, or while the User Auth projector reports failure or stall.
+Every other caller, and the realtime credential timer, uses the strict check.
+Thus a replica whose projection has not applied a revocation can accept the
+revoked credential for a maximum of 60 seconds. See
+[ADR-127](../adr/ADR-127-bounded-staleness-for-credential-validation.md) and
+[auth generation window](../../cli/internal/core/auth_generation_window.go).
+
+The other reads of the projection also wait only for the subjects that can
+change the result. Each read keeps its list of subjects next to it. Bot API
+key and incoming webhook authentication wait for the credential, lifecycle,
+deactivation, and owner events of the bot. Then they wait for the events of
+the current owner, because the owner is known only after the bot read. The
+OAuth consent, password, and external identity reads wait for the events of
+that user. A read that depends on users that it cannot name, such as a
+uniqueness check or a lookup across all users, still waits for all subject
+filters of the projection. See
+[bot credentials](../../cli/internal/core/bots.go).
 
 Bot account kind and owner ID are durable user-aggregate fields projected by
 `UserProjection`; it also maintains the current owner-to-bot index used for

@@ -338,7 +338,7 @@ function renderPlainCodeLines(code: string): string[] {
 
 function renderCodeCopyButton(): string {
   const label = escapeAttribute(m('common.copy_to_clipboard'));
-  return `<button type="button" class="markdown-code-copy copy-feedback mini-icon-action" data-markdown-copy aria-label="${label}" title="${label}"><span data-copy-icon class="iconify icon-[uil--copy] text-sm" aria-hidden="true"></span><span data-copy-check class="iconify icon-[uil--check] text-sm text-action" aria-hidden="true"></span></button>`;
+  return `<button type="button" class="markdown-code-copy copy-feedback attachment-action-button" data-markdown-copy aria-label="${label}" title="${label}"><span data-copy-icon class="iconify icon-[uil--copy] text-sm" aria-hidden="true"></span><span data-copy-check class="iconify icon-[uil--check] text-sm text-action" aria-hidden="true"></span></button>`;
 }
 
 type ArtifactPreview = {
@@ -356,7 +356,11 @@ function renderCodeFrame(code: string, language: string, artifact?: ArtifactPrev
   const content = visual
     ? `<div data-code-panel="render">${artifact.content ?? ''}</div>`
     : renderCodeFrameContents(code, language, artifact);
-  return `<div class="markdown-code-frame"${attributes}${visual ? ` data-artifact-source="${escapeAttribute(code)}"` : ''}>${content}</div>\n`;
+  // Code frames are preview frames. A source/render tab list groups two of the
+  // three preview actions, so the frame states the count that sizes the pill.
+  // Visual frames keep it for their source fallback.
+  const count = artifact ? ' style="--preview-actions-count:3"' : '';
+  return `<div class="markdown-code-frame group/preview relative"${count}${attributes}${visual ? ` data-artifact-source="${escapeAttribute(code)}"` : ''}>${content}</div>\n`;
 }
 
 /** Source fallback markup for the audited MarkdownHtml sink, built only after a visual fails. */
@@ -372,9 +376,10 @@ function renderCodeFrameContents(
   const sourceLabel = escapeAttribute(m('common.code_source'));
   const renderLabel = escapeAttribute(m('common.code_render'));
   const tabs = artifact
-    ? `<div role="tablist" aria-label="${escapeAttribute(language)}"><button type="button" role="tab" data-code-tab="source" aria-label="${sourceLabel}" title="${sourceLabel}" aria-selected="true" tabindex="0"><span class="iconify icon-[uil--brackets-curly] text-sm" aria-hidden="true"></span></button><button type="button" role="tab" data-code-tab="render" aria-label="${renderLabel}" title="${renderLabel}" aria-selected="false" tabindex="-1"${artifact.available ? '' : ' disabled'}><span class="iconify icon-[uil--eye] text-sm" aria-hidden="true"></span></button></div>`
+    ? `<div role="tablist" aria-label="${escapeAttribute(language)}"><button type="button" role="tab" class="attachment-action-button" data-code-tab="source" aria-label="${sourceLabel}" title="${sourceLabel}" aria-selected="true" tabindex="0"><span class="iconify icon-[uil--brackets-curly] text-sm" aria-hidden="true"></span></button><button type="button" role="tab" class="attachment-action-button" data-code-tab="render" aria-label="${renderLabel}" title="${renderLabel}" aria-selected="false" tabindex="-1"${artifact.available ? '' : ' disabled'}><span class="iconify icon-[uil--eye] text-sm" aria-hidden="true"></span></button></div>`
     : '';
-  return `<div class="markdown-code-header"><span class="markdown-code-language">${escapeHtml(language)}</span>${tabs}${renderCodeCopyButton()}</div><div data-code-panel="source">${renderCodeFence(code, language)}</div>${artifact ? `<div data-code-panel="render" hidden>${artifact.content ?? ''}</div><p class="markdown-code-error" role="status"${artifact.available ? ' hidden' : ''}>${escapeHtml(m('common.code_render_failed'))}</p>` : ''}`;
+  // The preview header holds the language label and the preview actions.
+  return `<div class="markdown-code-header preview-header"><span class="markdown-code-language">${escapeHtml(language)}</span></div><div class="preview-actions">${tabs}${renderCodeCopyButton()}</div><div data-code-panel="source">${renderCodeFence(code, language)}</div>${artifact ? `<div data-code-panel="render" hidden>${artifact.content ?? ''}</div><p class="markdown-code-error" role="status"${artifact.available ? ' hidden' : ''}>${escapeHtml(m('common.code_render_failed'))}</p>` : ''}`;
 }
 
 function renderCodeFence(code: string, rawLanguage: string): string {

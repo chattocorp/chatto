@@ -106,6 +106,7 @@ export default defineConfig({
           label: 'Releases',
           collapsed: true,
           items: [
+            { label: 'Changelog', link: '/changelog/' },
             'releases/0-6-0',
             'releases/0-5-0',
             'releases/0-4-0',

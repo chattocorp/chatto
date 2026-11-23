@@ -11,10 +11,12 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+
+	"github.com/chattocorp/chatto/cli/internal/core/remoteimage"
 )
 
 // This test does not call t.Parallel: it replaces the package-wide
-// providerAvatarClient.
+// remoteImageClient.
 func TestChattoCore_PendingExternalIdentityCreateFlow(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -23,10 +25,10 @@ func TestChattoCore_PendingExternalIdentityCreateFlow(t *testing.T) {
 		_, _ = w.Write(createTestPNG(64, 64))
 	}))
 	defer avatarServer.Close()
-	previousAvatarClient := providerAvatarClient
-	providerAvatarClient = avatarServer.Client()
+	previousAvatarClient := remoteImageClient
+	remoteImageClient = avatarServer.Client()
 	t.Cleanup(func() {
-		providerAvatarClient = previousAvatarClient
+		remoteImageClient = previousAvatarClient
 	})
 
 	token, err := core.CreatePendingExternalIdentityCreateFlow(ctx, PendingExternalIdentityFlow{
@@ -214,7 +216,7 @@ func TestChattoCore_ConfirmPendingExternalIdentityLinkRejectsDeletedUser(t *test
 }
 
 // This test does not call t.Parallel: it replaces the package-wide
-// providerAvatarClient.
+// remoteImageClient.
 func TestChattoCore_CreateUserForExternalIdentityIgnoresProviderAvatarFailure(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -223,10 +225,10 @@ func TestChattoCore_CreateUserForExternalIdentityIgnoresProviderAvatarFailure(t 
 		_, _ = w.Write([]byte("not an image"))
 	}))
 	defer avatarServer.Close()
-	previousAvatarClient := providerAvatarClient
-	providerAvatarClient = avatarServer.Client()
+	previousAvatarClient := remoteImageClient
+	remoteImageClient = avatarServer.Client()
 	t.Cleanup(func() {
-		providerAvatarClient = previousAvatarClient
+		remoteImageClient = previousAvatarClient
 	})
 
 	token, err := core.CreatePendingExternalIdentityCreateFlow(ctx, PendingExternalIdentityFlow{
@@ -264,19 +266,19 @@ func TestChattoCore_CreateUserForExternalIdentityIgnoresProviderAvatarFailure(t 
 }
 
 // This test does not call t.Parallel: it replaces the package-wide
-// providerAvatarClient.
+// remoteImageClient.
 func TestChattoCore_ImportUserAvatarFromURLRejectsOversizedResponse(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	avatarServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(strings.Repeat("x", int(providerAvatarMaxBytes)+1)))
+		_, _ = w.Write([]byte(strings.Repeat("x", remoteimage.MaxSourceBytes+1)))
 	}))
 	defer avatarServer.Close()
-	previousAvatarClient := providerAvatarClient
-	providerAvatarClient = avatarServer.Client()
+	previousAvatarClient := remoteImageClient
+	remoteImageClient = avatarServer.Client()
 	t.Cleanup(func() {
-		providerAvatarClient = previousAvatarClient
+		remoteImageClient = previousAvatarClient
 	})
 
 	user, err := core.CreateUser(ctx, SystemActorID, "oversizedavatar", "Oversized Avatar", "")
@@ -287,8 +289,8 @@ func TestChattoCore_ImportUserAvatarFromURLRejectsOversizedResponse(t *testing.T
 	if err == nil {
 		t.Fatal("expected oversized avatar response to fail")
 	}
-	if !strings.Contains(err.Error(), "avatar exceeds maximum size") {
-		t.Fatalf("expected oversized avatar error, got %v", err)
+	if !errors.Is(err, remoteimage.ErrRejected) {
+		t.Fatalf("expected oversized avatar rejection, got %v", err)
 	}
 }
 

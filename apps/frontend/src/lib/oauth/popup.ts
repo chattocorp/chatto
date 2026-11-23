@@ -14,13 +14,6 @@ const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 export type OAuthPopupResponse = {
   type: typeof OAUTH_POPUP_RESPONSE_TYPE;
   state: string;
-  /** Provider sign-in established an origin cookie session; verify it with the server. */
-  completed?: boolean;
-  /**
-   * Provider sign-in found no account and the user may create one. The opening
-   * window confirms the new account with this short-lived token.
-   */
-  externalIdentityToken?: string;
   code?: string;
   error?: string;
   errorDescription?: string;
@@ -45,13 +38,6 @@ export function oauthPopupResponseFromURL(url: URL): OAuthPopupResponse | null {
   const state = url.searchParams.get('state');
   // More than one issuer makes the source of the response ambiguous.
   if (!state || url.searchParams.getAll('iss').length > 1) return null;
-
-  if (url.searchParams.get('mode') === 'provider' && !url.searchParams.has('error')) {
-    const externalIdentityToken = url.searchParams.get('external_identity');
-    return externalIdentityToken
-      ? { type: OAUTH_POPUP_RESPONSE_TYPE, state, externalIdentityToken }
-      : { type: OAUTH_POPUP_RESPONSE_TYPE, state, completed: true };
-  }
 
   const code = url.searchParams.get('code') ?? undefined;
   const error = url.searchParams.get('error') ?? undefined;

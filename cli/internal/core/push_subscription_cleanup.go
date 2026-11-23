@@ -28,17 +28,32 @@ const (
 	pushSubscriptionCleanupRetryDelay      = 30 * time.Second
 	pushSubscriptionCleanupMaxPending      = 16
 
-	pushSubscriptionReconcileEvery     = 15 * time.Second
+	// pushSubscriptionReconcileEvery is the time between two reconciliation
+	// passes. A pass is a safety net behind the per-account cleanup job: it
+	// repairs a subscription that was saved after its account was deleted, a
+	// cleanup that failed partway, and an owner record without a subscription.
+	// These cases are rare, and a pass is not cheap: it lists two key families
+	// of RUNTIME_STATE and reads each owner record, its subscription, and the
+	// deletion fact of each user through the stream leader. On a server with
+	// some hundred subscriptions that is more than a thousand requests. Thus,
+	// the interval is long. It is also the longest time that such a leftover
+	// record stays after a successful pass.
+	pushSubscriptionReconcileEvery = time.Hour
+	// pushSubscriptionReconcileRetry is the time until the next pass after a
+	// pass that failed, so a transient failure does not wait a full interval.
+	pushSubscriptionReconcileRetry     = time.Minute
 	pushSubscriptionReconcileLeaseTTL  = time.Minute
 	pushSubscriptionReconcileLeaseName = "push-subscription-deletion-reconcile"
 )
 
 // pushSubscriptionCleanupModel turns the existing UserAccountDeleted domain
 // fact into recoverable physical removal of Web Push credentials. The durable
-// consumer handles the normal path. One leased startup/periodic pass scans the
-// current subscription and owner keyspaces once, using the permanent EVT fact
-// as its fence, to repair late writes, old partial failures, and orphaned owner
-// records without replaying a global scan for every deleted account.
+// consumer handles the normal path. One leased pass at startup, and then one
+// each pushSubscriptionReconcileEvery, scans the current subscription and
+// owner keyspaces once, using the permanent EVT fact as its fence, to repair
+// late writes, old partial failures, and orphaned owner records without
+// replaying a global scan for every deleted account. A new lease holder, for
+// example after a deploy, starts with a pass.
 type pushSubscriptionCleanupModel struct {
 	core           *ChattoCore
 	worker         *jobqueue.Effect
@@ -109,10 +124,11 @@ func (m *pushSubscriptionCleanupModel) processDelivery(ctx context.Context, deli
 func (m *pushSubscriptionCleanupModel) runReconciler(ctx context.Context) {
 	err := m.reconcileLease.Run(ctx, func(leaderCtx context.Context) error {
 		for {
-			if err := m.reconcileDeletedAccountPushState(leaderCtx); err != nil && leaderCtx.Err() == nil {
+			err := m.reconcileDeletedAccountPushState(leaderCtx)
+			if err != nil && leaderCtx.Err() == nil {
 				m.logger.Warn("Failed to reconcile push subscriptions for deleted accounts", "error", err)
 			}
-			timer := time.NewTimer(pushSubscriptionReconcileEvery)
+			timer := time.NewTimer(pushSubscriptionReconcileDelay(err))
 			select {
 			case <-leaderCtx.Done():
 				if !timer.Stop() {
@@ -129,6 +145,15 @@ func (m *pushSubscriptionCleanupModel) runReconciler(ctx context.Context) {
 	if err != nil && ctx.Err() == nil {
 		m.logger.Warn("Push-subscription reconciliation lease stopped", "error", err)
 	}
+}
+
+// pushSubscriptionReconcileDelay returns the time until the next pass. The
+// full interval applies only after a pass without an error.
+func pushSubscriptionReconcileDelay(passErr error) time.Duration {
+	if passErr != nil {
+		return pushSubscriptionReconcileRetry
+	}
+	return pushSubscriptionReconcileEvery
 }
 
 func (m *pushSubscriptionCleanupModel) reconcileDeletedAccountPushState(ctx context.Context) (resultErr error) {

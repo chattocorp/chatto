@@ -698,21 +698,50 @@ keyboard focus, accessible names, and action hit areas. Image thumbnails use
 or contact a third party merely to demonstrate the frame. These utilities do
 not change preview fetch, consent, or content-warning behavior.
 
-Use `PreviewToolbar` and `PreviewAction` for image, link, social-post, and video
-preview actions. The default toolbar is a row below the content, inside the
-frame rim. It stays visible and reserves its own space. It must not cover links,
-images, or playback controls. Use `layout="row"` for file and audio actions that
-share a row with content, and for viewer controls. Keep the canvas aspect ratio
-independent of the toolbar height. Video playback controls, including Cast, PiP,
-and fullscreen, stay inside the player. Video previews have no separate viewer opener.
-Attachment description/delete actions stay visible in the footer on all devices.
-Do not render a footer without permitted actions.
-Use `AttachmentActions` for direct description and delete icons. Keep all actions
-accessible in the footer; narrow rows can wrap. Pass viewing and playback
-actions through the toolbar's `viewing` snippet, at the start of the row.
-Keep permission-gated description and delete actions at the end. These sides
-follow text direction, so RTL layouts mirror the groups. The card owns permissions,
-callbacks, and confirmation dialogs.
+#### Preview actions
+
+Every preview puts its actions in one place: a small pill in the top end corner
+of its frame. This applies to images, video, audio, files, link previews,
+social posts, YouTube and Vimeo players, message previews, animated SVG
+images, and message code blocks. It applies to viewing actions, such as Pause animation or View, and to
+management actions, such as Edit description, Delete, and Remove preview.
+`PreviewToolbar` renders the pill. Storybook shows every preview type in
+**UI/PreviewToolbar → Preview family**.
+
+- The pill floats over the content and reserves no space. There is no footer
+  or action row below a preview.
+- With a fine hover pointer and no touch input, the pill shows only while the
+  preview is hovered or holds keyboard focus. Touch input always shows it.
+- The pill never covers text or Chatto's own controls. A text row or a
+  control row in the top part of the frame adds `preview-actions-clearance`,
+  which reserves the pill's width. The compact video player's top control row
+  does this too. Over a picture, the pill can cover a corner of the content.
+  Third-party players, such as YouTube and Vimeo, cannot keep clear of it.
+- A one-row card, such as a file or audio card (`attachment-card`), puts the
+  pill at the end of its row, centred on it. The row reserves its space.
+- A frame with a header row, such as a code block with its language label,
+  marks the row with `preview-header`. The pill then sits in that row, and the
+  label and the pill share one centre line. Do not grow a header to make room
+  below the pill.
+- The frame is the positioned `group/preview` element. It learns the number of
+  actions from the pill. It sets the clearance width and a minimum width that
+  holds the pill. Owners do not measure or size the pill.
+- Each action is a direct child of the pill, so the frame can count it. When
+  one child groups several buttons, such as the Source and Render tab list of a
+  code block, the frame sets `--preview-actions-count` to the button count.
+- Do not render a pill without actions.
+- Pass viewing actions through the `viewing` snippet. They come before the
+  management actions and follow text direction.
+- Use `AttachmentActions` for the description and delete icons. The preview
+  owner keeps permissions, callbacks, and confirmation dialogs.
+- Video playback controls, including Cast, PiP, and fullscreen, stay inside the
+  player. Video previews have no separate viewer opener.
+- Composer previews, before the message is sent, keep their actions visible.
+  They use the same `PreviewAction` buttons at the end of their row. Set
+  `active` on an action whose value is set, such as an existing description.
+- The attachment viewer is not a preview. It uses `layout="row"` to put its
+  controls in its own control bar.
+
 `PreviewAction` uses the shared `icon-action-feedback` utility: icons are muted
 at rest and brighten on hover or keyboard focus. Touch input uses larger targets.
 Preview actions keep a neutral tone, including the delete icon. Delete
@@ -1183,6 +1212,9 @@ the effective app motion preference requests reduced motion.
 - Outside labelled buttons and chat input surfaces, `rounded-xl` is reserved
   for softer product-specific objects, such as server tiles.
 - Nested rounded surfaces should be concentric when their padding is small.
+- Overlays, rings, and fills that match the corners of their parent use
+  `rounded-inherit`, not `rounded-[inherit]`. In `src/styles/`, write
+  `@apply rounded-inherit`. The design-system check enforces this.
 - Base text is the default. Use `text-sm` for secondary copy and `text-xs` for
   metadata, timestamps, and terse labels. These sizes are 16, 14, and 12 px at
   the browser default on all devices. Input capability changes target sizes,

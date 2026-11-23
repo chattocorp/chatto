@@ -1,7 +1,12 @@
 <!-- @component
-Groups preview actions below the content on the frame rim.
-Viewing actions sit at the start; management actions sit at the end.
-Use the inline row for file, audio, and viewer controls. Actions stay visible.
+Preview actions: one pill in the top end corner of a preview frame. Every
+preview uses it, for viewing and management actions alike. The pill floats over
+the content and reserves no space. It shows on hover or keyboard focus, and
+always for touch input. The owner must be a positioned `group/preview` frame.
+A text row below the pill must use `preview-actions-clearance`.
+
+The full attachment viewer is not a preview: it uses `layout="row"` to put its
+controls in its own control bar.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -9,33 +14,21 @@ Use the inline row for file, audio, and viewer controls. Actions stay visible.
   let {
     children,
     viewing,
-    layout = 'footer'
+    layout = 'corner'
   }: {
-    /** Permission-gated management actions, aligned to the end. */
+    /** Permission-gated management actions, after the viewing actions. */
     children?: Snippet;
-    /** Viewing and playback actions available to any reader, aligned to the start. */
+    /** Viewing and playback actions available to any reader, before the management actions. */
     viewing?: Snippet;
-    /** Footer rows sit below the canvas; inline rows share space with card content. */
-    layout?: 'footer' | 'row';
+    /** `corner` is the preview pill; `row` is an inline row for viewer control bars. */
+    layout?: 'corner' | 'row';
   } = $props();
 </script>
 
+<!-- Actions are direct children so the frame can count them for its clearance. -->
 <div
-  class={layout === 'footer'
-    ? 'preview-toolbar'
-    : 'flex max-w-full flex-wrap items-center gap-x-3 gap-y-1'}
+  class={layout === 'corner' ? 'preview-actions' : 'flex max-w-full flex-wrap items-center gap-1'}
 >
-  {#if viewing}
-    <div class="flex max-w-full flex-wrap items-center gap-1 empty:hidden" data-preview-viewing>
-      {@render viewing()}
-    </div>
-  {/if}
-  {#if children}
-    <div
-      class="ms-auto flex max-w-full flex-wrap items-center gap-1 empty:hidden"
-      data-preview-management
-    >
-      {@render children()}
-    </div>
-  {/if}
+  {@render viewing?.()}
+  {@render children?.()}
 </div>

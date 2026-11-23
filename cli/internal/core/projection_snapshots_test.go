@@ -335,7 +335,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			}
 		}},
 		{"notifications", func() snapshotProjection {
-			p := NewNotificationProjection()
+			p := NewNotificationProjection(nil)
 			p.now = func() time.Time { return now }
 			return p
 		}, func(raw snapshotProjection) {
@@ -350,8 +350,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 				ExpiresAt:                  timestamppb.New(expiresAt),
 				NotificationStreamSequence: 41,
 			}
-			p.byID[occurrence.GetId()] = occurrence
-			p.idsByUser[occurrence.GetRecipientId()] = map[string]struct{}{occurrence.GetId(): {}}
+			p.addLocked(occurrence)
 			p.tombstones["N2"] = notificationProjectionTombstone{recipientID: "U1", expiresAt: expiresAt, signalSequence: 42}
 		}},
 		{"room_timeline", func() snapshotProjection { return NewRoomTimelineProjection() }, func(raw snapshotProjection) {

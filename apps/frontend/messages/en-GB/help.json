@@ -9,6 +9,14 @@
       "question": "Who is joining the next call?"
     },
     "overview": "Overview",
+    "whats_new": {
+      "title": "What's new",
+      "description": "Highlights from each Chatto release, in English.",
+      "full_changelog": "Full changelog",
+      "release_notes": "Release notes for {version}",
+      "empty": "There are no highlights yet.",
+      "unreleased": "Unreleased"
+    },
     "intro": "Short guides for everyday chat and server administration.",
     "users": "For users",
     "admins": "For administrators",

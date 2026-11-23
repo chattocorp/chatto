@@ -33,9 +33,9 @@ describe('SVG animation playback', () => {
         const bounds = () => frame.contentDocument?.querySelector('svg')?.getBoundingClientRect();
         await expect.poll(() => bounds()?.width).toBe(400);
         await expect.poll(() => bounds()?.height).toBe(200);
-        view.container.style.cssText = 'width:44px;height:200px';
-        await expect.poll(() => bounds()?.width).toBe(44);
-        await expect.poll(() => bounds()?.height).toBe(22);
+        view.container.style.cssText = 'width:60px;height:200px';
+        await expect.poll(() => bounds()?.width).toBe(60);
+        await expect.poll(() => bounds()?.height).toBe(30);
       } finally {
         await view.unmount();
       }

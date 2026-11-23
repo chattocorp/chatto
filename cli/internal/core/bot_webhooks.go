@@ -287,7 +287,9 @@ func (m *botWebhookModel) credentials(ctx context.Context, e *evtv1.Event) (botW
 	if x.GetCredentials() == nil {
 		return result, ErrNotFound
 	}
-	if err := m.core.userModel.waitForUserAuthCurrent(ctx, "outbound webhook credentials"); err != nil {
+	// The credentials are encrypted with a content key of the bot. Only the
+	// content key projection is read here.
+	if err := m.core.userModel.waitForContentKeysCurrent(ctx, x.GetBotUserId()); err != nil {
 		return result, err
 	}
 	key, ok, err := m.core.userModel.contentKeyAtEpoch(x.GetBotUserId(), evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, x.GetCredentials().GetContentKeyEpoch())

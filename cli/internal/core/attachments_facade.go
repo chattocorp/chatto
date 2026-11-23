@@ -84,6 +84,10 @@ func (c *ChattoCore) StoreCachedResize(ctx context.Context, key string, data []b
 	return c.mediaModel.StoreCachedResize(ctx, key, data)
 }
 
+func (c *ChattoCore) StoreCachedResizeIfAbsent(ctx context.Context, key string, data []byte) error {
+	return c.mediaModel.StoreCachedResizeIfAbsent(ctx, key, data)
+}
+
 func (c *ChattoCore) RecordAssetProcessingStarted(ctx context.Context, actorID, roomID, messageEventID, assetID string) error {
 	return c.assetModel.RecordAssetProcessingStarted(ctx, actorID, roomID, messageEventID, assetID)
 }

@@ -73,6 +73,34 @@ the storage rules for each Loom application:
   key again after a `Create` conflict.
 - Report every durable consumer in the operator diagnostics.
 
+## Operating cost
+
+The building blocks of Loom are not free while they are idle. Count their
+cost when you design, and measure it when you change them.
+
+- **Most of the load is inside NATS.** For a replicated stream or a durable
+  consumer, the servers coordinate on each pull, acknowledgement, and write.
+  The requests that a client sends are a small part of the traffic of a
+  cluster.
+- **A worker without work must not poll.** Hold one long pull while the
+  worker is idle. A loop of short pulls on many durable consumers is
+  expensive, because each pull on a replicated consumer makes the servers
+  exchange messages.
+- **Each durable consumer has a permanent cost,** with or without work. The
+  number of consumers is a design decision. State it for each application,
+  and weigh it against the isolation that separate consumers give.
+- **A read from the stream leader is a request.** Do not send one for each
+  request and each subject. Wait only for the subjects that the next read
+  depends on, and read their positions concurrently. If a bounded delay is
+  acceptable, record that as a decision.
+- **A periodic scan costs in proportion to the data, for as long as the
+  application runs.** Run a safety net at a long interval, or make one pass
+  cheap: read the records in the scan, not one at a time. State the interval
+  and the number of requests for one pass where the scan is defined.
+- **Measure with real data.** An empty development server does not show a
+  cost that grows with the data. Restore a backup into a local server, record
+  the NATS traffic, and measure retained memory together with time.
+
 ## Framework and application
 
 The framework supplies the reusable mechanics for publishing events, replaying

@@ -5,6 +5,7 @@ SSO providers and direct login. Holds the password form, the password-reset
 link, and the Create Account action.
 -->
 <script lang="ts">
+  import { isIdentityLinkPath } from '$lib/auth/identityLink';
   import { resolve } from '$app/paths';
   import { withReturnPath } from '$lib/auth/loginRoutes';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
@@ -14,7 +15,9 @@ link, and the Create Account action.
 
   const { data } = $props();
 
-  const compact = $derived(data.redirectUrl.startsWith('/oauth/'));
+  const compact = $derived(
+    data.redirectUrl.startsWith('/oauth/') || isIdentityLinkPath(data.redirectUrl)
+  );
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
   const hasProviders = $derived((data.serverInfo?.authProviders.length ?? 0) > 0);
 </script>

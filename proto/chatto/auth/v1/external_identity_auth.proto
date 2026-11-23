@@ -52,6 +52,10 @@ message PendingExternalIdentity {
   optional UsernameChoiceAvailability choose_username = 10;
   // A create flow must first supply an invitation code. Existing-account sign-in is unaffected.
   bool invitation_required = 11;
+  // Same-origin URL of a preview of the provider avatar, when the provider
+  // supplied one. The server fetches and re-encodes the image, so the browser
+  // does not contact the provider. Account creation imports the avatar.
+  string avatar_url = 12;
 }
 
 // Request to inspect a pending external identity flow.

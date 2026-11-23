@@ -160,6 +160,7 @@
         "reaction_users_more": "+ {count} tane daha",
         "copy_link_title": "Bu iletinin bağlantısını kopyalamak için tıklayın",
         "in_reply_to": "cevap olarak",
+        "from_thread": "Konudan",
         "reply_preview_fallback": "Mesaj",
         "deleted": "Bu mesaj silindi."
       },

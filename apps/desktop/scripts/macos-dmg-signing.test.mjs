@@ -10,10 +10,11 @@ const environment = {
   CHATTO_MACOS_NOTARY_API_ISSUER_ID: 'issuer'
 };
 const file = '/output/Chatto Desktop.dmg';
+const app = '/output/Chatto.app';
 
-test('signs, submits, staples, and verifies the same disk image in order', async () => {
+test('submits the disk image once, then staples and verifies it and its app in order', async () => {
   const calls = [];
-  await signMacOSDmg(file, environment, (command, args) => {
+  await signMacOSDmg(file, app, environment, (command, args) => {
     calls.push([command, ...args]);
     return JSON.stringify({ id: 'submission', status: 'Accepted' });
   });
@@ -36,6 +37,8 @@ test('signs, submits, staples, and verifies the same disk image in order', async
     ],
     ['xcrun', 'stapler', 'staple', file],
     ['xcrun', 'stapler', 'validate', file],
+    ['xcrun', 'stapler', 'staple', app],
+    ['xcrun', 'stapler', 'validate', app],
     ['codesign', '--verify', '--strict', '--verbose=2', file],
     [
       'spctl',
@@ -46,7 +49,8 @@ test('signs, submits, staples, and verifies the same disk image in order', async
       'context:primary-signature',
       '--verbose=4',
       file
-    ]
+    ],
+    ['spctl', '--assess', '--type', 'execute', '--verbose=4', app]
   ]);
 });
 
@@ -54,7 +58,7 @@ for (const missing of Object.keys(environment)) {
   test(`rejects missing ${missing} before invoking signing tools`, async () => {
     await assert.rejects(
       () =>
-        signMacOSDmg(file, { ...environment, [missing]: '' }, () => {
+        signMacOSDmg(file, app, { ...environment, [missing]: '' }, () => {
           assert.fail('must reject credentials before signing');
         }),
       /required|must be set together/
@@ -63,15 +67,15 @@ for (const missing of Object.keys(environment)) {
 }
 
 test('rejects unsigned mode when release signing was requested', async () => {
-  await assert.rejects(() => signMacOSDmg(file, {}), /requires all/);
+  await assert.rejects(() => signMacOSDmg(file, app, {}), /requires all/);
 });
 
 for (const status of ['Invalid', 'Rejected', 'In Progress', undefined]) {
-  test(`does not staple a submission with status ${status}`, async () => {
+  test(`does not staple the disk image or app for status ${status}`, async () => {
     let calls = 0;
     await assert.rejects(
       () =>
-        signMacOSDmg(file, environment, () => {
+        signMacOSDmg(file, app, environment, () => {
           calls++;
           return JSON.stringify({ id: 'submission', status });
         }),
@@ -81,12 +85,12 @@ for (const status of ['Invalid', 'Rejected', 'In Progress', undefined]) {
   });
 }
 
-for (let failure = 1; failure <= 6; failure++) {
+for (let failure = 1; failure <= 9; failure++) {
   test(`stops immediately when release command ${failure} fails`, async () => {
     let calls = 0;
     await assert.rejects(
       () =>
-        signMacOSDmg(file, environment, () => {
+        signMacOSDmg(file, app, environment, () => {
           if (++calls === failure) throw new Error('command failed');
           return JSON.stringify({ id: 'submission', status: 'Accepted' });
         }),

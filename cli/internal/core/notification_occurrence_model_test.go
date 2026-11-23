@@ -343,7 +343,7 @@ func TestConcurrentNotificationRemovalCountsOneCommit(t *testing.T) {
 }
 
 func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
-	p := NewNotificationProjection()
+	p := NewNotificationProjection(nil)
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	p.now = func() time.Time { return now }
 	occurrence := &notificationv1.NotificationOccurrence{
@@ -405,7 +405,7 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 }
 
 func TestNotificationProjectionColdReplayRetainsExpiredDismissalCleanupCoordinate(t *testing.T) {
-	p := NewNotificationProjection()
+	p := NewNotificationProjection(nil)
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	p.now = func() time.Time { return now }
 	expiresAt := now.Add(-time.Minute)
@@ -431,7 +431,7 @@ func TestNotificationProjectionColdReplayRetainsExpiredDismissalCleanupCoordinat
 }
 
 func TestNotificationProjectionKeepsFirstAlertResolution(t *testing.T) {
-	p := NewNotificationProjection()
+	p := NewNotificationProjection(nil)
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	p.now = func() time.Time { return now }
 	occurrence := &notificationv1.NotificationOccurrence{

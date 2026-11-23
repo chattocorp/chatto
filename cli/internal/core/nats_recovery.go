@@ -185,10 +185,10 @@ func (c *ChattoCore) recoverNATSGeneration(ctx context.Context) error {
 }
 
 func (c *ChattoCore) verifyNATSRecovery(ctx context.Context) error {
-	if _, err := c.storage.runtimeStateKV.Status(ctx); err != nil {
+	if err := c.runtimeStateReady(ctx); err != nil {
 		return fmt.Errorf("RUNTIME_STATE recovery: %w", err)
 	}
-	if _, err := c.storage.serverEvtStream.Info(ctx); err != nil {
+	if _, err := c.currentEventStreamInfo(ctx); err != nil {
 		return fmt.Errorf("EVT recovery: %w", err)
 	}
 	if _, err := c.js.CreateOrUpdateKeyValue(ctx, memoryCacheConfig(c.config)); err != nil {

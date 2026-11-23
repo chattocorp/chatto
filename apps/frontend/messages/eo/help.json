@@ -9,6 +9,14 @@
       "question": "Kiu partoprenos la venontan vokon?"
     },
     "overview": "Superrigardo",
+    "whats_new": {
+      "title": "Kio estas nova",
+      "description": "La ĉefaj novaĵoj de ĉiu eldono de Chatto, en la angla.",
+      "full_changelog": "Plena ŝanĝprotokolo",
+      "release_notes": "Eldonaj notoj por {version}",
+      "empty": "Ankoraŭ ne estas ĉefaj novaĵoj.",
+      "unreleased": "Neeldonita"
+    },
     "intro": "Mallongaj gvidiloj por babilado kaj servila administrado.",
     "users": "Por membroj",
     "admins": "Por administrantoj",

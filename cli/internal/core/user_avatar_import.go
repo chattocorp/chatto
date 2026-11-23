@@ -3,57 +3,15 @@ package core
 import (
 	"bytes"
 	"context"
-	"errors"
-	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"time"
-
-	"github.com/chattocorp/chatto/cli/internal/core/linkpreview"
 )
 
-const (
-	providerAvatarFetchTimeout = 10 * time.Second
-	providerAvatarMaxBytes     = 5 * 1024 * 1024
-)
-
-var providerAvatarClient = linkpreview.NewSSRFSafeClient(providerAvatarFetchTimeout)
-
-// ImportUserAvatarFromURL downloads a remote provider avatar and stores it as a
-// Chatto-managed user avatar asset.
+// ImportUserAvatarFromURL fetches a remote provider avatar and stores it as a
+// Chatto-managed user avatar asset. Errors do not contain the URL, which can
+// identify the account; callers log them.
 func (c *ChattoCore) ImportUserAvatarFromURL(ctx context.Context, userID, avatarURL string) error {
-	u, err := url.Parse(avatarURL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-		return nil
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, avatarURL, nil)
+	avatarData, err := c.FetchRemoteImage(ctx, avatarURL)
 	if err != nil {
 		return err
-	}
-
-	resp, err := providerAvatarClient.Do(req)
-	if err != nil {
-		// A *url.Error names the full URL, which can identify the account, for
-		// example an AT Protocol DID. Callers log this error.
-		if urlErr, ok := errors.AsType[*url.Error](err); ok {
-			return fmt.Errorf("fetch provider avatar: %w", urlErr.Err)
-		}
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil
-	}
-
-	avatarData, err := io.ReadAll(io.LimitReader(resp.Body, providerAvatarMaxBytes+1))
-	if err != nil {
-		return err
-	}
-	if len(avatarData) > providerAvatarMaxBytes {
-		return fmt.Errorf("avatar exceeds maximum size of %d bytes", providerAvatarMaxBytes)
 	}
 
 	asset, err := c.UploadUserAvatar(ctx, userID, bytes.NewReader(avatarData))

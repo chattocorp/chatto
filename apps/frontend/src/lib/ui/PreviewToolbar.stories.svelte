@@ -11,16 +11,41 @@
   import clip from '$lib/test-utils/fixtures/wide-preview.mp4?url';
   import coast from '../../../e2e/fixtures/brighton.jpg?url';
 
+  /**
+   * Preview actions: every preview puts its actions in one corner pill.
+   * Point at a preview to show its pill. Touch input always shows it.
+   */
   const { Story } = defineMeta({ title: 'UI/PreviewToolbar', component: PreviewToolbar });
 </script>
 
 {#snippet previews()}
+  <div class="group/preview relative w-48 max-w-full preview-frame">
+    <img src={coast} alt="Animated coast" class="h-32 w-full preview-content object-cover" />
+    <PreviewToolbar>
+      {#snippet viewing()}<PreviewAction
+          label="Pause animation"
+          icon="icon-[uil--pause]"
+          aria-pressed={false}
+        />{/snippet}
+    </PreviewToolbar>
+  </div>
   <div class="group/preview relative w-64 max-w-full preview-frame">
     <img src={coast} alt="Brighton coast" class="h-48 w-full preview-content object-cover" />
     <PreviewToolbar>
       <AttachmentActions editLabel="Edit description" onEdit={() => {}} onDelete={() => {}} />
     </PreviewToolbar>
   </div>
+  <LinkPreviewCard
+    preview={{
+      url: 'https://example.test/coast',
+      title: 'Brighton coast',
+      siteName: 'Coastal notes',
+      description: 'A quiet morning by the sea.',
+      imageUrl: coast
+    }}
+    showDismiss={false}
+    canDelete
+  />
   <LinkPreviewCard
     preview={{
       url: 'https://example.test',
@@ -44,6 +69,24 @@
     showDismiss={false}
     onDelete={() => {}}
   />
+  <div class="group/preview attachment-card relative w-64 max-w-full preview-frame">
+    <span class="iconify icon-[uil--file] shrink-0 text-2xl text-muted" aria-hidden="true"></span>
+    <span class="min-h-10 min-w-0 content-center text-sm wrap-anywhere">harbour-notes.pdf</span>
+    <PreviewToolbar>
+      <AttachmentActions editLabel="Edit description" onEdit={() => {}} onDelete={() => {}} />
+    </PreviewToolbar>
+  </div>
+  <div class="group/preview attachment-card relative w-full flex-wrap preview-frame">
+    <audio controls preload="none" class="h-10 max-w-full min-w-[min(12rem,100%)] flex-1 basis-48"
+    ></audio>
+    <PreviewToolbar>
+      {#snippet viewing()}<PreviewAction
+          label="View file"
+          icon="icon-[uil--expand-alt]"
+        />{/snippet}
+      <AttachmentActions editLabel="Edit description" onEdit={() => {}} onDelete={() => {}} />
+    </PreviewToolbar>
+  </div>
 {/snippet}
 
 <Story name="Preview family" asChild>
@@ -58,24 +101,11 @@
   </div>
 </Story>
 
-<Story name="Inline row" asChild>
+<Story name="Viewer row" asChild>
+  <!-- The attachment viewer is not a preview: its controls sit in its own bar. -->
   <PreviewToolbar layout="row">
-    {#snippet viewing()}<PreviewAction label="View file" icon="icon-[uil--expand-alt]" />{/snippet}
-    <AttachmentActions editLabel="Edit description" onEdit={() => {}} onDelete={() => {}} />
+    {#snippet viewing()}<PreviewAction label="Pause animation" icon="icon-[uil--pause]" />{/snippet}
   </PreviewToolbar>
-</Story>
-
-<Story name="Animation controls" asChild>
-  <div class="w-64 max-w-full preview-frame">
-    <img src={coast} alt="Brighton coast" class="h-48 w-full preview-content object-cover" />
-    <PreviewToolbar>
-      {#snippet viewing()}<PreviewAction
-          label="Pause animation"
-          icon="icon-[uil--pause]"
-          aria-pressed={false}
-        />{/snippet}
-    </PreviewToolbar>
-  </div>
 </Story>
 
 <Story name="Video controls" asChild>

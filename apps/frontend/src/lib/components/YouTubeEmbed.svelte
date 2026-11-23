@@ -55,7 +55,7 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
       {:else}
         <PreviewAction
           label={m('preview.youtube_delete')}
-          icon="icon-[uil--trash-alt]"
+          icon="icon-[uil--times]"
           onclick={onDelete}
         />
       {/if}

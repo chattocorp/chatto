@@ -192,6 +192,10 @@ func (c *ChattoCore) authTokenKey(token string) string {
 // miss a just-issued record, show an older session generation, or show an
 // expiry that a renewal already moved. A rejection is decided again through the
 // stream leader, and only that pass removes invalid records.
+//
+// For the same reason, the first pass can use the fast auth generation check
+// inside the auth generation check window (ADR-127). The second pass, and
+// every caller that reads through the stream leader, uses the strict check.
 func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, handle string, presentation AuthTokenPresentation) (ValidatedRuntimeCredential, error) {
 	credential, err := c.validateRuntimeCredential(ctx, handle, presentation, fastCredentialRead)
 	if !errors.Is(err, ErrAuthTokenNotFound) || handle == "" {
@@ -302,7 +306,7 @@ func (c *ChattoCore) validateRuntimeCredential(ctx context.Context, handle strin
 		}
 	}
 
-	if err := c.RequireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.AuthGeneration); err != nil {
+	if err := c.requireAuthenticationAllowed(ctx, tokenData.UserID, tokenData.AuthGeneration, authGenerationCheckFor(read)); err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return ValidatedRuntimeCredential{}, err
 		}

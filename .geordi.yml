@@ -2,33 +2,25 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 setup: mise setup
-default: urls.chatto
-# The development services use fixed offsets from GEORDI_PORT; see the `[env]`
-# section of mise.toml. Reserve the complete block of ten ports.
-ports: 10
-# The run and full jobs use the same NATS port and data directory, so only one runs at a
-# time. The port check of the second job stops it early.
-jobs:
-  run:
+# Each task listens on a named port of its own. Chatto uses that port. The other
+# development services use fixed offsets from GEORDI_PORT, the first of the ten
+# spare workspace ports; see the `[env]` section of mise.toml.
+# The chatto and chatto-full tasks use the same NATS port and data directory,
+# so only one runs at a time. The port check of the second task stops it early.
+tasks:
+  chatto:
     label: Chatto
-    command: CHATTO_DEV_CHATTO_URL_OVERRIDE=http://localhost:$PORT mise dev
-  full:
+    command: CHATTO_DEV_CHATTO_PORT_OVERRIDE=$PORT CHATTO_DEV_CHATTO_URL_OVERRIDE=http://localhost:$PORT mise dev
+    ports: [chatto]
+    url: http://localhost:{chatto}/
+    default: true
+  chatto-full:
     label: Chatto with Authling, Runling, Mailpit, and LiveKit
-    # Chatto uses this job's port, so the full stack has a URL of its own.
-    # Geordi gives this job the second port, which is the Vite offset: do not
-    # run `mise dev-frontend` beside it. The other services keep their offsets.
-    # Authling uses the regular Chatto port so the third port can serve docs.
-    command: CHATTO_DEV_AUTHLING_PORT_OVERRIDE=$GEORDI_PORT_RUN CHATTO_DEV_CHATTO_PORT_OVERRIDE=$PORT CHATTO_DEV_CHATTO_URL_OVERRIDE=http://localhost:$PORT mise dev-full
+    command: CHATTO_DEV_CHATTO_PORT_OVERRIDE=$PORT CHATTO_DEV_CHATTO_URL_OVERRIDE=http://localhost:$PORT mise dev-full
+    ports: [chatto-full]
+    url: http://localhost:{chatto-full}/
   docs:
     label: Docs website
     command: mise dev-docs-website -- --port "$PORT"
-urls:
-  chatto:
-    label: Chatto
-    url: http://localhost:{run}/
-  chatto-full:
-    label: Chatto (full stack)
-    url: http://localhost:{full}/
-  docs:
-    label: Docs website
+    ports: [docs]
     url: http://localhost:{docs}/

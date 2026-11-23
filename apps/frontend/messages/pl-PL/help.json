@@ -9,6 +9,14 @@
       "question": "Kto dołączy do następnej rozmowy?"
     },
     "overview": "Przegląd",
+    "whats_new": {
+      "title": "Co nowego",
+      "description": "Najważniejsze zmiany w każdej wersji Chatto, po angielsku.",
+      "full_changelog": "Pełny dziennik zmian",
+      "release_notes": "Informacje o wersji {version}",
+      "empty": "Nie ma jeszcze najważniejszych zmian.",
+      "unreleased": "Niewydane"
+    },
     "intro": "Krótkie poradniki dotyczące rozmów i administracji serwerem.",
     "users": "Dla członków",
     "admins": "Dla administratorów",

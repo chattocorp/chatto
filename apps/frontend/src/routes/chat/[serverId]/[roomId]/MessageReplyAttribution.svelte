@@ -1,4 +1,7 @@
-<!-- @component Shows a reply target's author and text or attachment label. -->
+<!--
+  @component Shows a reply target's or thread root's author and text or attachment label.
+  `kind="thread"` marks a channel echo of a thread reply that is not itself a reply.
+-->
 <script lang="ts">
   import AccountName from '$lib/components/users/AccountName.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -9,12 +12,15 @@
 
   let {
     preview,
+    kind = 'reply',
     compact = false,
     callPresence = null,
     onJump,
     onAuthorClick
   }: {
     preview: MessageReplyPreview;
+    /** `reply` points to the replied-to message; `thread` points to the thread root. */
+    kind?: 'reply' | 'thread';
     compact?: boolean;
     callPresence?: CallPresenceKind | null;
     onJump: () => void;
@@ -47,7 +53,10 @@
         ? m('room.message.meta.reply_preview_fallback')
         : preview.name)
   );
-  const jumpLabel = $derived(`${m('room.message.meta.in_reply_to')} ${jumpText}`);
+  const kindLabel = $derived(
+    kind === 'thread' ? m('room.message.meta.from_thread') : m('room.message.meta.in_reply_to')
+  );
+  const jumpLabel = $derived(`${kindLabel} ${jumpText}`);
 </script>
 
 <!-- The row click is a pointer shortcut. Keyboard access comes from the nested jump button. -->
@@ -55,8 +64,9 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
   data-testid="reply-attribution"
+  data-kind={kind}
   data-press-feedback
-  title={m('room.message.meta.in_reply_to')}
+  title={kindLabel}
   class={[
     'group/reply relative flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted',
     compact ? '' : '-ms-[39px] ps-[39px]'
@@ -74,6 +84,13 @@
       aria-hidden="true"
       class="absolute start-0 top-[11px] h-7 w-[39px] rounded-ss-md border-s-2 border-t-2 border-surface-strong/30 transition-colors feedback-quick group-hover/reply:border-surface-strong/55"
     ></span>
+  {/if}
+
+  {#if kind === 'thread'}
+    <span class="inline-flex shrink-0 items-center gap-1" data-testid="reply-attribution-thread">
+      <span aria-hidden="true" class="iconify icon-[uil--comment-alt-lines] shrink-0"></span>
+      {kindLabel}
+    </span>
   {/if}
 
   {#if preview.actor}

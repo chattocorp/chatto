@@ -23,7 +23,7 @@
 </script>
 
 <div
-  class="preview-media-frame my-1.5 min-w-14 preview-frame"
+  class="group/preview preview-media-frame relative my-1.5 preview-frame"
   style={videoFrameStyle(width, height, autoLoop)}
 >
   <button

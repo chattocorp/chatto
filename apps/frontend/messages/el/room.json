@@ -160,6 +160,7 @@
         "reaction_users_more": "+ {count} ακόμη",
         "copy_link_title": "Κάντε κλικ για αντιγραφή συνδέσμου σε αυτό το μήνυμα",
         "in_reply_to": "σε απάντηση στο",
+        "from_thread": "Από νήμα",
         "reply_preview_fallback": "Μήνυμα",
         "deleted": "Αυτό το μήνυμα έχει διαγραφεί."
       },

@@ -145,6 +145,21 @@ func TestOIDCFreshAuthReverification(t *testing.T) {
 		}
 	})
 
+	t.Run("provider error returns to settings", func(t *testing.T) {
+		token, err := chattoCore.CreateFreshAuthReverificationStart(ctx, "sso", settingsPath, cookieHandle)
+		if err != nil {
+			t.Fatalf("CreateFreshAuthReverificationStart: %v", err)
+		}
+		state := authStateFromLocation(t, startReverification(t, client, ts.URL, token))
+		resp, err := client.Get(ts.URL + "/auth/providers/sso/callback?" + url.Values{"state": {state}, "error": {"access_denied"}}.Encode())
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		// A denial returns to the settings path, not to the login page.
+		assertReturn(t, resp.Header.Get("Location"), "error", "provider_denied")
+	})
+
 	t.Run("token is single use", func(t *testing.T) {
 		token, err := chattoCore.CreateFreshAuthReverificationStart(ctx, "sso", settingsPath, cookieHandle)
 		if err != nil {

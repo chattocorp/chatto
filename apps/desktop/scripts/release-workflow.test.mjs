@@ -44,6 +44,7 @@ mise() {
 }
 tee() { cat; }
 bash() { return ${copyTestStatus}; }
+mkdir() { return 0; }
 cp() { echo published; }
 ${script}`
       ],
@@ -54,8 +55,15 @@ ${script}`
   });
 }
 
-// Ticket validation runs in desktop-build. Packaging must still stop on an
-// invalid signature or Gatekeeper assessment before it creates the ZIP.
+test('macOS notarises the DMG before it packages the stapled app as a ZIP', () => {
+  const steps = workflow.replaceAll('\r\n', '\n');
+  const dmg = steps.indexOf('      - name: Build and test signed macOS DMG\n');
+  const zip = steps.indexOf('      - name: Package macOS release\n');
+  assert.ok(dmg > 0 && zip > dmg, 'The DMG step must run before the ZIP step.');
+});
+
+// Ticket validation runs in build:macos-dmg --release. Packaging must still stop
+// on an invalid signature or Gatekeeper assessment before it creates the ZIP.
 for (const [name, signatureStatus, assessmentStatus] of [
   ['valid app', 0, 0],
   ['invalid signature', 1, 0],

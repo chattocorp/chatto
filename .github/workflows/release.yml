@@ -426,6 +426,17 @@ jobs:
         if: runner.os == 'macOS'
         run: bash tools/test-desktop-macos-architectures.sh
 
+      # This is the only notarisation submission. It also staples the app that
+      # the next step packages as the updater ZIP.
+      - name: Build and test signed macOS DMG
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mise x -- pnpm --filter chatto-desktop build:macos-dmg --release 2>&1 | tee -a "$RUNNER_TEMP/chatto-macos-notarization.log"
+          bash tools/test-desktop-macos-dmg.sh apps/desktop/dist/dmg/*.dmg
+          mkdir -p .context/desktop-release
+          cp apps/desktop/dist/dmg/*.dmg .context/desktop-release/
+
       - name: Package macOS release
         if: runner.os == 'macOS'
         shell: bash
@@ -437,20 +448,12 @@ jobs:
           helper="apps/desktop/dist/Chatto.app/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
           test -x "$helper"
           codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto.app"
-          # desktop-build staples and validates the app with bounded network retries.
+          # build:macos-dmg --release staples and validates the app with bounded network retries.
           spctl --assess --type execute --verbose=4 "apps/desktop/dist/Chatto.app"
           mkdir -p .context/desktop-release
           ditto -c -k --sequesterRsrc --keepParent \
             "apps/desktop/dist/Chatto.app" \
             ".context/desktop-release/chatto-desktop_${VERSION}_macOS_${artifact_arch}.zip"
-
-      - name: Build and test signed macOS DMG
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          mise x -- pnpm --filter chatto-desktop build:macos-dmg --release 2>&1 | tee -a "$RUNNER_TEMP/chatto-macos-notarization.log"
-          bash tools/test-desktop-macos-dmg.sh apps/desktop/dist/dmg/*.dmg
-          cp apps/desktop/dist/dmg/*.dmg .context/desktop-release/
 
       - name: Upload macOS notarisation log
         if: runner.os == 'macOS' && always()
@@ -746,9 +749,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Unreleased Sweet Release commit (PRs #62, #63, and #64, `sweet github release`):
-      # move to the next Sweet release tag. The action builds the CLI from this revision.
-      - uses: chattocorp/sweet-release/.github/actions/bootstrap@7e618be0b38acb105fe128f030f2f9b71527a0f6
+      # Sweet Release 0.5.0, pinned by commit (see bump-releases.yml).
+      - uses: chattocorp/sweet-release/.github/actions/bootstrap@70a402d3552871474f3a0f152fb2795592ec714a # sweet@0.5.0
+        with:
+          sweet-version: sweet@0.5.0
 
       # The draft gets the title `Chatto <version>` and the changelog entry.
       - name: Upload assets to the draft release

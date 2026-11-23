@@ -53,6 +53,10 @@ message LinkedExternalIdentity {
   string subject_hash = 4;
   // Disconnect eligibility evaluated by ListExternalIdentities.
   DisconnectEligibility disconnect_eligibility = 5;
+  // Human-readable name of the linked account at the provider, for example an
+  // AT Protocol handle without @. Empty when the server cannot resolve one,
+  // including for provider types that do not supply a public account name.
+  string account_label = 6;
 }
 
 // Request to list configured and linked external identities for the current user.

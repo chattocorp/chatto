@@ -64,6 +64,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Inset Frame** — Shared visual treatment for context menus, palettes, dialog trays, and previews: a raised outer rim around recessed content. `inset-frame` defines the border, corners, fill, and default rim; `inset-content` defines the inner surface. Consumer variants add layout and elevation. See [the design system](../apps/frontend/DESIGN_SYSTEM.md#inset-frame).
 
+**Preview Actions** — The one place for the actions of a preview, such as an image, file, or link preview: a small pill in the top end corner of its frame. It shows on hover or keyboard focus, and always for touch input. It never covers text. `PreviewToolbar` renders it. See [the design system](../apps/frontend/DESIGN_SYSTEM.md#preview-actions).
+
 ## Product
 
 **First-run setup** — Web flow that gives a new server a name and a local owner
@@ -220,6 +222,8 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **System actor** — Synthetic actor ID used when Chatto itself, bootstrap code, or trusted operator automation performs a domain write. It is not a login-capable user account.
 
+**Remote image proxy** — Server route that serves images from other hosts, such as provider avatars and Neighborhood logos, so the browser does not contact those hosts. The server fetches each image and resizes it to a preset (`avatar` or `banner`) with the image transform pipeline, which caches the result in `ASSET_CACHE`. It serves only the combinations of preset and source URL that it signed itself, at `/assets/remote/{preset}/...`. Implemented in `cli/internal/core/remoteimage` and `cli/internal/http_server/remote_images.go`. See [ADR-128](adr/ADR-128-remote-image-proxy.md).
+
 **Admin API** — Public ConnectRPC administrative surface in `chatto.admin.v1`. On the public web listener it uses normal user authentication and RBAC. It is separate from the local Operator API. See [FDR-028](fdr/FDR-028-operator-api-and-cli.md).
 
 **Operator API** — Root-equivalent local ConnectRPC surface in `chatto.operator.v1`, served only on the configured Unix socket. Socket filesystem permissions are the access boundary; anyone who can connect to the socket can perform operator actions as the system actor. See [FDR-028](fdr/FDR-028-operator-api-and-cli.md).
@@ -280,6 +284,10 @@ not raw EVT events. See [ADR-119](adr/ADR-119-portable-history-interchange.md).
 **Renewable session** — One human bearer login with short-lived access tokens, a single-use rotating refresh credential, and a session window that advances automatically while the client is active. Sessions of the loopback client keep a fixed window of at most 24 hours instead. Its stable `RUNTIME_STATE` record is the revocation authority for every access generation; it is not called a token family in Chatto vocabulary. See [ADR-079](adr/ADR-079-renewable-bearer-sessions.md) and [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 
 **Auth generation** — Per-user authentication epoch derived from durable user events. Cookie sessions, bearer tokens, and OAuth authorization codes are valid only when their stored generation matches the user's current generation. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
+
+**Strict auth generation check** — Auth generation check that first reads from the `EVT` stream leader the newest position of each subject of the user that can change the result, then waits until the User Auth projection of the replica has applied them. A revocation that a different replica wrote cannot be missed. See [`docs/architecture/projections.md`](architecture/projections.md).
+
+**Auth generation check window** — Time (60 seconds) during which the read-only first pass of request validation on a replica accepts a runtime credential from its local User Auth projection after a strict auth generation check accepted that user. Only an acceptance can come from the local projection; every other answer runs the strict check. The window ends early when the replica has no NATS connection, has not completed reconnect recovery, or its User Auth projector failed or is stalled. See [ADR-127](adr/ADR-127-bounded-staleness-for-credential-validation.md).
 
 **External identity** — Provider-issued account identity linked to a user, keyed by verified issuer/provider namespace plus provider subject rather than email. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 

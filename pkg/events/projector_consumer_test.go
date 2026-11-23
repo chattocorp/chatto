@@ -227,7 +227,7 @@ func (s failedConsumeStream) OrderedConsumer(ctx context.Context, cfg jetstream.
 	return failedConsumeConsumer{Consumer: consumer, failure: s.failure}, nil
 }
 
-func (c failedConsumeConsumer) Consume(jetstream.MessageHandler, ...jetstream.PullConsumeOpt) (jetstream.ConsumeContext, error) {
+func (c failedConsumeConsumer) Messages(...jetstream.PullMessagesOpt) (jetstream.MessagesContext, error) {
 	return nil, c.failure
 }
 

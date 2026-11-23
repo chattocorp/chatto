@@ -2,7 +2,9 @@
 Shared media actions for the call panel and app header. The parent owns the group layout.
 Microphone, camera, and screen share show a green glyph while they send media and a
 neutral, slashed glyph while off. Microphone and camera are toggles with a stable name and
-`aria-pressed`. Leave is a plain button with a red hang-up glyph.
+`aria-pressed`. Leave is a plain button with a red hang-up glyph: the handset rotated 135°, as in
+common call apps. Unicons has no hang-up icon, and its `phone-slash` slants the
+other way from the other slashed glyphs.
 -->
 <script lang="ts">
   import type { VoiceCallState } from '$lib/state/server/voiceCall.svelte';
@@ -50,9 +52,9 @@ neutral, slashed glyph while off. Microphone and camera are toggles with a stabl
 />
 <VoiceCallControlButton
   class="pill-button"
-  iconClass="text-lg text-danger"
+  iconClass="text-lg text-danger rotate-135"
   label={m('voice.leave')}
   testId={testIds.leave}
-  icon="icon-[uil--phone-slash]"
+  icon="icon-[uil--phone]"
   onclick={() => voiceCallState.leave()}
 />

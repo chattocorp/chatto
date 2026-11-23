@@ -110,7 +110,7 @@ describe('VideoPlayer', () => {
     const view = renderAutoLoopVideo({ width: 640, height: 480, onOpen });
     const button = view.getByRole('button', { name: 'View clip.mp4' });
     expect(view.container.querySelector('button video[data-autoloop]')).not.toBeNull();
-    expect(view.container.querySelector('.preview-toolbar')).toBeNull();
+    expect(view.container.querySelector('.preview-actions')).toBeNull();
     await button.click();
     expect(onOpen).toHaveBeenCalledOnce();
   });
@@ -124,7 +124,7 @@ describe('VideoPlayer', () => {
     player.$state.controlsVisible.set(true);
     player.$state.started.set(true);
     await tick();
-    expect(view.container.querySelector('.preview-toolbar')).toBeNull();
+    expect(view.container.querySelector('.preview-actions')).toBeNull();
     for (const selector of ['.vds-fullscreen-button', '.compact-pip', '.vds-google-cast-button']) {
       await expect.poll(() => player.querySelector(selector)).toBeTruthy();
       await expect
@@ -204,7 +204,7 @@ describe('VideoPlayer', () => {
     await expect.poll(() => fog?.getBoundingClientRect().width).toBeGreaterThan(0);
     // The loading canvas fills the content box inside the shared 4px preview rim.
     expect(fog?.getBoundingClientRect().width).toBeCloseTo(videoFrame.clientWidth - 8, 0);
-    expect(container.querySelector('.preview-toolbar')).toBeNull();
+    expect(container.querySelector('.preview-actions')).toBeNull();
     expect(fog?.getBoundingClientRect().height).toBeCloseTo(videoFrame.clientHeight - 8, 0);
   });
 

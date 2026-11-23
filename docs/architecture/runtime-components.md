@@ -509,9 +509,12 @@ defines the queue boundary. The following services run alongside the job pools.
   assets from storage. A later pass can find remaining state. A committed asset
   deletion feeds the binary and transform-cache cleanup job.
 - [Push-subscription reconciliation](../../cli/internal/core/push_subscription_cleanup.go).
-  A lease holder scans at startup and periodically for late subscriptions and
-  orphan endpoint claims. A later holder can repeat the scan. The
-  `push_subscription_cleanup` job handles the normal per-user cleanup.
+  A lease holder scans at startup and then one time each hour for late
+  subscriptions and orphan endpoint claims. After a scan that failed, it scans
+  again after one minute. A later holder can repeat the scan. The
+  `push_subscription_cleanup` job handles the normal per-user cleanup. A scan
+  reads each endpoint claim, its subscription, and the deletion fact of each
+  user through the stream leader, so the interval is long.
 - [Boot repair](../../cli/internal/core/core.go). Each core replays projections
   before it sweeps obsolete message bodies and applies idempotent configuration
   and layout repairs. The [media startup scan](../../cli/internal/core/asset_model.go)

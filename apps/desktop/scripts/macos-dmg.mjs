@@ -1,4 +1,4 @@
-/** Wrap the existing app without changing its signature, ticket, or profile. */
+/** Wrap the signed app without changing its signature or profile. */
 import { access, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,5 +44,6 @@ await build({
   }
 });
 if (process.argv.includes('--release')) {
-  await signMacOSDmg(path.join(desktopRoot, 'dist/dmg', artifactName), process.env);
+  // This also staples the app in dist/ that the release workflow packages as the updater ZIP.
+  await signMacOSDmg(path.join(desktopRoot, 'dist/dmg', artifactName), bundle, process.env);
 }

@@ -128,16 +128,11 @@ test('transfers an editable Authling profile into a new Chatto account', async (
   await page.getByRole('button', { name: 'Sign out' }).click();
 
   await page.goto(routes.login);
-  const popupPromise = page.waitForEvent('popup');
   await page.getByRole('link', { name: /Authling/ }).click();
-  const popup = await popupPromise;
-  await popup.getByLabel('Email address').fill(email);
-  await popup.getByLabel('Password').fill(password);
-  await popup.getByRole('button', { name: 'Sign in' }).click();
-  const closed = popup.waitForEvent('close');
-  await popup.getByRole('button', { name: 'Authorize' }).click();
-  // The popup hands the new account to the window that opened it (FDR-023).
-  await closed;
+  await page.getByLabel('Email address').fill(email);
+  await page.getByLabel('Password').fill(password);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Authorize' }).click();
 
   await expect(page.getByRole('heading', { name: /^Join / })).toBeVisible();
   await expect(page.getByLabel('Username')).toHaveValue(preferredUsername);
@@ -207,7 +202,7 @@ test('links a remote identity in one popup and refreshes the original client', a
     // session intact. This exercises continuation through first-party sign-in.
     await clientContext.clearCookies({ domain: '127.0.0.1' });
     await clientPage.goto('/chat/127.0.0.1/settings/account');
-    const remoteRow = clientPage.locator('div.rounded.border').filter({ hasText: 'Authling' });
+    const remoteRow = clientPage.getByTestId('sso-provider-row').filter({ hasText: 'Authling' });
     const linkPopupPromise = clientPage.waitForEvent('popup');
     await remoteRow.getByRole('button', { name: 'Link', exact: true }).click();
     const linkPopup = await linkPopupPromise;
@@ -218,6 +213,9 @@ test('links a remote identity in one popup and refreshes the original client', a
     await linkPopup.getByLabel('Username or Email').fill('remote-link-user');
     await linkPopup.getByLabel('Password', { exact: true }).fill(password);
     await linkPopup.getByRole('button', { name: 'Sign In', exact: true }).click();
+    // The link window waits for a confirmation before it contacts the provider.
+    await expect(linkPopup).toHaveURL(/\/sso\/link\?/);
+    await linkPopup.getByRole('button', { name: 'Continue with Authling' }).click();
 
     // The same popup completes real provider authorization and closes itself.
     await linkPopup.getByLabel('Email address').fill(email);

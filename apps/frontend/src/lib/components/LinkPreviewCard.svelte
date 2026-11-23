@@ -57,6 +57,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 
   const isYouTube = $derived(preview.embedType === 'youtube' && Boolean(preview.embedId));
   const vimeoUrl = $derived(vimeoEmbedUrl(preview.url));
+  const hasActions = $derived((showDismiss && Boolean(onDismiss)) || canDelete);
   let contextMenuPos = $state<{ x: number; y: number } | null>(null);
   let settledImageUrl = $state<string | null>(null);
 
@@ -158,7 +159,12 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
             />
           </div>
         {/if}
-        <div class="flex min-w-0 flex-col gap-0.5 px-3 pt-3 pb-2">
+        <div
+          class={[
+            'flex min-w-0 flex-col gap-0.5 px-3 pt-3 pb-2',
+            !preview.imageUrl && 'preview-actions-clearance'
+          ]}
+        >
           {#if preview.siteName}
             <span class="text-xs tracking-wide text-muted uppercase">{preview.siteName}</span>
           {/if}
@@ -171,7 +177,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
         </div>
       </div>
     </a>
-    {#if (showDismiss && onDismiss) || canDelete}
+    {#if hasActions}
       <PreviewToolbar>
         {#if showDismiss && onDismiss}
           <PreviewAction
@@ -182,7 +188,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
         {:else}
           <PreviewAction
             label={m('preview.delete')}
-            icon="icon-[uil--trash-alt]"
+            icon="icon-[uil--times]"
             onclick={openDeleteConfirmation}
           />
         {/if}

@@ -210,14 +210,17 @@ func (x *NeighborhoodServerRecord) GetBanner() *NeighborhoodImage {
 	return nil
 }
 
-// NeighborhoodImage identifies one re-encoded public profile image in the
-// ASSET_CACHE object store under neighborhood_image.{object_name}.
+// NeighborhoodImage identifies one public profile image that the remote
+// image cache can serve.
 type NeighborhoodImage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Remote URL that supplied the image. Discovery reuses the stored copy
-	// while this URL is unchanged.
+	// Absolute remote URL of the image. Discovery resolves a relative URL
+	// against the server origin; records from older versions can still hold
+	// the relative URL, so readers resolve it again.
 	SourceUrl string `protobuf:"bytes,1,opt,name=source_url,json=sourceUrl,proto3" json:"source_url,omitempty"`
-	// Content hash without the ASSET_CACHE storage prefix.
+	// Legacy content hash of a copy under neighborhood_image.{object_name} in
+	// ASSET_CACHE. Current versions leave it empty and do not read it; older
+	// versions in a rolling upgrade still write it.
 	ObjectName    string `protobuf:"bytes,2,opt,name=object_name,json=objectName,proto3" json:"object_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

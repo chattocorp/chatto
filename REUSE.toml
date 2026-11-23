@@ -33,6 +33,8 @@ path = [
   "README.md",
   "SECURITY.md",
   "testdata/jobs/**",
+  "tools/changelog.mjs",
+  "tools/changelog.test.mjs",
   "testdata/mentions/**",
   "proto/AGENTS.md",
   "proto/buf.gen.yaml",

@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -67,58 +66,33 @@ func TestRemoteFetcherDiscoveryCalls(t *testing.T) {
 	require.ErrorIs(t, err, ErrUnsupported)
 }
 
-func TestRemoteFetcherFetchImage(t *testing.T) {
-	png := []byte("\x89PNG\r\n\x1a\nimage")
-	mux := http.NewServeMux()
-	mux.HandleFunc("/logo.png", func(w http.ResponseWriter, r *http.Request) {
-		require.Empty(t, r.Header.Get("Cookie"))
-		require.Empty(t, r.Header.Get("Referer"))
-		w.Header().Set("Content-Type", "image/png")
-		_, _ = w.Write(png)
-	})
-	mux.HandleFunc("/image.svg", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "image/svg+xml")
-		_, _ = w.Write([]byte("<svg/>"))
-	})
-	mux.HandleFunc("/redirect.png", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/logo.png", http.StatusFound)
-	})
-	mux.HandleFunc("/large.png", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "image/png")
-		_, _ = w.Write([]byte(strings.Repeat("x", MaxImageBytes+1)))
-	})
-	server := httptest.NewServer(mux)
-	t.Cleanup(server.Close)
-	origin, ok := CanonicalOrigin(server.URL)
-	require.True(t, ok)
-	fetcher := RemoteFetcher{Client: noRedirectClient()}
-
-	data, err := fetcher.FetchImage(context.Background(), origin, server.URL+"/logo.png")
-	require.NoError(t, err)
-	require.Equal(t, png, data)
-
-	// A relative URL resolves against the advertised origin.
-	data, err = fetcher.FetchImage(context.Background(), origin, "/logo.png")
-	require.NoError(t, err)
-	require.Equal(t, png, data)
-
-	// A server can build image URLs from a canonical URL that differs from
-	// the advertised origin.
-	data, err = fetcher.FetchImage(context.Background(), "https://advertised.example", server.URL+"/logo.png")
-	require.NoError(t, err)
-	require.Equal(t, png, data)
-
-	for name, rawURL := range map[string]string{
-		"unsupported scheme":  "ftp://elsewhere.example/logo.png",
-		"credentials":         strings.Replace(server.URL, "http://", "http://user@", 1) + "/logo.png",
-		"unsupported type":    server.URL + "/image.svg",
-		"redirect":            server.URL + "/redirect.png",
-		"oversized response":  server.URL + "/large.png",
-		"missing image route": server.URL + "/missing.png",
+func TestResolveImageURL(t *testing.T) {
+	const origin = "https://remote.example"
+	for name, tc := range map[string]struct {
+		rawURL string
+		want   string
+	}{
+		"absolute URL": {"https://remote.example/logo.png", "https://remote.example/logo.png"},
+		// A relative URL resolves against the advertised origin.
+		"relative URL": {"/assets/logo.png?v=2", "https://remote.example/assets/logo.png?v=2"},
+		// A server can build image URLs from a canonical URL that differs
+		// from the advertised origin.
+		"other origin": {"https://cdn.example/logo.png", "https://cdn.example/logo.png"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := fetcher.FetchImage(context.Background(), origin, rawURL)
-			require.ErrorIs(t, err, ErrRejectedImage)
+			got, ok := ResolveImageURL(origin, tc.rawURL)
+			require.True(t, ok)
+			require.Equal(t, tc.want, got)
+		})
+	}
+	for name, rawURL := range map[string]string{
+		"unsupported scheme": "ftp://elsewhere.example/logo.png",
+		"credentials":        "https://user@remote.example/logo.png",
+		"malformed URL":      "https://[::1",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, ok := ResolveImageURL(origin, rawURL)
+			require.False(t, ok)
 		})
 	}
 }

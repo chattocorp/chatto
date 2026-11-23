@@ -44,12 +44,15 @@ message NeighborhoodServerRecord {
   NeighborhoodImage banner = 8;
 }
 
-// NeighborhoodImage identifies one re-encoded public profile image in the
-// ASSET_CACHE object store under neighborhood_image.{object_name}.
+// NeighborhoodImage identifies one public profile image that the remote
+// image cache can serve.
 message NeighborhoodImage {
-  // Remote URL that supplied the image. Discovery reuses the stored copy
-  // while this URL is unchanged.
+  // Absolute remote URL of the image. Discovery resolves a relative URL
+  // against the server origin; records from older versions can still hold
+  // the relative URL, so readers resolve it again.
   string source_url = 1;
-  // Content hash without the ASSET_CACHE storage prefix.
+  // Legacy content hash of a copy under neighborhood_image.{object_name} in
+  // ASSET_CACHE. Current versions leave it empty and do not read it; older
+  // versions in a rolling upgrade still write it.
   string object_name = 2;
 }

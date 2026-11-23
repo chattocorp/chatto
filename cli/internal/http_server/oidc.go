@@ -355,7 +355,7 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		if atprotoErr != nil {
 			log.Warn("Failed to begin atproto auth", "provider_id", providerRuntime.config.ID, "identity_not_found", false)
 			_ = session.Save()
-			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_failed"))
+			c.Redirect(http.StatusTemporaryRedirect, providerErrorPath(session, intent, "provider_failed"))
 			return
 		}
 		authURL = atprotoAuthURL
@@ -452,9 +452,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		log.Warn("Provider returned auth error", "provider_id", providerRuntime.config.ID, "error", safeOAuthError(errCode))
 		deleteProviderExchangeState(session, providerRuntime.config.ID)
 		_ = session.Save()
-		// Both sign-in and linking can run in a popup. Return the error to
-		// its saved callback so the opening window can finish the attempt.
-		c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_denied"))
+		c.Redirect(http.StatusTemporaryRedirect, providerErrorPath(session, intent, "provider_denied"))
 		return
 	}
 
@@ -469,7 +467,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		log.Error("Provider callback failed", "provider_id", providerRuntime.config.ID)
 		deleteProviderExchangeState(session, providerRuntime.config.ID)
 		_ = session.Save()
-		c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/login", "provider_failed"))
+		c.Redirect(http.StatusTemporaryRedirect, providerErrorPath(session, intent, "provider_failed"))
 		return
 	}
 	deleteProviderExchangeState(session, providerRuntime.config.ID)
@@ -1116,14 +1114,7 @@ func fetchGitHubVerifiedPrimaryEmail(ctx context.Context, client *http.Client, a
 func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, invitationID string) {
 	ctx := c.Request.Context()
 	returnPath := providerReturnPath(session, "/")
-	// A sign-in popup hands the confirmation to the window that opened it. That
-	// window shows the confirmation and keeps its own return navigation.
-	popup := isProviderPopupCallback(returnPath)
 	if !providerConfig.AutoProvisionOrDefault() {
-		if popup {
-			c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "error", "external_identity_unlinked"))
-			return
-		}
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
 		return
 	}
@@ -1144,22 +1135,10 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		RedirectPath:     returnPath,
 		InvitationID:     invitationID,
 	}
-	if popup {
-		// The opening window owns the destination after account creation.
-		flow.RedirectPath = "/"
-	}
 	token, err := s.core.CreatePendingExternalIdentityCreateFlow(ctx, flow)
 	if err != nil {
 		log.Error("Failed to create pending external identity flow", "provider_id", providerConfig.ID, "provider_type", providerConfig.Type, "error", err)
-		if popup {
-			c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "error", "provider_failed"))
-			return
-		}
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
-		return
-	}
-	if popup {
-		c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "external_identity", token))
 		return
 	}
 	if s.core.InvitationRequired() && invitationID == "" {
@@ -1167,17 +1146,6 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		return
 	}
 	c.Redirect(http.StatusTemporaryRedirect, "/sso/confirm?token="+url.QueryEscape(token))
-}
-
-// isProviderPopupCallback reports whether returnPath is the frontend callback
-// of a provider sign-in popup (`/servers/callback?mode=provider&state=...`).
-func isProviderPopupCallback(returnPath string) bool {
-	u, err := url.Parse(returnPath)
-	if err != nil || u.IsAbs() || u.Host != "" {
-		return false
-	}
-	q := u.Query()
-	return u.Path == "/servers/callback" && q.Get("mode") == "provider" && q.Get("state") != ""
 }
 
 // withQueryParam returns path with one query parameter set.
@@ -1201,6 +1169,21 @@ func providerReturnPath(session sessions.Session, fallback string) string {
 		}
 	}
 	return fallback
+}
+
+// providerErrorPath returns the destination for a failed provider attempt.
+// A failed link or re-verification returns to its saved path, which shows the
+// error. A failed sign-in shows the error on the login page and keeps the
+// saved return path.
+func providerErrorPath(session sessions.Session, intent, errorCode string) string {
+	if intent == "link" || intent == "reverify" {
+		return providerReturnPathWithError(session, "/login", errorCode)
+	}
+	path := withQueryParam("/login", "error", errorCode)
+	if returnPath := providerReturnPath(session, "/"); returnPath != "/" {
+		path = withQueryParam(path, "redirect", returnPath)
+	}
+	return path
 }
 
 func providerReturnPathWithError(session sessions.Session, fallback, errorCode string) string {

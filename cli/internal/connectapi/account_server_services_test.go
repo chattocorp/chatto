@@ -1904,3 +1904,34 @@ func TestGetUserVerifiedIdentities(t *testing.T) {
 	require.NoError(t, env.core.DisconnectExternalIdentityAs(ctx, target.Id, target.Id, linked.SubjectHash, core.ExternalIdentitySignInPolicy{PasswordLoginEnabled: true}))
 	require.Empty(t, read(true))
 }
+
+func TestListExternalIdentitiesAccountLabels(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	directory := identity.NewMockDirectory()
+	env.api.atprotoDirectory = func() identity.Directory { return directory }
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "label-member", "Member", "password")
+	require.NoError(t, err)
+	ctx := withCaller(env.ctx, user)
+	link := func(providerType, subject string) string {
+		id, err := env.core.LinkExternalIdentityAs(ctx, user.Id, providerType, providerType, providerType, subject, user.Id)
+		require.NoError(t, err)
+		return id.SubjectHash
+	}
+	atproto := link("atproto", "did:plc:member")
+	oidc := link("oidc", "did:plc:private")
+	directory.Insert(identity.Identity{DID: "did:plc:member", Handle: "alice.example"})
+	directory.Insert(identity.Identity{DID: "did:plc:private", Handle: "private.example"})
+	read := func() map[string]string {
+		list, err := env.account.ListExternalIdentities(ctx, connect.NewRequest(&apiv1.ListExternalIdentitiesRequest{}))
+		require.NoError(t, err)
+		labels := map[string]string{}
+		for _, row := range list.Msg.LinkedIdentities {
+			labels[row.SubjectHash] = row.GetAccountLabel()
+		}
+		return labels
+	}
+	// Only AT Protocol links resolve a public handle; OIDC subjects stay private.
+	require.Equal(t, map[string]string{atproto: "alice.example", oidc: ""}, read())
+	directory.Insert(identity.Identity{DID: "did:plc:member", Handle: "new.example"})
+	require.Equal(t, map[string]string{atproto: "new.example", oidc: ""}, read())
+}

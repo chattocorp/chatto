@@ -141,6 +141,8 @@ type chattoCollector struct {
 	projectionOperation      *prometheus.Desc
 	projectionLastCommit     *prometheus.Desc
 	projectionCommitDuration *prometheus.Desc
+	authGenerationChecks     *prometheus.Desc
+	authGenerationStrict     *prometheus.Desc
 	scrapeError              *prometheus.Desc
 }
 
@@ -206,6 +208,18 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 			"chatto_my_events_delivered_total",
 			"Total live event envelopes delivered by this process.",
 			nil,
+			nil,
+		),
+		authGenerationChecks: prometheus.NewDesc(
+			"chatto_auth_generation_checks_total",
+			"Total auth generation checks of runtime credentials in this process, by kind: fast (local User Auth projection inside the check window) or strict (positions read from the EVT stream leader).",
+			[]string{"kind"},
+			nil,
+		),
+		authGenerationStrict: prometheus.NewDesc(
+			"chatto_auth_generation_strict_checks_total",
+			"Total strict auth generation checks in this process, by reason: path (the caller requires it), window (no current window for the user), gate (NATS or User Auth projector gate closed), or mismatch (the local projection did not accept the credential).",
+			[]string{"reason"},
 			nil,
 		),
 		myEventsSlowDisconnects: prometheus.NewDesc(
@@ -373,6 +387,8 @@ func (c *chattoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.myEventsActive
 	ch <- c.myEventsDelivered
 	ch <- c.myEventsSlowDisconnects
+	ch <- c.authGenerationChecks
+	ch <- c.authGenerationStrict
 	ch <- c.presenceRefreshes
 	ch <- c.presenceFailures
 	ch <- c.modelInfo
@@ -462,6 +478,14 @@ func (c *chattoCollector) collectCoreMetrics(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(c.myEventsSlowDisconnects, prometheus.CounterValue, float64(myEvents.SlowDisconnects))
 	ch <- prometheus.MustNewConstMetric(c.presenceRefreshes, prometheus.CounterValue, float64(myEvents.PresenceRefreshes))
 	ch <- prometheus.MustNewConstMetric(c.presenceFailures, prometheus.CounterValue, float64(myEvents.PresenceFailures))
+	authChecks := c.server.core.AuthGenerationCheckMetrics()
+	var strictTotal uint64
+	for reason, count := range authChecks.Strict {
+		strictTotal += count
+		ch <- prometheus.MustNewConstMetric(c.authGenerationStrict, prometheus.CounterValue, float64(count), reason)
+	}
+	ch <- prometheus.MustNewConstMetric(c.authGenerationChecks, prometheus.CounterValue, float64(authChecks.Fast), "fast")
+	ch <- prometheus.MustNewConstMetric(c.authGenerationChecks, prometheus.CounterValue, float64(strictTotal), "strict")
 	for _, modelKey := range core.ModelKeys() {
 		ch <- prometheus.MustNewConstMetric(c.modelInfo, prometheus.GaugeValue, 1, modelKey)
 	}

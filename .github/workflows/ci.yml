@@ -1459,10 +1459,11 @@ jobs:
       - check-docs
     permissions:
       contents: write
-    # Unreleased Sweet Release commit (PRs #62, #63, and #64, tag outputs and
-    # `sweet github release`): move to the next Sweet release tag. Tags pushed
+    # Sweet Release 0.5.0, pinned by commit (see bump-releases.yml). Tags pushed
     # with GITHUB_TOKEN start no workflow; this run publishes them.
-    uses: chattocorp/sweet-release/.github/workflows/tag.yml@7e618be0b38acb105fe128f030f2f9b71527a0f6
+    uses: chattocorp/sweet-release/.github/workflows/tag.yml@70a402d3552871474f3a0f152fb2795592ec714a # sweet@0.5.0
+    with:
+      sweet-version: sweet@0.5.0
 
   # Without a status function, the condition also requires success() for every
   # job before `tag`, and optional jobs there are often skipped. Check only the

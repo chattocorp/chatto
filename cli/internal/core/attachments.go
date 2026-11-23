@@ -897,6 +897,19 @@ func (c *MediaModel) GetCachedResize(ctx context.Context, key string) ([]byte, e
 	return data, nil
 }
 
+// StoreCachedResizeIfAbsent stores a resized image unless the key already
+// exists. Reading an object while it is replaced can stall and fail, so a
+// cache whose keys never change content uses this to avoid replacements. Two
+// writers that check at the same moment can still both write.
+func (c *MediaModel) StoreCachedResizeIfAbsent(ctx context.Context, key string, data []byte) error {
+	if _, err := c.storage.imageCacheStore.GetInfo(ctx, key); err == nil {
+		return nil
+	} else if !errors.Is(err, jetstream.ErrObjectNotFound) {
+		return fmt.Errorf("failed to check cached resize: %w", err)
+	}
+	return c.StoreCachedResize(ctx, key, data)
+}
+
 // StoreCachedResize stores a resized image in the cache.
 func (c *MediaModel) StoreCachedResize(ctx context.Context, key string, data []byte) error {
 	_, err := c.storage.imageCacheStore.Put(ctx, jetstream.ObjectMeta{

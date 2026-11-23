@@ -7,7 +7,6 @@ import packageJson from '../package.json' with { type: 'json' };
 import { pruneElectronLocales } from './locales.mjs';
 import { embedMacOSCaptureHelper } from './macos-capture-helper.mjs';
 import { macOSDistributionOptions } from './macos-signing.mjs';
-import { notarizeMacOSApp } from './macos-notarization.mjs';
 import { macOSVersions, releaseBuildVersion, restoreReleaseVersion } from './version.mjs';
 import { desktopArchitecture } from './architecture.mjs';
 import { desktopBuildProfile } from '../build_profile.mjs';
@@ -119,7 +118,7 @@ const [bundleRoot] = await packager({
       ]
     : undefined,
   osxSign: macOSDistribution.osxSign,
-  // Notarisation runs below so ticket-service failures can retry the same app.
+  // `build:macos-dmg --release` notarises this app inside the disk image.
   afterCopyExtraResources: [
     async ({ buildPath }) => {
       if (autoUpdate) {
@@ -143,11 +142,7 @@ const [bundleRoot] = await packager({
       }
       if (!macOSDistribution.osxSign) return;
       signingStartedAt = performance.now();
-      console.log(
-        macOSDistribution.osxNotarize
-          ? 'Signing macOS app and nested code before notarisation...'
-          : 'Signing macOS app and nested code...'
-      );
+      console.log('Signing macOS app and nested code...');
     }
   ],
   ignore: [
@@ -167,13 +162,6 @@ if (signingStartedAt !== undefined) {
 
 const appBundle =
   platform === 'darwin' ? path.join(bundleRoot, `${profile.productName}.app`) : bundleRoot;
-if (macOSDistribution.osxNotarize) {
-  await notarizeMacOSApp(
-    appBundle,
-    path.join(packagerOut, `${profile.productName}.zip`),
-    macOSDistribution.osxNotarize
-  );
-}
 if (platform !== 'darwin') {
   logPrunedLocales(await pruneElectronLocales(appBundle, platform, supportedLocales));
 }

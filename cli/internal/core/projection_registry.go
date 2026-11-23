@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
+	"github.com/chattocorp/chatto/cli/internal/parallel"
 	"github.com/chattocorp/chatto/pkg/events"
 )
 
@@ -52,15 +53,9 @@ func waitForCurrentAll(ctx context.Context, targets ...projectionWaitTarget) err
 }
 
 func waitForProjectionSubjectsCurrent(ctx context.Context, publisher *evtstream.Publisher, name string, projector *events.Projector, subjects ...string) error {
-	var target events.StreamPosition
-	for _, subject := range subjects {
-		pos, err := publisher.LastSubjectPosition(ctx, subject)
-		if err != nil {
-			return fmt.Errorf("read %s projection target seq: %w", name, err)
-		}
-		if pos.Seq > target.Seq {
-			target = pos
-		}
+	target, err := lastSubjectsPosition(ctx, publisher, subjects)
+	if err != nil {
+		return fmt.Errorf("read %s projection target seq: %w", name, err)
 	}
 	if target.IsZero() {
 		return nil
@@ -69,4 +64,30 @@ func waitForProjectionSubjectsCurrent(ctx context.Context, publisher *evtstream.
 		return fmt.Errorf("wait for %s projection: %w", name, err)
 	}
 	return nil
+}
+
+// lastSubjectsPosition returns the newest position among subjects, or the
+// zero position when no subject has a message. Each subject is one request to
+// the stream leader. The requests run concurrently, so the wait is one round
+// trip and not one for each subject.
+func lastSubjectsPosition(ctx context.Context, publisher *evtstream.Publisher, subjects []string) (events.StreamPosition, error) {
+	positions, err := parallel.Map(ctx, 0, subjects, func(ctx context.Context, _ int, subject string) (events.StreamPosition, error) {
+		return publisher.LastSubjectPosition(ctx, subject)
+	})
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return newestStreamPosition(positions), nil
+}
+
+// newestStreamPosition returns the position with the highest sequence, or the
+// zero position when positions has none.
+func newestStreamPosition(positions []events.StreamPosition) events.StreamPosition {
+	var newest events.StreamPosition
+	for _, pos := range positions {
+		if pos.Seq > newest.Seq {
+			newest = pos
+		}
+	}
+	return newest
 }

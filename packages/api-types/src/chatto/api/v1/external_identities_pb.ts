@@ -170,6 +170,15 @@ export class LinkedExternalIdentity extends Message<LinkedExternalIdentity> {
    */
   disconnectEligibility = DisconnectEligibility.UNSPECIFIED;
 
+  /**
+   * Human-readable name of the linked account at the provider, for example an
+   * AT Protocol handle without @. Empty when the server cannot resolve one,
+   * including for provider types that do not supply a public account name.
+   *
+   * @generated from field: string account_label = 6;
+   */
+  accountLabel = "";
+
   constructor(data?: PartialMessage<LinkedExternalIdentity>) {
     super();
     proto3.util.initPartial(data, this);
@@ -183,6 +192,7 @@ export class LinkedExternalIdentity extends Message<LinkedExternalIdentity> {
     { no: 3, name: "provider_label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "subject_hash", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "disconnect_eligibility", kind: "enum", T: proto3.getEnumType(DisconnectEligibility) },
+    { no: 6, name: "account_label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LinkedExternalIdentity {

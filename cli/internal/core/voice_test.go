@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -67,25 +68,51 @@ func (r *recordingLiveKitParticipantClient) RemoveCallParticipant(_ context.Cont
 	return nil
 }
 
-type failingShredCallKeyStore struct {
+// shredFaultCallKeyStore delegates to a real call-key store and fails
+// ShredCallKey while a fault is set. Install it with
+// setupTestCoreWithShredFault before the core starts: the call-key cleanup
+// worker reads CallModel.callKeys while the core runs, so a test must switch
+// the fault, not replace the field.
+type shredFaultCallKeyStore struct {
 	delegate kms.CallKeyStore
-	err      error
+	fault    atomic.Pointer[error]
 }
 
-func (f failingShredCallKeyStore) CreateCallKey(ctx context.Context, callID string) (string, string, error) {
-	return f.delegate.CreateCallKey(ctx, callID)
+// failShred makes every later ShredCallKey call return err.
+func (s *shredFaultCallKeyStore) failShred(err error) { s.fault.Store(&err) }
+
+// restoreShred makes later ShredCallKey calls use the delegate again.
+func (s *shredFaultCallKeyStore) restoreShred() { s.fault.Store(nil) }
+
+func (s *shredFaultCallKeyStore) CreateCallKey(ctx context.Context, callID string) (string, string, error) {
+	return s.delegate.CreateCallKey(ctx, callID)
 }
 
-func (f failingShredCallKeyStore) GetCallKey(ctx context.Context, keyRef string) (string, error) {
-	return f.delegate.GetCallKey(ctx, keyRef)
+func (s *shredFaultCallKeyStore) GetCallKey(ctx context.Context, keyRef string) (string, error) {
+	return s.delegate.GetCallKey(ctx, keyRef)
 }
 
-func (f failingShredCallKeyStore) CallKeyExists(ctx context.Context, keyRef string) (bool, error) {
-	return f.delegate.CallKeyExists(ctx, keyRef)
+func (s *shredFaultCallKeyStore) CallKeyExists(ctx context.Context, keyRef string) (bool, error) {
+	return s.delegate.CallKeyExists(ctx, keyRef)
 }
 
-func (f failingShredCallKeyStore) ShredCallKey(context.Context, string) error {
-	return f.err
+func (s *shredFaultCallKeyStore) ShredCallKey(ctx context.Context, keyRef string) error {
+	if err := s.fault.Load(); err != nil {
+		return *err
+	}
+	return s.delegate.ShredCallKey(ctx, keyRef)
+}
+
+// setupTestCoreWithShredFault starts a core whose call model uses a
+// shredFaultCallKeyStore over the core's own call-key store. The fault is
+// off until the test calls failShred.
+func setupTestCoreWithShredFault(t *testing.T) (*ChattoCore, *shredFaultCallKeyStore) {
+	t.Helper()
+	core, _ := newTestCore(t)
+	keys := &shredFaultCallKeyStore{delegate: core.encryption.callKeys}
+	core.callModel.callKeys = keys
+	startCoreServices(t, core)
+	return core, keys
 }
 
 type hookedCallKeyStore struct {
@@ -1590,7 +1617,7 @@ func TestCallState_LiveKitRemovalFailureDoesNotFailRoomLeave(t *testing.T) {
 }
 
 func TestCallState_RoomLeaveQueuesCommittedKeyCleanupAfterImmediateFailure(t *testing.T) {
-	core, _ := setupTestCore(t)
+	core, keys := setupTestCoreWithShredFault(t)
 	ctx := testContext(t)
 
 	user, err := core.CreateUser(ctx, SystemActorID, "call-shred-retry-user", "Call Shred Retry User", "password")
@@ -1610,9 +1637,9 @@ func TestCallState_RoomLeaveQueuesCommittedKeyCleanupAfterImmediateFailure(t *te
 	session, _ := core.callModel.activeCall(room.Id)
 	recorder := &recordingLiveKitParticipantClient{}
 	core.callModel.livekit = recorder
-	workingKeys := core.encryption.callKeys
+	workingKeys := keys.delegate
 	shredErr := errors.New("kms shred unavailable")
-	core.callModel.callKeys = failingShredCallKeyStore{delegate: workingKeys, err: shredErr}
+	keys.failShred(shredErr)
 
 	err = core.LeaveRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	if !errors.Is(err, shredErr) {
@@ -1625,7 +1652,7 @@ func TestCallState_RoomLeaveQueuesCommittedKeyCleanupAfterImmediateFailure(t *te
 		t.Fatalf("RoomMembershipExists = %v, %v; want false, nil", isMember, err)
 	}
 
-	core.callModel.callKeys = workingKeys
+	keys.restoreShred()
 	waitForDurableCallKeyCleanup(t, ctx, core, workingKeys, session.E2EEKeyRef)
 }
 
@@ -1708,7 +1735,7 @@ func TestCallState_DurableWorkerDiscoversLaterReplicaKeyCleanup(t *testing.T) {
 }
 
 func TestCallState_ReconciliationCleansHistoricalMembershipOnlyLeave(t *testing.T) {
-	core, _ := setupTestCore(t)
+	core, keys := setupTestCoreWithShredFault(t)
 	ctx := testContext(t)
 
 	user, err := core.CreateUser(ctx, SystemActorID, "call-legacy-leave-user", "Call Legacy Leave User", "password")
@@ -1748,9 +1775,9 @@ func TestCallState_ReconciliationCleansHistoricalMembershipOnlyLeave(t *testing.
 		UserIDs:       []string{user.Id},
 	}}}
 	core.callModel.livekit = recorder
-	workingKeys := core.encryption.callKeys
+	workingKeys := keys.delegate
 	shredErr := errors.New("kms shred unavailable")
-	core.callModel.callKeys = failingShredCallKeyStore{delegate: workingKeys, err: shredErr}
+	keys.failShred(shredErr)
 	if err := core.callModel.reconcileWithLiveKit(ctx, func() (context.Context, context.CancelFunc) {
 		return context.WithCancel(ctx)
 	}); !errors.Is(err, shredErr) {
@@ -1770,7 +1797,7 @@ func TestCallState_ReconciliationCleansHistoricalMembershipOnlyLeave(t *testing.
 		t.Fatalf("durable call-ended recovery facts = %#v, want call %s", ended, session.CallID)
 	}
 
-	core.callModel.callKeys = workingKeys
+	keys.restoreShred()
 	waitForDurableCallKeyCleanup(t, ctx, core, workingKeys, session.E2EEKeyRef)
 }
 
@@ -2252,7 +2279,7 @@ func TestCallState_ReconcileBestEffortLogsLiveKitFailureCleanupSummaryAtThreshol
 }
 
 func TestCallState_ReconcileWithLiveKitErrorReportsCleanupFailure(t *testing.T) {
-	core, _ := setupTestCore(t)
+	core, keys := setupTestCoreWithShredFault(t)
 	ctx := testContext(t)
 	roomID := "room1"
 
@@ -2262,10 +2289,7 @@ func TestCallState_ReconcileWithLiveKitErrorReportsCleanupFailure(t *testing.T) 
 	liveKitErr := errors.New("livekit unavailable")
 	shredErr := errors.New("kms shred unavailable")
 	core.callModel.livekit = fakeLiveKitParticipantLister{err: liveKitErr}
-	core.callModel.callKeys = failingShredCallKeyStore{
-		delegate: core.encryption.callKeys,
-		err:      shredErr,
-	}
+	keys.failShred(shredErr)
 
 	var err error
 	for i := 1; i <= callReconcileListFailureThreshold; i++ {
@@ -2386,7 +2410,7 @@ func TestCallState_ReconcileWithLiveKitSuccessOnAnotherReplicaResetsListFailureC
 }
 
 func TestCallState_CallEndedCommitsWhenKeyShredFails(t *testing.T) {
-	core, _ := setupTestCore(t)
+	core, keys := setupTestCoreWithShredFault(t)
 	ctx := testContext(t)
 	roomID := "room1"
 
@@ -2403,10 +2427,7 @@ func TestCallState_CallEndedCommitsWhenKeyShredFails(t *testing.T) {
 	}
 
 	shredErr := errors.New("kms shred unavailable")
-	core.callModel.callKeys = failingShredCallKeyStore{
-		delegate: core.encryption.callKeys,
-		err:      shredErr,
-	}
+	keys.failShred(shredErr)
 	err = core.RecordCallParticipantLeft(ctx, roomID, "user1", evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER)
 	if !errors.Is(err, shredErr) {
 		t.Fatalf("RecordCallParticipantLeft() error = %v, want shred error", err)
