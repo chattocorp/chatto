@@ -4786,7 +4786,9 @@ describe('ServerStateStore unified realtime resources', () => {
               roomId: 'R1',
               bodyPlaintext: 'hello',
               complete,
-              viewerState: complete ? new MessageViewerState({ canReplyInThread: false }) : undefined
+              viewerState: complete
+                ? new MessageViewerState({ canReplyInThread: false })
+                : undefined
             })
           }
         })
