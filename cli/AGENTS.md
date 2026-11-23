@@ -624,6 +624,10 @@ server.
   on the target base and on the branch with the same data. Alternate the runs
   and compare them with `benchstat`. Check read latency and allocations, not
   only retained heap. Use a temporary `git worktree` for the base checkout.
+- Run `mise bench-realtime-fanout` for the CPU cost of one message post in
+  realtime delivery. It reports hub fanout for a fixed room audience with
+  different numbers of other connections, and the mapping and encoding cost
+  for each viewer. Compare changes with `benchstat` on the same machine.
 - For realtime connection-memory work, negotiate production WebSocket
   compression and use an external load generator so client allocations do not
   enter the server profile.

@@ -462,7 +462,7 @@ func TestMyEventsHubIgnoresLateVisibilityFactsCoveredBySnapshot(t *testing.T) {
 		roomSnapshotSeq: 42,
 		subscribers:     map[uint64]*myEventsSubscription{1: sub},
 	}
-	hub.users[sub.principal] = state
+	hub.addUserLocked(sub.principal, state)
 	hub.subscribers[sub.id] = sub
 	join := newEvent(sub.principal.userID, &evtv1.Event{
 		Event: &evtv1.Event_UserJoinedRoom{UserJoinedRoom: &evtv1.UserJoinedRoomEvent{RoomId: room.Id}},
@@ -630,7 +630,7 @@ func TestMyEventsHubDisconnectsOnlySubscriberOverByteLimit(t *testing.T) {
 		memberRooms: map[string]struct{}{},
 		subscribers: map[uint64]*myEventsSubscription{1: sub},
 	}
-	hub.users[sub.principal] = state
+	hub.addUserLocked(sub.principal, state)
 	hub.subscribers[sub.id] = sub
 
 	hub.mu.Lock()
@@ -676,12 +676,12 @@ func TestMyEventsHubFansDirectoryInvalidationsOnlyToProjectionSessions(t *testin
 	hub := model.hub
 	projection := newMyEventsSubscription(entitledMyEventsPrincipal(viewer.Id))
 	projection.id = 1
-	hub.users[entitledMyEventsPrincipal(viewer.Id)] = &myEventsUserState{
+	hub.addUserLocked(entitledMyEventsPrincipal(viewer.Id), &myEventsUserState{
 		memberRooms:     map[string]struct{}{},
 		visibleRooms:    map[string]struct{}{room.Id: {}},
 		subscribers:     map[uint64]*myEventsSubscription{projection.id: projection},
 		roomSnapshotSeq: 1,
-	}
+	})
 	hub.subscribers[projection.id] = projection
 
 	event := &evtv1.Event{Id: "room-update-1", Event: &evtv1.Event_RoomUpdated{
@@ -722,12 +722,12 @@ func TestMyEventsHubSuppressesHiddenDirectoryInvalidations(t *testing.T) {
 	hub := model.hub
 	projection := newMyEventsSubscription(entitledMyEventsPrincipal(viewer.Id))
 	projection.id = 1
-	hub.users[entitledMyEventsPrincipal(viewer.Id)] = &myEventsUserState{
+	hub.addUserLocked(entitledMyEventsPrincipal(viewer.Id), &myEventsUserState{
 		memberRooms:     map[string]struct{}{},
 		visibleRooms:    map[string]struct{}{},
 		subscribers:     map[uint64]*myEventsSubscription{projection.id: projection},
 		roomSnapshotSeq: 1,
-	}
+	})
 	hub.subscribers[projection.id] = projection
 	event := &evtv1.Event{Id: "hidden-room-update", Event: &evtv1.Event_RoomUpdated{
 		RoomUpdated: &evtv1.RoomUpdatedEvent{RoomId: room.Id},
@@ -778,7 +778,7 @@ func TestMyEventsHubRemovesProjectionVisibilityAfterUniversalMembershipEnds(t *t
 		subscribers:     map[uint64]*myEventsSubscription{first.id: first, second.id: second},
 		roomSnapshotSeq: 1,
 	}
-	hub.users[entitledMyEventsPrincipal(viewer.Id)] = state
+	hub.addUserLocked(entitledMyEventsPrincipal(viewer.Id), state)
 	hub.subscribers[first.id] = first
 	hub.subscribers[second.id] = second
 	event := &evtv1.Event{Id: "universal-disabled", ActorId: actor.Id, Event: &evtv1.Event_RoomUniversalChanged{
@@ -842,7 +842,7 @@ func TestMyEventsHubReconcilesVisibilityOnViewerLeave(t *testing.T) {
 		subscribers:     map[uint64]*myEventsSubscription{first.id: first, second.id: second},
 		roomSnapshotSeq: 1,
 	}
-	hub.users[entitledMyEventsPrincipal(viewer.Id)] = state
+	hub.addUserLocked(entitledMyEventsPrincipal(viewer.Id), state)
 	hub.subscribers[first.id] = first
 	hub.subscribers[second.id] = second
 	leave := &evtv1.Event{Id: "viewer-left", ActorId: viewer.Id, Event: &evtv1.Event_UserLeftRoom{
