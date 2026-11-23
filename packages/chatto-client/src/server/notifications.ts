@@ -24,10 +24,10 @@ export const NOTIFICATION_RECONCILIATION_INTERVAL_MS = 60_000;
 export const NOTIFICATION_RECENT_READ_MS = 5_000;
 
 /**
- * With live delivery, reconciliation reads only when no notification read
- * succeeded for this long. Live hints, `caught_up`, and inactive-server polls
- * read the notification list themselves. This read recovers a hint that the
- * server did not deliver while the socket stayed open.
+ * While the live socket is caught up, reconciliation reads only when no
+ * notification read succeeded for this long. Live hints and `caught_up` read
+ * the notification list themselves. This read recovers a hint that the server
+ * did not deliver while the socket stayed open.
  */
 export const NOTIFICATION_LIVE_SAFETY_READ_MS = 5 * 60_000;
 

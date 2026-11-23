@@ -848,12 +848,11 @@ describe('ServerStateStore notification reconciliation', () => {
     expect(listReads).not.toHaveBeenCalled();
   });
 
-  it('relies on inactive polls while the server is dormant', async () => {
+  it('reads on every tick while the server is dormant', async () => {
+    // Inactive polls run one server at a time and carry no hints.
     const { store, listReads } = reconcilingStore('dormant');
-    await tick(store, 4);
-    expect(listReads).not.toHaveBeenCalled();
-    await tick(store, 1);
-    expect(listReads).toHaveBeenCalledOnce();
+    await tick(store, 3);
+    expect(listReads).toHaveBeenCalledTimes(3);
   });
 
   it('reads at once after a failed read, even while live', async () => {
