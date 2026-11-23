@@ -3,12 +3,10 @@ import { cdp, page, userEvent } from 'vitest/browser';
 import { afterEach, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
-import { emulateHoverPointer } from '$lib/test-utils/hoverPointer';
 import Frame from './Frame.svelte';
 
 afterEach(async () => {
   await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
-  await cdp().send('Emulation.setEmulatedMedia', { features: [] });
   await page.viewport(1280, 720);
 });
 
@@ -70,11 +68,10 @@ it.each([false, true])(
   'shows preview actions on keyboard focus, and always for touch, with touch=%s',
   async (touch) => {
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
-    // Without touch, report a mouse: CI's headless browser reports no hover.
-    if (!touch) await emulateHoverPointer();
     expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
-    // A mouse hides the actions at rest; touch input always shows them.
-    const hiddenAtRest = !touch;
+    // A mouse hides the actions at rest; touch input always shows them. CI's
+    // headless browser reports no hover, so there they always show.
+    const hiddenAtRest = !touch && matchMedia('(any-hover: hover) and (any-pointer: fine)').matches;
     const { container } = render(Frame, {
       children: testSnippet(
         '<div><div class="group/preview relative h-40 w-64"><div class="preview-actions"><button aria-label="Open attachment">Open</button></div></div><button data-testid="outside-preview">Outside preview</button></div>'

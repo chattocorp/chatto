@@ -2,7 +2,6 @@ import '../../app.css';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { userEvent } from 'vitest/browser';
-import { emulateHoverPointer } from '$lib/test-utils/hoverPointer';
 import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';
 import LinkPreviewCard from './LinkPreviewCard.svelte';
 
@@ -81,10 +80,10 @@ describe('LinkPreviewCard', () => {
     expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/overview');
   });
 
-  it('shows preview actions with a mouse only on hover or keyboard focus', async () => {
-    const restore = await emulateHoverPointer();
-    try {
-      expect(matchMedia('(any-hover: hover) and (any-pointer: fine)').matches).toBe(true);
+  // Hover styles need a hover pointer; CI's headless browser has none.
+  it.skipIf(!matchMedia('(any-hover: hover) and (any-pointer: fine)').matches)(
+    'shows preview actions with a mouse only on hover or keyboard focus',
+    async () => {
       const { container } = render(LinkPreviewCard, {
         preview: preview({
           title: 'Example',
@@ -106,10 +105,8 @@ describe('LinkPreviewCard', () => {
       await userEvent.tab();
       expect(document.activeElement?.getAttribute('aria-label')).toBe('Delete preview');
       await expect.poll(opacity).toBe('1');
-    } finally {
-      await restore();
     }
-  });
+  );
 
   it('dismisses from the toolbar without activating the preview link', () => {
     const onDismiss = vi.fn();

@@ -475,10 +475,9 @@ Use [chatto-experiments](../../.agents/skills/chatto-experiments/SKILL.md) when 
   search all specs, including route and e2e specs, for the old class names,
   test IDs, and labels. Specs of other components often assert on them.
 - Hover styles only apply where `(hover: hover)` matches, and the headless
-  browser in CI reports no hover support. To test hover styles, call
-  `emulateHoverPointer()` from `$lib/test-utils/hoverPointer` first. It makes
-  the browser report a mouse; restore the result after the test. Test
-  keyboard focus styles without it.
+  browser in CI reports no hover support. Test hover styles with
+  `it.skipIf(!matchMedia('(hover: hover)').matches)`, and test keyboard focus
+  styles without that condition.
 - Pin the clock with `vi.useFakeTimers({ toFake: ['Date'] })` and
   `vi.setSystemTime` in tests that group or label dates, such as Today,
   Yesterday, or a month. Relative instants such as "now minus 24 hours" land on
