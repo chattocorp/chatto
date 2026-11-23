@@ -258,7 +258,7 @@ describe('MessageAttachments', () => {
     [false, true],
     [true, true]
   ])(
-    'keeps audio actions compact and visible (delete: %s, edit: %s)',
+    'keeps audio actions beside or below the player (delete: %s, edit: %s)',
     async (canDeleteAttachment, canEditAttachmentDescription) => {
       const { container } = renderAttachment(
         fileAttachment({ filename: 'voice.mp3', contentType: 'audio/mpeg' }),
@@ -277,22 +277,16 @@ describe('MessageAttachments', () => {
         await expect.poll(() => container.scrollWidth).toBeLessThanOrEqual(width);
         const frameBounds = frame.getBoundingClientRect();
         const audioBounds = audio.getBoundingClientRect();
-        for (const [index, button] of buttons.entries()) {
+        for (const button of buttons) {
           const bounds = button.getBoundingClientRect();
+          expect(button.parentElement!.classList).toContain('preview-actions');
+          // The actions end the card's row, or wrap below the player when narrow.
           expect(bounds.left >= audioBounds.right || bounds.top >= audioBounds.bottom).toBe(true);
           expect(bounds.left).toBeGreaterThanOrEqual(frameBounds.left);
           expect(bounds.right).toBeLessThanOrEqual(frameBounds.right);
           expect(bounds.bottom).toBeLessThanOrEqual(frameBounds.bottom);
-          expect(getComputedStyle(button.parentElement!).opacity).toBe('1');
-          if (width === 640) {
-            expect(frameBounds.height).toBeLessThanOrEqual(70);
-            if (index > 0) {
-              const gap = bounds.left - buttons[index - 1].getBoundingClientRect().right;
-              if (button.parentElement === buttons[index - 1].parentElement) expect(gap).toBe(4);
-              else expect(gap).toBeGreaterThanOrEqual(12);
-            }
-          }
         }
+        if (width === 640) expect(frameBounds.height).toBeLessThanOrEqual(70);
       }
     }
   );
@@ -311,14 +305,16 @@ describe('MessageAttachments', () => {
     for (const card of cards) {
       const frame = card.getBoundingClientRect();
       const first = card.firstElementChild!.getBoundingClientRect();
-      const last = card.lastElementChild!.getBoundingClientRect();
+      const actions = card.querySelector('.preview-actions')!.getBoundingClientRect();
       const border = parseFloat(getComputedStyle(card).borderTopWidth);
       expect(first.left - frame.left - border).toBe(12);
-      expect(frame.right - last.right - border).toBe(12);
       expect(first.top - frame.top - border).toBe(12);
       expect(frame.bottom - first.bottom - border).toBe(12);
-      expect(last.top - frame.top - border).toBe(18);
-      expect(frame.bottom - last.bottom - border).toBe(18);
+      // The content ends before the corner actions start.
+      expect(first.right).toBeLessThanOrEqual(actions.left);
+      // A card is one row: its actions end the row, centred on it.
+      expect(frame.right - actions.right - border).toBe(12);
+      expect((actions.top + actions.bottom) / 2).toBeCloseTo((first.top + first.bottom) / 2, 0);
     }
     expect(cards[0].getBoundingClientRect().height).toBe(cards[1].getBoundingClientRect().height);
   });
@@ -367,7 +363,7 @@ describe('MessageAttachments', () => {
     expect(image.className).toContain('w-full');
   });
 
-  it('keeps a narrow portrait image unchanged while fitting its action row', () => {
+  it('keeps a narrow portrait image unchanged while fitting its overlay actions', () => {
     const { container } = renderAttachment(
       imageAttachment({ filename: 'tall.jpg', width: 320, height: 1600 }),
       { canDeleteAttachment: true, canEditAttachmentDescription: true }
@@ -380,11 +376,11 @@ describe('MessageAttachments', () => {
     expect(button.getBoundingClientRect().width).toBe(40);
     expect(first.left - wrapper.left).toBeGreaterThanOrEqual(5);
     expect(actions.at(-1)!.getBoundingClientRect().right).toBeLessThanOrEqual(wrapper.right);
-    expect(first.top).toBeGreaterThanOrEqual(button.getBoundingClientRect().bottom);
+    expect(first.top).toBeGreaterThanOrEqual(wrapper.top);
     expect(actions.at(-1)!.getBoundingClientRect().bottom).toBeLessThanOrEqual(wrapper.bottom);
     for (const action of actions) {
-      expect(action.getBoundingClientRect().width).toBe(28);
-      expect(action.getBoundingClientRect().height).toBe(28);
+      expect(action.getBoundingClientRect().width).toBe(24);
+      expect(action.getBoundingClientRect().height).toBe(24);
     }
   });
 
@@ -400,23 +396,29 @@ describe('MessageAttachments', () => {
     expect(image.className).toContain('object-contain');
   });
 
-  it.each([false, true])('keeps image actions inside their own frame (gallery: %s)', (gallery) => {
-    const attachments = [imageAttachment({ id: 'first', filename: 'first.jpg' })];
-    if (gallery) attachments.push(imageAttachment({ id: 'second', filename: 'second.jpg' }));
-    const { container } = renderAttachments(attachments, {
-      canDeleteAttachment: true,
-      canEditAttachmentDescription: true
-    });
-    const { button } = imageFrame(container, 'first.jpg');
-    const frame = button.getBoundingClientRect();
-    const edit = button
-      .parentElement!.querySelector<HTMLElement>('[aria-label="Delete attachment"]')!
-      .getBoundingClientRect();
+  it.each([false, true])(
+    'overlays image actions without reserving a footer (gallery: %s)',
+    (gallery) => {
+      const attachments = [imageAttachment({ id: 'first', filename: 'first.jpg' })];
+      if (gallery) attachments.push(imageAttachment({ id: 'second', filename: 'second.jpg' }));
+      const { container } = renderAttachments(attachments, {
+        canDeleteAttachment: true,
+        canEditAttachmentDescription: true
+      });
+      const { button } = imageFrame(container, 'first.jpg');
+      const image = button.getBoundingClientRect();
+      const wrapper = button.parentElement!.getBoundingClientRect();
+      const remove = button
+        .parentElement!.querySelector<HTMLElement>('[aria-label="Delete attachment"]')!
+        .getBoundingClientRect();
 
-    expect(edit.top).toBeGreaterThanOrEqual(frame.bottom);
-    expect(edit.bottom).toBeLessThanOrEqual(button.parentElement!.getBoundingClientRect().bottom);
-    expect(edit.right).toBeLessThanOrEqual(button.parentElement!.getBoundingClientRect().right);
-  });
+      // The rim is the only space around the image.
+      expect(wrapper.height - image.height).toBeLessThanOrEqual(10);
+      expect(remove.top).toBeGreaterThanOrEqual(image.top);
+      expect(remove.bottom).toBeLessThanOrEqual(image.bottom);
+      expect(remove.right).toBeLessThanOrEqual(image.right);
+    }
+  );
 
   it('renders ultra-wide landscape images as contained shallow strips', () => {
     const { container } = renderAttachment(
@@ -593,25 +595,18 @@ describe('MessageAttachments', () => {
       for (const width of [120, 240, 320]) {
         container.style.width = `${width}px`;
         await expect.poll(() => player.getBoundingClientRect().width).toBeLessThanOrEqual(width);
-        expect(edit.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-          player.getBoundingClientRect().bottom
-        );
-        expect(edit.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-          player.parentElement!.getBoundingClientRect().bottom
-        );
         const bounds = actions.map((action) => action.getBoundingClientRect());
         const frame = player.parentElement!.getBoundingClientRect();
+        // The actions float in the top end corner, inside the frame.
+        expect(edit.getBoundingClientRect().top).toBeGreaterThanOrEqual(frame.top);
+        expect(edit.getBoundingClientRect().bottom).toBeLessThanOrEqual(frame.bottom);
+        expect(bounds[0].left).toBeGreaterThanOrEqual(frame.left);
         expect(bounds[bounds.length - 1].right).toBeLessThanOrEqual(frame.right);
         for (const [index, bound] of bounds.entries()) {
-          expect(bound.width).toBe(28);
-          expect(bound.height).toBe(28);
+          expect(bound.width).toBe(24);
+          expect(bound.height).toBe(24);
           expect(bound.top).toBe(bounds[0].top);
-          if (index > 0) {
-            const gap = bound.left - bounds[index - 1].right;
-            if (actions[index].parentElement === actions[index - 1].parentElement)
-              expect(gap).toBe(4);
-            else expect(gap).toBeGreaterThanOrEqual(12);
-          }
+          if (index > 0) expect(bound.left - bounds[index - 1].right).toBe(2);
         }
       }
     }
@@ -633,7 +628,8 @@ describe('MessageAttachments', () => {
       .poll(() => container.querySelector('[data-testid="message-attachments-video-player"]'))
       .toBeTruthy();
     const player = container.querySelector<HTMLElement>('.preview-frame')!;
-    expect(player.getBoundingClientRect().width).toBe(Math.max(w, 56));
+    // A frame with two actions is at least wide enough to hold them.
+    expect(player.getBoundingClientRect().width).toBe(Math.max(w, 70));
     const canvas = player
       .querySelector('[data-testid="message-attachments-video-player"]')!
       .getBoundingClientRect();
@@ -676,7 +672,7 @@ describe('MessageAttachments', () => {
   });
 
   it.each(['ltr', 'rtl'])(
-    'keeps management actions visible before and after focus in %s',
+    'keeps the frame size when the corner actions show in %s',
     (direction) => {
       const { container } = renderAttachment(
         fileAttachment({ filename: 'raw.mp4', contentType: 'video/mp4' }),
@@ -686,15 +682,19 @@ describe('MessageAttachments', () => {
         }
       );
       container.dir = direction;
-      const toolbar = container.querySelector<HTMLElement>('.preview-toolbar')!;
-      const frame = toolbar.parentElement!;
+      const actions = container.querySelector<HTMLElement>('.preview-actions')!;
+      const frame = actions.parentElement!;
       const before = frame.getBoundingClientRect();
-      expect(toolbar.querySelector('[aria-label="View raw.mp4"]')).toBeNull();
-      expect(getComputedStyle(toolbar).opacity).toBe('1');
-      toolbar.querySelector<HTMLButtonElement>('button')!.focus();
-      expect(getComputedStyle(toolbar).opacity).toBe('1');
+      expect(actions.querySelector('[aria-label="View raw.mp4"]')).toBeNull();
+      actions.querySelector<HTMLButtonElement>('button')!.focus();
       expect(frame.getBoundingClientRect().height).toBe(before.height);
       expect(frame.getBoundingClientRect().width).toBe(before.width);
+      const bounds = actions.getBoundingClientRect();
+      const frameBounds = frame.getBoundingClientRect();
+      // The actions follow the text direction to the end corner.
+      const border = parseFloat(getComputedStyle(frame).borderTopWidth);
+      if (direction === 'rtl') expect(bounds.left - frameBounds.left - border).toBe(8);
+      else expect(frameBounds.right - bounds.right - border).toBe(8);
     }
   );
 
@@ -806,7 +806,7 @@ describe('MessageAttachments', () => {
     });
     const view = renderAttachment(gif);
     await view.getByTestId('message-attachments-video-player').click();
-    expect(view.container.querySelector('.preview-toolbar')).toBeNull();
+    expect(view.container.querySelector('.preview-actions')).toBeNull();
     expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
       modal: expect.objectContaining({
         type: 'attachmentViewer',

@@ -142,19 +142,92 @@
   }
 }
 
-@utility preview-toolbar {
-  /* Reserve space in normal flow so controls never cover or move the content. */
-  @apply flex min-h-8 max-w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 pt-1;
+/* Preview actions: one pill in the top end corner of every preview frame.
+ * PreviewToolbar renders it. It floats over the content and reserves no space.
+ * With a fine hover pointer and no touch input, it shows only while the preview
+ * is hovered or holds keyboard focus; touch input always shows it. It must not
+ * cover text: a text row below it uses preview-actions-clearance. */
+@utility preview-actions {
+  @apply absolute end-2 top-2 z-10 flex items-center gap-0.5 rounded-lg bg-surface/80 p-0.5 shadow-sm backdrop-blur-sm transition-opacity duration-150;
+
+  @variant hover-actions {
+    @variant compact-input {
+      opacity: 0;
+
+      :where(.group\/preview:hover, .group\/preview:has(:focus-visible)) & {
+        opacity: 1;
+      }
+    }
+  }
+}
+
+/* Reserves the width of the preview actions at the end of a text row that
+ * shares the top of the frame with them. The width follows the action count. */
+@utility preview-actions-clearance {
+  padding-inline-end: var(--preview-actions-clearance, 0px);
+}
+
+/* A header row at the top of a frame, such as a code block's language label.
+ * The pill sits in this row instead of the corner inset. The row is as tall as
+ * the pill and ends 4px above the content, matching the 4px rim above it, so
+ * the label and the pill share one centre line. Text stays clear of the pill. */
+@utility preview-header {
+  @apply flex items-center preview-actions-clearance pb-1;
+  min-height: calc(var(--preview-action-size) + 8px);
+}
+
+.group\/preview:has(> .preview-header) > .preview-actions {
+  /* Start at the frame's 4px rim, level with the header row. The end inset
+   * mirrors the label's start inset, measured to the icons. */
+  top: 0.25rem;
+  inset-inline-end: 0.375rem;
+}
+
+/* One action is 24px with a fine pointer and 44px with a coarse pointer. The
+ * frame learns the action count from its pill, so owners never measure it. A
+ * frame with actions is at least wide enough to hold the pill. */
+.group\/preview {
+  --preview-action-size: 1.5rem;
+
+  @media (pointer: coarse) {
+    --preview-action-size: 2.75rem;
+  }
+
+  &:has(.preview-actions > :nth-child(1)) {
+    --preview-actions-count: 1;
+  }
+  &:has(.preview-actions > :nth-child(2)) {
+    --preview-actions-count: 2;
+  }
+  &:has(.preview-actions > :nth-child(3)) {
+    --preview-actions-count: 3;
+  }
+  &:has(.preview-actions > :nth-child(1)) {
+    /* Pill: actions, 2px gaps, and 2px padding; then the 8px corner inset. */
+    --preview-actions-width: calc(
+      var(--preview-actions-count) * var(--preview-action-size) +
+        (var(--preview-actions-count) + 1) * 2px
+    );
+    /* Replaces the row's end padding: the inset plus a 4px gap. */
+    --preview-actions-clearance: calc(var(--preview-actions-width) + 0.75rem);
+    min-width: calc(var(--preview-actions-width) + 1rem);
+  }
 }
 
 @utility attachment-action-button {
-  @apply inline-flex h-7 min-h-7 w-7 min-w-7 shrink-0 cursor-pointer items-center justify-center icon-action-feedback p-0 text-sm;
+  @apply inline-flex h-6 min-h-6 w-6 min-w-6 shrink-0 cursor-pointer items-center justify-center icon-action-feedback p-0 text-sm;
   @apply comfortable-density:h-11 comfortable-density:min-h-11 comfortable-density:w-11 comfortable-density:min-w-11;
   @apply disabled:cursor-not-allowed disabled:opacity-50 aria-pressed:bg-text/10 aria-pressed:text-text-top;
 }
 
 @utility attachment-card {
   @apply flex max-w-full items-center gap-3 p-3;
+
+  /* A card is one row, so its preview actions are that row's last item,
+   * centred on it. The row reserves their space; no clearance is needed. */
+  & > .preview-actions {
+    @apply static ms-auto;
+  }
 }
 
 @utility attachment-media-frame {

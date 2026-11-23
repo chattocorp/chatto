@@ -26,7 +26,7 @@
             {@render actions()}
           </PreviewToolbar>
         </div>
-        <div class="my-1.5 mt-4 attachment-card w-64 preview-frame">
+        <div class="group/preview attachment-card relative my-1.5 mt-4 w-64 preview-frame">
           <button
             type="button"
             class="flex min-h-10 min-w-0 flex-1 cursor-pointer items-center gap-3 text-start"
@@ -36,17 +36,19 @@
             ></span>
             <span class="min-w-0 text-sm wrap-anywhere">test.html</span>
           </button>
-          <PreviewToolbar layout="row">
+          <PreviewToolbar>
             {@render actions()}
           </PreviewToolbar>
         </div>
-        <div class="my-1.5 mt-4 attachment-card w-64 flex-wrap preview-frame">
+        <div
+          class="group/preview attachment-card relative my-1.5 mt-4 w-64 flex-wrap preview-frame"
+        >
           <audio
             controls
             preload="none"
             class="h-10 max-w-full min-w-[min(12rem,100%)] flex-1 basis-48"
           ></audio>
-          <PreviewToolbar layout="row" {viewing}>
+          <PreviewToolbar {viewing}>
             {@render actions()}
           </PreviewToolbar>
         </div>
@@ -72,7 +74,7 @@
       <p class="mb-2">Image gallery</p>
       <div class="flex gap-2 overflow-x-auto">
         {#each [40, 180, 240] as width (width)}
-          <div class="group/preview attachment-media-frame min-w-19 shrink-0 preview-frame">
+          <div class="group/preview attachment-media-frame shrink-0 preview-frame">
             <img
               src={'data:image/svg+xml,' +
                 encodeURIComponent(

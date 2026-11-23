@@ -1,6 +1,8 @@
 import '../../app.css';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { userEvent } from 'vitest/browser';
+import { emulateHoverPointer } from '$lib/test-utils/hoverPointer';
 import type { LinkPreviewView } from '@chatto/client/timeline/linkPreviews';
 import LinkPreviewCard from './LinkPreviewCard.svelte';
 
@@ -58,20 +60,55 @@ async function menuButton(label: string): Promise<HTMLButtonElement> {
 }
 
 describe('LinkPreviewCard', () => {
-  it('keeps the toolbar below the link without covering its content', () => {
+  it('keeps overlay actions clear of text in a preview without an image', () => {
     const { container } = render(LinkPreviewCard, {
-      preview: preview({ url: 'https://bar.com/chat/-/overview', title: 'Overview' }),
+      preview: preview({
+        url: 'https://bar.com/chat/-/overview',
+        siteName: 'A very long site name that would run under the actions',
+        title: 'Overview'
+      }),
       canDelete: true
     });
     const card = container.querySelector<HTMLAnchorElement>('[data-testid="link-preview-card"]')!;
     container.querySelector<HTMLButtonElement>('[aria-label="Delete preview"]')!.focus();
-    const toolbar = container.querySelector('.preview-toolbar')!.getBoundingClientRect();
+    const actions = container.querySelector('.preview-actions')!.getBoundingClientRect();
+    const text = card.querySelector('span')!.getBoundingClientRect();
+    expect(text.right).toBeLessThanOrEqual(actions.left);
     const link = card.getBoundingClientRect();
-    expect(toolbar.top).toBeGreaterThanOrEqual(link.bottom);
     const target = document.elementFromPoint(link.left + 12, link.top + 12) as HTMLElement;
     expect(target.closest('a')).toBe(card);
     target.click();
     expect(navigation.goto).toHaveBeenCalledWith('/chat/bar.com/overview');
+  });
+
+  it('shows preview actions with a mouse only on hover or keyboard focus', async () => {
+    const restore = await emulateHoverPointer();
+    try {
+      expect(matchMedia('(any-hover: hover) and (any-pointer: fine)').matches).toBe(true);
+      const { container } = render(LinkPreviewCard, {
+        preview: preview({
+          title: 'Example',
+          imageUrl: 'data:image/gif;base64,R0lGODlhAQABAAAAACw='
+        }),
+        canDelete: true
+      });
+      const card = container.querySelector<HTMLElement>('[data-testid="link-preview-card"]')!;
+      const actions = container.querySelector<HTMLElement>('.preview-actions')!;
+      const opacity = () => getComputedStyle(actions).opacity;
+      await userEvent.unhover(card);
+      await expect.poll(opacity).toBe('0');
+      await userEvent.hover(card);
+      await expect.poll(opacity).toBe('1');
+      await userEvent.unhover(card);
+      await expect.poll(opacity).toBe('0');
+      // Keyboard focus reveals the actions without a pointer.
+      card.focus();
+      await userEvent.tab();
+      expect(document.activeElement?.getAttribute('aria-label')).toBe('Delete preview');
+      await expect.poll(opacity).toBe('1');
+    } finally {
+      await restore();
+    }
   });
 
   it('dismisses from the toolbar without activating the preview link', () => {
@@ -82,7 +119,7 @@ describe('LinkPreviewCard', () => {
     });
     const button = container.querySelector<HTMLButtonElement>('[aria-label="Dismiss preview"]')!;
     expect(button.closest('a')).toBeNull();
-    expect(button.closest('.preview-toolbar')).not.toBeNull();
+    expect(button.closest('.preview-actions')).not.toBeNull();
     button.click();
     expect(onDismiss).toHaveBeenCalledOnce();
     expect(navigation.goto).not.toHaveBeenCalled();

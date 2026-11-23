@@ -3,10 +3,12 @@ import { cdp, page, userEvent } from 'vitest/browser';
 import { afterEach, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { testSnippet } from '$lib/test-utils';
+import { emulateHoverPointer } from '$lib/test-utils/hoverPointer';
 import Frame from './Frame.svelte';
 
 afterEach(async () => {
   await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  await cdp().send('Emulation.setEmulatedMedia', { features: [] });
   await page.viewport(1280, 720);
 });
 
@@ -27,11 +29,11 @@ it.each([false, true])(
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
     const { container } = render(Frame, {
       children: testSnippet(
-        '<div class="group/preview relative h-40 w-64"><button class="menu-entry">Command</button><div class="preview-toolbar"><button aria-label="Open attachment">Open</button></div></div>'
+        '<div class="group/preview relative h-40 w-64"><button class="menu-entry">Command</button><div class="preview-actions"><button aria-label="Open attachment">Open</button></div></div>'
       )
     });
     const command = container.querySelector<HTMLElement>('.menu-entry')!;
-    const action = container.querySelector<HTMLElement>('.preview-toolbar')!;
+    const action = container.querySelector<HTMLElement>('.preview-actions')!;
     for (const width of [320, 767, 768, 1280]) {
       await page.viewport(width, 800);
       expect(command.getBoundingClientRect().height).toBeGreaterThanOrEqual(touch ? 44 : 32);
@@ -65,37 +67,32 @@ it.each([false, true])(
 );
 
 it.each([false, true])(
-  'keeps embed controls reachable with touch=%s at any width',
+  'shows preview actions on keyboard focus, and always for touch, with touch=%s',
   async (touch) => {
     await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: touch });
+    // Without touch, report a mouse: CI's headless browser reports no hover.
+    if (!touch) await emulateHoverPointer();
     expect(matchMedia('(any-pointer: coarse)').matches).toBe(touch);
+    // A mouse hides the actions at rest; touch input always shows them.
+    const hiddenAtRest = !touch;
     const { container } = render(Frame, {
       children: testSnippet(
-        '<div><div class="group/preview relative h-40 w-64"><div class="preview-toolbar"><button aria-label="Open attachment">Open</button></div></div><button data-testid="outside-preview">Outside preview</button></div>'
+        '<div><div class="group/preview relative h-40 w-64"><div class="preview-actions"><button aria-label="Open attachment">Open</button></div></div><button data-testid="outside-preview">Outside preview</button></div>'
       )
     });
-    const toolbar = container.querySelector<HTMLElement>('.preview-toolbar')!;
-    const button = toolbar.querySelector<HTMLButtonElement>('button')!;
+    const actions = container.querySelector<HTMLElement>('.preview-actions')!;
+    const button = actions.querySelector<HTMLButtonElement>('button')!;
     const outside = container.querySelector<HTMLElement>('[data-testid="outside-preview"]')!;
-    // Start focused so the test also proves it clears keyboard reveal state.
-    button.focus();
-    await expect.poll(() => getComputedStyle(toolbar).opacity).toBe('1');
     for (const width of [375, 1024]) {
       await page.viewport(width, 800);
-      // Controls stay reachable without hover or keyboard focus.
       await userEvent.hover(outside);
       outside.focus();
-      expect(button.parentElement!.matches(':hover')).toBe(false);
-      expect(button.parentElement!.matches(':focus-within')).toBe(false);
-      await expect.poll(() => getComputedStyle(toolbar).opacity).toBe('1');
-      expect(getComputedStyle(toolbar).pointerEvents).toBe('auto');
+      await expect.poll(() => getComputedStyle(actions).opacity).toBe(hiddenAtRest ? '0' : '1');
+      // Hidden actions stay reachable for pointer and keyboard input.
       expect(getComputedStyle(button).pointerEvents).toBe('auto');
-      button.focus();
-      await expect.poll(() => getComputedStyle(toolbar).opacity).toBe('1');
-      expect(getComputedStyle(toolbar).pointerEvents).toBe('auto');
-      expect(getComputedStyle(button).pointerEvents).toBe('auto');
-      outside.focus();
-      await expect.poll(() => getComputedStyle(toolbar).opacity).toBe('1');
+      await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+      expect(document.activeElement).toBe(button);
+      await expect.poll(() => getComputedStyle(actions).opacity).toBe('1');
     }
   }
 );

@@ -1101,9 +1101,11 @@ describe('MarkdownHtml code copy', () => {
     document.addEventListener('pointerdown', outsidePress);
     for (const type of events) container.addEventListener(type, parentGesture);
     const header = container.querySelector('.markdown-code-header')!;
-    expect(header.firstElementChild?.textContent).toBe('ansi');
-    expect(header.lastElementChild?.hasAttribute('data-markdown-copy')).toBe(true);
-    const buttons = header.querySelectorAll<HTMLButtonElement>('button');
+    expect(header.textContent).toBe('ansi');
+    // The controls are the frame's preview actions, beside the language label.
+    const actions = container.querySelector('.markdown-code-frame > .preview-actions')!;
+    expect(actions.lastElementChild?.hasAttribute('data-markdown-copy')).toBe(true);
+    const buttons = actions.querySelectorAll<HTMLButtonElement>('button');
     expect([...buttons].map((button) => button.getAttribute('aria-label'))).toEqual([
       'Source',
       'Render',
@@ -1234,8 +1236,10 @@ describe('MarkdownHtml code copy', () => {
     const buttons = container.querySelectorAll<HTMLButtonElement>('button[data-markdown-copy]');
 
     expect(buttons).toHaveLength(2);
-    expect(buttons[0].parentElement?.firstElementChild?.textContent).toBe('text');
-    expect(buttons[1].parentElement?.firstElementChild?.textContent).toBe('text');
+    const language = (button: HTMLButtonElement) =>
+      button.closest('.markdown-code-frame')?.querySelector('.markdown-code-language')?.textContent;
+    expect(language(buttons[0])).toBe('text');
+    expect(language(buttons[1])).toBe('text');
     expect(buttons[0].getAttribute('aria-label')).toBe('Copy to clipboard');
     expect(container.querySelector('p code')?.textContent).toBe('inline');
     await userEvent.click(buttons[0]);
