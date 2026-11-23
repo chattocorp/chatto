@@ -7,6 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { RoomKind } from "../../api/v1/rooms_pb.js";
 import { RoomThreadingMode } from "../../api/v1/common_pb.js";
+import { MessageViewerState } from "../../api/v1/message_types_pb.js";
 import { PresenceStatus } from "../../api/v1/presence_pb.js";
 
 /**
@@ -1119,6 +1120,15 @@ export class VoiceCallEndedEvent extends Message<VoiceCallEndedEvent> {
 /**
  * MessagePostedEvent reports a new room message.
  *
+ * When `complete` is true, the event holds all values of the message
+ * resource that `MessageService.BatchGetMessages` returns to the receiving
+ * viewer at the time of delivery. A client can show the message from the
+ * event and does not need to read it. The resource values that the event does
+ * not hold are then empty: the message has no attachments, link preview,
+ * reactions, pin, thread, edit, or channel echo. When `complete` is false or
+ * absent, read the message to get its attachments, link preview, and other
+ * resource values. Later changes to the message have their own events.
+ *
  * @generated from message chatto.realtime.v1.MessagePostedEvent
  */
 export class MessagePostedEvent extends Message<MessagePostedEvent> {
@@ -1170,6 +1180,20 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
    */
   roomKind = RoomKind.UNSPECIFIED;
 
+  /**
+   * Viewer state of the message, as the message resource reports it. Set only when `complete` is true.
+   *
+   * @generated from field: chatto.api.v1.MessageViewerState viewer_state = 10;
+   */
+  viewerState?: MessageViewerState;
+
+  /**
+   * True when the event holds the complete message resource for this viewer.
+   *
+   * @generated from field: bool complete = 11;
+   */
+  complete = false;
+
   constructor(data?: PartialMessage<MessagePostedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1186,6 +1210,8 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
     { no: 7, name: "mentions", kind: "message", T: MessageMention, repeated: true },
     { no: 8, name: "body_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 9, name: "room_kind", kind: "enum", T: proto3.getEnumType(RoomKind) },
+    { no: 10, name: "viewer_state", kind: "message", T: MessageViewerState },
+    { no: 11, name: "complete", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessagePostedEvent {

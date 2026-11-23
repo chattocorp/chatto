@@ -154,6 +154,15 @@ MessagePinnedEvent reports a newly pinned message.
 
 MessagePostedEvent reports a new room message.
 
+When `complete` is true, the event holds all values of the message
+resource that `MessageService.BatchGetMessages` returns to the receiving
+viewer at the time of delivery. A client can show the message from the
+event and does not need to read it. The resource values that the event does
+not hold are then empty: the message has no attachments, link preview,
+reactions, pin, thread, edit, or channel echo. When `complete` is false or
+absent, read the message to get its attachments, link preview, and other
+resource values. Later changes to the message have their own events.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | No field description provided. |
@@ -164,6 +173,8 @@ MessagePostedEvent reports a new room message.
 | `mentions` | repeated [`MessageMention`](#chatto-realtime-v1-MessageMention) | Distinct mention targets, without expanded role or broadcast recipients. |
 | `body_plaintext` | `optional string` | Plaintext message text. The field is absent after key shredding. |
 | `room_kind` | `chatto.api.v1.RoomKind` | Immutable room kind. Direct messages do not require a mention to address a bot. |
+| `viewer_state` | `chatto.api.v1.MessageViewerState` | Viewer state of the message, as the message resource reports it. Set only when `complete` is true. |
+| `complete` | `bool` | True when the event holds the complete message resource for this viewer. |
 
 
 

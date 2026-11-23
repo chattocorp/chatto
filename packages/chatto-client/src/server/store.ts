@@ -1474,8 +1474,9 @@ export class ServerStateStore {
       case 'assetDeleted': {
         const anchorEventId =
           rawValue?.messageEventId ?? (payload.case === 'messagePosted' ? event.id : null);
-        if (payload.case === 'messagePosted') this.#timelines.ingestPost(event);
-        if (anchorEventId)
+        // A complete post needs no read. Its row in each loaded timeline is final.
+        const complete = payload.case === 'messagePosted' && this.#timelines.ingestPost(event);
+        if (anchorEventId && !complete)
           this.#timelines.reconcile(
             roomId,
             anchorEventId,

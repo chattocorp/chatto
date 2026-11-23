@@ -80,10 +80,17 @@ export class TimelineSync {
     });
   }
 
-  /** Show an authorized public post in the loaded timelines while its read runs. */
-  ingestPost(event: RealtimeEvent): void {
+  /**
+   * Show an authorized public post in the loaded timelines.
+   *
+   * Returns true when the row is final and the post needs no message read:
+   * the server marked the event `complete`, and the author's profile is known.
+   * Otherwise the row is temporary, and the caller must reconcile the post.
+   * Servers that do not set `complete` always get a read.
+   */
+  ingestPost(event: RealtimeEvent): boolean {
     const posted = event.event.case === 'messagePosted' ? event.event.value : null;
-    if (!posted || posted.bodyPlaintext === undefined || !event.id) return;
+    if (!posted || posted.bodyPlaintext === undefined || !event.id) return false;
     const { user: actor, deleted: actorDeleted } = event.actorId
       ? this.#options.actor(event.actorId)
       : { user: null, deleted: false };
@@ -93,7 +100,7 @@ export class TimelineSync {
       actorId: event.actorId || null,
       actor,
       actorResolution: actorDeleted ? 'deleted' : actor ? undefined : 'loading',
-      // The event has only the posted fields. The resource read fills the rest.
+      // An incomplete event has only the posted fields. The resource read fills the rest.
       event: messagePostedPayload(
         new Message({
           roomId: posted.roomId,
@@ -101,7 +108,8 @@ export class TimelineSync {
           inReplyTo: posted.inReplyTo,
           threadRootEventId: posted.threadRootEventId,
           echoOfEventId: posted.echoOfEventId,
-          echoFromThreadRootEventId: posted.echoFromThreadRootEventId
+          echoFromThreadRootEventId: posted.echoFromThreadRootEventId,
+          viewerState: posted.complete ? posted.viewerState : undefined
         }),
         {}
       )
@@ -109,6 +117,8 @@ export class TimelineSync {
     for (const store of this.#options.rooms.timelines(posted.roomId)) {
       store.ingestEvent(timelineEvent);
     }
+    // A missing profile needs the read, which also loads the author.
+    return posted.complete && actor !== null;
   }
 
   /**

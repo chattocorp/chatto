@@ -186,10 +186,23 @@ describe a change. Clients use ConnectRPC when they need an explicit resource,
 large collection, history page, command response, or additional detail.
 An authorized message-post event can include its client-only plaintext body so
 the client can show the post before it reads the complete message resource.
-The bundled frontend first creates a temporary row with the event metadata,
+The client first creates a temporary row with the event metadata,
 reply references, actor, and plaintext. It leaves resource-only values empty,
-then replaces the row after `GetMessage` returns attachments, previews,
-reactions, pin state, thread details, and the timeline cursor.
+then replaces the row after `BatchGetMessages` returns attachments, previews,
+reactions, pin state, and thread details.
+
+The server sets `complete` on the post event when the message resource for
+the receiving viewer has no value that the event does not hold. This applies
+only to an unedited room-level post with its body and no attachments, link
+preview, reactions, pin, thread, or channel echo. The event then also holds
+the viewer state of the message: whether the viewer can reply in its thread,
+and the thread Slow Mode deadline. A client that knows the author keeps the
+row from a complete event and does not read the message. This removes one
+message read for each client that shows the room. Thread replies, echoes,
+posts with attachments or link previews, and posts by authors without a loaded
+profile still use the read. Later changes to the message have their own events,
+which cause a read. A server without this field never sets it, and clients
+then read every post.
 Room-layout changes use one refresh hint without hidden room references.
 Asset processing and deletion events identify the affected room and message,
 including when a processed derivative is deleted. Clients can refresh that

@@ -961,6 +961,9 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 		if body != nil {
 			projected.GetMessagePosted().BodyPlaintext = new(body.Body)
 		}
+		if err := s.markCompleteRealtimePost(ctx, viewerID, kind, durable, body, projected.GetMessagePosted()); err != nil {
+			return nil, fmt.Errorf("resolve complete realtime post: %w", err)
+		}
 	}
 	if sequence := event.DeliverySeq(); sequence > 0 {
 		cursor, err := s.core.RealtimeCursorForSequence(viewerID, sequence)

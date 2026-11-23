@@ -7,7 +7,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { UserAvatarUserView } from '../timeline/users.js';
 import type { RoomStores } from './roomStores.js';
 import { TimelineSync, type TimelineSyncOptions } from './timelineSync.js';
-import { Message } from '@chatto/api-types/api/v1/message_types_pb';
+import { Message, MessageViewerState } from '@chatto/api-types/api/v1/message_types_pb';
 import { messageToTimelineEvent } from '../api/roomTimeline.js';
 
 function deferred() {
@@ -341,6 +341,56 @@ describe('TimelineSync', () => {
     expect(room.ingestEvent).toHaveBeenCalledExactlyOnceWith(expected);
     expect(thread.ingestEvent).toHaveBeenCalledExactlyOnceWith(expected);
   });
+
+  it.each([
+    { complete: false, known: true, final: false },
+    { complete: true, known: false, final: false },
+    { complete: true, known: true, final: true }
+  ])(
+    'reports a post row as final only for a complete event by a known author (%o)',
+    ({ complete, known, final }) => {
+      const room = fakeTimeline();
+      const actor: UserAvatarUserView = {
+        id: 'U1',
+        login: 'ann',
+        displayName: 'Ann',
+        deleted: false,
+        presenceStatus: PresenceStatus.ONLINE
+      };
+      const { sync } = makeSync(
+        { R1: { messages: room } },
+        { actor: () => ({ user: known ? actor : null, deleted: false }) }
+      );
+      const viewerState = new MessageViewerState({
+        canReplyInThread: true,
+        threadSlowModeNextPostAt: Timestamp.fromDate(new Date('2026-09-27T12:05:00.000Z'))
+      });
+
+      const result = sync.ingestPost(
+        new RealtimeEvent({
+          id: 'E1',
+          actorId: 'U1',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({
+              roomId: 'R1',
+              bodyPlaintext: 'hello',
+              complete,
+              viewerState
+            })
+          }
+        })
+      );
+
+      expect(result).toBe(final);
+      // Viewer state is valid only with the complete flag.
+      expect(room.ingestEvent.mock.calls[0][0].event).toMatchObject(
+        complete
+          ? { canReplyInThread: true, threadSlowModeNextPostAt: '2026-09-27T12:05:00.000Z' }
+          : { canReplyInThread: undefined, threadSlowModeNextPostAt: undefined }
+      );
+    }
+  );
 
   it.each([
     { deleted: true, resolution: 'deleted' },

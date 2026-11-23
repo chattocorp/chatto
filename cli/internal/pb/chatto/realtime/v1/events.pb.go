@@ -1317,6 +1317,15 @@ func (x *VoiceCallEndedEvent) GetCallId() string {
 }
 
 // MessagePostedEvent reports a new room message.
+//
+// When `complete` is true, the event holds all values of the message
+// resource that `MessageService.BatchGetMessages` returns to the receiving
+// viewer at the time of delivery. A client can show the message from the
+// event and does not need to read it. The resource values that the event does
+// not hold are then empty: the message has no attachments, link preview,
+// reactions, pin, thread, edit, or channel echo. When `complete` is false or
+// absent, read the message to get its attachments, link preview, and other
+// resource values. Later changes to the message have their own events.
 type MessagePostedEvent struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	RoomId    string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
@@ -1330,7 +1339,11 @@ type MessagePostedEvent struct {
 	// Plaintext message text. The field is absent after key shredding.
 	BodyPlaintext *string `protobuf:"bytes,8,opt,name=body_plaintext,json=bodyPlaintext,proto3,oneof" json:"body_plaintext,omitempty"`
 	// Immutable room kind. Direct messages do not require a mention to address a bot.
-	RoomKind      v1.RoomKind `protobuf:"varint,9,opt,name=room_kind,json=roomKind,proto3,enum=chatto.api.v1.RoomKind" json:"room_kind,omitempty"`
+	RoomKind v1.RoomKind `protobuf:"varint,9,opt,name=room_kind,json=roomKind,proto3,enum=chatto.api.v1.RoomKind" json:"room_kind,omitempty"`
+	// Viewer state of the message, as the message resource reports it. Set only when `complete` is true.
+	ViewerState *v1.MessageViewerState `protobuf:"bytes,10,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
+	// True when the event holds the complete message resource for this viewer.
+	Complete      bool `protobuf:"varint,11,opt,name=complete,proto3" json:"complete,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1419,6 +1432,20 @@ func (x *MessagePostedEvent) GetRoomKind() v1.RoomKind {
 		return x.RoomKind
 	}
 	return v1.RoomKind(0)
+}
+
+func (x *MessagePostedEvent) GetViewerState() *v1.MessageViewerState {
+	if x != nil {
+		return x.ViewerState
+	}
+	return nil
+}
+
+func (x *MessagePostedEvent) GetComplete() bool {
+	if x != nil {
+		return x.Complete
+	}
+	return false
 }
 
 // DirectUserMention identifies a direct user mention.
@@ -3229,7 +3256,7 @@ var File_chatto_realtime_v1_events_proto protoreflect.FileDescriptor
 
 const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/realtime/v1/events.proto\x12\x12chatto.realtime.v1\x1a\x1achatto/api/v1/common.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x19chatto/api/v1/rooms.proto\"/\n" +
+	"\x1fchatto/realtime/v1/events.proto\x12\x12chatto.realtime.v1\x1a\x1achatto/api/v1/common.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x19chatto/api/v1/rooms.proto\"/\n" +
 	"\x10RoleCreatedEvent\x12\x1b\n" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\"/\n" +
 	"\x10RoleUpdatedEvent\x12\x1b\n" +
@@ -3296,7 +3323,7 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\acall_id\x18\x02 \x01(\tR\x06callId\"G\n" +
 	"\x13VoiceCallEndedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
-	"\acall_id\x18\x02 \x01(\tR\x06callId\"\xb9\x03\n" +
+	"\acall_id\x18\x02 \x01(\tR\x06callId\"\x9b\x04\n" +
 	"\x12MessagePostedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1e\n" +
 	"\vin_reply_to\x18\x02 \x01(\tR\tinReplyTo\x12/\n" +
@@ -3305,7 +3332,10 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\x1eecho_from_thread_root_event_id\x18\x06 \x01(\tR\x19echoFromThreadRootEventId\x12>\n" +
 	"\bmentions\x18\a \x03(\v2\".chatto.realtime.v1.MessageMentionR\bmentions\x12*\n" +
 	"\x0ebody_plaintext\x18\b \x01(\tH\x00R\rbodyPlaintext\x88\x01\x01\x124\n" +
-	"\troom_kind\x18\t \x01(\x0e2\x17.chatto.api.v1.RoomKindR\broomKindB\x11\n" +
+	"\troom_kind\x18\t \x01(\x0e2\x17.chatto.api.v1.RoomKindR\broomKind\x12D\n" +
+	"\fviewer_state\x18\n" +
+	" \x01(\v2!.chatto.api.v1.MessageViewerStateR\vviewerState\x12\x1a\n" +
+	"\bcomplete\x18\v \x01(\bR\bcompleteB\x11\n" +
 	"\x0f_body_plaintextJ\x04\b\x04\x10\x05R\x12mentioned_user_ids\",\n" +
 	"\x11DirectUserMention\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"1\n" +
@@ -3486,7 +3516,8 @@ var file_chatto_realtime_v1_events_proto_goTypes = []any{
 	(*RoomInvitationDeclinedEvent)(nil),                // 59: chatto.realtime.v1.RoomInvitationDeclinedEvent
 	(v1.RoomKind)(0),                                   // 60: chatto.api.v1.RoomKind
 	(v1.RoomThreadingMode)(0),                          // 61: chatto.api.v1.RoomThreadingMode
-	(v1.PresenceStatus)(0),                             // 62: chatto.api.v1.PresenceStatus
+	(*v1.MessageViewerState)(nil),                      // 62: chatto.api.v1.MessageViewerState
+	(v1.PresenceStatus)(0),                             // 63: chatto.api.v1.PresenceStatus
 }
 var file_chatto_realtime_v1_events_proto_depIdxs = []int32{
 	60, // 0: chatto.realtime.v1.RoomCreatedEvent.kind:type_name -> chatto.api.v1.RoomKind
@@ -3494,17 +3525,18 @@ var file_chatto_realtime_v1_events_proto_depIdxs = []int32{
 	61, // 2: chatto.realtime.v1.RoomThreadingModeChangedEvent.threading_mode:type_name -> chatto.api.v1.RoomThreadingMode
 	30, // 3: chatto.realtime.v1.MessagePostedEvent.mentions:type_name -> chatto.realtime.v1.MessageMention
 	60, // 4: chatto.realtime.v1.MessagePostedEvent.room_kind:type_name -> chatto.api.v1.RoomKind
-	26, // 5: chatto.realtime.v1.MessageMention.direct:type_name -> chatto.realtime.v1.DirectUserMention
-	27, // 6: chatto.realtime.v1.MessageMention.role:type_name -> chatto.realtime.v1.RoleMessageMention
-	28, // 7: chatto.realtime.v1.MessageMention.here:type_name -> chatto.realtime.v1.HereMessageMention
-	29, // 8: chatto.realtime.v1.MessageMention.all:type_name -> chatto.realtime.v1.AllMessageMention
-	0,  // 9: chatto.realtime.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.realtime.v1.AssetProcessingFailureCode
-	62, // 10: chatto.realtime.v1.PresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	62, // 5: chatto.realtime.v1.MessagePostedEvent.viewer_state:type_name -> chatto.api.v1.MessageViewerState
+	26, // 6: chatto.realtime.v1.MessageMention.direct:type_name -> chatto.realtime.v1.DirectUserMention
+	27, // 7: chatto.realtime.v1.MessageMention.role:type_name -> chatto.realtime.v1.RoleMessageMention
+	28, // 8: chatto.realtime.v1.MessageMention.here:type_name -> chatto.realtime.v1.HereMessageMention
+	29, // 9: chatto.realtime.v1.MessageMention.all:type_name -> chatto.realtime.v1.AllMessageMention
+	0,  // 10: chatto.realtime.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.realtime.v1.AssetProcessingFailureCode
+	63, // 11: chatto.realtime.v1.PresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_chatto_realtime_v1_events_proto_init() }

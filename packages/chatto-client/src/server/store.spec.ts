@@ -14,6 +14,7 @@ import type { MessageResource } from '../api/messageResources.js';
 import {
   Message,
   MessageAttachment,
+  MessageViewerState,
   ThreadSummary
 } from '@chatto/api-types/api/v1/message_types_pb';
 import { messageToTimelineEvent } from '../api/roomTimeline.js';
@@ -4746,6 +4747,59 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(apiMocks.readMessages).toHaveBeenLastCalledWith('R1', ['E-ROOT'], undefined);
     expect(refreshRoom).not.toHaveBeenCalled();
     expect(refreshThread).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: 'a complete post by a known author', complete: true, known: true, reads: 0 },
+    { name: 'a post from a server without the flag', complete: false, known: true, reads: 1 },
+    { name: 'a complete post by an unknown author', complete: true, known: false, reads: 1 }
+  ])('reads $name $reads time(s)', async ({ complete, known, reads }) => {
+    const store = makeStore(new FakeServerConnection([]));
+    const room = store.rooms.messages('R1');
+    await flushPromises();
+    if (known) {
+      store.projection.users.set(
+        'author',
+        userProfileFixture({
+          id: 'author',
+          login: 'author',
+          displayName: 'Author',
+          avatarUrl: null,
+          deleted: false
+        })
+      );
+    }
+    apiMocks.readMessages.mockClear();
+    const message = new Message({ id: 'POST', roomId: 'R1', actorId: 'author', body: 'hello' });
+    apiMocks.readMessages.mockResolvedValue([
+      { message, timeline: messageToTimelineEvent(message, {}) }
+    ]);
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        cursor: 'post',
+        event: new RealtimeEvent({
+          id: 'POST',
+          actorId: 'author',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({
+              roomId: 'R1',
+              bodyPlaintext: 'hello',
+              complete,
+              viewerState: complete ? new MessageViewerState({ canReplyInThread: false }) : undefined
+            })
+          }
+        })
+      })
+    );
+    await store.waitForRealtimeReconciliation();
+
+    expect(apiMocks.readMessages).toHaveBeenCalledTimes(reads);
+    expect(room.getEventById('POST')?.event).toMatchObject({ body: 'hello' });
+    if (complete && known) {
+      expect(room.getEventById('POST')).toMatchObject({ actorResolution: undefined });
+      expect(room.getEventById('POST')?.event).toMatchObject({ canReplyInThread: false });
+    }
   });
 
   it.each([false, true])('uses cached realtime authors (bot: %s)', async (isBot) => {

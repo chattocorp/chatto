@@ -64,6 +64,7 @@ message RolePermissionsChangedEvent {
 message ViewerPermissionsChangedEvent {}
 
 import "chatto/api/v1/common.proto";
+import "chatto/api/v1/message_types.proto";
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/rooms.proto";
 
@@ -168,6 +169,15 @@ message VoiceCallEndedEvent {
 }
 
 // MessagePostedEvent reports a new room message.
+//
+// When `complete` is true, the event holds all values of the message
+// resource that `MessageService.BatchGetMessages` returns to the receiving
+// viewer at the time of delivery. A client can show the message from the
+// event and does not need to read it. The resource values that the event does
+// not hold are then empty: the message has no attachments, link preview,
+// reactions, pin, thread, edit, or channel echo. When `complete` is false or
+// absent, read the message to get its attachments, link preview, and other
+// resource values. Later changes to the message have their own events.
 message MessagePostedEvent {
   string room_id = 1;
   string in_reply_to = 2;
@@ -183,6 +193,10 @@ message MessagePostedEvent {
   optional string body_plaintext = 8;
   // Immutable room kind. Direct messages do not require a mention to address a bot.
   chatto.api.v1.RoomKind room_kind = 9;
+  // Viewer state of the message, as the message resource reports it. Set only when `complete` is true.
+  chatto.api.v1.MessageViewerState viewer_state = 10;
+  // True when the event holds the complete message resource for this viewer.
+  bool complete = 11;
 }
 
 // DirectUserMention identifies a direct user mention.

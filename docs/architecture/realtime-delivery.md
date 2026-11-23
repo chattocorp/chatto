@@ -138,11 +138,22 @@ are omitted. The frontend uses these IDs to read each affected message once
 and update its loaded timeline, file, and pin rows.
 
 An authorized message-post event carries `body_plaintext` for immediate
-display. EVT does not store this field. The frontend inserts a temporary
+display. EVT does not store this field. The client inserts a temporary
 timeline row from the event ID, actor, time, reply references, and plaintext
 body. Values that belong only to the complete message resource start empty.
 These values include attachments, link previews, reactions, pin state, thread
-counts, thread participants, and the timeline cursor. The server-scoped
+counts, and thread participants.
+
+The realtime mapper sets `complete` and `viewer_state` on a post event when
+the viewer's message resource has no other value. The post must be an
+unedited room-level post with its body, and the message must have no
+attachments, link preview, reactions, pin, thread, or channel echo. The mapper
+reads the viewer state with the same core calls as the room timeline
+assembler. For a complete event whose author is in the user store, the client
+keeps the row and does not queue the message for a read. Every other post uses
+the read below.
+
+The server-scoped
 [`TimelineSync`](../../packages/chatto-client/src/server/timelineSync.ts)
 keeps the loaded timelines, files, and pins current. Its
 [`MessageReconciler`](../../packages/chatto-client/src/server/messageReconciler.ts)

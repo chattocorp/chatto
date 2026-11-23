@@ -176,6 +176,81 @@ func TestPublicRealtimeMessageCarriesPlaintextAndRoomKindWithoutChangingEVT(t *t
 	}
 }
 
+func TestPublicRealtimePostIsCompleteOnlyWhenTheResourceAddsNothing(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "complete-author", "Complete Author", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "complete-viewer", "Complete Viewer", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, author.GetId(), core.KindChannel, "", "complete-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, user := range []string{author.GetId(), viewer.GetId()} {
+		if _, err := env.core.JoinRoom(env.ctx, user, core.KindChannel, user, room.GetId()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	post := func(body, threadRoot string, preview *evtv1.LinkPreview) *evtv1.Event {
+		t.Helper()
+		event, err := env.core.PostMessage(env.ctx, core.KindChannel, room.GetId(), author.GetId(), body, nil, threadRoot, threadRoot, preview, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return event
+	}
+	project := func(viewerID string, event *evtv1.Event) *realtimev1.MessagePostedEvent {
+		t.Helper()
+		projected, err := env.httpServer.publicRealtimeEvent(env.ctx, viewerID, core.NewEVTEventEnvelopeWithDeliverySeq(event, 42))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return projected.GetMessagePosted()
+	}
+	requireComplete := func(name string, posted *realtimev1.MessagePostedEvent, want bool) {
+		t.Helper()
+		if posted.GetComplete() != want {
+			t.Fatalf("%s: complete = %v, want %v", name, posted.GetComplete(), want)
+		}
+		if !want && posted.GetViewerState() != nil {
+			t.Fatalf("%s: incomplete post carries viewer state %v", name, posted.GetViewerState())
+		}
+	}
+
+	plain := post("plain message", "", nil)
+	for _, viewerID := range []string{author.GetId(), viewer.GetId()} {
+		posted := project(viewerID, plain)
+		requireComplete("plain post", posted, true)
+		if !posted.GetViewerState().GetCanReplyInThread() {
+			t.Fatalf("plain post viewer state = %v, want a thread reply allowed", posted.GetViewerState())
+		}
+	}
+
+	reply := post("thread reply", plain.GetId(), nil)
+	requireComplete("thread reply", project(viewer.GetId(), reply), false)
+	// The reply establishes a thread. The root resource now has a summary.
+	requireComplete("thread root", project(viewer.GetId(), plain), false)
+
+	reacted := post("reacted message", "", nil)
+	if _, err := env.core.ReactionModel().AddReaction(env.ctx, core.ReactionMutationInput{ActorID: viewer.GetId(), RoomID: room.GetId(), MessageEventID: reacted.GetId(), Emoji: "thumbsup"}); err != nil {
+		t.Fatal(err)
+	}
+	requireComplete("reacted post", project(viewer.GetId(), reacted), false)
+
+	edited := post("edited message", "", nil)
+	if err := env.core.EditMessage(env.ctx, author.GetId(), core.KindChannel, room.GetId(), edited.GetId(), "changed message"); err != nil {
+		t.Fatal(err)
+	}
+	requireComplete("edited post", project(viewer.GetId(), edited), false)
+
+	previewed := post("see https://example.com", "", &evtv1.LinkPreview{Url: "https://example.com", Title: "Example"})
+	requireComplete("post with link preview", project(viewer.GetId(), previewed), false)
+}
+
 func TestProjectRealtimeEventCollapsesMixedRoomGroupOrder(t *testing.T) {
 	projected := projectRealtimeEvent("viewer", &evtv1.Event{
 		Id: "reorder-event-id",
