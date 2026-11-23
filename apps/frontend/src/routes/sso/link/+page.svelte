@@ -224,21 +224,20 @@ a way out: try again when that can help, and close the window.
       </Button>
     </form>
   {:else if view === 'reverify'}
-    <div class="flex flex-col gap-5">
-      <ReverificationChoice
-        providers={reverifiers}
-        body={m('settings.account.sso.reverify_modal.link_body', {
-          provider: provider?.label ?? request.providerId
-        })}
-        error={reverifyError}
-        busyProviderId={reverifyingProviderId}
-        size="lg"
-        onselect={startReverification}
-      />
+    <ReverificationChoice
+      layout="window"
+      providers={reverifiers}
+      body={m('settings.account.sso.reverify_modal.link_body', {
+        provider: provider?.label ?? request.providerId
+      })}
+      error={reverifyError}
+      busyProviderId={reverifyingProviderId}
+      onselect={startReverification}
+    >
       <Button variant="secondary" size="lg" fullWidth onclick={() => window.close()}>
         {m('common.cancel')}
       </Button>
-    </div>
+    </ReverificationChoice>
   {:else if view === 'password' && provider}
     <p class="mb-8 text-center leading-relaxed text-balance text-muted">
       {m('settings.account.sso.fresh_auth_modal.body', { provider: provider.label })}

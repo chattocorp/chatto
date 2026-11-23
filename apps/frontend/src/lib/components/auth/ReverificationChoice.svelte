@@ -6,6 +6,7 @@ what happens next, shows an optional error, and offers one button for each
 provider that can re-verify. Nothing leaves the page until the user clicks.
 -->
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import type { ExternalIdentityProviderInfo } from '$lib/api/externalIdentities';
   import { providerIcon } from '$lib/auth/providerIcon';
   import { m } from '$lib/i18n/messages';
@@ -17,8 +18,9 @@ provider that can re-verify. Nothing leaves the page until the user clicks.
     body,
     error = '',
     busyProviderId = '',
-    size = 'md',
-    onselect
+    layout = 'dialog',
+    onselect,
+    children
   }: {
     /** Providers that can re-verify the user. */
     providers: readonly ExternalIdentityProviderInfo[];
@@ -28,20 +30,22 @@ provider that can re-verify. Nothing leaves the page until the user clicks.
     error?: string;
     /** Provider whose re-verification is starting, or empty. Disables every button. */
     busyProviderId?: string;
-    size?: 'md' | 'lg';
+    /**
+     * `window` matches the other steps of a sign-in window: centred text and
+     * large primary buttons. `dialog` fits a settings dialog.
+     */
+    layout?: 'dialog' | 'window';
     onselect: (provider: ExternalIdentityProviderInfo) => void;
+    /** Further actions below the provider buttons, such as Cancel. */
+    children?: Snippet;
   } = $props();
 </script>
 
-<div class="flex flex-col gap-4">
-  {#if error}
-    <Hint tone="danger">{error}</Hint>
-  {/if}
-  <p class="text-muted">{body}</p>
+{#snippet providerButtons()}
   {#each providers as provider (provider.id)}
     <Button
-      variant="secondary"
-      {size}
+      variant={layout === 'window' ? undefined : 'secondary'}
+      size={layout === 'window' ? 'lg' : 'md'}
       fullWidth
       loading={busyProviderId === provider.id}
       disabled={busyProviderId !== ''}
@@ -51,4 +55,24 @@ provider that can re-verify. Nothing leaves the page until the user clicks.
       {m('settings.account.sso.reverify_modal.action', { provider: provider.label })}
     </Button>
   {/each}
-</div>
+{/snippet}
+
+{#if layout === 'window'}
+  {#if error}
+    <div class="mb-5"><Hint tone="danger">{error}</Hint></div>
+  {/if}
+  <p class="mb-8 text-center leading-relaxed text-balance text-muted">{body}</p>
+  <div class="flex flex-col gap-5">
+    {@render providerButtons()}
+    {@render children?.()}
+  </div>
+{:else}
+  <div class="flex flex-col gap-4">
+    {#if error}
+      <Hint tone="danger">{error}</Hint>
+    {/if}
+    <p class="text-muted">{body}</p>
+    {@render providerButtons()}
+    {@render children?.()}
+  </div>
+{/if}
