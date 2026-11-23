@@ -93,9 +93,17 @@ type ExternalIdentityProvider struct {
 	// Linked identity subject hash for this provider, when linked.
 	LinkedIdentitySubjectHash string `protobuf:"bytes,7,opt,name=linked_identity_subject_hash,json=linkedIdentitySubjectHash,proto3" json:"linked_identity_subject_hash,omitempty"`
 	// Shared provider metadata.
-	Provider      *ProviderMetadata `protobuf:"bytes,8,opt,name=provider,proto3" json:"provider,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Provider *ProviderMetadata `protobuf:"bytes,8,opt,name=provider,proto3" json:"provider,omitempty"`
+	// True when the signed-in browser can confirm a recent sign-in through this
+	// provider by opening `/auth/providers/{id}/reverify` with a `redirect`
+	// path. The provider must be an OpenID Connect provider linked to the user,
+	// and the request must use a browser cookie session. A successful
+	// re-verification marks the current session fresh for 30 minutes and returns
+	// with `reverified=1`; a failure returns with an `error` code. Always false
+	// for bearer credentials.
+	ReverificationAvailable bool `protobuf:"varint,9,opt,name=reverification_available,json=reverificationAvailable,proto3" json:"reverification_available,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ExternalIdentityProvider) Reset() {
@@ -154,6 +162,13 @@ func (x *ExternalIdentityProvider) GetProvider() *ProviderMetadata {
 		return x.Provider
 	}
 	return nil
+}
+
+func (x *ExternalIdentityProvider) GetReverificationAvailable() bool {
+	if x != nil {
+		return x.ReverificationAvailable
+	}
+	return false
 }
 
 // Linked provider identity metadata for the authenticated user's settings UI.
@@ -549,12 +564,13 @@ var File_chatto_api_v1_external_identities_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/api/v1/external_identities.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1achatto/api/v1/common.proto\"\xed\x01\n" +
+	"'chatto/api/v1/external_identities.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1achatto/api/v1/common.proto\"\xa8\x02\n" +
 	"\x18ExternalIdentityProvider\x12\x19\n" +
 	"\blink_url\x18\x05 \x01(\tR\alinkUrl\x12\x16\n" +
 	"\x06linked\x18\x06 \x01(\bR\x06linked\x12?\n" +
 	"\x1clinked_identity_subject_hash\x18\a \x01(\tR\x19linkedIdentitySubjectHash\x12;\n" +
-	"\bprovider\x18\b \x01(\v2\x1f.chatto.api.v1.ProviderMetadataR\bproviderJ\x04\b\x01\x10\x05R\x02idR\x04typeR\x05labelR\tlogin_url\"\xaa\x02\n" +
+	"\bprovider\x18\b \x01(\v2\x1f.chatto.api.v1.ProviderMetadataR\bprovider\x129\n" +
+	"\x18reverification_available\x18\t \x01(\bR\x17reverificationAvailableJ\x04\b\x01\x10\x05R\x02idR\x04typeR\x05labelR\tlogin_url\"\xaa\x02\n" +
 	"\x16LinkedExternalIdentity\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12#\n" +

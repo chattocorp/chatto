@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -225,7 +226,19 @@ func (s *HTTPServer) setupOIDCRoutes() {
 			return
 		}
 
-		s.handleProviderStart(c, providerRuntime)
+		s.handleProviderStart(c, providerRuntime, providerStartIntent(c))
+	})
+
+	// Re-verification has its own route and callback state. An older replica
+	// has neither, so it cannot run the attempt as an ordinary sign-in.
+	auth.GET("providers/:providerID/reverify", func(c *gin.Context) {
+		providerRuntime := configured[c.Param("providerID")]
+		if providerRuntime == nil {
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_not_found")
+			return
+		}
+
+		s.handleProviderStart(c, providerRuntime, "reverify")
 	})
 
 	auth.GET("providers/:providerID"+atprotoClientMetadataPath, func(c *gin.Context) {
@@ -250,7 +263,7 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 	if legacyOIDCRuntime != nil {
 		auth.GET("oidc", func(c *gin.Context) {
-			s.handleProviderStart(c, legacyOIDCRuntime)
+			s.handleProviderStart(c, legacyOIDCRuntime, providerStartIntent(c))
 		})
 		auth.GET("oidc/callback", func(c *gin.Context) {
 			s.handleProviderCallback(c, legacyOIDCRuntime)
@@ -258,7 +271,18 @@ func (s *HTTPServer) setupOIDCRoutes() {
 	}
 }
 
-func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authProviderRuntime) {
+// providerStartIntent returns the intent of a request on the general provider
+// start route. Re-verification starts only on its own route.
+func providerStartIntent(c *gin.Context) string {
+	if intent := c.Query("intent"); intent == "link" {
+		return intent
+	}
+	return "login"
+}
+
+// handleProviderStart begins a provider flow with intent: "login", "link", or
+// "reverify".
+func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authProviderRuntime, intent string) {
 	session := sessions.Default(c)
 
 	// AT Protocol needs the handle first. Ask for it on the handle page, and
@@ -280,8 +304,10 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		}
 	}
 
-	intent := c.Query("intent")
 	linkStartRedirect := ""
+	// Re-verification keeps its state under its own key, so an older replica's
+	// callback, which reads only the sign-in state, rejects it.
+	stateKey := "state"
 	if intent == "link" {
 		start, err := s.core.ConsumePendingExternalIdentityLinkStart(c.Request.Context(), c.Query("link_start"))
 		if err != nil || start.ProviderID != providerRuntime.config.ID {
@@ -295,12 +321,25 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		}
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "link")
 		session.Set(providerSessionKey(providerRuntime.config.ID, "link_user_id"), start.BoundUserID)
+		deleteReverificationState(session, providerRuntime.config.ID)
 		if isValidInternalRedirect(start.RedirectPath) {
 			linkStartRedirect = start.RedirectPath
 		}
+	} else if intent == "reverify" {
+		userID, ok := s.startFreshAuthReverification(c, providerRuntime.config)
+		if !ok {
+			return
+		}
+		stateKey = "reverify_state"
+		session.Delete(providerSessionKey(providerRuntime.config.ID, "state"))
+		session.Delete(providerSessionKey(providerRuntime.config.ID, "intent"))
+		session.Set(providerSessionKey(providerRuntime.config.ID, "reverify_user_id"), userID)
+		session.Set(providerSessionKey(providerRuntime.config.ID, "reverify_started_at"), strconv.FormatInt(time.Now().Unix(), 10))
+		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
 	} else {
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "login")
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
+		deleteReverificationState(session, providerRuntime.config.ID)
 		invitationID, _ := s.registrationInvitation(c, c.Query("admission"))
 		if invitationID != "" {
 			session.Set(providerSessionKey(providerRuntime.config.ID, "invitation_id"), invitationID)
@@ -325,7 +364,7 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		return
 	}
 
-	session.Set(providerSessionKey(providerRuntime.config.ID, "state"), state)
+	session.Set(providerSessionKey(providerRuntime.config.ID, stateKey), state)
 
 	var authURL string
 	if providerRuntime.atproto != nil {
@@ -357,11 +396,20 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 		session.Set(providerSessionKey(providerRuntime.config.ID, "code_verifier"), codeVerifier)
 		session.Set(providerSessionKey(providerRuntime.config.ID, "nonce"), nonce)
 		codeChallenge := s256Challenge(codeVerifier)
-		authURL = providerRuntime.oidc.discovery.Load().oauth2Config.AuthCodeURL(state,
+		options := []oauth2.AuthCodeOption{
 			oauth2.SetAuthURLParam("code_challenge", codeChallenge),
 			oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 			oidc.Nonce(nonce),
-		)
+		}
+		if intent == "reverify" {
+			// An existing provider session must not count. The callback
+			// also checks auth_time, because a provider can ignore these.
+			options = append(options,
+				oauth2.SetAuthURLParam("prompt", "login"),
+				oauth2.SetAuthURLParam("max_age", "0"),
+			)
+		}
+		authURL = providerRuntime.oidc.discovery.Load().oauth2Config.AuthCodeURL(state, options...)
 	} else {
 		gothSession, err := providerRuntime.goth.BeginAuth(state)
 		if err != nil {
@@ -394,9 +442,13 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	session := sessions.Default(c)
 	ctx := c.Request.Context()
 
-	// Verify state
+	// Verify state. A re-verification has its own state key, which also
+	// selects its intent.
 	expectedState, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "state")).(string)
-	if expectedState == "" || c.Query("state") != expectedState {
+	reverifyState, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "reverify_state")).(string)
+	reverifying := reverifyState != "" && c.Query("state") == reverifyState
+	session.Delete(providerSessionKey(providerRuntime.config.ID, "reverify_state"))
+	if !reverifying && (expectedState == "" || c.Query("state") != expectedState) {
 		log.Warn("Provider callback state mismatch", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "state"))
 		deleteProviderExchangeState(session, providerRuntime.config.ID)
@@ -408,11 +460,19 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "state"))
 	intent, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "intent")).(string)
+	if reverifying {
+		intent = "reverify"
+	} else if intent == "reverify" {
+		intent = "login"
+	}
 	linkUserID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "link_user_id")).(string)
 	invitationID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "invitation_id")).(string)
+	reverifyUserID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "reverify_user_id")).(string)
+	reverifyStartedAt, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "reverify_started_at")).(string)
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "intent"))
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "invitation_id"))
+	deleteReverificationState(session, providerRuntime.config.ID)
 
 	// Check for error from provider
 	if errCode := c.Query("error"); errCode != "" {
@@ -444,7 +504,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	// accounts. The error does not name the restriction.
 	if !providerRuntime.config.AdmitsGroups(identity.groups.Groups) {
 		log.Warn("Provider sign-in denied by group restriction", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
-		if intent == "link" {
+		if intent == "link" || intent == "reverify" {
 			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", "provider_access_denied"))
 			return
 		}
@@ -483,6 +543,11 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 			log.Warn("Provider group role sync failed after link", "provider_id", providerRuntime.config.ID, "userId", linkUserID, "error", err)
 		}
 		c.Redirect(http.StatusTemporaryRedirect, providerReturnPath(session, "/"))
+		return
+	}
+
+	if intent == "reverify" {
+		s.completeFreshAuthReverification(c, session, providerRuntime.config, identity, reverifyUserID, reverifyStartedAt)
 		return
 	}
 
@@ -562,6 +627,9 @@ type resolvedProviderIdentity struct {
 	// groups holds the OIDC groups claim when allowed_groups or group_roles
 	// needs it.
 	groups core.ProviderGroups
+	// authTime is the OIDC auth_time claim: when the provider last
+	// authenticated the user. It is zero when the ID token has none.
+	authTime time.Time
 }
 
 func newAuthProviderRuntime(providerConfig config.AuthProviderConfig, callbackURL string) (*authProviderRuntime, error) {
@@ -747,6 +815,7 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 	}
 
 	log.Info("OIDC token verified", "provider_id", r.config.ID, "issuer", idToken.Issuer)
+	authTime := idTokenAuthTime(idToken.Claims)
 
 	// Chatto reads groups only for allowed_groups or group_roles. A groups
 	// claim in the ID token wins over UserInfo, like the profile claims.
@@ -813,7 +882,97 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		providerUsername: providerUsername,
 		displayNameHint:  displayNameHintFromParts(claims.Name, claims.PreferredUser, verifiedEmail),
 		groups:           groups,
+		authTime:         authTime,
 	}, nil
+}
+
+// idTokenAuthTime reads the auth_time claim in Unix seconds. A missing or
+// malformed claim gives the zero time, which never counts as a new sign-in.
+func idTokenAuthTime(decode func(any) error) time.Time {
+	var claim struct {
+		AuthTime json.Number `json:"auth_time"`
+	}
+	if err := decode(&claim); err != nil || claim.AuthTime == "" {
+		return time.Time{}
+	}
+	seconds, err := claim.AuthTime.Float64()
+	if err != nil || seconds <= 0 {
+		return time.Time{}
+	}
+	return time.Unix(int64(seconds), 0)
+}
+
+// startFreshAuthReverification checks a re-verification start and returns
+// the user of the browser's cookie session. Only a page of this server may
+// start it, so a holder of a copied session cannot send the user a start
+// link and gain freshness from the user's sign-in. Only an OIDC provider
+// linked to that user can re-verify, because only OIDC can force a new
+// provider sign-in and prove it. A rejected start returns to its redirect
+// path with an error, or to the login page.
+func (s *HTTPServer) startFreshAuthReverification(c *gin.Context, providerConfig config.AuthProviderConfig) (string, bool) {
+	ctx := c.Request.Context()
+	reject := func(reason string, err error) (string, bool) {
+		log.Warn("Fresh-auth re-verification start rejected", "provider_id", providerConfig.ID, "reason", reason, "error", err)
+		destination := "/login?error=provider_failed"
+		if redirect := c.Query("redirect"); isValidInternalRedirect(redirect) {
+			destination = withQueryParam(redirect, "error", "reverification_failed")
+		}
+		c.Redirect(http.StatusTemporaryRedirect, destination)
+		return "", false
+	}
+	if c.GetHeader("Sec-Fetch-Site") != "same-origin" {
+		return reject("cross_origin", nil)
+	}
+	cookieHandle, ok := s.browserSessionID(c)
+	if !ok {
+		return reject("no_session", nil)
+	}
+	userID, err := s.core.CookieSessionUser(ctx, cookieHandle)
+	if err != nil {
+		return reject("invalid_session", err)
+	}
+	identities, err := s.core.ExternalIdentitiesForUser(ctx, userID)
+	if err != nil {
+		return reject("identities_unavailable", err)
+	}
+	if !core.ProviderCanReverify(providerConfig, identities) {
+		return reject("provider_unavailable", nil)
+	}
+	return userID, true
+}
+
+// deleteReverificationState removes the re-verification binding from the
+// provider-flow session. The caller saves the session.
+func deleteReverificationState(session sessions.Session, providerID string) {
+	session.Delete(providerSessionKey(providerID, "reverify_state"))
+	session.Delete(providerSessionKey(providerID, "reverify_user_id"))
+	session.Delete(providerSessionKey(providerID, "reverify_started_at"))
+}
+
+// completeFreshAuthReverification marks the browser's cookie session fresh
+// when the verified identity and that session belong to the user who started
+// the re-verification. It never creates a session. The browser returns to the
+// saved path with reverified=1, or with an error code.
+func (s *HTTPServer) completeFreshAuthReverification(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, userID, startedAt string) {
+	ctx := c.Request.Context()
+	returnPath := providerReturnPath(session, "/")
+	startedUnix, parseErr := strconv.ParseInt(startedAt, 10, 64)
+	err := core.ErrFreshAuthReverificationMismatch
+	if parseErr == nil {
+		cookieHandle, _ := s.browserSessionID(c)
+		err = s.core.CompleteFreshAuthReverification(ctx, userID, time.Unix(startedUnix, 0), identity.issuer, identity.subject, identity.authTime, cookieHandle)
+	}
+	if err != nil {
+		errorCode := "reverification_failed"
+		if errors.Is(err, core.ErrFreshAuthReverificationMismatch) {
+			errorCode = "reverification_mismatch"
+		}
+		log.Warn("Fresh-auth re-verification failed", "provider_id", providerConfig.ID, "mismatch", errorCode == "reverification_mismatch", "stale", errors.Is(err, core.ErrFreshAuthReverificationStale), "error", err)
+		c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "error", errorCode))
+		return
+	}
+	log.Info("Fresh-auth re-verification succeeded", "provider_id", providerConfig.ID, "userId", userID)
+	c.Redirect(http.StatusTemporaryRedirect, withQueryParam(returnPath, "reverified", "1"))
 }
 
 // providerUsernameClaim reads only a string from the configured verified claim.
@@ -1085,10 +1244,11 @@ func providerReturnPath(session sessions.Session, fallback string) string {
 }
 
 // providerErrorPath returns the destination for a failed provider attempt.
-// A failed link returns to its saved path, which shows the error. A failed
-// sign-in shows the error on the login page and keeps the saved return path.
+// A failed link or re-verification returns to its saved path, which shows the
+// error. A failed sign-in shows the error on the login page and keeps the
+// saved return path.
 func providerErrorPath(session sessions.Session, intent, errorCode string) string {
-	if intent == "link" {
+	if intent == "link" || intent == "reverify" {
 		return providerReturnPathWithError(session, "/login", errorCode)
 	}
 	path := withQueryParam("/login", "error", errorCode)

@@ -532,7 +532,14 @@
         "link_confirm_body": "Når den er koblet til, kan du bruke {provider} til å logge på Chatto.",
         "close_window": "Lukk vinduet",
         "fresh_auth_required": "Logg på igjen før du kobler til en annen leverandør.",
-        "sso_fresh_auth_required": "Åpne kontoinnstillingene på serveren som kontoen tilhører. Logg av og logg på igjen via SSO-leverandøren din, og prøv deretter handlingen på nytt der.",
+        "sso_fresh_auth_required": "Av sikkerhetshensyn må du logge inn på nytt før du endrer påloggingsmetodene dine. Logg ut, logg inn via påloggingsleverandøren din, og prøv igjen.",
+        "reverification_failed": "Chatto kunne ikke bekrefte påloggingen din. Prøv igjen.",
+        "reverification_mismatch": "Du logget inn med en identitet som tilhører en annen konto. Bruk en identitet som er koblet til denne kontoen.",
+        "reverify_modal": {
+          "title": "Bekreft at det er deg",
+          "body": "Av sikkerhetshensyn må du logge inn på nytt med en leverandør som er koblet til denne kontoen. Deretter fortsetter Chatto med handlingen din.",
+          "action": "Logg inn på nytt med {provider}"
+        },
         "provider_unconfigured": "Leverandøren er ikke lenger konfigurert",
         "disconnect_button": "Koble fra",
         "disconnecting": "Kobler fra...",

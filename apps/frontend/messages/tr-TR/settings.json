@@ -532,7 +532,14 @@
         "link_confirm_body": "Bağlandıktan sonra Chatto'ya {provider} ile giriş yapabilirsiniz.",
         "close_window": "Pencereyi kapat",
         "fresh_auth_required": "Başka bir sağlayıcıya bağlanmadan önce tekrar oturum açın.",
-        "sso_fresh_auth_required": "Bu hesabın ait olduğu sunucuda hesap ayarlarını açın. Oturumu kapatıp SSO sağlayıcınız üzerinden yeniden oturum açın, ardından işlemi o sunucuda tekrar deneyin.",
+        "sso_fresh_auth_required": "Güvenliğiniz için oturum açma yöntemlerinizi değiştirmeden önce tekrar oturum açın. Oturumu kapatın, oturum açma sağlayıcınız üzerinden yeniden oturum açın ve tekrar deneyin.",
+        "reverification_failed": "Chatto oturum açma işleminizi doğrulayamadı. Tekrar deneyin.",
+        "reverification_mismatch": "Başka bir hesaba ait bir kimlikle oturum açtınız. Bu hesaba bağlı bir kimlik kullanın.",
+        "reverify_modal": {
+          "title": "Kimliğinizi doğrulayın",
+          "body": "Güvenliğiniz için bu hesaba bağlı bir sağlayıcıyla tekrar oturum açın. Ardından Chatto işleminize devam eder.",
+          "action": "{provider} ile tekrar oturum aç"
+        },
         "provider_unconfigured": "Sağlayıcı artık yapılandırılmadı",
         "disconnect_button": "Bağlantıyı kes",
         "disconnecting": "Bağlantı kesiliyor...",

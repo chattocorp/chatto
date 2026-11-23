@@ -2,7 +2,19 @@
   import { onMount } from 'svelte';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { Code, ConnectError } from '@connectrpc/connect';
+  import { page } from '$app/state';
   import {
+    reverificationErrorMessage,
+    reverificationProviders,
+    reverificationStartUrl
+  } from '$lib/auth/freshAuthReverification';
+  import ReverificationChoice from '$lib/components/auth/ReverificationChoice.svelte';
+  import { leavePage } from '$lib/navigation/leavePage';
+  import DisconnectContinuation, {
+    disconnectContinuationPath
+  } from './DisconnectContinuation.svelte';
+  import {
+    identityLinkPath,
     identityLinkReturnPath,
     linkStartFailure,
     onProviderLinked,
@@ -308,9 +320,12 @@
       const failure = linkStartFailure(err, {
         passwordSent: currentPassword !== undefined,
         canUsePasswordProof,
-        directLoginEnabled
+        directLoginEnabled,
+        canReverify: reverifiers.length > 0
       });
-      if (failure.kind === 'password_required') {
+      if (failure.kind === 'reverification_required') {
+        requireReverification({ kind: 'link', provider });
+      } else if (failure.kind === 'password_required') {
         linkConfirmation = { provider };
         linkCurrentPassword = '';
         linkFreshAuthError = '';
@@ -365,6 +380,7 @@
   function closeDisconnectDialog() {
     if (disconnectingSubjectHash) return;
     disconnectTarget = null;
+    disconnectReverified = false;
   }
 
   function closeDisconnectFreshAuthDialog() {
@@ -390,6 +406,8 @@
     currentPassword?: string
   ) {
     const { subjectHash, providerLabel } = target;
+    const reverifiedAttempt = disconnectReverified;
+    disconnectReverified = false;
     const variables: DisconnectVariables = {
       ...session.snapshot(),
       subjectHash,
@@ -449,6 +467,12 @@
           disconnectFreshAuthTarget = { subjectHash, providerLabel };
           disconnectCurrentPassword = '';
           disconnectFreshAuthError = '';
+        } else if (
+          !reverifiedAttempt &&
+          reverifiers.length > 0 &&
+          serverRegistry.isOriginServer(serverScope.serverId)
+        ) {
+          requireReverification({ kind: 'disconnect', subjectHash, providerLabel });
         } else {
           actionError = directLoginEnabled
             ? m('settings.account.sso.disconnect_fresh_auth_required')
@@ -463,6 +487,68 @@
     } finally {
       disconnectingSubjectHash = '';
     }
+  }
+
+  /** An action that the server protects with a recent sign-in. */
+  type ProtectedAction =
+    | { kind: 'link'; provider: ExternalIdentityProviderInfo }
+    | { kind: 'disconnect'; subjectHash: string; providerLabel: string };
+
+  // Linked providers that can confirm a recent sign-in without a password.
+  const reverifiers = $derived(reverificationProviders(providers));
+  // The open disconnect confirmation resumes a re-verification. A freshness
+  // failure of that attempt shows the fallback instead of another round trip.
+  // The flag covers only that one attempt.
+  let disconnectReverified = false;
+  let reverificationPrompt = $state.raw<{ action: ProtectedAction; error: string } | null>(null);
+  let reverifyingProviderId = $state('');
+
+  // Re-verify through the only provider that can, or let the user choose.
+  function requireReverification(action: ProtectedAction) {
+    if (reverifiers.length === 1) startReverification(reverifiers[0], action);
+    else reverificationPrompt = { action, error: '' };
+  }
+
+  function startReverification(provider: ExternalIdentityProviderInfo, action: ProtectedAction) {
+    const userId = accountId;
+    if (!userId) return;
+    // A link continues in the link window; a disconnect returns to this page.
+    const startUrl = reverificationStartUrl(
+      provider,
+      action.kind === 'link'
+        ? identityLinkPath(action.provider.id, userId)
+        : disconnectContinuationPath(page.url.pathname, action.subjectHash, userId)
+    );
+    actionError = '';
+    reverificationPrompt = null;
+    if (action.kind === 'link') {
+      launchProviderWindow(action.provider, startUrl);
+    } else {
+      reverifyingProviderId = provider.id;
+      leavePage(startUrl);
+    }
+  }
+
+  function continueDisconnect(subjectHash: string, userId: string, errorCode: string) {
+    if (!userId || userId !== accountId) {
+      actionError = m('settings.account.sso.account_mismatch');
+      return;
+    }
+    const identity = linkedIdentities.find((identity) => identity.subjectHash === subjectHash);
+    if (!identity) return;
+    const action: ProtectedAction = {
+      kind: 'disconnect',
+      subjectHash,
+      providerLabel: identity.providerLabel
+    };
+    if (errorCode) {
+      const message = reverificationErrorMessage(errorCode);
+      if (reverifiers.length === 0) actionError = message;
+      else reverificationPrompt = { action, error: message };
+      return;
+    }
+    disconnectReverified = true;
+    openDisconnectDialog(subjectHash, identity.providerLabel);
   }
 
   async function confirmDisconnectFreshAuth(e: Event) {
@@ -487,6 +573,10 @@
 {#if providerLinkWindow}
   <Interval milliseconds={500} ontick={checkProviderLinkWindow} />
   <Interval milliseconds={2000} ontick={checkProviderLinkResult} />
+{/if}
+
+{#if serverRegistry.isOriginServer(serverScope.serverId) && accountId && identitiesQuery.isSuccess && !identitiesQuery.isFetching}
+  <DisconnectContinuation ondisconnect={continueDisconnect} />
 {/if}
 
 <Panel title={m('settings.account.sso.title')} icon="iconify icon-[uil--link]" noPadding>
@@ -688,6 +778,25 @@
     </Button>
   {/snippet}
 </Dialog>
+
+{#if reverificationPrompt}
+  {@const prompt = reverificationPrompt}
+  <Dialog
+    visible
+    title={m('settings.account.sso.reverify_modal.title')}
+    size="sm"
+    onclose={() => {
+      if (!reverifyingProviderId) reverificationPrompt = null;
+    }}
+  >
+    <ReverificationChoice
+      providers={reverifiers}
+      error={prompt.error}
+      busyProviderId={reverifyingProviderId}
+      onselect={(provider) => startReverification(provider, prompt.action)}
+    />
+  </Dialog>
+{/if}
 
 {#if blockedLaunch}
   <ConfirmDialog

@@ -930,6 +930,7 @@ Public metadata for a configured external login provider.
 | `linked` | `bool` | True when this provider is already linked to the authenticated user. |
 | `linked_identity_subject_hash` | `string` | Linked identity subject hash for this provider, when linked. |
 | `provider` | [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Shared provider metadata. |
+| `reverification_available` | `bool` | True when the signed-in browser can confirm a recent sign-in through this provider by opening `/auth/providers/{id}/reverify` with a `redirect` path. The provider must be an OpenID Connect provider linked to the user, and the request must use a browser cookie session. A successful re-verification marks the current session fresh for 30 minutes and returns with `reverified=1`; a failure returns with an `error` code. Always false for bearer credentials. |
 
 <a id="chatto-api-v1-LinkedExternalIdentity"></a>
 

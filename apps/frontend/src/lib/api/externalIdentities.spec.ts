@@ -165,7 +165,8 @@ describe('createExternalIdentityAPI', () => {
           loginUrl: 'https://remote.example.test/auth/providers/github-main',
           linkUrl: 'https://remote.example.test/auth/providers/github-main?intent=link',
           linked: true,
-          linkedIdentitySubjectHash: 'abc123'
+          linkedIdentitySubjectHash: 'abc123',
+          reverificationAvailable: false
         }
       ],
       linkedIdentities: [

@@ -29,7 +29,8 @@ describe('identity-link window URLs', () => {
       providerId: 'github-main',
       userId: 'user-alice',
       completed: true,
-      errorCode: 'provider_failed'
+      errorCode: 'provider_failed',
+      reverified: false
     });
   });
 
@@ -93,8 +94,29 @@ describe('linkStartFailure', () => {
     ).toMatchObject({
       kind: 'failed',
       retryable: false,
-      message: expect.stringContaining('through your SSO provider')
+      message: expect.stringContaining('through your sign-in provider')
     });
+  });
+
+  it('re-verifies through a linked provider when one can and a password cannot', () => {
+    const sso = { ...options, canUsePasswordProof: false, directLoginEnabled: false };
+    expect(linkStartFailure(freshAuthRequired, { ...sso, canReverify: true })).toEqual({
+      kind: 'reverification_required'
+    });
+    expect(linkStartFailure(freshAuthRequired, { ...options, canReverify: true })).toEqual({
+      kind: 'password_required'
+    });
+    expect(
+      linkStartFailure(freshAuthRequired, { ...sso, canReverify: true, passwordSent: true })
+    ).toMatchObject({ kind: 'password_rejected' });
+  });
+
+  it('reads a successful re-verification from the window URL', () => {
+    const url = new URL(
+      `${identityLinkPath('github-main', 'user-alice')}&reverified=1`,
+      'https://chat.example'
+    );
+    expect(parseIdentityLinkRequest(url)).toMatchObject({ completed: false, reverified: true });
   });
 
   it('keeps a failure after a sent password with the password', () => {

@@ -532,7 +532,14 @@
         "link_confirm_body": "連結後，你可以使用 {provider} 登入 Chatto。",
         "close_window": "關閉視窗",
         "fresh_auth_required": "請重新登入後再連結其他供應商。",
-        "sso_fresh_auth_required": "請在此帳號所屬的伺服器上開啟帳號設定。登出後，透過你的 SSO 供應商重新登入，再於該伺服器上重試此操作。",
+        "sso_fresh_auth_required": "為了你的安全，變更登入方式前請重新登入。請登出，透過你的登入提供者重新登入，然後再試一次。",
+        "reverification_failed": "Chatto 無法確認你的登入。請再試一次。",
+        "reverification_mismatch": "你登入所用的身分屬於另一個帳號。請使用已連結到此帳號的身分。",
+        "reverify_modal": {
+          "title": "確認是你本人",
+          "body": "為了你的安全，請使用已連結到此帳號的提供者重新登入。之後 Chatto 會繼續你的操作。",
+          "action": "使用 {provider} 重新登入"
+        },
         "provider_unconfigured": "已不再設定此供應商",
         "disconnect_button": "中斷連結",
         "disconnecting": "正在中斷連結...",

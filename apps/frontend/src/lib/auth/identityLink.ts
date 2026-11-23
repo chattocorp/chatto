@@ -12,6 +12,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { resolve } from '$app/paths';
 import { m } from '$lib/i18n/messages';
 import { errorMessage } from '$lib/utils/errorMessage';
+import { wasReverified } from '$lib/auth/freshAuthReverification';
 
 /**
  * Account settings path that older servers accept for a link window. Newer
@@ -34,8 +35,10 @@ export type IdentityLinkRequest = {
   userId: string;
   /** The provider callback returned to the window. */
   completed: boolean;
-  /** Link error code from the server's callback, or empty. */
+  /** Link or re-verification error code from the server's callback, or empty. */
   errorCode: string;
+  /** A fresh-auth re-verification succeeded just before the window opened. */
+  reverified: boolean;
 };
 
 /** Whether a URL carries link window parameters. */
@@ -49,7 +52,8 @@ export function parseIdentityLinkRequest(url: URL): IdentityLinkRequest {
     providerId: url.searchParams.get(PROVIDER_PARAM) ?? '',
     userId: url.searchParams.get(USER_PARAM) ?? '',
     completed: url.searchParams.get(COMPLETE_PARAM) === '1',
-    errorCode: url.searchParams.get(ERROR_PARAM) ?? ''
+    errorCode: url.searchParams.get(ERROR_PARAM) ?? '',
+    reverified: wasReverified(url)
   };
 }
 
@@ -109,6 +113,8 @@ export type LinkStartFailure =
   | { kind: 'password_required' }
   /** The server refused the current password that the user gave. */
   | { kind: 'password_rejected'; message: string }
+  /** The server requires fresh proof, and a linked provider can re-verify the user. */
+  | { kind: 'reverification_required' }
   /**
    * Any other failure. `retryable` is false when the same request cannot
    * succeed, for example when only a new provider sign-in gives fresh proof.
@@ -124,6 +130,11 @@ export function linkStartFailure(
     /** The account has a password and the server allows password sign-in. */
     canUsePasswordProof: boolean;
     directLoginEnabled: boolean;
+    /**
+     * A linked provider can re-verify the user, and no re-verification
+     * succeeded just before. Without it, the failure explains how to sign in again.
+     */
+    canReverify?: boolean;
   }
 ): LinkStartFailure {
   const fallback = m('settings.account.sso.link_failed');
@@ -132,6 +143,7 @@ export function linkStartFailure(
   }
   if (error instanceof ConnectError && error.code === Code.FailedPrecondition) {
     if (options.canUsePasswordProof) return { kind: 'password_required' };
+    if (options.canReverify) return { kind: 'reverification_required' };
     return {
       kind: 'failed',
       retryable: false,

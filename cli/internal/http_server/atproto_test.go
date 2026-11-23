@@ -365,7 +365,7 @@ func TestATProtoStartAsksForTheHandle(t *testing.T) {
 	router := gin.New()
 	router.Use(sessions.Sessions("chatto_session", cookie.NewStore([]byte("0123456789abcdef0123456789abcdef"))))
 	router.GET("/auth/providers/bsky", func(c *gin.Context) {
-		(&HTTPServer{}).handleProviderStart(c, runtime)
+		(&HTTPServer{}).handleProviderStart(c, runtime, providerStartIntent(c))
 	})
 
 	for _, tc := range []struct {

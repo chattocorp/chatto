@@ -87,6 +87,19 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
    */
   provider?: ProviderMetadata;
 
+  /**
+   * True when the signed-in browser can confirm a recent sign-in through this
+   * provider by opening `/auth/providers/{id}/reverify` with a `redirect`
+   * path. The provider must be an OpenID Connect provider linked to the user,
+   * and the request must use a browser cookie session. A successful
+   * re-verification marks the current session fresh for 30 minutes and returns
+   * with `reverified=1`; a failure returns with an `error` code. Always false
+   * for bearer credentials.
+   *
+   * @generated from field: bool reverification_available = 9;
+   */
+  reverificationAvailable = false;
+
   constructor(data?: PartialMessage<ExternalIdentityProvider>) {
     super();
     proto3.util.initPartial(data, this);
@@ -99,6 +112,7 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
     { no: 6, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 7, name: "linked_identity_subject_hash", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "provider", kind: "message", T: ProviderMetadata },
+    { no: 9, name: "reverification_available", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ExternalIdentityProvider {

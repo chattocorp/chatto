@@ -19,6 +19,14 @@ message ExternalIdentityProvider {
   string linked_identity_subject_hash = 7;
   // Shared provider metadata.
   ProviderMetadata provider = 8;
+  // True when the signed-in browser can confirm a recent sign-in through this
+  // provider by opening `/auth/providers/{id}/reverify` with a `redirect`
+  // path. The provider must be an OpenID Connect provider linked to the user,
+  // and the request must use a browser cookie session. A successful
+  // re-verification marks the current session fresh for 30 minutes and returns
+  // with `reverified=1`; a failure returns with an `error` code. Always false
+  // for bearer credentials.
+  bool reverification_available = 9;
 }
 
 // State of disconnecting a linked identity. Only ALLOWED enables the action.

@@ -13,6 +13,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/charmbracelet/log"
+	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/core/remoteimage"
@@ -239,8 +240,11 @@ func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.
 		identity.DisconnectEligibility = disconnectAvailability(s.api, identities[index], identities, hasPassword)
 		identity.AccountLabel = s.api.atprotoHandle(lookupCtx, identities[index])
 	}
+	// Only a cookie session can re-verify: the provider callback must run in
+	// the browser that holds it.
+	credential, _ := authctx.CredentialForContext(ctx)
 	return connect.NewResponse(&apiv1.ListExternalIdentitiesResponse{
-		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities),
+		Providers:        apiExternalIdentityProviders(s.api.config.Auth.PublicProviders(), identities, credential.Kind == authctx.RuntimeCredentialKindCookieSession),
 		LinkedIdentities: linked,
 	}), nil
 }
@@ -308,16 +312,19 @@ func apiPendingExternalIdentity(flow *core.PendingExternalIdentityFlow) *authv1.
 	}
 }
 
-func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identities []core.ExternalIdentity) []*apiv1.ExternalIdentityProvider {
+// apiExternalIdentityProviders lists providers for the settings UI.
+// cookieSession reports whether the caller's credential can re-verify.
+func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identities []core.ExternalIdentity, cookieSession bool) []*apiv1.ExternalIdentityProvider {
 	result := make([]*apiv1.ExternalIdentityProvider, 0, len(providers))
 	for _, provider := range providers {
 		escapedID := url.PathEscape(provider.ID)
-		linkedIdentity, linked := providerLinkedIdentity(provider, identities)
+		linkedIdentity, linked := core.LinkedIdentityForProvider(provider, identities)
 		result = append(result, &apiv1.ExternalIdentityProvider{
 			LinkUrl:                   "/auth/providers/" + escapedID + "?intent=link",
 			Linked:                    linked,
 			LinkedIdentitySubjectHash: linkedIdentity.SubjectHash,
 			Provider:                  apiProviderMetadata(provider),
+			ReverificationAvailable:   cookieSession && core.ProviderCanReverify(provider, identities),
 		})
 	}
 	return result
@@ -371,20 +378,6 @@ func (a *API) externalIdentityLinkStartURL(ctx context.Context, providerID, toke
 	values.Set("intent", "link")
 	values.Set("link_start", token)
 	return baseURL + path + "?" + values.Encode()
-}
-
-func providerLinkedIdentity(provider config.AuthProviderConfig, identities []core.ExternalIdentity) (core.ExternalIdentity, bool) {
-	for _, identity := range identities {
-		if identity.ProviderID == provider.ID {
-			return identity, true
-		}
-		if provider.Type == config.AuthProviderTypeOpenIDConnect &&
-			identity.ProviderType == config.AuthProviderTypeOpenIDConnect &&
-			identity.Issuer == provider.IssuerURL {
-			return identity, true
-		}
-	}
-	return core.ExternalIdentity{}, false
 }
 
 func isValidInternalRedirectPath(redirect string) bool {

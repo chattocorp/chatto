@@ -3,7 +3,9 @@
 The identity-link window: links a sign-in provider to the signed-in account in
 the window that account settings opened. The user confirms the link. When the
 server requires fresh proof, the page asks for the current password. Then it
-sends the window to the provider and receives the provider callback. After a
+sends the window to the provider and receives the provider callback. When
+only a new provider sign-in gives fresh proof, the page first re-verifies the
+user through a linked provider and then starts the link by itself. After a
 successful link, it tells account settings and closes the window. Errors offer
 a way out: try again when that can help, and close the window.
 `$lib/auth/identityLink` defines the URL contract.
@@ -12,6 +14,12 @@ a way out: try again when that can help, and close the window.
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
+  import ReverificationChoice from '$lib/components/auth/ReverificationChoice.svelte';
+  import {
+    reverificationErrorMessage,
+    reverificationProviders,
+    reverificationStartUrl
+  } from '$lib/auth/freshAuthReverification';
   import { repeatDiscardedRead } from '$lib/api/repeatDiscardedRead';
   import {
     createExternalIdentityAPI,
@@ -37,7 +45,13 @@ a way out: try again when that can help, and close the window.
   const request = parseIdentityLinkRequest(page.url);
 
   let provider = $state.raw<ExternalIdentityProviderInfo | null>(null);
-  let view = $state<'loading' | 'confirm' | 'password' | 'linked' | 'error'>('loading');
+  let view = $state<'loading' | 'confirm' | 'password' | 'reverify' | 'linked' | 'error'>(
+    'loading'
+  );
+  // Linked providers that can confirm a recent sign-in before the link.
+  let reverifiers = $state.raw<ExternalIdentityProviderInfo[]>([]);
+  let reverifyError = $state('');
+  let reverifyingProviderId = $state('');
   let error = $state<{ message: string; retryable: boolean }>({ message: '', retryable: false });
   let password = $state('');
   let passwordError = $state('');
@@ -69,6 +83,7 @@ a way out: try again when that can help, and close the window.
       // This page can read before the origin's first realtime snapshot.
       const list = await repeatDiscardedRead(() => externalIdentityAPI().list());
       provider = list.providers.find((candidate) => candidate.id === request.providerId) ?? null;
+      reverifiers = reverificationProviders(list.providers);
     } catch (err) {
       loadError = err;
     }
@@ -81,6 +96,13 @@ a way out: try again when that can help, and close the window.
       fail(errorMessage(loadError, m('settings.account.sso.load_failed')), true);
       return;
     }
+    // A re-verification returns here without the link callback marker.
+    if (!request.completed && request.errorCode) {
+      const message = reverificationErrorMessage(request.errorCode);
+      if (reverifiers.length === 0) fail(message);
+      else offerReverification(message);
+      return;
+    }
     if (!provider) {
       fail(m('settings.account.sso.provider_unavailable'));
     } else if (provider.linked) {
@@ -89,10 +111,25 @@ a way out: try again when that can help, and close the window.
       window.close();
     } else if (request.completed) {
       fail(m('settings.account.sso.link_failed'), true);
+    } else if (request.reverified) {
+      // The user confirmed the link before the re-verification.
+      void startLink(provider);
     } else {
       view = 'confirm';
     }
   });
+
+  function offerReverification(message = '') {
+    reverifyError = message;
+    view = 'reverify';
+  }
+
+  /** Re-verify the user, then return to this window, which starts the link. */
+  function startReverification(target: ExternalIdentityProviderInfo) {
+    reverifyingProviderId = target.id;
+    // Keep the buttons disabled while the browser leaves the page.
+    leavePage(reverificationStartUrl(target, identityLinkPath(request.providerId, request.userId)));
+  }
 
   async function startLink(target: ExternalIdentityProviderInfo, currentPassword?: string) {
     submitting = true;
@@ -109,10 +146,15 @@ a way out: try again when that can help, and close the window.
       const failure = linkStartFailure(err, {
         passwordSent: currentPassword !== undefined,
         canUsePasswordProof: data.user.hasPassword && data.directLoginEnabled,
-        directLoginEnabled: data.directLoginEnabled
+        directLoginEnabled: data.directLoginEnabled,
+        // A repeated failure after a re-verification must not loop.
+        canReverify: !request.reverified && reverifiers.length > 0
       });
       if (failure.kind === 'password_required') view = 'password';
-      else if (failure.kind === 'password_rejected') passwordError = failure.message;
+      else if (failure.kind === 'reverification_required') {
+        if (reverifiers.length === 1) startReverification(reverifiers[0]);
+        else offerReverification();
+      } else if (failure.kind === 'password_rejected') passwordError = failure.message;
       else fail(failure.message, failure.retryable);
     }
   }
@@ -134,11 +176,12 @@ a way out: try again when that can help, and close the window.
     leavePage(identityLinkPath(request.providerId, request.userId));
   }
 
-  const title = $derived(
-    provider
+  const title = $derived.by(() => {
+    if (view === 'reverify') return m('settings.account.sso.reverify_modal.title');
+    return provider
       ? m('settings.account.sso.fresh_auth_modal.title', { provider: provider.label })
-      : m('settings.account.sso.title')
-  );
+      : m('settings.account.sso.title');
+  });
 </script>
 
 <PageTitle {title} />
@@ -178,6 +221,19 @@ a way out: try again when that can help, and close the window.
         {m('common.cancel')}
       </Button>
     </form>
+  {:else if view === 'reverify'}
+    <div class="flex flex-col gap-5">
+      <ReverificationChoice
+        providers={reverifiers}
+        error={reverifyError}
+        busyProviderId={reverifyingProviderId}
+        size="lg"
+        onselect={startReverification}
+      />
+      <Button variant="secondary" size="lg" fullWidth onclick={() => window.close()}>
+        {m('common.cancel')}
+      </Button>
+    </div>
   {:else if view === 'password' && provider}
     <p class="mb-8 text-center leading-relaxed text-balance text-muted">
       {m('settings.account.sso.fresh_auth_modal.body', { provider: provider.label })}

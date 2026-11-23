@@ -57,6 +57,8 @@ export type ExternalIdentityProviderInfo = {
   linkUrl: string;
   linked: boolean;
   linkedIdentitySubjectHash: string | null;
+  /** The user can confirm a recent sign-in with this provider. False on older servers. */
+  reverificationAvailable: boolean;
 };
 
 export type ExternalIdentityList = {
@@ -183,7 +185,8 @@ function externalIdentityProvider(
     loginUrl: resolveServerUrl(metadata.loginUrl, baseUrl),
     linkUrl: resolveServerUrl(provider.linkUrl, baseUrl),
     linked: provider.linked,
-    linkedIdentitySubjectHash: provider.linkedIdentitySubjectHash || null
+    linkedIdentitySubjectHash: provider.linkedIdentitySubjectHash || null,
+    reverificationAvailable: provider.reverificationAvailable
   };
 }
 

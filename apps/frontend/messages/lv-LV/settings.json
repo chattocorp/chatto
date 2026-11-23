@@ -532,7 +532,14 @@
         "link_confirm_body": "Pēc sasaistes jūs varat pierakstīties Chatto ar {provider}.",
         "close_window": "Aizvērt logu",
         "fresh_auth_required": "Pirms cita pakalpojumu sniedzēja saistīšanas pierakstieties vēlreiz.",
-        "sso_fresh_auth_required": "Atveriet konta iestatījumus serverī, kuram pieder šis konts. Izrakstieties un pierakstieties vēlreiz, izmantojot savu SSO pakalpojumu sniedzēju, un pēc tam atkārtojiet darbību šajā serverī.",
+        "sso_fresh_auth_required": "Drošības nolūkos pirms pierakstīšanās metožu maiņas pierakstieties vēlreiz. Izrakstieties, pierakstieties ar savu pierakstīšanās nodrošinātāju un mēģiniet vēlreiz.",
+        "reverification_failed": "Chatto nevarēja apstiprināt jūsu pierakstīšanos. Mēģiniet vēlreiz.",
+        "reverification_mismatch": "Jūs pierakstījāties ar identitāti, kas pieder citam kontam. Izmantojiet identitāti, kas saistīta ar šo kontu.",
+        "reverify_modal": {
+          "title": "Apstipriniet, ka tas esat jūs",
+          "body": "Drošības nolūkos pierakstieties vēlreiz ar nodrošinātāju, kas ir saistīts ar šo kontu. Pēc tam Chatto turpinās jūsu darbību.",
+          "action": "Pierakstīties vēlreiz ar {provider}"
+        },
         "provider_unconfigured": "Pakalpojumu sniedzējs vairs nav konfigurēts",
         "disconnect_button": "Atvienot",
         "disconnecting": "Notiek atvienošana...",

@@ -532,7 +532,14 @@
         "link_confirm_body": "Depois de associar, pode usar {provider} para iniciar sessão no Chatto.",
         "close_window": "Fechar janela",
         "fresh_auth_required": "Faça login novamente antes de ligar outro fornecedor.",
-        "sso_fresh_auth_required": "Abra as definições da conta no servidor ao qual esta conta pertence. Termine a sessão e inicie sessão novamente através do seu fornecedor de SSO. Depois, tente realizar a ação novamente nesse servidor.",
+        "sso_fresh_auth_required": "Por segurança, inicie sessão novamente antes de alterar os métodos de início de sessão. Termine a sessão, inicie sessão através do fornecedor de início de sessão e tente novamente.",
+        "reverification_failed": "O Chatto não conseguiu confirmar o início de sessão. Tente novamente.",
+        "reverification_mismatch": "Iniciou sessão com uma identidade que pertence a outra conta. Utilize uma identidade associada a esta conta.",
+        "reverify_modal": {
+          "title": "Confirme a sua identidade",
+          "body": "Por segurança, inicie sessão novamente com um fornecedor associado a esta conta. Depois, o Chatto continua a ação.",
+          "action": "Iniciar sessão novamente com {provider}"
+        },
         "provider_unconfigured": "O fornecedor já não está configurado",
         "disconnect_button": "Desligar",
         "disconnecting": "A desligar...",
