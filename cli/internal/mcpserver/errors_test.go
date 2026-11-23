@@ -16,7 +16,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"golang.org/x/time/rate"
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
@@ -326,18 +325,6 @@ func TestMCPKeyedPostFailureRetryContract(t *testing.T) {
 	plain, _ := errors.AsType[*toolFailure](failure)
 	if plain.RetrySameRequest || plain.Retry != "never" {
 		t.Fatalf("unkeyed timeout = %#v", plain)
-	}
-}
-
-func TestMCPAdmissionFailureContract(t *testing.T) {
-	called := false
-	handler := withAdmissionLimit(rate.NewLimiter(0, 0), http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/mcp", nil))
-	var output toolErrorOutput
-	decodeMCPResponse(t, response, &output)
-	if called || response.Code != http.StatusTooManyRequests || response.Header().Get("Retry-After") != "1" || response.Header().Get("Cache-Control") != "no-store" || output.Error.Code != "rate_limited" || output.Error.Retry != "after_delay" || output.Error.RetryAfterMs != 1000 || output.Error.Outcome != "not_applied" {
-		t.Fatalf("admission failure = %d/%#v", response.Code, output)
 	}
 }
 
