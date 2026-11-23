@@ -354,7 +354,12 @@ parent and scrolls internally with a sticky column header.
                 updating={updatingKey === `${scope.id}::${membershipRow}`}
                 ariaLabel={action}
                 title={membership.automatic
-                  ? m('room.directory.universal_title')
+                  ? m(
+                      membership.joined
+                        ? 'rbac.permissions.membership.universal_joined'
+                        : 'rbac.permissions.membership.universal_not_joined',
+                      { room: scope.label }
+                    )
                   : !(membership.joined ? membership.canLeave : membership.canJoin)
                     ? m('rbac.permissions.membership.unavailable')
                     : action}
@@ -491,6 +496,7 @@ parent and scrolls internally with a sticky column header.
 <PermissionHelpDialog bind:visible={helpVisible} bind:permission={helpPermission} {permissions} />
 <Dialog bind:visible={membershipHelpVisible} title={m('room.directory.joined')} size="sm">
   <p>{m('rbac.permissions.membership.description')}</p>
+  <p class="mt-2">{m('rbac.permissions.membership.universal_help')}</p>
   {#snippet primaryAction()}
     <Button defaultAction onclick={() => (membershipHelpVisible = false)}>
       {m('common.got_it')}

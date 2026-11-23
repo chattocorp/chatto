@@ -33,6 +33,9 @@
         "join": "Account toevoegen aan #{room}",
         "leave": "Account verwijderen uit #{room}",
         "unavailable": "Je kunt dit lidmaatschap niet wijzigen.",
+        "universal_joined": "#{room} is universeel. room.join voegt dit account automatisch toe.",
+        "universal_not_joined": "#{room} is universeel. Sta room.join toe om dit account automatisch toe te voegen.",
+        "universal_help": "In een universele kamer bepaalt room.join het lidmaatschap. Om een account te verwijderen, wis je room.join waar het is toegekend, of schors je het account in die kamer.",
         "confirm_immediate": "Bevestig om dit lidmaatschap onmiddellijk te wijzigen. De ingestelde machtigingen blijven ongewijzigd."
       },
       "loading": "Rechten laden...",

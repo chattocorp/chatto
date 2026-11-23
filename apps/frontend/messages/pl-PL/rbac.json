@@ -33,6 +33,9 @@
         "join": "Dodaj konto do #{room}",
         "leave": "Usuń konto z #{room}",
         "unavailable": "Nie możesz zmienić tego członkostwa.",
+        "universal_joined": "#{room} jest uniwersalny. room.join automatycznie dodaje to konto.",
+        "universal_not_joined": "#{room} jest uniwersalny. Zezwól na room.join, aby automatycznie dodać to konto.",
+        "universal_help": "W pokoju uniwersalnym członkostwo określa room.join. Aby usunąć konto, wyczyść room.join tam, gdzie zostało przyznane, lub zawieś konto w tym pokoju.",
         "confirm_immediate": "Potwierdź, aby natychmiast zmienić członkostwo. Skonfigurowane uprawnienia pozostaną bez zmian."
       },
       "loading": "Ładowanie uprawnień...",

@@ -33,6 +33,9 @@
         "join": "将账户加入 #{room}",
         "leave": "将账户移出 #{room}",
         "unavailable": "你无法更改此成员资格。",
+        "universal_joined": "#{room} 是全员聊天室。room.join 会自动加入此账号。",
+        "universal_not_joined": "#{room} 是全员聊天室。允许 room.join 即可自动加入此账号。",
+        "universal_help": "在全员聊天室中，成员资格由 room.join 决定。要移除账号，请在授予 room.join 的位置清除它，或在该聊天室中暂停此账号。",
         "confirm_immediate": "确认后将立即应用此成员资格更改。已配置的权限将保持不变。"
       },
       "loading": "正在加载权限...",

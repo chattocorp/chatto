@@ -33,6 +33,9 @@
         "join": "Hesabı #{room} odasına ekle",
         "leave": "Hesabı #{room} odasından çıkar",
         "unavailable": "Bu üyeliği değiştiremezsin.",
+        "universal_joined": "#{room} evrensel bir odadır. room.join bu hesabı otomatik olarak ekler.",
+        "universal_not_joined": "#{room} evrensel bir odadır. Bu hesabı otomatik olarak eklemek için room.join iznini verin.",
+        "universal_help": "Evrensel bir odada üyeliği room.join belirler. Bir hesabı kaldırmak için room.join iznini verildiği yerde temizleyin veya hesabı o odada askıya alın.",
         "confirm_immediate": "Bu üyelik değişikliğini hemen uygulamak için onayla. Yapılandırılmış izinler değişmeyecek."
       },
       "loading": "İzinler yükleniyor...",

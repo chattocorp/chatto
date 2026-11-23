@@ -33,6 +33,9 @@
         "join": "Legg til konto i #{room}",
         "leave": "Fjern konto fra #{room}",
         "unavailable": "Du kan ikke endre dette medlemskapet.",
+        "universal_joined": "#{room} er universelt. room.join legger til denne kontoen automatisk.",
+        "universal_not_joined": "#{room} er universelt. Tillat room.join for å legge til denne kontoen automatisk.",
+        "universal_help": "I et universalrom styrer room.join medlemskapet. For å fjerne en konto, fjern room.join der det er gitt, eller suspender kontoen i det rommet.",
         "confirm_immediate": "Bekreft for å endre medlemskapet umiddelbart. De konfigurerte tillatelsene forblir uendret."
       },
       "loading": "Laster inn tillatelser...",

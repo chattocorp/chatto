@@ -33,6 +33,9 @@
         "join": "Account zu #{room} hinzufügen",
         "leave": "Account aus #{room} entfernen",
         "unavailable": "Du kannst diese Mitgliedschaft nicht ändern.",
+        "universal_joined": "#{room} ist universell. room.join fügt dieses Konto automatisch hinzu.",
+        "universal_not_joined": "#{room} ist universell. Erlaube room.join, um dieses Konto automatisch hinzuzufügen.",
+        "universal_help": "In einem universellen Raum steuert room.join die Mitgliedschaft. Um ein Konto zu entfernen, entferne room.join dort, wo es gewährt ist, oder sperre das Konto in diesem Raum.",
         "confirm_immediate": "Bestätige, um diese Mitgliedschaft sofort zu ändern. Die konfigurierten Berechtigungen bleiben unverändert."
       },
       "loading": "Berechtigungen werden geladen...",

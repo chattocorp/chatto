@@ -33,6 +33,9 @@
         "join": "Lägg till konto i #{room}",
         "leave": "Ta bort konto från #{room}",
         "unavailable": "Du kan inte ändra detta medlemskap.",
+        "universal_joined": "#{room} är universellt. room.join lägger till det här kontot automatiskt.",
+        "universal_not_joined": "#{room} är universellt. Tillåt room.join för att lägga till det här kontot automatiskt.",
+        "universal_help": "I ett universalrum styr room.join medlemskapet. För att ta bort ett konto, rensa room.join där det har beviljats, eller stäng av kontot i det rummet.",
         "confirm_immediate": "Bekräfta för att ändra medlemskapet omedelbart. De konfigurerade behörigheterna förblir oförändrade."
       },
       "loading": "Läser in behörigheter...",
