@@ -45,6 +45,35 @@ describe('Panel inset structure', () => {
       host.remove();
     }
   });
+  it('moves actions below the title when the panel is narrow on a wide viewport', async () => {
+    const host = document.createElement('div');
+    host.style.width = '900px';
+    document.body.append(host);
+    const view = render(Panel, {
+      target: host,
+      props: {
+        title: 'Email addresses',
+        subtitle: 'Add addresses that you control.',
+        actions: testSnippet('<button style="white-space: nowrap">Add email address</button>'),
+        children: testSnippet('<div>Addresses</div>')
+      }
+    });
+    const title = host.querySelector('h2')!;
+    const action = host.querySelector('button')!;
+    try {
+      expect(action.getBoundingClientRect().top).toBeLessThan(title.getBoundingClientRect().bottom);
+      host.style.width = '420px';
+      await expect
+        .poll(() => action.getBoundingClientRect().top)
+        .toBeGreaterThanOrEqual(
+          host.querySelector('.panel-header p')!.getBoundingClientRect().bottom
+        );
+    } finally {
+      await view.unmount();
+      host.remove();
+    }
+  });
+
   it('flattens page panels on narrow touch and mouse screens while standalone panels keep their frames', async () => {
     const flat = render(Panel, {
       props: {

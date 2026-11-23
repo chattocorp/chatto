@@ -48,11 +48,12 @@ their frames.
   {#if title}
     <div
       class={[
-        'flex flex-col items-stretch gap-3 panel-header px-6 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4',
+        'flex flex-wrap items-center justify-between gap-x-4 gap-y-3 panel-header px-6 py-3',
         titleHiddenOnNarrow && !subtitle && !actions && 'max-md:py-0'
       ]}
     >
-      <div class="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+      <!-- The 18rem basis moves the actions below the title when the panel, not the viewport, is too narrow. -->
+      <div class="flex min-w-0 flex-[1_1_18rem] flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2
           class={[
             'flex items-center gap-2 text-base font-semibold text-text-top',
