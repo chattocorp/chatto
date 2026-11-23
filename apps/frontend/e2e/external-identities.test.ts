@@ -65,7 +65,7 @@ test.describe('Managed provider accounts', () => {
     const preview = page.getByRole('region', { name: 'Profile preview' });
     // The browser loads the avatar from this server, never from the provider.
     const avatar = preview.getByRole('img', { name: 'e2eadmin-2' });
-    await expect(avatar).toHaveAttribute('src', /^\/auth\/external-identity-avatar\?token=/);
+    await expect(avatar).toHaveAttribute('src', /^\/assets\/remote\/avatar\/[\w-]+\?url=/);
     await expect
       .poll(() => avatar.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
       .toBeGreaterThan(0);

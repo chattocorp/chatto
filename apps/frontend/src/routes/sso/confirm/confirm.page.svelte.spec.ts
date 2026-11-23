@@ -87,7 +87,7 @@ describe('new-account provider confirmation', () => {
       providerType: 'atproto',
       providerLabel: 'Internet Handle',
       loginHint: 'alice.example.social',
-      avatarUrl: '/auth/external-identity-avatar?token=create-token',
+      avatarUrl: '/assets/remote/avatar/signature?url=https%3A%2F%2Fcdn.example.test%2Falice.png',
       chooseUsername
     }
   });
@@ -106,7 +106,10 @@ describe('new-account provider confirmation', () => {
     const preview = screen.getByRole('region', { name: 'Profile preview' });
     await expect
       .element(preview.getByRole('img', { name: 'alice.example.social' }))
-      .toHaveAttribute('src', '/auth/external-identity-avatar?token=create-token');
+      .toHaveAttribute(
+        'src',
+        '/assets/remote/avatar/signature?url=https%3A%2F%2Fcdn.example.test%2Falice.png'
+      );
     await expect.element(preview.getByText('@alice.example.social', { exact: true })).toBeVisible();
     const username = screen.getByRole('textbox', { name: 'Username' });
     await expect.element(username).toBeDisabled();

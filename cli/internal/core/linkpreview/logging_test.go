@@ -79,7 +79,7 @@ func TestPreviewMetadataAndImageLogsExcludeSensitiveData(t *testing.T) {
 <meta property="og:title" content="private-title">
 <meta property="og:description" content="private-description">
 <meta property="og:site_name" content="private-site">
-<meta property="og:image" content="https://private-user:private-password@preview.example/private-path?token=private-query">
+<meta property="og:image" content="https://preview.example/private-path?token=private-query">
 </head></html>`), nil
 				})},
 				imageClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -99,9 +99,6 @@ func TestPreviewMetadataAndImageLogsExcludeSensitiveData(t *testing.T) {
 			require.Nil(t, result.ImageAsset)
 			require.Contains(t, output.String(), "Fetched OG metadata")
 			require.Contains(t, output.String(), "Failed to download preview image")
-			if !imageFailure {
-				require.Contains(t, output.String(), "Image fetch response")
-			}
 			assertPreviewLogsPrivate(t, output.String())
 		})
 	}

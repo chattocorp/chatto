@@ -2,6 +2,8 @@ package http_server
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +18,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/assets"
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/core/remoteimage"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"github.com/chattocorp/chatto/cli/pkg/signedurl"
 	"github.com/gin-gonic/gin"
@@ -28,7 +31,7 @@ func (s *HTTPServer) setupAssetRoutes() {
 	// The serveServerAsset handler detects and routes transform requests appropriately
 	// These handlers probe both NATS and S3 backends automatically
 	s.router.GET("/assets/server/*path", s.serveServerAsset)
-	s.router.GET("/assets/neighborhood/:name", s.serveNeighborhoodImage)
+	s.router.GET("/assets/remote/:preset/:signature", s.serveRemoteImage)
 	s.router.GET("/assets/files/:assetID", s.serveStableAttachment)
 	s.router.GET("/assets/files/:assetID/image/:dimensions/:fit", s.serveStableTransformedAttachment)
 	s.router.GET("/assets/hls/:assetID/master.m3u8", s.serveHLSMasterPlaylist)
@@ -60,6 +63,34 @@ type transformRequest struct {
 	// FetchAsset. If nil, asset is considered public and no authorization is
 	// needed.
 	Authorize func(c *gin.Context) bool
+	// Remote marks a public source on another host, whose image can change
+	// at its URL and can fail. The pipeline then sends a content-based ETag
+	// and a short Cache-Control, caches animated GIFs to spare the remote
+	// host, and lets clients cache failures briefly. See ADR-128.
+	Remote bool
+	// StaleAssetID names an older cached derivative of the same image. When
+	// the source fails, the pipeline serves that copy instead of an error.
+	// The remote image route uses it for the previous cache generation.
+	StaleAssetID string
+}
+
+// cacheControl returns the Cache-Control header of a successful response.
+func (r transformRequest) cacheControl() string {
+	if r.Remote {
+		return remoteImageCacheControl
+	}
+	return transformedAssetCacheControl(r.Authorize == nil)
+}
+
+// etag returns the ETag of one derivative. Stored assets never change at
+// their URL, so their ETag names the asset and size. A remote image can
+// change, so its ETag names the content.
+func (r transformRequest) etag(params *signedurl.TransformParams, data []byte) string {
+	if r.Remote {
+		sum := sha256.Sum256(data)
+		return fmt.Sprintf("\"%s\"", hex.EncodeToString(sum[:16]))
+	}
+	return fmt.Sprintf("\"%s-%d-%d-%s\"", r.AssetID, params.Width, params.Height, params.Fit)
 }
 
 type assetDeliveryMode int
@@ -167,33 +198,6 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 		reader,
 		nil,
 	)
-}
-
-// serveNeighborhoodImage serves one public, content-addressed copy of a
-// Neighborhood server logo or banner. The route needs no authentication
-// because discovery stores only public profile images in its own bucket.
-func (s *HTTPServer) serveNeighborhoodImage(c *gin.Context) {
-	name := c.Param("name")
-	reader, info, err := s.core.OpenNeighborhoodImage(c.Request.Context(), name)
-	if err != nil {
-		if !errors.Is(err, core.ErrNeighborhoodImageNotFound) {
-			s.logger.Warn("Failed to read Neighborhood image", "error", err)
-		}
-		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
-		return
-	}
-	defer reader.Close()
-
-	// The name is the SHA-256 hash of the image bytes, so the content at one
-	// URL never changes.
-	c.Header("Cache-Control", "public, max-age=31536000, immutable")
-	c.Header("ETag", fmt.Sprintf("\"%s\"", name))
-	c.Header("X-Content-Type-Options", "nosniff")
-	if requestETagMatches(c.GetHeader("If-None-Match"), c.Writer.Header().Get("ETag")) {
-		c.Status(http.StatusNotModified)
-		return
-	}
-	c.DataFromReader(http.StatusOK, int64(info.Size), "image/webp", reader, nil)
 }
 
 // serveStableAttachment serves the canonical authenticated asset URL:
@@ -686,20 +690,11 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 	}
 
 	// Try cache first
-	if cached, err := s.core.GetCachedResize(ctx, cacheKey); err == nil && cached != nil {
+	if cached, err := s.cachedDerivative(ctx, req, cacheKey); err == nil && cached != nil {
 		s.logger.Debug("Cache hit for transformed asset",
 			"asset_id", req.AssetID,
 			"cache_key", cacheKey)
-
-		c.Header("Cache-Control", transformedAssetCacheControl(req.Authorize == nil))
-		c.Header("ETag", fmt.Sprintf("\"%s-%d-%d-%s\"", req.AssetID, params.Width, params.Height, params.Fit))
-		c.Header("Vary", transformedAssetVary(req.Authorize == nil))
-		c.Header("X-Cache", "HIT")
-		if req.Authorize == nil && requestETagMatches(c.GetHeader("If-None-Match"), c.Writer.Header().Get("ETag")) {
-			c.Status(http.StatusNotModified)
-			return
-		}
-		c.Data(http.StatusOK, assets.DetectImageContentType(cached), cached)
+		s.writeTransformedImage(c, req, params, cached, assets.DetectImageContentType(cached), "HIT")
 		return
 	}
 
@@ -740,10 +735,17 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 			if err != nil {
 				return nil, fmt.Errorf("read transformed image: %w", err)
 			}
-			// Store in cache (fire-and-forget, skip animated GIFs which are large)
-			if result.ContentType != "image/gif" {
+			// Store in cache (fire-and-forget). Animated GIFs are large, so only
+			// remote ones are cached, to spare the remote host.
+			if result.ContentType != "image/gif" || req.Remote {
+				store := s.core.StoreCachedResize
+				if req.Remote {
+					// Remote keys never change content within a generation, so
+					// an existing object is never replaced.
+					store = s.core.StoreCachedResizeIfAbsent
+				}
 				go func() {
-					if err := s.core.StoreCachedResize(context.Background(), cacheKey, transformedData); err != nil {
+					if err := store(context.Background(), cacheKey, transformedData); err != nil {
 						s.logger.Warn("Failed to cache transformed image", "error", err, "cache_key", cacheKey)
 					}
 				}()
@@ -751,13 +753,35 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 			return &transformedImage{Data: transformedData, ContentType: result.ContentType}, nil
 		},
 	)
+	if err != nil && req.StaleAssetID != "" {
+		staleKey := core.ImageCacheKey(req.CachePrefix, req.StaleAssetID, params.Width, params.Height, params.Fit)
+		if stale, staleErr := s.cachedDerivative(ctx, req, staleKey); staleErr == nil && stale != nil {
+			s.logger.Debug("Serving an older copy after a failed source", "error", err, "asset_id", req.AssetID)
+			s.writeTransformedImage(c, req, params, stale, assets.DetectImageContentType(stale), "STALE")
+			return
+		}
+	}
+	if err != nil && req.Remote {
+		// Clients can ask again soon, but not on every render.
+		c.Header("Cache-Control", remoteImageFailureCacheControl)
+	}
 	switch {
 	case errors.Is(err, errTransformSourceNotFound):
-		s.logger.Error("Failed to get asset", "error", err, "asset_id", req.AssetID)
+		if errors.Is(err, remoteimage.ErrRejected) {
+			// Remote hosts often lack an image; that is not a server failure.
+			s.logger.Debug("Remote image unavailable", "error", err, "asset_id", req.AssetID)
+		} else {
+			s.logger.Error("Failed to get asset", "error", err, "asset_id", req.AssetID)
+		}
 		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
 		return
 	case errors.Is(err, errTransformSourceNotImage):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Asset is not an image"})
+		return
+	case err != nil && req.Remote:
+		// A remote image that passed the header check can still be corrupt.
+		s.logger.Debug("Remote image could not be transformed", "error", err, "asset_id", req.AssetID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
 		return
 	case err != nil:
 		s.logger.Error("Failed to transform image", "error", err, "asset_id", req.AssetID)
@@ -765,18 +789,35 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 		return
 	}
 
-	// Set cache headers for long-term caching (immutable content)
-	c.Header("Cache-Control", transformedAssetCacheControl(req.Authorize == nil))
-	c.Header("ETag", fmt.Sprintf("\"%s-%d-%d-%s\"", req.AssetID, params.Width, params.Height, params.Fit))
-	c.Header("Vary", transformedAssetVary(req.Authorize == nil))
-	c.Header("X-Cache", "MISS")
-	if req.Authorize == nil && requestETagMatches(c.GetHeader("If-None-Match"), c.Writer.Header().Get("ETag")) {
+	s.writeTransformedImage(c, req, params, result.Data, result.ContentType, "MISS")
+}
+
+// cachedDerivative reads a cached derivative, or nil when there is none. A
+// read that overlaps a concurrent replacement of the object can stall, so
+// remote derivatives, which a second writer can rarely replace, get a short
+// read deadline and count as missing when it passes.
+func (s *HTTPServer) cachedDerivative(ctx context.Context, req transformRequest, key string) ([]byte, error) {
+	if req.Remote {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, remoteImageCacheReadTimeout)
+		defer cancel()
+	}
+	return s.core.GetCachedResize(ctx, key)
+}
+
+// writeTransformedImage sends one derivative with its cache headers. It
+// answers a matching conditional request for a public asset with 304.
+func (s *HTTPServer) writeTransformedImage(c *gin.Context, req transformRequest, params *signedurl.TransformParams, data []byte, contentType, cacheState string) {
+	public := req.Authorize == nil
+	c.Header("Cache-Control", req.cacheControl())
+	c.Header("ETag", req.etag(params, data))
+	c.Header("Vary", transformedAssetVary(public))
+	c.Header("X-Cache", cacheState)
+	if public && requestETagMatches(c.GetHeader("If-None-Match"), c.Writer.Header().Get("ETag")) {
 		c.Status(http.StatusNotModified)
 		return
 	}
-
-	// Serve the transformed image with appropriate content type
-	c.Data(http.StatusOK, result.ContentType, result.Data)
+	c.Data(http.StatusOK, contentType, data)
 }
 
 func transformedAssetCacheControl(public bool) string {

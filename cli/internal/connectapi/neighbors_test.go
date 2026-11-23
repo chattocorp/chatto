@@ -2,7 +2,6 @@ package connectapi
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/core/neighborhood"
+	"github.com/chattocorp/chatto/cli/internal/core/remoteimage"
 	adminv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1"
 	cachestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/cache_state/v1"
 	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
@@ -96,7 +96,6 @@ func TestServerDiscoveryListNeighborhoodServers(t *testing.T) {
 	require.Empty(t, empty.Msg.GetServers())
 	require.NotNil(t, empty.Msg.GetRefreshedAt())
 
-	logoName := strings.Repeat("a", 64)
 	data, err := proto.Marshal(&cachestatev1.NeighborhoodDirectory{
 		RefreshedAt:       timestamppb.Now(),
 		SourceFingerprint: initial.GetSourceFingerprint(),
@@ -107,7 +106,7 @@ func TestServerDiscoveryListNeighborhoodServers(t *testing.T) {
 			Description:          "First",
 			DirectNeighbor:       true,
 			RecommendedByOrigins: []string{"https://b.example"},
-			Logo:                 &cachestatev1.NeighborhoodImage{SourceUrl: "https://a.example/logo.png", ObjectName: logoName},
+			Logo:                 &cachestatev1.NeighborhoodImage{SourceUrl: "https://a.example/logo.png"},
 		}},
 	})
 	require.NoError(t, err)
@@ -129,7 +128,7 @@ func TestServerDiscoveryListNeighborhoodServers(t *testing.T) {
 	require.Equal(t, "A", server.GetProfile().GetName())
 	require.Equal(t, "0.5.0", server.GetProfile().GetVersion())
 	require.Equal(t, "First", server.GetProfile().GetDescription())
-	require.Equal(t, "/assets/neighborhood/"+logoName, server.GetProfile().GetLogoUrl())
+	require.Equal(t, env.core.RemoteImagePath(remoteimage.PresetAvatar, "https://a.example/logo.png"), server.GetProfile().GetLogoUrl())
 	require.Nil(t, server.GetProfile().BannerUrl)
 	require.Nil(t, server.GetProfile().WelcomeMessage)
 }

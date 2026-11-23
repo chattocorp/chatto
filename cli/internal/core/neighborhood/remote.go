@@ -2,10 +2,7 @@ package neighborhood
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
-	"mime"
 	"net/http"
 	"net/url"
 
@@ -18,25 +15,11 @@ import (
 const (
 	// MaxDiscoveryResponseBytes bounds one remote discovery response.
 	MaxDiscoveryResponseBytes = 256 << 10
-	// MaxImageBytes bounds one remote profile image before decoding.
-	MaxImageBytes = 5 << 20
-	userAgent     = "ChattoBot/1.0 (Neighborhood)"
+	userAgent                 = "ChattoBot/1.0 (Neighborhood)"
 	// ConnectPrefix is the path below a server origin where Chatto mounts
 	// its ConnectRPC services. It must equal connectapi.Prefix.
 	ConnectPrefix = "/api/connect"
 )
-
-// acceptedImageTypes are the declared media types that discovery decodes.
-var acceptedImageTypes = map[string]struct{}{
-	"image/gif":  {},
-	"image/jpeg": {},
-	"image/png":  {},
-	"image/webp": {},
-}
-
-// ErrRejectedImage means that a remote image did not meet the profile image
-// rules.
-var ErrRejectedImage = errors.New("remote profile image rejected")
 
 // RemoteFetcher loads discovery data through the public ConnectRPC discovery
 // API of each remote server.
@@ -86,59 +69,27 @@ func (f RemoteFetcher) GetProfile(ctx context.Context, origin string) (Profile, 
 	}, nil
 }
 
-// FetchImage loads one public profile image. A relative image URL resolves
-// against origin. An absolute image URL can use another HTTP(S) origin: a
-// server often builds its image URLs from its canonical URL, which can differ
-// from the origin that a Neighbor advertises. f.Client rejects private
-// network addresses and redirects. The request sends no credentials
-// or referrer. The response must declare a supported raster media type and
-// contain at most MaxImageBytes.
-func (f RemoteFetcher) FetchImage(ctx context.Context, origin, rawURL string) ([]byte, error) {
+// ResolveImageURL returns the absolute URL of one public profile image. A
+// relative image URL resolves against origin. An absolute image URL can use
+// another HTTP(S) origin: a server often builds its image URLs from its
+// canonical URL, which can differ from the origin that a Neighbor advertises.
+// It rejects URLs with credentials and other schemes. The remote image cache
+// fetches the image.
+func ResolveImageURL(origin, rawURL string) (string, bool) {
 	base, err := url.Parse(origin)
 	if err != nil {
-		return nil, ErrRejectedImage
+		return "", false
 	}
 	reference, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, ErrRejectedImage
+		return "", false
 	}
 	parsed := base.ResolveReference(reference)
 	if parsed.User != nil {
-		return nil, ErrRejectedImage
+		return "", false
 	}
 	if _, ok := CanonicalOrigin(parsed.Scheme + "://" + parsed.Host); !ok {
-		return nil, ErrRejectedImage
+		return "", false
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
-	if err != nil {
-		return nil, ErrRejectedImage
-	}
-	request.Header.Set("User-Agent", userAgent)
-	request.Header.Set("Accept", "image/webp,image/png,image/jpeg,image/gif")
-	response, err := f.Client.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: status %d", ErrRejectedImage, response.StatusCode)
-	}
-	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
-	if err != nil {
-		return nil, ErrRejectedImage
-	}
-	if _, accepted := acceptedImageTypes[mediaType]; !accepted {
-		return nil, ErrRejectedImage
-	}
-	if response.ContentLength > MaxImageBytes {
-		return nil, ErrRejectedImage
-	}
-	data, err := io.ReadAll(io.LimitReader(response.Body, MaxImageBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(data) > MaxImageBytes {
-		return nil, ErrRejectedImage
-	}
-	return data, nil
+	return parsed.String(), true
 }
