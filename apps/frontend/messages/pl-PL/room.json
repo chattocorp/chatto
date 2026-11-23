@@ -160,6 +160,7 @@
         "reaction_users_more": "+ {count} więcej",
         "copy_link_title": "Kliknij, aby skopiować link do tej wiadomości",
         "in_reply_to": "w odpowiedzi na",
+        "from_thread": "Z wątku",
         "reply_preview_fallback": "Wiadomość",
         "deleted": "Ta wiadomość została usunięta."
       },

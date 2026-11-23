@@ -160,6 +160,7 @@
         "reaction_users_more": "+ {count} еще",
         "copy_link_title": "Нажмите, чтобы скопировать ссылку на это сообщение",
         "in_reply_to": "в ответ на",
+        "from_thread": "Из темы",
         "reply_preview_fallback": "Сообщение",
         "deleted": "Это сообщение было удалено."
       },

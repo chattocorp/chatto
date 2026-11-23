@@ -160,6 +160,7 @@
         "reaction_users_more": "+ {count} pli",
         "copy_link_title": "Klaku por kopii ligon al ĉi tiu mesaĝo",
         "in_reply_to": "en respondo al",
+        "from_thread": "El fadeno",
         "reply_preview_fallback": "Mesaĝo",
         "deleted": "Ĉi tiu mesaĝo estis forigita."
       },

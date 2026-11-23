@@ -311,24 +311,37 @@
   // in a DM whose other participant was deleted.
   const isDeleted = $derived(msg ? isDeletedMessage(msg) : true);
 
+  /**
+   * The event the attribution row above the message points to: the replied-to
+   * message, or the thread root for a channel echo that is not a reply.
+   */
+  const attributionKind = $derived<'reply' | 'thread' | null>(
+    msg?.inReplyTo ? 'reply' : target.isEcho && msg?.echoFromThreadRootEventId ? 'thread' : null
+  );
+  const attributionTargetId = $derived(
+    attributionKind === 'reply'
+      ? msg!.inReplyTo!
+      : attributionKind === 'thread'
+        ? msg!.echoFromThreadRootEventId!
+        : null
+  );
+
   const replyTarget = $derived.by(() => {
-    const replyToId = msg?.inReplyTo;
-    if (!replyToId) return null;
-    return messageStore?.getEventById(replyToId);
+    if (!attributionTargetId) return null;
+    return messageStore?.getEventById(attributionTargetId);
   });
 
-  // Fetch reply target only when it is outside the already-loaded event window.
+  // Fetch the attribution target only when it is outside the already-loaded event window.
   $effect(() => {
-    const replyToId = msg?.inReplyTo;
-    if (!replyToId) return;
+    const targetId = attributionTargetId;
+    if (!targetId) return;
     if (!messageStore) return;
-    untrack(() => messageStore.ensureEvent(replyToId));
+    untrack(() => messageStore.ensureEvent(targetId));
   });
 
-  // Derive reply preview from locally fetched target
+  // Derive the attribution preview from the locally fetched target.
   const replyPreview = $derived.by(() => {
-    const replyToId = msg?.inReplyTo;
-    if (!replyToId) return null;
+    if (!attributionTargetId) return null;
 
     return buildMessageReplyPreview({
       target: replyTarget,
@@ -387,6 +400,14 @@
   }
 
   function scrollToReplyTarget() {
+    // For an echo that is not a reply, open its thread and highlight the original reply there
+    if (attributionKind === 'thread' && msg?.echoFromThreadRootEventId && onOpenThread) {
+      onOpenThread(msg.echoFromThreadRootEventId, {
+        highlightEventId: msg.echoOfEventId || undefined
+      });
+      return;
+    }
+
     // For echo events, open the thread and highlight the replied-to message there
     if (target.isEcho && msg?.inReplyTo && msg.echoFromThreadRootEventId && onOpenThread) {
       onOpenThread(msg.echoFromThreadRootEventId, {
@@ -519,6 +540,7 @@
       {#if replyPreview}
         <MessageReplyAttribution
           preview={replyPreview}
+          kind={attributionKind ?? 'reply'}
           {compact}
           callPresence={replyPreview.actor
             ? activeCallRooms.getParticipantCallPresence(roomId, replyPreview.actor.id)

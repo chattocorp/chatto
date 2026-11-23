@@ -160,6 +160,7 @@
         "reaction_users_more": "+ {count} meer",
         "copy_link_title": "Klik om de link naar dit bericht te kopiëren",
         "in_reply_to": "als antwoord op",
+        "from_thread": "Uit discussie",
         "reply_preview_fallback": "Bericht",
         "deleted": "Dit bericht is verwijderd."
       },

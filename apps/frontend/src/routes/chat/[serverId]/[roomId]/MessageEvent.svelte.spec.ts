@@ -401,6 +401,50 @@ describe('MessageEvent action model integration', () => {
     }
   });
 
+  it('shows the thread root as a "from thread" byline on a non-reply echo', async () => {
+    const messages = mockService(MessageService);
+    const users = mockService(UserService);
+    messages.getMessage.mockReturnValue({
+      message: {
+        id: 'thread-root',
+        roomId: 'room-1',
+        actorId: 'root-user',
+        body: 'The thread root'
+      }
+    });
+    users.batchGetUsers.mockReturnValue({
+      users: [{ user: { id: 'root-user', login: 'root', displayName: 'Root User' } }]
+    });
+    const server = createTestServerScope({
+      routes: (router) => router.service(MessageService, messages).service(UserService, users)
+    });
+    const messageStore = new MessagesStore(server.scope.connection, () => null, {
+      roomId: 'room-1'
+    });
+    const echo = messageEvent({
+      id: 'echo',
+      echoOfEventId: 'echoed-reply',
+      echoFromThreadRootEventId: 'thread-root'
+    });
+    const onOpenThread = vi.fn();
+    const rendered = render(MessageEventTestHarness, {
+      props: { event: echo, messageStore, onOpenThread }
+    });
+    try {
+      const attribution = '[data-testid="reply-attribution"][data-kind="thread"]';
+      await expect.element(q(rendered.container, attribution)).toHaveTextContent('From thread');
+      await expect.element(q(rendered.container, attribution)).toHaveTextContent('Root User');
+      await expect.element(q(rendered.container, attribution)).toHaveTextContent('The thread root');
+      q(rendered.container, '[aria-label="From thread The thread root"]')!.click();
+      expect(onOpenThread).toHaveBeenCalledWith('thread-root', {
+        highlightEventId: 'echoed-reply'
+      });
+    } finally {
+      await rendered.unmount();
+      messageStore.dispose();
+    }
+  });
+
   it('opens the target user menu on a mention right-click', async () => {
     const rendered = render(MessageEventTestHarness, { props: { event: messageEvent() } });
     const body = q(rendered.container, '[data-testid="message-body"]')!;
