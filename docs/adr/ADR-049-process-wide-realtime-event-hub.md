@@ -25,8 +25,8 @@ presence stale.
 
 ## Decision
 
-Each Chatto process runs one `MyEventsHub` with one NATS Core subscription per
-live root. The hub processes incoming messages in order and performs shared
+Each Chatto process runs one `MyEventsHub` with one NATS Core subscription to
+`live.>`, which receives both live roots. The hub processes incoming messages in order and performs shared
 work before session fanout:
 
 1. Classify the NATS subject before protobuf decoding. Discard private and
@@ -60,9 +60,17 @@ Session queues are bounded by both event count and the encoded bytes referenced
 by that session. A session that exceeds either limit is disconnected without
 blocking other sessions. A process-wide NATS ingress loss or projection-wait
 failure disconnects all current sessions because the hub can no longer prove
-that their live stream is continuous. The hub quarantines new admission,
-unsubscribes and flushes the lossy live roots, drains their old backlog, and
-only then opens a fresh ingress generation. Reconnecting connections rebuild
+that their live stream is continuous. A lost `live.sync` message can also be a
+security control, such as session termination. The hub quarantines new
+admission, removes the lossy subscription and its old backlog, and only then
+opens a fresh ingress generation.
+
+Ingress loss must occur only when the replica is overloaded, not during a
+normal burst. One message post can publish one `live.sync` invalidation for
+each room member. Thus the subscription uses the NATS client's pending queue,
+bounded at 64 MiB, and its callback waits until the hub accepts each message.
+Do not use `ChanSubscribe` for this ingress: NATS drops a message immediately
+when that channel is full (issue #3828). Reconnecting connections rebuild
 visibility from current projections and register in that new generation.
 NATS transport reconnection is also an ingress-loss boundary, including a quick
 move to another member of the same NATS cluster. In that case, the NATS client

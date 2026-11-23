@@ -14,6 +14,8 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	configv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/config/v1"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/realtime/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
@@ -265,7 +267,7 @@ func liveSubscriptionCount(t *testing.T, ns *server.Server, nc *nats.Conn) int {
 	liveSyncRoot := strings.TrimSuffix(subjects.LiveSyncAllEvents(), ">")
 	count := 0
 	for _, sub := range connz.Conns[0].SubsDetail {
-		if strings.HasPrefix(sub.Subject, evtstream.LiveSubjectRoot) || strings.HasPrefix(sub.Subject, liveSyncRoot) {
+		if sub.Subject == myEventsIngressSubject || strings.HasPrefix(sub.Subject, evtstream.LiveSubjectRoot) || strings.HasPrefix(sub.Subject, liveSyncRoot) {
 			count++
 		}
 	}
@@ -1056,4 +1058,136 @@ func receiveEVTEventByID(t *testing.T, stream <-chan EventEnvelope, eventID stri
 // human credential, which keeps entitlement semantics.
 func entitledMyEventsPrincipal(userID string) myEventsPrincipal {
 	return myEventsPrincipal{userID: userID, privileged: true, allRoles: true}
+}
+
+// publishHubBurst publishes count live messages while the hub cannot process
+// them: it holds the hub lock, which the hub needs to fan out a live sync
+// event. The burst therefore waits in the hub's ingress. Half of the burst is
+// user-scoped live sync hints for burstUserID, which is the shape of the
+// unread-state invalidations of one message post in a large room. The other
+// half is prefiltered live EVT facts. The function returns after the hub
+// decoded or prefiltered every message, or after it ended the generation.
+func publishHubBurst(t *testing.T, ctx context.Context, core *ChattoCore, burstUserID string, count int) {
+	t.Helper()
+	hub := core.myEventsModel.hub
+	decodedBefore := hub.decoded.Load()
+	prefilteredBefore := hub.prefiltered.Load()
+	hub.mu.Lock()
+	generationBefore := hub.generation
+	publications := make([]pubsubEventPublication, 0, count/2)
+	for range count / 2 {
+		publications = append(publications, userPubSubEventPublication(burstUserID, newPubSubEvent(SystemActorID, &pubsubv1.PubSubEvent{
+			Event: &pubsubv1.PubSubEvent_NotificationUnreadStateChanged{
+				NotificationUnreadStateChanged: &realtimev1.NotificationUnreadStateChangedEvent{RoomId: "burst-room"},
+			},
+		})))
+	}
+	if err := core.publishPubSubEvents(ctx, publications); err != nil {
+		hub.mu.Unlock()
+		t.Fatalf("publish live sync burst: %v", err)
+	}
+	evtSubject := evtstream.LiveSubjectRoot + evtstream.AggregateRoom + ".burst-room." + evtstream.EventMessageBody
+	for range count - count/2 {
+		if err := core.nc.Publish(evtSubject, []byte("private body")); err != nil {
+			hub.mu.Unlock()
+			t.Fatalf("publish live EVT burst: %v", err)
+		}
+	}
+	if err := core.nc.Flush(); err != nil {
+		hub.mu.Unlock()
+		t.Fatalf("flush burst: %v", err)
+	}
+	// Give the NATS client time to receive the burst before the hub drains it.
+	time.Sleep(200 * time.Millisecond)
+	hub.mu.Unlock()
+
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		processed := hub.decoded.Load() - decodedBefore + hub.prefiltered.Load() - prefilteredBefore
+		hub.mu.Lock()
+		ended := !hub.accepting || hub.generation != generationBefore
+		hub.mu.Unlock()
+		if processed >= uint64(count) || ended {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("hub did not process the burst")
+}
+
+// TestMyEventsHubBurstDoesNotCloseUnrelatedSubscribers covers issue #3828:
+// a burst of live messages larger than the hub's ingress channel must wait
+// in the NATS pending queue. It must not close every realtime connection.
+func TestMyEventsHubBurstDoesNotCloseUnrelatedSubscribers(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := core.CreateUser(ctx, SystemActorID, "burst-viewer", "Burst Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	stream, err := core.StreamMyEventsWithOptions(ctx, viewer.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+
+	publishHubBurst(t, ctx, core, "burst-recipient", 8*myEventsIngressBuffer)
+
+	// Session termination after the burst still arrives and ends the stream.
+	if err := core.PublishSessionTerminated(ctx, viewer.Id, "logout"); err != nil {
+		t.Fatalf("PublishSessionTerminated: %v", err)
+	}
+	for {
+		select {
+		case event, ok := <-stream:
+			if !ok {
+				t.Fatal("stream closed before session termination arrived")
+			}
+			if terminated := EventSessionTerminated(event); terminated != nil {
+				if terminated.GetReason() != "logout" {
+					t.Fatalf("termination reason = %q, want logout", terminated.GetReason())
+				}
+				return
+			}
+		case <-ctx.Done():
+			t.Fatal("session termination did not arrive after the burst")
+		}
+	}
+}
+
+// TestMyEventsHubIngressGapClosesSubscribersForRecovery checks that a real
+// ingress gap still fails closed: a dropped message can be a durable fact or
+// a session termination, so every subscriber closes and can reconnect.
+func TestMyEventsHubIngressGapClosesSubscribersForRecovery(t *testing.T) {
+	previous := myEventsIngressPendingBytes
+	myEventsIngressPendingBytes = 1024
+	t.Cleanup(func() { myEventsIngressPendingBytes = previous })
+
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := core.CreateUser(ctx, SystemActorID, "gap-viewer", "Gap Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	stream, err := core.StreamMyEventsWithOptions(ctx, viewer.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+
+	publishHubBurst(t, ctx, core, "gap-recipient", 8*myEventsIngressBuffer)
+
+	for {
+		select {
+		case _, ok := <-stream:
+			if !ok {
+				// The hub starts a new generation, so the client can reconnect
+				// and catch up through resume or snapshot.
+				if _, err := core.StreamMyEventsWithOptions(ctx, viewer.Id, StreamMyEventsOptions{}); err != nil {
+					t.Fatalf("reconnect after ingress gap: %v", err)
+				}
+				return
+			}
+		case <-ctx.Done():
+			t.Fatal("ingress gap did not close the subscriber")
+		}
+	}
 }

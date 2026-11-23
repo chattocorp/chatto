@@ -10,7 +10,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/chattocorp/chatto/cli/internal/core/subjects"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	pubsubv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/pubsub/v1"
@@ -135,46 +134,70 @@ func NewMyEventsHub(model *MyEventsModel) *MyEventsHub {
 	}
 }
 
-// Run subscribes to both internal live-delivery roots and processes their
+// myEventsIngressSubject matches both internal live-delivery roots:
+// live.sync.> (core pubsub) and live.evt.> (EVT republish). One subscription
+// keeps the arrival order of the two roots.
+const myEventsIngressSubject = "live.>"
+
+// myEventsIngressPendingBytes bounds the messages that the NATS client holds
+// for the hub while the hub processes earlier messages. One message post can
+// publish one live sync hint for each room member, so the queue must hold
+// bursts that are much larger than one room. Only a backlog over this limit
+// drops a message. A test can lower the limit to force a gap.
+var myEventsIngressPendingBytes = 64 << 20
+
+// Run subscribes to the internal live-delivery roots and processes their
 // messages in arrival order. It is started once by ChattoCore.Run.
+//
+// The subscription uses the NATS client's pending queue, not a Go channel
+// that NATS writes to without waiting: a full channel makes NATS drop the
+// message at once. The subscription callback waits for the hub instead, so a
+// burst waits in the pending queue. NATS drops a message only when the queue
+// exceeds myEventsIngressPendingBytes. A dropped message can be a durable
+// fact or a security control, such as session termination, so the hub then
+// closes every subscriber. Clients reconnect and catch up.
 func (h *MyEventsHub) Run(ctx context.Context) error {
-	msgChan := make(chan *nats.Msg, myEventsIngressBuffer)
 	defer func() {
 		h.quarantine("hub stopped")
 		h.model.core.logger.Debug("myEvents hub stopped")
 	}()
 
 	for {
-		liveSyncSub, err := h.model.core.nc.ChanSubscribe(subjects.LiveSyncAllEvents(), msgChan)
+		// Each generation has its own channel. A callback that returns after
+		// the generation ends cannot put a stale message into the next one.
+		msgChan := make(chan *nats.Msg, myEventsIngressBuffer)
+		stop := make(chan struct{})
+		ingressSub, err := h.model.core.nc.Subscribe(myEventsIngressSubject, func(msg *nats.Msg) {
+			select {
+			case msgChan <- msg:
+			case <-stop:
+			}
+		})
 		if err != nil {
-			return fmt.Errorf("myEvents hub: subscribe to live sync events: %w", err)
+			return fmt.Errorf("myEvents hub: subscribe to live events: %w", err)
 		}
-		liveEVTSub, err := h.model.core.nc.ChanSubscribe(evtstream.LiveSubjectRoot+">", msgChan)
-		if err != nil {
-			liveSyncSub.Unsubscribe()
-			return fmt.Errorf("myEvents hub: subscribe to live EVT events: %w", err)
+		end := func() {
+			close(stop)
+			ingressSub.Unsubscribe()
+		}
+		if err := ingressSub.SetPendingLimits(-1, myEventsIngressPendingBytes); err != nil {
+			end()
+			return fmt.Errorf("myEvents hub: set ingress pending limits: %w", err)
 		}
 		if err := h.flushIngress(ctx); err != nil {
-			liveSyncSub.Unsubscribe()
-			liveEVTSub.Unsubscribe()
+			end()
 			return fmt.Errorf("myEvents hub: activate ingress: %w", err)
 		}
 		h.beginGeneration()
 		h.readyOnce.Do(func() { close(h.ready) })
 
-		reason, runErr := h.runGeneration(ctx, msgChan, liveSyncSub, liveEVTSub)
+		reason, runErr := h.runGeneration(ctx, msgChan, ingressSub)
 		if runErr != nil {
-			liveSyncSub.Unsubscribe()
-			liveEVTSub.Unsubscribe()
+			end()
 			return runErr
 		}
 		h.quarantine(reason)
-		liveSyncSub.Unsubscribe()
-		liveEVTSub.Unsubscribe()
-		if err := h.flushIngress(ctx); err != nil {
-			return fmt.Errorf("myEvents hub: reset ingress: %w", err)
-		}
-		h.drainStaleIngress(msgChan)
+		end()
 	}
 }
 
@@ -187,22 +210,17 @@ func (h *MyEventsHub) flushIngress(ctx context.Context) error {
 func (h *MyEventsHub) runGeneration(
 	ctx context.Context,
 	msgChan <-chan *nats.Msg,
-	liveSyncSub, liveEVTSub *nats.Subscription,
+	ingressSub *nats.Subscription,
 ) (string, error) {
-	slowSyncConsumerCh := liveSyncSub.StatusChanged(nats.SubscriptionSlowConsumer)
-	slowEVTConsumerCh := liveEVTSub.StatusChanged(nats.SubscriptionSlowConsumer)
+	slowConsumerCh := ingressSub.StatusChanged(nats.SubscriptionSlowConsumer)
 	for {
 		select {
 		case <-ctx.Done():
 			return "hub stopped", ctx.Err()
-		case <-slowEVTConsumerCh:
-			dropped, _ := liveEVTSub.Dropped()
-			h.model.core.logger.Warn("Slow consumer on process-wide live EVT subscription", "dropped", dropped)
-			return "live EVT ingress discontinuity", nil
-		case <-slowSyncConsumerCh:
-			dropped, _ := liveSyncSub.Dropped()
-			h.model.core.logger.Warn("Slow consumer on process-wide live sync subscription", "dropped", dropped)
-			return "live sync ingress discontinuity", nil
+		case <-slowConsumerCh:
+			dropped, _ := ingressSub.Dropped()
+			h.model.core.logger.Warn("Slow consumer on process-wide live subscription", "dropped", dropped)
+			return "live ingress discontinuity", nil
 		case request := <-h.registrations:
 			// Preserve the old per-subscription live boundary: anything the
 			// process had already received before admission is not delivered to
@@ -1022,16 +1040,6 @@ func (h *MyEventsHub) quarantine(reason string) {
 func (h *MyEventsHub) signalStateChangedLocked() {
 	close(h.stateChanged)
 	h.stateChanged = make(chan struct{})
-}
-
-func (h *MyEventsHub) drainStaleIngress(msgChan <-chan *nats.Msg) {
-	for {
-		select {
-		case <-msgChan:
-		default:
-			return
-		}
-	}
 }
 
 func (h *MyEventsHub) removeSubscriberLocked(sub *myEventsSubscription) {
