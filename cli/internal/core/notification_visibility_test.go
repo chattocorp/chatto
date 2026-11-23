@@ -108,6 +108,86 @@ func TestNotificationVisibleOccurrencesFiltersMixedBatchInOrder(t *testing.T) {
 	require.Equal(t, want, got)
 }
 
+// TestNotificationVisibleOccurrencesBatchMatchesSingleChecks checks that one
+// batch gives the same result as a separate check of each occurrence. The
+// batch shares room-level results between occurrences, so it mixes rooms with
+// broad read access, interaction-only access, and no membership, and threads
+// with and without a reader interaction in the same room.
+func TestNotificationVisibleOccurrencesBatchMatchesSingleChecks(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	poster, err := chattoCore.CreateUser(ctx, SystemActorID, "batch-poster", "Batch Poster", "password")
+	require.NoError(t, err)
+	reader, err := chattoCore.CreateUser(ctx, SystemActorID, "batch-reader", "Batch Reader", "password")
+	require.NoError(t, err)
+	createRoom := func(name string, members ...string) string {
+		room, err := chattoCore.CreateRoom(ctx, poster.Id, KindChannel, "", name, "")
+		require.NoError(t, err)
+		for _, userID := range members {
+			_, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id)
+			require.NoError(t, err)
+		}
+		return room.Id
+	}
+	broadRoom := createRoom("batch-broad", poster.Id, reader.Id)
+	narrowRoom := createRoom("batch-narrow", poster.Id, reader.Id)
+	otherRoom := createRoom("batch-other", poster.Id)
+
+	post := func(roomID, body, threadRootID string) string {
+		posted, err := chattoCore.PostMessage(ctx, KindChannel, roomID, poster.Id, body, nil, threadRootID, "", nil, false)
+		require.NoError(t, err)
+		return posted.GetId()
+	}
+	broadMessage := post(broadRoom, "broad", "")
+	// A direct mention in a root gives the reader an interaction with its thread.
+	joinedRoot := post(narrowRoom, "@batch-reader joined", "")
+	joinedReply := post(narrowRoom, "joined reply", joinedRoot)
+	otherRoot := post(narrowRoom, "other", "")
+	otherReply := post(narrowRoom, "other reply", otherRoot)
+	otherRoomMessage := post(otherRoom, "other room", "")
+	require.NoError(t, chattoCore.DenyRoomPermission(ctx, SystemActorID, narrowRoom, RoleEveryone, PermMessageRead))
+	require.NoError(t, chattoCore.GrantUserRoomPermission(ctx, SystemActorID, narrowRoom, reader.Id, PermMessageReadInteractions))
+
+	targets := []struct{ roomID, eventID string }{
+		{broadRoom, broadMessage}, {narrowRoom, joinedReply}, {narrowRoom, otherReply}, {otherRoom, otherRoomMessage},
+		{narrowRoom, otherRoot}, {narrowRoom, joinedRoot}, {broadRoom, joinedReply},
+	}
+	inputs := make([]CreateNotificationOccurrenceInput, 0, len(targets))
+	for i, target := range targets {
+		inputs = append(inputs, CreateNotificationOccurrenceInput{
+			RecipientID: reader.Id, SourceEventID: target.eventID + fmt.Sprintf("-%d", i), SourceCreated: time.Now().Add(time.Duration(i) * time.Second),
+			ActorID: poster.Id, Signal: testNotificationSignal(notificationTestSignalDirectMention, target.roomID, target.eventID),
+			Mode:           evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+			AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT, SkipReadLookup: true,
+		})
+	}
+	require.NoError(t, chattoCore.NotificationOccurrences().CreateMany(ctx, inputs))
+	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, reader.Id)
+	require.NoError(t, err)
+	require.Len(t, occurrences, len(targets))
+
+	visibleIDs := func(batch []*notificationv1.NotificationOccurrence) []string {
+		t.Helper()
+		visible, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, reader.Id, batch)
+		require.NoError(t, err)
+		ids := make([]string, 0, len(visible))
+		for _, occurrence := range visible {
+			ids = append(ids, occurrence.GetId())
+		}
+		return ids
+	}
+	want := make([]string, 0, len(occurrences))
+	wantTargets := make([]string, 0, len(occurrences))
+	for _, occurrence := range occurrences {
+		if ids := visibleIDs([]*notificationv1.NotificationOccurrence{occurrence}); len(ids) == 1 {
+			want = append(want, ids[0])
+			wantTargets = append(wantTargets, NotificationOccurrenceMessageReference(occurrence).GetEventId())
+		}
+	}
+	require.ElementsMatch(t, []string{broadMessage, joinedReply, joinedRoot}, wantTargets)
+	require.Equal(t, want, visibleIDs(occurrences))
+}
+
 // BenchmarkNotificationVisibleOccurrences measures the visibility filter that
 // ListNotificationOccurrences applies to a recipient's complete occurrence
 // list before it pages the result.
@@ -125,6 +205,34 @@ func BenchmarkNotificationVisibleOccurrences(b *testing.B) {
 				require.Len(b, visible, count)
 			}
 		})
+	}
+}
+
+// BenchmarkNotificationVisibleOccurrencesBusyServer measures the filter for
+// one reader with a few hundred occurrences on a server that retains tens of
+// thousands of occurrences for other recipients.
+func BenchmarkNotificationVisibleOccurrencesBusyServer(b *testing.B) {
+	const readerOccurrences, otherRecipients = 300, 100
+	chattoCore := setupTestCoreWithEncryption(b)
+	reader, _, occurrences := setupNotificationVisibilityFixture(b, chattoCore, readerOccurrences)
+	ctx := context.Background()
+	others := make([]CreateNotificationOccurrenceInput, 0, len(occurrences)*otherRecipients)
+	for recipient := range otherRecipients {
+		for _, occurrence := range occurrences {
+			others = append(others, CreateNotificationOccurrenceInput{
+				RecipientID: fmt.Sprintf("busy-recipient-%03d", recipient), SourceEventID: occurrence.GetSourceEventId(),
+				SourceCreated: occurrence.GetSourceCreatedAt().AsTime(), ActorID: occurrence.GetActorId(),
+				Signal: occurrence.GetSignal(), Mode: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: occurrence.GetAttentionLevel(),
+				SourceStreamSequence: occurrence.GetSourceStreamSequence(), SkipReadLookup: true,
+			})
+		}
+	}
+	require.NoError(b, chattoCore.NotificationOccurrences().CreateMany(ctx, others))
+	b.ReportAllocs()
+	for b.Loop() {
+		visible, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, reader, occurrences)
+		require.NoError(b, err)
+		require.Len(b, visible, readerOccurrences)
 	}
 }
 

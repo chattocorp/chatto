@@ -985,36 +985,70 @@ func (p *RoomTimelineProjection) LatestBodyReference(eventID string) (reference 
 func (p *RoomTimelineProjection) ContentEventID(eventID string) (string, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	entry := p.contentEntryLocked(eventID)
-	if entry == nil {
+	row := p.contentRowLocked(eventID)
+	if row == nil {
 		return "", false
 	}
-	return entry.EventID, true
+	return p.eventIDs.Resolve(row.event), true
 }
 
-func (p *RoomTimelineProjection) contentEntryLocked(eventID string) *TimelineEntry {
-	entry, _ := p.entryByEventIDLocked(eventID)
-	if entry == nil || !entry.IsMessagePost() {
+// EventRoomID returns the room of a timeline event of any kind. It copies no
+// entry, so callers that need only the room can check many events cheaply.
+func (p *RoomTimelineProjection) EventRoomID(eventID string) (string, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	row := p.rowLocked(eventID)
+	if row == nil {
+		return "", false
+	}
+	return p.rooms.Resolve(row.room), true
+}
+
+// rowLocked returns the row of eventID, or nil. The pointer is valid only
+// while the caller holds the projection lock.
+func (p *RoomTimelineProjection) rowLocked(eventID string) *timelineRow {
+	idx, ok := p.rowIndexLocked(eventID)
+	if !ok || idx < 0 || idx >= len(p.entries) {
+		return nil
+	}
+	return &p.entries[idx]
+}
+
+// inThreadEventIDLocked is TimelineEntry.InThreadEventID for row.
+func (p *RoomTimelineProjection) inThreadEventIDLocked(row *timelineRow) string {
+	if !row.reply {
+		return ""
+	}
+	return p.eventIDs.Resolve(row.threadRoot)
+}
+
+// contentRowLocked returns the row that owns a visible message's content, or
+// nil. Echo links must point directly to a thread reply in the same room. Like
+// rowLocked, it copies no entry.
+func (p *RoomTimelineProjection) contentRowLocked(eventID string) *timelineRow {
+	row := p.rowLocked(eventID)
+	if row == nil || row.kind != timelineMessagePosted {
 		return nil
 	}
 	if _, hidden := p.hiddenEchoes[eventID]; hidden {
 		return nil
 	}
-	if entry.EchoOfEventID == "" {
-		return entry
+	echoOf := p.eventIDs.Resolve(row.echoOf)
+	if echoOf == "" {
+		return row
 	}
-	original, _ := p.entryByEventIDLocked(entry.EchoOfEventID)
-	if original == nil || !original.IsMessagePost() || original.EchoOfEventID != "" ||
-		original.InThreadEventID == "" || original.RoomID != entry.RoomID ||
-		original.InThreadEventID != entry.ThreadRootEventID {
+	original := p.rowLocked(echoOf)
+	if original == nil || original.kind != timelineMessagePosted || p.eventIDs.Resolve(original.echoOf) != "" ||
+		p.inThreadEventIDLocked(original) == "" || p.rooms.Resolve(original.room) != p.rooms.Resolve(row.room) ||
+		p.inThreadEventIDLocked(original) != p.eventIDs.Resolve(row.threadRoot) {
 		return nil
 	}
 	return original
 }
 
 func (p *RoomTimelineProjection) latestBodyReferenceLocked(eventID string) (TimelineBodyReference, bool, bool) {
-	visible, _ := p.entryByEventIDLocked(eventID)
-	if visible == nil || !visible.IsMessagePost() {
+	visible := p.rowLocked(eventID)
+	if visible == nil || visible.kind != timelineMessagePosted {
 		return TimelineBodyReference{}, false, false
 	}
 	if _, hidden := p.hiddenEchoes[eventID]; hidden {
@@ -1023,16 +1057,17 @@ func (p *RoomTimelineProjection) latestBodyReferenceLocked(eventID string) (Time
 	if _, retracted := p.retractedFlags[eventID]; retracted {
 		return TimelineBodyReference{}, true, true
 	}
-	entry := p.contentEntryLocked(eventID)
-	if entry == nil {
+	row := p.contentRowLocked(eventID)
+	if row == nil {
 		return TimelineBodyReference{}, false, true
 	}
-	if _, retracted := p.retractedFlags[entry.EventID]; retracted {
+	contentEventID := p.eventIDs.Resolve(row.event)
+	if _, retracted := p.retractedFlags[contentEventID]; retracted {
 		return TimelineBodyReference{}, true, true
 	}
-	if state, has := p.bodyStateLocked(entry.EventID); has && state.active() {
+	if state, has := p.bodyStateLocked(contentEventID); has && state.active() {
 		return TimelineBodyReference{
-			MessageEventID: entry.EventID, BodyEventID: p.bodyEventIDs.String(state.currentEventID), RoomID: entry.RoomID,
+			MessageEventID: contentEventID, BodyEventID: p.bodyEventIDs.String(state.currentEventID), RoomID: p.rooms.Resolve(row.room),
 			AuthorID: p.users.Resolve(state.author), StreamSeq: state.currentSequence, AttachmentCount: int(state.attachmentCount()),
 		}, false, true
 	}
