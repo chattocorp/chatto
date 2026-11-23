@@ -275,14 +275,29 @@ describe('identity-link window page', () => {
       });
     });
 
-    it('re-verifies with the only linked provider and returns to the window', async () => {
+    it('explains the re-verification before it sends the user to the linked provider', async () => {
       const screen = open(link, ssoOnly);
       await confirm(screen);
+      await expect.element(screen.getByRole('heading', { name: 'Confirm it’s you' })).toBeVisible();
+      await expect
+        .element(screen.getByText(/To link GitHub, Chatto first needs to confirm that it’s you/))
+        .toBeVisible();
+      expect(mocks.leavePage).not.toHaveBeenCalled();
+      await screen.getByRole('button', { name: 'Sign in again with Chatto ID' }).click();
       await vi.waitFor(() =>
         expect(mocks.leavePage).toHaveBeenCalledWith(
           reverifyUrl('sso', '/sso/link?link_provider=github-main&link_user=user-alice')
         )
       );
+    });
+
+    it('opens on the explanation when account settings found that it is needed', async () => {
+      const screen = open({ ...link, reverify: 'required' }, ssoOnly);
+      await expect
+        .element(screen.getByText(/To link GitHub, Chatto first needs to confirm that it’s you/))
+        .toBeVisible();
+      expect(mocks.startLink).not.toHaveBeenCalled();
+      expect(mocks.leavePage).not.toHaveBeenCalled();
     });
 
     it('lets the user choose when several providers can re-verify', async () => {

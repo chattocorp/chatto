@@ -14,8 +14,8 @@
     disconnectContinuationPath
   } from './DisconnectContinuation.svelte';
   import {
-    identityLinkPath,
     identityLinkReturnPath,
+    identityLinkReverificationPath,
     linkStartFailure,
     onProviderLinked,
     remoteIdentityLinkUrl
@@ -324,7 +324,9 @@
         canReverify: reverifiers.length > 0
       });
       if (failure.kind === 'reverification_required') {
-        requireReverification({ kind: 'link', provider });
+        // The link window explains the re-verification and then links.
+        if (accountId)
+          launchProviderWindow(provider, identityLinkReverificationPath(provider.id, accountId));
       } else if (failure.kind === 'password_required') {
         linkConfirmation = { provider };
         linkCurrentPassword = '';
@@ -472,7 +474,7 @@
           reverifiers.length > 0 &&
           serverRegistry.isOriginServer(serverScope.serverId)
         ) {
-          requireReverification({ kind: 'disconnect', subjectHash, providerLabel });
+          reverificationPrompt = { subjectHash, providerLabel, error: '' };
         } else {
           actionError = directLoginEnabled
             ? m('settings.account.sso.disconnect_fresh_auth_required')
@@ -489,44 +491,32 @@
     }
   }
 
-  /** An action that the server protects with a recent sign-in. */
-  type ProtectedAction =
-    | { kind: 'link'; provider: ExternalIdentityProviderInfo }
-    | { kind: 'disconnect'; subjectHash: string; providerLabel: string };
-
   // Linked providers that can confirm a recent sign-in without a password.
   const reverifiers = $derived(reverificationProviders(providers));
   // The open disconnect confirmation resumes a re-verification. A freshness
   // failure of that attempt shows the fallback instead of another round trip.
   // The flag covers only that one attempt.
   let disconnectReverified = false;
-  let reverificationPrompt = $state.raw<{ action: ProtectedAction; error: string } | null>(null);
+  // Explains the re-verification before a disconnect leaves the page.
+  let reverificationPrompt = $state.raw<{
+    subjectHash: string;
+    providerLabel: string;
+    error: string;
+  } | null>(null);
   let reverifyingProviderId = $state('');
 
-  // Re-verify through the only provider that can, or let the user choose.
-  function requireReverification(action: ProtectedAction) {
-    if (reverifiers.length === 1) startReverification(reverifiers[0], action);
-    else reverificationPrompt = { action, error: '' };
-  }
-
-  function startReverification(provider: ExternalIdentityProviderInfo, action: ProtectedAction) {
+  /** Re-verify for the prompted disconnect, which resumes on this page. */
+  function startDisconnectReverification(provider: ExternalIdentityProviderInfo) {
     const userId = accountId;
-    if (!userId) return;
-    // A link continues in the link window; a disconnect returns to this page.
-    const startUrl = reverificationStartUrl(
-      provider,
-      action.kind === 'link'
-        ? identityLinkPath(action.provider.id, userId)
-        : disconnectContinuationPath(page.url.pathname, action.subjectHash, userId)
+    const prompt = reverificationPrompt;
+    if (!userId || !prompt) return;
+    reverifyingProviderId = provider.id;
+    leavePage(
+      reverificationStartUrl(
+        provider,
+        disconnectContinuationPath(page.url.pathname, prompt.subjectHash, userId)
+      )
     );
-    actionError = '';
-    reverificationPrompt = null;
-    if (action.kind === 'link') {
-      launchProviderWindow(action.provider, startUrl);
-    } else {
-      reverifyingProviderId = provider.id;
-      leavePage(startUrl);
-    }
   }
 
   function continueDisconnect(subjectHash: string, userId: string, errorCode: string) {
@@ -536,15 +526,15 @@
     }
     const identity = linkedIdentities.find((identity) => identity.subjectHash === subjectHash);
     if (!identity) return;
-    const action: ProtectedAction = {
-      kind: 'disconnect',
-      subjectHash,
-      providerLabel: identity.providerLabel
-    };
     if (errorCode) {
       const message = reverificationErrorMessage(errorCode);
       if (reverifiers.length === 0) actionError = message;
-      else reverificationPrompt = { action, error: message };
+      else
+        reverificationPrompt = {
+          subjectHash,
+          providerLabel: identity.providerLabel,
+          error: message
+        };
       return;
     }
     disconnectReverified = true;
@@ -791,9 +781,12 @@
   >
     <ReverificationChoice
       providers={reverifiers}
+      body={m('settings.account.sso.reverify_modal.disconnect_body', {
+        provider: prompt.providerLabel
+      })}
       error={prompt.error}
       busyProviderId={reverifyingProviderId}
-      onselect={(provider) => startReverification(provider, prompt.action)}
+      onselect={startDisconnectReverification}
     />
   </Dialog>
 {/if}

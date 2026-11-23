@@ -537,7 +537,8 @@
         "reverification_mismatch": "你登录所用的身份属于另一个账户。请使用已关联到此账户的身份。",
         "reverify_modal": {
           "title": "确认是你本人",
-          "body": "为了你的安全，请使用已关联到此账户的提供方重新登录。之后 Chatto 会继续你的操作。",
+          "link_body": "要关联 {provider}，Chatto 需要先确认是你本人。请使用已关联到此账户的提供方重新登录。之后 Chatto 会继续关联 {provider}。",
+          "disconnect_body": "要断开 {provider}，Chatto 需要先确认是你本人。请使用已关联到此账户的提供方重新登录。之后你可以确认断开。",
           "action": "使用 {provider} 重新登录"
         },
         "provider_unconfigured": "已不再配置此提供商",

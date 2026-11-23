@@ -108,8 +108,13 @@ type myEventsRegistration struct {
 type MyEventsHub struct {
 	model *MyEventsModel
 
-	mu          sync.Mutex
-	users       map[myEventsPrincipal]*myEventsUserState
+	mu    sync.Mutex
+	users map[myEventsPrincipal]*myEventsUserState
+	// roomMembers indexes users by the rooms in their memberRooms. Invariant
+	// under mu: principal p is in roomMembers[r] exactly when users[p] exists
+	// and r is in users[p].memberRooms. Change users and memberRooms only
+	// through the *Locked helpers below, so that the index stays exact.
+	roomMembers map[string]map[myEventsPrincipal]struct{}
 	subscribers map[uint64]*myEventsSubscription
 	nextID      uint64
 	ready       chan struct{}
@@ -128,6 +133,7 @@ func NewMyEventsHub(model *MyEventsModel) *MyEventsHub {
 	return &MyEventsHub{
 		model:         model,
 		users:         make(map[myEventsPrincipal]*myEventsUserState),
+		roomMembers:   make(map[string]map[myEventsPrincipal]struct{}),
 		subscribers:   make(map[uint64]*myEventsSubscription),
 		ready:         make(chan struct{}),
 		stateChanged:  make(chan struct{}),
@@ -369,7 +375,7 @@ func (h *MyEventsHub) handleRegistration(request *myEventsRegistration) {
 			roomSnapshotSeq: request.roomSnapshotSeq,
 			subscribers:     make(map[uint64]*myEventsSubscription),
 		}
-		h.users[request.principal] = state
+		h.addUserLocked(request.principal, state)
 	} else if request.visibleRooms != nil {
 		state.visibleRooms = request.visibleRooms
 	}
@@ -424,13 +430,29 @@ func (h *MyEventsHub) handlePubSub(ctx context.Context, msg *nats.Msg) bool {
 	bytes := int64(len(msg.Data))
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for principal, state := range h.users {
+	h.forEachPubSubCandidateLocked(delivery, func(principal myEventsPrincipal, state *myEventsUserState) {
 		authorized, ok := h.model.filterPreparedPubSubEvent(principal.authorizationContext(ctx), principal.userID, state.memberRooms, delivery)
 		if ok {
 			h.enqueueUserLocked(state, authorized, bytes)
 		}
-	}
+	})
 	return false
+}
+
+// forEachPubSubCandidateLocked visits the users that can receive a pubsub
+// event, as filterPreparedPubSubEvent decides. A room-scoped (typing) event
+// goes only to room members, so it visits only the members of the room. A
+// user-scoped event goes only to the sessions of the target user.
+func (h *MyEventsHub) forEachPubSubCandidateLocked(delivery pubSubDelivery, visit func(myEventsPrincipal, *myEventsUserState)) {
+	if delivery.roomID != "" {
+		h.forEachRoomMemberLocked(delivery.roomID, visit)
+		return
+	}
+	for principal, state := range h.users {
+		if principal.userID == delivery.targetUserID {
+			visit(principal, state)
+		}
+	}
 }
 
 // hasTypingAudience reports whether a local user other than the sender is a
@@ -438,8 +460,8 @@ func (h *MyEventsHub) handlePubSub(ctx context.Context, msg *nats.Msg) bool {
 func (h *MyEventsHub) hasTypingAudience(roomID, senderID string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for principal, state := range h.users {
-		if _, ok := state.memberRooms[roomID]; ok && principal.userID != senderID {
+	for principal := range h.roomMembers[roomID] {
+		if principal.userID != senderID {
 			return true
 		}
 	}
@@ -734,12 +756,30 @@ func (h *MyEventsHub) fanoutReadyRoomEvent(ctx context.Context, roomID string, e
 	if eventChangesRoomVisibility(event) {
 		h.visibilityVersion++
 	}
+	if !eventChangesRoomVisibility(event) && !isRoomDirectoryProjectionEvent(event) {
+		// Fast path. This event cannot change memberRooms, is not an
+		// invitation, and does not use the visibleRooms candidate path, so
+		// filterReadyEVTRoomSubjectEvent rejects every non-member. Visit only
+		// the members of the room.
+		h.forEachRoomMemberLocked(roomID, func(principal myEventsPrincipal, state *myEventsUserState) {
+			if seq <= state.roomSnapshotSeq {
+				return
+			}
+			if h.model.filterReadyEVTRoomSubjectEvent(principal.authorizationContext(context.Background()), principal.userID, state.memberRooms, roomID, event, seq) {
+				h.enqueueUserLocked(state, envelope, bytes)
+			}
+		})
+		h.mu.Unlock()
+		return
+	}
 	candidates := make([]roomProjectionFanoutCandidate, 0, len(h.users))
 	for principal, state := range h.users {
 		if seq <= state.roomSnapshotSeq {
 			continue
 		}
 		ok := h.model.filterReadyEVTRoomSubjectEvent(principal.authorizationContext(context.Background()), principal.userID, state.memberRooms, roomID, event, seq)
+		// The filter can add or remove roomID in state.memberRooms.
+		h.syncRoomMemberLocked(principal, state, roomID)
 		projectionVisibilityChange := eventChangesUserRoomVisibility(event, principal.userID)
 		if !isRoomDirectoryProjectionEvent(event) && !projectionVisibilityChange {
 			if ok {
@@ -823,11 +863,12 @@ func (h *MyEventsHub) fanoutReadyAssetEvent(roomID string, event *evtv1.Event, s
 	envelope := NewEVTEventEnvelopeWithDeliverySeq(event, seq)
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for principal, state := range h.users {
+	// The asset filter rejects every non-member of roomID.
+	h.forEachRoomMemberLocked(roomID, func(principal myEventsPrincipal, state *myEventsUserState) {
 		if h.model.filterReadyEVTAssetSubjectEvent(principal.authorizationContext(context.Background()), principal.userID, state.memberRooms, roomID, event, seq) {
 			h.enqueueUserLocked(state, envelope, bytes)
 		}
-	}
+	})
 }
 
 func (h *MyEventsHub) fanoutAll(event EventEnvelope, bytes int64) {
@@ -892,7 +933,7 @@ func (h *MyEventsHub) refreshMemberRooms(ctx context.Context) error {
 	h.mu.Lock()
 	for i, principal := range principals {
 		if state := h.users[principal]; state != nil {
-			state.memberRooms = refreshed[i]
+			h.setMemberRoomsLocked(principal, state, refreshed[i])
 		}
 	}
 	h.visibilityVersion++
@@ -1015,6 +1056,7 @@ func (h *MyEventsHub) quarantine(reason string) {
 	}
 	h.subscribers = make(map[uint64]*myEventsSubscription)
 	h.users = make(map[myEventsPrincipal]*myEventsUserState)
+	h.roomMembers = make(map[string]map[myEventsPrincipal]struct{})
 }
 
 func (h *MyEventsHub) signalStateChangedLocked() {
@@ -1040,11 +1082,76 @@ func (h *MyEventsHub) removeSubscriberLocked(sub *myEventsSubscription) {
 	if state := h.users[sub.principal]; state != nil {
 		delete(state.subscribers, sub.id)
 		if len(state.subscribers) == 0 {
-			delete(h.users, sub.principal)
+			h.removeUserLocked(sub.principal, state)
 		}
 	}
 	close(sub.done)
 	close(sub.ch)
+}
+
+// addUserLocked adds the state of a principal and indexes its memberRooms.
+func (h *MyEventsHub) addUserLocked(principal myEventsPrincipal, state *myEventsUserState) {
+	h.users[principal] = state
+	for roomID := range state.memberRooms {
+		h.indexRoomMemberLocked(principal, roomID)
+	}
+}
+
+// removeUserLocked removes the state of a principal and its index entries.
+func (h *MyEventsHub) removeUserLocked(principal myEventsPrincipal, state *myEventsUserState) {
+	delete(h.users, principal)
+	for roomID := range state.memberRooms {
+		h.unindexRoomMemberLocked(principal, roomID)
+	}
+}
+
+// setMemberRoomsLocked replaces the memberRooms of a registered principal.
+func (h *MyEventsHub) setMemberRoomsLocked(principal myEventsPrincipal, state *myEventsUserState, memberRooms map[string]struct{}) {
+	for roomID := range state.memberRooms {
+		h.unindexRoomMemberLocked(principal, roomID)
+	}
+	state.memberRooms = memberRooms
+	for roomID := range memberRooms {
+		h.indexRoomMemberLocked(principal, roomID)
+	}
+}
+
+// syncRoomMemberLocked updates the index for one room after code outside the
+// hub, such as filterReadyEVTRoomSubjectEvent, changed state.memberRooms.
+func (h *MyEventsHub) syncRoomMemberLocked(principal myEventsPrincipal, state *myEventsUserState, roomID string) {
+	if _, ok := state.memberRooms[roomID]; ok {
+		h.indexRoomMemberLocked(principal, roomID)
+	} else {
+		h.unindexRoomMemberLocked(principal, roomID)
+	}
+}
+
+func (h *MyEventsHub) indexRoomMemberLocked(principal myEventsPrincipal, roomID string) {
+	members := h.roomMembers[roomID]
+	if members == nil {
+		members = make(map[myEventsPrincipal]struct{})
+		h.roomMembers[roomID] = members
+	}
+	members[principal] = struct{}{}
+}
+
+func (h *MyEventsHub) unindexRoomMemberLocked(principal myEventsPrincipal, roomID string) {
+	members := h.roomMembers[roomID]
+	delete(members, principal)
+	if len(members) == 0 {
+		delete(h.roomMembers, roomID)
+	}
+}
+
+// forEachRoomMemberLocked visits the registered users whose memberRooms
+// contain roomID. visit can remove users, for example through a slow-consumer
+// disconnect; Go map iteration does not visit removed entries.
+func (h *MyEventsHub) forEachRoomMemberLocked(roomID string, visit func(myEventsPrincipal, *myEventsUserState)) {
+	for principal := range h.roomMembers[roomID] {
+		if state := h.users[principal]; state != nil {
+			visit(principal, state)
+		}
+	}
 }
 
 func liveEventType(subject string) string {

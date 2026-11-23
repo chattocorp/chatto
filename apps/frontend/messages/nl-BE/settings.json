@@ -537,7 +537,8 @@
         "reverification_mismatch": "Je hebt ingelogd met een identiteit die bij een ander account hoort. Gebruik een identiteit die aan dit account is gekoppeld.",
         "reverify_modal": {
           "title": "Bevestig dat jij het bent",
-          "body": "Log voor je veiligheid opnieuw in met een provider die aan dit account is gekoppeld. Daarna gaat Chatto verder met je actie.",
+          "link_body": "Om {provider} te koppelen, moet Chatto eerst bevestigen dat jij het bent. Log opnieuw in met een provider die al aan dit account is gekoppeld. Daarna gaat Chatto verder met {provider}.",
+          "disconnect_body": "Om {provider} te ontkoppelen, moet Chatto eerst bevestigen dat jij het bent. Log opnieuw in met een provider die al aan dit account is gekoppeld. Daarna kun je het ontkoppelen bevestigen.",
           "action": "Opnieuw inloggen met {provider}"
         },
         "provider_unconfigured": "Provider niet meer geconfigureerd",

@@ -6,6 +6,7 @@ import {
   identityLinkPath,
   isIdentityLinkPath,
   identityLinkReturnPath,
+  identityLinkReverificationPath,
   linkStartFailure,
   parseIdentityLinkRequest,
   remoteIdentityLinkUrl
@@ -30,7 +31,8 @@ describe('identity-link window URLs', () => {
       userId: 'user-alice',
       completed: true,
       errorCode: 'provider_failed',
-      reverified: false
+      reverified: false,
+      reverificationRequired: false
     });
   });
 
@@ -109,6 +111,15 @@ describe('linkStartFailure', () => {
     expect(
       linkStartFailure(freshAuthRequired, { ...sso, canReverify: true, passwordSent: true })
     ).toMatchObject({ kind: 'password_rejected' });
+  });
+
+  it('opens the window on the re-verification explanation', () => {
+    const path = identityLinkReverificationPath('github-main', 'user-alice');
+    expect(path).toBe('/sso/link?link_provider=github-main&link_user=user-alice&reverify=required');
+    expect(parseIdentityLinkRequest(new URL(path, 'https://chat.example'))).toMatchObject({
+      reverificationRequired: true,
+      completed: false
+    });
   });
 
   it('reads a successful re-verification from the window URL', () => {

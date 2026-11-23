@@ -537,7 +537,8 @@
         "reverification_mismatch": "Hai effettuato l’accesso con un’identità che appartiene a un altro account. Usa un’identità collegata a questo account.",
         "reverify_modal": {
           "title": "Conferma che sei tu",
-          "body": "Per sicurezza, accedi di nuovo con un provider collegato a questo account. Chatto proseguirà poi con la tua azione.",
+          "link_body": "Per collegare {provider}, Chatto deve prima confermare che sei tu. Accedi di nuovo con un provider già collegato a questo account. Poi Chatto prosegue con {provider}.",
+          "disconnect_body": "Per scollegare {provider}, Chatto deve prima confermare che sei tu. Accedi di nuovo con un provider già collegato a questo account. Poi potrai confermare lo scollegamento.",
           "action": "Accedi di nuovo con {provider}"
         },
         "provider_unconfigured": "Fornitore non più configurato",
