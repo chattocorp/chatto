@@ -2,11 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { setImmediate } from 'node:timers/promises';
-import {
-  notarizeMacOSApp,
-  stapleMacOSArtifact,
-  submitMacOSArtifact
-} from './macos-notarization.mjs';
+import { stapleMacOSArtifact, submitMacOSArtifact } from './macos-notarization.mjs';
 import { signMacOSDmg } from './macos-dmg-signing.mjs';
 
 const environment = {
@@ -31,7 +27,7 @@ for (const status of ['Accepted', 'Invalid']) {
       details: { warnings: ['Example warning from Apple'] }
     };
     const submit = () =>
-      submitMacOSArtifact('/output/Chatto.zip', credentials, () => JSON.stringify(submission));
+      submitMacOSArtifact('/output/Chatto.dmg', credentials, () => JSON.stringify(submission));
     if (status === 'Accepted') {
       submit();
     } else {
@@ -52,51 +48,36 @@ for (const operation of ['staple', 'validate']) {
       const warnings = t.mock.method(console, 'warn', () => {});
       const calls = [];
       let failed = false;
+      const dmg = '/output/Chatto.dmg';
+      const app = '/output/Chatto.app';
+      const file = artifact === 'app' ? app : dmg;
       const run = (command, args) => {
         calls.push([command, ...args]);
-        if (args[0] === 'stapler' && args[1] === operation && !failed) {
+        if (args[0] === 'stapler' && args[1] === operation && args[2] === file && !failed) {
           failed = true;
           throw Object.assign(new Error('connection lost'), { status: 68 });
         }
         return JSON.stringify({ id: 'submission', status: 'Accepted' });
       };
-      const file = artifact === 'app' ? '/output/Chatto.app' : '/output/Chatto.dmg';
-      const result =
-        artifact === 'app'
-          ? notarizeMacOSApp(file, '/output/Chatto.zip', credentials, run)
-          : signMacOSDmg(file, environment, run);
+      const result = signMacOSDmg(dmg, app, environment, run);
+      const attempts = () =>
+        calls.filter((call) => call[2] === operation && call[3] === file).length;
 
       await setImmediate();
-      assert.equal(calls.filter((call) => call[2] === operation).length, 1);
+      assert.equal(attempts(), 1);
       t.mock.timers.tick(14_999);
       await setImmediate();
-      assert.equal(calls.filter((call) => call[2] === operation).length, 1);
+      assert.equal(attempts(), 1);
       t.mock.timers.tick(1);
       await result;
 
       assert.equal(calls.filter((call) => call[1] === 'notarytool').length, 1);
-      assert.equal(calls.filter((call) => call[2] === operation).length, 2);
-      assert.equal(
-        calls.filter((call) => call[1] === 'stapler' && call[2] !== operation).length,
-        1
-      );
-      assert.ok(calls.filter((call) => call[1] === 'stapler').every((call) => call[3] === file));
+      assert.equal(attempts(), 2);
+      assert.equal(calls.filter((call) => call[1] === 'stapler').length, 5);
       assert.equal(
         calls.filter((call) => call[0] === 'codesign' && call[1] === '--sign').length,
-        artifact === 'app' ? 0 : 1
+        1
       );
-      if (artifact === 'app') {
-        assert.deepEqual(calls[0], [
-          'ditto',
-          '-c',
-          '-k',
-          '--sequesterRsrc',
-          '--keepParent',
-          file,
-          '/output/Chatto.zip'
-        ]);
-        assert.equal(calls[1][3], '/output/Chatto.zip');
-      }
       assert.match(warnings.mock.calls[0].arguments[0], /retrying in 15s/);
     });
   }
@@ -147,16 +128,3 @@ for (const operation of ['staple', 'validate']) {
     });
   }
 }
-
-test('a rejected app submission never reaches stapling', async () => {
-  const calls = [];
-  await assert.rejects(
-    notarizeMacOSApp('/output/Chatto.app', '/output/Chatto.zip', credentials, (command, args) => {
-      calls.push([command, ...args]);
-      return JSON.stringify({ id: 'rejected', status: 'Invalid' });
-    }),
-    /not accepted: rejected/
-  );
-  assert.equal(calls.length, 2);
-  assert.equal(calls[1][1], 'notarytool');
-});

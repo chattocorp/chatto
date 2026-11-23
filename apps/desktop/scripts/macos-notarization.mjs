@@ -1,8 +1,13 @@
-/** Submit signed artifacts once and retry temporary Apple ticket-service failures. */
+/** Submit a signed artifact once and retry temporary Apple ticket-service failures. */
 import { execFileSync } from 'node:child_process';
 import pRetry from 'p-retry';
 
-/** Submit an app archive or disk image and require Apple's explicit acceptance. */
+/**
+ * Submit a signed disk image and require Apple's explicit acceptance.
+ *
+ * Apple issues a ticket for the submitted file and for each nested code item,
+ * so one disk image submission also notarises the app inside it.
+ */
 export function submitMacOSArtifact(file, credentials, run = execFileSync) {
   // notarytool can exit successfully for a rejected submission. Check its status.
   const submission = JSON.parse(
@@ -53,13 +58,4 @@ export async function stapleMacOSArtifact(file, run = execFileSync) {
       }
     });
   }
-}
-
-/** Archive the signed app, submit it once, then staple and validate the same app. */
-export async function notarizeMacOSApp(app, archive, credentials, run = execFileSync) {
-  run('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', app, archive], {
-    stdio: 'inherit'
-  });
-  submitMacOSArtifact(archive, credentials, run);
-  await stapleMacOSArtifact(app, run);
 }
