@@ -537,7 +537,8 @@
         "reverification_mismatch": "Iniciou sessão com uma identidade que pertence a outra conta. Utilize uma identidade associada a esta conta.",
         "reverify_modal": {
           "title": "Confirme a sua identidade",
-          "body": "Por segurança, inicie sessão novamente com um fornecedor associado a esta conta. Depois, o Chatto continua a ação.",
+          "link_body": "Para associar {provider}, o Chatto tem primeiro de confirmar a sua identidade. Inicie sessão novamente com um fornecedor já associado a esta conta. Depois, o Chatto continua com {provider}.",
+          "disconnect_body": "Para desassociar {provider}, o Chatto tem primeiro de confirmar a sua identidade. Inicie sessão novamente com um fornecedor já associado a esta conta. Depois, pode confirmar a desassociação.",
           "action": "Iniciar sessão novamente com {provider}"
         },
         "provider_unconfigured": "O fornecedor já não está configurado",

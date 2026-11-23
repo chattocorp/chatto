@@ -537,7 +537,8 @@
         "reverification_mismatch": "Başka bir hesaba ait bir kimlikle oturum açtınız. Bu hesaba bağlı bir kimlik kullanın.",
         "reverify_modal": {
           "title": "Kimliğinizi doğrulayın",
-          "body": "Güvenliğiniz için bu hesaba bağlı bir sağlayıcıyla tekrar oturum açın. Ardından Chatto işleminize devam eder.",
+          "link_body": "{provider} bağlamak için Chatto'nun önce sizin olduğunuzu doğrulaması gerekir. Bu hesaba zaten bağlı bir sağlayıcıyla tekrar oturum açın. Ardından Chatto {provider} ile devam eder.",
+          "disconnect_body": "{provider} bağlantısını kesmek için Chatto'nun önce sizin olduğunuzu doğrulaması gerekir. Bu hesaba zaten bağlı bir sağlayıcıyla tekrar oturum açın. Ardından bağlantıyı kesmeyi onaylayabilirsiniz.",
           "action": "{provider} ile tekrar oturum aç"
         },
         "provider_unconfigured": "Sağlayıcı artık yapılandırılmadı",

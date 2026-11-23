@@ -537,7 +537,8 @@
         "reverification_mismatch": "Zalogowano się tożsamością należącą do innego konta. Użyj tożsamości połączonej z tym kontem.",
         "reverify_modal": {
           "title": "Potwierdź, że to ty",
-          "body": "Ze względów bezpieczeństwa zaloguj się ponownie przez dostawcę połączonego z tym kontem. Następnie Chatto wznowi twoją czynność.",
+          "link_body": "Aby połączyć {provider}, Chatto musi najpierw potwierdzić, że to ty. Zaloguj się ponownie przez dostawcę, który jest już połączony z tym kontem. Następnie Chatto przejdzie do {provider}.",
+          "disconnect_body": "Aby odłączyć {provider}, Chatto musi najpierw potwierdzić, że to ty. Zaloguj się ponownie przez dostawcę, który jest już połączony z tym kontem. Następnie możesz potwierdzić odłączenie.",
           "action": "Zaloguj się ponownie przez {provider}"
         },
         "provider_unconfigured": "Dostawca nie jest już skonfigurowany",
