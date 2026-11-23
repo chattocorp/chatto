@@ -79,8 +79,10 @@ export function desktopMatrix(full) {
  *
  * - `go` and `web` split the Chatto checks by toolchain. `chatto` is true when
  *   one of them is true, and selects the checks that need the complete product.
- * - `desktop-full` adds the macOS Intel and universal builds and the native
- *   capture helper test to the desktop jobs. Pushes always use the full set.
+ * - `desktop-full` adds the macOS Intel and universal builds to the desktop
+ *   jobs. Pushes always use the full set.
+ * - `desktop-capture` runs the Swift tests of the native macOS capture helper
+ *   only when its sources, test script, or cache change.
  *
  * @param {Record<string, boolean>} changed Path filter results by filter name.
  * @param {{ event: string, headRef?: string, sameRepository?: boolean }} context
@@ -101,6 +103,7 @@ export function selectJobs(changed, context) {
     chatto: go || web,
     desktop: desktopDirect || on('desktop-shared'),
     'desktop-full': desktopDirect || (!release && context.event === 'push'),
+    'desktop-capture': on('desktop-capture'),
     knip: on('knip'),
     ...Object.fromEntries(PRODUCTS.map((name) => [name, on(name)]))
   };
@@ -114,10 +117,11 @@ export function selectJobs(changed, context) {
  * @returns {Record<string, string>} Job outputs by name.
  */
 export function jobOutputs(changed, context) {
-  const jobs = selectJobs(changed, context);
+  // No job reads `desktop-full` directly: it selects the desktop matrix.
+  const { 'desktop-full': desktopFull, ...jobs } = selectJobs(changed, context);
   return {
     ...Object.fromEntries(Object.entries(jobs).map(([name, value]) => [name, String(value)])),
-    'desktop-matrix': JSON.stringify(desktopMatrix(jobs['desktop-full']))
+    'desktop-matrix': JSON.stringify(desktopMatrix(desktopFull))
   };
 }
 

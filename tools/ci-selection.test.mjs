@@ -55,6 +55,7 @@ const everything = [
   'chatto',
   'chattobot',
   'desktop',
+  'desktop-capture',
   'desktop-full',
   'docs',
   'go',
@@ -210,6 +211,16 @@ test('desktop changes and pushes build all desktop platforms', () => {
   assert.deepEqual(selected(['tools/test-desktop-linux.sh']), ['desktop', 'desktop-full']);
   assert.ok(selected(['packages/chatto-client/src/client.ts'], push).includes('desktop-full'));
   assert.equal(desktopMatrix(true).length, 6);
+  // Only the helper's own files run its Swift tests, also on a push.
+  assert.ok(!selected(['apps/desktop/main.mjs'], push).includes('desktop-capture'));
+  assert.ok(!selected(['apps/desktop/package.json'], push).includes('desktop-capture'));
+  for (const file of [
+    'apps/desktop/native/macos-capture-probe/Sources/Probe/Capture.swift',
+    'tools/test-desktop-macos-capture.sh',
+    '.github/actions/cache-macos-capture-probe/action.yml'
+  ]) {
+    assert.ok(selected([file]).includes('desktop-capture'), file);
+  }
   for (const entry of desktopMatrix(true)) {
     assert.deepEqual(Object.keys(entry), ['platform', 'os', 'artifact-path']);
   }

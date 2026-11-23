@@ -213,6 +213,13 @@ test('release approvals stay together and publication waits for all release arti
     steps.indexOf('Verify immutable GitHub OIDC subject') <
       steps.indexOf('Log in to Azure for Windows signing')
   );
+  // CI's desktop-macos-capture job tests the helper; a release does not again.
+  assert.ok(!JSON.stringify(desktop.steps).includes('test-desktop-macos-capture'));
+  // Two macOS builds run on arm64, so the runner architecture is no unique name.
+  const notarisationLog = desktop.steps.find(
+    (step) => step.name === 'Upload macOS notarisation log'
+  );
+  assert.match(notarisationLog.with.name, /\$\{\{ matrix\.platform \}\}$/);
   assert.deepEqual(jobs['publish-chatto-client'].needs, [
     'approve-release',
     'build-server-release',
