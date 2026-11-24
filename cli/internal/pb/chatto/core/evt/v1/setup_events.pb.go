@@ -24,12 +24,9 @@ const (
 // Records eligibility for first-run setup before a new server seeds defaults.
 // Only an empty EVT history may acquire this fact. Envelope tags: 950-959.
 type ServerSetupOfferedEvent struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// New installations may welcome a configured owner after external sign-in.
-	// Absent on existing installations, which must never show this welcome.
-	OwnerWelcomeEligible bool `protobuf:"varint,1,opt,name=owner_welcome_eligible,json=ownerWelcomeEligible,proto3" json:"owner_welcome_eligible,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ServerSetupOfferedEvent) Reset() {
@@ -60,13 +57,6 @@ func (x *ServerSetupOfferedEvent) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ServerSetupOfferedEvent.ProtoReflect.Descriptor instead.
 func (*ServerSetupOfferedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_evt_v1_setup_events_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *ServerSetupOfferedEvent) GetOwnerWelcomeEligible() bool {
-	if x != nil {
-		return x.OwnerWelcomeEligible
-	}
-	return false
 }
 
 // Permanently closes first-run setup after setup, bootstrap, or upgrade.
@@ -110,9 +100,8 @@ var File_chatto_core_evt_v1_setup_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_setup_events_proto_rawDesc = "" +
 	"\n" +
-	"%chatto/core/evt/v1/setup_events.proto\x12\x12chatto.core.evt.v1\"O\n" +
-	"\x17ServerSetupOfferedEvent\x124\n" +
-	"\x16owner_welcome_eligible\x18\x01 \x01(\bR\x14ownerWelcomeEligible\"\x18\n" +
+	"%chatto/core/evt/v1/setup_events.proto\x12\x12chatto.core.evt.v1\"\x19\n" +
+	"\x17ServerSetupOfferedEvent\"\x18\n" +
 	"\x16ServerInitializedEventB\xdc\x01\n" +
 	"\x16com.chatto.core.evt.v1B\x10SetupEventsProtoP\x01ZEgithub.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 

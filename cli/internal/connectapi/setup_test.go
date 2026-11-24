@@ -121,7 +121,7 @@ func TestConfiguredOwnerCreationWelcomeResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !response.Msg.OwnerWelcome || response.Msg.Token == "" {
+	if response.Header().Get("Chatto-Owner-Welcome") != "true" || response.Msg.Token == "" {
 		t.Fatal("successful sign-in lacks owner welcome or session")
 	}
 	_, err = service.CreateExternalIdentityAccount(ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{Token: token, Login: "founder", DisplayName: "Founder"}))

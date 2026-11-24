@@ -257,11 +257,10 @@ describe('createExternalIdentityAPI', () => {
   });
 });
 
-it('passes the initial owner welcome from sign-in', async () => {
-  flow.createExternalIdentityAccount.mockReturnValue({
-    userId: 'owner',
-    login: 'founder',
-    ownerWelcome: true
+it('passes the initial owner welcome from sign-in metadata', async () => {
+  flow.createExternalIdentityAccount.mockImplementation((_request, context) => {
+    context.responseHeader.set('Chatto-Owner-Welcome', 'true');
+    return { userId: 'owner', login: 'founder' };
   });
   expect(
     (

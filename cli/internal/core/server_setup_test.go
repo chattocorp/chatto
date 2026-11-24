@@ -316,7 +316,7 @@ func TestConfiguredOwnerCreationCompletesSetup(t *testing.T) {
 				c.config.Owners.Emails = []string{"owner@example.test"}
 			}
 			if mode == "bootstrap" || mode == "old" {
-				if err := c.ExcludeBootstrapOwnerWelcome(ctx); err != nil {
+				if _, err := c.CreateUser(ctx, SystemActorID, "existing", "Existing", "correct-password"); err != nil {
 					t.Fatal(err)
 				}
 			}

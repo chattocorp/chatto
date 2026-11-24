@@ -225,7 +225,7 @@ auto_provision = true
 
 Use the same configuration on every replica. Start Chatto and sign in through the configured provider. The normal AT Protocol sign-in creates the account; the owner list does not create it. Account creation still follows invitation and provider admission rules. An AT Protocol-only server needs `auto_provision = true` for new accounts to join.
 
-The login page appears without the setup wizard. On a new server, the first configured owner sign-in shows the owner welcome and activates Shield Mode once. Existing servers and servers with `core.skip_setup_wizard = true` do not show this welcome. For a company provider, replace the AT Protocol provider with your SSO configuration and use `owners.emails`.
+The login page appears without the setup wizard. On a new server, the first configured owner sign-in shows the owner welcome and activates Shield Mode once. Servers with existing account history, completed setup, or `core.skip_setup_wizard = true` do not show this welcome. An older server that still offers setup and has no account history can show it. For a company provider, replace the AT Protocol provider with your SSO configuration and use `owners.emails`.
 
 ## Owner Recovery
 

@@ -452,8 +452,6 @@ func (x *CreateExternalIdentityAccountRequest) GetInvitationCode() string {
 // Result of creating an account from a pending provider identity.
 type CreateExternalIdentityAccountResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// This account creation completed initial owner setup. Show the welcome once.
-	OwnerWelcome bool `protobuf:"varint,7,opt,name=owner_welcome,json=ownerWelcome,proto3" json:"owner_welcome,omitempty"`
 	// Newly created user ID.
 	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	// Newly created username.
@@ -499,13 +497,6 @@ func (x *CreateExternalIdentityAccountResponse) ProtoReflect() protoreflect.Mess
 // Deprecated: Use CreateExternalIdentityAccountResponse.ProtoReflect.Descriptor instead.
 func (*CreateExternalIdentityAccountResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *CreateExternalIdentityAccountResponse) GetOwnerWelcome() bool {
-	if x != nil {
-		return x.OwnerWelcome
-	}
-	return false
 }
 
 func (x *CreateExternalIdentityAccountResponse) GetUserId() string {
@@ -756,9 +747,8 @@ const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12*\n" +
 	"\fdisplay_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\vdisplayName\x121\n" +
-	"\x0finvitation_code\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0einvitationCode\"\x8e\x02\n" +
-	"%CreateExternalIdentityAccountResponse\x12#\n" +
-	"\rowner_welcome\x18\a \x01(\bR\fownerWelcome\x12\x17\n" +
+	"\x0finvitation_code\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0einvitationCode\"\xe9\x01\n" +
+	"%CreateExternalIdentityAccountResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12\x14\n" +
 	"\x05token\x18\x03 \x01(\tR\x05token\x12#\n" +

@@ -60,7 +60,7 @@ func (c *ChattoCore) initializeServerSetup(ctx context.Context) error {
 			}
 		}
 		if fresh {
-			event = newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerSetupOffered{ServerSetupOffered: &evtv1.ServerSetupOfferedEvent{OwnerWelcomeEligible: true}}})
+			event = newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerSetupOffered{ServerSetupOffered: &evtv1.ServerSetupOfferedEvent{}}})
 		}
 		filter := evtstream.SetupAggregate().AllEventsFilter()
 		if fresh {
@@ -197,35 +197,16 @@ func (c *ChattoCore) configuredOwnerCreationEntries(ctx context.Context, userID 
 	if err != nil {
 		return nil, err
 	}
-	if !record.Event.GetServerSetupOffered().GetOwnerWelcomeEligible() {
+	if record.Event.GetServerSetupOffered() == nil {
 		return nil, nil
+	}
+	// Any prior user history, including interrupted bootstrap or deleted users,
+	// excludes first-account onboarding. The creation batch guards whole EVT.
+	users, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.UserSubjectFilter())
+	if err != nil || users != 0 {
+		return nil, err
 	}
 	event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerInitialized{ServerInitialized: &evtv1.ServerInitializedEvent{}}})
 	entries := rbacSeedEntries(nil, []rbacSeedAssignment{{userID: userID, roleName: RoleOwner}}, nil)
 	return append(entries, evtstream.BatchEntry{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, Expect: events.ExpectFilterSeq(evtstream.SetupAggregate().AllEventsFilter(), seq)}), nil
-}
-
-// ExcludeBootstrapOwnerWelcome durably excludes development bootstrap before
-// it creates accounts. A crash cannot turn a partial bootstrap into SSO onboarding.
-func (c *ChattoCore) ExcludeBootstrapOwnerWelcome(ctx context.Context) error {
-	for range 10 {
-		seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
-		if err != nil || seq == 0 {
-			return err
-		}
-		record, err := c.eventReader.EventAt(ctx, seq)
-		if err != nil {
-			return err
-		}
-		if !record.Event.GetServerSetupOffered().GetOwnerWelcomeEligible() {
-			return nil
-		}
-		event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerSetupOffered{ServerSetupOffered: &evtv1.ServerSetupOfferedEvent{}}})
-		_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, Expect: events.ExpectFilterSeq(evtstream.SetupAggregate().AllEventsFilter(), seq)}})
-		if errors.Is(err, events.ErrConflict) {
-			continue
-		}
-		return err
-	}
-	return events.ErrConflict
 }

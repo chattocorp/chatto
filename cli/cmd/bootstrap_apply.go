@@ -45,10 +45,6 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		return
 	}
 
-	if err := c.ExcludeBootstrapOwnerWelcome(ctx); err != nil {
-		logger.Error("Failed to exclude bootstrap welcome", "error", err)
-		return
-	}
 	logger.Debug("Applying [bootstrap] section", "users", len(cfg.Users), "bots", len(cfg.Bots), "server", hasServer)
 
 	ownerID := ""

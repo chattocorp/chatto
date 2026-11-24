@@ -89,8 +89,6 @@ message CreateExternalIdentityAccountRequest {
 
 // Result of creating an account from a pending provider identity.
 message CreateExternalIdentityAccountResponse {
-  // This account creation completed initial owner setup. Show the welcome once.
-  bool owner_welcome = 7;
   // Newly created user ID.
   string user_id = 1;
   // Newly created username.
