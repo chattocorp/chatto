@@ -115,8 +115,12 @@ const manualRun = {
 test('CI releases from ci.yml only after every other job', () => {
   const { release: job } = ci.jobs;
   assert.equal(job.uses, './.github/workflows/release-gate.yml');
-  // The tags wait for every CI check job.
-  const others = Object.keys(ci.jobs).filter((name) => name !== 'release');
+  // The tags wait for every CI check job. The development image of `main` is
+  // no release artifact, so its registry outages do not block release tags.
+  assert.ok(!job.needs.includes('publish-main-image'));
+  const others = Object.keys(ci.jobs).filter(
+    (name) => !['release', 'publish-main-image'].includes(name)
+  );
   assert.deepEqual([...job.needs].sort(), others.sort());
   for (const guard of [
     'always() && !cancelled()',
