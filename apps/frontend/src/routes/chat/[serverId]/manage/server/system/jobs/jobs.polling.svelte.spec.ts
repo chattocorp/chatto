@@ -18,7 +18,7 @@ vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 vi.mock('$app/state', () => ({
   page: {
     params: { id: 'job-1' },
-    url: new URL('https://chat.example.test/chat/-/manage/server/jobs')
+    url: new URL('https://chat.example.test/chat/-/manage/server/system/jobs')
   }
 }));
 vi.mock('$app/navigation', () => ({

@@ -25,6 +25,8 @@ SvelteKit does for the matching route.
     <SystemProjectionsPage />
   {:else if section === 'workers'}
     <SystemWorkersPage />
+  {:else if section === 'jobs'}
+    <p>Job queue</p>
   {:else}
     <SystemLiveKitPage />
   {/if}

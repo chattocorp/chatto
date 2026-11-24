@@ -34,6 +34,7 @@ buttons, and context menus in the row keep their own behaviour.
     group,
     fitContent = false,
     stickyHeader = false,
+    stableScrollbarGutter = false,
     fillHeight = false,
     stickyHeaderFadeOffset = 'top-0',
     hoverable = true,
@@ -74,6 +75,8 @@ buttons, and context menus in the row keep their own behaviour.
      * Use for dense matrices where column labels must remain available.
      */
     stickyHeader?: boolean;
+    /** Reserve scrollbar space when filters change the height of a sticky-header table. */
+    stableScrollbarGutter?: boolean;
     /** Fill the remaining height of a flex parent instead of using a viewport cap. */
     fillHeight?: boolean;
     /** Tailwind position class for the sticky-header viewport's top fade. */
@@ -91,7 +94,7 @@ buttons, and context menus in the row keep their own behaviour.
     loadingMore?: boolean;
     /** Called when the trailing sentinel reaches the configured scroll root. */
     onLoadMore?: () => void | Promise<void>;
-    /** Scroll container used as the IntersectionObserver root. */
+    /** Scroll container for pagination. A sticky-header table defaults to its own viewport. */
     loadMoreRoot?: HTMLElement;
     /** IntersectionObserver root margin for the trailing sentinel. */
     loadMoreRootMargin?: string;
@@ -114,6 +117,7 @@ buttons, and context menus in the row keep their own behaviour.
     return () => observer.disconnect();
   }
 
+  let stickyScrollRoot = $state<HTMLDivElement>();
   let loadMoreInFlight = false;
 
   // Default key function: use id if present, otherwise key by item identity.
@@ -151,7 +155,7 @@ buttons, and context menus in the row keep their own behaviour.
   }
 
   const loadMoreSentinel: Attachment<HTMLTableRowElement> = (element) => {
-    const root = loadMoreRoot;
+    const root = loadMoreRoot ?? stickyScrollRoot;
     if (!root || !onLoadMore || !hasMore || loadingMore) return;
 
     const observer = new IntersectionObserver(
@@ -237,6 +241,8 @@ buttons, and context menus in the row keep their own behaviour.
     top
     bottom
     scrollX
+    scrollClass={stableScrollbarGutter ? '[scrollbar-gutter:stable]' : ''}
+    bind:scrollEl={stickyScrollRoot}
     topFadeOffset={stickyHeaderFadeOffset}
     class={`data-table-viewport ${fillHeight ? 'min-h-0 flex-1' : 'max-h-[70dvh]'}`}
   >

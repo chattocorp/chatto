@@ -29,9 +29,9 @@ describe('getAdminNavItems', () => {
       serverSegment: 'local',
       permissions: permissions({ canManageServer: true })
     });
-    expect(hidden.some((item) => item.label === 'Jobs')).toBe(false);
-    expect(visible.find((item) => item.label === 'Jobs')?.href).toBe(
-      '/chat/local/manage/server/jobs'
+    expect(hidden.some((item) => item.label === 'System')).toBe(false);
+    expect(visible.find((item) => item.label === 'System')?.href).toBe(
+      '/chat/local/manage/server/system/jobs'
     );
   });
 
@@ -41,7 +41,7 @@ describe('getAdminNavItems', () => {
       permissions: permissions({ canManageServer: true }),
       limitedFeatures: ['backgroundJobs']
     });
-    expect(items.some((item) => item.label === 'Jobs')).toBe(false);
+    expect(items.some((item) => item.label === 'System')).toBe(false);
     expect(items.some((item) => item.label === 'General')).toBe(true);
   });
 
