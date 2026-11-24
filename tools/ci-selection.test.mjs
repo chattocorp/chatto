@@ -274,6 +274,7 @@ test('files that have unconditional checks select no product jobs', () => {
     '.github/workflows/release.yml',
     '.github/workflows/npm.yml',
     '.github/workflows/publish-releases.yml',
+    '.github/workflows/release-gate.yml',
     'tools/release/publish-images.sh',
     '.github/workflows/build-docs-image.yml',
     'experimental/gobotto/main.go'

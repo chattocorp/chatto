@@ -42,4 +42,5 @@ run publishes each tagged version from Sweet's tag outputs. The outputs give
 the GitHub releases. Thus publication always starts from a checked commit, a
 manual tag push cannot start a build, and publication needs no personal token.
 CI also tags pushes to `release-*` branches. Release preparation stays on
-`main`. See [the release guide](../RELEASING.md).
+`main`. The tag and publication jobs are in `release-gate.yml`, which `ci.yml`
+calls after all checks. See [the release guide](../RELEASING.md).

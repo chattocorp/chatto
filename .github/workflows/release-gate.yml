@@ -1,0 +1,99 @@
+name: release gate
+
+# ci.yml calls this as its `release` job, after all of its checks. This
+# workflow finds the release tags to publish and gives them to
+# publish-releases.yml:
+#
+# - A push to `main` or a `release-[0-9]*` branch: Sweet's tag.yml tags the
+#   release versions in the commit range of the push.
+# - A manual run of ci.yml: describe-tag describes the one existing tag that
+#   the run asks for, in the shape of the tag.yml outputs.
+#
+# ci.yml decides if this workflow runs. It must stay the top-level workflow of
+# every publication: npm trusted publishing trusts workflow `ci.yml`, and the
+# signing environments allow only the `main` and `release-[0-9]*` branches.
+#
+# The publication chain is ci.yml → release-gate.yml → publish-releases.yml →
+# release.yml → npm.yml: five levels. GitHub allows ten levels of workflows,
+# including the top-level caller.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Manual run only: the existing release tag to publish again. Untrusted input.'
+        required: false
+        default: ''
+        type: string
+      testflight:
+        description: 'Start a TestFlight upload for a Chatto tag.'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  # Tag the release versions of a checked push. A release-* branch tags its
+  # maintenance releases the same way.
+  tag:
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+    # Sweet Release 0.5.0, pinned by commit (see bump-releases.yml). Tags pushed
+    # with GITHUB_TOKEN start no workflow; this run publishes them.
+    uses: chattocorp/sweet-release/.github/workflows/tag.yml@70a402d3552871474f3a0f152fb2795592ec714a # sweet@0.5.0
+    with:
+      sweet-version: sweet@0.5.0
+
+  # A manual run describes one existing tag in the shape of the tag outputs.
+  describe-tag:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      tags: ${{ steps.describe.outputs.tags }}
+      packages: ${{ steps.describe.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@v4
+        with:
+          install: false
+      - name: Describe the release tag
+        id: describe
+        env:
+          # Untrusted input: the script validates it.
+          TAG: ${{ inputs.tag }}
+          REF: ${{ github.ref }}
+        run: mise x -- bash tools/release/describe-tag.sh
+
+  # Publish from the tags of a push, or from one tag of a manual run. Exactly
+  # one of `tag` and `describe-tag` runs; the other is skipped. Without a
+  # status function, the condition also requires success() of both jobs, and
+  # one of them is always skipped. Thus check each result explicitly.
+  publish-releases:
+    needs: [tag, describe-tag]
+    if: >-
+      ${{ !cancelled()
+          && ((needs.tag.result == 'success' && needs.tag.outputs.tags != '[]' && needs.tag.outputs.tags != '')
+              || (needs.describe-tag.result == 'success' && needs.describe-tag.outputs.tags != ''))
+      }}
+    permissions:
+      actions: write
+      contents: write
+      id-token: write
+      packages: write
+    uses: ./.github/workflows/publish-releases.yml
+    with:
+      tags: ${{ needs.tag.outputs.tags || needs.describe-tag.outputs.tags }}
+      packages: ${{ needs.tag.outputs.packages || needs.describe-tag.outputs.packages }}
+      testflight: ${{ inputs.testflight }}
+    # Environment secrets, such as the desktop signing keys, are empty in a
+    # called workflow unless every caller in the chain uses `secrets: inherit`
+    # (actions/runner#4453). Named secrets here would drop them.
+    secrets: inherit
