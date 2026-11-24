@@ -1829,19 +1829,18 @@ func TestAsset_PublicServerRouteRejectsPrivateAndUnknownNATSObjects(t *testing.T
 	})); err != nil {
 		t.Fatalf("upload resumable chunk fixture: %v", err)
 	}
-	objects, err := store.List(env.ctx)
+	// Read the committed upload session, not a bucket-wide watch snapshot. Asset
+	// cleanup can remove earlier fixtures while an object-store List initializes.
+	session, err := env.core.AssetUploads().GetUpload(env.ctx, user.Id, createdUpload.Msg.GetUpload().GetUploadId())
 	if err != nil {
-		t.Fatalf("list upload chunk fixture: %v", err)
+		t.Fatalf("read upload chunk fixture: %v", err)
 	}
-	chunkKey := ""
-	for _, object := range objects {
-		if object != nil && strings.HasPrefix(object.Name, "asset-upload."+createdUpload.Msg.GetUpload().GetUploadId()+".") {
-			chunkKey = object.Name
-			break
-		}
+	if len(session.ChunkKeys) != 1 {
+		t.Fatalf("upload chunk keys = %v, want one committed chunk", session.ChunkKeys)
 	}
-	if chunkKey == "" {
-		t.Fatal("resumable upload chunk object was not found")
+	chunkKey := session.ChunkKeys[0]
+	if _, err := store.GetInfo(env.ctx, chunkKey); err != nil {
+		t.Fatalf("get committed upload chunk fixture: %v", err)
 	}
 	assertStatus("/assets/server/"+chunkKey, http.StatusNotFound)
 	assertStatus(env.core.GetTransformedServerAssetURL(chunkKey, 32, 32, "cover"), http.StatusNotFound)
