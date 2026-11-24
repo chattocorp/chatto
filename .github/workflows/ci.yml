@@ -207,7 +207,7 @@ jobs:
               # configuration and the workflows that do not run product jobs.
               - '!.sweet.yml'
               - '!.sweet.config.yml'
-              - '!.github/workflows/{release,npm,bump-releases,mobile-testflight,experimental-go}.yml'
+              - '!.github/workflows/{release,release-gate,npm,bump-releases,mobile-testflight,experimental-go}.yml'
               - '!.github/workflows/{publish-*,build-*-image}.yml'
               - '!tools/release/**'
             # A change that has no file here is a release-only change. Keep
@@ -1437,17 +1437,29 @@ jobs:
       - run: pnpm turbo run check --filter=docs-website
       - run: pnpm run build:docs
 
-  # Tag the release versions of a checked push. Optional product jobs may be
-  # skipped; failures and cancellations block tags. A release-* branch tags its
-  # maintenance releases the same way. A new branch has no range of its own,
-  # so its creation tags nothing.
-  tag:
+  # Tag and publish releases in this run, after every check job. See
+  # release-gate.yml and docs/RELEASING.md.
+  #
+  # - A push to main or a release-[0-9]* branch tags the release versions in
+  #   its commit range and publishes them. Optional product jobs may be
+  #   skipped; failures and cancellations block tags. A new branch has no range
+  #   of its own, so its creation tags nothing.
+  # - A manual run publishes one existing tag again. It runs no checks, so all
+  #   the jobs that this job needs are skipped.
+  #
+  # Keep this call in ci.yml: npm trusted publishing trusts workflow `ci.yml`,
+  # and a different top-level workflow cannot publish to npm.
+  release:
+    # `always()` lets skipped optional jobs through. Failures and cancellations
+    # still block the release.
     if: >-
-      ${{ always() && !cancelled() && github.event_name == 'push'
-          && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release-'))
-          && !github.event.created
+      ${{ always() && !cancelled()
           && !contains(needs.*.result, 'failure')
-          && !contains(needs.*.result, 'cancelled') }}
+          && !contains(needs.*.result, 'cancelled')
+          && ((github.event_name == 'push'
+               && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release-'))
+               && !github.event.created)
+              || github.event_name == 'workflow_dispatch') }}
     needs:
       - changes
       - test-translatto-package
@@ -1478,61 +1490,18 @@ jobs:
       - test-e2e-performance
       - publish-main-image
       - check-docs
-    permissions:
-      contents: write
-    # Sweet Release 0.5.0, pinned by commit (see bump-releases.yml). Tags pushed
-    # with GITHUB_TOKEN start no workflow; this run publishes them.
-    uses: chattocorp/sweet-release/.github/workflows/tag.yml@70a402d3552871474f3a0f152fb2795592ec714a # sweet@0.5.0
-    with:
-      sweet-version: sweet@0.5.0
-
-  # Without a status function, the condition also requires success() for every
-  # job before `tag`, and optional jobs there are often skipped. Check only the
-  # result of `tag`.
-  # A manual run describes one existing tag in the shape of the tag outputs.
-  describe-tag:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    outputs:
-      tags: ${{ steps.describe.outputs.tags }}
-      packages: ${{ steps.describe.outputs.packages }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: jdx/mise-action@v4
-        with:
-          install: false
-      - name: Describe the release tag
-        id: describe
-        env:
-          # Untrusted input: the script validates it.
-          TAG: ${{ inputs.tag }}
-          REF: ${{ github.ref }}
-        run: mise x -- bash tools/release/describe-tag.sh
-
-  # Publish from the tags of a push, or from one tag of a manual run. Exactly
-  # one of `tag` and `describe-tag` runs; the other is skipped.
-  publish-releases:
-    needs: [tag, describe-tag]
-    if: >-
-      ${{ !cancelled()
-          && ((needs.tag.result == 'success' && needs.tag.outputs.tags != '[]' && needs.tag.outputs.tags != '')
-              || (needs.describe-tag.result == 'success' && needs.describe-tag.outputs.tags != ''))
-      }}
+    # The union of the permissions of the jobs in release-gate.yml. Each job
+    # there sets its own, smaller permissions.
     permissions:
       actions: write
       contents: write
       id-token: write
       packages: write
-    uses: ./.github/workflows/publish-releases.yml
+    uses: ./.github/workflows/release-gate.yml
     with:
-      tags: ${{ needs.tag.outputs.tags || needs.describe-tag.outputs.tags }}
-      packages: ${{ needs.tag.outputs.packages || needs.describe-tag.outputs.packages }}
+      # Empty for a push. The gate gives it to its script only through the
+      # environment.
+      tag: ${{ inputs.tag }}
       # Each TestFlight run uploads a new build, so a manual run asks for it.
       testflight: ${{ github.event_name != 'workflow_dispatch' || inputs.testflight }}
     # Environment secrets, such as the desktop signing keys, are empty in a

@@ -42,58 +42,190 @@ test('every Sweet reference uses the same release as mise.toml', () => {
   assert.deepEqual([...versions], [miseVersion]);
 });
 
-test('CI tags only after every other job and then publishes from the tag outputs', () => {
-  const { tag } = ci.jobs;
-  assert.match(tag.uses, /^chattocorp\/sweet-release\/\.github\/workflows\/tag\.yml@/);
-  assert.deepEqual(tag.permissions, { contents: 'write' });
-  assert.equal(tag.secrets, undefined, 'GITHUB_TOKEN tags start no other workflow');
-  const others = Object.keys(ci.jobs).filter(
-    (name) => !['tag', 'describe-tag', 'publish-releases'].includes(name)
-  );
-  assert.deepEqual([...tag.needs].sort(), others.sort());
+/** Every job of a workflow that calls a local reusable workflow, as `{job, target}`. */
+const localCalls = (name) =>
+  Object.entries(workflow(name).jobs)
+    .filter(([, job]) => job.uses?.startsWith('./.github/workflows/'))
+    .map(([, job]) => ({ job, target: path.basename(job.uses) }));
+
+/** Every chain of local workflow calls from `name` and its prefixes, as lists of file names. */
+function callChains(name, chain = [name]) {
+  return [
+    chain,
+    ...localCalls(name).flatMap(({ target }) => callChains(target, [...chain, target]))
+  ];
+}
+
+/** Evaluate a job condition like GitHub: without a status function, `success()` applies too. */
+function evaluate(job, { github, inputs = {}, needs = {} }) {
+  const results = Object.values(needs).map((need) => need.result);
+  const condition = String(job.if ?? 'success()')
+    .replace(/^\$\{\{|\}\}$/g, '')
+    .replaceAll('needs.*.result', '__results')
+    .replaceAll('needs.describe-tag', "needs['describe-tag']");
+  const status = /always\(\)|cancelled\(\)|success\(\)|failure\(\)/.test(condition)
+    ? condition
+    : `success() && (${condition})`;
+  return runInNewContext(status, {
+    github,
+    inputs,
+    needs,
+    __results: results,
+    always: () => true,
+    cancelled: () => false,
+    success: () => results.every((result) => result === 'success'),
+    failure: () => results.includes('failure'),
+    contains: (values, value) => values.includes(value),
+    startsWith: (value, prefix) => String(value ?? '').startsWith(prefix)
+  });
+}
+
+/**
+ * Simulate the job results of one workflow run in dependency order. Every job
+ * that runs succeeds and gives the `outputs` of its entry, or `{ tags: '[{}]' }`.
+ */
+function simulate(name, context, outputs = {}) {
+  const { jobs } = workflow(name);
+  const results = {};
+  const resultOf = (job) => {
+    if (results[job]) return results[job];
+    const needs = Object.fromEntries(
+      [jobs[job].needs ?? []].flat().map((need) => {
+        const result = resultOf(need);
+        const out = result === 'success' ? (outputs[need] ?? { tags: '[{}]' }) : {};
+        return [need, { result, outputs: out }];
+      })
+    );
+    results[job] = evaluate(jobs[job], { ...context, needs }) ? 'success' : 'skipped';
+    return results[job];
+  };
+  for (const job of Object.keys(jobs)) resultOf(job);
+  return results;
+}
+
+const gate = workflow('release-gate.yml');
+const pushRun = {
+  github: { event_name: 'push', ref: 'refs/heads/main', event: { created: false } }
+};
+const manualRun = {
+  github: { event_name: 'workflow_dispatch', ref: 'refs/heads/main', event: {} },
+  inputs: { tag: 'v1.0.0', testflight: false }
+};
+
+test('CI releases from ci.yml only after every other job', () => {
+  const { release: job } = ci.jobs;
+  assert.equal(job.uses, './.github/workflows/release-gate.yml');
+  // The tags wait for every CI check job.
+  const others = Object.keys(ci.jobs).filter((name) => name !== 'release');
+  assert.deepEqual([...job.needs].sort(), others.sort());
   for (const guard of [
+    'always() && !cancelled()',
     "!contains(needs.*.result, 'failure')",
     "!contains(needs.*.result, 'cancelled')",
     "github.ref == 'refs/heads/main'",
     "startsWith(github.ref, 'refs/heads/release-')",
-    '!github.event.created'
+    '!github.event.created',
+    "github.event_name == 'workflow_dispatch'"
   ]) {
-    assert.ok(tag.if.includes(guard), guard);
+    assert.ok(job.if.includes(guard), guard);
   }
-  const publish = ci.jobs['publish-releases'];
-  assert.deepEqual(publish.needs, ['tag', 'describe-tag']);
-  assert.equal(publish.uses, './.github/workflows/publish-releases.yml');
-  // A condition without a status function also requires success() of every
-  // job before `tag`. Skipped optional jobs there would skip publication.
-  assert.ok(publish.if.includes('!cancelled()'), 'publish-releases needs a status function');
-  assert.ok(
-    publish.if.includes("needs.tag.result == 'success'"),
-    'publish-releases checks the tag result'
-  );
-  assert.ok(
-    publish.if.includes("needs.describe-tag.result == 'success'"),
-    'publish-releases checks the describe-tag result'
+  // Skipped optional jobs do not block a release; failures and cancellations do.
+  const needs = (...results) =>
+    Object.fromEntries(results.map((result, index) => [`job${index}`, { result }]));
+  const runs = (context, ...results) => evaluate(job, { ...context, needs: needs(...results) });
+  assert.equal(runs(pushRun, 'success', 'skipped'), true);
+  assert.equal(runs(pushRun, 'success', 'failure'), false);
+  assert.equal(runs(pushRun, 'success', 'cancelled'), false);
+  assert.equal(
+    runs({ github: { ...pushRun.github, ref: 'refs/heads/release-1.2' } }, 'success'),
+    true
   );
   assert.equal(
-    publish.with.tags,
-    '${{ needs.tag.outputs.tags || needs.describe-tag.outputs.tags }}'
+    runs({ github: { ...pushRun.github, event: { created: true } } }, 'success'),
+    false,
+    'a new branch tags nothing'
   );
+  assert.equal(runs({ github: { ...pushRun.github, ref: 'refs/heads/other' } }, 'success'), false);
+  assert.equal(runs({ github: { event_name: 'pull_request', event: {} } }, 'success'), false);
+  // Only ci.yml starts the release: the gate cannot run on its own.
+  assert.deepEqual(Object.keys(gate.on), ['workflow_call']);
+  // ci.yml gives the job the union of the permissions in the gate.
+  const union = {};
+  for (const gateJob of Object.values(gate.jobs)) {
+    for (const [scope, level] of Object.entries(gateJob.permissions)) {
+      if (union[scope] !== 'write') union[scope] = level;
+    }
+  }
+  assert.deepEqual(job.permissions, union);
+  assert.equal(job.with.tag, '${{ inputs.tag }}');
   assert.equal(
-    publish.with.testflight,
+    job.with.testflight,
     "${{ github.event_name != 'workflow_dispatch' || inputs.testflight }}"
-  );
-  assert.match(releases.jobs.testflight.if, /^inputs\.testflight && /);
-  // Environment secrets (desktop signing) are empty in release.yml unless every
-  // caller in the chain uses `secrets: inherit` (actions/runner#4453).
-  assert.equal(publish.secrets, 'inherit', 'ci.yml passes every secret to publish-releases');
-  assert.equal(
-    releases.jobs.chatto.secrets,
-    'inherit',
-    'publish-releases passes every secret to release.yml'
   );
   // Push runs are never cancelled or replaced: each run owns its commit range.
   assert.match(ci.concurrency.group, /github\.ref, github\.sha/);
   assert.equal(ci.concurrency['cancel-in-progress'], "${{ github.event_name == 'pull_request' }}");
+});
+
+test('the publication call chain starts at ci.yml and passes every secret on', () => {
+  const chains = callChains('ci.yml').filter((chain) => chain.includes('release-gate.yml'));
+  // npm trusted publishing trusts the top-level workflow `ci.yml`.
+  assert.ok(
+    chains.some((chain) => chain.at(-1) === 'npm.yml'),
+    'ci.yml reaches npm.yml through the gate'
+  );
+  // GitHub allows ten levels of workflows, including the top-level caller.
+  const depth = Math.max(...chains.map((chain) => chain.length));
+  assert.ok(depth <= 10, `publication chain has ${depth} levels`);
+  // GitHub allows 50 unique reusable workflows from one workflow file.
+  assert.ok(new Set(callChains('ci.yml').flatMap((chain) => chain.slice(1))).size <= 50);
+  // Environment secrets (desktop signing) are empty in release.yml unless every
+  // caller in the chain uses `secrets: inherit` (actions/runner#4453).
+  const toRelease = chains.find((chain) => chain.at(-1) === 'release.yml');
+  assert.deepEqual(toRelease, [
+    'ci.yml',
+    'release-gate.yml',
+    'publish-releases.yml',
+    'release.yml'
+  ]);
+  toRelease.slice(0, -1).forEach((caller, index) => {
+    const call = localCalls(caller).find(({ target }) => target === toRelease[index + 1]);
+    assert.equal(call.job.secrets, 'inherit', `${caller} passes every secret on`);
+  });
+  // A job that needs other jobs, but has no status function, also requires
+  // success() of all of them. A skipped job would then skip publication.
+  for (const name of ['release-gate.yml', 'publish-releases.yml']) {
+    for (const [id, gateJob] of Object.entries(workflow(name).jobs)) {
+      if (!gateJob.needs) continue;
+      assert.match(String(gateJob.if), /!cancelled\(\)|always\(\)/, `${name} ${id}`);
+    }
+  }
+});
+
+test('a push run tags and publishes from the tag outputs', () => {
+  const { tag, 'publish-releases': publish } = gate.jobs;
+  assert.match(tag.uses, /^chattocorp\/sweet-release\/\.github\/workflows\/tag\.yml@/);
+  assert.deepEqual(tag.permissions, { contents: 'write' });
+  assert.equal(tag.secrets, undefined, 'GITHUB_TOKEN tags start no other workflow');
+  assert.deepEqual(publish.needs, ['tag', 'describe-tag']);
+  assert.equal(publish.uses, './.github/workflows/publish-releases.yml');
+  assert.equal(
+    publish.with.tags,
+    '${{ needs.tag.outputs.tags || needs.describe-tag.outputs.tags }}'
+  );
+  assert.equal(publish.with.testflight, '${{ inputs.testflight }}');
+  assert.match(releases.jobs.testflight.if, /^inputs\.testflight && /);
+  const push = { ...pushRun, inputs: { tag: '', testflight: true } };
+  assert.deepEqual(simulate('release-gate.yml', push), {
+    tag: 'success',
+    'describe-tag': 'skipped',
+    'publish-releases': 'success'
+  });
+  // A push without release versions publishes nothing.
+  assert.equal(
+    simulate('release-gate.yml', push, { tag: { tags: '[]' } })['publish-releases'],
+    'skipped'
+  );
 });
 
 test('a manual CI run only describes one tag and publishes it', () => {
@@ -105,7 +237,7 @@ test('a manual CI run only describes one tag and publishes it', () => {
   });
   assert.equal(dispatch.testflight.type, 'boolean');
   assert.equal(dispatch.testflight.default, false);
-  const describe = ci.jobs['describe-tag'];
+  const describe = gate.jobs['describe-tag'];
   assert.equal(describe.if, "github.event_name == 'workflow_dispatch'");
   assert.deepEqual(describe.permissions, { contents: 'read' });
   const step = describe.steps.find((entry) => entry.id === 'describe');
@@ -117,54 +249,16 @@ test('a manual CI run only describes one tag and publishes it', () => {
     ci.concurrency.group,
     /github\.event_name == 'workflow_dispatch' && format\('publish-\{0\}', inputs\.tag\)/
   );
-  // Evaluate each job's condition for a manual run, in dependency order. No
-  // job other than describe-tag and publish-releases may run.
-  const results = manualRunResults();
-  for (const [name, result] of Object.entries(results)) {
-    if (name === 'describe-tag' || name === 'publish-releases')
-      assert.equal(result, 'success', name);
-    else assert.equal(result, 'skipped', `${name} runs in a manual publication run`);
+  // No CI job other than the release runs in a manual run.
+  for (const [name, result] of Object.entries(simulate('ci.yml', manualRun))) {
+    assert.equal(result, name === 'release' ? 'success' : 'skipped', name);
   }
+  assert.deepEqual(simulate('release-gate.yml', manualRun), {
+    tag: 'skipped',
+    'describe-tag': 'success',
+    'publish-releases': 'success'
+  });
 });
-
-/** Simulate the job results of a manual ci.yml run; every job that runs succeeds. */
-function manualRunResults() {
-  const results = {};
-  const resultOf = (name) => {
-    if (results[name]) return results[name];
-    const job = ci.jobs[name];
-    const needs = [job.needs ?? []].flat();
-    const needResults = needs.map(resultOf);
-    const context = {
-      github: { event_name: 'workflow_dispatch', ref: 'refs/heads/main', event: {} },
-      inputs: { tag: 'v1.0.0', testflight: false },
-      needs: Object.fromEntries(
-        needs.map((need) => [
-          need,
-          { result: results[need], outputs: results[need] === 'success' ? { tags: '[{}]' } : {} }
-        ])
-      ),
-      __results: needResults,
-      always: () => true,
-      cancelled: () => false,
-      success: () => needResults.every((result) => result === 'success'),
-      failure: () => needResults.includes('failure'),
-      contains: (values, value) => values.includes(value),
-      startsWith: (value, prefix) => String(value ?? '').startsWith(prefix)
-    };
-    const condition = String(job.if ?? 'success()')
-      .replace(/^\$\{\{|\}\}$/g, '')
-      .replaceAll('needs.*.result', '__results')
-      .replaceAll('needs.describe-tag', "needs['describe-tag']");
-    const status = /always\(\)|cancelled\(\)|success\(\)|failure\(\)/.test(condition)
-      ? condition
-      : `success() && (${condition})`;
-    results[name] = runInNewContext(status, context) ? 'success' : 'skipped';
-    return results[name];
-  };
-  for (const name of Object.keys(ci.jobs)) resultOf(name);
-  return results;
-}
 
 test('each release unit has one publication job', () => {
   const { chatto, runling, translatto, components } = releases.jobs;
@@ -669,7 +763,7 @@ test('the Authling image builds in CI before tags and publishes from one workflo
   assert.equal(job.uses, './.github/workflows/build-authling-image.yml');
   assert.equal(job.with, undefined, 'CI builds the commit of its run');
   assert.equal(job.if, "${{ needs.changes.outputs.authling == 'true' }}");
-  assert.ok(ci.jobs.tag.needs.includes('authling-image'));
+  assert.ok(ci.jobs.release.needs.includes('authling-image'));
   assert.deepEqual(releases.jobs.authling.with, {
     release_tag: "${{ fromJSON(inputs.packages)['authling'].tag }}",
     highest: "${{ fromJSON(inputs.packages)['authling'].highest }}"

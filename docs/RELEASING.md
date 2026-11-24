@@ -43,12 +43,31 @@ A release PR that changes only these release files runs no product jobs in CI.
 The full checks run on `main` after the merge, before CI makes the tag. See
 [CI Job Selection](../CONTRIBUTING.md#ci-job-selection).
 
-After all selected CI jobs succeed, the `tag` job in CI calls Sweet's `tag.yml`
-for the push's complete before/after range. Tags point to the commits that
-introduced each version. Tags are never moved. The job pushes tags with
-`GITHUB_TOKEN`, so a tag push starts no workflow. The same CI run publishes the
-tagged versions: the `publish-releases` job calls `publish-releases.yml`, which
-starts one publication job for each release unit from Sweet's tag outputs.
+After all selected CI jobs succeed, the `release` job in CI calls
+`release-gate.yml`. Its `tag` job calls Sweet's `tag.yml` for the push's
+complete before/after range. Tags point to the commits that introduced each
+version. Tags are never moved. The job pushes tags with `GITHUB_TOKEN`, so a tag
+push starts no workflow. The same CI run publishes the tagged versions: the
+`publish-releases` job of the gate calls `publish-releases.yml`, which starts
+one publication job for each release unit from Sweet's tag outputs.
+
+The publication call chain is `ci.yml` → `release-gate.yml` →
+`publish-releases.yml` → `release.yml` → `npm.yml`. Keep these rules when you
+change it:
+
+- `ci.yml` must stay the top-level workflow. npm trusted publishing trusts
+  workflow `ci.yml`, and the signing environments allow only the `main` and
+  `release-[0-9]*` branches.
+- Each call on the chain to `release.yml` must use `secrets: inherit`. If not,
+  the environment secrets, such as the desktop signing keys, are empty
+  ([actions/runner#4453](https://github.com/actions/runner/issues/4453)).
+- A job that needs other jobs must have a status function, such as
+  `!cancelled()`, in its condition. If not, any skipped job before it also
+  skips it.
+- GitHub allows ten levels of workflows, including the top-level caller, and
+  50 different called workflows. The chain has five levels.
+
+`tools/release-policy.test.mjs` checks these rules.
 
 | Release unit          | Publication                                                 |
 | --------------------- | ----------------------------------------------------------- |
@@ -206,7 +225,7 @@ Rerunning the old run uses the old workflows, so start a new run:
 5. Approve the environments, as for a release from a push.
 
 The run does no CI checks: the tagged commit passed them before CI made the
-tag. The `describe-tag` job makes sure that the tag exists on origin, that it
+tag. The `describe-tag` job of `release-gate.yml` makes sure that the tag exists on origin, that it
 matches exactly one Sweet package, and that its commit is on `main` or a
 `release-[0-9]*` branch. Then it gives `publish-releases` the same entry as
 Sweet's `tag.yml`, with `prerelease`, and with `highest` for the tags on origin
