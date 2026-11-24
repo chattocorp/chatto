@@ -369,7 +369,7 @@ local to the footer.
       {/if}
       <p class="min-w-0 flex-1 leading-relaxed text-muted">
         {#each sentenceParts as part, index (index)}
-          {#if part === '{emoji}'}<strong class="font-semibold break-words text-text"
+          {#if part === '{emoji}'}<strong class="font-semibold break-words"
               >{getEmojiDisplayName(tooltipReaction.emoji)}</strong
             >
           {:else if part === '{users}'}<span
