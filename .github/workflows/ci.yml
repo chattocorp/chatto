@@ -1446,6 +1446,9 @@ jobs:
   #   of its own, so its creation tags nothing.
   # - A manual run publishes one existing tag again. It runs no checks, so all
   #   the jobs that this job needs are skipped.
+  # - It does not wait for publish-main-image. That job pushes the `main`
+  #   development image, which is no release artifact, so a registry outage
+  #   there does not hold back release tags.
   #
   # Keep this call in ci.yml: npm trusted publishing trusts workflow `ci.yml`,
   # and a different top-level workflow cannot publish to npm.
@@ -1488,7 +1491,6 @@ jobs:
       - test-e2e
       - test-e2e-media
       - test-e2e-performance
-      - publish-main-image
       - check-docs
     # The union of the permissions of the jobs in release-gate.yml. Each job
     # there sets its own, smaller permissions.
