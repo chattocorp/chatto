@@ -135,3 +135,9 @@ describe('createAccountAPI', () => {
     });
   });
 });
+
+it('returns the server welcome claim result', async () => {
+  mocks.claimOwnerWelcome.mockReturnValue({ showWelcome: true });
+  expect(await accountAPI().claimOwnerWelcome()).toBe(true);
+  expect(receivedRequest(mocks.claimOwnerWelcome)).toEqual({});
+});

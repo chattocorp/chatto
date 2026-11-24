@@ -8,6 +8,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -237,5 +238,207 @@ func TestServerSetupUpgradeDoesNotContendWithChatTraffic(t *testing.T) {
 	}}
 	if err := c.initializeServerSetup(ctx); err != nil {
 		t.Fatalf("upgrade competed with unrelated traffic: %v", err)
+	}
+}
+
+func TestConfiguredOwnerSetupMatrix(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	c.config.SkipSetupWizard = false
+	for _, disabled := range []bool{false, true} {
+		for _, owners := range []config.OwnersConfig{{}, {Emails: []string{"owner@example.test"}}, {DIDs: []string{"did:web:example.test"}}} {
+			c.config.AuthDirectLoginDisabled = disabled
+			c.config.Owners = owners
+			got, err := c.SetupRequired(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := !(disabled && owners.Configured())
+			if got != want {
+				t.Fatalf("disabled=%v owners=%v: got %v", disabled, owners.Configured(), got)
+			}
+		}
+	}
+}
+
+func TestDIDOwnerCreationLinkBootAndWelcome(t *testing.T) {
+	for _, path := range []string{"create", "link", "boot"} {
+		t.Run(path, func(t *testing.T) {
+			c, _ := setupTestCore(t)
+			ctx := testContext(t)
+			c.config.SkipSetupWizard = false
+			c.config.AuthDirectLoginDisabled = true
+			c.config.AuthProviders = []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}
+			c.config.Owners = config.OwnersConfig{DIDs: []string{"did:web:owner.example"}}
+			var userID string
+			if path == "create" {
+				user, err := c.CreateUserForExternalIdentity(ctx, "founder", "Founder", &PendingExternalIdentityFlow{Kind: ExternalIdentityFlowKindCreate, ProviderID: "internet", ProviderType: "atproto", Issuer: "internet", Subject: "did:web:owner.example"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				userID = user.Id
+			} else {
+				user, err := c.CreateUser(ctx, SystemActorID, "founder", "Founder", "correct-horse-battery")
+				if err != nil {
+					t.Fatal(err)
+				}
+				userID = user.Id
+				if path == "boot" {
+					c.config.Owners.DIDs = nil
+				}
+				if err := c.LinkExternalIdentity(ctx, "internet", "atproto", "internet", "did:web:owner.example", userID); err != nil {
+					t.Fatal(err)
+				}
+				if path == "boot" {
+					c.config.Owners.DIDs = []string{"did:web:owner.example"}
+					if err := c.applyConfigOwners(ctx); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			owner, err := c.IsServerOwner(ctx, userID)
+			if err != nil || !owner {
+				t.Fatalf("owner=%v err=%v", owner, err)
+			}
+			welcome, err := c.ClaimOwnerWelcome(ctx, userID)
+			if err != nil || !welcome {
+				t.Fatalf("welcome=%v err=%v", welcome, err)
+			}
+			welcome, err = c.ClaimOwnerWelcome(ctx, userID)
+			if err != nil || welcome {
+				t.Fatalf("second welcome=%v err=%v", welcome, err)
+			}
+			c.config.Owners.DIDs = nil
+			if err := c.applyConfigOwners(ctx); err != nil {
+				t.Fatal(err)
+			}
+			owner, err = c.IsServerOwner(ctx, userID)
+			if err != nil || !owner {
+				t.Fatal("removal revoked owner")
+			}
+		})
+	}
+}
+
+func TestOwnerWelcomeExclusions(t *testing.T) {
+	for _, mode := range []string{"explicit-skip", "bootstrap", "interrupted-bootstrap", "old-offer", "initialized"} {
+		t.Run(mode, func(t *testing.T) {
+			c, _ := setupTestCore(t)
+			ctx := testContext(t)
+			c.config.AuthDirectLoginDisabled = true
+			c.config.Owners.Emails = []string{"owner@example.test"}
+			user, err := c.CreateVerifiedUser(ctx, SystemActorID, "founder", "Founder", "correct-horse-battery", "owner@example.test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			c.config.SkipSetupWizard = false
+			switch mode {
+			case "explicit-skip":
+				c.config.SkipSetupWizard = true
+			case "interrupted-bootstrap":
+				if err := c.ExcludeBootstrapOwnerWelcome(ctx); err != nil {
+					t.Fatal(err)
+				}
+			case "bootstrap":
+				if err := c.CompleteBootstrappedSetup(ctx); err != nil {
+					t.Fatal(err)
+				}
+			case "old-offer", "initialized":
+				event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerSetupOffered{ServerSetupOffered: &evtv1.ServerSetupOfferedEvent{}}})
+				if mode == "initialized" {
+					event = newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerInitialized{ServerInitialized: &evtv1.ServerInitializedEvent{}}})
+				}
+				seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, Expect: events.ExpectFilterSeq(evtstream.SetupAggregate().AllEventsFilter(), seq)}})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			welcome, err := c.ClaimOwnerWelcome(ctx, user.Id)
+			if err != nil || welcome {
+				t.Fatalf("welcome=%v err=%v", welcome, err)
+			}
+		})
+	}
+}
+
+func TestOwnerWelcomeConcurrentReplicas(t *testing.T) {
+	ns, _ := testutil.StartNATS(t)
+	cfg := testCoreConfig()
+	cfg.SkipSetupWizard = false
+	cfg.AuthDirectLoginDisabled = true
+	cfg.Owners.DIDs = []string{"did:web:owner.example"}
+	cfg.AuthProviders = []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}
+	first := startReplica(t, ns, cfg)
+	second := startReplica(t, ns, cfg)
+	ctx := testContext(t)
+	user, err := first.CreateUser(ctx, SystemActorID, "founder", "Founder", "correct-horse-battery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := first.LinkExternalIdentity(ctx, "internet", "atproto", "internet", "did:web:owner.example", user.Id); err != nil {
+		t.Fatal(err)
+	}
+	results := make(chan bool, 2)
+	failures := make(chan error, 2)
+	var wg sync.WaitGroup
+	for _, c := range []*ChattoCore{first, second} {
+		wg.Go(func() { welcome, err := c.ClaimOwnerWelcome(ctx, user.Id); results <- welcome; failures <- err })
+	}
+	wg.Wait()
+	close(results)
+	close(failures)
+	for err := range failures {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	count := 0
+	for welcome := range results {
+		if welcome {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("welcome count=%d", count)
+	}
+}
+
+func TestConfiguredOwnerDIDProviderBoundary(t *testing.T) {
+	c := &ChattoCore{config: config.CoreConfig{Owners: config.OwnersConfig{DIDs: []string{"did:web:owner.example"}}, AuthProviders: []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}}}
+	for _, tc := range []struct {
+		kind, issuer string
+		want         bool
+	}{{"atproto", "internet", true}, {"oidc", "internet", false}, {"atproto", "removed", false}} {
+		if got := c.isConfiguredOwnerIdentity(ExternalIdentity{ProviderType: tc.kind, Issuer: tc.issuer, Subject: "did:web:owner.example"}); got != tc.want {
+			t.Fatalf("kind=%s issuer=%s got=%v", tc.kind, tc.issuer, got)
+		}
+	}
+}
+
+func TestDIDOwnerReconciledAtReplicaBoot(t *testing.T) {
+	ns, _ := testutil.StartNATS(t)
+	cfg := testCoreConfig()
+	cfg.AuthProviders = []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}
+	first := startReplica(t, ns, cfg)
+	ctx := testContext(t)
+	user, err := first.CreateUser(ctx, SystemActorID, "founder", "Founder", "correct-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := first.LinkExternalIdentity(ctx, "internet", "atproto", "internet", "did:web:owner.example", user.Id); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatal(err)
+	}
+	cfg.Owners.DIDs = []string{"did:web:owner.example"}
+	second := startReplica(t, ns, cfg)
+	owner, err := second.IsServerOwner(ctx, user.Id)
+	if err != nil || !owner {
+		t.Fatalf("boot owner=%v err=%v", owner, err)
 	}
 }

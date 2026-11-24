@@ -138,3 +138,11 @@ verification.
   window.
 - **Chatto Desktop and mobile:** examine whether the native hosts need their
   own handling of the sign-in window.
+
+### Configured owners without password login
+
+`owners.dids` grants the owner role to a matching DID from a configured AT Protocol provider. The stored issuer is the provider ID and the subject is the DID. Handles do not match. Like `owners.emails`, this policy grants roles at creation, linking, and startup; removal never revokes a role. Link grants use the durable notification-effects lane and wait for both its acknowledgement and the local RBAC projection.
+
+When `auth.direct_login` is false and either owner list is non-empty, setup discovery returns false without changing durable setup state. Normal provider admission still applies, including `auto_provision` and invitation rules.
+
+New setup-offered events carry `owner_welcome_eligible`. Older events have no eligibility. After sign-in, the chat shell calls the authenticated `MyAccountService.ClaimOwnerWelcome` RPC. It closes setup with an OCC-protected `ServerInitialized` event. Only the winning claim returns a welcome signal. The shell then uses the existing welcome and Shield Mode flow. Older servers return Unimplemented, which the client treats as no welcome. Development bootstrap excludes welcome eligibility before writing accounts, so interrupted bootstrap also stays excluded. A lost response can lose the welcome, as with wizard setup; it cannot reopen eligibility. Wizard completion, upgrade initialization, and development bootstrap close setup without this signal. Explicit `core.skip_setup_wizard` never claims it.

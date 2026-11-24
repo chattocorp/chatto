@@ -265,3 +265,5 @@ missing or corrupt body cannot block removal of the echo entry. Deleting the
 original also erases historical linked echo bodies. Reference-only echoes have
 no body records to erase. Upgrades retain historical copies until the existing
 deletion rules select them.
+
+Configured DID owner grants use the notification materializer. It waits for User Auth projection state, writes the durable owner role, and acknowledges the identity link. Callers then wait for local RBAC state.

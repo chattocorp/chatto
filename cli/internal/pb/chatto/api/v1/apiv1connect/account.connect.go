@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// MyAccountServiceClaimOwnerWelcomeProcedure is the fully-qualified name of the MyAccountService's
+	// ClaimOwnerWelcome RPC.
+	MyAccountServiceClaimOwnerWelcomeProcedure = "/chatto.api.v1.MyAccountService/ClaimOwnerWelcome"
 	// MyAccountServiceChangePasswordProcedure is the fully-qualified name of the MyAccountService's
 	// ChangePassword RPC.
 	MyAccountServiceChangePasswordProcedure = "/chatto.api.v1.MyAccountService/ChangePassword"
@@ -91,6 +94,10 @@ const (
 
 // MyAccountServiceClient is a client for the chatto.api.v1.MyAccountService service.
 type MyAccountServiceClient interface {
+	// Authenticated. Atomically completes configured-owner setup on a new server.
+	// Only the first eligible owner claim returns true. Explicitly skipped setup,
+	// wizard completion, development bootstrap, and existing installations return false.
+	ClaimOwnerWelcome(context.Context, *connect.Request[v1.ClaimOwnerWelcomeRequest]) (*connect.Response[v1.ClaimOwnerWelcomeResponse], error)
 	// Updates or adds the authenticated user's password.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
 	// Lists the authenticated user's verified email addresses and primary choice.
@@ -169,6 +176,12 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 	baseURL = strings.TrimRight(baseURL, "/")
 	myAccountServiceMethods := v1.File_chatto_api_v1_account_proto.Services().ByName("MyAccountService").Methods()
 	return &myAccountServiceClient{
+		claimOwnerWelcome: connect.NewClient[v1.ClaimOwnerWelcomeRequest, v1.ClaimOwnerWelcomeResponse](
+			httpClient,
+			baseURL+MyAccountServiceClaimOwnerWelcomeProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("ClaimOwnerWelcome")),
+			connect.WithClientOptions(opts...),
+		),
 		changePassword: connect.NewClient[v1.ChangePasswordRequest, v1.ChangePasswordResponse](
 			httpClient,
 			baseURL+MyAccountServiceChangePasswordProcedure,
@@ -284,6 +297,7 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // myAccountServiceClient implements MyAccountServiceClient.
 type myAccountServiceClient struct {
+	claimOwnerWelcome          *connect.Client[v1.ClaimOwnerWelcomeRequest, v1.ClaimOwnerWelcomeResponse]
 	changePassword             *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
 	listVerifiedEmails         *connect.Client[v1.ListVerifiedEmailsRequest, v1.ListVerifiedEmailsResponse]
 	requestEmailVerification   *connect.Client[v1.RequestEmailVerificationRequest, v1.RequestEmailVerificationResponse]
@@ -302,6 +316,11 @@ type myAccountServiceClient struct {
 	deleteCustomStatus         *connect.Client[v1.DeleteCustomStatusRequest, v1.DeleteCustomStatusResponse]
 	requestAccountDeletion     *connect.Client[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse]
 	deleteMyAccount            *connect.Client[v1.DeleteMyAccountRequest, v1.DeleteMyAccountResponse]
+}
+
+// ClaimOwnerWelcome calls chatto.api.v1.MyAccountService.ClaimOwnerWelcome.
+func (c *myAccountServiceClient) ClaimOwnerWelcome(ctx context.Context, req *connect.Request[v1.ClaimOwnerWelcomeRequest]) (*connect.Response[v1.ClaimOwnerWelcomeResponse], error) {
+	return c.claimOwnerWelcome.CallUnary(ctx, req)
 }
 
 // ChangePassword calls chatto.api.v1.MyAccountService.ChangePassword.
@@ -396,6 +415,10 @@ func (c *myAccountServiceClient) DeleteMyAccount(ctx context.Context, req *conne
 
 // MyAccountServiceHandler is an implementation of the chatto.api.v1.MyAccountService service.
 type MyAccountServiceHandler interface {
+	// Authenticated. Atomically completes configured-owner setup on a new server.
+	// Only the first eligible owner claim returns true. Explicitly skipped setup,
+	// wizard completion, development bootstrap, and existing installations return false.
+	ClaimOwnerWelcome(context.Context, *connect.Request[v1.ClaimOwnerWelcomeRequest]) (*connect.Response[v1.ClaimOwnerWelcomeResponse], error)
 	// Updates or adds the authenticated user's password.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
 	// Lists the authenticated user's verified email addresses and primary choice.
@@ -470,6 +493,12 @@ type MyAccountServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	myAccountServiceMethods := v1.File_chatto_api_v1_account_proto.Services().ByName("MyAccountService").Methods()
+	myAccountServiceClaimOwnerWelcomeHandler := connect.NewUnaryHandler(
+		MyAccountServiceClaimOwnerWelcomeProcedure,
+		svc.ClaimOwnerWelcome,
+		connect.WithSchema(myAccountServiceMethods.ByName("ClaimOwnerWelcome")),
+		connect.WithHandlerOptions(opts...),
+	)
 	myAccountServiceChangePasswordHandler := connect.NewUnaryHandler(
 		MyAccountServiceChangePasswordProcedure,
 		svc.ChangePassword,
@@ -582,6 +611,8 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 	)
 	return "/chatto.api.v1.MyAccountService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case MyAccountServiceClaimOwnerWelcomeProcedure:
+			myAccountServiceClaimOwnerWelcomeHandler.ServeHTTP(w, r)
 		case MyAccountServiceChangePasswordProcedure:
 			myAccountServiceChangePasswordHandler.ServeHTTP(w, r)
 		case MyAccountServiceListVerifiedEmailsProcedure:
@@ -626,6 +657,10 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 
 // UnimplementedMyAccountServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedMyAccountServiceHandler struct{}
+
+func (UnimplementedMyAccountServiceHandler) ClaimOwnerWelcome(context.Context, *connect.Request[v1.ClaimOwnerWelcomeRequest]) (*connect.Response[v1.ClaimOwnerWelcomeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.ClaimOwnerWelcome is not implemented"))
+}
 
 func (UnimplementedMyAccountServiceHandler) ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.ChangePassword is not implemented"))

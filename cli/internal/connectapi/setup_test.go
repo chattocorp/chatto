@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1/authv1connect"
 	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
@@ -99,5 +100,35 @@ func TestSetupErrorFields(t *testing.T) {
 				t.Fatalf("field = %q, want %q", got, tt.field)
 			}
 		})
+	}
+}
+
+func TestConfiguredOwnerWelcomeAPI(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := t.Context()
+	cfg := config.ChattoConfig{Core: config.CoreConfig{SecretKey: "test-core-secret", Assets: config.AssetsConfig{SigningSecret: "test-assets-secret"}, AuthDirectLoginDisabled: true, Owners: config.OwnersConfig{Emails: []string{"founder@example.test"}}}}
+	c, err := core.NewChattoCore(ctx, nc, cfg.Core)
+	if err != nil {
+		t.Fatal(err)
+	}
+	startConnectAPITestCore(t, c)
+	api := New(c, cfg, "0.5.0")
+	service := &accountService{api: api}
+	_, err = service.ClaimOwnerWelcome(ctx, connect.NewRequest(&apiv1.ClaimOwnerWelcomeRequest{}))
+	if errorCode(err) != connect.CodeUnauthenticated {
+		t.Fatalf("anonymous claim: %v", err)
+	}
+	owner, err := c.CreateVerifiedUser(ctx, core.SystemActorID, "founder", "Founder", "correct-password", "founder@example.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []bool{true, false} {
+		response, err := service.ClaimOwnerWelcome(withCaller(ctx, owner), connect.NewRequest(&apiv1.ClaimOwnerWelcomeRequest{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response.Msg.ShowWelcome != want {
+			t.Fatalf("show=%v want=%v", response.Msg.ShowWelcome, want)
+		}
 	}
 }

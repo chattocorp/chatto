@@ -13,6 +13,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/chattocorp/chatto/cli/internal/readmodel"
 
@@ -91,7 +92,7 @@ func (c *ChattoCore) IsServerOwner(ctx context.Context, userID string) (bool, er
 }
 
 func (c *ChattoCore) isConfiguredOwner(ctx context.Context, userID string) (bool, error) {
-	if len(c.config.Owners.Emails) == 0 {
+	if !c.config.Owners.Configured() {
 		return false, nil
 	}
 	emails, err := c.userModel.verifiedEmails(ctx, userID)
@@ -103,7 +104,25 @@ func (c *ChattoCore) isConfiguredOwner(ctx context.Context, userID string) (bool
 			return true, nil
 		}
 	}
-	return false, nil
+	if len(c.config.Owners.DIDs) > 0 {
+		if err := c.userModel.waitForUserAuthCurrent(ctx, "configured owner"); err != nil {
+			return false, err
+		}
+	}
+	return slices.ContainsFunc(c.userModel.externalIdentities(userID), c.isConfiguredOwnerIdentity), nil
+}
+
+// isConfiguredOwnerIdentity accepts only the namespace of a configured AT Protocol provider.
+func (c *ChattoCore) isConfiguredOwnerIdentity(identity ExternalIdentity) bool {
+	if identity.ProviderType != "atproto" || !c.config.Owners.IsServerOwnerDID(identity.Subject) {
+		return false
+	}
+	for _, provider := range c.config.AuthProviders {
+		if provider.Type == "atproto" && provider.ID == identity.Issuer {
+			return true
+		}
+	}
+	return false
 }
 
 // ResolveUserPermission returns the walker's decision (allow / deny / none)

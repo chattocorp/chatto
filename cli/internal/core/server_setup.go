@@ -60,7 +60,7 @@ func (c *ChattoCore) initializeServerSetup(ctx context.Context) error {
 			}
 		}
 		if fresh {
-			event = newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerSetupOffered{ServerSetupOffered: &evtv1.ServerSetupOfferedEvent{}}})
+			event = newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerSetupOffered{ServerSetupOffered: &evtv1.ServerSetupOfferedEvent{OwnerWelcomeEligible: true}}})
 		}
 		filter := evtstream.SetupAggregate().AllEventsFilter()
 		if fresh {
@@ -80,7 +80,7 @@ func (c *ChattoCore) initializeServerSetup(ctx context.Context) error {
 // Any user history also closes eligibility for operator/bootstrap-created users,
 // even if all those users were later deleted.
 func (c *ChattoCore) SetupRequired(ctx context.Context) (bool, error) {
-	if c.config.SkipSetupWizard {
+	if c.config.SkipSetupWizard || c.configuredOwnerSetup() {
 		return false, nil
 	}
 	seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
@@ -176,4 +176,69 @@ func (c *ChattoCore) CompleteBootstrappedSetup(ctx context.Context) error {
 		return nil
 	}
 	return err
+}
+
+// configuredOwnerSetup suppresses the wizard without changing durable state.
+func (c *ChattoCore) configuredOwnerSetup() bool {
+	return c.config.AuthDirectLoginDisabled && c.config.Owners.Configured()
+}
+
+// ClaimOwnerWelcome closes setup once for the first authenticated configured owner.
+// Older histories lack eligibility. Explicit skip and development bootstrap never welcome.
+func (c *ChattoCore) ClaimOwnerWelcome(ctx context.Context, userID string) (bool, error) {
+	if c.config.SkipSetupWizard || !c.configuredOwnerSetup() {
+		return false, nil
+	}
+	if err := c.WaitForProjectionsCurrent(ctx); err != nil {
+		return false, err
+	}
+	configured, err := c.isConfiguredOwner(ctx, userID)
+	if err != nil || !configured {
+		return false, err
+	}
+	if !c.rbacModel.hasRole(userID, RoleOwner) {
+		return false, nil
+	}
+	seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
+	if err != nil || seq == 0 {
+		return false, err
+	}
+	record, err := c.eventReader.EventAt(ctx, seq)
+	if err != nil {
+		return false, err
+	}
+	if !record.Event.GetServerSetupOffered().GetOwnerWelcomeEligible() {
+		return false, nil
+	}
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_ServerInitialized{ServerInitialized: &evtv1.ServerInitializedEvent{}}})
+	_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, Expect: events.ExpectFilterSeq(evtstream.SetupAggregate().AllEventsFilter(), seq)}})
+	if errors.Is(err, events.ErrConflict) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// ExcludeBootstrapOwnerWelcome durably excludes development bootstrap before
+// it creates accounts. A crash cannot turn a partial bootstrap into SSO onboarding.
+func (c *ChattoCore) ExcludeBootstrapOwnerWelcome(ctx context.Context) error {
+	for range 10 {
+		seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
+		if err != nil || seq == 0 {
+			return err
+		}
+		record, err := c.eventReader.EventAt(ctx, seq)
+		if err != nil {
+			return err
+		}
+		if !record.Event.GetServerSetupOffered().GetOwnerWelcomeEligible() {
+			return nil
+		}
+		event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerSetupOffered{ServerSetupOffered: &evtv1.ServerSetupOfferedEvent{}}})
+		_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, Expect: events.ExpectFilterSeq(evtstream.SetupAggregate().AllEventsFilter(), seq)}})
+		if errors.Is(err, events.ErrConflict) {
+			continue
+		}
+		return err
+	}
+	return events.ErrConflict
 }

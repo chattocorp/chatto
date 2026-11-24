@@ -700,3 +700,5 @@ not participate in startup readiness or projection diagnostics. Job list,
 detail, retry, and delete requests wait for its replay. After a retry or a
 delete, the queue waits until the view has applied the new fact. A periodic sweep drops jobs that the
 stream no longer retains. Standalone media processes do not run the view.
+
+Notification Decisions also tracks external-identity link positions so the configured-DID effect consumer can wait for its source boundary. User Auth supplies the linked issuer and DID; RBAC remains the source of durable owner authority.

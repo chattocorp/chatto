@@ -1,10 +1,15 @@
 syntax = "proto3";
 package chatto.core.evt.v1;
+
 option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1;evtv1";
 
 // Records eligibility for first-run setup before a new server seeds defaults.
 // Only an empty EVT history may acquire this fact. Envelope tags: 950-959.
-message ServerSetupOfferedEvent {}
+message ServerSetupOfferedEvent {
+  // New installations may welcome a configured owner after external sign-in.
+  // Absent on existing installations, which must never show this welcome.
+  bool owner_welcome_eligible = 1;
+}
 
 // Permanently closes first-run setup after setup, bootstrap, or upgrade.
 message ServerInitializedEvent {}

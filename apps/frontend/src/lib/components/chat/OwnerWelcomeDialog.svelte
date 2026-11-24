@@ -7,6 +7,7 @@ ready, activates Shield Mode, and suggests the first configuration tasks.
 Renders nothing on other servers or later visits.
 -->
 <script lang="ts">
+  import { createAccountAPI } from '@chatto/client/api/account';
   import { serverRegistry } from '$lib/client';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
@@ -23,6 +24,7 @@ Renders nothing on other servers or later visits.
   const serverId = scope.serverId;
   const serverSegment = serverIdToSegment(serverId);
 
+  let welcomeChecked = false;
   let visible = $state(false);
   // Show the inactive hint only after activation fails, not while it runs.
   let shieldFailed = $state(false);
@@ -32,9 +34,29 @@ Renders nothing on other servers or later visits.
   // availability, has loaded. Later runs find no pending mark.
   $effect(() => {
     if (!privilegedMode || !serverRegistry.isOriginServer(serverId)) return;
-    if (!takeOwnerOnboarding()) return;
+    if (welcomeChecked) return;
+    if (takeOwnerOnboarding()) {
+      welcomeChecked = true;
+      showWelcome();
+      return;
+    }
+    // The viewer-ready boundary also serves redirected provider sign-ins.
+    // The server atomically claims eligibility; no URL can request this dialog.
+    if (!privilegedMode.available) return;
+    welcomeChecked = true;
+    void createAccountAPI(scope.connection.apiConfig)
+      .claimOwnerWelcome()
+      .then((show) => {
+        if (show && scope.isCurrent()) showWelcome();
+      })
+      .catch(() => {
+        /* A later sign-in can retry an uncommitted claim. */
+      });
+  });
+
+  function showWelcome() {
     visible = true;
-    if (privilegedMode.available && !privilegedMode.active) {
+    if (privilegedMode?.available && !privilegedMode.active) {
       store
         .setPrivilegedMode(true, privilegedMode.roleSelection ? ['owner'] : undefined)
         .catch((error: unknown) => {
@@ -42,7 +64,7 @@ Renders nothing on other servers or later visits.
           toastError(error, m('chat.owner_welcome.shield_failed'));
         });
     }
-  });
+  }
 
   const nextSteps = (['general', 'rooms', 'registration', 'invites'] as const).map((destination) =>
     adminNavItem(destination, serverSegment)

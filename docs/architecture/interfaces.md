@@ -710,3 +710,5 @@ viewed job version. OCC on the facts of the job accepts one new attempt budget
 or one delete. Delete removes a failed job and abandons its work. Retry
 versions are opaque application tokens, not broker coordinates. See FDR-056
 and ADR-123.
+
+`MyAccountService.ClaimOwnerWelcome` binds first-owner setup completion to the authenticated account. Only the winning setup OCC claim returns `show_welcome`; older installations and completed setup return false.

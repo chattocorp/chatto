@@ -959,11 +959,93 @@ func (*DeleteMyAccountResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{18}
 }
 
+// Authenticated request to claim the new server's first-owner welcome.
+type ClaimOwnerWelcomeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClaimOwnerWelcomeRequest) Reset() {
+	*x = ClaimOwnerWelcomeRequest{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClaimOwnerWelcomeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClaimOwnerWelcomeRequest) ProtoMessage() {}
+
+func (x *ClaimOwnerWelcomeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClaimOwnerWelcomeRequest.ProtoReflect.Descriptor instead.
+func (*ClaimOwnerWelcomeRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{19}
+}
+
+// Exactly one eligible configured owner receives true. Other claims return false.
+type ClaimOwnerWelcomeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ShowWelcome   bool                   `protobuf:"varint,1,opt,name=show_welcome,json=showWelcome,proto3" json:"show_welcome,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClaimOwnerWelcomeResponse) Reset() {
+	*x = ClaimOwnerWelcomeResponse{}
+	mi := &file_chatto_api_v1_account_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClaimOwnerWelcomeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClaimOwnerWelcomeResponse) ProtoMessage() {}
+
+func (x *ClaimOwnerWelcomeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_account_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClaimOwnerWelcomeResponse.ProtoReflect.Descriptor instead.
+func (*ClaimOwnerWelcomeResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ClaimOwnerWelcomeResponse) GetShowWelcome() bool {
+	if x != nil {
+		return x.ShowWelcome
+	}
+	return false
+}
+
 var File_chatto_api_v1_account_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/api/v1/account.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a'chatto/api/v1/external_identities.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1achatto/api/v1/viewer.proto\"t\n" +
+	"\x1bchatto/api/v1/account.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a'chatto/api/v1/external_identities.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1achatto/api/v1/viewer.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"t\n" +
 	"\x15ChangePasswordRequest\x12&\n" +
 	"\bpassword\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\b\x18\x80\x01R\bpassword\x123\n" +
@@ -1017,8 +1099,12 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"G\n" +
 	"\x16DeleteMyAccountRequest\x12-\n" +
 	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"(\n" +
-	"\x17DeleteMyAccountResponseJ\x04\b\x01\x10\x02R\adeleted2\xb8\x0f\n" +
-	"\x10MyAccountService\x12]\n" +
+	"\x17DeleteMyAccountResponseJ\x04\b\x01\x10\x02R\adeleted\"\x1a\n" +
+	"\x18ClaimOwnerWelcomeRequest\">\n" +
+	"\x19ClaimOwnerWelcomeResponse\x12!\n" +
+	"\fshow_welcome\x18\x01 \x01(\bR\vshowWelcome2\xa0\x10\n" +
+	"\x10MyAccountService\x12f\n" +
+	"\x11ClaimOwnerWelcome\x12'.chatto.api.v1.ClaimOwnerWelcomeRequest\x1a(.chatto.api.v1.ClaimOwnerWelcomeResponse\x12]\n" +
 	"\x0eChangePassword\x12$.chatto.api.v1.ChangePasswordRequest\x1a%.chatto.api.v1.ChangePasswordResponse\x12n\n" +
 	"\x12ListVerifiedEmails\x12(.chatto.api.v1.ListVerifiedEmailsRequest\x1a).chatto.api.v1.ListVerifiedEmailsResponse\"\x03\x90\x02\x01\x12{\n" +
 	"\x18RequestEmailVerification\x12..chatto.api.v1.RequestEmailVerificationRequest\x1a/.chatto.api.v1.RequestEmailVerificationResponse\x12{\n" +
@@ -1051,7 +1137,7 @@ func file_chatto_api_v1_account_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_account_proto_rawDescData
 }
 
-var file_chatto_api_v1_account_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_chatto_api_v1_account_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_chatto_api_v1_account_proto_goTypes = []any{
 	(*ChangePasswordRequest)(nil),              // 0: chatto.api.v1.ChangePasswordRequest
 	(*ChangePasswordResponse)(nil),             // 1: chatto.api.v1.ChangePasswordResponse
@@ -1072,78 +1158,82 @@ var file_chatto_api_v1_account_proto_goTypes = []any{
 	(*RequestAccountDeletionResponse)(nil),     // 16: chatto.api.v1.RequestAccountDeletionResponse
 	(*DeleteMyAccountRequest)(nil),             // 17: chatto.api.v1.DeleteMyAccountRequest
 	(*DeleteMyAccountResponse)(nil),            // 18: chatto.api.v1.DeleteMyAccountResponse
-	(*User)(nil),                               // 19: chatto.api.v1.User
-	(*timestamppb.Timestamp)(nil),              // 20: google.protobuf.Timestamp
-	(*UserSettings)(nil),                       // 21: chatto.api.v1.UserSettings
-	(TimeFormat)(0),                            // 22: chatto.api.v1.TimeFormat
-	(*fieldmaskpb.FieldMask)(nil),              // 23: google.protobuf.FieldMask
-	(*ListExternalIdentitiesRequest)(nil),      // 24: chatto.api.v1.ListExternalIdentitiesRequest
-	(*StartExternalIdentityLinkRequest)(nil),   // 25: chatto.api.v1.StartExternalIdentityLinkRequest
-	(*DisconnectExternalIdentityRequest)(nil),  // 26: chatto.api.v1.DisconnectExternalIdentityRequest
-	(*SetPresenceRequest)(nil),                 // 27: chatto.api.v1.SetPresenceRequest
-	(*GetPresencePreferenceRequest)(nil),       // 28: chatto.api.v1.GetPresencePreferenceRequest
-	(*SetPresencePreferenceRequest)(nil),       // 29: chatto.api.v1.SetPresencePreferenceRequest
-	(*RefreshPresenceRequest)(nil),             // 30: chatto.api.v1.RefreshPresenceRequest
-	(*SetCustomStatusRequest)(nil),             // 31: chatto.api.v1.SetCustomStatusRequest
-	(*DeleteCustomStatusRequest)(nil),          // 32: chatto.api.v1.DeleteCustomStatusRequest
-	(*ListExternalIdentitiesResponse)(nil),     // 33: chatto.api.v1.ListExternalIdentitiesResponse
-	(*StartExternalIdentityLinkResponse)(nil),  // 34: chatto.api.v1.StartExternalIdentityLinkResponse
-	(*DisconnectExternalIdentityResponse)(nil), // 35: chatto.api.v1.DisconnectExternalIdentityResponse
-	(*SetPresenceResponse)(nil),                // 36: chatto.api.v1.SetPresenceResponse
-	(*GetPresencePreferenceResponse)(nil),      // 37: chatto.api.v1.GetPresencePreferenceResponse
-	(*SetPresencePreferenceResponse)(nil),      // 38: chatto.api.v1.SetPresencePreferenceResponse
-	(*RefreshPresenceResponse)(nil),            // 39: chatto.api.v1.RefreshPresenceResponse
-	(*SetCustomStatusResponse)(nil),            // 40: chatto.api.v1.SetCustomStatusResponse
-	(*DeleteCustomStatusResponse)(nil),         // 41: chatto.api.v1.DeleteCustomStatusResponse
+	(*ClaimOwnerWelcomeRequest)(nil),           // 19: chatto.api.v1.ClaimOwnerWelcomeRequest
+	(*ClaimOwnerWelcomeResponse)(nil),          // 20: chatto.api.v1.ClaimOwnerWelcomeResponse
+	(*User)(nil),                               // 21: chatto.api.v1.User
+	(*timestamppb.Timestamp)(nil),              // 22: google.protobuf.Timestamp
+	(*UserSettings)(nil),                       // 23: chatto.api.v1.UserSettings
+	(TimeFormat)(0),                            // 24: chatto.api.v1.TimeFormat
+	(*fieldmaskpb.FieldMask)(nil),              // 25: google.protobuf.FieldMask
+	(*ListExternalIdentitiesRequest)(nil),      // 26: chatto.api.v1.ListExternalIdentitiesRequest
+	(*StartExternalIdentityLinkRequest)(nil),   // 27: chatto.api.v1.StartExternalIdentityLinkRequest
+	(*DisconnectExternalIdentityRequest)(nil),  // 28: chatto.api.v1.DisconnectExternalIdentityRequest
+	(*SetPresenceRequest)(nil),                 // 29: chatto.api.v1.SetPresenceRequest
+	(*GetPresencePreferenceRequest)(nil),       // 30: chatto.api.v1.GetPresencePreferenceRequest
+	(*SetPresencePreferenceRequest)(nil),       // 31: chatto.api.v1.SetPresencePreferenceRequest
+	(*RefreshPresenceRequest)(nil),             // 32: chatto.api.v1.RefreshPresenceRequest
+	(*SetCustomStatusRequest)(nil),             // 33: chatto.api.v1.SetCustomStatusRequest
+	(*DeleteCustomStatusRequest)(nil),          // 34: chatto.api.v1.DeleteCustomStatusRequest
+	(*ListExternalIdentitiesResponse)(nil),     // 35: chatto.api.v1.ListExternalIdentitiesResponse
+	(*StartExternalIdentityLinkResponse)(nil),  // 36: chatto.api.v1.StartExternalIdentityLinkResponse
+	(*DisconnectExternalIdentityResponse)(nil), // 37: chatto.api.v1.DisconnectExternalIdentityResponse
+	(*SetPresenceResponse)(nil),                // 38: chatto.api.v1.SetPresenceResponse
+	(*GetPresencePreferenceResponse)(nil),      // 39: chatto.api.v1.GetPresencePreferenceResponse
+	(*SetPresencePreferenceResponse)(nil),      // 40: chatto.api.v1.SetPresencePreferenceResponse
+	(*RefreshPresenceResponse)(nil),            // 41: chatto.api.v1.RefreshPresenceResponse
+	(*SetCustomStatusResponse)(nil),            // 42: chatto.api.v1.SetCustomStatusResponse
+	(*DeleteCustomStatusResponse)(nil),         // 43: chatto.api.v1.DeleteCustomStatusResponse
 }
 var file_chatto_api_v1_account_proto_depIdxs = []int32{
-	19, // 0: chatto.api.v1.ChangePasswordResponse.user:type_name -> chatto.api.v1.User
-	20, // 1: chatto.api.v1.VerifiedEmail.verified_at:type_name -> google.protobuf.Timestamp
+	21, // 0: chatto.api.v1.ChangePasswordResponse.user:type_name -> chatto.api.v1.User
+	22, // 1: chatto.api.v1.VerifiedEmail.verified_at:type_name -> google.protobuf.Timestamp
 	2,  // 2: chatto.api.v1.ListVerifiedEmailsResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
 	2,  // 3: chatto.api.v1.ConfirmEmailVerificationResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
 	2,  // 4: chatto.api.v1.SetPrimaryEmailResponse.verified_emails:type_name -> chatto.api.v1.VerifiedEmail
-	21, // 5: chatto.api.v1.GetSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
-	22, // 6: chatto.api.v1.UpdateSettingsRequest.time_format:type_name -> chatto.api.v1.TimeFormat
-	23, // 7: chatto.api.v1.UpdateSettingsRequest.update_mask:type_name -> google.protobuf.FieldMask
-	21, // 8: chatto.api.v1.UpdateSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
-	0,  // 9: chatto.api.v1.MyAccountService.ChangePassword:input_type -> chatto.api.v1.ChangePasswordRequest
-	3,  // 10: chatto.api.v1.MyAccountService.ListVerifiedEmails:input_type -> chatto.api.v1.ListVerifiedEmailsRequest
-	5,  // 11: chatto.api.v1.MyAccountService.RequestEmailVerification:input_type -> chatto.api.v1.RequestEmailVerificationRequest
-	7,  // 12: chatto.api.v1.MyAccountService.ConfirmEmailVerification:input_type -> chatto.api.v1.ConfirmEmailVerificationRequest
-	9,  // 13: chatto.api.v1.MyAccountService.SetPrimaryEmail:input_type -> chatto.api.v1.SetPrimaryEmailRequest
-	11, // 14: chatto.api.v1.MyAccountService.GetSettings:input_type -> chatto.api.v1.GetSettingsRequest
-	13, // 15: chatto.api.v1.MyAccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
-	24, // 16: chatto.api.v1.MyAccountService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
-	25, // 17: chatto.api.v1.MyAccountService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
-	26, // 18: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:input_type -> chatto.api.v1.DisconnectExternalIdentityRequest
-	27, // 19: chatto.api.v1.MyAccountService.SetPresence:input_type -> chatto.api.v1.SetPresenceRequest
-	28, // 20: chatto.api.v1.MyAccountService.GetPresencePreference:input_type -> chatto.api.v1.GetPresencePreferenceRequest
-	29, // 21: chatto.api.v1.MyAccountService.SetPresencePreference:input_type -> chatto.api.v1.SetPresencePreferenceRequest
-	30, // 22: chatto.api.v1.MyAccountService.RefreshPresence:input_type -> chatto.api.v1.RefreshPresenceRequest
-	31, // 23: chatto.api.v1.MyAccountService.SetCustomStatus:input_type -> chatto.api.v1.SetCustomStatusRequest
-	32, // 24: chatto.api.v1.MyAccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
-	15, // 25: chatto.api.v1.MyAccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
-	17, // 26: chatto.api.v1.MyAccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
-	1,  // 27: chatto.api.v1.MyAccountService.ChangePassword:output_type -> chatto.api.v1.ChangePasswordResponse
-	4,  // 28: chatto.api.v1.MyAccountService.ListVerifiedEmails:output_type -> chatto.api.v1.ListVerifiedEmailsResponse
-	6,  // 29: chatto.api.v1.MyAccountService.RequestEmailVerification:output_type -> chatto.api.v1.RequestEmailVerificationResponse
-	8,  // 30: chatto.api.v1.MyAccountService.ConfirmEmailVerification:output_type -> chatto.api.v1.ConfirmEmailVerificationResponse
-	10, // 31: chatto.api.v1.MyAccountService.SetPrimaryEmail:output_type -> chatto.api.v1.SetPrimaryEmailResponse
-	12, // 32: chatto.api.v1.MyAccountService.GetSettings:output_type -> chatto.api.v1.GetSettingsResponse
-	14, // 33: chatto.api.v1.MyAccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
-	33, // 34: chatto.api.v1.MyAccountService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
-	34, // 35: chatto.api.v1.MyAccountService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
-	35, // 36: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:output_type -> chatto.api.v1.DisconnectExternalIdentityResponse
-	36, // 37: chatto.api.v1.MyAccountService.SetPresence:output_type -> chatto.api.v1.SetPresenceResponse
-	37, // 38: chatto.api.v1.MyAccountService.GetPresencePreference:output_type -> chatto.api.v1.GetPresencePreferenceResponse
-	38, // 39: chatto.api.v1.MyAccountService.SetPresencePreference:output_type -> chatto.api.v1.SetPresencePreferenceResponse
-	39, // 40: chatto.api.v1.MyAccountService.RefreshPresence:output_type -> chatto.api.v1.RefreshPresenceResponse
-	40, // 41: chatto.api.v1.MyAccountService.SetCustomStatus:output_type -> chatto.api.v1.SetCustomStatusResponse
-	41, // 42: chatto.api.v1.MyAccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
-	16, // 43: chatto.api.v1.MyAccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
-	18, // 44: chatto.api.v1.MyAccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
-	27, // [27:45] is the sub-list for method output_type
-	9,  // [9:27] is the sub-list for method input_type
+	23, // 5: chatto.api.v1.GetSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
+	24, // 6: chatto.api.v1.UpdateSettingsRequest.time_format:type_name -> chatto.api.v1.TimeFormat
+	25, // 7: chatto.api.v1.UpdateSettingsRequest.update_mask:type_name -> google.protobuf.FieldMask
+	23, // 8: chatto.api.v1.UpdateSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
+	19, // 9: chatto.api.v1.MyAccountService.ClaimOwnerWelcome:input_type -> chatto.api.v1.ClaimOwnerWelcomeRequest
+	0,  // 10: chatto.api.v1.MyAccountService.ChangePassword:input_type -> chatto.api.v1.ChangePasswordRequest
+	3,  // 11: chatto.api.v1.MyAccountService.ListVerifiedEmails:input_type -> chatto.api.v1.ListVerifiedEmailsRequest
+	5,  // 12: chatto.api.v1.MyAccountService.RequestEmailVerification:input_type -> chatto.api.v1.RequestEmailVerificationRequest
+	7,  // 13: chatto.api.v1.MyAccountService.ConfirmEmailVerification:input_type -> chatto.api.v1.ConfirmEmailVerificationRequest
+	9,  // 14: chatto.api.v1.MyAccountService.SetPrimaryEmail:input_type -> chatto.api.v1.SetPrimaryEmailRequest
+	11, // 15: chatto.api.v1.MyAccountService.GetSettings:input_type -> chatto.api.v1.GetSettingsRequest
+	13, // 16: chatto.api.v1.MyAccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
+	26, // 17: chatto.api.v1.MyAccountService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
+	27, // 18: chatto.api.v1.MyAccountService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
+	28, // 19: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:input_type -> chatto.api.v1.DisconnectExternalIdentityRequest
+	29, // 20: chatto.api.v1.MyAccountService.SetPresence:input_type -> chatto.api.v1.SetPresenceRequest
+	30, // 21: chatto.api.v1.MyAccountService.GetPresencePreference:input_type -> chatto.api.v1.GetPresencePreferenceRequest
+	31, // 22: chatto.api.v1.MyAccountService.SetPresencePreference:input_type -> chatto.api.v1.SetPresencePreferenceRequest
+	32, // 23: chatto.api.v1.MyAccountService.RefreshPresence:input_type -> chatto.api.v1.RefreshPresenceRequest
+	33, // 24: chatto.api.v1.MyAccountService.SetCustomStatus:input_type -> chatto.api.v1.SetCustomStatusRequest
+	34, // 25: chatto.api.v1.MyAccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
+	15, // 26: chatto.api.v1.MyAccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
+	17, // 27: chatto.api.v1.MyAccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
+	20, // 28: chatto.api.v1.MyAccountService.ClaimOwnerWelcome:output_type -> chatto.api.v1.ClaimOwnerWelcomeResponse
+	1,  // 29: chatto.api.v1.MyAccountService.ChangePassword:output_type -> chatto.api.v1.ChangePasswordResponse
+	4,  // 30: chatto.api.v1.MyAccountService.ListVerifiedEmails:output_type -> chatto.api.v1.ListVerifiedEmailsResponse
+	6,  // 31: chatto.api.v1.MyAccountService.RequestEmailVerification:output_type -> chatto.api.v1.RequestEmailVerificationResponse
+	8,  // 32: chatto.api.v1.MyAccountService.ConfirmEmailVerification:output_type -> chatto.api.v1.ConfirmEmailVerificationResponse
+	10, // 33: chatto.api.v1.MyAccountService.SetPrimaryEmail:output_type -> chatto.api.v1.SetPrimaryEmailResponse
+	12, // 34: chatto.api.v1.MyAccountService.GetSettings:output_type -> chatto.api.v1.GetSettingsResponse
+	14, // 35: chatto.api.v1.MyAccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
+	35, // 36: chatto.api.v1.MyAccountService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
+	36, // 37: chatto.api.v1.MyAccountService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
+	37, // 38: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:output_type -> chatto.api.v1.DisconnectExternalIdentityResponse
+	38, // 39: chatto.api.v1.MyAccountService.SetPresence:output_type -> chatto.api.v1.SetPresenceResponse
+	39, // 40: chatto.api.v1.MyAccountService.GetPresencePreference:output_type -> chatto.api.v1.GetPresencePreferenceResponse
+	40, // 41: chatto.api.v1.MyAccountService.SetPresencePreference:output_type -> chatto.api.v1.SetPresencePreferenceResponse
+	41, // 42: chatto.api.v1.MyAccountService.RefreshPresence:output_type -> chatto.api.v1.RefreshPresenceResponse
+	42, // 43: chatto.api.v1.MyAccountService.SetCustomStatus:output_type -> chatto.api.v1.SetCustomStatusResponse
+	43, // 44: chatto.api.v1.MyAccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
+	16, // 45: chatto.api.v1.MyAccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
+	18, // 46: chatto.api.v1.MyAccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
+	28, // [28:47] is the sub-list for method output_type
+	9,  // [9:28] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
 	9,  // [9:9] is the sub-list for extension extendee
 	0,  // [0:9] is the sub-list for field type_name
@@ -1166,7 +1256,7 @@ func file_chatto_api_v1_account_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_account_proto_rawDesc), len(file_chatto_api_v1_account_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

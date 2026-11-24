@@ -295,3 +295,18 @@ func apiTimeFormatToCore(format apiv1.TimeFormat) evtv1.TimeFormat {
 		return evtv1.TimeFormat_TIME_FORMAT_UNSPECIFIED
 	}
 }
+
+// ClaimOwnerWelcome binds the one-time setup claim to the authenticated account.
+func (s *accountService) ClaimOwnerWelcome(ctx context.Context, req *connect.Request[apiv1.ClaimOwnerWelcomeRequest]) (*connect.Response[apiv1.ClaimOwnerWelcomeResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	welcome, err := s.api.core.ClaimOwnerWelcome(ctx, caller.UserID)
+	if err != nil {
+		return nil, err
+	}
+	response := connect.NewResponse(&apiv1.ClaimOwnerWelcomeResponse{ShowWelcome: welcome})
+	response.Header().Set("Cache-Control", "no-store")
+	return response, nil
+}

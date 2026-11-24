@@ -659,6 +659,10 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
 
 ## Owners
 
+<EnvVar name="CHATTO_OWNERS_DIDS" toml="owners.dids">
+  AT Protocol DIDs that grant the owner role, for example `["did:web:owner.example.com"]` in TOML. Use a comma-separated list in the environment variable. Only linked identities from a configured AT Protocol provider count. Handles are not accepted. Chatto grants the role at account creation, identity linking, and startup. Removing a DID does not revoke the role. With password login off and at least one configured owner email or DID, Chatto shows sign-in instead of the setup wizard.
+</EnvVar>
+
 <EnvVar name="CHATTO_OWNERS_EMAILS" toml="owners.emails">
   Comma-separated list of email addresses that confer server-owner status. A user with any verified email matching the list gets full server access (including `/admin` routes). Only verified email addresses are matched.
 </EnvVar>

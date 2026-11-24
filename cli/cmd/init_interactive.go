@@ -108,7 +108,7 @@ func newInitForm(opts *initOptions, port, smtpPort *string, backward *bool) *huh
 			huh.NewConfirm().WithButtonAlignment(lipgloss.Left).Title("Open registration").
 				Description("Let people create password accounts. SSO has its own setting.").
 				Affirmative("Open").Negative("Closed").Value(&opts.DirectRegistration),
-			huh.NewConfirm().WithButtonAlignment(lipgloss.Left).Title("Password login").Description("Keep enabled for owner setup. You can switch to SSO-only later.").Affirmative("Enabled").Negative("SSO only").Value(&opts.DirectLogin),
+			huh.NewConfirm().WithButtonAlignment(lipgloss.Left).Title("Password login").Description("SSO-only setup needs owners.emails or owners.dids in the configuration.").Affirmative("Enabled").Negative("SSO only").Value(&opts.DirectLogin),
 			huh.NewConfirm().WithButtonAlignment(lipgloss.Left).Title("Single sign-on").Description("Use an OpenID Connect identity provider.").Affirmative("Configure SSO").Negative("Not now").Value(&opts.WithSSO),
 		).Title("Access").Description("Choose how people join and sign in."),
 		newInitPage(
@@ -295,7 +295,7 @@ func initReview(opts initOptions, port string) string {
 		lines = append(lines, "  "+filepath.Join(filepath.Dir(opts.ConfigPath), "livekit.yaml"))
 	}
 	if !opts.DirectLogin {
-		lines = append(lines, "", "First-run setup needs auth.direct_login = true.", "Create your owner and link SSO before disabling it.")
+		lines = append(lines, "", "For SSO-only setup, configure owners.emails or owners.dids.", "Then sign in through your provider to create the owner account.")
 	}
 	return strings.Join(lines, "\n") + "\n\n↑ to edit your answers · Ctrl+C to cancel\nNothing is written until you choose Create files."
 }
@@ -406,8 +406,8 @@ func printInitNextSteps(cmd *cobra.Command, opts initOptions) {
 		cmd.Printf("\nRegister this redirect URI with your SSO provider:\n  %s\n", initSSOCallback(opts, strconv.Itoa(opts.Port)))
 	}
 	if !opts.DirectLogin {
-		cmd.Println("\nBefore first-run setup, temporarily set auth.direct_login = true in the config.")
-		cmd.Println("Create your owner account, sign in, and link SSO. Then restore false and restart Chatto.")
+		cmd.Println("\nBefore SSO-only sign-in, configure your first owner.")
+		cmd.Println("Set owners.emails or owners.dids, then sign in through the provider to create the owner account.")
 	}
 	cmd.Printf("\nOpen %s to name your server and create your owner account.\n", opts.PublicURL)
 	cmd.Println("Keep access to the server restricted until you complete that step.")

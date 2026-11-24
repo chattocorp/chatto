@@ -59,9 +59,9 @@ The quickest and easiest way to give Chatto a try is to just download the execut
 
    For SSO, enter your provider’s issuer URL and client credentials, then register
    the redirect URI shown by the wizard with your provider. SSO account creation
-   has a separate switch from password registration. Keep password login enabled
-   for first-run owner setup. To use SSO-only login, link the owner account to SSO
-   before you disable `auth.direct_login` and restart Chatto.
+   has a separate switch from password registration. For SSO-only first-owner setup, configure `owners.emails` or `owners.dids`
+   and set `auth.direct_login = false`. Then sign in through the provider. See
+   [First owner without password login](/guides/operations/identity-login/#first-owner-without-password-login).
 
    Embedded NATS stores data in `./data`. For external NATS, enable JetStream
    on your server and supply its connection and authentication settings.

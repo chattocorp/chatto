@@ -151,6 +151,7 @@ type CoreConfig struct {
 	EVTReadCacheMaxBytes        *ByteSizeLimit       `toml:"evt_read_cache_max_bytes,commented" env:"CHATTO_CORE_EVT_READ_CACHE_MAX_BYTES" comment:"Approximate maximum bytes retained by the process-local EVT read cache. Supports '256MiB', '1GiB', etc. Use -1 for no byte limit. Default: 256MiB."`
 	Assets                      AssetsConfig         `toml:"assets"`
 	AuthTokenTTL                time.Duration        `toml:"-" env:"-"` // Human session renewal window and per-cookie lifetime, set from AuthConfig.TokenTTLOrDefault().
+	AuthDirectLoginDisabled     bool                 `toml:"-" env:"-"` // Set from auth.direct_login; false preserves the default.
 	AuthProviders               []AuthProviderConfig `toml:"-" env:"-"` // Provider account policies, copied from AuthConfig.Providers.
 	AuthAccessTokenTTL          time.Duration        `toml:"-" env:"-"` // Set by caller from AuthConfig.AccessTokenTTLOrDefault().
 	AuthLoopbackClientEnabled   bool                 `toml:"-" env:"-"` // Set by caller from AuthConfig.LoopbackClientEnabled; gates the built-in loopback OAuth client.

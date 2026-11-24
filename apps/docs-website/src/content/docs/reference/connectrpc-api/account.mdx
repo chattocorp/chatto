@@ -22,6 +22,36 @@ Self-service account, display preference, presence, custom-status,
 external identity, and account lifecycle commands for the authenticated
 user. Public profile and avatar changes use UserService.
 
+<a id="chatto-api-v1-MyAccountService-ClaimOwnerWelcome"></a>
+
+### ClaimOwnerWelcome
+
+Authenticated. Atomically completes configured-owner setup on a new server.
+Only the first eligible owner claim returns true. Explicitly skipped setup,
+wizard completion, development bootstrap, and existing installations return false.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/ClaimOwnerWelcome
+```
+
+<a id="chatto-api-v1-ClaimOwnerWelcomeRequest"></a>
+
+#### Input: ClaimOwnerWelcomeRequest
+
+Authenticated request to claim the new server's first-owner welcome.
+
+
+<a id="chatto-api-v1-ClaimOwnerWelcomeResponse"></a>
+
+#### Result: ClaimOwnerWelcomeResponse
+
+Exactly one eligible configured owner receives true. Other claims return false.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `show_welcome` | `bool` | No field description provided. |
+
+
 <a id="chatto-api-v1-MyAccountService-ChangePassword"></a>
 
 ### ChangePassword

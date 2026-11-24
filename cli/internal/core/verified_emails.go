@@ -262,33 +262,7 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 	// successful verification cannot return while live authorization and
 	// current notification visibility disagree about owner status.
 	if c.config.Owners.IsServerOwnerEmail(email) {
-		if c.notificationMaterializer == nil {
-			return errors.New("notification materializer is not configured")
-		}
-		var waitErr error
-		if sequence == 0 {
-			// An idempotent verification may be retrying after the original
-			// request timed out while durable owner assignment was pending.
-			waitErr = c.notificationMaterializer.WaitCurrent(ctx)
-		} else {
-			waitErr = c.notificationMaterializer.WaitThrough(ctx, sequence)
-		}
-		if waitErr != nil {
-			return fmt.Errorf("wait for configured-owner role materialization: %w", waitErr)
-		}
-		// The shared delivery may have run on another replica. Its ACK proves
-		// the RBAC fact committed, not that this replica's RBAC projection has
-		// observed that later fact yet.
-		rbacPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
-		if err != nil {
-			return fmt.Errorf("capture configured-owner RBAC boundary: %w", err)
-		}
-		if err := c.rbacModel.waitFor(ctx, rbacPosition); err != nil {
-			return fmt.Errorf("wait for configured-owner RBAC boundary: %w", err)
-		}
-		if !c.rbacModel.hasRole(userID, RoleOwner) {
-			return errors.New("configured-owner role was not materialized")
-		}
+		return c.waitConfiguredOwner(ctx, userID, sequence)
 	}
 
 	return nil
@@ -409,40 +383,27 @@ func (c *ChattoCore) ListUsersWithVerifiedEmail(ctx context.Context) ([]string, 
 	return c.userModel.verifiedUserIDs(), nil
 }
 
-// applyConfigOwners materializes owners.emails as durable owner-role
-// assignments for users who already have matching verified emails. It is
+// applyConfigOwners materializes configured emails and DIDs as durable owner-role
+// assignments for users with matching verified emails or AT Protocol identities. It is
 // intentionally additive: config cannot distinguish owner roles it granted
 // from owner roles assigned manually, so removed config emails are not revoked
 // here.
 func (c *ChattoCore) applyConfigOwners(ctx context.Context) error {
-	if len(c.config.Owners.Emails) == 0 {
+	if !c.config.Owners.Configured() {
 		return nil
 	}
-
-	promoted := 0
-	for _, userID := range c.userModel.verifiedUserIDs() {
-		emails, err := c.userModel.verifiedEmails(ctx, userID)
+	for _, userID := range c.userModel.verifiedAccountIDs() {
+		configured, err := c.isConfiguredOwner(ctx, userID)
 		if err != nil {
 			return err
 		}
-		for _, ve := range emails {
-			if !c.config.Owners.IsServerOwnerEmail(ve.Email) {
-				continue
-			}
-			if c.rbacModel.hasRole(userID, RoleOwner) {
-				break
-			}
+		if configured && !c.rbacModel.hasRole(userID, RoleOwner) {
 			if err := c.AssignConfiguredOwnerRole(ctx, userID); err != nil {
-				return fmt.Errorf("assign owner role to %s: %w", userID, err)
+				return err
 			}
-			promoted++
-			c.logger.Info("Applied owners.emails owner role", "user_id", userID)
-			break
 		}
 	}
-	if promoted > 0 {
-		c.logger.Info("Applied config owners", "owners_promoted", promoted)
-	}
+
 	return nil
 }
 
@@ -456,4 +417,36 @@ func (c *ChattoCore) AddVerifiedEmailDirect(ctx context.Context, userID, email s
 // attribution. Operator/admin flows should pass SystemActorID.
 func (c *ChattoCore) AddVerifiedEmailDirectAs(ctx context.Context, actorID, userID, email string) error {
 	return c.addVerifiedEmailAs(ctx, actorID, userID, email)
+}
+
+// waitConfiguredOwner waits for durable effects and then this replica's RBAC view.
+func (c *ChattoCore) waitConfiguredOwner(ctx context.Context, userID string, sequence uint64) error {
+	if c.notificationMaterializer == nil {
+		return errors.New("notification materializer is not configured")
+	}
+	var waitErr error
+	if sequence == 0 {
+		// An idempotent verification may be retrying after the original
+		// request timed out while durable owner assignment was pending.
+		waitErr = c.notificationMaterializer.WaitCurrent(ctx)
+	} else {
+		waitErr = c.notificationMaterializer.WaitThrough(ctx, sequence)
+	}
+	if waitErr != nil {
+		return fmt.Errorf("wait for configured-owner role materialization: %w", waitErr)
+	}
+	// The shared delivery may have run on another replica. Its ACK proves
+	// the RBAC fact committed, not that this replica's RBAC projection has
+	// observed that later fact yet.
+	rbacPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
+	if err != nil {
+		return fmt.Errorf("capture configured-owner RBAC boundary: %w", err)
+	}
+	if err := c.rbacModel.waitFor(ctx, rbacPosition); err != nil {
+		return fmt.Errorf("wait for configured-owner RBAC boundary: %w", err)
+	}
+	if !c.rbacModel.hasRole(userID, RoleOwner) {
+		return errors.New("configured-owner role was not materialized")
+	}
+	return nil
 }

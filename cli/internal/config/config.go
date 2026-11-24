@@ -20,7 +20,7 @@ import (
 // environment variables before derived defaults, normalization, and validation.
 type ChattoConfig struct {
 	General         GeneralConfig         `toml:"general"`
-	Owners          OwnersConfig          `toml:"owners" comment:"Email addresses that confer owner status."`
+	Owners          OwnersConfig          `toml:"owners" comment:"Verified email addresses and AT Protocol DIDs that confer owner status."`
 	Webserver       WebserverConfig       `toml:"webserver"`
 	Frontend        FrontendConfig        `toml:"frontend,commented" comment:"Bundled frontend settings. The standalone frontend and the desktop app ignore them."`
 	Metrics         MetricsConfig         `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
@@ -110,6 +110,9 @@ func embeddedNATSClientURL(cfg EmbeddedNATSConfig) string {
 // Validate checks the configuration for errors and returns a descriptive error if any are found.
 func (c *ChattoConfig) Validate() error {
 	var errs []string
+	if err := c.Owners.Validate(); err != nil {
+		errs = append(errs, err.Error())
+	}
 	if err := c.Core.Log.Validate(); err != nil {
 		errs = append(errs, err.Error())
 	}

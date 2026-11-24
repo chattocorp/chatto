@@ -1,6 +1,11 @@
 package config
 
-import "strings"
+import (
+	"fmt"
+	"regexp"
+	"slices"
+	"strings"
+)
 
 // DefaultMaxLoginLength applies when the operator does not configure a limit.
 const DefaultMaxLoginLength = 64
@@ -31,13 +36,10 @@ func (c *AccountsConfig) MaxUsersOrDefault() int {
 	return *c.MaxUsers
 }
 
-// OwnersConfig declares the email addresses that confer owner status.
-// A user with a matching verified email is treated as having all instance
-// permissions (owner-level), which includes access to /admin routes. This is
-// the operator-driven mechanism for designating an server owner — useful
-// for both Chatto Cloud (the control plane writes the customer's email here at
-// provision time) and self-hosters (who set their own email here in chatto.toml).
+// OwnersConfig declares verified emails and AT Protocol DIDs that grant the
+// owner role. Removing an entry never revokes an existing role assignment.
 type OwnersConfig struct {
+	DIDs   []string `toml:"dids" env:"CHATTO_OWNERS_DIDS" comment:"AT Protocol DIDs that confer owner status. Handles are not accepted. Removing a DID does not revoke the role."`
 	Emails []string `toml:"emails" env:"CHATTO_OWNERS_EMAILS" comment:"Email addresses that confer owner status. Users with these verified emails get full instance access, including /admin routes."`
 }
 
@@ -55,4 +57,24 @@ func (c *OwnersConfig) IsServerOwnerEmail(email string) bool {
 		}
 	}
 	return false
+}
+
+// IsServerOwnerDID compares stable DID subjects exactly. Handles never match.
+func (c *OwnersConfig) IsServerOwnerDID(did string) bool {
+	return slices.Contains(c.DIDs, did)
+}
+
+// Configured reports whether an operator has declared an owner.
+func (c *OwnersConfig) Configured() bool { return len(c.Emails) != 0 || len(c.DIDs) != 0 }
+
+var ownerDIDPattern = regexp.MustCompile(`^did:(plc:[a-z2-7]{24}|web:[a-zA-Z0-9._-]+(?:(?:%[0-9a-fA-F]{2})[a-zA-Z0-9._-]+)*(?::(?:[a-zA-Z0-9._-]|%[0-9a-fA-F]{2})+)*)$`)
+
+// Validate rejects handles and malformed DID entries without disclosing values.
+func (c *OwnersConfig) Validate() error {
+	for _, did := range c.DIDs {
+		if !ownerDIDPattern.MatchString(did) {
+			return fmt.Errorf("owners.dids contains an invalid AT Protocol DID")
+		}
+	}
+	return nil
 }
