@@ -53,6 +53,8 @@ type PendingExternalIdentityLinkStart struct {
 }
 
 type PendingExternalIdentityFlow struct {
+	// OwnerWelcome is a transient creation result, never persisted in a pending flow.
+	OwnerWelcome  bool   `json:"-"`
 	Kind          string `json:"kind"`
 	ProviderID    string `json:"provider_id"`
 	ProviderType  string `json:"provider_type"`

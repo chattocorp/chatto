@@ -1,4 +1,3 @@
-import { Code, ConnectError } from '@connectrpc/connect';
 import { updateMask } from './updateMask.js';
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
@@ -36,15 +35,6 @@ export function createAccountAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(MyAccountService, config);
 
   return {
-    /** Atomically claim the first-owner welcome. Older servers have no welcome signal. */
-    async claimOwnerWelcome(options: { signal?: AbortSignal } = {}): Promise<boolean> {
-      try {
-        return (await client.claimOwnerWelcome({}, options)).showWelcome;
-      } catch (error) {
-        if (error instanceof ConnectError && error.code === Code.Unimplemented) return false;
-        throw error;
-      }
-    },
     async changePassword(input: ChangePasswordInput): Promise<void> {
       await client.changePassword({
         password: input.password,

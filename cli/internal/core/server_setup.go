@@ -183,39 +183,26 @@ func (c *ChattoCore) configuredOwnerSetup() bool {
 	return c.config.AuthDirectLoginDisabled && c.config.Owners.Configured()
 }
 
-// ClaimOwnerWelcome closes setup once for the first authenticated configured owner.
-// Older histories lack eligibility. Explicit skip and development bootstrap never welcome.
-func (c *ChattoCore) ClaimOwnerWelcome(ctx context.Context, userID string) (bool, error) {
+// configuredOwnerCreationEntries completes initialization in the account batch.
+// The setup OCC guard selects one winner across concurrent account creations.
+func (c *ChattoCore) configuredOwnerCreationEntries(ctx context.Context, userID string) ([]evtstream.BatchEntry, error) {
 	if c.config.SkipSetupWizard || !c.configuredOwnerSetup() {
-		return false, nil
-	}
-	if err := c.WaitForProjectionsCurrent(ctx); err != nil {
-		return false, err
-	}
-	configured, err := c.isConfiguredOwner(ctx, userID)
-	if err != nil || !configured {
-		return false, err
-	}
-	if !c.rbacModel.hasRole(userID, RoleOwner) {
-		return false, nil
+		return nil, nil
 	}
 	seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
 	if err != nil || seq == 0 {
-		return false, err
+		return nil, err
 	}
 	record, err := c.eventReader.EventAt(ctx, seq)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	if !record.Event.GetServerSetupOffered().GetOwnerWelcomeEligible() {
-		return false, nil
+		return nil, nil
 	}
-	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_ServerInitialized{ServerInitialized: &evtv1.ServerInitializedEvent{}}})
-	_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, Expect: events.ExpectFilterSeq(evtstream.SetupAggregate().AllEventsFilter(), seq)}})
-	if errors.Is(err, events.ErrConflict) {
-		return false, nil
-	}
-	return err == nil, err
+	event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerInitialized{ServerInitialized: &evtv1.ServerInitializedEvent{}}})
+	entries := rbacSeedEntries(nil, []rbacSeedAssignment{{userID: userID, roleName: RoleOwner}}, nil)
+	return append(entries, evtstream.BatchEntry{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, Expect: events.ExpectFilterSeq(evtstream.SetupAggregate().AllEventsFilter(), seq)}), nil
 }
 
 // ExcludeBootstrapOwnerWelcome durably excludes development bootstrap before

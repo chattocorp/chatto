@@ -161,6 +161,7 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 		return nil, err
 	}
 	response := connect.NewResponse(&authv1.CreateExternalIdentityAccountResponse{
+		OwnerWelcome:          flow.OwnerWelcome,
 		UserId:                user.GetId(),
 		Login:                 user.GetLogin(),
 		Token:                 credentials.AccessToken,

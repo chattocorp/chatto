@@ -2,12 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { markOwnerOnboardingPending, takeOwnerOnboarding } from '$lib/state/ownerOnboarding';
-import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
-import { mockService } from '@chatto/client/testing/fakeServer';
-import { Code, ConnectError } from '@connectrpc/connect';
 import OwnerWelcomeDialog from './OwnerWelcomeDialog.svelte';
-
-const account = mockService(MyAccountService);
 
 const mocks = vi.hoisted(() => ({
   isOrigin: true,
@@ -32,7 +27,6 @@ vi.mock('$lib/client', async () => ({
 
 describe('OwnerWelcomeDialog', () => {
   beforeEach(() => {
-    account.claimOwnerWelcome.mockReset().mockReturnValue({ showWelcome: false });
     takeOwnerOnboarding();
     mocks.isOrigin = true;
     mocks.viewer = {
@@ -45,7 +39,6 @@ describe('OwnerWelcomeDialog', () => {
     mocks.setPrivilegedMode.mockReset().mockResolvedValue(undefined);
     createTestServerScope({
       serverId: 'origin',
-      routes: (router) => router.service(MyAccountService, account),
       store: {
         projection: {
           get viewer() {
@@ -122,21 +115,17 @@ describe('OwnerWelcomeDialog', () => {
     await expect.element(view.getByRole('dialog')).not.toBeInTheDocument();
     expect(takeOwnerOnboarding()).toBe(true);
   });
-
-  it('welcomes only after the server accepts the authenticated claim', async () => {
-    account.claimOwnerWelcome.mockReturnValue({ showWelcome: true });
+  it('does not consume another account welcome as its own', async () => {
+    markOwnerOnboardingPending('other-account');
     const view = render(OwnerWelcomeDialog);
-    await expect.element(view.getByTestId('owner-welcome')).toBeVisible();
-    expect(account.claimOwnerWelcome).toHaveBeenCalledTimes(1);
-    expect(mocks.setPrivilegedMode).toHaveBeenCalledWith(true, ['owner']);
-  });
-  it('does not welcome on an older server without the claim API', async () => {
-    account.claimOwnerWelcome.mockImplementation(() => {
-      throw new ConnectError('unsupported', Code.Unimplemented);
-    });
-    const view = render(OwnerWelcomeDialog);
-    await expect.poll(() => account.claimOwnerWelcome.mock.calls.length).toBe(1);
     await expect.element(view.getByRole('dialog')).not.toBeInTheDocument();
     expect(mocks.setPrivilegedMode).not.toHaveBeenCalled();
+    expect(takeOwnerOnboarding('other-account')).toBe(false);
+  });
+  it('welcomes the account named by the sign-in response', async () => {
+    markOwnerOnboardingPending('viewer-1');
+    const view = render(OwnerWelcomeDialog);
+    await expect.element(view.getByTestId('owner-welcome')).toBeVisible();
+    expect(mocks.setPrivilegedMode).toHaveBeenCalledWith(true, ['owner']);
   });
 });

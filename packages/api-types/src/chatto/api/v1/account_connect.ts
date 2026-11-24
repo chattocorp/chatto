@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ChangePasswordRequest, ChangePasswordResponse, ClaimOwnerWelcomeRequest, ClaimOwnerWelcomeResponse, ConfirmEmailVerificationRequest, ConfirmEmailVerificationResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, GetSettingsRequest, GetSettingsResponse, ListVerifiedEmailsRequest, ListVerifiedEmailsResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, RequestEmailVerificationRequest, RequestEmailVerificationResponse, SetPrimaryEmailRequest, SetPrimaryEmailResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
+import { ChangePasswordRequest, ChangePasswordResponse, ConfirmEmailVerificationRequest, ConfirmEmailVerificationResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, GetSettingsRequest, GetSettingsResponse, ListVerifiedEmailsRequest, ListVerifiedEmailsResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, RequestEmailVerificationRequest, RequestEmailVerificationResponse, SetPrimaryEmailRequest, SetPrimaryEmailResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { GetPresencePreferenceRequest, GetPresencePreferenceResponse, RefreshPresenceRequest, RefreshPresenceResponse, SetPresencePreferenceRequest, SetPresencePreferenceResponse, SetPresenceRequest, SetPresenceResponse } from "./presence_pb.js";
@@ -19,19 +19,6 @@ import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, SetCustomStatusR
 export const MyAccountService = {
   typeName: "chatto.api.v1.MyAccountService",
   methods: {
-    /**
-     * Authenticated. Atomically completes configured-owner setup on a new server.
-     * Only the first eligible owner claim returns true. Explicitly skipped setup,
-     * wizard completion, development bootstrap, and existing installations return false.
-     *
-     * @generated from rpc chatto.api.v1.MyAccountService.ClaimOwnerWelcome
-     */
-    claimOwnerWelcome: {
-      name: "ClaimOwnerWelcome",
-      I: ClaimOwnerWelcomeRequest,
-      O: ClaimOwnerWelcomeResponse,
-      kind: MethodKind.Unary,
-    },
     /**
      * Updates or adds the authenticated user's password.
      *

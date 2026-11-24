@@ -10,7 +10,6 @@ import (
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/core"
-	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	authv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1"
 	"github.com/chattocorp/chatto/cli/internal/pb/chatto/auth/v1/authv1connect"
 	discoveryv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/discovery/v1"
@@ -103,32 +102,30 @@ func TestSetupErrorFields(t *testing.T) {
 	}
 }
 
-func TestConfiguredOwnerWelcomeAPI(t *testing.T) {
+func TestConfiguredOwnerCreationWelcomeResponse(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	ctx := t.Context()
-	cfg := config.ChattoConfig{Core: config.CoreConfig{SecretKey: "test-core-secret", Assets: config.AssetsConfig{SigningSecret: "test-assets-secret"}, AuthDirectLoginDisabled: true, Owners: config.OwnersConfig{Emails: []string{"founder@example.test"}}}}
+	cfg := config.ChattoConfig{Core: config.CoreConfig{SecretKey: "test-core-secret", Assets: config.AssetsConfig{SigningSecret: "test-assets-secret"}, AuthDirectLoginDisabled: true, Owners: config.OwnersConfig{DIDs: []string{"did:web:owner.example"}}, AuthProviders: []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}}}
+	cfg.Auth.Providers = cfg.Core.AuthProviders
 	c, err := core.NewChattoCore(ctx, nc, cfg.Core)
 	if err != nil {
 		t.Fatal(err)
 	}
 	startConnectAPITestCore(t, c)
-	api := New(c, cfg, "0.5.0")
-	service := &accountService{api: api}
-	_, err = service.ClaimOwnerWelcome(ctx, connect.NewRequest(&apiv1.ClaimOwnerWelcomeRequest{}))
-	if errorCode(err) != connect.CodeUnauthenticated {
-		t.Fatalf("anonymous claim: %v", err)
-	}
-	owner, err := c.CreateVerifiedUser(ctx, core.SystemActorID, "founder", "Founder", "correct-password", "founder@example.test")
+	service := &externalIdentityAuthService{api: New(c, cfg, "0.5.0")}
+	token, err := c.CreatePendingExternalIdentityCreateFlow(ctx, core.PendingExternalIdentityFlow{ProviderID: "internet", ProviderType: "atproto", Issuer: "internet", Subject: "did:web:owner.example"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []bool{true, false} {
-		response, err := service.ClaimOwnerWelcome(withCaller(ctx, owner), connect.NewRequest(&apiv1.ClaimOwnerWelcomeRequest{}))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if response.Msg.ShowWelcome != want {
-			t.Fatalf("show=%v want=%v", response.Msg.ShowWelcome, want)
-		}
+	response, err := service.CreateExternalIdentityAccount(ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{Token: token, Login: "founder", DisplayName: "Founder"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !response.Msg.OwnerWelcome || response.Msg.Token == "" {
+		t.Fatal("successful sign-in lacks owner welcome or session")
+	}
+	_, err = service.CreateExternalIdentityAccount(ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{Token: token, Login: "founder", DisplayName: "Founder"}))
+	if err == nil {
+		t.Fatal("creation token replay accepted")
 	}
 }

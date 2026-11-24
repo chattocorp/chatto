@@ -368,6 +368,13 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
  */
 export class CreateExternalIdentityAccountResponse extends Message<CreateExternalIdentityAccountResponse> {
   /**
+   * This account creation completed initial owner setup. Show the welcome once.
+   *
+   * @generated from field: bool owner_welcome = 7;
+   */
+  ownerWelcome = false;
+
+  /**
    * Newly created user ID.
    *
    * @generated from field: string user_id = 1;
@@ -418,6 +425,7 @@ export class CreateExternalIdentityAccountResponse extends Message<CreateExterna
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.auth.v1.CreateExternalIdentityAccountResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 7, name: "owner_welcome", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },

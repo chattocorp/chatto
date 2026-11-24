@@ -2,14 +2,14 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/external_identities.proto";
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/user_status.proto";
 import "chatto/api/v1/users.proto";
 import "chatto/api/v1/viewer.proto";
-import "google/protobuf/field_mask.proto";
-import "google/protobuf/timestamp.proto";
 
 // Request to update or add the authenticated user's password.
 message ChangePasswordRequest {
@@ -56,10 +56,7 @@ message ListVerifiedEmailsResponse {
 // Request a short-lived verification code for an email address.
 message RequestEmailVerificationRequest {
   // New address to verify and add to the authenticated user's account.
-  string email = 1 [(buf.validate.field).string = {
-    email: true
-    max_len: 254
-  }];
+  string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
   // User ID that the client expects to be authenticated.
   string expected_user_id = 2 [(buf.validate.field).string.min_len = 1];
 }
@@ -70,15 +67,9 @@ message RequestEmailVerificationResponse {}
 // Confirm control of an email address with a verification code.
 message ConfirmEmailVerificationRequest {
   // Address that received the verification code.
-  string email = 1 [(buf.validate.field).string = {
-    email: true
-    max_len: 254
-  }];
+  string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
   // Six-digit code that the server sent to the address.
-  string code = 2 [(buf.validate.field).string = {
-    min_len: 1
-    max_len: 32
-  }];
+  string code = 2 [(buf.validate.field).string = {min_len: 1, max_len: 32}];
   // User ID that the client expects to be authenticated.
   string expected_user_id = 3 [(buf.validate.field).string.min_len = 1];
 }
@@ -91,10 +82,7 @@ message ConfirmEmailVerificationResponse {
 // Select a verified email for account-directed email.
 message SetPrimaryEmailRequest {
   // Verified address to select as primary.
-  string email = 1 [(buf.validate.field).string = {
-    email: true
-    max_len: 254
-  }];
+  string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
   // User ID that the client expects to be authenticated.
   string expected_user_id = 2 [(buf.validate.field).string.min_len = 1];
 }
@@ -158,22 +146,10 @@ message DeleteMyAccountResponse {
   reserved "deleted";
 }
 
-// Authenticated request to claim the new server's first-owner welcome.
-message ClaimOwnerWelcomeRequest {}
-// Exactly one eligible configured owner receives true. Other claims return false.
-message ClaimOwnerWelcomeResponse {
-  bool show_welcome = 1;
-}
-
 // Self-service account, display preference, presence, custom-status,
 // external identity, and account lifecycle commands for the authenticated
 // user. Public profile and avatar changes use UserService.
 service MyAccountService {
-  // Authenticated. Atomically completes configured-owner setup on a new server.
-  // Only the first eligible owner claim returns true. Explicitly skipped setup,
-  // wizard completion, development bootstrap, and existing installations return false.
-  rpc ClaimOwnerWelcome(ClaimOwnerWelcomeRequest) returns (ClaimOwnerWelcomeResponse);
-
   // Updates or adds the authenticated user's password.
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
   // Lists the authenticated user's verified email addresses and primary choice.

@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { takeOwnerOnboarding } from '$lib/state/ownerOnboarding';
 import ConfirmPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({
+  completeAuthentication: vi.fn(),
   startLink: vi.fn(),
   cancel: vi.fn(),
   confirmLink: vi.fn(),
@@ -13,7 +15,9 @@ vi.mock('$lib/render/pageTitle', () => ({ formatPageTitle: () => 'Chatto' }));
 vi.mock('$app/paths', () => ({ resolve: (path: string) => path, base: '', assets: '' }));
 vi.mock('$app/navigation', () => ({ goto: mocks.goto, pushState: vi.fn() }));
 vi.mock('$lib/client', async () => (await import('$lib/test-utils/clientMock')).clientMockDefaults);
-vi.mock('$lib/auth/originAuthentication', () => ({ completeOriginAuthentication: vi.fn() }));
+vi.mock('$lib/auth/originAuthentication', () => ({
+  completeOriginAuthentication: mocks.completeAuthentication
+}));
 vi.mock('$lib/api/externalIdentities', () => ({
   ExternalIdentityFlowKind: { CREATE_ACCOUNT: 1, LINK_ACCOUNT: 2 },
   createExternalIdentityFlowAPI: () => ({
@@ -87,6 +91,23 @@ describe('new-account provider confirmation', () => {
       avatarUrl: '/assets/remote/avatar/signature?url=https%3A%2F%2Fcdn.example.test%2Falice.png',
       chooseUsername
     }
+  });
+
+  it('clears the account-bound welcome when authentication completion fails', async () => {
+    takeOwnerOnboarding();
+    mocks.createAccount.mockResolvedValue({
+      userId: 'created-owner',
+      login: 'owner',
+      ownerWelcome: true
+    });
+    mocks.completeAuthentication.mockRejectedValueOnce(new Error('Completion failed'));
+    const { UsernameChoiceAvailability } = await import('@chatto/client/api/actionAvailability');
+    const screen = render(ConfirmPage, {
+      props: { data: createData(UsernameChoiceAvailability.PROVIDER_MANAGED) as never }
+    });
+    await screen.getByRole('button', { name: 'Create account' }).click();
+    await expect.element(screen.getByText('Completion failed')).toBeVisible();
+    expect(takeOwnerOnboarding('created-owner')).toBe(false);
   });
 
   it('shows a provider-managed username as a disabled field and never sends it', async () => {

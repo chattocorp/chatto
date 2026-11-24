@@ -67,6 +67,8 @@ export type ExternalIdentityList = {
 };
 
 export type CreatedExternalIdentityAccount = {
+  /** Creation completed initial owner setup. */
+  ownerWelcome: boolean;
   userId: string;
   login: string;
 };
@@ -106,7 +108,8 @@ export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPICon
       });
       return {
         userId: response.userId,
-        login: response.login
+        login: response.login,
+        ownerWelcome: response.ownerWelcome
       };
     },
 

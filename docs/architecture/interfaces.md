@@ -711,4 +711,4 @@ or one delete. Delete removes a failed job and abandons its work. Retry
 versions are opaque application tokens, not broker coordinates. See FDR-056
 and ADR-123.
 
-`MyAccountService.ClaimOwnerWelcome` binds first-owner setup completion to the authenticated account. Only the winning setup OCC claim returns `show_welcome`; older installations and completed setup return false.
+`ExternalIdentityAuthService.CreateExternalIdentityAccount` returns `owner_welcome` only when this account creation completed configured-owner setup. The flag accompanies successful sign-in credentials; the browser passes it to the existing welcome handoff.

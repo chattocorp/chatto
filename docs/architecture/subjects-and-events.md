@@ -646,4 +646,4 @@ the job has no facts. A manual retry appends `retried`, and a delete appends
 `deleted`, only when the viewed `failed` fact is still the latest fact of the
 job. See ADR-123.
 
-New `ServerSetupOffered` facts carry `owner_welcome_eligible`. Absence excludes older servers. A configured owner sign-in atomically claims the welcome by appending `ServerInitialized` with setup-subject OCC. Wizard and bootstrap completion never return this welcome signal.
+New `ServerSetupOffered` facts carry `owner_welcome_eligible`. Absence excludes older servers. The first configured owner account creation includes `ServerInitialized` and the owner role in its atomic account batch, protected by whole-EVT and setup-subject OCC. No separate welcome-consumption event is written.

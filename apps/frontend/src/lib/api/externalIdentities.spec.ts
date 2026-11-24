@@ -91,7 +91,8 @@ describe('createExternalIdentityFlowAPI', () => {
       api.createAccount({ token: 'flow-token', login: 'octo', displayName: 'Octo Person' })
     ).resolves.toEqual({
       userId: 'user-1',
-      login: 'octo'
+      login: 'octo',
+      ownerWelcome: false
     });
     expect(receivedRequest(flow.createExternalIdentityAccount)).toMatchObject({
       token: 'flow-token',
@@ -254,4 +255,21 @@ describe('createExternalIdentityAPI', () => {
       currentPassword: 'current-password'
     });
   });
+});
+
+it('passes the initial owner welcome from sign-in', async () => {
+  flow.createExternalIdentityAccount.mockReturnValue({
+    userId: 'owner',
+    login: 'founder',
+    ownerWelcome: true
+  });
+  expect(
+    (
+      await createExternalIdentityFlowAPI(config()).createAccount({
+        token: 'flow',
+        login: 'founder',
+        displayName: 'Founder'
+      })
+    ).ownerWelcome
+  ).toBe(true);
 });

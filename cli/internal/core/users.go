@@ -377,6 +377,20 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		if err := check(); err != nil {
 			return nil, err
 		}
+		// Rebuild completion entries on every OCC retry; never reuse a lost claim.
+		entries := slices.Clone(entries)
+		if flow := options.external; flow != nil {
+			flow.OwnerWelcome = false
+			identity := ExternalIdentity{ProviderID: flow.ProviderID, ProviderType: flow.ProviderType, Issuer: flow.Issuer, Subject: flow.Subject}
+			if c.config.Owners.IsServerOwnerEmail(options.verifiedEmail) || c.isConfiguredOwnerIdentity(identity) {
+				completion, err := c.configuredOwnerCreationEntries(ctx, userID)
+				if err != nil {
+					return nil, err
+				}
+				entries = append(entries, completion...)
+				flow.OwnerWelcome = len(completion) > 0
+			}
+		}
 		if options.selfService {
 			if err := c.WaitForRegistrationPolicy(ctx); err != nil {
 				return nil, err
