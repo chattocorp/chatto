@@ -437,9 +437,11 @@ func TestBotOutboundWebhookDMReadInteractions(t *testing.T) {
 	c, _ := newTestCore(t)
 	c.config.BotWebhooks = config.BotWebhooksConfig{}
 	var calls atomic.Int32
+	delivered := make(chan struct{}, 2)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		w.WriteHeader(http.StatusNoContent)
+		delivered <- struct{}{}
 	}))
 	defer server.Close()
 	c.botWebhooks.client = newBotWebhookModel(c, c.botWebhooks.projection).client
@@ -464,6 +466,12 @@ func TestBotOutboundWebhookDMReadInteractions(t *testing.T) {
 	allowed, err = c.CanReadMessageEvent(ctx, bot, KindDM, room, message)
 	require.NoError(t, err)
 	require.True(t, allowed)
+	// The jobs view can lag source acknowledgement. Await the HTTP effect.
+	select {
+	case <-delivered:
+	case <-ctx.Done():
+		t.Fatal("wait for webhook delivery:", ctx.Err())
+	}
 	waitWebhookDeliveriesDrained(t, c)
 	require.Equal(t, int32(1), calls.Load())
 
@@ -474,6 +482,12 @@ func TestBotOutboundWebhookDMReadInteractions(t *testing.T) {
 	group := createLegacyDMForTest(t, c, ctx, []string{other.GetId(), owner, bot})
 	_, err = c.PostMessage(ctx, KindDM, group.GetId(), other.GetId(), "Group DM without a mention", nil, "", "", nil, false)
 	require.NoError(t, err)
+	// The jobs view can lag source acknowledgement. Await the HTTP effect.
+	select {
+	case <-delivered:
+	case <-ctx.Done():
+		t.Fatal("wait for webhook delivery:", ctx.Err())
+	}
 	waitWebhookDeliveriesDrained(t, c)
 	require.Equal(t, int32(2), calls.Load())
 
