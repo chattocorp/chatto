@@ -62,6 +62,18 @@ converts the requested asset as it writes the response. Conversion state lasts
 for that request; there is no startup conversion or retained gzip cache. Raw
 development assets need no conversion.
 
+ConnectRPC handlers compress a response with gzip only when the client accepts
+gzip and the response is at least `webserver.api_compression_min_bytes`.
+All handlers share one process-wide free list of gzip writers
+([`sharedGzipCompression`](../../cli/internal/connectapi/compression.go)).
+The free list keeps at most four idle writers, of about 1 MiB each, also
+after a garbage collection. A response that finds no idle writer makes a new
+one. The garbage collector frees that writer if the free list is full when the
+response is complete. Connect's default gzip support has a separate
+`sync.Pool` for each procedure. That pool kept a private writer for each
+processor that served the procedure, and it dropped writers that stayed unused
+for two garbage collections.
+
 The HTTP server owns a process-local
 [`imageTransforms`](../../cli/internal/http_server/image_transforms.go)
 coordinator for uncached image derivatives. It shares work for the same

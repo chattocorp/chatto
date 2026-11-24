@@ -112,6 +112,7 @@ func handlerOptionsWithReadMax(readMaxBytes int, webserver config.WebserverConfi
 	}
 	return []connect.HandlerOption{
 		connect.WithReadMaxBytes(readMaxBytes),
+		sharedGzipCompression,
 		connect.WithCompressMinBytes(compressionMinBytes),
 		connect.WithInterceptors(
 			internalErrorLoggingInterceptor(),
