@@ -28,6 +28,31 @@ history increases memory use and startup work. Projection snapshots reduce the
 events that a replica must read at startup. Monitor startup duration, readiness,
 and memory use when you size replicas.
 
+### Reduce memory use
+
+To use less memory in each replica, set the Go garbage collector target:
+
+```yaml
+env:
+  - name: GOGC
+    value: '50'
+```
+
+By default (`GOGC=100`), the Go heap target is approximately two times the live
+heap. With `GOGC=50`, the target is approximately 1.5 times the live heap. Go
+collects garbage approximately two times as frequently and uses more CPU for
+it. Measure memory use, CPU use, and response times with your workload. Before
+you use a value below `50`, make sure that the additional memory decrease
+justifies the additional CPU cost.
+
+A container memory limit alone does not decrease memory use when the replica
+is far below the limit. At startup, Chatto sets the Go memory limit to 90% of
+the container memory limit, unless you set `GOMEMLIMIT`. The Go memory limit
+is a soft limit. Near the limit, Go collects
+garbage more frequently. If the live data is almost at the limit, the server
+process can become slow, and the kernel can stop it. Set the container limit
+sufficiently above the peak memory use that you monitor.
+
 ## Requirements
 
 - An external NATS deployment with JetStream. Use a cluster of 3 or more nodes
