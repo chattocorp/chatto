@@ -138,3 +138,11 @@ verification.
   window.
 - **Chatto Desktop and mobile:** examine whether the native hosts need their
   own handling of the sign-in window.
+
+### Configured owners without password login
+
+`owners.dids` grants the owner role to a matching DID from a configured AT Protocol provider. The stored issuer is the provider ID and the subject is the DID. Handles do not match. Like `owners.emails`, this policy grants roles at creation, linking, and startup; removal never revokes a role. Link grants use the durable notification-effects lane and wait for both its acknowledgement and the local RBAC projection.
+
+When `auth.direct_login` is false and either owner list is non-empty, setup discovery returns false without changing durable setup state. Normal provider admission still applies, including `auto_provision` and invitation rules.
+
+Automatic setup skipping does not add an owner welcome, activate privileged mode, or write setup-completion events during sign-in. The existing browser-wizard welcome remains unchanged. A separate feature can define onboarding for configured owners.

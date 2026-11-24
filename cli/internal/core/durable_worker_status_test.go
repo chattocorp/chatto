@@ -15,6 +15,7 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 		{Stream: "EVT", Name: userKeyShreddingConsumerName},
 		{Stream: "EVT", Name: pushSubscriptionCleanupConsumerName, Waiting: 1},
 		{Stream: "EVT", Name: notificationWorkerConsumerName, Waiting: 1, DeliveredStreamSeq: 52, AckFloorStreamSeq: 51},
+		{Stream: "EVT", Name: configuredDIDConsumerName, Waiting: 1, DeliveredStreamSeq: 54, AckFloorStreamSeq: 53},
 		{Stream: "EVT", Name: botWebhookSourceConsumer, Waiting: 1},
 		{Stream: "EVT", Name: AssetProcessingConsumerName, Waiting: 0, Pending: 4},
 		{Stream: "JOBS", Name: JobsConsumerName(JobTypeMedia), Waiting: 0, Pending: 3},
@@ -38,6 +39,9 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 	}
 	if got := byKey["notification_materializer"]; got.Health != DurableWorkerHealthHealthy || got.LastDeliveredSequence != 52 || got.AckFloorSequence != 51 {
 		t.Fatalf("notification materializer status = %+v, want healthy with consumer progress", got)
+	}
+	if got := byKey["configured_did_owners"]; got.Health != DurableWorkerHealthHealthy || got.LastDeliveredSequence != 54 || got.AckFloorSequence != 53 {
+		t.Fatalf("configured DID owners status = %+v, want healthy with consumer progress", got)
 	}
 	if got := byKey["bot_webhook_source"]; got.Health != DurableWorkerHealthHealthy {
 		t.Fatalf("bot webhook source status = %+v, want healthy", got)
@@ -107,8 +111,8 @@ func TestDurableWorkerAdminStatusesDoNotInferHandlerLivenessFromAckPending(t *te
 
 func TestDurableWorkerAdminStatusesReportMissingRequiredConsumers(t *testing.T) {
 	statuses := durableWorkerAdminStatuses(nil, true)
-	// Twelve source and materializer consumers, plus one JOBS consumer per job type.
-	if want := 13 + len(jobTypes()); len(statuses) != want {
+	// Fourteen source and materializer consumers, plus one JOBS consumer per job type.
+	if want := 14 + len(jobTypes()); len(statuses) != want {
 		t.Fatalf("statuses len = %d, want %d", len(statuses), want)
 	}
 	for _, status := range statuses {

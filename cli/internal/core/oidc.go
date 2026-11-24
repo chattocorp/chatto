@@ -157,10 +157,15 @@ func (c *ChattoCore) LinkExternalIdentityAs(ctx context.Context, actorID, provid
 		return nil
 	})
 	if errors.Is(err, errExternalIdentityAlreadyLinked) {
-		return identity, nil
+		err = nil
 	}
 	if err != nil {
 		return ExternalIdentity{}, err
+	}
+	if c.isConfiguredOwnerIdentity(identity) {
+		if err := c.waitConfiguredOwner(ctx, userID, 0); err != nil {
+			return ExternalIdentity{}, err
+		}
 	}
 	return identity, nil
 }

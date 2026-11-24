@@ -239,3 +239,114 @@ func TestServerSetupUpgradeDoesNotContendWithChatTraffic(t *testing.T) {
 		t.Fatalf("upgrade competed with unrelated traffic: %v", err)
 	}
 }
+
+func TestConfiguredOwnerSetupMatrix(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	c.config.SkipSetupWizard = false
+	for _, disabled := range []bool{false, true} {
+		for _, owners := range []config.OwnersConfig{{}, {Emails: []string{"owner@example.test"}}, {DIDs: []string{"did:web:example.test"}}} {
+			c.config.AuthDirectLoginDisabled = disabled
+			c.config.Owners = owners
+			got, err := c.SetupRequired(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := !(disabled && owners.Configured())
+			if got != want {
+				t.Fatalf("disabled=%v owners=%v: got %v", disabled, owners.Configured(), got)
+			}
+		}
+	}
+}
+
+func TestConfiguredOwnerDIDProviderBoundary(t *testing.T) {
+	c := &ChattoCore{config: config.CoreConfig{Owners: config.OwnersConfig{DIDs: []string{"did:web:owner.example"}}, AuthProviders: []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}}}
+	for _, tc := range []struct {
+		kind, issuer string
+		want         bool
+	}{{"atproto", "internet", true}, {"oidc", "internet", false}, {"atproto", "removed", false}} {
+		if got := c.isConfiguredOwnerIdentity(ExternalIdentity{ProviderType: tc.kind, Issuer: tc.issuer, Subject: "did:web:owner.example"}); got != tc.want {
+			t.Fatalf("kind=%s issuer=%s got=%v", tc.kind, tc.issuer, got)
+		}
+	}
+}
+
+func TestDIDOwnerReconciledAtReplicaBoot(t *testing.T) {
+	ns, _ := testutil.StartNATS(t)
+	cfg := testCoreConfig()
+	cfg.AuthProviders = []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}
+	first := startReplica(t, ns, cfg)
+	ctx := testContext(t)
+	user, err := first.CreateUser(ctx, SystemActorID, "founder", "Founder", "correct-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := first.LinkExternalIdentity(ctx, "internet", "atproto", "internet", "did:web:owner.example", user.Id); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatal(err)
+	}
+	cfg.Owners.DIDs = []string{"did:web:owner.example"}
+	second := startReplica(t, ns, cfg)
+	owner, err := second.IsServerOwner(ctx, user.Id)
+	if err != nil || !owner {
+		t.Fatalf("boot owner=%v err=%v", owner, err)
+	}
+}
+
+func TestDIDOwnerGrantOnExistingAccountLink(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}
+	c.config.Owners.DIDs = []string{"did:web:owner.example"}
+	user, err := c.CreateUser(ctx, SystemActorID, "founder", "Founder", "correct-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.LinkExternalIdentity(ctx, "internet", "atproto", "internet", "did:web:owner.example", user.Id); err != nil {
+		t.Fatal(err)
+	}
+	owner, err := c.IsServerOwner(ctx, user.Id)
+	if err != nil || !owner {
+		t.Fatalf("owner=%v err=%v", owner, err)
+	}
+}
+
+func TestConfiguredDIDOwnerCreationPreservesSetupState(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	c.config.SkipSetupWizard = false
+	c.config.AuthDirectLoginDisabled = true
+	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}
+	c.config.Owners.DIDs = []string{"did:web:owner.example"}
+	before, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow := &PendingExternalIdentityFlow{Kind: ExternalIdentityFlowKindCreate, ProviderID: "internet", ProviderType: "atproto", Issuer: "internet", Subject: "did:web:owner.example"}
+	user, err := c.CreateUserForExternalIdentity(ctx, "founder", "Founder", flow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := c.IsServerOwner(ctx, user.Id)
+	if err != nil || !owner {
+		t.Fatalf("owner=%v err=%v", owner, err)
+	}
+	after, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before != after {
+		t.Fatal("owner creation changed durable setup state")
+	}
+	c.config.Owners.DIDs = nil
+	if err := c.applyConfigOwners(ctx); err != nil {
+		t.Fatal(err)
+	}
+	owner, err = c.IsServerOwner(ctx, user.Id)
+	if err != nil || !owner {
+		t.Fatal("configuration removal revoked owner")
+	}
+}

@@ -96,6 +96,7 @@ func notificationDecisionProjectionSubjects() []string {
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountCreated),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 		evtstream.UserEventTypeFilter(evtstream.EventUserVerifiedEmailAdded),
+		evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityLinked),
 	}
 }
 

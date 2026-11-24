@@ -206,14 +206,36 @@ existing invitation credentials invalid.
 See the [invitation API reference](/reference/connectrpc-api/admin-invitation-codes/)
 for automated invitation management.
 
+### First owner without password login
+
+For a new SSO-only server, configure the provider and put the owner's verified email in `owners.emails`. For an AT Protocol-only server, use the owner's DID in `owners.dids` instead:
+
+```toml
+[auth]
+direct_login = false
+
+[owners]
+dids = ["did:web:owner.example.com"]
+
+[[auth.providers]]
+id = "internet"
+type = "atproto"
+auto_provision = true
+```
+
+Use the same configuration on every replica. Start Chatto and sign in through the configured provider. The normal AT Protocol sign-in creates the account; the owner list does not create it. Account creation still follows invitation and provider admission rules. An AT Protocol-only server needs `auto_provision = true` for new accounts to join.
+
+The login page appears without the setup wizard. Sign-in grants the owner role without an automatic welcome dialog or Shield Mode activation. For a company provider, replace the AT Protocol provider with your SSO configuration and use `owners.emails`.
+
 ## Owner Recovery
 
 ```toml
 [owners]
 emails = ["admin@example.com"]
+dids = ["did:web:owner.example.com"]
 ```
 
-A user becomes an owner only after they verify one of these addresses. Owners
+A user becomes an owner after they verify a listed email or link a listed DID through a configured AT Protocol provider. Chatto also applies these grants at startup. Removing an email or DID from configuration does not revoke an existing owner role. Owners
 have every normal permission, and role denies cannot lock them out.
 
 <Aside type="tip">

@@ -22,6 +22,7 @@ const (
 	// The durable name and its filter set form one schema-capability
 	// generation. Adding a source event that older binaries cannot decode must
 	// use a new consumer name so those binaries cannot acknowledge its work.
+	configuredDIDConsumerName      = "chatto-configured-did-owners-v1"
 	roleProtectionConsumerName     = "chatto-role-protection-notifications-v1"
 	notificationWorkerConsumerName = "chatto-notification-materializer-v1"
 	notificationWorkerAckWait      = time.Minute
@@ -48,6 +49,8 @@ type NotificationMaterializer struct {
 	ready                     chan struct{}
 	consumer                  jetstream.Consumer
 	consumerInfoMu            sync.Mutex
+	identityConsumer          jetstream.Consumer
+	identityConsumerInfoMu    sync.Mutex
 	protectionConsumer        jetstream.Consumer
 	protectionConsumerInfoMu  sync.Mutex
 	invitationConsumer        jetstream.Consumer
@@ -88,6 +91,13 @@ func (m *NotificationMaterializer) Initialize(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	m.identityConsumer, err = evtstream.CreateEffectConsumer(ctx, m.core.storage.serverEvtStream, evtstream.EffectConsumerConfig{
+		Name: configuredDIDConsumerName, Description: "Materialize configured DID owner roles",
+		FilterSubjects: []string{evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityLinked)}, AckWait: notificationWorkerAckWait, MaxAckPending: 1, DeliverPolicy: jetstream.DeliverNewPolicy,
+	})
+	if err != nil {
+		return err
+	}
 	close(m.ready)
 	return nil
 }
@@ -124,7 +134,14 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	identityWorker, err := evtstream.NewEffectWorker(m.identityConsumer, m.processDelivery, evtstream.EffectWorkerOptions{
+		MaxConcurrent: 1, RetryDelay: notificationWorkerRetryDelay, AckTimeout: notificationWorkerAckTimeout, HeartbeatInterval: notificationWorkerHeartbeat, Logger: m.core.logger.WithPrefix("ConfiguredDIDOwnerWorker"),
+	})
+	if err != nil {
+		return err
+	}
 	group, workerCtx := errgroup.WithContext(ctx)
+	group.Go(func() error { return identityWorker.Run(workerCtx) })
 	group.Go(func() error { return protectionWorker.Run(workerCtx) })
 	group.Go(func() error { return worker.Run(workerCtx) })
 	group.Go(func() error { return invitationWorker.Run(workerCtx) })
@@ -196,6 +213,9 @@ func (m *NotificationMaterializer) WaitCurrent(ctx context.Context) error {
 		return nil
 	}
 	if err := m.WaitReady(ctx); err != nil {
+		return err
+	}
+	if err := m.waitEffectCurrent(ctx, []string{evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityLinked)}, m.identityConsumer, &m.identityConsumerInfoMu); err != nil {
 		return err
 	}
 	if err := m.waitMessageCurrent(ctx); err != nil {
@@ -350,6 +370,10 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 		return fmt.Errorf("wait for notification decision projection: %w", err)
 	}
 	switch event.GetEvent().(type) {
+	case *evtv1.Event_UserExternalIdentityLinked:
+		if err := m.core.userModel.waitForUserAuth(ctx, position); err != nil {
+			return err
+		}
 	case *evtv1.Event_UserAccountDeleted, *evtv1.Event_UserVerifiedEmailAdded:
 		if err := m.core.userModel.waitForUsers(ctx, position); err != nil {
 			return fmt.Errorf("wait for user projection: %w", err)
@@ -445,6 +469,8 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 			return err
 		}
 		return m.purgeVisibilityBoundaries(ctx, userID)
+	case *evtv1.Event_UserExternalIdentityLinked:
+		return m.materializeConfiguredOwner(ctx, payload.UserExternalIdentityLinked.GetUserId())
 	case *evtv1.Event_UserVerifiedEmailAdded:
 		return m.materializeConfiguredOwner(ctx, payload.UserVerifiedEmailAdded.GetUserId())
 	case *evtv1.Event_RbacRoleAssigned:
@@ -463,28 +489,19 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 	return nil
 }
 
-// materializeConfiguredOwner keeps owners.emails authorization represented by
+// materializeConfiguredOwner keeps configured-owner authorization represented by
 // the same durable RBAC fact used by current notification visibility. The
-// source email fact remains pending and is redelivered until this converges.
+// source email or identity fact remains pending until this converges.
 func (m *NotificationMaterializer) materializeConfiguredOwner(ctx context.Context, userID string) error {
-	if userID == "" || len(m.core.config.Owners.Emails) == 0 {
+	if userID == "" {
 		return nil
 	}
-	emails, err := m.core.userModel.verifiedEmails(ctx, userID)
+	configured, err := m.core.isConfiguredOwner(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("read configured-owner verified emails: %w", err)
+		return err
 	}
-	for _, verified := range emails {
-		if !m.core.config.Owners.IsServerOwnerEmail(verified.Email) {
-			continue
-		}
-		if m.core.rbacModel.hasRole(userID, RoleOwner) {
-			return nil
-		}
-		if err := m.assignConfiguredOwnerRole(ctx, userID); err != nil {
-			return fmt.Errorf("materialize configured-owner role: %w", err)
-		}
-		return nil
+	if configured && !m.core.rbacModel.hasRole(userID, RoleOwner) {
+		return m.assignConfiguredOwnerRole(ctx, userID)
 	}
 	return nil
 }

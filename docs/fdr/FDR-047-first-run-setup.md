@@ -46,10 +46,11 @@ receives provider identities.
 
 The terminal flow writes private configuration files and shows startup
 commands. Server naming and owner-account creation remain in the browser
-wizard. First-run owner setup requires password login. If the operator selects
-SSO-only login, the review and startup instructions explain how to temporarily
-enable password login, create the owner, link SSO, and disable password login.
-The form rejects a configuration with no login method. This keeps account creation in the existing atomic setup operation.
+wizard. Browser wizard setup requires password login. For SSO-only login, the
+review and startup instructions explain how to configure `owners.emails` or
+`owners.dids` and create the owner through normal provider sign-in.
+The form rejects a configuration with no login method. Browser-wizard account
+creation remains part of the existing atomic setup operation.
 Plain `chatto init` remains suitable for scripts and does not ask questions.
 The wizard does not edit existing files: the configuration serializer cannot
 preserve their comments and settings outside the wizard's scope.
@@ -153,3 +154,11 @@ because it must have full server control.
 - [FDR-001: Roles and Permissions](FDR-001-roles-and-permissions.md)
 - [FDR-028: Operator API and CLI](FDR-028-operator-api-and-cli.md)
 - [ADR-068: Selectable Event Mutation Consistency Boundaries](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md)
+
+### Configured owners without password login
+
+`owners.dids` grants the owner role to a matching DID from a configured AT Protocol provider. The stored issuer is the provider ID and the subject is the DID. Handles do not match. Like `owners.emails`, this policy grants roles at creation, linking, and startup; removal never revokes a role. Link grants use the durable notification-effects lane and wait for both its acknowledgement and the local RBAC projection.
+
+When `auth.direct_login` is false and either owner list is non-empty, setup discovery returns false without changing durable setup state. Normal provider admission still applies, including `auto_provision` and invitation rules.
+
+Automatic setup skipping does not add an owner welcome, activate privileged mode, or write setup-completion events during sign-in. The existing browser-wizard welcome remains unchanged. A separate feature can define onboarding for configured owners.

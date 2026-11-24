@@ -419,9 +419,13 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 			return nil, err
 		}
 	}
-	if options.verifiedEmail != "" && c.config.Owners.IsServerOwnerEmail(options.verifiedEmail) {
-		if err := c.AssignConfiguredOwnerRole(ctx, userID); err != nil {
-			c.logger.Warn("Failed to auto-assign owner role on signup", "user_id", userID, "error", err)
+	configuredOwner, err := c.isConfiguredOwner(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if configuredOwner {
+		if err := c.waitConfiguredOwner(ctx, userID, 0); err != nil {
+			return nil, err
 		}
 	}
 

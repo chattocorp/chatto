@@ -179,3 +179,5 @@ Backups capture EVT before runtime state, then notifications and jobs. The
 `JOBS` backup includes the job facts and the consumer positions. A restore
 that rewinds a source consumer past an expired `succeeded` fact can repeat an
 idempotent effect. See ADR-123.
+
+The notification materializer owns an additional `chatto-configured-did-owners-v1` consumer for external-identity links. It uses the same durable worker and retry policy. A separate consumer keeps the existing notification consumer contract and pending work unchanged during rolling upgrades. It starts before serving requests and uses DeliverNew; boot reconciliation covers older identities. It has one in-flight delivery and holds a long pull when idle. No replica deletes it during shutdown.

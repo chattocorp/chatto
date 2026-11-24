@@ -196,3 +196,42 @@ func TestMaxUsersConfigCompatibility(t *testing.T) {
 		})
 	}
 }
+
+func TestOwnersDIDValidation(t *testing.T) {
+	for _, value := range []string{"did:plc:abcdefghijklmnopqrstuvwx", "did:web:example.com", "did:web:example.com:user:alice", "did:web:example.com%3A8443"} {
+		cfg := OwnersConfig{DIDs: []string{value}}
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("valid DID rejected: %v", err)
+		}
+		if !cfg.IsServerOwnerDID(value) {
+			t.Fatal("DID did not match")
+		}
+	}
+	for _, value := range []string{"alice.example.com", "did:plc:", "did:plc:short", "did:web:", "did:key:abc", " did:web:example.com", "did:web:example.com/path", "did:web:example.com?query"} {
+		cfg := OwnersConfig{DIDs: []string{value}}
+		if err := cfg.Validate(); err == nil {
+			t.Fatal("invalid DID accepted")
+		} else if strings.Contains(err.Error(), value) {
+			t.Fatal("error disclosed DID")
+		}
+	}
+}
+
+func TestCheckConfigOwnerDIDs(t *testing.T) {
+	validCheckEnvironment(t)
+	t.Setenv("CHATTO_OWNERS_DIDS", "did:web:owner.example")
+	if err := CheckConfig(""); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Owners.IsServerOwnerDID("did:web:owner.example") {
+		t.Fatal("ENV did not load")
+	}
+	t.Setenv("CHATTO_OWNERS_DIDS", "private-sentinel")
+	if err := CheckConfig(""); err == nil || strings.Contains(err.Error(), "private-sentinel") {
+		t.Fatalf("unsafe validation result: %v", err)
+	}
+}

@@ -62,7 +62,7 @@ func TestInitSSOConfiguration(t *testing.T) {
 		if strings.Contains(output.String()+initReview(opts, "4000"), opts.SSO.ClientSecret) || strings.Contains(output.String(), opts.SSO.ClientID) {
 			t.Fatal("SSO credentials must not appear in terminal output")
 		}
-		if !passwordLogin && !strings.Contains(output.String(), "temporarily set auth.direct_login = true") {
+		if !passwordLogin && !strings.Contains(output.String(), "owners.emails or owners.dids") {
 			t.Fatal("SSO-only setup needs accurate first-run instructions")
 		}
 	}

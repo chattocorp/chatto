@@ -80,7 +80,7 @@ func (c *ChattoCore) initializeServerSetup(ctx context.Context) error {
 // Any user history also closes eligibility for operator/bootstrap-created users,
 // even if all those users were later deleted.
 func (c *ChattoCore) SetupRequired(ctx context.Context) (bool, error) {
-	if c.config.SkipSetupWizard {
+	if c.config.SkipSetupWizard || c.configuredOwnerSetup() {
 		return false, nil
 	}
 	seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
@@ -176,4 +176,9 @@ func (c *ChattoCore) CompleteBootstrappedSetup(ctx context.Context) error {
 		return nil
 	}
 	return err
+}
+
+// configuredOwnerSetup suppresses the wizard without changing durable state.
+func (c *ChattoCore) configuredOwnerSetup() bool {
+	return c.config.AuthDirectLoginDisabled && c.config.Owners.Configured()
 }
