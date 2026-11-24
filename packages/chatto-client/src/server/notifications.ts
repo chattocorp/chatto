@@ -10,6 +10,28 @@ import {
 } from '../api/notifications.js';
 
 /**
+ * How often a host calls `ServerStateStore.reconcileNotifications`.
+ *
+ * Notification hints are cursorless: the server can lose one, and a resume
+ * does not replay it. This periodic call is the recovery path for such a loss.
+ */
+export const NOTIFICATION_RECONCILIATION_INTERVAL_MS = 60_000;
+
+/**
+ * Without live delivery, reconciliation skips only a read this recent. A
+ * missed hint then recovers on the next {@link NOTIFICATION_RECONCILIATION_INTERVAL_MS} tick.
+ */
+export const NOTIFICATION_RECENT_READ_MS = 5_000;
+
+/**
+ * While the live socket is caught up, reconciliation reads only when no
+ * notification read succeeded for this long. Live hints and `caught_up` read
+ * the notification list themselves. This read recovers a hint that the server
+ * did not deliver while the socket stayed open.
+ */
+export const NOTIFICATION_LIVE_SAFETY_READ_MS = 5 * 60_000;
+
+/**
  * Normalized view of a notification's target (where it points to in the app).
  * Avoids discriminant switches at every read site — see {@link notificationTarget}.
  */

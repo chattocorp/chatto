@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-11-04
+**Last reviewed:** 2026-11-23
 
 ## Overview
 
@@ -381,10 +381,27 @@ decorate a followed thread from matching unread occurrences in the finite
 notification view. The thread read cursor remains the only source of
 reply-unread state. Unread totals remain exact even when rows are grouped. The
 client also performs quiet periodic reconciliation so a lost transient update
-cannot leave counts stale indefinitely. The one-minute fallback skips a read
-when an authoritative notification page was read within the last five seconds.
-Concurrent fallback requests share one read. Failed reads and privacy resets
-do not delay recovery. This coordination adds no timers or persistent connections.
+cannot leave counts stale indefinitely. The fallback runs once per minute. It
+reads only when the most recent successful notification read is older than a
+limit that depends on the realtime state:
+
+- When the live socket is caught up with current authority, the limit is
+  five minutes. Each live hint and each `caught_up` reads the list. Thus, the
+  fallback reads only when realtime read nothing for five minutes.
+- In all other states, the limit is five seconds. These states include
+  connecting, disconnected, and dormant. A dormant server gets no hints, and a
+  slow inactive poll of another server can delay its poll.
+
+The server can fail to deliver a hint while the socket stays open, for
+example when a publish fails or a replica loses its NATS connection. Then the
+fallback starts a read at most six minutes after the lost hint. Before, this
+time was one minute. This bound applies only while the browser runs the timer
+on schedule. A suspended or frozen page runs no timer, and the list changes
+only when a read succeeds. A hint, a reconnect, or another read can repair the
+list sooner. Concurrent fallback requests share one read. Failed
+reads and privacy resets do not delay recovery. `@chatto/client` owns this
+rule in `ServerStateStore.reconcileNotifications`. The host owns the timer.
+This coordination adds no persistent connections.
 
 **Why:** A transient notification invalidation is not durable notification
 state. Rebuilding the finite projection avoids exposing internal storage
