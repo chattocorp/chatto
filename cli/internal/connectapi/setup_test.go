@@ -101,31 +101,3 @@ func TestSetupErrorFields(t *testing.T) {
 		})
 	}
 }
-
-func TestConfiguredOwnerCreationWelcomeResponse(t *testing.T) {
-	_, nc := testutil.StartNATS(t)
-	ctx := t.Context()
-	cfg := config.ChattoConfig{Core: config.CoreConfig{SecretKey: "test-core-secret", Assets: config.AssetsConfig{SigningSecret: "test-assets-secret"}, AuthDirectLoginDisabled: true, Owners: config.OwnersConfig{DIDs: []string{"did:web:owner.example"}}, AuthProviders: []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}}}
-	cfg.Auth.Providers = cfg.Core.AuthProviders
-	c, err := core.NewChattoCore(ctx, nc, cfg.Core)
-	if err != nil {
-		t.Fatal(err)
-	}
-	startConnectAPITestCore(t, c)
-	service := &externalIdentityAuthService{api: New(c, cfg, "0.5.0")}
-	token, err := c.CreatePendingExternalIdentityCreateFlow(ctx, core.PendingExternalIdentityFlow{ProviderID: "internet", ProviderType: "atproto", Issuer: "internet", Subject: "did:web:owner.example"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	response, err := service.CreateExternalIdentityAccount(ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{Token: token, Login: "founder", DisplayName: "Founder"}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if response.Header().Get("Chatto-Owner-Welcome") != "true" || response.Msg.Token == "" {
-		t.Fatal("successful sign-in lacks owner welcome or session")
-	}
-	_, err = service.CreateExternalIdentityAccount(ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{Token: token, Login: "founder", DisplayName: "Founder"}))
-	if err == nil {
-		t.Fatal("creation token replay accepted")
-	}
-}

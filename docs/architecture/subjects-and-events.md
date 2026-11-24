@@ -645,5 +645,3 @@ domain events. Source events remain in EVT. Enqueue appends `queued` only when
 the job has no facts. A manual retry appends `retried`, and a delete appends
 `deleted`, only when the viewed `failed` fact is still the latest fact of the
 job. See ADR-123.
-
-Existing setup-offered state with no user history permits configured-owner initialization. The account, identity, owner role, and existing `ServerInitialized` event commit together with whole-EVT and setup-subject OCC. No event schema or welcome-consumption record is added.

@@ -296,110 +296,6 @@ func TestDIDOwnerReconciledAtReplicaBoot(t *testing.T) {
 	}
 }
 
-func TestConfiguredOwnerCreationCompletesSetup(t *testing.T) {
-	for _, mode := range []string{"did", "email", "skip", "bootstrap", "old", "wizard", "non-owner"} {
-		t.Run(mode, func(t *testing.T) {
-			c, _ := setupTestCore(t)
-			ctx := testContext(t)
-			if mode == "wizard" {
-				c.config.SkipSetupWizard = false
-				if err := c.CompleteServerSetup(ctx, setupInput("wizardowner")); err != nil {
-					t.Fatal(err)
-				}
-			}
-			c.config.SkipSetupWizard = mode == "skip"
-			c.config.AuthDirectLoginDisabled = true
-			c.config.AuthProviders = []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}
-			c.config.Owners.DIDs = []string{"did:web:owner.example"}
-			if mode == "email" {
-				c.config.Owners.DIDs = nil
-				c.config.Owners.Emails = []string{"owner@example.test"}
-			}
-			if mode == "bootstrap" || mode == "old" {
-				if _, err := c.CreateUser(ctx, SystemActorID, "existing", "Existing", "correct-password"); err != nil {
-					t.Fatal(err)
-				}
-			}
-			flow := &PendingExternalIdentityFlow{Kind: ExternalIdentityFlowKindCreate, ProviderID: "internet", ProviderType: "atproto", Issuer: "internet", Subject: "did:web:owner.example", VerifiedEmail: "owner@example.test"}
-			if mode == "non-owner" {
-				flow.Subject = "did:web:member.example"
-			}
-			user, err := c.CreateUserForExternalIdentity(ctx, "founder", "Founder", flow)
-			if err != nil {
-				t.Fatal(err)
-			}
-			want := mode == "did" || mode == "email"
-			if flow.OwnerWelcome != want {
-				t.Fatalf("welcome=%v want=%v", flow.OwnerWelcome, want)
-			}
-			owner, err := c.IsServerOwner(ctx, user.Id)
-			if err != nil || owner != (mode != "non-owner") {
-				t.Fatalf("owner=%v err=%v", owner, err)
-			}
-			seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
-			if err != nil {
-				t.Fatal(err)
-			}
-			record, err := c.eventReader.EventAt(ctx, seq)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if want && record.Event.GetServerInitialized() == nil {
-				t.Fatal("creation did not complete setup")
-			}
-			c.config.Owners = config.OwnersConfig{}
-			if err := c.applyConfigOwners(ctx); err != nil {
-				t.Fatal(err)
-			}
-			owner, err = c.IsServerOwner(ctx, user.Id)
-			if err != nil || owner != (mode != "non-owner") {
-				t.Fatal("removal changed owner")
-			}
-		})
-	}
-}
-
-func TestConfiguredOwnerConcurrentCreationWelcome(t *testing.T) {
-	ns, _ := testutil.StartNATS(t)
-	cfg := testCoreConfig()
-	cfg.SkipSetupWizard = false
-	cfg.AuthDirectLoginDisabled = true
-	cfg.AuthProviders = []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}
-	cfg.Owners.DIDs = []string{"did:web:first.example", "did:web:second.example"}
-	first := startReplica(t, ns, cfg)
-	second := startReplica(t, ns, cfg)
-	ctx := testContext(t)
-	results := make(chan bool, 2)
-	errs := make(chan error, 2)
-	var wg sync.WaitGroup
-	for i, c := range []*ChattoCore{first, second} {
-		wg.Go(func() {
-			name := []string{"first", "second"}[i]
-			flow := &PendingExternalIdentityFlow{Kind: ExternalIdentityFlowKindCreate, ProviderID: "internet", ProviderType: "atproto", Issuer: "internet", Subject: cfg.Owners.DIDs[i]}
-			_, err := c.CreateUserForExternalIdentity(ctx, name, name, flow)
-			errs <- err
-			results <- flow.OwnerWelcome
-		})
-	}
-	wg.Wait()
-	close(errs)
-	close(results)
-	for err := range errs {
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	count := 0
-	for welcome := range results {
-		if welcome {
-			count++
-		}
-	}
-	if count != 1 {
-		t.Fatalf("welcomes=%d", count)
-	}
-}
-
 func TestDIDOwnerGrantOnExistingAccountLink(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -415,5 +311,42 @@ func TestDIDOwnerGrantOnExistingAccountLink(t *testing.T) {
 	owner, err := c.IsServerOwner(ctx, user.Id)
 	if err != nil || !owner {
 		t.Fatalf("owner=%v err=%v", owner, err)
+	}
+}
+
+func TestConfiguredDIDOwnerCreationPreservesSetupState(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	c.config.SkipSetupWizard = false
+	c.config.AuthDirectLoginDisabled = true
+	c.config.AuthProviders = []config.AuthProviderConfig{{ID: "internet", Type: "atproto"}}
+	c.config.Owners.DIDs = []string{"did:web:owner.example"}
+	before, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow := &PendingExternalIdentityFlow{Kind: ExternalIdentityFlowKindCreate, ProviderID: "internet", ProviderType: "atproto", Issuer: "internet", Subject: "did:web:owner.example"}
+	user, err := c.CreateUserForExternalIdentity(ctx, "founder", "Founder", flow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := c.IsServerOwner(ctx, user.Id)
+	if err != nil || !owner {
+		t.Fatalf("owner=%v err=%v", owner, err)
+	}
+	after, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before != after {
+		t.Fatal("owner creation changed durable setup state")
+	}
+	c.config.Owners.DIDs = nil
+	if err := c.applyConfigOwners(ctx); err != nil {
+		t.Fatal(err)
+	}
+	owner, err = c.IsServerOwner(ctx, user.Id)
+	if err != nil || !owner {
+		t.Fatal("configuration removal revoked owner")
 	}
 }

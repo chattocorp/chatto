@@ -168,10 +168,6 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 		ExpiresIn:             remainingLifetimeSeconds(credentials.AccessTokenExpiresAt),
 		RefreshTokenExpiresIn: remainingLifetimeSeconds(credentials.SessionExpiresAt),
 	})
-	// Browser sign-in metadata uses a response header; no protobuf contract changes.
-	if flow.OwnerWelcome {
-		response.Header().Set("Chatto-Owner-Welcome", "true")
-	}
 	response.Header().Set("Cache-Control", "no-store")
 	response.Header().Set("Pragma", "no-cache")
 	return response, nil

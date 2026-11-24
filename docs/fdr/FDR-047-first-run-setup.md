@@ -49,7 +49,8 @@ commands. Server naming and owner-account creation remain in the browser
 wizard. Browser wizard setup requires password login. For SSO-only login, the
 review and startup instructions explain how to configure `owners.emails` or
 `owners.dids` and create the owner through normal provider sign-in.
-The form rejects a configuration with no login method. This keeps account creation in the existing atomic setup operation.
+The form rejects a configuration with no login method. Browser-wizard account
+creation remains part of the existing atomic setup operation.
 Plain `chatto init` remains suitable for scripts and does not ask questions.
 The wizard does not edit existing files: the configuration serializer cannot
 preserve their comments and settings outside the wizard's scope.
@@ -160,6 +161,4 @@ because it must have full server control.
 
 When `auth.direct_login` is false and either owner list is non-empty, setup discovery returns false without changing durable setup state. Normal provider admission still applies, including `auto_provision` and invitation rules.
 
-The existing setup-offered record and absence of all user history determine eligibility. Existing initialized servers, wizard completion, explicit skip, and any prior account history (including interrupted bootstrap and deleted accounts) exclude the welcome. An older server that remains empty and still offers setup is indistinguishable from a new server and can show the welcome for its first configured owner.
-
-The first configured owner's external account creation records the owner role and existing `ServerInitialized` event in the same atomic batch as the account and identity. Concurrent creation retries rebuild the batch. The successful sign-in response includes `Chatto-Owner-Welcome: true`. The browser binds the in-memory welcome handoff to that created account, clears it on authentication-completion failure, and preserves return navigation. No protobuf definitions change, and there is no welcome claim RPC or new event type. A lost response can lose the dialog but cannot reopen setup. Linking an identity to an existing account grants the role without a creation welcome.
+Automatic setup skipping does not add an owner welcome, activate privileged mode, or write setup-completion events during sign-in. The existing browser-wizard welcome remains unchanged. A separate feature can define onboarding for configured owners.

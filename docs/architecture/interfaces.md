@@ -710,5 +710,3 @@ viewed job version. OCC on the facts of the job accepts one new attempt budget
 or one delete. Delete removes a failed job and abandons its work. Retry
 versions are opaque application tokens, not broker coordinates. See FDR-056
 and ADR-123.
-
-`ExternalIdentityAuthService.CreateExternalIdentityAccount` returns the `Chatto-Owner-Welcome: true` response header only when this account creation completed configured-owner setup. The flag accompanies successful sign-in credentials; the browser passes it to the existing welcome handoff.

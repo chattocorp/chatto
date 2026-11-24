@@ -91,13 +91,6 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		}
 	}
 
-	// Only actual development bootstrap closes setup. Ordinary restarts must
-	// preserve a new SSO server's unclaimed welcome eligibility.
-	if usersCreated > 0 || botsCreated > 0 {
-		if err := c.CompleteBootstrappedSetup(ctx); err != nil {
-			logger.Error("Failed to complete bootstrapped setup", "error", err)
-		}
-	}
 	logger.Info("[bootstrap] apply complete",
 		"users_created", usersCreated,
 		"users_existing", usersExisting,

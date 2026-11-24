@@ -23,8 +23,6 @@
 
   const { data } = $props();
   const getServerInfo = getAuthServerInfo();
-  import { markOwnerOnboardingPending, takeOwnerOnboarding } from '$lib/state/ownerOnboarding';
-
   const flowAPI = createExternalIdentityFlowAPI();
 
   const pending = $derived(data.pending);
@@ -94,23 +92,17 @@
     const redirectPath = pending.redirectPath || '/';
     submitting = true;
     actionError = '';
-    let welcomeUserId: string | undefined;
     try {
-      const account = await flowAPI.createAccount({
+      await flowAPI.createAccount({
         token: data.token,
         login: usernameManaged ? '' : login,
         displayName
       });
-      if (account.ownerWelcome) {
-        welcomeUserId = account.userId;
-        markOwnerOnboardingPending(account.userId);
-      }
       const resumedReturnNavigation = await completeOriginAuthentication();
       if (!resumedReturnNavigation) {
         goto(resolve(redirectPath as '/'), { replaceState: true });
       }
     } catch (err) {
-      if (welcomeUserId) takeOwnerOnboarding(welcomeUserId);
       actionError = errorMessage(err, m('auth.sso.create_failed'));
     } finally {
       submitting = false;

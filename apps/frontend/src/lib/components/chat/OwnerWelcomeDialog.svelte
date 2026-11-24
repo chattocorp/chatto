@@ -32,7 +32,7 @@ Renders nothing on other servers or later visits.
   // availability, has loaded. Later runs find no pending mark.
   $effect(() => {
     if (!privilegedMode || !serverRegistry.isOriginServer(serverId)) return;
-    if (!takeOwnerOnboarding(store.accountId ?? undefined)) return;
+    if (!takeOwnerOnboarding()) return;
     visible = true;
     if (privilegedMode.available && !privilegedMode.active) {
       store

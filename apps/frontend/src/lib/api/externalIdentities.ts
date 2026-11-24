@@ -67,8 +67,6 @@ export type ExternalIdentityList = {
 };
 
 export type CreatedExternalIdentityAccount = {
-  /** Creation completed initial owner setup. */
-  ownerWelcome: boolean;
   userId: string;
   login: string;
 };
@@ -103,17 +101,12 @@ export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPICon
       login: string;
       displayName: string;
     }): Promise<CreatedExternalIdentityAccount> {
-      let ownerWelcome = false;
       const response = await client.createExternalIdentityAccount(input, {
-        onHeader: (headers) => {
-          ownerWelcome = headers.get('Chatto-Owner-Welcome') === 'true';
-        },
         headers: browserCookieAuthenticationHeaders
       });
       return {
         userId: response.userId,
-        login: response.login,
-        ownerWelcome
+        login: response.login
       };
     },
 

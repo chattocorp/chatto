@@ -91,8 +91,7 @@ describe('createExternalIdentityFlowAPI', () => {
       api.createAccount({ token: 'flow-token', login: 'octo', displayName: 'Octo Person' })
     ).resolves.toEqual({
       userId: 'user-1',
-      login: 'octo',
-      ownerWelcome: false
+      login: 'octo'
     });
     expect(receivedRequest(flow.createExternalIdentityAccount)).toMatchObject({
       token: 'flow-token',
@@ -255,20 +254,4 @@ describe('createExternalIdentityAPI', () => {
       currentPassword: 'current-password'
     });
   });
-});
-
-it('passes the initial owner welcome from sign-in metadata', async () => {
-  flow.createExternalIdentityAccount.mockImplementation((_request, context) => {
-    context.responseHeader.set('Chatto-Owner-Welcome', 'true');
-    return { userId: 'owner', login: 'founder' };
-  });
-  expect(
-    (
-      await createExternalIdentityFlowAPI(config()).createAccount({
-        token: 'flow',
-        login: 'founder',
-        displayName: 'Founder'
-      })
-    ).ownerWelcome
-  ).toBe(true);
 });

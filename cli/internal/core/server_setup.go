@@ -182,31 +182,3 @@ func (c *ChattoCore) CompleteBootstrappedSetup(ctx context.Context) error {
 func (c *ChattoCore) configuredOwnerSetup() bool {
 	return c.config.AuthDirectLoginDisabled && c.config.Owners.Configured()
 }
-
-// configuredOwnerCreationEntries completes initialization in the account batch.
-// The setup OCC guard selects one winner across concurrent account creations.
-func (c *ChattoCore) configuredOwnerCreationEntries(ctx context.Context, userID string) ([]evtstream.BatchEntry, error) {
-	if c.config.SkipSetupWizard || !c.configuredOwnerSetup() {
-		return nil, nil
-	}
-	seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
-	if err != nil || seq == 0 {
-		return nil, err
-	}
-	record, err := c.eventReader.EventAt(ctx, seq)
-	if err != nil {
-		return nil, err
-	}
-	if record.Event.GetServerSetupOffered() == nil {
-		return nil, nil
-	}
-	// Any prior user history, including interrupted bootstrap or deleted users,
-	// excludes first-account onboarding. The creation batch guards whole EVT.
-	users, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.UserSubjectFilter())
-	if err != nil || users != 0 {
-		return nil, err
-	}
-	event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerInitialized{ServerInitialized: &evtv1.ServerInitializedEvent{}}})
-	entries := rbacSeedEntries(nil, []rbacSeedAssignment{{userID: userID, roleName: RoleOwner}}, nil)
-	return append(entries, evtstream.BatchEntry{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, Expect: events.ExpectFilterSeq(evtstream.SetupAggregate().AllEventsFilter(), seq)}), nil
-}

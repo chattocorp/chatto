@@ -115,17 +115,4 @@ describe('OwnerWelcomeDialog', () => {
     await expect.element(view.getByRole('dialog')).not.toBeInTheDocument();
     expect(takeOwnerOnboarding()).toBe(true);
   });
-  it('does not consume another account welcome as its own', async () => {
-    markOwnerOnboardingPending('other-account');
-    const view = render(OwnerWelcomeDialog);
-    await expect.element(view.getByRole('dialog')).not.toBeInTheDocument();
-    expect(mocks.setPrivilegedMode).not.toHaveBeenCalled();
-    expect(takeOwnerOnboarding('other-account')).toBe(false);
-  });
-  it('welcomes the account named by the sign-in response', async () => {
-    markOwnerOnboardingPending('viewer-1');
-    const view = render(OwnerWelcomeDialog);
-    await expect.element(view.getByTestId('owner-welcome')).toBeVisible();
-    expect(mocks.setPrivilegedMode).toHaveBeenCalledWith(true, ['owner']);
-  });
 });
