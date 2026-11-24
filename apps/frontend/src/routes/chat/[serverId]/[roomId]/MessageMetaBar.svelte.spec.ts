@@ -1,5 +1,5 @@
 import '../../../../app.css';
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import type { ReactionSummaryView } from '@chatto/client/timeline/reactions';
@@ -397,7 +397,14 @@ describe('MessageMetaBar', () => {
     expect(q(container, 'button[aria-label="Unpin message"]')).toBeNull();
   });
 
-  it('shows reaction tooltips with the readable reaction name and reacting users', () => {
+  it.each(['light', 'dark'])('shows readable reaction tooltips in %s mode', (theme) => {
+    const root = document.documentElement;
+    const previousTheme = root.dataset.theme;
+    root.dataset.theme = theme;
+    onTestFinished(() => {
+      if (previousTheme === undefined) delete root.dataset.theme;
+      else root.dataset.theme = previousTheme;
+    });
     const { container } = render(MessageMetaBar, {
       props: {
         ...baseProps,
@@ -413,6 +420,10 @@ describe('MessageMetaBar', () => {
     const tooltip = q(container, '[role="tooltip"]')!;
     const reactionName = q(tooltip, 'strong')!;
 
+    expect(tooltip.matches(':popover-open')).toBe(true);
+    expect(getComputedStyle(reactionName).color).toBe(
+      getComputedStyle(q(tooltip, '[data-testid="reaction-tooltip-users"]')!).color
+    );
     expect(reactionName.textContent?.trim()).toBe('Thumbs up');
     expect(q(tooltip, '.text-4xl')?.textContent?.trim()).toBe('👍🏽');
     expect(tooltip.textContent?.replace(/\s+/g, ' ').trim()).toContain(
