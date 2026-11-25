@@ -12,6 +12,7 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     servers: [] as Array<{ id: string }>,
     activeServer: '',
+    routeId: '/login',
     callStore: null as ServerStateStore | null,
     activeStore: undefined as
       | {
@@ -80,6 +81,16 @@ vi.mock('$lib/client', async () => ({
 vi.mock('$lib/serverCatalogue', () => ({
   firstAuthenticatedServerId: () =>
     mocks.servers.find((server) => mocks.authenticated[server.id])?.id
+}));
+
+vi.mock('$app/state', () => ({
+  page: {
+    route: {
+      get id() {
+        return mocks.routeId;
+      }
+    }
+  }
 }));
 
 vi.mock('$app/navigation', () => ({ pushState: mocks.pushState, goto: vi.fn() }));
@@ -286,6 +297,7 @@ describe('AppHeader', () => {
 
   beforeEach(() => {
     mocks.servers = [];
+    mocks.routeId = '/login';
     mocks.activeServer = '';
     mocks.activeStore = undefined;
     mocks.authenticated = {};
@@ -293,6 +305,29 @@ describe('AppHeader', () => {
     mocks.getStore.mockReset();
     mocks.pushState.mockReset();
   });
+
+  it.each([
+    [false, false, '/login', false, false],
+    [false, false, '/help', true, false],
+    [false, false, '/chat/preferences/appearance', true, false],
+    [false, true, '/chat/[serverId]', true, true],
+    [true, false, '/login', true, true]
+  ] as const)(
+    'shows the available controls with gutter=%s, signedIn=%s on %s',
+    (gutter, signedIn, route, sidebar, chat) => {
+      mocks.authenticated = { origin: signedIn };
+      mocks.servers = [{ id: 'origin' }];
+      mocks.activeServer = 'origin';
+      mocks.routeId = route;
+      const { container } = render(AppHeader, { gutterEnabled: gutter });
+      const has = (selector: string) => container.querySelector(selector) !== null;
+      expect(has('button[aria-expanded]')).toBe(sidebar);
+      expect(has('a[href$="/notifications"]')).toBe(chat);
+      expect(has('button[aria-label="Open quick switcher"]')).toBe(chat);
+      expect(has('a[href="/help"]')).toBe(true);
+      if (!signedIn) expect(has('a[href="/chat/preferences"]')).toBe(true);
+    }
+  );
 
   it('hides notifications when no servers are registered', () => {
     const { container } = render(AppHeader);

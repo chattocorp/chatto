@@ -35,6 +35,9 @@ frontend. The order belongs to this browser or app installation.
   `false`. Without the gutter, the frontend shows only its own server, and
   `/chat/servers` redirects to `/`. The standalone frontend and the desktop
   app always show the gutter.
+- When the gutter is off and the active server is signed out, the app header
+  shows Settings and Help. It hides Notifications and the Quick Switcher.
+  The sidebar toggle stays available on Help and App Preferences pages.
 
 ## Design Decisions
 
