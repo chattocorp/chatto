@@ -126,8 +126,19 @@ function threadSummary(payload: MessagePostedPayload) {
   };
 }
 
-function snapshotEventFingerprints(events: readonly TimelineEventView[]): Map<string, string> {
-  return new Map(events.map((event) => [event.id, eventFingerprint(event)]));
+/**
+ * Fingerprint events by ID. With `ids`, fingerprint only those events: a
+ * realtime reconciliation must not serialize the whole retained timeline.
+ */
+function snapshotEventFingerprints(
+  events: Iterable<TimelineEventView | null>,
+  ids?: ReadonlySet<string>
+): Map<string, string> {
+  const fingerprints = new Map<string, string>();
+  for (const event of events) {
+    if (event && (!ids || ids.has(event.id))) fingerprints.set(event.id, eventFingerprint(event));
+  }
+  return fingerprints;
 }
 
 function skippedRefreshResult(): RefreshCurrentWindowResult {
@@ -526,16 +537,14 @@ export class MessagesStore {
    * Capture this timeline before a shared read. A local edit or a newer page
    * response wins over that read. Only new posts may insert off-window rows;
    * resource updates do not change pagination cursors or loaded continuity.
+   * Only the rows and previews of `ids` are captured; call the returned
+   * callback only for those IDs.
    */
-  captureMessageReconciliation(): (
-    id: string,
-    event: TimelineEventView | null,
-    insert: boolean
-  ) => void {
-    const before = snapshotEventFingerprints(this.events);
-    const previews = snapshotEventFingerprints(
-      [...this.previewEvents.values()].filter((event): event is TimelineEventView => !!event)
-    );
+  captureMessageReconciliation(
+    ids: ReadonlySet<string>
+  ): (id: string, event: TimelineEventView | null, insert: boolean) => void {
+    const before = snapshotEventFingerprints(this.events, ids);
+    const previews = snapshotEventFingerprints(this.previewEvents.values(), ids);
     return (id, event, insert) => {
       if (this.#projectionAccessRevoked) return;
       if (!event) {

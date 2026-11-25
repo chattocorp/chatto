@@ -67,10 +67,10 @@ export class TimelineSync {
 
   constructor(options: TimelineSyncOptions) {
     this.#options = options;
-    this.#reconciler = new MessageReconciler(options.readMessages, (roomId, cursor) => {
+    this.#reconciler = new MessageReconciler(options.readMessages, (roomId, ids, cursor) => {
       const timelines = options.rooms
         .timelines(roomId)
-        .map((store) => store.captureMessageReconciliation());
+        .map((store) => store.captureMessageReconciliation(ids));
       const { files, pins } = options.rooms.loaded(roomId) ?? {};
       return (id, resource, insert) => {
         for (const apply of timelines) apply(id, resource?.timeline ?? null, insert);

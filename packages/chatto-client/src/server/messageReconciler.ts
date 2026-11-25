@@ -22,8 +22,13 @@ export class MessageReconciler {
       ids: string[],
       cursor?: string
     ) => Promise<MessageResource[]>,
+    /**
+     * Capture the views of a room before a read of `ids`. The returned
+     * callback is called only for those IDs.
+     */
     private readonly capture: (
       roomId: string,
+      ids: ReadonlySet<string>,
       cursor?: string
     ) => (id: string, resource: MessageResource | null, insert: boolean) => void
   ) {}
@@ -62,7 +67,7 @@ export class MessageReconciler {
     while (current() && queue.pending.size > 0) {
       queue.active = new Map([...queue.pending].slice(0, 100));
       for (const id of queue.active.keys()) queue.pending.delete(id);
-      const apply = this.capture(roomId, queue.cursor);
+      const apply = this.capture(roomId, new Set(queue.active.keys()), queue.cursor);
       let resources: MessageResource[];
       try {
         resources = await this.read(roomId, [...queue.active.keys()], queue.cursor);

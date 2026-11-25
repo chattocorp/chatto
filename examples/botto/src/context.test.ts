@@ -18,7 +18,7 @@ test('selects recent text, keeps the root, and sees realtime edits and deletions
   const first = await read(server);
   expect(first.messages.map((message) => message.id)).toEqual(['root', 'one', 'two']);
   expect(first.olderContextOmitted).toBe(true);
-  store().captureMessageReconciliation()('two', row('two', 'Edited', 'bot'), false);
+  store().captureMessageReconciliation(new Set(['two']))('two', row('two', 'Edited', 'bot'), false);
   store().applyMessageRetraction('one', '2026-10-23T01:00:00Z');
   store().ingestEvent(row('three', 'Live reply'));
   const second = await read(server);
