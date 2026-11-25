@@ -44,6 +44,7 @@
     "locally_muted": "Loke silentigita",
     "unknown_device": "Nekonata aparato",
     "participants": "Voku partoprenantojn",
+    "participant_limit": "La nombro de partoprenantoj en vokoj sur ĉi tiu servilo atingis la limon. Reprovu poste.",
     "join_failed": "Malsukcesis aliĝi al voĉvoko",
     "encrypted_unsupported": "Ĉi tiu retumilo ankoraŭ ne subtenas ĉifritajn voĉvokojn. Provu la plej novan Firefox, Chrome aŭ Edge.",
     "signaling_failed": "Ne eblis atingi la voĉservilon. Kontrolu vian reton kaj provu denove.",

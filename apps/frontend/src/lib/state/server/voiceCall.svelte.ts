@@ -35,6 +35,7 @@ import type {
 import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
 import { m } from '$lib/i18n/messages';
+import { Code, isConnectCode } from '@chatto/client/api/connect';
 import type { VoiceCallAPI } from '@chatto/client/api/voiceCalls';
 import type { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScreenSharePublisher';
 
@@ -143,6 +144,7 @@ export class VoiceCallJoinError extends Error {
 
 export function getVoiceCallJoinErrorMessage(err: unknown): string {
   if (err instanceof VoiceCallJoinError) return err.userMessage;
+  if (isConnectCode(err, Code.ResourceExhausted)) return m('voice.participant_limit');
 
   const message = errorMessage(err);
   if (/signal connection|serverunreachable|websocket|web socket|abort handler/i.test(message)) {

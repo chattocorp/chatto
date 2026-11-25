@@ -536,6 +536,7 @@ func TestConnectErrorMapping(t *testing.T) {
 		{"wrapped invalid permission", fmt.Errorf("%w: unknown.permission", core.ErrInvalidPermission), connect.CodeInvalidArgument},
 		{"login change cooldown", core.ErrLoginChangeCooldown, connect.CodeFailedPrecondition},
 		{"wrapped login change cooldown", fmt.Errorf("update profile: %w", core.ErrLoginChangeCooldown), connect.CodeFailedPrecondition},
+		{"call participant limit", core.ErrCallParticipantLimit, connect.CodeResourceExhausted},
 		{"limit exceeded", core.ErrLimitExceeded, connect.CodeResourceExhausted},
 		{"reaction limit exceeded", core.ErrReactionLimitExceeded, connect.CodeResourceExhausted},
 		{"push subscription limit reached", core.ErrPushSubscriptionLimitReached, connect.CodeResourceExhausted},

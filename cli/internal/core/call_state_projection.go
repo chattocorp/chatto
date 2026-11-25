@@ -174,9 +174,25 @@ func (p *CallStateProjection) Participants(roomID string) []CallParticipant {
 	return p.participantsLocked(roomID)
 }
 
+// admissionSnapshot reads the target room and counts places across all rooms
+// under one lock. Each user takes one place in each room they have joined.
+func (p *CallStateProjection) admissionSnapshot(roomID string) (CallRoomSnapshot, int) {
+	p.RLock()
+	defer p.RUnlock()
+	total := 0
+	for _, participants := range p.rooms {
+		total += len(participants)
+	}
+	return p.roomSnapshotLocked(roomID), total
+}
+
 func (p *CallStateProjection) RoomSnapshot(roomID string) CallRoomSnapshot {
 	p.RLock()
 	defer p.RUnlock()
+	return p.roomSnapshotLocked(roomID)
+}
+
+func (p *CallStateProjection) roomSnapshotLocked(roomID string) CallRoomSnapshot {
 	return CallRoomSnapshot{
 		Participants: p.participantsLocked(roomID),
 		Call:         p.activeCalls[roomID],

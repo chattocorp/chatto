@@ -53,6 +53,9 @@ var (
 	// they are not a member of.
 	ErrNotRoomMember = errors.New("not a member of this room")
 
+	// ErrCallParticipantLimit means a new admission would exceed the server quota.
+	ErrCallParticipantLimit = errors.New("This server has reached its call participant limit. Try again later.")
+
 	// ErrCallParticipationRequired is returned when an operation requires the
 	// user to be a participant in the active call generation.
 	ErrCallParticipationRequired = errors.New("active call participation required")

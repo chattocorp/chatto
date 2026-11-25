@@ -45,6 +45,9 @@ secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 [core.assets]
 signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 
+[core.calls]
+max_participants = 8
+
 [core.accounts]
 max_users = -1
 max_login_length = 90
@@ -56,6 +59,9 @@ max_login_length = 90
 	cfg, err := ReadConfig("")
 	if err != nil {
 		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if cfg.Core.Calls.MaxParticipantsOrDefault() != 8 {
+		t.Fatal("call limit from TOML")
 	}
 	if got := cfg.Core.Accounts.MaxLoginLengthOrDefault(); got != 90 {
 		t.Fatalf("TOML login limit = %d, want 90", got)
@@ -78,12 +84,16 @@ func TestReadConfig_LimitsFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+	t.Setenv("CHATTO_CORE_CALLS_MAX_PARTICIPANTS", "0")
 	t.Setenv("CHATTO_CORE_ACCOUNTS_MAX_USERS", "0")
 	t.Setenv("CHATTO_CORE_ACCOUNTS_MAX_LOGIN_LENGTH", "12")
 
 	cfg, err := ReadConfig("")
 	if err != nil {
 		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if cfg.Core.Calls.MaxParticipantsOrDefault() != 0 {
+		t.Fatal("call limit from environment")
 	}
 	if got := cfg.Core.Accounts.MaxLoginLengthOrDefault(); got != 12 {
 		t.Fatalf("ENV login limit = %d, want 12", got)
@@ -101,6 +111,16 @@ func TestChattoConfig_Validate_Limits(t *testing.T) {
 		}
 	}
 
+	t.Run("call limit", func(t *testing.T) {
+		c := base()
+		if c.Core.Calls.MaxParticipantsOrDefault() != -1 {
+			t.Fatal("expected unlimited default")
+		}
+		c.Core.Calls.MaxParticipants = new(-2)
+		if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "core.calls.max_participants") {
+			t.Fatalf("invalid call limit: %v", err)
+		}
+	})
 	t.Run("login length", func(t *testing.T) {
 		c := base()
 		if got := c.Core.Accounts.MaxLoginLengthOrDefault(); got != 64 {

@@ -44,6 +44,7 @@
     "locally_muted": "Lokalnie wyciszony",
     "unknown_device": "Nieznane urządzenie",
     "participants": "Uczestnicy rozmowy",
+    "participant_limit": "Osiągnięto limit uczestników rozmów na tym serwerze. Spróbuj ponownie później.",
     "join_failed": "Nie udało się dołączyć do połączenia głosowego",
     "encrypted_unsupported": "Ta przeglądarka nie obsługuje jeszcze szyfrowanych połączeń głosowych. Wypróbuj najnowszą wersję Firefox, Chrome lub Edge.",
     "signaling_failed": "Nie udało się połączyć z serwerem głosowym. Sprawdź swoją sieć i spróbuj ponownie.",

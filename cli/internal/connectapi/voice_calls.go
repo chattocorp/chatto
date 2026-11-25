@@ -151,19 +151,15 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("voice calls are not configured"))
 	}
 
-	permissions, err := s.api.core.AuthorizeCall(ctx, caller.UserID, req.Msg.GetRoomId(), false)
-	if err != nil {
-		return nil, err
-	}
-	user, err := s.api.core.GetUser(ctx, caller.UserID)
-	if err != nil {
-		return nil, err
-	}
-	access, err := s.api.core.GetVoiceCallAccessMaterial(ctx, req.Msg.GetRoomId())
+	permissions, access, err := s.api.core.CallTokenAccess(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
 		if errors.Is(err, core.ErrNotFound) {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", req.Msg.GetRoomId()))
 		}
+		return nil, err
+	}
+	user, err := s.api.core.GetUser(ctx, caller.UserID)
+	if err != nil {
 		return nil, err
 	}
 	avatarSize := 96

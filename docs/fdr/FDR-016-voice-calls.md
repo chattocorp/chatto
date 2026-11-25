@@ -9,6 +9,8 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Behavior
 
+Operators can limit concurrent call participants with `core.calls.max_participants`. The default is unlimited. Each user or bot takes one place per room, including listen-only and pending joins. A native companion publisher shares its owner's place. At capacity, Chatto returns `RESOURCE_EXHAUSTED` for a new join or primary token request. A participant can request another token for the same call. Lowering the limit preserves existing calls. Leave events and LiveKit reconciliation release places, including abandoned joins. LiveKit can still reconnect a participant with a valid token.
+
 - Supported browsers expose microphone, camera, and hang-up actions through
   system media controls during a call. These actions use the same permissions
   as the call panel. Microphone and camera actions are available only with the

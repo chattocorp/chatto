@@ -44,6 +44,7 @@
     "locally_muted": "Lokaal gedempt",
     "unknown_device": "Onbekend apparaat",
     "participants": "Bel deelnemers",
+    "participant_limit": "Het maximumaantal deelnemers aan gesprekken op deze server is bereikt. Probeer het later opnieuw.",
     "join_failed": "Kan niet deelnemen aan het spraakgesprek",
     "encrypted_unsupported": "Deze browser ondersteunt nog geen gecodeerde spraakoproepen. Probeer de nieuwste Firefox, Chrome of Edge.",
     "signaling_failed": "Kan de voiceserver niet bereiken. Controleer uw netwerk en probeer het opnieuw.",

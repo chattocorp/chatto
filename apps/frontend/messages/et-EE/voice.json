@@ -44,6 +44,7 @@
     "locally_muted": "Lokaalselt vaigistatud",
     "unknown_device": "Tundmatu seade",
     "participants": "Helista osalejatele",
+    "participant_limit": "Selle serveri kõnedes on osalejate ülempiir täis. Proovige hiljem uuesti.",
     "join_failed": "Häälkõnega liitumine ebaõnnestus",
     "encrypted_unsupported": "See brauser ei toeta veel krüpteeritud häälkõnesid. Proovige uusimat Firefoxi, Chrome'i või Edge'i.",
     "signaling_failed": "Kõneserveriga ei õnnestunud ühendust saada. Kontrollige oma võrku ja proovige uuesti.",

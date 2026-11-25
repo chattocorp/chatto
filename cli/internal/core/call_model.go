@@ -497,19 +497,34 @@ func (s *CallModel) AppendLeftForCall(ctx context.Context, roomID, userID, expec
 }
 
 func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source evtv1.CallParticipantEventSource) error {
-	return s.appendParticipantTransitionAuthorized(ctx, roomID, userID, joined, expectedCallID, source, nil)
+	return s.appendParticipantTransitionAuthorized(ctx, roomID, userID, joined, expectedCallID, source, -1, nil)
 }
 
-func (s *CallModel) appendParticipantTransitionAuthorized(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source evtv1.CallParticipantEventSource, authorize func(CallRoomSnapshot) error) error {
+func (s *CallModel) appendParticipantTransitionAuthorized(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source evtv1.CallParticipantEventSource, maxParticipants int, authorize func(CallRoomSnapshot) error) error {
 	aggregate := evtstream.RoomAggregate(roomID)
 	filter := aggregate.AllEventsFilter()
 	for attempt := range callReconcileMaxRetries {
-		if authorize != nil {
-			if err := s.waitForLatestRoomTransition(ctx, filter); err != nil {
+		var admissionTail events.StreamPosition
+		var snapshot CallRoomSnapshot
+		var participantCount int
+		if maxParticipants >= 0 {
+			tail, err := s.publisher.LastSubjectPosition(ctx, evtstream.RoomSubjectFilter())
+			if err != nil {
 				return err
 			}
+			if err := s.callState.Projector().WaitFor(ctx, tail); err != nil {
+				return err
+			}
+			admissionTail = tail
+			snapshot, participantCount = s.callState.Projection().admissionSnapshot(roomID)
+		} else {
+			if authorize != nil {
+				if err := s.waitForLatestRoomTransition(ctx, filter); err != nil {
+					return err
+				}
+			}
+			snapshot = s.roomSnapshot(roomID)
 		}
-		snapshot := s.callState.Projection().RoomSnapshot(roomID)
 		if expectedCallID != "" && snapshot.Call.CallID != expectedCallID {
 			return nil
 		}
@@ -525,9 +540,18 @@ func (s *CallModel) appendParticipantTransitionAuthorized(ctx context.Context, r
 			return nil
 		}
 
+		if maxParticipants >= 0 && participantCount >= maxParticipants {
+			return ErrCallParticipantLimit
+		}
+
 		entries, endedKeyRef, cleanupKeyRef, err := s.callTransitionBatch(ctx, aggregate, snapshot, roomID, userID, joined, source)
 		if err != nil {
 			return err
+		}
+		if maxParticipants >= 0 {
+			// Every change to call occupancy is a room event. This guard covers
+			// both the target room generation and competing joins in other rooms.
+			entries[0].Expect = events.ExpectFilterSeq(evtstream.RoomSubjectFilter(), admissionTail.Seq)
 		}
 		seqs, err := s.publisher.AppendBatch(ctx, entries)
 		if err == nil {

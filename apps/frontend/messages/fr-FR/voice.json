@@ -44,6 +44,7 @@
     "locally_muted": "Muet localement",
     "unknown_device": "Appareil inconnu",
     "participants": "Appeler les participants",
+    "participant_limit": "Le nombre maximal de participants aux appels sur ce serveur est atteint. Réessayez plus tard.",
     "join_failed": "Échec de la participation à l'appel vocal",
     "encrypted_unsupported": "Ce navigateur ne prend pas encore en charge les appels vocaux cryptés. Essayez la dernière version Firefox, Chrome ou Edge.",
     "signaling_failed": "Impossible d'atteindre le serveur vocal. Vérifiez votre réseau et réessayez.",
