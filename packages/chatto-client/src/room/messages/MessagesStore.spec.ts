@@ -16,7 +16,11 @@ import {
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { TimelineEventKind, type TimelineEventView } from '../../timeline/timelineEvents.js';
 import { RoomThreadingMode } from '../../util/roomThreading.js';
-import { MessagesStore } from './MessagesStore.js';
+import {
+  FOLLOWING_WINDOW_RETAINED,
+  FOLLOWING_WINDOW_TRIM_THRESHOLD,
+  MessagesStore
+} from './MessagesStore.js';
 import { Code, ConnectError, StaleResponseError } from '../../api/connect.js';
 
 /** A jump result that shows the target event. */
@@ -5160,5 +5164,137 @@ describe('MessagesStore — load errors and current windows', () => {
     store.dispose();
     expect(store.isDisposed).toBe(true);
     expect(store.isCurrent).toBe(false);
+  });
+});
+
+describe('MessagesStore — following window trim', () => {
+  const threshold = FOLLOWING_WINDOW_TRIM_THRESHOLD;
+  const retained = FOLLOWING_WINDOW_RETAINED;
+  /** The first message that a trim after `threshold + 1` messages keeps. */
+  const firstKept = threshold + 2 - retained;
+
+  const message = (n: number, inReplyTo: string | null = null) => {
+    const row = threadMessageEvent(`m${n}`);
+    return { ...row, event: { ...row.event, inReplyTo } } as unknown as TimelineEventView;
+  };
+  const ids = (events: readonly TimelineEventView[]) => events.map((event) => event.id);
+
+  async function followingStore(overrides: Partial<RoomTimelineAPI> = {}) {
+    const timeline = fakeTimelineAPI(overrides);
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      timeline
+    );
+    await settle();
+    return { store, timeline };
+  }
+
+  function ingest(store: MessagesStore, from: number, to: number) {
+    for (let n = from; n <= to; n++) store.ingestEvent(message(n));
+  }
+
+  it('drops the oldest rows when a following window grows past the threshold', async () => {
+    const { store } = await followingStore();
+    ingest(store, 1, threshold);
+    expect(store.events).toHaveLength(threshold);
+    expect(store.hasReachedStart).toBe(true);
+
+    ingest(store, threshold + 1, threshold + 1);
+    expect(store.events).toHaveLength(retained);
+    expect(store.events[0]?.id).toBe(`m${firstKept}`);
+    expect(store.hasReachedStart).toBe(false);
+    store.dispose();
+  });
+
+  it('keeps every row while the view shows older events', async () => {
+    const { store } = await followingStore();
+    ingest(store, 1, 10);
+    expect(store.setAnchor('m5')).toBe(true);
+    ingest(store, 11, threshold + 1);
+    expect(store.events).toHaveLength(threshold + 1);
+    store.dispose();
+  });
+
+  it('keeps dropped reply targets as previews', async () => {
+    const { store, timeline } = await followingStore();
+    ingest(store, 1, threshold);
+    store.ingestEvent(message(threshold + 1, 'm1'));
+    expect(store.events.some((event) => event.id === 'm1')).toBe(false);
+    expect(store.getEventById('m1')?.id).toBe('m1');
+    expect(store.ensureEvent('m1')).toBeUndefined();
+    expect(timeline.getMessage).not.toHaveBeenCalled();
+    store.dispose();
+  });
+
+  it('reads around the oldest kept message, then pages with that cursor', async () => {
+    const around = vi.fn<RoomTimelineAPI['getRoomEventsAround']>(async () => ({
+      events: [firstKept - 2, firstKept - 1, firstKept, firstKept + 1].map((n) => message(n)),
+      startCursor: 'cursor:older',
+      endCursor: null,
+      hasOlder: true,
+      hasNewer: true
+    }));
+    const { store, timeline } = await followingStore({ getRoomEventsAround: around });
+    ingest(store, 1, threshold + 1);
+
+    await store.loadMore();
+    expect(around).toHaveBeenCalledWith(expect.objectContaining({ eventId: `m${firstKept}` }));
+    expect(ids(store.events.slice(0, 3))).toEqual([
+      `m${firstKept - 2}`,
+      `m${firstKept - 1}`,
+      `m${firstKept}`
+    ]);
+    expect(store.events).toHaveLength(retained + 2);
+    expect(store.hasReachedStart).toBe(false);
+
+    await store.loadMore();
+    expect(around).toHaveBeenCalledOnce();
+    expect(timeline.getRoomEvents).toHaveBeenLastCalledWith(
+      expect.objectContaining({ before: 'cursor:older' })
+    );
+    store.dispose();
+  });
+
+  it('anchors on the next kept message when the oldest one is gone', async () => {
+    const around = vi
+      .fn<RoomTimelineAPI['getRoomEventsAround']>()
+      .mockRejectedValueOnce(new ConnectError('gone', Code.NotFound))
+      .mockResolvedValueOnce({
+        events: [message(firstKept - 1), message(firstKept + 1)],
+        startCursor: 'cursor:older',
+        endCursor: null,
+        hasOlder: false,
+        hasNewer: true
+      });
+    const { store } = await followingStore({ getRoomEventsAround: around });
+    ingest(store, 1, threshold + 1);
+
+    await store.loadMore();
+    expect(around).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ eventId: `m${firstKept + 1}` })
+    );
+    expect(store.events[0]?.id).toBe(`m${firstKept - 1}`);
+    expect(store.hasReachedStart).toBe(true);
+    store.dispose();
+  });
+
+  it('forgets the trim when a reset replaces the window', async () => {
+    const { store, timeline } = await followingStore();
+    ingest(store, 1, threshold + 1);
+    vi.mocked(timeline.getRoomEvents).mockResolvedValueOnce({
+      events: [message(900)],
+      startCursor: 'cursor:latest',
+      endCursor: null,
+      hasOlder: true,
+      hasNewer: false
+    });
+    await store.hydrateRealtimeProjection('cursor', () => true, true);
+    await settle();
+    await store.loadMore();
+    expect(timeline.getRoomEventsAround).not.toHaveBeenCalled();
+    store.dispose();
   });
 });
