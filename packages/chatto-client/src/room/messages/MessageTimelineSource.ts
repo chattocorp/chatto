@@ -42,18 +42,44 @@ export class MessageTimelineSource {
     return this.scope === 'room' ? this.rootEventsFrom(events) : this.threadEventsFrom(events);
   }
 
+  /**
+   * Parsed `createdAt` per event object. Event views are replaced, not
+   * mutated, so an object's timestamp never changes. Entries go away with
+   * their events.
+   */
+  readonly #times = new WeakMap<TimelineEventView, number>();
+
+  #time(event: TimelineEventView): number {
+    let time = this.#times.get(event);
+    if (time === undefined) {
+      time = Date.parse(event.createdAt);
+      this.#times.set(event, time);
+    }
+    return time;
+  }
+
+  /** Display order: the thread root first, then by creation time. Unparseable times compare equal. */
+  #compare(a: TimelineEventView, b: TimelineEventView): number {
+    if (this.threadRootEventId !== null) {
+      const aIsRoot = a.id === this.threadRootEventId;
+      const bIsRoot = b.id === this.threadRootEventId;
+      if (aIsRoot !== bIsRoot) return aIsRoot ? -1 : 1;
+    }
+    return this.#time(a) - this.#time(b) || 0;
+  }
+
+  /**
+   * Order events for display. Equal events keep their input order. Returns
+   * `events` itself when it is already in order, which is the usual case for
+   * a live append, so callers must pass an array that they own.
+   */
   sort(events: TimelineEventView[]): TimelineEventView[] {
-    return events
-      .map((event, index) => ({ event, index }))
-      .sort((a, b) => {
-        if (this.threadRootEventId !== null) {
-          const aIsRoot = a.event.id === this.threadRootEventId;
-          const bIsRoot = b.event.id === this.threadRootEventId;
-          if (aIsRoot !== bIsRoot) return aIsRoot ? -1 : 1;
-        }
-        return Date.parse(a.event.createdAt) - Date.parse(b.event.createdAt) || a.index - b.index;
-      })
-      .map(({ event }) => event);
+    let ordered = true;
+    for (let i = 1; i < events.length && ordered; i++) {
+      ordered = this.#compare(events[i - 1]!, events[i]!) <= 0;
+    }
+    if (ordered) return events;
+    return events.toSorted((a, b) => this.#compare(a, b));
   }
 
   fetchPage(input: {

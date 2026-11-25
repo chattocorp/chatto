@@ -115,4 +115,39 @@ describe('MessageTimelineSource', () => {
     expect(firstApi.getRoomEvents).not.toHaveBeenCalled();
     expect(secondApi.getRoomEvents).toHaveBeenCalledOnce();
   });
+
+  it('keeps an ordered list without sorting and parses each timestamp once', () => {
+    const source = MessageTimelineSource.room(timelineApi(), 'room-1');
+    const first = event('first', '2026-08-02T10:00:00Z', null);
+    const second = event('second', '2026-08-02T11:00:00Z', null);
+    const live = event('live', '2026-08-02T12:00:00Z', null);
+    const ordered = [first, second];
+    expect(source.sort(ordered)).toBe(ordered);
+
+    const parse = vi.spyOn(Date, 'parse');
+    try {
+      const appended = [first, second, live];
+      expect(source.sort(appended)).toBe(appended);
+      expect(parse).toHaveBeenCalledOnce();
+    } finally {
+      parse.mockRestore();
+    }
+  });
+
+  it('places a late event by time and keeps equal times in input order', () => {
+    const source = MessageTimelineSource.room(timelineApi(), 'room-1');
+    const first = event('first', '2026-08-02T10:00:00Z', null);
+    const tieA = event('tie-a', '2026-08-02T11:00:00Z', null);
+    const tieB = event('tie-b', '2026-08-02T11:00:00Z', null);
+    const last = event('last', '2026-08-02T12:00:00Z', null);
+    const late = event('late', '2026-08-02T10:30:00Z', null);
+
+    expect(source.sort([first, tieA, tieB, last, late])).toEqual([
+      first,
+      late,
+      tieA,
+      tieB,
+      last
+    ]);
+  });
 });
