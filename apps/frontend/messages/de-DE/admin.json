@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Anhang-Uploads",
+        "description": "Der Bericht zählt Originalanhänge in Räumen aus den Ereignissen, die dieser Server speichert. Später gelöschte Anhänge zählen mit.",
+        "month": "Monat (UTC)",
+        "show": "Bericht anzeigen",
+        "loading": "Upload-Bericht wird geladen…",
+        "error": "Der Upload-Bericht konnte nicht geladen werden.",
+        "unavailable": "Dieser Server stellt keinen Bericht zu Anhang-Uploads bereit.",
+        "total_files": "Dateien insgesamt",
+        "total_bytes": "Bytes insgesamt",
+        "empty": "In diesem Monat wurden keine Anhänge hochgeladen.",
+        "by_room": "Nach Raum",
+        "by_user": "Nach hochladender Person",
+        "private_rooms": "Private oder nicht verfügbare Räume",
+        "operator_imports": "Importe des Betreibers",
+        "files": "Dateien"
+      },
       "title": "System",
       "subtitle": "Broker, JetStream-Speicher, Consumer und Projektionszustand",
       "tabs": {

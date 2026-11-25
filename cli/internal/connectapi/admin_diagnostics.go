@@ -27,12 +27,13 @@ func (s *adminDiagnosticsService) GetSystemInfo(ctx context.Context, _ *connect.
 	}
 
 	return connect.NewResponse(&adminv1.GetSystemInfoResponse{
-		SystemInfo:           adminSystemInfo(diagnostics),
-		Projections:          adminProjectionStates(diagnostics.Projections),
-		AssetCleanup:         adminAssetCleanupStatus(diagnostics.AssetCleanup),
-		DurableWorkers:       adminDurableWorkerStatuses(diagnostics.DurableWorkers),
-		ProjectionsAvailable: new(diagnostics.ProjectionsAvailable),
-		Livekit:              adminLiveKitStatus(diagnostics.LiveKit),
+		SystemInfo:                 adminSystemInfo(diagnostics),
+		AttachmentUploadsAvailable: true,
+		Projections:                adminProjectionStates(diagnostics.Projections),
+		AssetCleanup:               adminAssetCleanupStatus(diagnostics.AssetCleanup),
+		DurableWorkers:             adminDurableWorkerStatuses(diagnostics.DurableWorkers),
+		ProjectionsAvailable:       new(diagnostics.ProjectionsAvailable),
+		Livekit:                    adminLiveKitStatus(diagnostics.LiveKit),
 	}), nil
 }
 
@@ -303,4 +304,32 @@ func adminProjectionState(state core.ProjectionAdminState) *adminv1.AdminProject
 		LastCommitTime:          optionalTimestamp(state.LastCommitAt),
 		Metrics:                 metrics,
 	}
+}
+
+func (s *adminDiagnosticsService) GetAttachmentUploads(ctx context.Context, req *connect.Request[adminv1.GetAttachmentUploadsRequest]) (*connect.Response[adminv1.GetAttachmentUploadsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	report, err := s.api.core.GetAttachmentUploads(ctx, caller.UserID, req.Msg.GetMonth())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&adminv1.GetAttachmentUploadsResponse{
+		Total: attachmentUploadTotals(report.Total),
+		Rooms: attachmentUploadRows(report.Rooms),
+		Users: attachmentUploadRows(report.Users),
+	}), nil
+}
+
+func attachmentUploadTotals(t core.AttachmentUploadTotals) *adminv1.AttachmentUploadTotals {
+	return &adminv1.AttachmentUploadTotals{Bytes: t.Bytes, Files: t.Files}
+}
+
+func attachmentUploadRows(rows []core.AttachmentUploadRow) []*adminv1.AttachmentUploadRow {
+	result := make([]*adminv1.AttachmentUploadRow, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, &adminv1.AttachmentUploadRow{Id: row.ID, Name: row.Name, Totals: attachmentUploadTotals(row.AttachmentUploadTotals)})
+	}
+	return result
 }

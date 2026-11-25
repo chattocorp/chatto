@@ -36,6 +36,9 @@ const (
 	// AdminDiagnosticsServiceGetSystemInfoProcedure is the fully-qualified name of the
 	// AdminDiagnosticsService's GetSystemInfo RPC.
 	AdminDiagnosticsServiceGetSystemInfoProcedure = "/chatto.admin.v1.AdminDiagnosticsService/GetSystemInfo"
+	// AdminDiagnosticsServiceGetAttachmentUploadsProcedure is the fully-qualified name of the
+	// AdminDiagnosticsService's GetAttachmentUploads RPC.
+	AdminDiagnosticsServiceGetAttachmentUploadsProcedure = "/chatto.admin.v1.AdminDiagnosticsService/GetAttachmentUploads"
 )
 
 // AdminDiagnosticsServiceClient is a client for the chatto.admin.v1.AdminDiagnosticsService
@@ -45,6 +48,8 @@ type AdminDiagnosticsServiceClient interface {
 	// the server owner role. The call checks the LiveKit server API, so it can
 	// take up to five seconds when LiveKit does not reply.
 	GetSystemInfo(context.Context, *connect.Request[v1.GetSystemInfoRequest]) (*connect.Response[v1.GetSystemInfoResponse], error)
+	// Returns monthly upload totals and breakdowns. Requires the server owner role.
+	GetAttachmentUploads(context.Context, *connect.Request[v1.GetAttachmentUploadsRequest]) (*connect.Response[v1.GetAttachmentUploadsResponse], error)
 }
 
 // NewAdminDiagnosticsServiceClient constructs a client for the
@@ -64,17 +69,29 @@ func NewAdminDiagnosticsServiceClient(httpClient connect.HTTPClient, baseURL str
 			connect.WithSchema(adminDiagnosticsServiceMethods.ByName("GetSystemInfo")),
 			connect.WithClientOptions(opts...),
 		),
+		getAttachmentUploads: connect.NewClient[v1.GetAttachmentUploadsRequest, v1.GetAttachmentUploadsResponse](
+			httpClient,
+			baseURL+AdminDiagnosticsServiceGetAttachmentUploadsProcedure,
+			connect.WithSchema(adminDiagnosticsServiceMethods.ByName("GetAttachmentUploads")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminDiagnosticsServiceClient implements AdminDiagnosticsServiceClient.
 type adminDiagnosticsServiceClient struct {
-	getSystemInfo *connect.Client[v1.GetSystemInfoRequest, v1.GetSystemInfoResponse]
+	getSystemInfo        *connect.Client[v1.GetSystemInfoRequest, v1.GetSystemInfoResponse]
+	getAttachmentUploads *connect.Client[v1.GetAttachmentUploadsRequest, v1.GetAttachmentUploadsResponse]
 }
 
 // GetSystemInfo calls chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo.
 func (c *adminDiagnosticsServiceClient) GetSystemInfo(ctx context.Context, req *connect.Request[v1.GetSystemInfoRequest]) (*connect.Response[v1.GetSystemInfoResponse], error) {
 	return c.getSystemInfo.CallUnary(ctx, req)
+}
+
+// GetAttachmentUploads calls chatto.admin.v1.AdminDiagnosticsService.GetAttachmentUploads.
+func (c *adminDiagnosticsServiceClient) GetAttachmentUploads(ctx context.Context, req *connect.Request[v1.GetAttachmentUploadsRequest]) (*connect.Response[v1.GetAttachmentUploadsResponse], error) {
+	return c.getAttachmentUploads.CallUnary(ctx, req)
 }
 
 // AdminDiagnosticsServiceHandler is an implementation of the
@@ -84,6 +101,8 @@ type AdminDiagnosticsServiceHandler interface {
 	// the server owner role. The call checks the LiveKit server API, so it can
 	// take up to five seconds when LiveKit does not reply.
 	GetSystemInfo(context.Context, *connect.Request[v1.GetSystemInfoRequest]) (*connect.Response[v1.GetSystemInfoResponse], error)
+	// Returns monthly upload totals and breakdowns. Requires the server owner role.
+	GetAttachmentUploads(context.Context, *connect.Request[v1.GetAttachmentUploadsRequest]) (*connect.Response[v1.GetAttachmentUploadsResponse], error)
 }
 
 // NewAdminDiagnosticsServiceHandler builds an HTTP handler from the service implementation. It
@@ -99,10 +118,18 @@ func NewAdminDiagnosticsServiceHandler(svc AdminDiagnosticsServiceHandler, opts 
 		connect.WithSchema(adminDiagnosticsServiceMethods.ByName("GetSystemInfo")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminDiagnosticsServiceGetAttachmentUploadsHandler := connect.NewUnaryHandler(
+		AdminDiagnosticsServiceGetAttachmentUploadsProcedure,
+		svc.GetAttachmentUploads,
+		connect.WithSchema(adminDiagnosticsServiceMethods.ByName("GetAttachmentUploads")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.admin.v1.AdminDiagnosticsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminDiagnosticsServiceGetSystemInfoProcedure:
 			adminDiagnosticsServiceGetSystemInfoHandler.ServeHTTP(w, r)
+		case AdminDiagnosticsServiceGetAttachmentUploadsProcedure:
+			adminDiagnosticsServiceGetAttachmentUploadsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -114,4 +141,8 @@ type UnimplementedAdminDiagnosticsServiceHandler struct{}
 
 func (UnimplementedAdminDiagnosticsServiceHandler) GetSystemInfo(context.Context, *connect.Request[v1.GetSystemInfoRequest]) (*connect.Response[v1.GetSystemInfoResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo is not implemented"))
+}
+
+func (UnimplementedAdminDiagnosticsServiceHandler) GetAttachmentUploads(context.Context, *connect.Request[v1.GetAttachmentUploadsRequest]) (*connect.Response[v1.GetAttachmentUploadsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminDiagnosticsService.GetAttachmentUploads is not implemented"))
 }

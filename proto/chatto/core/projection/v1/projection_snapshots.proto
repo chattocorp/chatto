@@ -365,6 +365,18 @@ message AssetProjectionSnapshot {
   ProjectionReplayGuardSnapshot replay_guard = 5;
   repeated AssetMessageOwnerSnapshot message_owners = 6;
   repeated string public_link_preview_asset_ids = 7;
+  map<string, MonthlyAttachmentUploadsSnapshot> monthly_uploads = 8;
+}
+
+// Original room upload totals by UTC month. Deletion does not reduce usage.
+message MonthlyAttachmentUploadsSnapshot {
+  map<string, UploadTotalsSnapshot> rooms = 1;
+  map<string, UploadTotalsSnapshot> users = 2;
+}
+
+message UploadTotalsSnapshot {
+  int64 bytes = 1;
+  int64 files = 2;
 }
 
 message AssetChildrenSnapshot {

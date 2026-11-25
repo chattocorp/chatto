@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Attachment uploads",
+        "description": "Counts original room attachments from events this server keeps, including attachments that were later deleted.",
+        "month": "Month (UTC)",
+        "show": "Show report",
+        "loading": "Loading upload report…",
+        "error": "Could not load the upload report.",
+        "unavailable": "This server does not provide the attachment upload report.",
+        "total_files": "Total files",
+        "total_bytes": "Total bytes",
+        "empty": "No attachment uploads for this month.",
+        "by_room": "By room",
+        "by_user": "By uploader",
+        "private_rooms": "Private or unavailable rooms",
+        "operator_imports": "Operator imports",
+        "files": "Files"
+      },
       "title": "System",
       "subtitle": "Broker, JetStream storage, consumers, and projection health",
       "tabs": {

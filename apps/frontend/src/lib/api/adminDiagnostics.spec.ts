@@ -4,10 +4,10 @@ import {
   AdminDurableWorkerHealth,
   AdminLiveKitConnectionState
 } from '@chatto/api-types/admin/v1/diagnostics_pb';
-import { Code } from '@connectrpc/connect';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
-import { getAdminSystemInfo } from './adminDiagnostics';
+import { getAdminAttachmentUploads, getAdminSystemInfo } from './adminDiagnostics';
 import { fakeServer, mockService } from '@chatto/client/testing/fakeServer';
 
 const mocks = mockService(AdminDiagnosticsService);
@@ -23,6 +23,7 @@ describe('getAdminSystemInfo', () => {
 
   it('loads admin diagnostics and maps int64 and optional fields', async () => {
     mocks.getSystemInfo.mockReturnValue({
+      attachmentUploadsAvailable: true,
       systemInfo: {
         connection: {
           connected: true,
@@ -178,6 +179,7 @@ describe('getAdminSystemInfo', () => {
 
     const info = await getAdminSystemInfo(config());
 
+    expect(info.attachmentUploadsAvailable).toBe(true);
     expect(info.connection.maxPayload).toBe(1048576);
     expect(info.account.storageUsed).toBe(750);
     expect(info.accountAvailable).toBe(true);
@@ -252,6 +254,7 @@ describe('getAdminSystemInfo', () => {
 
     const info = await getAdminSystemInfo(config());
 
+    expect(info.attachmentUploadsAvailable).toBe(false);
     expect(info.connection.connected).toBe(false);
     expect(info.account.storageUsed).toBe(0);
     expect(info.accountAvailable).toBe(false);
@@ -300,6 +303,44 @@ describe('getAdminSystemInfo', () => {
   it('cancels the diagnostics read with the caller signal', async () => {
     await expect(
       getAdminSystemInfo(config(), { signal: AbortSignal.abort() })
+    ).rejects.toMatchObject({ code: Code.Canceled });
+  });
+});
+
+describe('getAdminAttachmentUploads', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('sends the requested month and keeps exact totals and grouped row IDs', async () => {
+    const totals = { bytes: protoInt64.parse('9007199254740993'), files: protoInt64.parse(1) };
+    mocks.getAttachmentUploads.mockReturnValue({
+      total: totals,
+      rooms: [{ id: '', totals }],
+      users: [{ id: 'u', name: 'Alice', totals }]
+    });
+
+    const exact = { bytes: 9007199254740993n, files: 1n };
+    await expect(getAdminAttachmentUploads(config(), '2025-01')).resolves.toEqual({
+      total: exact,
+      rooms: [{ id: '', name: '', totals: exact }],
+      users: [{ id: 'u', name: 'Alice', totals: exact }]
+    });
+    expect(mocks.getAttachmentUploads).toHaveBeenCalledWith(
+      expect.objectContaining({ month: '2025-01' }),
+      expect.anything()
+    );
+  });
+
+  it('handles older replicas and propagates access and cancellation errors', async () => {
+    mocks.getAttachmentUploads
+      .mockRejectedValueOnce(new ConnectError('unknown method', Code.Unimplemented))
+      .mockRejectedValueOnce(new ConnectError('no access', Code.PermissionDenied));
+
+    await expect(getAdminAttachmentUploads(config(), '2025-01')).resolves.toBeNull();
+    await expect(getAdminAttachmentUploads(config(), '2025-01')).rejects.toMatchObject({
+      code: Code.PermissionDenied
+    });
+    await expect(
+      getAdminAttachmentUploads(config(), '2025-01', { signal: AbortSignal.abort() })
     ).rejects.toMatchObject({ code: Code.Canceled });
   });
 });

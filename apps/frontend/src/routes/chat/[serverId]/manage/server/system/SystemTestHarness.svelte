@@ -11,6 +11,7 @@ SvelteKit does for the matching route.
   import SystemProjectionsPage from './projections/+page.svelte';
   import SystemWorkersPage from './workers/+page.svelte';
   import SystemLiveKitPage from './livekit/+page.svelte';
+  import SystemAttachmentUploadsPage from './attachment-uploads/+page.svelte';
   import type { SystemSection } from './systemSections';
 
   let { section }: { section: SystemSection } = $props();
@@ -25,7 +26,9 @@ SvelteKit does for the matching route.
     <SystemProjectionsPage />
   {:else if section === 'workers'}
     <SystemWorkersPage />
-  {:else}
+  {:else if section === 'livekit'}
     <SystemLiveKitPage />
+  {:else}
+    <SystemAttachmentUploadsPage />
   {/if}
 </SystemLayout>

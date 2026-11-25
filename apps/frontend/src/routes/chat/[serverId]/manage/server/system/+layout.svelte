@@ -10,12 +10,13 @@ its section explains reports a warning or a problem.
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { resolve } from '$app/paths';
+  import { useIsFetching } from '@tanstack/svelte-query';
   import { page } from '$app/state';
   import { getAdminSystemInfo } from '$lib/api/adminDiagnostics';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';
-  import { createQuery } from '$lib/query/client';
+  import { createQuery, queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import {
     HeaderIconButton,
@@ -65,7 +66,8 @@ its section explains reports a warning or a problem.
     streams: m('admin.system.tabs.streams'),
     projections: m('admin.system.tabs.projections'),
     workers: m('admin.system.tabs.workers'),
-    livekit: m('admin.system.tabs.livekit')
+    livekit: m('admin.system.tabs.livekit'),
+    attachmentUploads: m('admin.system.attachment_uploads.title')
   });
 
   const sectionIcon: Record<SystemSection, string> = {
@@ -73,7 +75,8 @@ its section explains reports a warning or a problem.
     streams: 'icon-[uil--exchange]',
     projections: 'icon-[uil--layers]',
     workers: 'icon-[uil--cog]',
-    livekit: 'icon-[uil--video]'
+    livekit: 'icon-[uil--video]',
+    attachmentUploads: 'icon-[uil--upload]'
   };
 
   const currentSection = $derived(
@@ -81,6 +84,23 @@ its section explains reports a warning or a problem.
       (section) => systemSectionRoutes[section] === page.route.id
     ) ?? null
   );
+
+  const uploadsFilter = {
+    queryKey: adminQueryKeys.attachmentUploads(serverScope),
+    type: 'active'
+  } as const;
+  const fetchingUploads = useIsFetching(uploadsFilter, queryClient);
+  const refreshPending = $derived(
+    systemInfoQuery.isFetching ||
+      (currentSection === 'attachmentUploads' && fetchingUploads.current > 0)
+  );
+
+  function refreshSystem() {
+    void systemInfoQuery.refetch();
+    if (currentSection === 'attachmentUploads') {
+      void queryClient.refetchQueries(uploadsFilter);
+    }
+  }
 
   const sectionTabs = $derived.by<TabNavItem[]>(() => {
     const checks = systemInfo ? systemHealthChecks(systemInfo) : [];
@@ -109,8 +129,8 @@ its section explains reports a warning or a problem.
       <HeaderIconButton
         icon="icon-[uil--sync]"
         label={m('admin.system.refresh')}
-        disabled={systemInfoQuery.isFetching}
-        onclick={() => systemInfoQuery.refetch()}
+        disabled={refreshPending}
+        onclick={refreshSystem}
       />
     {/snippet}
     {#snippet tabs()}

@@ -2,7 +2,8 @@ import type { AdminSystemInfo } from '$lib/api/adminDiagnostics';
 import type { HealthCheck, HealthCheckId, HealthStatus } from './systemHealth';
 
 /** Identifies one tab of the System page. Each section has its own route. */
-export type SystemSection = 'overview' | 'streams' | 'projections' | 'workers' | 'livekit';
+export type SystemSection =
+  'overview' | 'streams' | 'projections' | 'workers' | 'livekit' | 'attachmentUploads';
 
 const base = '/chat/[serverId]/manage/server/system' as const;
 
@@ -12,7 +13,8 @@ export const systemSectionRoutes = {
   streams: `${base}/streams`,
   projections: `${base}/projections`,
   workers: `${base}/workers`,
-  livekit: `${base}/livekit`
+  livekit: `${base}/livekit`,
+  attachmentUploads: `${base}/attachment-uploads`
 } as const satisfies Record<SystemSection, string>;
 
 /**
@@ -30,8 +32,8 @@ export const healthCheckSection: Record<HealthCheckId, SystemSection> = {
 
 /**
  * Returns the sections that the System page shows as tabs, in tab order. The
- * LiveKit section is absent when the server does not report LiveKit status,
- * unless it is the current section, so the current page always has a tab.
+ * Optional sections need server support unless they are the current section,
+ * so a direct visit always has a tab.
  */
 export function visibleSystemSections(
   info: AdminSystemInfo | null,
@@ -40,6 +42,9 @@ export function visibleSystemSections(
   const sections: SystemSection[] = ['overview', 'streams', 'projections', 'workers'];
   if ((info && info.livekit.connectionState !== 'unavailable') || current === 'livekit') {
     sections.push('livekit');
+  }
+  if (info?.attachmentUploadsAvailable || current === 'attachmentUploads') {
+    sections.push('attachmentUploads');
   }
   return sections;
 }

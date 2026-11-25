@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Geüploade bijlagen",
+        "description": "Telt originele bijlagen in kamers op basis van gebeurtenissen die deze server bewaart, ook bijlagen die later zijn verwijderd.",
+        "month": "Maand (UTC)",
+        "show": "Rapport tonen",
+        "loading": "Uploadrapport laden…",
+        "error": "Het uploadrapport kon niet worden geladen.",
+        "unavailable": "Deze server biedt geen rapport over geüploade bijlagen.",
+        "total_files": "Totaal aantal bestanden",
+        "total_bytes": "Totaal aantal bytes",
+        "empty": "Er zijn deze maand geen bijlagen geüpload.",
+        "by_room": "Per kamer",
+        "by_user": "Per uploader",
+        "private_rooms": "Privékamers of niet-beschikbare kamers",
+        "operator_imports": "Import door de beheerder",
+        "files": "Bestanden"
+      },
       "title": "Systeem",
       "subtitle": "Broker, JetStream-opslag, consumenten en projectiestatus",
       "tabs": {

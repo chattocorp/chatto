@@ -1,10 +1,13 @@
 import { createChattoClient, type ConnectAPIConfig } from '@chatto/client/api/connect';
 import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
+import { Code, ConnectError } from '@connectrpc/connect';
 import {
   AdminAssetCleanupHealth,
   AdminDurableWorkerHealth,
   AdminLiveKitConnectionState,
-  type AdminLiveKitStatus as AdminLiveKitStatusMessage
+  type AdminLiveKitStatus as AdminLiveKitStatusMessage,
+  type AttachmentUploadRow,
+  type AttachmentUploadTotals
 } from '@chatto/api-types/admin/v1/diagnostics_pb';
 
 export type AdminSystemInfo = {
@@ -20,6 +23,28 @@ export type AdminSystemInfo = {
   assetCleanup: AdminAssetCleanupStatus;
   durableWorkers: AdminDurableWorkerStatus[];
   livekit: AdminLiveKitStatus;
+  /** Whether this server reports monthly attachment uploads. Defaults to false on older servers. */
+  attachmentUploadsAvailable: boolean;
+};
+
+/** Exact original byte and file counts for the selected UTC month. */
+type UploadTotals = {
+  bytes: bigint;
+  files: bigint;
+};
+
+/** Empty IDs identify the combined room or operator import row. */
+type UploadRow = {
+  id: string;
+  name: string;
+  totals: UploadTotals;
+};
+
+/** Server-wide monthly totals and breakdowns ordered by the server. */
+export type AdminAttachmentUploads = {
+  total: UploadTotals;
+  rooms: UploadRow[];
+  users: UploadRow[];
 };
 
 /**
@@ -374,6 +399,40 @@ export async function getAdminSystemInfo(
       }))
     })),
     projectionsAvailable: response.projectionsAvailable ?? true,
-    livekit: liveKitStatus(response.livekit)
+    livekit: liveKitStatus(response.livekit),
+    attachmentUploadsAvailable: response.attachmentUploadsAvailable
   };
+}
+
+function uploadTotals(totals: AttachmentUploadTotals | undefined): UploadTotals {
+  return {
+    bytes: BigInt(totals?.bytes ?? 0),
+    files: BigInt(totals?.files ?? 0)
+  };
+}
+
+function uploadRow({ id, name, totals }: AttachmentUploadRow): UploadRow {
+  return { id, name, totals: uploadTotals(totals) };
+}
+
+/**
+ * Loads the report for a UTC month in YYYY-MM format. Returns null if the
+ * request reaches an older replica during a rolling upgrade.
+ */
+export async function getAdminAttachmentUploads(
+  config: ConnectAPIConfig,
+  month: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<AdminAttachmentUploads | null> {
+  const client = createChattoClient(AdminDiagnosticsService, config);
+  try {
+    const { total, rooms, users } = await client.getAttachmentUploads(
+      { month },
+      { signal: options.signal }
+    );
+    return { total: uploadTotals(total), rooms: rooms.map(uploadRow), users: users.map(uploadRow) };
+  } catch (error) {
+    if (error instanceof ConnectError && error.code === Code.Unimplemented) return null;
+    throw error;
+  }
 }

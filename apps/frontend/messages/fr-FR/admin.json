@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Envois de pièces jointes",
+        "description": "Compte les pièces jointes d’origine des salons à partir des évènements conservés par ce serveur, y compris les pièces jointes supprimées par la suite.",
+        "month": "Mois (UTC)",
+        "show": "Afficher le rapport",
+        "loading": "Chargement du rapport d’envoi…",
+        "error": "Impossible de charger le rapport d’envoi.",
+        "unavailable": "Ce serveur ne fournit pas le rapport d’envoi des pièces jointes.",
+        "total_files": "Total des fichiers",
+        "total_bytes": "Total des octets",
+        "empty": "Aucune pièce jointe envoyée ce mois-ci.",
+        "by_room": "Par salon",
+        "by_user": "Par personne ayant envoyé les fichiers",
+        "private_rooms": "Salons privés ou indisponibles",
+        "operator_imports": "Imports de l’exploitant",
+        "files": "Fichiers"
+      },
       "title": "Système",
       "subtitle": "Courtier, stockage JetStream, consommateurs et intégrité de la projection",
       "tabs": {

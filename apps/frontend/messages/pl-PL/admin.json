@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Przesłane załączniki",
+        "description": "Zlicza oryginalne załączniki w pokojach na podstawie zdarzeń przechowywanych przez ten serwer, w tym załączniki usunięte później.",
+        "month": "Miesiąc (UTC)",
+        "show": "Pokaż raport",
+        "loading": "Wczytywanie raportu przesyłania…",
+        "error": "Nie udało się wczytać raportu przesyłania.",
+        "unavailable": "Ten serwer nie udostępnia raportu o przesłanych załącznikach.",
+        "total_files": "Łączna liczba plików",
+        "total_bytes": "Łączna liczba bajtów",
+        "empty": "W tym miesiącu nie przesłano żadnych załączników.",
+        "by_room": "Według pokoju",
+        "by_user": "Według przesyłającego",
+        "private_rooms": "Pokoje prywatne lub niedostępne",
+        "operator_imports": "Pliki zaimportowane przez operatora",
+        "files": "Pliki"
+      },
       "title": "System",
       "subtitle": "Broker, pamięć masowa JetStream, konsumenci i kondycja projekcji",
       "tabs": {

@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Nahrané přílohy",
+        "description": "Počítá původní přílohy v místnostech z událostí, které server uchovává, včetně později smazaných příloh.",
+        "month": "Měsíc (UTC)",
+        "show": "Zobrazit přehled",
+        "loading": "Načítá se přehled nahrávání…",
+        "error": "Přehled nahrávání se nepodařilo načíst.",
+        "unavailable": "Tento server neposkytuje přehled nahraných příloh.",
+        "total_files": "Celkem souborů",
+        "total_bytes": "Celkem bajtů",
+        "empty": "V tomto měsíci nebyly nahrány žádné přílohy.",
+        "by_room": "Podle místnosti",
+        "by_user": "Podle nahrávajícího",
+        "private_rooms": "Soukromé nebo nedostupné místnosti",
+        "operator_imports": "Soubory importované provozovatelem",
+        "files": "Soubory"
+      },
       "title": "Systém",
       "subtitle": "Broker, úložiště JetStream, spotřebitelé a zdraví projekce",
       "tabs": {

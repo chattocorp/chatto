@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "附件上傳",
+        "description": "根據此伺服器保留的事件統計上傳至房間的原始附件，包括後來刪除的附件。",
+        "month": "月份（UTC）",
+        "show": "顯示報告",
+        "loading": "正在載入上傳報告…",
+        "error": "無法載入上傳報告。",
+        "unavailable": "此伺服器不提供附件上傳報告。",
+        "total_files": "檔案總數",
+        "total_bytes": "總位元組數",
+        "empty": "這個月沒有上傳附件。",
+        "by_room": "依房間",
+        "by_user": "依上傳者",
+        "private_rooms": "私人或無法使用的房間",
+        "operator_imports": "維運人員匯入",
+        "files": "檔案數"
+      },
       "title": "系統",
       "subtitle": "Broker、JetStream 儲存空間、consumer 與 projection 健康狀態",
       "tabs": {

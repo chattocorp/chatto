@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Envios de anexos",
+        "description": "Conta os anexos originais das salas com base nos eventos que este servidor mantém, incluindo anexos excluídos depois.",
+        "month": "Mês (UTC)",
+        "show": "Mostrar relatório",
+        "loading": "Carregando relatório de envios…",
+        "error": "Não foi possível carregar o relatório de envios.",
+        "unavailable": "Este servidor não fornece o relatório de envio de anexos.",
+        "total_files": "Total de arquivos",
+        "total_bytes": "Total de bytes",
+        "empty": "Nenhum anexo foi enviado neste mês.",
+        "by_room": "Por sala",
+        "by_user": "Por quem enviou",
+        "private_rooms": "Salas privadas ou indisponíveis",
+        "operator_imports": "Importações do operador",
+        "files": "Arquivos"
+      },
       "title": "Sistema",
       "subtitle": "Broker, armazenamento JetStream, consumidores e integridade da projeção",
       "tabs": {

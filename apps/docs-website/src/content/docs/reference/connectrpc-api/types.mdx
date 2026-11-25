@@ -1724,6 +1724,29 @@ Broker and application diagnostics shown on the server admin system page.
 | `nats` | [`AdminNatsStats`](#chatto-admin-v1-AdminNatsStats) | JetStream stream and consumer diagnostics. |
 | `stats` | [`AdminServerStats`](#chatto-admin-v1-AdminServerStats) | Aggregate Chatto object counts. |
 
+<a id="chatto-admin-v1-AttachmentUploadRow"></a>
+
+### AttachmentUploadRow
+
+Monthly totals for one room or uploader, including deleted attachments.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Room or user ID. An empty ID identifies the combined row described in the response. |
+| `name` | `string` | Current display name. Empty for combined rows or unavailable names. |
+| `totals` | [`AttachmentUploadTotals`](#chatto-admin-v1-AttachmentUploadTotals) | No field description provided. |
+
+<a id="chatto-admin-v1-AttachmentUploadTotals"></a>
+
+### AttachmentUploadTotals
+
+Total original bytes and file count for completed room attachment uploads.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bytes` | `int64` | No field description provided. |
+| `files` | `int64` | No field description provided. |
+
 <a id="chatto-admin-v1-AdminEventLogEntry"></a>
 
 ### AdminEventLogEntry

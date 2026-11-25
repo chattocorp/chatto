@@ -18,15 +18,8 @@ type AdminDiagnostics struct {
 }
 
 func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*AdminDiagnostics, error) {
-	if err := requireAuthenticatedActor(actorID); err != nil {
+	if err := c.requireSystemDiagnostics(ctx, actorID); err != nil {
 		return nil, err
-	}
-	isOwner, err := c.CanAdminSystemView(ctx, actorID)
-	if err != nil {
-		return nil, fmt.Errorf("check owner role: %w", err)
-	}
-	if !isOwner {
-		return nil, ErrPermissionDenied
 	}
 
 	// The LiveKit check waits for a remote server, so it runs while the other
@@ -72,4 +65,19 @@ func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*
 		DurableWorkers:       durableWorkerAdminStatuses(jetStreamStats, c.VideoUploadsEnabled),
 		LiveKit:              <-liveKitStatus,
 	}, nil
+}
+
+func (c *ChattoCore) requireSystemDiagnostics(ctx context.Context, actorID string) error {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return err
+	}
+	isOwner, err := c.CanAdminSystemView(ctx, actorID)
+	if err != nil {
+		return fmt.Errorf("check owner role: %w", err)
+	}
+	if !isOwner {
+		return ErrPermissionDenied
+	}
+
+	return nil
 }

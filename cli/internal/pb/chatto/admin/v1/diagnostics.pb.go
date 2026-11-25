@@ -270,9 +270,11 @@ type GetSystemInfoResponse struct {
 	// Whether projection diagnostics were collected successfully.
 	ProjectionsAvailable *bool `protobuf:"varint,5,opt,name=projections_available,json=projectionsAvailable,proto3,oneof" json:"projections_available,omitempty"`
 	// LiveKit voice and video call setup diagnostics.
-	Livekit       *AdminLiveKitStatus `protobuf:"bytes,6,opt,name=livekit,proto3" json:"livekit,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Livekit *AdminLiveKitStatus `protobuf:"bytes,6,opt,name=livekit,proto3" json:"livekit,omitempty"`
+	// True when this server supports the monthly attachment upload report.
+	AttachmentUploadsAvailable bool `protobuf:"varint,7,opt,name=attachment_uploads_available,json=attachmentUploadsAvailable,proto3" json:"attachment_uploads_available,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *GetSystemInfoResponse) Reset() {
@@ -347,6 +349,239 @@ func (x *GetSystemInfoResponse) GetLivekit() *AdminLiveKitStatus {
 	return nil
 }
 
+func (x *GetSystemInfoResponse) GetAttachmentUploadsAvailable() bool {
+	if x != nil {
+		return x.AttachmentUploadsAvailable
+	}
+	return false
+}
+
+// Select one calendar month for the upload report.
+type GetAttachmentUploadsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required UTC calendar month in YYYY-MM format.
+	Month         string `protobuf:"bytes,1,opt,name=month,proto3" json:"month,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAttachmentUploadsRequest) Reset() {
+	*x = GetAttachmentUploadsRequest{}
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAttachmentUploadsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAttachmentUploadsRequest) ProtoMessage() {}
+
+func (x *GetAttachmentUploadsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAttachmentUploadsRequest.ProtoReflect.Descriptor instead.
+func (*GetAttachmentUploadsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetAttachmentUploadsRequest) GetMonth() string {
+	if x != nil {
+		return x.Month
+	}
+	return ""
+}
+
+// Total original bytes and file count for completed room attachment uploads.
+type AttachmentUploadTotals struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Bytes         int64                  `protobuf:"varint,1,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Files         int64                  `protobuf:"varint,2,opt,name=files,proto3" json:"files,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AttachmentUploadTotals) Reset() {
+	*x = AttachmentUploadTotals{}
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AttachmentUploadTotals) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AttachmentUploadTotals) ProtoMessage() {}
+
+func (x *AttachmentUploadTotals) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AttachmentUploadTotals.ProtoReflect.Descriptor instead.
+func (*AttachmentUploadTotals) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AttachmentUploadTotals) GetBytes() int64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+func (x *AttachmentUploadTotals) GetFiles() int64 {
+	if x != nil {
+		return x.Files
+	}
+	return 0
+}
+
+// Monthly totals for one room or uploader, including deleted attachments.
+type AttachmentUploadRow struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room or user ID. An empty ID identifies the combined row described in the response.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Current display name. Empty for combined rows or unavailable names.
+	Name          string                  `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Totals        *AttachmentUploadTotals `protobuf:"bytes,3,opt,name=totals,proto3" json:"totals,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AttachmentUploadRow) Reset() {
+	*x = AttachmentUploadRow{}
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AttachmentUploadRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AttachmentUploadRow) ProtoMessage() {}
+
+func (x *AttachmentUploadRow) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AttachmentUploadRow.ProtoReflect.Descriptor instead.
+func (*AttachmentUploadRow) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AttachmentUploadRow) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AttachmentUploadRow) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AttachmentUploadRow) GetTotals() *AttachmentUploadTotals {
+	if x != nil {
+		return x.Totals
+	}
+	return nil
+}
+
+// Monthly usage from retained asset creation events, sorted by bytes descending.
+type GetAttachmentUploadsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// All completed original room uploads, including imports.
+	Total *AttachmentUploadTotals `protobuf:"bytes,1,opt,name=total,proto3" json:"total,omitempty"`
+	// Direct messages and unavailable rooms share one row with an empty ID.
+	Rooms []*AttachmentUploadRow `protobuf:"bytes,2,rep,name=rooms,proto3" json:"rooms,omitempty"`
+	// Operator uploads share one row with an empty ID.
+	Users         []*AttachmentUploadRow `protobuf:"bytes,3,rep,name=users,proto3" json:"users,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAttachmentUploadsResponse) Reset() {
+	*x = GetAttachmentUploadsResponse{}
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAttachmentUploadsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAttachmentUploadsResponse) ProtoMessage() {}
+
+func (x *GetAttachmentUploadsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAttachmentUploadsResponse.ProtoReflect.Descriptor instead.
+func (*GetAttachmentUploadsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetAttachmentUploadsResponse) GetTotal() *AttachmentUploadTotals {
+	if x != nil {
+		return x.Total
+	}
+	return nil
+}
+
+func (x *GetAttachmentUploadsResponse) GetRooms() []*AttachmentUploadRow {
+	if x != nil {
+		return x.Rooms
+	}
+	return nil
+}
+
+func (x *GetAttachmentUploadsResponse) GetUsers() []*AttachmentUploadRow {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
 // LiveKit voice and video call setup as seen by the Chatto server that
 // handled the request. The response never includes the API secret or the
 // webhook signing secret.
@@ -385,7 +620,7 @@ type AdminLiveKitStatus struct {
 
 func (x *AdminLiveKitStatus) Reset() {
 	*x = AdminLiveKitStatus{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[2]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -397,7 +632,7 @@ func (x *AdminLiveKitStatus) String() string {
 func (*AdminLiveKitStatus) ProtoMessage() {}
 
 func (x *AdminLiveKitStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[2]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -410,7 +645,7 @@ func (x *AdminLiveKitStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminLiveKitStatus.ProtoReflect.Descriptor instead.
 func (*AdminLiveKitStatus) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{2}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AdminLiveKitStatus) GetEnabled() bool {
@@ -515,7 +750,7 @@ type AdminDurableWorkerStatus struct {
 
 func (x *AdminDurableWorkerStatus) Reset() {
 	*x = AdminDurableWorkerStatus{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[3]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -527,7 +762,7 @@ func (x *AdminDurableWorkerStatus) String() string {
 func (*AdminDurableWorkerStatus) ProtoMessage() {}
 
 func (x *AdminDurableWorkerStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[3]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -540,7 +775,7 @@ func (x *AdminDurableWorkerStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminDurableWorkerStatus.ProtoReflect.Descriptor instead.
 func (*AdminDurableWorkerStatus) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{3}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AdminDurableWorkerStatus) GetKey() string {
@@ -640,7 +875,7 @@ type AdminAssetCleanupStatus struct {
 
 func (x *AdminAssetCleanupStatus) Reset() {
 	*x = AdminAssetCleanupStatus{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[4]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -652,7 +887,7 @@ func (x *AdminAssetCleanupStatus) String() string {
 func (*AdminAssetCleanupStatus) ProtoMessage() {}
 
 func (x *AdminAssetCleanupStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[4]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -665,7 +900,7 @@ func (x *AdminAssetCleanupStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminAssetCleanupStatus.ProtoReflect.Descriptor instead.
 func (*AdminAssetCleanupStatus) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{4}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AdminAssetCleanupStatus) GetHealth() AdminAssetCleanupHealth {
@@ -761,7 +996,7 @@ type AdminSystemInfo struct {
 
 func (x *AdminSystemInfo) Reset() {
 	*x = AdminSystemInfo{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[5]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -773,7 +1008,7 @@ func (x *AdminSystemInfo) String() string {
 func (*AdminSystemInfo) ProtoMessage() {}
 
 func (x *AdminSystemInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[5]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -786,7 +1021,7 @@ func (x *AdminSystemInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminSystemInfo.ProtoReflect.Descriptor instead.
 func (*AdminSystemInfo) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{5}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *AdminSystemInfo) GetConnection() *AdminConnectionInfo {
@@ -838,7 +1073,7 @@ type AdminConnectionInfo struct {
 
 func (x *AdminConnectionInfo) Reset() {
 	*x = AdminConnectionInfo{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[6]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -850,7 +1085,7 @@ func (x *AdminConnectionInfo) String() string {
 func (*AdminConnectionInfo) ProtoMessage() {}
 
 func (x *AdminConnectionInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[6]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -863,7 +1098,7 @@ func (x *AdminConnectionInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminConnectionInfo.ProtoReflect.Descriptor instead.
 func (*AdminConnectionInfo) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{6}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AdminConnectionInfo) GetConnected() bool {
@@ -933,7 +1168,7 @@ type AdminAccountInfo struct {
 
 func (x *AdminAccountInfo) Reset() {
 	*x = AdminAccountInfo{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[7]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -945,7 +1180,7 @@ func (x *AdminAccountInfo) String() string {
 func (*AdminAccountInfo) ProtoMessage() {}
 
 func (x *AdminAccountInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[7]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -958,7 +1193,7 @@ func (x *AdminAccountInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminAccountInfo.ProtoReflect.Descriptor instead.
 func (*AdminAccountInfo) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{7}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AdminAccountInfo) GetMemory() int64 {
@@ -1032,7 +1267,7 @@ type AdminServerStats struct {
 
 func (x *AdminServerStats) Reset() {
 	*x = AdminServerStats{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[8]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1044,7 +1279,7 @@ func (x *AdminServerStats) String() string {
 func (*AdminServerStats) ProtoMessage() {}
 
 func (x *AdminServerStats) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[8]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1057,7 +1292,7 @@ func (x *AdminServerStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminServerStats.ProtoReflect.Descriptor instead.
 func (*AdminServerStats) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{8}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AdminServerStats) GetUserCount() int32 {
@@ -1102,7 +1337,7 @@ type AdminNatsStats struct {
 
 func (x *AdminNatsStats) Reset() {
 	*x = AdminNatsStats{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[9]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1114,7 +1349,7 @@ func (x *AdminNatsStats) String() string {
 func (*AdminNatsStats) ProtoMessage() {}
 
 func (x *AdminNatsStats) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[9]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1127,7 +1362,7 @@ func (x *AdminNatsStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminNatsStats.ProtoReflect.Descriptor instead.
 func (*AdminNatsStats) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{9}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *AdminNatsStats) GetTotalMessages() int64 {
@@ -1203,7 +1438,7 @@ type AdminNatsStreamInfo struct {
 
 func (x *AdminNatsStreamInfo) Reset() {
 	*x = AdminNatsStreamInfo{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[10]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1215,7 +1450,7 @@ func (x *AdminNatsStreamInfo) String() string {
 func (*AdminNatsStreamInfo) ProtoMessage() {}
 
 func (x *AdminNatsStreamInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[10]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1228,7 +1463,7 @@ func (x *AdminNatsStreamInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminNatsStreamInfo.ProtoReflect.Descriptor instead.
 func (*AdminNatsStreamInfo) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{10}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *AdminNatsStreamInfo) GetName() string {
@@ -1349,7 +1584,7 @@ type AdminNatsConsumerInfo struct {
 
 func (x *AdminNatsConsumerInfo) Reset() {
 	*x = AdminNatsConsumerInfo{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[11]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1361,7 +1596,7 @@ func (x *AdminNatsConsumerInfo) String() string {
 func (*AdminNatsConsumerInfo) ProtoMessage() {}
 
 func (x *AdminNatsConsumerInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[11]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1374,7 +1609,7 @@ func (x *AdminNatsConsumerInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminNatsConsumerInfo.ProtoReflect.Descriptor instead.
 func (*AdminNatsConsumerInfo) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{11}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *AdminNatsConsumerInfo) GetStream() string {
@@ -1544,7 +1779,7 @@ type AdminProjectionState struct {
 
 func (x *AdminProjectionState) Reset() {
 	*x = AdminProjectionState{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[12]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1556,7 +1791,7 @@ func (x *AdminProjectionState) String() string {
 func (*AdminProjectionState) ProtoMessage() {}
 
 func (x *AdminProjectionState) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[12]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1569,7 +1804,7 @@ func (x *AdminProjectionState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminProjectionState.ProtoReflect.Descriptor instead.
 func (*AdminProjectionState) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{12}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *AdminProjectionState) GetKey() string {
@@ -1734,7 +1969,7 @@ type AdminProjectionMetric struct {
 
 func (x *AdminProjectionMetric) Reset() {
 	*x = AdminProjectionMetric{}
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[13]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1746,7 +1981,7 @@ func (x *AdminProjectionMetric) String() string {
 func (*AdminProjectionMetric) ProtoMessage() {}
 
 func (x *AdminProjectionMetric) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[13]
+	mi := &file_chatto_admin_v1_diagnostics_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1759,7 +1994,7 @@ func (x *AdminProjectionMetric) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminProjectionMetric.ProtoReflect.Descriptor instead.
 func (*AdminProjectionMetric) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{13}
+	return file_chatto_admin_v1_diagnostics_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *AdminProjectionMetric) GetName() string {
@@ -1788,7 +2023,7 @@ var File_chatto_admin_v1_diagnostics_proto protoreflect.FileDescriptor
 const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"\n" +
 	"!chatto/admin/v1/diagnostics.proto\x12\x0fchatto.admin.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x16\n" +
-	"\x14GetSystemInfoRequest\"\xd9\x03\n" +
+	"\x14GetSystemInfoRequest\"\x9b\x04\n" +
 	"\x15GetSystemInfoResponse\x12A\n" +
 	"\vsystem_info\x18\x01 \x01(\v2 .chatto.admin.v1.AdminSystemInfoR\n" +
 	"systemInfo\x12G\n" +
@@ -1796,8 +2031,22 @@ const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"\rasset_cleanup\x18\x03 \x01(\v2(.chatto.admin.v1.AdminAssetCleanupStatusR\fassetCleanup\x12R\n" +
 	"\x0fdurable_workers\x18\x04 \x03(\v2).chatto.admin.v1.AdminDurableWorkerStatusR\x0edurableWorkers\x128\n" +
 	"\x15projections_available\x18\x05 \x01(\bH\x00R\x14projectionsAvailable\x88\x01\x01\x12=\n" +
-	"\alivekit\x18\x06 \x01(\v2#.chatto.admin.v1.AdminLiveKitStatusR\alivekitB\x18\n" +
-	"\x16_projections_available\"\x8c\x04\n" +
+	"\alivekit\x18\x06 \x01(\v2#.chatto.admin.v1.AdminLiveKitStatusR\alivekit\x12@\n" +
+	"\x1cattachment_uploads_available\x18\a \x01(\bR\x1aattachmentUploadsAvailableB\x18\n" +
+	"\x16_projections_available\"3\n" +
+	"\x1bGetAttachmentUploadsRequest\x12\x14\n" +
+	"\x05month\x18\x01 \x01(\tR\x05month\"D\n" +
+	"\x16AttachmentUploadTotals\x12\x14\n" +
+	"\x05bytes\x18\x01 \x01(\x03R\x05bytes\x12\x14\n" +
+	"\x05files\x18\x02 \x01(\x03R\x05files\"z\n" +
+	"\x13AttachmentUploadRow\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12?\n" +
+	"\x06totals\x18\x03 \x01(\v2'.chatto.admin.v1.AttachmentUploadTotalsR\x06totals\"\xd5\x01\n" +
+	"\x1cGetAttachmentUploadsResponse\x12=\n" +
+	"\x05total\x18\x01 \x01(\v2'.chatto.admin.v1.AttachmentUploadTotalsR\x05total\x12:\n" +
+	"\x05rooms\x18\x02 \x03(\v2$.chatto.admin.v1.AttachmentUploadRowR\x05rooms\x12:\n" +
+	"\x05users\x18\x03 \x03(\v2$.chatto.admin.v1.AttachmentUploadRowR\x05users\"\x8c\x04\n" +
 	"\x12AdminLiveKitStatus\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1e\n" +
 	"\n" +
@@ -1964,9 +2213,10 @@ const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"\"ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY\x10\x03\x12'\n" +
 	"#ADMIN_ASSET_CLEANUP_HEALTH_RETRYING\x10\x04\x12&\n" +
 	"\"ADMIN_ASSET_CLEANUP_HEALTH_STALLED\x10\x05\x12*\n" +
-	"&ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE\x10\x062y\n" +
+	"&ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE\x10\x062\xee\x01\n" +
 	"\x17AdminDiagnosticsService\x12^\n" +
-	"\rGetSystemInfo\x12%.chatto.admin.v1.GetSystemInfoRequest\x1a&.chatto.admin.v1.GetSystemInfoResponseB\xcb\x01\n" +
+	"\rGetSystemInfo\x12%.chatto.admin.v1.GetSystemInfoRequest\x1a&.chatto.admin.v1.GetSystemInfoResponse\x12s\n" +
+	"\x14GetAttachmentUploads\x12,.chatto.admin.v1.GetAttachmentUploadsRequest\x1a-.chatto.admin.v1.GetAttachmentUploadsResponseB\xcb\x01\n" +
 	"\x13com.chatto.admin.v1B\x10DiagnosticsProtoP\x01ZDgithub.com/chattocorp/chatto/cli/internal/pb/chatto/admin/v1;adminv1\xa2\x02\x03CAX\xaa\x02\x0fChatto.Admin.V1\xca\x02\x0fChatto\\Admin\\V1\xe2\x02\x1bChatto\\Admin\\V1\\GPBMetadata\xea\x02\x11Chatto::Admin::V1b\x06proto3"
 
 var (
@@ -1982,57 +2232,67 @@ func file_chatto_admin_v1_diagnostics_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_admin_v1_diagnostics_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_chatto_admin_v1_diagnostics_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_chatto_admin_v1_diagnostics_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_chatto_admin_v1_diagnostics_proto_goTypes = []any{
-	(AdminLiveKitConnectionState)(0), // 0: chatto.admin.v1.AdminLiveKitConnectionState
-	(AdminDurableWorkerHealth)(0),    // 1: chatto.admin.v1.AdminDurableWorkerHealth
-	(AdminAssetCleanupHealth)(0),     // 2: chatto.admin.v1.AdminAssetCleanupHealth
-	(*GetSystemInfoRequest)(nil),     // 3: chatto.admin.v1.GetSystemInfoRequest
-	(*GetSystemInfoResponse)(nil),    // 4: chatto.admin.v1.GetSystemInfoResponse
-	(*AdminLiveKitStatus)(nil),       // 5: chatto.admin.v1.AdminLiveKitStatus
-	(*AdminDurableWorkerStatus)(nil), // 6: chatto.admin.v1.AdminDurableWorkerStatus
-	(*AdminAssetCleanupStatus)(nil),  // 7: chatto.admin.v1.AdminAssetCleanupStatus
-	(*AdminSystemInfo)(nil),          // 8: chatto.admin.v1.AdminSystemInfo
-	(*AdminConnectionInfo)(nil),      // 9: chatto.admin.v1.AdminConnectionInfo
-	(*AdminAccountInfo)(nil),         // 10: chatto.admin.v1.AdminAccountInfo
-	(*AdminServerStats)(nil),         // 11: chatto.admin.v1.AdminServerStats
-	(*AdminNatsStats)(nil),           // 12: chatto.admin.v1.AdminNatsStats
-	(*AdminNatsStreamInfo)(nil),      // 13: chatto.admin.v1.AdminNatsStreamInfo
-	(*AdminNatsConsumerInfo)(nil),    // 14: chatto.admin.v1.AdminNatsConsumerInfo
-	(*AdminProjectionState)(nil),     // 15: chatto.admin.v1.AdminProjectionState
-	(*AdminProjectionMetric)(nil),    // 16: chatto.admin.v1.AdminProjectionMetric
-	(*timestamppb.Timestamp)(nil),    // 17: google.protobuf.Timestamp
+	(AdminLiveKitConnectionState)(0),     // 0: chatto.admin.v1.AdminLiveKitConnectionState
+	(AdminDurableWorkerHealth)(0),        // 1: chatto.admin.v1.AdminDurableWorkerHealth
+	(AdminAssetCleanupHealth)(0),         // 2: chatto.admin.v1.AdminAssetCleanupHealth
+	(*GetSystemInfoRequest)(nil),         // 3: chatto.admin.v1.GetSystemInfoRequest
+	(*GetSystemInfoResponse)(nil),        // 4: chatto.admin.v1.GetSystemInfoResponse
+	(*GetAttachmentUploadsRequest)(nil),  // 5: chatto.admin.v1.GetAttachmentUploadsRequest
+	(*AttachmentUploadTotals)(nil),       // 6: chatto.admin.v1.AttachmentUploadTotals
+	(*AttachmentUploadRow)(nil),          // 7: chatto.admin.v1.AttachmentUploadRow
+	(*GetAttachmentUploadsResponse)(nil), // 8: chatto.admin.v1.GetAttachmentUploadsResponse
+	(*AdminLiveKitStatus)(nil),           // 9: chatto.admin.v1.AdminLiveKitStatus
+	(*AdminDurableWorkerStatus)(nil),     // 10: chatto.admin.v1.AdminDurableWorkerStatus
+	(*AdminAssetCleanupStatus)(nil),      // 11: chatto.admin.v1.AdminAssetCleanupStatus
+	(*AdminSystemInfo)(nil),              // 12: chatto.admin.v1.AdminSystemInfo
+	(*AdminConnectionInfo)(nil),          // 13: chatto.admin.v1.AdminConnectionInfo
+	(*AdminAccountInfo)(nil),             // 14: chatto.admin.v1.AdminAccountInfo
+	(*AdminServerStats)(nil),             // 15: chatto.admin.v1.AdminServerStats
+	(*AdminNatsStats)(nil),               // 16: chatto.admin.v1.AdminNatsStats
+	(*AdminNatsStreamInfo)(nil),          // 17: chatto.admin.v1.AdminNatsStreamInfo
+	(*AdminNatsConsumerInfo)(nil),        // 18: chatto.admin.v1.AdminNatsConsumerInfo
+	(*AdminProjectionState)(nil),         // 19: chatto.admin.v1.AdminProjectionState
+	(*AdminProjectionMetric)(nil),        // 20: chatto.admin.v1.AdminProjectionMetric
+	(*timestamppb.Timestamp)(nil),        // 21: google.protobuf.Timestamp
 }
 var file_chatto_admin_v1_diagnostics_proto_depIdxs = []int32{
-	8,  // 0: chatto.admin.v1.GetSystemInfoResponse.system_info:type_name -> chatto.admin.v1.AdminSystemInfo
-	15, // 1: chatto.admin.v1.GetSystemInfoResponse.projections:type_name -> chatto.admin.v1.AdminProjectionState
-	7,  // 2: chatto.admin.v1.GetSystemInfoResponse.asset_cleanup:type_name -> chatto.admin.v1.AdminAssetCleanupStatus
-	6,  // 3: chatto.admin.v1.GetSystemInfoResponse.durable_workers:type_name -> chatto.admin.v1.AdminDurableWorkerStatus
-	5,  // 4: chatto.admin.v1.GetSystemInfoResponse.livekit:type_name -> chatto.admin.v1.AdminLiveKitStatus
-	0,  // 5: chatto.admin.v1.AdminLiveKitStatus.connection_state:type_name -> chatto.admin.v1.AdminLiveKitConnectionState
-	17, // 6: chatto.admin.v1.AdminLiveKitStatus.last_webhook_at:type_name -> google.protobuf.Timestamp
-	17, // 7: chatto.admin.v1.AdminLiveKitStatus.last_rejected_webhook_at:type_name -> google.protobuf.Timestamp
-	1,  // 8: chatto.admin.v1.AdminDurableWorkerStatus.health:type_name -> chatto.admin.v1.AdminDurableWorkerHealth
-	2,  // 9: chatto.admin.v1.AdminAssetCleanupStatus.health:type_name -> chatto.admin.v1.AdminAssetCleanupHealth
-	17, // 10: chatto.admin.v1.AdminAssetCleanupStatus.oldest_pending_at:type_name -> google.protobuf.Timestamp
-	17, // 11: chatto.admin.v1.AdminAssetCleanupStatus.last_pass_at:type_name -> google.protobuf.Timestamp
-	17, // 12: chatto.admin.v1.AdminAssetCleanupStatus.last_successful_pass_at:type_name -> google.protobuf.Timestamp
-	17, // 13: chatto.admin.v1.AdminAssetCleanupStatus.updated_at:type_name -> google.protobuf.Timestamp
-	9,  // 14: chatto.admin.v1.AdminSystemInfo.connection:type_name -> chatto.admin.v1.AdminConnectionInfo
-	10, // 15: chatto.admin.v1.AdminSystemInfo.account:type_name -> chatto.admin.v1.AdminAccountInfo
-	12, // 16: chatto.admin.v1.AdminSystemInfo.nats:type_name -> chatto.admin.v1.AdminNatsStats
-	11, // 17: chatto.admin.v1.AdminSystemInfo.stats:type_name -> chatto.admin.v1.AdminServerStats
-	13, // 18: chatto.admin.v1.AdminNatsStats.streams:type_name -> chatto.admin.v1.AdminNatsStreamInfo
-	14, // 19: chatto.admin.v1.AdminNatsStats.consumers:type_name -> chatto.admin.v1.AdminNatsConsumerInfo
-	16, // 20: chatto.admin.v1.AdminProjectionState.metrics:type_name -> chatto.admin.v1.AdminProjectionMetric
-	17, // 21: chatto.admin.v1.AdminProjectionState.last_commit_time:type_name -> google.protobuf.Timestamp
-	3,  // 22: chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo:input_type -> chatto.admin.v1.GetSystemInfoRequest
-	4,  // 23: chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo:output_type -> chatto.admin.v1.GetSystemInfoResponse
-	23, // [23:24] is the sub-list for method output_type
-	22, // [22:23] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	12, // 0: chatto.admin.v1.GetSystemInfoResponse.system_info:type_name -> chatto.admin.v1.AdminSystemInfo
+	19, // 1: chatto.admin.v1.GetSystemInfoResponse.projections:type_name -> chatto.admin.v1.AdminProjectionState
+	11, // 2: chatto.admin.v1.GetSystemInfoResponse.asset_cleanup:type_name -> chatto.admin.v1.AdminAssetCleanupStatus
+	10, // 3: chatto.admin.v1.GetSystemInfoResponse.durable_workers:type_name -> chatto.admin.v1.AdminDurableWorkerStatus
+	9,  // 4: chatto.admin.v1.GetSystemInfoResponse.livekit:type_name -> chatto.admin.v1.AdminLiveKitStatus
+	6,  // 5: chatto.admin.v1.AttachmentUploadRow.totals:type_name -> chatto.admin.v1.AttachmentUploadTotals
+	6,  // 6: chatto.admin.v1.GetAttachmentUploadsResponse.total:type_name -> chatto.admin.v1.AttachmentUploadTotals
+	7,  // 7: chatto.admin.v1.GetAttachmentUploadsResponse.rooms:type_name -> chatto.admin.v1.AttachmentUploadRow
+	7,  // 8: chatto.admin.v1.GetAttachmentUploadsResponse.users:type_name -> chatto.admin.v1.AttachmentUploadRow
+	0,  // 9: chatto.admin.v1.AdminLiveKitStatus.connection_state:type_name -> chatto.admin.v1.AdminLiveKitConnectionState
+	21, // 10: chatto.admin.v1.AdminLiveKitStatus.last_webhook_at:type_name -> google.protobuf.Timestamp
+	21, // 11: chatto.admin.v1.AdminLiveKitStatus.last_rejected_webhook_at:type_name -> google.protobuf.Timestamp
+	1,  // 12: chatto.admin.v1.AdminDurableWorkerStatus.health:type_name -> chatto.admin.v1.AdminDurableWorkerHealth
+	2,  // 13: chatto.admin.v1.AdminAssetCleanupStatus.health:type_name -> chatto.admin.v1.AdminAssetCleanupHealth
+	21, // 14: chatto.admin.v1.AdminAssetCleanupStatus.oldest_pending_at:type_name -> google.protobuf.Timestamp
+	21, // 15: chatto.admin.v1.AdminAssetCleanupStatus.last_pass_at:type_name -> google.protobuf.Timestamp
+	21, // 16: chatto.admin.v1.AdminAssetCleanupStatus.last_successful_pass_at:type_name -> google.protobuf.Timestamp
+	21, // 17: chatto.admin.v1.AdminAssetCleanupStatus.updated_at:type_name -> google.protobuf.Timestamp
+	13, // 18: chatto.admin.v1.AdminSystemInfo.connection:type_name -> chatto.admin.v1.AdminConnectionInfo
+	14, // 19: chatto.admin.v1.AdminSystemInfo.account:type_name -> chatto.admin.v1.AdminAccountInfo
+	16, // 20: chatto.admin.v1.AdminSystemInfo.nats:type_name -> chatto.admin.v1.AdminNatsStats
+	15, // 21: chatto.admin.v1.AdminSystemInfo.stats:type_name -> chatto.admin.v1.AdminServerStats
+	17, // 22: chatto.admin.v1.AdminNatsStats.streams:type_name -> chatto.admin.v1.AdminNatsStreamInfo
+	18, // 23: chatto.admin.v1.AdminNatsStats.consumers:type_name -> chatto.admin.v1.AdminNatsConsumerInfo
+	20, // 24: chatto.admin.v1.AdminProjectionState.metrics:type_name -> chatto.admin.v1.AdminProjectionMetric
+	21, // 25: chatto.admin.v1.AdminProjectionState.last_commit_time:type_name -> google.protobuf.Timestamp
+	3,  // 26: chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo:input_type -> chatto.admin.v1.GetSystemInfoRequest
+	5,  // 27: chatto.admin.v1.AdminDiagnosticsService.GetAttachmentUploads:input_type -> chatto.admin.v1.GetAttachmentUploadsRequest
+	4,  // 28: chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo:output_type -> chatto.admin.v1.GetSystemInfoResponse
+	8,  // 29: chatto.admin.v1.AdminDiagnosticsService.GetAttachmentUploads:output_type -> chatto.admin.v1.GetAttachmentUploadsResponse
+	28, // [28:30] is the sub-list for method output_type
+	26, // [26:28] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_diagnostics_proto_init() }
@@ -2041,14 +2301,14 @@ func file_chatto_admin_v1_diagnostics_proto_init() {
 		return
 	}
 	file_chatto_admin_v1_diagnostics_proto_msgTypes[1].OneofWrappers = []any{}
-	file_chatto_admin_v1_diagnostics_proto_msgTypes[12].OneofWrappers = []any{}
+	file_chatto_admin_v1_diagnostics_proto_msgTypes[16].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_admin_v1_diagnostics_proto_rawDesc), len(file_chatto_admin_v1_diagnostics_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   14,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

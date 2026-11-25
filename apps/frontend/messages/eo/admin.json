@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Alŝutoj de aldonaĵoj",
+        "description": "Nombras originalajn ĉambrajn aldonaĵojn el la eventoj konservataj de ĉi tiu servilo, inkluzive de aldonaĵoj poste forigitaj.",
+        "month": "Monato (UTC)",
+        "show": "Montri raporton",
+        "loading": "Ŝargado de la raporto pri alŝutoj…",
+        "error": "Ne eblis ŝargi la raporton pri alŝutoj.",
+        "unavailable": "Ĉi tiu servilo ne disponigas raporton pri alŝutoj de aldonaĵoj.",
+        "total_files": "Dosieroj entute",
+        "total_bytes": "Bajtoj entute",
+        "empty": "Neniuj aldonaĵoj estis alŝutitaj ĉi-monate.",
+        "by_room": "Laŭ ĉambro",
+        "by_user": "Laŭ alŝutinto",
+        "private_rooms": "Privataj aŭ nedisponeblaj ĉambroj",
+        "operator_imports": "Importoj de la funkciigisto",
+        "files": "Dosieroj"
+      },
       "title": "Sistemo",
       "subtitle": "Makleristo, JetStream stokado, konsumantoj kaj projekcia sano",
       "tabs": {

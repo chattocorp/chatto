@@ -21,6 +21,39 @@ message GetSystemInfoResponse {
   optional bool projections_available = 5;
   // LiveKit voice and video call setup diagnostics.
   AdminLiveKitStatus livekit = 6;
+  // True when this server supports the monthly attachment upload report.
+  bool attachment_uploads_available = 7;
+}
+
+// Select one calendar month for the upload report.
+message GetAttachmentUploadsRequest {
+  // Required UTC calendar month in YYYY-MM format.
+  string month = 1;
+}
+
+// Total original bytes and file count for completed room attachment uploads.
+message AttachmentUploadTotals {
+  int64 bytes = 1;
+  int64 files = 2;
+}
+
+// Monthly totals for one room or uploader, including deleted attachments.
+message AttachmentUploadRow {
+  // Room or user ID. An empty ID identifies the combined row described in the response.
+  string id = 1;
+  // Current display name. Empty for combined rows or unavailable names.
+  string name = 2;
+  AttachmentUploadTotals totals = 3;
+}
+
+// Monthly usage from retained asset creation events, sorted by bytes descending.
+message GetAttachmentUploadsResponse {
+  // All completed original room uploads, including imports.
+  AttachmentUploadTotals total = 1;
+  // Direct messages and unavailable rooms share one row with an empty ID.
+  repeated AttachmentUploadRow rooms = 2;
+  // Operator uploads share one row with an empty ID.
+  repeated AttachmentUploadRow users = 3;
 }
 
 // LiveKit voice and video call setup as seen by the Chatto server that
@@ -348,4 +381,6 @@ service AdminDiagnosticsService {
   // the server owner role. The call checks the LiveKit server API, so it can
   // take up to five seconds when LiveKit does not reply.
   rpc GetSystemInfo(GetSystemInfoRequest) returns (GetSystemInfoResponse);
+  // Returns monthly upload totals and breakdowns. Requires the server owner role.
+  rpc GetAttachmentUploads(GetAttachmentUploadsRequest) returns (GetAttachmentUploadsResponse);
 }

@@ -264,6 +264,13 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
    */
   livekit?: AdminLiveKitStatus;
 
+  /**
+   * True when this server supports the monthly attachment upload report.
+   *
+   * @generated from field: bool attachment_uploads_available = 7;
+   */
+  attachmentUploadsAvailable = false;
+
   constructor(data?: PartialMessage<GetSystemInfoResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -278,6 +285,7 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
     { no: 4, name: "durable_workers", kind: "message", T: AdminDurableWorkerStatus, repeated: true },
     { no: 5, name: "projections_available", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 6, name: "livekit", kind: "message", T: AdminLiveKitStatus },
+    { no: 7, name: "attachment_uploads_available", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSystemInfoResponse {
@@ -294,6 +302,204 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
 
   static equals(a: GetSystemInfoResponse | PlainMessage<GetSystemInfoResponse> | undefined, b: GetSystemInfoResponse | PlainMessage<GetSystemInfoResponse> | undefined): boolean {
     return proto3.util.equals(GetSystemInfoResponse, a, b);
+  }
+}
+
+/**
+ * Select one calendar month for the upload report.
+ *
+ * @generated from message chatto.admin.v1.GetAttachmentUploadsRequest
+ */
+export class GetAttachmentUploadsRequest extends Message<GetAttachmentUploadsRequest> {
+  /**
+   * Required UTC calendar month in YYYY-MM format.
+   *
+   * @generated from field: string month = 1;
+   */
+  month = "";
+
+  constructor(data?: PartialMessage<GetAttachmentUploadsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetAttachmentUploadsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "month", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAttachmentUploadsRequest {
+    return new GetAttachmentUploadsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAttachmentUploadsRequest {
+    return new GetAttachmentUploadsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAttachmentUploadsRequest {
+    return new GetAttachmentUploadsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAttachmentUploadsRequest | PlainMessage<GetAttachmentUploadsRequest> | undefined, b: GetAttachmentUploadsRequest | PlainMessage<GetAttachmentUploadsRequest> | undefined): boolean {
+    return proto3.util.equals(GetAttachmentUploadsRequest, a, b);
+  }
+}
+
+/**
+ * Total original bytes and file count for completed room attachment uploads.
+ *
+ * @generated from message chatto.admin.v1.AttachmentUploadTotals
+ */
+export class AttachmentUploadTotals extends Message<AttachmentUploadTotals> {
+  /**
+   * @generated from field: int64 bytes = 1;
+   */
+  bytes = protoInt64.zero;
+
+  /**
+   * @generated from field: int64 files = 2;
+   */
+  files = protoInt64.zero;
+
+  constructor(data?: PartialMessage<AttachmentUploadTotals>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.AttachmentUploadTotals";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bytes", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 2, name: "files", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AttachmentUploadTotals {
+    return new AttachmentUploadTotals().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AttachmentUploadTotals {
+    return new AttachmentUploadTotals().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AttachmentUploadTotals {
+    return new AttachmentUploadTotals().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AttachmentUploadTotals | PlainMessage<AttachmentUploadTotals> | undefined, b: AttachmentUploadTotals | PlainMessage<AttachmentUploadTotals> | undefined): boolean {
+    return proto3.util.equals(AttachmentUploadTotals, a, b);
+  }
+}
+
+/**
+ * Monthly totals for one room or uploader, including deleted attachments.
+ *
+ * @generated from message chatto.admin.v1.AttachmentUploadRow
+ */
+export class AttachmentUploadRow extends Message<AttachmentUploadRow> {
+  /**
+   * Room or user ID. An empty ID identifies the combined row described in the response.
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Current display name. Empty for combined rows or unavailable names.
+   *
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * @generated from field: chatto.admin.v1.AttachmentUploadTotals totals = 3;
+   */
+  totals?: AttachmentUploadTotals;
+
+  constructor(data?: PartialMessage<AttachmentUploadRow>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.AttachmentUploadRow";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "totals", kind: "message", T: AttachmentUploadTotals },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AttachmentUploadRow {
+    return new AttachmentUploadRow().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AttachmentUploadRow {
+    return new AttachmentUploadRow().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AttachmentUploadRow {
+    return new AttachmentUploadRow().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AttachmentUploadRow | PlainMessage<AttachmentUploadRow> | undefined, b: AttachmentUploadRow | PlainMessage<AttachmentUploadRow> | undefined): boolean {
+    return proto3.util.equals(AttachmentUploadRow, a, b);
+  }
+}
+
+/**
+ * Monthly usage from retained asset creation events, sorted by bytes descending.
+ *
+ * @generated from message chatto.admin.v1.GetAttachmentUploadsResponse
+ */
+export class GetAttachmentUploadsResponse extends Message<GetAttachmentUploadsResponse> {
+  /**
+   * All completed original room uploads, including imports.
+   *
+   * @generated from field: chatto.admin.v1.AttachmentUploadTotals total = 1;
+   */
+  total?: AttachmentUploadTotals;
+
+  /**
+   * Direct messages and unavailable rooms share one row with an empty ID.
+   *
+   * @generated from field: repeated chatto.admin.v1.AttachmentUploadRow rooms = 2;
+   */
+  rooms: AttachmentUploadRow[] = [];
+
+  /**
+   * Operator uploads share one row with an empty ID.
+   *
+   * @generated from field: repeated chatto.admin.v1.AttachmentUploadRow users = 3;
+   */
+  users: AttachmentUploadRow[] = [];
+
+  constructor(data?: PartialMessage<GetAttachmentUploadsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetAttachmentUploadsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "total", kind: "message", T: AttachmentUploadTotals },
+    { no: 2, name: "rooms", kind: "message", T: AttachmentUploadRow, repeated: true },
+    { no: 3, name: "users", kind: "message", T: AttachmentUploadRow, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAttachmentUploadsResponse {
+    return new GetAttachmentUploadsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAttachmentUploadsResponse {
+    return new GetAttachmentUploadsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAttachmentUploadsResponse {
+    return new GetAttachmentUploadsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAttachmentUploadsResponse | PlainMessage<GetAttachmentUploadsResponse> | undefined, b: GetAttachmentUploadsResponse | PlainMessage<GetAttachmentUploadsResponse> | undefined): boolean {
+    return proto3.util.equals(GetAttachmentUploadsResponse, a, b);
   }
 }
 

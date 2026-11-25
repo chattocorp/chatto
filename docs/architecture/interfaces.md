@@ -420,6 +420,11 @@ is independently optional. Message presence or the projection-availability flag
 records whether collection succeeded, so one failure does not suppress unrelated
 system diagnostics or turn unavailable metrics into healthy-looking zeroes.
 
+`AdminDiagnosticsService.GetAttachmentUploads` requires the same owner access.
+It returns completed upload bytes and files for one UTC month, with independent
+room and uploader breakdowns. Direct messages and unavailable rooms share one
+row. Operator uploads have a separate uploader row.
+
 ## Mounted operator services
 
 The operator socket serves individual user, room, message, and upload APIs.

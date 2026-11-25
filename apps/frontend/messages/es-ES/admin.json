@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Archivos adjuntos subidos",
+        "description": "Cuenta los archivos adjuntos originales de las salas a partir de los eventos que conserva este servidor, incluidos los que se eliminaron después.",
+        "month": "Mes (UTC)",
+        "show": "Mostrar informe",
+        "loading": "Cargando el informe de archivos subidos…",
+        "error": "No se ha podido cargar el informe de archivos subidos.",
+        "unavailable": "Este servidor no ofrece el informe de archivos adjuntos subidos.",
+        "total_files": "Total de archivos",
+        "total_bytes": "Total de bytes",
+        "empty": "No se han subido archivos adjuntos este mes.",
+        "by_room": "Por sala",
+        "by_user": "Por quien subió el archivo",
+        "private_rooms": "Salas privadas o no disponibles",
+        "operator_imports": "Importaciones del operador",
+        "files": "Archivos"
+      },
       "title": "Sistema",
       "subtitle": "Broker, almacenamiento JetStream, consumidores y estado de proyección",
       "tabs": {

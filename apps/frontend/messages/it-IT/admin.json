@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Caricamenti di allegati",
+        "description": "Conta gli allegati originali delle stanze in base agli eventi conservati da questo server, compresi gli allegati eliminati in seguito.",
+        "month": "Mese (UTC)",
+        "show": "Mostra il rapporto",
+        "loading": "Caricamento del rapporto sugli allegati…",
+        "error": "Impossibile caricare il rapporto sugli allegati.",
+        "unavailable": "Questo server non fornisce il rapporto sui caricamenti di allegati.",
+        "total_files": "Totale file",
+        "total_bytes": "Totale byte",
+        "empty": "Nessun allegato caricato in questo mese.",
+        "by_room": "Per stanza",
+        "by_user": "Per utente che ha caricato",
+        "private_rooms": "Stanze private o non disponibili",
+        "operator_imports": "Importazioni dell’operatore",
+        "files": "File"
+      },
       "title": "Sistema",
       "subtitle": "Broker, storage JetStream, consumatori e integrità della proiezione",
       "tabs": {

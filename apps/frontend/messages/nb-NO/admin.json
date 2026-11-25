@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Opplastede vedlegg",
+        "description": "Teller opprinnelige romvedlegg fra hendelsene denne serveren beholder, også vedlegg som senere ble slettet.",
+        "month": "Måned (UTC)",
+        "show": "Vis rapport",
+        "loading": "Laster opplastingsrapporten …",
+        "error": "Kunne ikke laste opplastingsrapporten.",
+        "unavailable": "Denne serveren har ingen rapport for opplastede vedlegg.",
+        "total_files": "Filer totalt",
+        "total_bytes": "Byte totalt",
+        "empty": "Ingen vedlegg ble lastet opp denne måneden.",
+        "by_room": "Per rom",
+        "by_user": "Per opplaster",
+        "private_rooms": "Private eller utilgjengelige rom",
+        "operator_imports": "Importert av operatøren",
+        "files": "Filer"
+      },
       "title": "System",
       "subtitle": "Megler, JetStream lagring, forbrukere og projeksjonshelse",
       "tabs": {

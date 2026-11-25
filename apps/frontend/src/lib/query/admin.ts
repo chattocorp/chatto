@@ -81,6 +81,14 @@ export const adminQueryKeys = {
   systemInfo(scope: QueryKeyScope) {
     return [...adminRoot(scope), 'system-info'] as const;
   },
+  /** All attachment upload reports for one server session. */
+  attachmentUploads(scope: QueryKeyScope) {
+    return [...adminRoot(scope), 'attachment-uploads'] as const;
+  },
+  /** One UTC month's attachment upload report. */
+  attachmentUploadsMonth(scope: QueryKeyScope, month: string) {
+    return [...adminQueryKeys.attachmentUploads(scope), month] as const;
+  },
   securityConfig(scope: QueryKeyScope) {
     return [...adminRoot(scope), 'security-config'] as const;
   },

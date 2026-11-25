@@ -5,6 +5,7 @@ import (
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	projectionv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/projection/v1"
 	"github.com/chattocorp/chatto/pkg/events"
 	"google.golang.org/protobuf/proto"
 )
@@ -16,6 +17,7 @@ import (
 // consumes legacy evt.room.*.asset_* lanes so beta histories replay.
 type AssetProjection struct {
 	events.MemoryProjection
+	monthlyUploads          map[string]*projectionv1.MonthlyAttachmentUploadsSnapshot
 	replayGuard             projectionReplayGuard
 	assetCreations          map[string]*evtv1.AssetCreatedEvent
 	assetChildren           map[string][]string
@@ -98,6 +100,9 @@ func (p *AssetProjection) Apply(event *evtv1.Event, seq uint64) error {
 	case *evtv1.Event_AssetCreated:
 		assetID := ev.AssetCreated.GetAsset().GetId()
 		if assetID != "" {
+			if _, deleted := p.deletedAssets[assetID]; !deleted && p.assetCreations[assetID] == nil {
+				p.countAttachmentUploadLocked(event)
+			}
 			p.assetCreations[assetID] = proto.Clone(ev.AssetCreated).(*evtv1.AssetCreatedEvent)
 			delete(p.deletedAssets, assetID)
 			delete(p.deletedAssetRoom, assetID)
@@ -478,7 +483,14 @@ func (p *AssetProjection) adminProjectionEstimate() (int64, int64, []ProjectionA
 	retainedEventIDs := p.replayGuard.retainedEventIDs()
 	retainedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)
 	bytes += retainedEventIDsBytes
-	return int64(len(p.assetCreations) + len(p.videoManifests) + len(p.deletedAssets)), bytes, []ProjectionAdminMetric{
+	var uploadRows, uploadBytes int64
+	for _, month := range p.monthlyUploads {
+		rows := int64(len(month.Rooms) + len(month.Users))
+		uploadRows += rows
+		uploadBytes += projectionMapEntryOverhead + rows*(projectionMapEntryOverhead+96)
+	}
+	return int64(len(p.assetCreations)+len(p.videoManifests)+len(p.deletedAssets)) + uploadRows, bytes + uploadBytes, []ProjectionAdminMetric{
+		{Name: "monthly_upload_rows", Value: uploadRows, Bytes: uploadBytes},
 		{Name: "assets", Value: int64(len(p.assetCreations)), Bytes: bytes - manifestBytes - deletedBytes - messageOwnerBytes - publicPreviewBytes - retainedEventIDsBytes},
 		{Name: "derivatives", Value: derivatives, Bytes: 0},
 		{Name: "video_manifests", Value: int64(len(p.videoManifests)), Bytes: manifestBytes},

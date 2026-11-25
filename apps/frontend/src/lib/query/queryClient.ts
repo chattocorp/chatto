@@ -236,6 +236,13 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
   void queryClient.invalidateQueries({
     predicate: (query) => isMemberListQuery(query.queryKey)
   });
+
+  // Reset cached months and cancel pending reads that can contain the
+  // deleted user's former display name.
+  void queryClient.resetQueries({
+    predicate: ({ queryKey }) =>
+      isAdminQueryForServer(queryKey, serverId) && queryKey[5] === 'attachment-uploads'
+  });
 }
 
 function permissionTierScope(key: QueryKey): { roomId?: unknown; groupId?: unknown } | null {

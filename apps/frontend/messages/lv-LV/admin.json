@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Pielikumu augšupielādes",
+        "description": "Skaita telpu oriģinālos pielikumus no notikumiem, ko glabā šis serveris, tostarp vēlāk izdzēstos pielikumus.",
+        "month": "Mēnesis (UTC)",
+        "show": "Rādīt pārskatu",
+        "loading": "Ielādē augšupielāžu pārskatu…",
+        "error": "Neizdevās ielādēt augšupielāžu pārskatu.",
+        "unavailable": "Šis serveris nenodrošina pielikumu augšupielāžu pārskatu.",
+        "total_files": "Faili kopā",
+        "total_bytes": "Baiti kopā",
+        "empty": "Šajā mēnesī nav augšupielādēts neviens pielikums.",
+        "by_room": "Pēc telpas",
+        "by_user": "Pēc augšupielādētāja",
+        "private_rooms": "Privātas vai nepieejamas telpas",
+        "operator_imports": "Operatora importētie faili",
+        "files": "Faili"
+      },
       "title": "Sistēma",
       "subtitle": "Brokeris, JetStream krātuve, patērētāji un projekcijas veselība",
       "tabs": {

@@ -17,7 +17,7 @@ func (*AssetProjection) SnapshotContractID() string { return assetSnapshotContra
 func (p *AssetProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
-	snapshot := &projectionv1.AssetProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
+	snapshot := &projectionv1.AssetProjectionSnapshot{MonthlyUploads: p.monthlyUploads, ReplayGuard: snapshotReplayGuard(p.replayGuard)}
 	for _, assetID := range sortedMapKeys(p.assetCreations) {
 		snapshot.Creations = append(snapshot.Creations, proto.Clone(p.assetCreations[assetID]).(*evtv1.AssetCreatedEvent))
 	}
@@ -163,6 +163,7 @@ func (p *AssetProjection) Restore(data []byte) error {
 		publicLinkPreviewAssets[assetID] = struct{}{}
 	}
 	p.Lock()
+	p.monthlyUploads = snapshot.MonthlyUploads
 	p.assetCreations, p.assetChildren, p.videoManifests, p.deletedAssets, p.deletedAssetRoom, p.messageOwners, p.publicLinkPreviewAssets, p.replayGuard = creations, children, manifests, deleted, deletedRooms, messageOwners, publicLinkPreviewAssets, guard
 	p.Unlock()
 	return nil

@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "附件上传",
+        "description": "根据此服务器保留的事件统计上传到房间的原始附件，包括后来删除的附件。",
+        "month": "月份（UTC）",
+        "show": "显示报告",
+        "loading": "正在加载上传报告…",
+        "error": "无法加载上传报告。",
+        "unavailable": "此服务器不提供附件上传报告。",
+        "total_files": "文件总数",
+        "total_bytes": "总字节数",
+        "empty": "这个月没有上传附件。",
+        "by_room": "按房间",
+        "by_user": "按上传者",
+        "private_rooms": "私密或不可用的房间",
+        "operator_imports": "运维人员导入",
+        "files": "文件数"
+      },
       "title": "系统",
       "subtitle": "Broker、JetStream 存储、consumer 和 projection 健康状态",
       "tabs": {

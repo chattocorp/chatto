@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Ek yüklemeleri",
+        "description": "Bu sunucunun sakladığı olaylardaki özgün oda eklerini sayar. Sonradan silinen ekler de sayılır.",
+        "month": "Ay (UTC)",
+        "show": "Raporu göster",
+        "loading": "Yükleme raporu yükleniyor…",
+        "error": "Yükleme raporu yüklenemedi.",
+        "unavailable": "Bu sunucu ek yükleme raporu sunmuyor.",
+        "total_files": "Toplam dosya",
+        "total_bytes": "Toplam bayt",
+        "empty": "Bu ay hiç ek yüklenmedi.",
+        "by_room": "Odaya göre",
+        "by_user": "Yükleyene göre",
+        "private_rooms": "Özel veya erişilemeyen odalar",
+        "operator_imports": "Operatörün içe aktardıkları",
+        "files": "Dosyalar"
+      },
       "title": "Sistem",
       "subtitle": "Aracı, JetStream depolama, tüketiciler ve projeksiyon sağlığı",
       "tabs": {

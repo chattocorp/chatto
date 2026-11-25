@@ -96,6 +96,7 @@ function info(overrides: Partial<AdminSystemInfo> = {}): AdminSystemInfo {
     },
     durableWorkers: [worker('healthy'), worker('inactive')],
     livekit: liveKit(),
+    attachmentUploadsAvailable: false,
     ...overrides
   };
 }

@@ -7,6 +7,8 @@ beforeAll(() => loadLocaleMessages('en-GB'));
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
+import { Code, ConnectError } from '@connectrpc/connect';
+import type { AdminAttachmentUploads } from '$lib/api/adminDiagnostics';
 import { queryClient } from '$lib/query/client';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
@@ -14,7 +16,8 @@ import SystemTestHarness from './SystemTestHarness.svelte';
 import type { SystemSection } from './systemSections';
 
 const mocks = vi.hoisted(() => ({
-  getAdminSystemInfo: vi.fn()
+  getAdminSystemInfo: vi.fn(),
+  getAdminAttachmentUploads: vi.fn()
 }));
 
 let routeId = '/chat/[serverId]/manage/server/system';
@@ -46,7 +49,8 @@ vi.mock('$lib/api/adminDiagnostics', async () => {
   );
   return {
     ...actual,
-    getAdminSystemInfo: mocks.getAdminSystemInfo
+    getAdminSystemInfo: mocks.getAdminSystemInfo,
+    getAdminAttachmentUploads: mocks.getAdminAttachmentUploads
   };
 });
 
@@ -101,6 +105,7 @@ const systemInfo = {
     latestDeletionSequence: '0'
   },
   durableWorkers: [],
+  attachmentUploadsAvailable: false,
   livekit: {
     connectionState: 'not_configured',
     connectionError: '',
@@ -130,7 +135,8 @@ const routeIds: Record<SystemSection, string> = {
   streams: '/chat/[serverId]/manage/server/system/streams',
   projections: '/chat/[serverId]/manage/server/system/projections',
   workers: '/chat/[serverId]/manage/server/system/workers',
-  livekit: '/chat/[serverId]/manage/server/system/livekit'
+  livekit: '/chat/[serverId]/manage/server/system/livekit',
+  attachmentUploads: '/chat/[serverId]/manage/server/system/attachment-uploads'
 };
 
 function renderSection(section: SystemSection = 'overview') {
@@ -152,6 +158,7 @@ describe('server admin system diagnostics', () => {
     server = createTestServerScope({ serverId: 'origin' });
     mocks.getAdminSystemInfo.mockReset();
     mocks.getAdminSystemInfo.mockResolvedValue(systemInfo);
+    mocks.getAdminAttachmentUploads.mockReset();
   });
 
   afterEach(() => queryClient.clear());
@@ -255,6 +262,104 @@ describe('server admin system diagnostics', () => {
     const projections = renderSection('projections');
     await settle();
     expect(projections.container.textContent).toContain('Projection Summary');
+  });
+
+  it('shows the report tab on supporting servers without loading the report off its route', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      attachmentUploadsAvailable: true
+    });
+    const screen = renderSection();
+    await expect.element(screen.getByRole('link', { name: 'Attachment uploads' })).toBeVisible();
+    expect(mocks.getAdminAttachmentUploads).not.toHaveBeenCalled();
+  });
+
+  it('hides the tab on older servers and handles direct visits without making the RPC', async () => {
+    const overview = renderSection();
+    await settle();
+    await expect
+      .element(overview.getByRole('link', { name: 'Attachment uploads' }))
+      .not.toBeInTheDocument();
+    overview.unmount();
+
+    const screen = renderSection('attachmentUploads');
+    await expect
+      .element(screen.getByText('This server does not provide the attachment upload report.'))
+      .toBeVisible();
+    expect(mocks.getAdminAttachmentUploads).not.toHaveBeenCalled();
+  });
+
+  it('selects the UTC month, renders both breakdowns, and refreshes the selected report', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      attachmentUploadsAvailable: true
+    });
+    const populated: AdminAttachmentUploads = {
+      total: { files: 3n, bytes: 9007199254740993n },
+      rooms: [
+        { id: 'r', name: 'General', totals: { files: 2n, bytes: 9007199254740000n } },
+        { id: '', name: '', totals: { files: 1n, bytes: 993n } }
+      ],
+      users: [
+        { id: 'u', name: 'Alice', totals: { files: 2n, bytes: 9007199254740000n } },
+        { id: '', name: '', totals: { files: 1n, bytes: 993n } }
+      ]
+    };
+    const january = deferred<AdminAttachmentUploads>();
+    mocks.getAdminAttachmentUploads
+      .mockResolvedValueOnce(populated)
+      .mockReturnValueOnce(january.promise)
+      .mockResolvedValueOnce({ total: { files: 0n, bytes: 0n }, rooms: [], users: [] });
+
+    const screen = renderSection('attachmentUploads');
+    await expect.element(screen.getByRole('rowheader', { name: 'General' })).toBeVisible();
+    await expect.element(screen.getByRole('rowheader', { name: 'Alice' })).toBeVisible();
+    await expect
+      .element(screen.getByRole('rowheader', { name: 'Private or unavailable rooms' }))
+      .toBeVisible();
+    await expect.element(screen.getByRole('rowheader', { name: 'Operator imports' })).toBeVisible();
+    expect(screen.container.textContent).toContain('9,007,199,254,740,993');
+    expect(mocks.getAdminAttachmentUploads).toHaveBeenNthCalledWith(
+      1,
+      server.scope.connection.apiConfig,
+      new Date().toISOString().slice(0, 7),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+
+    await screen.getByLabelText('Month (UTC)').fill('2025-01');
+    await screen.getByRole('button', { name: 'Show report' }).click();
+    await expect.element(screen.getByLabelText('Loading upload report…')).toBeInTheDocument();
+    await expect
+      .element(screen.getByRole('rowheader', { name: 'General' }))
+      .not.toBeInTheDocument();
+    january.resolve(populated);
+    await expect.element(screen.getByText('January 2025')).toBeVisible();
+
+    await screen.getByRole('button', { name: 'Refresh' }).click();
+    await expect.element(screen.getByText('No attachment uploads for this month.')).toBeVisible();
+    expect(mocks.getAdminAttachmentUploads.mock.calls.map((call) => call[1]).slice(1)).toEqual([
+      '2025-01',
+      '2025-01'
+    ]);
+  });
+
+  it('can retry after reaching an older replica and shows permission failures as errors', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({
+      ...systemInfo,
+      attachmentUploadsAvailable: true
+    });
+    mocks.getAdminAttachmentUploads
+      .mockResolvedValueOnce(null)
+      .mockRejectedValueOnce(new ConnectError('no access', Code.PermissionDenied));
+
+    const screen = renderSection('attachmentUploads');
+    const unavailable = screen.getByText(
+      'This server does not provide the attachment upload report.'
+    );
+    await expect.element(unavailable).toBeVisible();
+    await screen.getByRole('button', { name: 'Refresh' }).click();
+    await expect.element(unavailable).not.toBeInTheDocument();
+    await expect.element(screen.getByText('You do not have permission to do that.')).toBeVisible();
   });
 
   it('shows one tab per section and marks the current one', async () => {

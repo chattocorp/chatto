@@ -574,6 +574,12 @@ tombstone, echo, and current room-file indexes; it does not duplicate asset
 lifecycle state or complete message-body payloads. Message-body writers use the
 one content-view wait before they return.
 
+The asset projection also totals original room upload bytes and files by UTC
+creation month, room ID, and uploader ID. Its snapshot includes both monthly
+breakdowns. Replay reconstructs them from retained asset creation events.
+Deletion leaves these counters intact. The report resolves current names at
+read time.
+
 `UserProjection` retains encrypted user fields and their AAD metadata. The user
 and mentionable components decrypt login and email values during mutation
 preparation. They commit in-memory lookup changes only after all matching

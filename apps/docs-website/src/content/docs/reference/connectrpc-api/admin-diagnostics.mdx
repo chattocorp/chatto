@@ -53,3 +53,38 @@ Owner-only operational diagnostics for the Chatto server.
 | `durable_workers` | repeated [`AdminDurableWorkerStatus`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminDurableWorkerStatus) | Known durable worker queues and their current broker-derived health. |
 | `projections_available` | `optional bool` | Whether projection diagnostics were collected successfully. |
 | `livekit` | [`AdminLiveKitStatus`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminLiveKitStatus) | LiveKit voice and video call setup diagnostics. |
+| `attachment_uploads_available` | `bool` | True when this server supports the monthly attachment upload report. |
+
+
+<a id="chatto-admin-v1-AdminDiagnosticsService-GetAttachmentUploads"></a>
+
+### GetAttachmentUploads
+
+Returns monthly upload totals and breakdowns. Requires the server owner role.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminDiagnosticsService/GetAttachmentUploads
+```
+
+<a id="chatto-admin-v1-GetAttachmentUploadsRequest"></a>
+
+#### Input: GetAttachmentUploadsRequest
+
+Select one calendar month for the upload report.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `month` | `string` | Required UTC calendar month in YYYY-MM format. |
+
+
+<a id="chatto-admin-v1-GetAttachmentUploadsResponse"></a>
+
+#### Result: GetAttachmentUploadsResponse
+
+Monthly usage from retained asset creation events, sorted by bytes descending.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `total` | [`AttachmentUploadTotals`](/reference/connectrpc-api/types/#chatto-admin-v1-AttachmentUploadTotals) | All completed original room uploads, including imports. |
+| `rooms` | repeated [`AttachmentUploadRow`](/reference/connectrpc-api/types/#chatto-admin-v1-AttachmentUploadRow) | Direct messages and unavailable rooms share one row with an empty ID. |
+| `users` | repeated [`AttachmentUploadRow`](/reference/connectrpc-api/types/#chatto-admin-v1-AttachmentUploadRow) | Operator uploads share one row with an empty ID. |

@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Uppladdade bilagor",
+        "description": "Räknar ursprungliga rumsbilagor från händelser som servern sparar, även bilagor som har tagits bort senare.",
+        "month": "Månad (UTC)",
+        "show": "Visa rapport",
+        "loading": "Läser in uppladdningsrapporten…",
+        "error": "Det gick inte att läsa in uppladdningsrapporten.",
+        "unavailable": "Den här servern tillhandahåller ingen rapport över uppladdade bilagor.",
+        "total_files": "Totalt antal filer",
+        "total_bytes": "Totalt antal byte",
+        "empty": "Inga bilagor laddades upp den här månaden.",
+        "by_room": "Per rum",
+        "by_user": "Per uppladdare",
+        "private_rooms": "Privata eller otillgängliga rum",
+        "operator_imports": "Importerat av operatören",
+        "files": "Filer"
+      },
       "title": "System",
       "subtitle": "Mäklare, JetStream lagring, konsumenter och projektionshälsa",
       "tabs": {

@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Carregamentos de anexos",
+        "description": "Conta os anexos originais das salas com base nos eventos que este servidor conserva, incluindo os anexos eliminados mais tarde.",
+        "month": "Mês (UTC)",
+        "show": "Mostrar relatório",
+        "loading": "A carregar o relatório de carregamentos…",
+        "error": "Não foi possível carregar o relatório de carregamentos.",
+        "unavailable": "Este servidor não disponibiliza o relatório de carregamento de anexos.",
+        "total_files": "Total de ficheiros",
+        "total_bytes": "Total de bytes",
+        "empty": "Não foram carregados anexos neste mês.",
+        "by_room": "Por sala",
+        "by_user": "Por quem carregou",
+        "private_rooms": "Salas privadas ou indisponíveis",
+        "operator_imports": "Importações do operador",
+        "files": "Ficheiros"
+      },
       "title": "Sistema",
       "subtitle": "Broker, JetStream storage, consumidores e integridade da projeção",
       "tabs": {

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetSystemInfoRequest, GetSystemInfoResponse } from "./diagnostics_pb.js";
+import { GetAttachmentUploadsRequest, GetAttachmentUploadsResponse, GetSystemInfoRequest, GetSystemInfoResponse } from "./diagnostics_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -25,6 +25,17 @@ export const AdminDiagnosticsService = {
       name: "GetSystemInfo",
       I: GetSystemInfoRequest,
       O: GetSystemInfoResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Returns monthly upload totals and breakdowns. Requires the server owner role.
+     *
+     * @generated from rpc chatto.admin.v1.AdminDiagnosticsService.GetAttachmentUploads
+     */
+    getAttachmentUploads: {
+      name: "GetAttachmentUploads",
+      I: GetAttachmentUploadsRequest,
+      O: GetAttachmentUploadsResponse,
       kind: MethodKind.Unary,
     },
   }

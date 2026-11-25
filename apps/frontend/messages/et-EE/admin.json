@@ -308,6 +308,23 @@
       }
     },
     "system": {
+      "attachment_uploads": {
+        "title": "Manuste üleslaadimised",
+        "description": "Loendab ruumide algseid manuseid serveris säilitatud sündmuste põhjal, sealhulgas hiljem kustutatud manuseid.",
+        "month": "Kuu (UTC)",
+        "show": "Kuva aruanne",
+        "loading": "Üleslaadimiste aruande laadimine…",
+        "error": "Üleslaadimiste aruannet ei saanud laadida.",
+        "unavailable": "See server ei paku manuste üleslaadimiste aruannet.",
+        "total_files": "Faile kokku",
+        "total_bytes": "Baite kokku",
+        "empty": "Sel kuul ei laaditud manuseid üles.",
+        "by_room": "Ruumi järgi",
+        "by_user": "Üleslaadija järgi",
+        "private_rooms": "Privaatsed või kättesaamatud ruumid",
+        "operator_imports": "Operaatori imporditud failid",
+        "files": "Failid"
+      },
       "title": "Süsteem",
       "subtitle": "Maakler, JetStreami salvestusruum, tarbijad ja projektsiooni tervis",
       "tabs": {
