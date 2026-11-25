@@ -219,8 +219,8 @@ func runServer(configPath string) {
 	}
 
 	chattoCore.ConfigureLiveKitDiagnostics(cfg.LiveKit, cfg.Webserver.URL)
-	if err := chattoCore.EnableLiveKitCallReconciliation(cfg.LiveKit); err != nil {
-		log.Error("Failed to configure LiveKit call-state reconciliation", "error", err)
+	if err := chattoCore.ConfigureLiveKitCalls(cfg.LiveKit); err != nil {
+		log.Error("Failed to configure LiveKit calls", "error", err)
 		exitCode = 1
 		return
 	}

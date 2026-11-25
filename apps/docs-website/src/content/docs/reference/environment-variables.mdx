@@ -283,14 +283,6 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
   Maximum number of verified accounts on this server. Use `-1` for unlimited accounts or `0` to disable creation. An account counts once it has at least one verified sign-in factor: a verified email or a linked SSO identity. Enforced when accounts are created and when the first verified factor is added. Note that the check is non-atomic, so a burst at the boundary can briefly overshoot by one or two.
 </EnvVar>
 
-### Calls
-
-<EnvVar name="CHATTO_CORE_CALLS_MAX_PARTICIPANTS" toml="core.calls.max_participants" default="-1">
-  Set the maximum number of participants Chatto can admit across all calls on this server. Use the same value on each replica. Use `-1` for unlimited participants or `0` to close admission. Lowering the limit lets current participants finish their calls.
-
-  A member or bot uses one place in each call it joins, including while it connects. A native screen-share helper uses the participant's existing place. LiveKit can reconnect a client with an existing token.
-</EnvVar>
-
 ## Assets
 
 <EnvVar name="CHATTO_CORE_ASSETS_SIGNING_SECRET" toml="core.assets.signing_secret" required>
@@ -635,6 +627,12 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
 
 <EnvVar name="CHATTO_LIVEKIT_ENABLED" toml="livekit.enabled" default="false">
   Enable LiveKit voice and video call support. Requires a running LiveKit server.
+</EnvVar>
+
+<EnvVar name="CHATTO_LIVEKIT_MAX_GLOBAL_PARTICIPANTS" toml="livekit.max_global_participants" default="-1">
+  Set the maximum number of participants Chatto can admit across all calls on this server. Use the same value on each replica. Use `-1` for unlimited participants or `0` to close admission. Lowering the limit lets current participants finish their calls.
+
+  A member or bot uses one place in each call it joins, including while it connects. A native screen-share helper uses the participant's existing place. LiveKit can reconnect a client with an existing token.
 </EnvVar>
 
 <EnvVar name="CHATTO_LIVEKIT_URL" toml="livekit.url">

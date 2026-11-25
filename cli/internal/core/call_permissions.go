@@ -86,7 +86,7 @@ func (c *ChattoCore) JoinVoiceCall(ctx context.Context, actorID, roomID string) 
 // can start a new call. Direct token requests can reserve an existing place.
 func (c *ChattoCore) admitCall(ctx context.Context, actorID, roomID string, allowStart bool) (CallPermissions, error) {
 	var permissions CallPermissions
-	err := c.callModel.appendParticipantTransitionAuthorized(ctx, roomID, actorID, true, "", evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER, c.config.Calls.MaxParticipantsOrDefault(),
+	err := c.callModel.appendParticipantTransitionAuthorized(ctx, roomID, actorID, true, "", evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER, c.callModel.maxGlobalParticipants,
 		func(snapshot CallRoomSnapshot) error {
 			starting := snapshot.Call.CallID == ""
 			var err error
@@ -105,7 +105,7 @@ func (c *ChattoCore) CallTokenAccess(ctx context.Context, actorID, roomID string
 	var permissions CallPermissions
 	var access CallAccessMaterial
 	var err error
-	if c.config.Calls.MaxParticipantsOrDefault() >= 0 {
+	if c.callModel.maxGlobalParticipants >= 0 {
 		permissions, err = c.admitCall(ctx, actorID, roomID, false)
 		if err == nil {
 			access, err = c.callModel.GetParticipantAccessMaterial(ctx, roomID, actorID)

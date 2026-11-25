@@ -481,6 +481,9 @@ func (c *ChattoConfig) Validate() error {
 	}
 
 	// LiveKit configuration
+	if c.LiveKit.MaxGlobalParticipantsOrDefault() < -1 {
+		return fmt.Errorf("livekit.max_global_participants must be -1 or greater")
+	}
 	if c.LiveKit.Enabled {
 		if c.LiveKit.URL == "" {
 			errs = append(errs, "livekit.url is required when LiveKit is enabled")
@@ -496,9 +499,6 @@ func (c *ChattoConfig) Validate() error {
 	// Account policy bounds.
 	if max := c.Core.Accounts.MaxLoginLengthOrDefault(); max < 2 || max > LoginLengthCeiling {
 		errs = append(errs, fmt.Sprintf("core.accounts.max_login_length must be between 2 and %d", LoginLengthCeiling))
-	}
-	if c.Core.Calls.MaxParticipantsOrDefault() < -1 {
-		return fmt.Errorf("core.calls.max_participants must be -1 or greater")
 	}
 	if c.Core.Accounts.MaxUsers != nil && *c.Core.Accounts.MaxUsers < -1 {
 		errs = append(errs, "core.accounts.max_users must be -1 (unlimited) or a non-negative integer")

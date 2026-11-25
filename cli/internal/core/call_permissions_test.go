@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/authctx"
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
@@ -60,10 +61,15 @@ func TestCallPermissionsAdmissionAndSources(t *testing.T) {
 // can start a call, but only one can take the last server-wide place.
 func TestCallAdmissionAcrossReplicas(t *testing.T) {
 	ns, _ := testutil.StartNATS(t)
-	cfg := testCoreConfig()
-	cfg.Calls.MaxParticipants = new(1)
-	first := startReplica(t, ns, cfg)
 	ctx := testContext(t)
+	start := func(limit int) *ChattoCore {
+		replica, err := NewChattoCore(ctx, newReplicaConn(t, ns), testCoreConfig())
+		require.NoError(t, err)
+		require.NoError(t, replica.ConfigureLiveKitCalls(config.LiveKitConfig{MaxGlobalParticipants: &limit}))
+		startCoreServices(t, replica)
+		return replica
+	}
+	first := start(1)
 	user, err := first.CreateUser(ctx, SystemActorID, "caller", "Caller", "password")
 	require.NoError(t, err)
 	other, err := first.CreateUser(ctx, SystemActorID, "listener", "Listener", "password")
@@ -78,7 +84,7 @@ func TestCallAdmissionAcrossReplicas(t *testing.T) {
 			require.NoError(t, err)
 		}
 	}
-	second := startReplica(t, ns, cfg)
+	second := start(1)
 	replicas := []*ChattoCore{first, second}
 	var results [2]error
 	var group sync.WaitGroup
@@ -103,14 +109,12 @@ func TestCallAdmissionAcrossReplicas(t *testing.T) {
 	require.NoError(t, first.RecordCallParticipantLeft(ctx, active, user.Id, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
 	require.NoError(t, second.JoinVoiceCall(ctx, user.Id, empty))
 	// An existing call counts immediately when another replica enables a limit.
-	cfg.Calls.MaxParticipants = new(0)
-	closed := startReplica(t, ns, cfg)
+	closed := start(0)
 	_, _, err = closed.CallTokenAccess(ctx, user.Id, empty)
 	require.NoError(t, err)
 	require.ErrorIs(t, closed.JoinVoiceCall(ctx, other.Id, active), ErrCallParticipantLimit)
 	// A direct token request reserves a place as well.
-	cfg.Calls.MaxParticipants = new(2)
-	expanded := startReplica(t, ns, cfg)
+	expanded := start(2)
 	_, _, err = expanded.CallTokenAccess(ctx, other.Id, empty)
 	require.NoError(t, err)
 	require.ErrorIs(t, expanded.JoinVoiceCall(ctx, other.Id, active), ErrCallParticipantLimit)

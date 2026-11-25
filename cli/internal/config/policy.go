@@ -13,19 +13,6 @@ const DefaultMaxLoginLength = 64
 // LoginLengthCeiling bounds login identifiers accepted by the sign-in endpoint.
 const LoginLengthCeiling = 254
 
-// CallsConfig controls admission to calls across one Chatto server.
-type CallsConfig struct {
-	MaxParticipants *int `toml:"max_participants,commented" env:"CHATTO_CORE_CALLS_MAX_PARTICIPANTS" comment:"Maximum concurrent call participants across all rooms. -1 = unlimited (default), 0 = no new admissions."`
-}
-
-// MaxParticipantsOrDefault returns -1 when the operator omits the limit.
-func (c CallsConfig) MaxParticipantsOrDefault() int {
-	if c.MaxParticipants == nil {
-		return -1
-	}
-	return *c.MaxParticipants
-}
-
 // AccountsConfig contains server-wide limits for accounts and usernames.
 type AccountsConfig struct {
 	MaxLoginLength *int `toml:"max_login_length,commented" env:"CHATTO_CORE_ACCOUNTS_MAX_LOGIN_LENGTH" comment:"Maximum length of new or changed usernames, from 2 to 254 characters. Default: 64."`
