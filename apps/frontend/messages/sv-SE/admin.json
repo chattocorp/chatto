@@ -333,6 +333,7 @@
         "streams": "Strömmar",
         "projections": "Projektioner",
         "workers": "Arbetare",
+        "uploads": "Uppladdningar",
         "livekit": "LiveKit"
       },
       "loading": "Laddar systeminformation...",

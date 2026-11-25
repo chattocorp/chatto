@@ -270,7 +270,7 @@ describe('server admin system diagnostics', () => {
       attachmentUploadsAvailable: true
     });
     const screen = renderSection();
-    await expect.element(screen.getByRole('link', { name: 'Attachment uploads' })).toBeVisible();
+    await expect.element(screen.getByRole('link', { name: 'Uploads' })).toBeVisible();
     expect(mocks.getAdminAttachmentUploads).not.toHaveBeenCalled();
   });
 
@@ -278,7 +278,7 @@ describe('server admin system diagnostics', () => {
     const overview = renderSection();
     await settle();
     await expect
-      .element(overview.getByRole('link', { name: 'Attachment uploads' }))
+      .element(overview.getByRole('link', { name: 'Uploads' }))
       .not.toBeInTheDocument();
     overview.unmount();
 

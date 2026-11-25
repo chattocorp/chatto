@@ -333,6 +333,7 @@
         "streams": "Stream",
         "projections": "Projection",
         "workers": "Worker",
+        "uploads": "上传",
         "livekit": "LiveKit"
       },
       "loading": "正在加载系统信息...",

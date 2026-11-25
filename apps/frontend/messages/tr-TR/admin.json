@@ -333,6 +333,7 @@
         "streams": "Akışlar",
         "projections": "Projeksiyonlar",
         "workers": "Çalışanlar",
+        "uploads": "Yüklemeler",
         "livekit": "LiveKit"
       },
       "loading": "Sistem bilgileri yükleniyor...",

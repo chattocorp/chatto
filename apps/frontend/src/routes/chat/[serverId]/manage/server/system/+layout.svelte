@@ -67,7 +67,7 @@ its section explains reports a warning or a problem.
     projections: m('admin.system.tabs.projections'),
     workers: m('admin.system.tabs.workers'),
     livekit: m('admin.system.tabs.livekit'),
-    attachmentUploads: m('admin.system.attachment_uploads.title')
+    attachmentUploads: m('admin.system.tabs.uploads')
   });
 
   const sectionIcon: Record<SystemSection, string> = {

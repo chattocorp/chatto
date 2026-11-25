@@ -333,6 +333,7 @@
         "streams": "التدفقات",
         "projections": "الإسقاطات",
         "workers": "العمال",
+        "uploads": "عمليات الرفع",
         "livekit": "LiveKit"
       },
       "loading": "جارٍ تحميل معلومات النظام...",

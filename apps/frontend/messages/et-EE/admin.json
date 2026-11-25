@@ -333,6 +333,7 @@
         "streams": "Vood",
         "projections": "Projektsioonid",
         "workers": "Taustatöötajad",
+        "uploads": "Üleslaadimised",
         "livekit": "LiveKit"
       },
       "loading": "Süsteemi teabe laadimine...",

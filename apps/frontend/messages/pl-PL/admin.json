@@ -333,6 +333,7 @@
         "streams": "Strumienie",
         "projections": "Projekcje",
         "workers": "Procesy",
+        "uploads": "Przesłane pliki",
         "livekit": "LiveKit"
       },
       "loading": "Ładowanie informacji o systemie...",

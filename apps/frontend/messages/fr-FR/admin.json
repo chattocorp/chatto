@@ -333,6 +333,7 @@
         "streams": "Flux",
         "projections": "Projections",
         "workers": "Tâches",
+        "uploads": "Envois",
         "livekit": "LiveKit"
       },
       "loading": "Chargement des informations système...",

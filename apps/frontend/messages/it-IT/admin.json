@@ -333,6 +333,7 @@
         "streams": "Flussi",
         "projections": "Proiezioni",
         "workers": "Processi",
+        "uploads": "Caricamenti",
         "livekit": "LiveKit"
       },
       "loading": "Caricamento informazioni di sistema...",

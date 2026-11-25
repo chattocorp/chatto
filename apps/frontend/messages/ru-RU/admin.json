@@ -333,6 +333,7 @@
         "streams": "Потоки",
         "projections": "Проекции",
         "workers": "Обработчики",
+        "uploads": "Загрузки",
         "livekit": "LiveKit"
       },
       "loading": "Загрузка информации о системе...",
