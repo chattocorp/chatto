@@ -24,3 +24,33 @@ tasks:
     command: mise dev-docs-website -- --port "$PORT"
     ports: [docs]
     url: http://localhost:{docs}/
+
+sections:
+  - path: cli
+    title: Chatto server and CLI
+  - path: proto
+    title: Chatto protocols
+  - path: packages/api-types
+    title: Chatto API types
+  - path: packages/chatto-client
+    title: Chatto client SDK
+  - path: apps/frontend
+    title: Chatto web app
+  - path: apps/desktop
+    title: Chatto Desktop
+  - path: apps/mobile
+    title: Chatto Mobile
+  - path: packages/chattobot
+    title: ChattoBot
+  - path: authling
+    title: Authling
+  - path: packages/runling
+    title: Runling
+  - path: packages/translatto
+    title: Translatto
+  - path: pkg
+    title: Shared Go modules
+  - path: docs
+    title: Architecture and project docs
+  - path: apps/docs-website
+    title: Documentation website
