@@ -14,7 +14,8 @@ export const ssr = false;
 
 let initialLoad = true;
 
-export const load: LayoutLoad = async ({ url }) => {
+export const load: LayoutLoad = async ({ url, depends }) => {
+  depends('chatto:origin-session');
   if (initialLoad) {
     initialLoad = false;
     deleteLegacySavedViews();
