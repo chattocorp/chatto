@@ -142,12 +142,6 @@ describe('MessageTimelineSource', () => {
     const last = event('last', '2026-08-02T12:00:00Z', null);
     const late = event('late', '2026-08-02T10:30:00Z', null);
 
-    expect(source.sort([first, tieA, tieB, last, late])).toEqual([
-      first,
-      late,
-      tieA,
-      tieB,
-      last
-    ]);
+    expect(source.sort([first, tieA, tieB, last, late])).toEqual([first, late, tieA, tieB, last]);
   });
 });
