@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/bluesky-social/indigo/atproto/atcrypto"
 	"github.com/bluesky-social/indigo/atproto/auth/oauth"
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
@@ -46,6 +47,8 @@ type atprotoProvider struct {
 	// app holds the shared client configuration and resolvers. Requests use
 	// a copy with a store that is bound to the browser's flow session.
 	app *oauth.ClientApp
+	// signingKey opens the origin-scoped key through core for HTTPS clients.
+	signingKey func(context.Context, string) (*atcrypto.PrivateKeyP256, error)
 	// loopback is true for http:// deployments, such as development servers.
 	// AT Protocol accepts plain HTTP only for its special localhost client,
 	// which returns to 127.0.0.1. The callback route forwards such callbacks
@@ -81,6 +84,30 @@ func newATProtoProvider(callbackURL string) (*atprotoProvider, error) {
 	return &atprotoProvider{app: app, loopback: loopback}, nil
 }
 
+// clientConfig returns a request-local configuration. Key-store failures stop
+// HTTPS sign-in and metadata publication. A later request can retry.
+func (p *atprotoProvider) clientConfig(ctx context.Context) (*oauth.ClientConfig, error) {
+	cfg := *p.app.Config
+	if p.loopback {
+		return &cfg, nil
+	}
+	if p.signingKey == nil {
+		return nil, errors.New("AT Protocol client signing key unavailable")
+	}
+	key, err := p.signingKey(ctx, strings.TrimSuffix(cfg.ClientID, atprotoClientMetadataPath))
+	if err != nil {
+		return nil, fmt.Errorf("load AT Protocol client signing key: %w", err)
+	}
+	public, err := key.PublicKey()
+	if err != nil {
+		return nil, err
+	}
+	if err := cfg.SetClientSecret(key, public.Multibase()); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
 // authURL starts a sign-in for identifier, a handle or DID. It returns the URL
 // of the authorization page and the state that the callback must return.
 func (p *atprotoProvider) authURL(ctx context.Context, session sessions.Session, providerID, identifier string) (string, string, error) {
@@ -91,6 +118,11 @@ func (p *atprotoProvider) authURL(ctx context.Context, session sessions.Session,
 	}
 	store := &atprotoFlowStore{session: session, key: providerSessionKey(providerID, "atproto_request")}
 	app := *p.app
+	cfg, err := p.clientConfig(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	app.Config = cfg
 	app.Store = store
 	redirect, err := app.StartAuthFlow(ctx, identifier)
 	if err != nil {
@@ -103,7 +135,9 @@ func (p *atprotoProvider) authURL(ctx context.Context, session sessions.Session,
 		return "", "", errors.New("atproto request was not stored")
 	}
 	if !p.loopback {
-		session.Set(providerSessionKey(providerID, "atproto_server_client_state"), store.state)
+		// Older flows contain only the random state. Bind new flows to the
+		// public signing key ID so every replica finishes with the same key.
+		session.Set(providerSessionKey(providerID, "atproto_server_client_state"), store.state+":"+*cfg.KeyID)
 	}
 	return redirect, store.state, nil
 }
@@ -148,7 +182,19 @@ const atprotoProfileRecordLimit = 64 << 10
 func (p *atprotoProvider) callback(ctx context.Context, session sessions.Session, providerID string, params url.Values) (atprotoAccount, error) {
 	app := *p.app
 	key := providerSessionKey(providerID, "atproto_request")
-	if !p.loopback && session.Get(providerSessionKey(providerID, "atproto_server_client_state")) != params.Get("state") {
+	state := params.Get("state")
+	marker, _ := session.Get(providerSessionKey(providerID, "atproto_server_client_state")).(string)
+	boundState, keyID, signed := strings.Cut(marker, ":")
+	if !p.loopback && signed && boundState == state {
+		cfg, err := p.clientConfig(ctx)
+		if err != nil {
+			return atprotoAccount{}, err
+		}
+		if *cfg.KeyID != keyID {
+			return atprotoAccount{}, errors.New("AT Protocol signing key changed during sign-in")
+		}
+		app.Config = cfg
+	} else if !p.loopback && boundState != state {
 		// Finish an in-flight request from before the server-wide client ID.
 		cfg := *app.Config
 		cfg.ClientID = legacyATProtoClientID(cfg.CallbackURL)
@@ -211,10 +257,14 @@ func (p *atprotoProvider) profile(ctx context.Context, pds string, did syntax.DI
 	return displayName, avatarURL
 }
 
-// clientMetadata returns the client metadata document. Loopback clients have
+// atprotoClientMetadata returns the client metadata document. Loopback clients have
 // no document.
-func (p *atprotoProvider) clientMetadata(clientName, clientURI string) oauth.ClientMetadata {
-	metadata := p.app.Config.ClientMetadata()
+func atprotoClientMetadata(cfg *oauth.ClientConfig, clientName, clientURI string) oauth.ClientMetadata {
+	metadata := cfg.ClientMetadata()
+	if cfg.IsConfidential() {
+		jwks := cfg.PublicJWKS()
+		metadata.JWKS = &jwks
+	}
 	metadata.ClientName = &clientName
 	metadata.ClientURI = &clientURI
 	return metadata

@@ -194,6 +194,7 @@ func (s *HTTPServer) setupOIDCRoutes() {
 		}
 		configured[providerConfig.ID] = runtime
 		if runtime.atproto != nil && !runtime.atproto.loopback {
+			runtime.atproto.signingKey = s.core.ATProtoSigningKey
 			atproto = runtime.atproto
 			atprotoCallbacks = append(atprotoCallbacks, runtime.callbackURL)
 		}
@@ -249,7 +250,12 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 	if atproto != nil {
 		s.router.GET(atprotoClientMetadataPath, func(c *gin.Context) {
-			metadata := atproto.clientMetadata(s.authServerName(), configuredWebserverOrigin(s.config.Webserver.URL))
+			cfg, err := atproto.clientConfig(c.Request.Context())
+			if err != nil {
+				c.Status(http.StatusServiceUnavailable)
+				return
+			}
+			metadata := atprotoClientMetadata(cfg, s.authServerName(), configuredWebserverOrigin(s.config.Webserver.URL))
 			metadata.RedirectURIs = atprotoCallbacks
 			c.Header("Cache-Control", "public, max-age=300")
 			c.JSON(http.StatusOK, metadata)
@@ -263,7 +269,7 @@ func (s *HTTPServer) setupOIDCRoutes() {
 			return
 		}
 		c.Header("Cache-Control", "public, max-age=300")
-		metadata := providerRuntime.atproto.clientMetadata(s.authServerName(), configuredWebserverOrigin(s.config.Webserver.URL))
+		metadata := atprotoClientMetadata(providerRuntime.atproto.app.Config, s.authServerName(), configuredWebserverOrigin(s.config.Webserver.URL))
 		metadata.ClientID = legacyATProtoClientID(providerRuntime.callbackURL)
 		c.JSON(http.StatusOK, metadata)
 	})

@@ -28,6 +28,15 @@ Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 [ADR-081](../adr/ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) and
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
+## AT Protocol client signing key
+
+For each HTTPS origin that uses AT Protocol sign-in, `atproto_signing_key.{sha256-of-origin}`
+holds an `ATProtoSigningKey` protobuf with no expiry. It contains the wrapped
+P-256 private key and its wrapping key reference. The built-in KMS keeps the
+wrapping key in `ENCRYPTION_KEYS`. The wrap authenticates the runtime-state
+key so a record copied to another origin cannot be opened there. Replicas
+select one record with KV Create and read it through the stream leader.
+
 ## Queued email content
 
 `email_delivery.{opaqueId}` in `RUNTIME_STATE` holds a `SealedEmailDelivery`

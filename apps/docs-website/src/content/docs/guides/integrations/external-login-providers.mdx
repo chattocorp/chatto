@@ -138,6 +138,16 @@ routes by path, forward `/oauth-client-metadata.json` on the public server
 origin to Chatto. If your authorization server has a trusted-client list,
 use the full HTTPS URL of that document for this Chatto server.
 
+Chatto generates its own signing key for each HTTPS server origin. All replicas
+share it. To recover sign-in at the same origin, restore the data backup and
+its encryption keys. An encrypted backup made with `--include-keys` contains
+both. See [Backup and restore](/guides/operations/backup-restore/).
+
+When upgrading from public-client sign-in, update all replicas together if
+possible. A sign-in during a mixed-version rollout can fail while the
+authorization server has the previous client metadata cached. Retry after
+the rollout and metadata refresh.
+
 ```toml
 [webserver]
 url = "https://chat.example.com"

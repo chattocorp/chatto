@@ -13,7 +13,9 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/bluesky-social/indigo/atproto/atcrypto"
 	"github.com/bluesky-social/indigo/atproto/auth/oauth"
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
@@ -21,11 +23,23 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	jose "github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/require"
 )
 
 const testATProtoDID = "did:plc:testatprotouser00000000"
 const testATProtoWebDID = "did:web:alice.example.com"
+
+func newTestATProtoProvider(t *testing.T, callback string) *atprotoProvider {
+	t.Helper()
+	p, err := newATProtoProvider(callback)
+	require.NoError(t, err)
+	key, err := atcrypto.GeneratePrivateKeyP256()
+	require.NoError(t, err)
+	p.signingKey = func(context.Context, string) (*atcrypto.PrivateKeyP256, error) { return key, nil }
+	return p
+}
 
 // fakeATProtoAuthServer serves the PDS and authorization-server endpoints that
 // an AT Protocol sign-in uses. It requires one DPoP nonce retry, like real
@@ -33,11 +47,12 @@ const testATProtoWebDID = "did:web:alice.example.com"
 type fakeATProtoAuthServer struct {
 	server *httptest.Server
 	// parScope and tokenCode record what the client sent.
-	parClientID  string
-	parScope     string
-	parLoginHint string
-	tokenCode    string
-	subject      string
+	parAssertion, tokenAssertion string
+	parClientID                  string
+	parScope                     string
+	parLoginHint                 string
+	tokenCode                    string
+	subject                      string
 }
 
 func newFakeATProtoAuthServer(t *testing.T) *fakeATProtoAuthServer {
@@ -87,6 +102,7 @@ func newFakeATProtoAuthServer(t *testing.T) *fakeATProtoAuthServer {
 		}
 		require.NoError(t, r.ParseForm())
 		fake.parClientID = r.PostForm.Get("client_id")
+		fake.parAssertion = r.PostForm.Get("client_assertion")
 		fake.parScope = r.PostForm.Get("scope")
 		fake.parLoginHint = r.PostForm.Get("login_hint")
 		w.WriteHeader(http.StatusCreated)
@@ -111,6 +127,7 @@ func newFakeATProtoAuthServer(t *testing.T) *fakeATProtoAuthServer {
 		require.NoError(t, r.ParseForm())
 		require.Equal(t, fake.parClientID, r.PostForm.Get("client_id"))
 		fake.tokenCode = r.PostForm.Get("code")
+		fake.tokenAssertion = r.PostForm.Get("client_assertion")
 		w.Header().Set("DPoP-Nonce", "nonce-1")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"access_token": "access", "token_type": "DPoP", "scope": "atproto",
@@ -207,8 +224,7 @@ func getJSON(t *testing.T, client *http.Client, target string) (int, map[string]
 
 func TestATProtoSignInVerifiesDIDWithIdentityScopeOnly(t *testing.T) {
 	fake := newFakeATProtoAuthServer(t)
-	provider, err := newATProtoProvider("https://chat.example/auth/providers/bsky/callback")
-	require.NoError(t, err)
+	provider := newTestATProtoProvider(t, "https://chat.example/auth/providers/bsky/callback")
 	useFakeATProtoNetwork(t, provider, fake)
 	runtime := &authProviderRuntime{config: config.AuthProviderConfig{ID: "bsky", Type: config.AuthProviderTypeATProto, ManageUsernames: true}, atproto: provider}
 	server, client := newATProtoFlowRouter(t, runtime)
@@ -236,34 +252,96 @@ func TestATProtoSignInVerifiesDIDWithIdentityScopeOnly(t *testing.T) {
 	// The public Bluesky profile supplies the new account's hints.
 	require.Equal(t, "Alice Example", result["display"])
 	require.Equal(t, "https://pds.test/xrpc/com.atproto.sync.getBlob?cid=bafkreiavatar&did="+url.QueryEscape(testATProtoDID), result["avatar"])
+	cfg, err := provider.clientConfig(t.Context())
+	require.NoError(t, err)
+	metadata := atprotoClientMetadata(cfg, "Chatto", "https://chat.example")
+	encoded, err := json.Marshal(metadata.JWKS)
+	require.NoError(t, err)
+	var public jose.JSONWebKeySet
+	require.NoError(t, json.Unmarshal(encoded, &public))
+	require.Len(t, public.Keys, 1)
+	require.True(t, public.Keys[0].IsPublic())
+	for _, assertion := range []string{fake.parAssertion, fake.tokenAssertion} {
+		token, err := jwt.ParseSigned(assertion, []jose.SignatureAlgorithm{jose.ES256})
+		require.NoError(t, err)
+		require.Equal(t, public.Keys[0].KeyID, token.Headers[0].KeyID)
+		var claims jwt.Claims
+		require.NoError(t, token.Claims(public.Keys[0].Key, &claims))
+		require.NoError(t, claims.Validate(jwt.Expected{
+			Issuer: metadata.ClientID, Subject: metadata.ClientID,
+			AnyAudience: jwt.Audience{"https://pds.test"}, Time: time.Now(),
+		}))
+		require.NotEmpty(t, claims.ID)
+	}
+	require.NotEqual(t, fake.parAssertion, fake.tokenAssertion)
+}
+
+func TestATProtoSignInRequiresTheOriginalSigningKey(t *testing.T) {
+	provider := newTestATProtoProvider(t, "https://chat.example/auth/providers/bsky/callback")
+	fake := newFakeATProtoAuthServer(t)
+	useFakeATProtoNetwork(t, provider, fake)
+	runtime := &authProviderRuntime{config: config.AuthProviderConfig{ID: "bsky"}, atproto: provider}
+	server, client := newATProtoFlowRouter(t, runtime)
+	status, start := getJSON(t, client, server.URL+"/start?login_hint=alice.test")
+	require.Equal(t, http.StatusOK, status)
+	callback := server.URL + "/callback?" + url.Values{
+		"state": {start["state"]}, "iss": {"https://pds.test"}, "code": {"code-1"},
+	}.Encode()
+
+	original := provider.signingKey
+	provider.signingKey = func(context.Context, string) (*atcrypto.PrivateKeyP256, error) {
+		return nil, errors.New("wrapping key unavailable")
+	}
+	status, _ = getJSON(t, client, callback)
+	require.Equal(t, http.StatusBadRequest, status)
+	status, _ = getJSON(t, client, server.URL+"/start?login_hint=alice.test")
+	require.Equal(t, http.StatusBadRequest, status)
+
+	replacement, err := atcrypto.GeneratePrivateKeyP256()
+	require.NoError(t, err)
+	provider.signingKey = func(context.Context, string) (*atcrypto.PrivateKeyP256, error) { return replacement, nil }
+	status, _ = getJSON(t, client, callback)
+	require.Equal(t, http.StatusBadRequest, status)
+	require.Empty(t, fake.tokenCode)
+
+	provider.signingKey = original
+	status, _ = getJSON(t, client, callback)
+	require.Equal(t, http.StatusOK, status)
 }
 
 // A callback can reach an upgraded replica after an older replica sent PAR.
 func TestATProtoCompletesPreviousClientSignIn(t *testing.T) {
 	const callback = "https://chat.example/auth/providers/bsky/callback"
-	provider, err := newATProtoProvider(callback)
-	require.NoError(t, err)
-	fake := newFakeATProtoAuthServer(t)
-	useFakeATProtoNetwork(t, provider, fake)
-	router := gin.New()
-	router.Use(sessions.Sessions("flow", cookie.NewStore([]byte("test-only-cookie-key"))))
-	router.GET("/", func(c *gin.Context) {
-		session := sessions.Default(c)
-		previous := *provider.app
-		cfg := *previous.Config
-		cfg.ClientID = "https://chat.example/auth/providers/bsky/client-metadata.json"
-		previous.Config = &cfg
-		store := &atprotoFlowStore{session: session, key: providerSessionKey("bsky", "atproto_request")}
-		previous.Store = store
-		_, err := previous.StartAuthFlow(c.Request.Context(), "alice.test")
-		require.NoError(t, err)
-		account, err := provider.callback(c.Request.Context(), session, "bsky", url.Values{
-			"state": {store.state}, "iss": {"https://pds.test"}, "code": {"code-1"},
+	for _, clientID := range []string{"https://chat.example/auth/providers/bsky/client-metadata.json", "https://chat.example/oauth-client-metadata.json"} {
+		t.Run(clientID, func(t *testing.T) {
+			provider := newTestATProtoProvider(t, callback)
+			fake := newFakeATProtoAuthServer(t)
+			useFakeATProtoNetwork(t, provider, fake)
+			router := gin.New()
+			router.Use(sessions.Sessions("flow", cookie.NewStore([]byte("test-only-cookie-key"))))
+			router.GET("/", func(c *gin.Context) {
+				session := sessions.Default(c)
+				previous := *provider.app
+				cfg := *previous.Config
+				cfg.ClientID = clientID
+				previous.Config = &cfg
+				store := &atprotoFlowStore{session: session, key: providerSessionKey("bsky", "atproto_request")}
+				previous.Store = store
+				_, err := previous.StartAuthFlow(c.Request.Context(), "alice.test")
+				require.NoError(t, err)
+				if clientID == provider.app.Config.ClientID {
+					session.Set(providerSessionKey("bsky", "atproto_server_client_state"), store.state)
+				}
+				account, err := provider.callback(c.Request.Context(), session, "bsky", url.Values{
+					"state": {store.state}, "iss": {"https://pds.test"}, "code": {"code-1"},
+				})
+				require.NoError(t, err)
+				require.Equal(t, testATProtoDID, account.DID.String())
+				require.Empty(t, fake.tokenAssertion)
+			})
+			router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
 		})
-		require.NoError(t, err)
-		require.Equal(t, testATProtoDID, account.DID.String())
-	})
-	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+	}
 }
 
 func TestATProtoSignInWithWebDID(t *testing.T) {
@@ -271,8 +349,7 @@ func TestATProtoSignInWithWebDID(t *testing.T) {
 		t.Run(identifier, func(t *testing.T) {
 			fake := newFakeATProtoAuthServer(t)
 			fake.subject = testATProtoWebDID
-			provider, err := newATProtoProvider("https://chat.example/auth/providers/bsky/callback")
-			require.NoError(t, err)
+			provider := newTestATProtoProvider(t, "https://chat.example/auth/providers/bsky/callback")
 			useFakeATProtoNetwork(t, provider, fake)
 			// Resolve the handle and DID document over the local TLS transport.
 			provider.app.Dir = &identity.BaseDirectory{
@@ -294,8 +371,7 @@ func TestATProtoSignInWithWebDID(t *testing.T) {
 func TestATProtoSignInRejectsSubjectMismatch(t *testing.T) {
 	fake := newFakeATProtoAuthServer(t)
 	fake.subject = "did:plc:someoneelse0000000000000"
-	provider, err := newATProtoProvider("https://chat.example/auth/providers/bsky/callback")
-	require.NoError(t, err)
+	provider := newTestATProtoProvider(t, "https://chat.example/auth/providers/bsky/callback")
 	useFakeATProtoNetwork(t, provider, fake)
 	runtime := &authProviderRuntime{config: config.AuthProviderConfig{ID: "bsky", Type: config.AuthProviderTypeATProto}, atproto: provider}
 	server, client := newATProtoFlowRouter(t, runtime)
@@ -306,8 +382,7 @@ func TestATProtoSignInRejectsSubjectMismatch(t *testing.T) {
 }
 
 func TestATProtoStartRejectsAuthServerURLs(t *testing.T) {
-	provider, err := newATProtoProvider("https://chat.example/auth/providers/bsky/callback")
-	require.NoError(t, err)
+	provider := newTestATProtoProvider(t, "https://chat.example/auth/providers/bsky/callback")
 	runtime := &authProviderRuntime{config: config.AuthProviderConfig{ID: "bsky", Type: config.AuthProviderTypeATProto}, atproto: provider}
 	server, client := newATProtoFlowRouter(t, runtime)
 	for _, hint := range []string{"https://evil.example", "http://127.0.0.1"} {
@@ -321,8 +396,7 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestATProtoStartClassifiesIdentityErrors(t *testing.T) {
-	provider, err := newATProtoProvider("https://chat.example/auth/providers/bsky/callback")
-	require.NoError(t, err)
+	provider := newTestATProtoProvider(t, "https://chat.example/auth/providers/bsky/callback")
 	dir := identity.NewMockDirectory()
 	dir.Insert(identity.Identity{
 		DID:      syntax.DID(testATProtoDID),
@@ -351,15 +425,18 @@ func TestATProtoStartClassifiesIdentityErrors(t *testing.T) {
 }
 
 func TestATProtoClientMetadata(t *testing.T) {
-	provider, err := newATProtoProvider("https://chat.example/auth/providers/bsky/callback")
-	require.NoError(t, err)
+	provider := newTestATProtoProvider(t, "https://chat.example/auth/providers/bsky/callback")
 	require.False(t, provider.loopback)
-	metadata := provider.clientMetadata("Chatto", "https://chat.example")
+	cfg, err := provider.clientConfig(t.Context())
+	require.NoError(t, err)
+	metadata := atprotoClientMetadata(cfg, "Chatto", "https://chat.example")
 	require.NoError(t, metadata.Validate("https://chat.example/oauth-client-metadata.json"))
 	require.Equal(t, "atproto", metadata.Scope)
 	require.Equal(t, []string{"https://chat.example/auth/providers/bsky/callback"}, metadata.RedirectURIs)
 	require.True(t, metadata.DPoPBoundAccessTokens)
-	require.Equal(t, "none", metadata.TokenEndpointAuthMethod)
+	require.Equal(t, "private_key_jwt", metadata.TokenEndpointAuthMethod)
+	require.Equal(t, "ES256", *metadata.TokenEndpointAuthSigningAlg)
+	require.Len(t, metadata.JWKS.Keys, 1)
 }
 
 func TestATProtoPublishedMetadataIdentifiesServer(t *testing.T) {
@@ -388,12 +465,21 @@ func TestATProtoPublishedMetadataIdentifiesServer(t *testing.T) {
 		require.Equal(t, "Engineering", *metadata.ClientName)
 		require.Equal(t, origin, *metadata.ClientURI)
 		require.Equal(t, callbacks, metadata.RedirectURIs)
+		if path == atprotoClientMetadataPath {
+			require.True(t, metadata.IsConfidential())
+		} else {
+			require.Equal(t, "none", metadata.TokenEndpointAuthMethod)
+			require.Nil(t, metadata.JWKS)
+		}
 	}
 }
 
 func TestATProtoLoopbackProviderForwardsCallbacks(t *testing.T) {
 	provider, err := newATProtoProvider("http://localhost:4510/auth/providers/bsky/callback")
 	require.NoError(t, err)
+	cfg, err := provider.clientConfig(t.Context())
+	require.NoError(t, err)
+	require.False(t, cfg.IsConfidential())
 	require.True(t, provider.loopback)
 	require.Equal(t, "http://127.0.0.1:4510/auth/providers/bsky/callback", provider.app.Config.CallbackURL)
 
@@ -417,8 +503,7 @@ func TestATProtoLoopbackProviderForwardsCallbacks(t *testing.T) {
 // A start without a handle, or with an unknown handle, goes to the handle
 // page, which continues the same start request (FDR-058).
 func TestATProtoStartAsksForTheHandle(t *testing.T) {
-	provider, err := newATProtoProvider("https://chat.example/auth/providers/bsky/callback")
-	require.NoError(t, err)
+	provider := newTestATProtoProvider(t, "https://chat.example/auth/providers/bsky/callback")
 	dir := identity.NewMockDirectory()
 	provider.app.Dir = dir
 	runtime := &authProviderRuntime{config: config.AuthProviderConfig{ID: "bsky", Type: config.AuthProviderTypeATProto}, atproto: provider}

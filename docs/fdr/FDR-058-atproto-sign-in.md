@@ -52,6 +52,12 @@ HTTPS client ID at `/oauth-client-metadata.json`. All AT Protocol providers
 on the server share that ID and publish their exact callback URLs. Bluesky
 shows the hostname for this ID on the default HTTPS port. When the authorization
 server trusts the client, it can show the configured server name.
+On the first metadata request or sign-in, the server generates a P-256 key
+for its HTTPS origin. Each replica uses the shared key to authenticate pushed
+authorization requests and token exchanges with `private_key_jwt`. The
+metadata document includes the public key. Each sign-in still has its own
+DPoP key. A storage or decryption failure stops new HTTPS sign-ins until the
+key is available again.
 The change of client ID can require approval again at the next sign-in.
 Development servers use the loopback client, for which the PDS asks every time.
 
