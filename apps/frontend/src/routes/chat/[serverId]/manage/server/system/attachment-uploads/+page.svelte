@@ -28,6 +28,7 @@
     const requestedMonth = month;
     return {
       enabled: supported,
+      refetchInterval: 3_000,
       queryKey: adminQueryKeys.attachmentUploadsMonth(scope, requestedMonth),
       queryFn: ({ signal }) =>
         getAdminAttachmentUploads(scope.connection.apiConfig, requestedMonth, { signal })

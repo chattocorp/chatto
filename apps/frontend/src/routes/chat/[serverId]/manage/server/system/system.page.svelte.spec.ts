@@ -343,6 +343,31 @@ describe('server admin system diagnostics', () => {
     ]);
   });
 
+  it('polls the report while mounted and stops after leaving the page', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      mocks.getAdminSystemInfo.mockResolvedValue({
+        ...systemInfo,
+        attachmentUploadsAvailable: true
+      });
+      mocks.getAdminAttachmentUploads.mockResolvedValue({
+        total: { files: 0n, bytes: 0n },
+        rooms: [],
+        users: []
+      });
+      const screen = renderSection('attachmentUploads');
+      await expect.element(screen.getByText('No attachment uploads for this month.')).toBeVisible();
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(mocks.getAdminAttachmentUploads).toHaveBeenCalledTimes(2);
+      expect(mocks.getAdminSystemInfo).toHaveBeenCalledTimes(1);
+      screen.unmount();
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(mocks.getAdminAttachmentUploads).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('can retry after reaching an older replica and shows permission failures as errors', async () => {
     mocks.getAdminSystemInfo.mockResolvedValue({
       ...systemInfo,
