@@ -98,12 +98,14 @@ var connectErrorCodes = []struct {
 	{connect.CodeInvalidArgument, []error{core.ErrMessageTooLong}},
 	{connect.CodeResourceExhausted, []error{
 		core.ErrLimitExceeded,
+		core.ErrCallParticipantLimit,
 		core.ErrReactionLimitExceeded,
 		core.ErrPushSubscriptionLimitReached,
 		core.ErrSlowModeActive,
 		core.ErrNeighborLimitReached,
 	}},
 	{connect.CodeFailedPrecondition, []error{
+		core.ErrCallParticipationRequired,
 		core.ErrRoomArchived,
 		core.ErrRoomThreadingPolicy,
 		core.ErrEditWindowExpired,

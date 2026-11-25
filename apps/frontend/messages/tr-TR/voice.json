@@ -44,6 +44,7 @@
     "locally_muted": "Yerel olarak sessize alındı",
     "unknown_device": "Bilinmeyen cihaz",
     "participants": "Katılımcıları arayın",
+    "participant_limit": "Bu sunucudaki aramalara katılabilecek kişi sayısı üst sınıra ulaştı. Daha sonra tekrar deneyin.",
     "join_failed": "Sesli aramaya katılamadı",
     "encrypted_unsupported": "Bu tarayıcı henüz şifreli sesli aramaları desteklemiyor. En yeni Firefox, Chrome veya Edge'i deneyin.",
     "signaling_failed": "Ses sunucusuna ulaşılamadı. Ağınızı kontrol edip tekrar deneyin.",

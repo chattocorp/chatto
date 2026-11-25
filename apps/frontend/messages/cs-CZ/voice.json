@@ -44,6 +44,7 @@
     "locally_muted": "Lokálně ztlumeno",
     "unknown_device": "Neznámé zařízení",
     "participants": "Zavolejte účastníkům",
+    "participant_limit": "Počet účastníků hovorů na tomto serveru dosáhl limitu. Zkuste to znovu později.",
     "join_failed": "Připojení k hlasovému hovoru se nezdařilo",
     "encrypted_unsupported": "Tento prohlížeč zatím nepodporuje šifrované hlasové hovory. Vyzkoušejte nejnovější Firefox, Chrome nebo Edge.",
     "signaling_failed": "Nelze se spojit s hlasovým serverem. Zkontrolujte síť a zkuste to znovu.",

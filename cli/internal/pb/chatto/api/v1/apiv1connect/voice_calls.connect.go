@@ -91,11 +91,15 @@ type VoiceCallServiceClient interface {
 	// Requires room membership and call.join. If no call is active, also
 	// requires call.start. Publishing permissions do not grant admission.
 	//
+	// Returns RESOURCE_EXHAUSTED if a new participant would exceed the server limit.
 	// Returns joined=false when LiveKit is not configured.
 	JoinCall(context.Context, *connect.Request[v1.JoinCallRequest]) (*connect.Response[v1.JoinCallResponse], error)
 	// Issues a LiveKit token for joining the room's active call.
 	//
 	// Requires room membership and call.join. A call must already be active.
+	// On a server with a participant limit, this request also reserves a place
+	// in the call. It returns RESOURCE_EXHAUSTED if the call needs a new place
+	// and the server is full.
 	// The token permits microphone, camera, and screen-share sources only when
 	// call.voice, call.camera, and call.screenshare respectively allow them.
 	// A caller without publishing permissions can listen and watch.
@@ -272,11 +276,15 @@ type VoiceCallServiceHandler interface {
 	// Requires room membership and call.join. If no call is active, also
 	// requires call.start. Publishing permissions do not grant admission.
 	//
+	// Returns RESOURCE_EXHAUSTED if a new participant would exceed the server limit.
 	// Returns joined=false when LiveKit is not configured.
 	JoinCall(context.Context, *connect.Request[v1.JoinCallRequest]) (*connect.Response[v1.JoinCallResponse], error)
 	// Issues a LiveKit token for joining the room's active call.
 	//
 	// Requires room membership and call.join. A call must already be active.
+	// On a server with a participant limit, this request also reserves a place
+	// in the call. It returns RESOURCE_EXHAUSTED if the call needs a new place
+	// and the server is full.
 	// The token permits microphone, camera, and screen-share sources only when
 	// call.voice, call.camera, and call.screenshare respectively allow them.
 	// A caller without publishing permissions can listen and watch.

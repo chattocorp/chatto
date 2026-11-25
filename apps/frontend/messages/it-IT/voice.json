@@ -44,6 +44,7 @@
     "locally_muted": "Disattivato localmente",
     "unknown_device": "Dispositivo sconosciuto",
     "participants": "Chiama i partecipanti",
+    "participant_limit": "È stato raggiunto il limite di partecipanti alle chiamate su questo server. Riprova più tardi.",
     "join_failed": "Impossibile partecipare alla chiamata vocale",
     "encrypted_unsupported": "Questo browser non supporta ancora le chiamate vocali crittografate. Prova la versione più recente di Firefox, Chrome o Edge.",
     "signaling_failed": "Impossibile raggiungere il server vocale. Controlla la tua rete e riprova.",

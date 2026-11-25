@@ -44,6 +44,7 @@
     "locally_muted": "Silenciado localmente",
     "unknown_device": "Dispositivo desconhecido",
     "participants": "Chamar participantes",
+    "participant_limit": "O limite de participantes em chamadas neste servidor foi atingido. Tente novamente mais tarde.",
     "join_failed": "Falha ao participar da chamada de voz",
     "encrypted_unsupported": "Este navegador ainda não suporta chamadas de voz criptografadas. Experimente o Firefox, Chrome ou Edge mais recente.",
     "signaling_failed": "Não foi possível acessar o servidor de voz. Verifique sua rede e tente novamente.",

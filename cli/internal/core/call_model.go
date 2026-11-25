@@ -67,13 +67,14 @@ type callLogger interface {
 }
 
 type CallModel struct {
-	publisher      *evtstream.Publisher
-	callState      events.ProjectionHandle[*CallStateProjection]
-	callKeys       kms.CallKeyStore
-	livekit        liveKitParticipantLister
-	reconcileLease *lease.Lease
-	memoryCacheKV  jetstream.KeyValue
-	logger         callLogger
+	maxGlobalParticipants int // Shared across rooms. Set once before Run.
+	publisher             *evtstream.Publisher
+	callState             events.ProjectionHandle[*CallStateProjection]
+	callKeys              kms.CallKeyStore
+	livekit               liveKitParticipantLister
+	reconcileLease        *lease.Lease
+	memoryCacheKV         jetstream.KeyValue
+	logger                callLogger
 	// effectLogger receives the call-key cleanup worker's diagnostics.
 	effectLogger       *log.Logger
 	keyCleanupConsumer jetstream.Consumer
@@ -133,13 +134,14 @@ func NewCallModel(
 	logger *log.Logger,
 ) *CallModel {
 	model := &CallModel{
-		publisher:      publisher,
-		callState:      callState,
-		callKeys:       callKeys,
-		livekit:        livekit,
-		reconcileLease: reconcileLease,
-		memoryCacheKV:  memoryCacheKV,
-		effectLogger:   logger,
+		maxGlobalParticipants: -1,
+		publisher:             publisher,
+		callState:             callState,
+		callKeys:              callKeys,
+		livekit:               livekit,
+		reconcileLease:        reconcileLease,
+		memoryCacheKV:         memoryCacheKV,
+		effectLogger:          logger,
 	}
 	// Assign only a non-nil logger: a nil *log.Logger in the interface field
 	// would pass the nil checks before each warning.
@@ -195,7 +197,8 @@ func (s *CallModel) activeRoomIDs() []string {
 	return s.callState.Projection().ActiveRoomIDs()
 }
 
-func (c *ChattoCore) EnableLiveKitCallReconciliation(cfg config.LiveKitConfig) error {
+// ConfigureLiveKitCalls applies admission and reconciliation settings before Run.
+func (c *ChattoCore) ConfigureLiveKitCalls(cfg config.LiveKitConfig) error {
 	if c.callModel == nil {
 		return fmt.Errorf("call model is not initialized")
 	}
@@ -206,6 +209,7 @@ func (c *ChattoCore) EnableLiveKitCallReconciliation(cfg config.LiveKitConfig) e
 	if client, ok := lister.(*liveKitRoomClient); ok {
 		client.core = c
 	}
+	c.callModel.maxGlobalParticipants = cfg.MaxGlobalParticipantsOrDefault()
 	c.callModel.livekit = lister
 	return nil
 }
@@ -497,19 +501,34 @@ func (s *CallModel) AppendLeftForCall(ctx context.Context, roomID, userID, expec
 }
 
 func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source evtv1.CallParticipantEventSource) error {
-	return s.appendParticipantTransitionAuthorized(ctx, roomID, userID, joined, expectedCallID, source, nil)
+	return s.appendParticipantTransitionAuthorized(ctx, roomID, userID, joined, expectedCallID, source, -1, nil)
 }
 
-func (s *CallModel) appendParticipantTransitionAuthorized(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source evtv1.CallParticipantEventSource, authorize func(CallRoomSnapshot) error) error {
+func (s *CallModel) appendParticipantTransitionAuthorized(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source evtv1.CallParticipantEventSource, maxParticipants int, authorize func(CallRoomSnapshot) error) error {
 	aggregate := evtstream.RoomAggregate(roomID)
 	filter := aggregate.AllEventsFilter()
 	for attempt := range callReconcileMaxRetries {
-		if authorize != nil {
-			if err := s.waitForLatestRoomTransition(ctx, filter); err != nil {
+		var admissionTail events.StreamPosition
+		var snapshot CallRoomSnapshot
+		var participantCount int
+		if maxParticipants >= 0 {
+			tail, err := s.publisher.LastSubjectPosition(ctx, evtstream.RoomSubjectFilter())
+			if err != nil {
 				return err
 			}
+			if err := s.callState.Projector().WaitFor(ctx, tail); err != nil {
+				return err
+			}
+			admissionTail = tail
+			snapshot, participantCount = s.callState.Projection().admissionSnapshot(roomID)
+		} else {
+			if authorize != nil {
+				if err := s.waitForLatestRoomTransition(ctx, filter); err != nil {
+					return err
+				}
+			}
+			snapshot = s.roomSnapshot(roomID)
 		}
-		snapshot := s.callState.Projection().RoomSnapshot(roomID)
 		if expectedCallID != "" && snapshot.Call.CallID != expectedCallID {
 			return nil
 		}
@@ -525,9 +544,18 @@ func (s *CallModel) appendParticipantTransitionAuthorized(ctx context.Context, r
 			return nil
 		}
 
+		if maxParticipants >= 0 && participantCount >= maxParticipants {
+			return ErrCallParticipantLimit
+		}
+
 		entries, endedKeyRef, cleanupKeyRef, err := s.callTransitionBatch(ctx, aggregate, snapshot, roomID, userID, joined, source)
 		if err != nil {
 			return err
+		}
+		if maxParticipants >= 0 {
+			// Every change to call occupancy is a room event. This guard covers
+			// both the target room generation and competing joins in other rooms.
+			entries[0].Expect = events.ExpectFilterSeq(evtstream.RoomSubjectFilter(), admissionTail.Seq)
 		}
 		seqs, err := s.publisher.AppendBatch(ctx, entries)
 		if err == nil {

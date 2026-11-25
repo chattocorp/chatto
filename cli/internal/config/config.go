@@ -481,6 +481,9 @@ func (c *ChattoConfig) Validate() error {
 	}
 
 	// LiveKit configuration
+	if c.LiveKit.MaxGlobalParticipantsOrDefault() < -1 {
+		return fmt.Errorf("livekit.max_global_participants must be -1 or greater")
+	}
 	if c.LiveKit.Enabled {
 		if c.LiveKit.URL == "" {
 			errs = append(errs, "livekit.url is required when LiveKit is enabled")

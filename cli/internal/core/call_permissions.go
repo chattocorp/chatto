@@ -78,11 +78,45 @@ func (c *ChattoCore) JoinVoiceCall(ctx context.Context, actorID, roomID string) 
 	if _, _, err := c.requireRoomMember(ctx, actorID, roomID); err != nil {
 		return err
 	}
-	return c.callModel.appendParticipantTransitionAuthorized(ctx, roomID, actorID, true, "", evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER,
+	_, err := c.admitCall(ctx, actorID, roomID, true)
+	return err
+}
+
+// admitCall checks permissions on each append attempt. Only an explicit join
+// can start a new call. Direct token requests can reserve an existing place.
+func (c *ChattoCore) admitCall(ctx context.Context, actorID, roomID string, allowStart bool) (CallPermissions, error) {
+	var permissions CallPermissions
+	err := c.callModel.appendParticipantTransitionAuthorized(ctx, roomID, actorID, true, "", evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER, c.callModel.maxGlobalParticipants,
 		func(snapshot CallRoomSnapshot) error {
-			_, err := c.AuthorizeCall(ctx, actorID, roomID, snapshot.Call.CallID == "")
+			starting := snapshot.Call.CallID == ""
+			var err error
+			permissions, err = c.AuthorizeCall(ctx, actorID, roomID, allowStart && starting)
+			if err == nil && starting && !allowStart {
+				return ErrNotFound
+			}
 			return err
 		})
+	return permissions, err
+}
+
+// CallTokenAccess authorizes primary media access and resolves the key for
+// the active generation. A capped server first records the participant's place.
+func (c *ChattoCore) CallTokenAccess(ctx context.Context, actorID, roomID string) (CallPermissions, CallAccessMaterial, error) {
+	var permissions CallPermissions
+	var access CallAccessMaterial
+	var err error
+	if c.callModel.maxGlobalParticipants >= 0 {
+		permissions, err = c.admitCall(ctx, actorID, roomID, false)
+		if err == nil {
+			access, err = c.callModel.GetParticipantAccessMaterial(ctx, roomID, actorID)
+		}
+	} else {
+		permissions, err = c.AuthorizeCall(ctx, actorID, roomID, false)
+		if err == nil {
+			access, err = c.GetVoiceCallAccessMaterial(ctx, roomID)
+		}
+	}
+	return permissions, access, err
 }
 
 // PublishSources maps logical permissions to the browser participant's sources.

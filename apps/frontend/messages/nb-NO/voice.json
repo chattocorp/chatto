@@ -44,6 +44,7 @@
     "locally_muted": "Lokalt dempet",
     "unknown_device": "Ukjent enhet",
     "participants": "Ring deltakere",
+    "participant_limit": "Grensen for antall samtaledeltakere på denne serveren er nådd. Prøv igjen senere.",
     "join_failed": "Kunne ikke bli med i taleanrop",
     "encrypted_unsupported": "Denne nettleseren støtter ikke krypterte taleanrop ennå. Prøv den nyeste Firefox, Chrome eller Edge.",
     "signaling_failed": "Kunne ikke nå taleserveren. Sjekk nettverket ditt og prøv igjen.",

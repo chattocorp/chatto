@@ -44,6 +44,7 @@
     "locally_muted": "ローカルでミュートされています",
     "unknown_device": "不明なデバイス",
     "participants": "通話参加者",
+    "participant_limit": "このサーバーの通話参加者数が上限に達しました。しばらくしてからもう一度お試しください。",
     "join_failed": "音声通話に参加できませんでした",
     "encrypted_unsupported": "このブラウザは暗号化された音声通話をまだサポートしていません。最新の Firefox、Chrome、または Edge をお試しください。",
     "signaling_failed": "音声サーバーに接続できませんでした。ネットワークを確認して、もう一度試してください。",

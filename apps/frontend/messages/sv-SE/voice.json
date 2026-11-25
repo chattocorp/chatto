@@ -44,6 +44,7 @@
     "locally_muted": "Lokalt avstängt",
     "unknown_device": "Okänd enhet",
     "participants": "Ring deltagare",
+    "participant_limit": "Gränsen för antalet samtalsdeltagare på den här servern har nåtts. Försök igen senare.",
     "join_failed": "Det gick inte att gå med i röstsamtal",
     "encrypted_unsupported": "Den här webbläsaren stöder inte krypterade röstsamtal ännu. Prova den senaste Firefox, Chrome eller Edge.",
     "signaling_failed": "Kunde inte nå röstservern. Kontrollera ditt nätverk och försök igen.",

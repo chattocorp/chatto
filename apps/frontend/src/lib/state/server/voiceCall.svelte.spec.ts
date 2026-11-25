@@ -1,3 +1,4 @@
+import { Code, ConnectError } from '@connectrpc/connect';
 import { CallPreferencesState } from './callPreferences.svelte';
 import * as callPictureInPicture from '../callPictureInPicture';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -1739,6 +1740,12 @@ describe('VoiceCallState', () => {
     expect(client.createCallToken).not.toHaveBeenCalled();
     expect(state.isInAnyCall).toBe(false);
     expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+  });
+
+  it('explains when the server call participant limit is reached', () => {
+    expect(getVoiceCallJoinErrorMessage(new ConnectError('full', Code.ResourceExhausted))).toBe(
+      'This server has reached its call participant limit. Try again later.'
+    );
   });
 
   it('maps signaling failures to an actionable join error message', () => {

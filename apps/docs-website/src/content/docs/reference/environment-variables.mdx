@@ -629,6 +629,12 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
   Enable LiveKit voice and video call support. Requires a running LiveKit server.
 </EnvVar>
 
+<EnvVar name="CHATTO_LIVEKIT_MAX_GLOBAL_PARTICIPANTS" toml="livekit.max_global_participants" default="-1">
+  Set the maximum number of participants Chatto can admit across all calls on this server. Use the same value on each replica. Use `-1` for unlimited participants or `0` to close admission. Lowering the limit lets current participants finish their calls.
+
+  A member or bot uses one place in each call it joins, including while it connects. A native screen-share helper uses the participant's existing place. LiveKit can reconnect a client with an existing token.
+</EnvVar>
+
 <EnvVar name="CHATTO_LIVEKIT_URL" toml="livekit.url">
   LiveKit server WebSocket URL. Use `ws://` for development, `wss://` for production.
 </EnvVar>

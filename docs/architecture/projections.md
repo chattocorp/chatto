@@ -84,6 +84,12 @@ cold-replayed projection. Call token access material binds the call ID and E2EE
 key to one revalidated content-view generation. Active-call and asset API
 mapping use detached component snapshots.
 
+When the operator sets a call participant limit, CallModel waits for the
+server-wide room event position before checking occupancy. It guards the join
+batch with that position. Concurrent room changes trigger a retry. The join
+fact reserves the place, including for a direct primary token request.
+Departures and reconciliation update occupancy through the same projection.
+
 Room Timeline stores compact EVT references and small derived indexes. It does
 not store complete timeline events or message bodies. `RoomTimelineReadModel`
 authorizes and selects references against `ServerContentView`. It then uses

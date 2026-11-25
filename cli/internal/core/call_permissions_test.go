@@ -11,9 +11,11 @@ import (
 	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/authctx"
+	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
+	"github.com/chattocorp/chatto/cli/internal/testutil"
 	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/livekit/protocol/livekit"
@@ -55,6 +57,73 @@ func TestCallPermissionsAdmissionAndSources(t *testing.T) {
 	require.NoError(t, c.RecordCallParticipantLeft(ctx, room.Id, user.Id, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
 }
 
+// Each replica starts a different room call for the same user. Both requests
+// can start a call, but only one can take the last server-wide place.
+func TestCallAdmissionAcrossReplicas(t *testing.T) {
+	ns, _ := testutil.StartNATS(t)
+	ctx := testContext(t)
+	start := func(limit int) *ChattoCore {
+		replica, err := NewChattoCore(ctx, newReplicaConn(t, ns), testCoreConfig())
+		require.NoError(t, err)
+		require.NoError(t, replica.ConfigureLiveKitCalls(config.LiveKitConfig{MaxGlobalParticipants: &limit}))
+		startCoreServices(t, replica)
+		return replica
+	}
+	first := start(1)
+	user, err := first.CreateUser(ctx, SystemActorID, "caller", "Caller", "password")
+	require.NoError(t, err)
+	other, err := first.CreateUser(ctx, SystemActorID, "listener", "Listener", "password")
+	require.NoError(t, err)
+	rooms := make([]string, 2)
+	for i := range rooms {
+		room, err := first.CreateRoom(ctx, SystemActorID, KindChannel, "", fmt.Sprintf("call-%d", i), "")
+		require.NoError(t, err)
+		rooms[i] = room.Id
+		for _, id := range []string{user.Id, other.Id} {
+			_, err = first.JoinRoom(ctx, id, KindChannel, id, room.Id)
+			require.NoError(t, err)
+		}
+	}
+	second := start(1)
+	replicas := []*ChattoCore{first, second}
+	var results [2]error
+	var group sync.WaitGroup
+	for i, replica := range replicas {
+		group.Go(func() { results[i] = replica.JoinVoiceCall(ctx, user.Id, rooms[i]) })
+	}
+	group.Wait()
+	winner := 0
+	if results[0] != nil {
+		winner = 1
+	}
+	require.NoError(t, results[winner])
+	require.ErrorIs(t, results[1-winner], ErrCallParticipantLimit)
+	active, empty := rooms[winner], rooms[1-winner]
+	require.NoError(t, second.JoinVoiceCall(ctx, user.Id, active))
+	_, _, err = second.CallTokenAccess(ctx, user.Id, active)
+	require.NoError(t, err)
+	_, _, err = first.CallTokenAccess(ctx, other.Id, active)
+	require.ErrorIs(t, err, ErrCallParticipantLimit)
+	_, _, err = first.CallTokenAccess(ctx, other.Id, empty)
+	require.ErrorIs(t, err, ErrNotFound)
+	require.NoError(t, first.RecordCallParticipantLeft(ctx, active, user.Id, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
+	require.NoError(t, second.JoinVoiceCall(ctx, user.Id, empty))
+	// An existing call counts immediately when another replica enables a limit.
+	closed := start(0)
+	_, _, err = closed.CallTokenAccess(ctx, user.Id, empty)
+	require.NoError(t, err)
+	require.ErrorIs(t, closed.JoinVoiceCall(ctx, other.Id, active), ErrCallParticipantLimit)
+	// A direct token request reserves a place as well.
+	expanded := start(2)
+	_, _, err = expanded.CallTokenAccess(ctx, other.Id, empty)
+	require.NoError(t, err)
+	require.ErrorIs(t, expanded.JoinVoiceCall(ctx, other.Id, active), ErrCallParticipantLimit)
+	// Reconciliation clears a token request whose caller never connected.
+	require.NoError(t, expanded.callModel.ReconcileRoomParticipants(ctx, empty, []string{user.Id}))
+	require.NoError(t, expanded.JoinVoiceCall(ctx, other.Id, active))
+
+}
+
 func TestCallJoinRetryCannotStartWithoutPermission(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -71,7 +140,7 @@ func TestCallJoinRetryCannotStartWithoutPermission(t *testing.T) {
 	require.NoError(t, c.JoinVoiceCall(ctx, other.Id, room.Id))
 	require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermCallStart))
 	attempts := 0
-	err = c.callModel.appendParticipantTransitionAuthorized(ctx, room.Id, user.Id, true, "", evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER, func(snapshot CallRoomSnapshot) error {
+	err = c.callModel.appendParticipantTransitionAuthorized(ctx, room.Id, user.Id, true, "", evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER, -1, func(snapshot CallRoomSnapshot) error {
 		attempts++
 		_, err := c.AuthorizeCall(ctx, user.Id, room.Id, snapshot.Call.CallID == "")
 		if err != nil {

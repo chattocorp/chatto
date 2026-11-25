@@ -44,6 +44,7 @@
     "locally_muted": "已在本地静音",
     "unknown_device": "未知设备",
     "participants": "通话参与者",
+    "participant_limit": "此服务器的通话参与人数已达上限。请稍后再试。",
     "join_failed": "加入语音通话失败",
     "encrypted_unsupported": "此浏览器暂不支持加密语音通话。请尝试使用最新版 Firefox、Chrome 或 Edge。",
     "signaling_failed": "无法连接语音服务器。请检查网络后重试。",
