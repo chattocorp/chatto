@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { page } from '$app/state';
+  import { gutterEnabled as configuredGutterEnabled } from '$lib/frontendConfig';
   import { pushState } from '$app/navigation';
   import { serverUi } from '$lib/state/server/serverUi';
   import { resolve } from '$app/paths';
@@ -18,9 +20,12 @@
 
   let {
     updates = desktopUpdates,
+    gutterEnabled = configuredGutterEnabled,
     callControls
   }: {
     updates?: DesktopUpdates;
+    /** Whether the hosting frontend offers multi-server navigation. */
+    gutterEnabled?: boolean;
     /** App-owned controls for the connected call, independent of navigation. */
     callControls?: Snippet<[ServerStateStore]>;
   } = $props();
@@ -75,7 +80,15 @@
     )
   );
 
-  // Show server navigation when any server is registered.
+  const showChatNavigation = $derived(
+    gutterEnabled || serverRegistry.isAuthenticated(getActiveServer())
+  );
+  // Help and app preferences have their own sidebars, including before sign-in.
+  const showSidebarToggle = $derived(
+    showChatNavigation ||
+      page.route.id?.startsWith('/help') ||
+      page.route.id?.startsWith('/chat/preferences')
+  );
   const hasInstances = $derived(serverRegistry.servers.length > 0);
   const notificationsServerId = $derived.by(() => {
     const activeServerId = getActiveServer();
@@ -98,19 +111,21 @@
 >
   <!-- Leading: global navigation, notifications, and client-wide actions -->
   <div class="flex shrink-0 items-center gap-3">
-    <!-- Sidebar toggle - 44px tap target for mobile accessibility -->
-    <button
-      type="button"
-      class="app-header-icon"
-      onclick={() => sidebarNav.toggle()}
-      aria-label={m('ui.toggle_sidebar')}
-      aria-expanded={sidebarNav.isOpen}
-      title={m('ui.toggle_sidebar')}
-    >
-      <span aria-hidden="true" class="iconify icon-[uil--bars] text-xl"></span>
-    </button>
+    {#if showSidebarToggle}
+      <!-- Sidebar toggle - 44px tap target for mobile accessibility -->
+      <button
+        type="button"
+        class="app-header-icon"
+        onclick={() => sidebarNav.toggle()}
+        aria-label={m('ui.toggle_sidebar')}
+        aria-expanded={sidebarNav.isOpen}
+        title={m('ui.toggle_sidebar')}
+      >
+        <span aria-hidden="true" class="iconify icon-[uil--bars] text-xl"></span>
+      </button>
+    {/if}
 
-    {#if hasInstances}
+    {#if showChatNavigation && hasInstances}
       <!-- Notification bell - 44px tap target for mobile accessibility -->
       <a
         href={notificationsServerId
@@ -131,10 +146,8 @@
           />
         {/if}
       </a>
-    {/if}
 
-    <!-- Quick switcher trigger -->
-    {#if hasInstances}
+      <!-- Quick switcher trigger -->
       <button
         type="button"
         class="app-header-icon"
