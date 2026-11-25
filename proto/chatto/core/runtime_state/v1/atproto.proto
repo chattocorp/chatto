@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package chatto.core.runtime_state.v1;
+
+option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+
+// ATProtoSigningKey stores a wrapped P-256 private scalar for one HTTPS origin.
+// The runtime-state key is authenticated as associated data. The referenced
+// key-encryption key is stored separately in ENCRYPTION_KEYS.
+message ATProtoSigningKey {
+  string wrapping_key_ref = 1;
+  string wrapping_algorithm = 2;
+  bytes wrapping_metadata = 3;
+  bytes nonce = 4;
+  bytes ciphertext = 5;
+}
