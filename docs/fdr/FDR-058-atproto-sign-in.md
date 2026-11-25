@@ -55,7 +55,9 @@ server trusts the client, it can show the configured server name.
 On the first metadata request or sign-in, the server generates a P-256 key
 for its HTTPS origin. Each replica uses the shared key to authenticate pushed
 authorization requests and token exchanges with `private_key_jwt`. The
-metadata document includes the public key. Each sign-in still has its own
+metadata document includes the public key. Each replica caches the public
+metadata for up to five minutes. Signing requests read the current key from
+storage. Each sign-in still has its own
 DPoP key. A storage or decryption failure stops new HTTPS sign-ins until the
 key is available again.
 The change of client ID can require approval again at the next sign-in.

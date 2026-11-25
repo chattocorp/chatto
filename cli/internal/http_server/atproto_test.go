@@ -252,9 +252,8 @@ func TestATProtoSignInVerifiesDIDWithIdentityScopeOnly(t *testing.T) {
 	// The public Bluesky profile supplies the new account's hints.
 	require.Equal(t, "Alice Example", result["display"])
 	require.Equal(t, "https://pds.test/xrpc/com.atproto.sync.getBlob?cid=bafkreiavatar&did="+url.QueryEscape(testATProtoDID), result["avatar"])
-	cfg, err := provider.clientConfig(t.Context())
+	metadata, _, err := provider.publicMetadata(t.Context())
 	require.NoError(t, err)
-	metadata := atprotoClientMetadata(cfg, "Chatto", "https://chat.example")
 	encoded, err := json.Marshal(metadata.JWKS)
 	require.NoError(t, err)
 	var public jose.JSONWebKeySet
@@ -427,9 +426,8 @@ func TestATProtoStartClassifiesIdentityErrors(t *testing.T) {
 func TestATProtoClientMetadata(t *testing.T) {
 	provider := newTestATProtoProvider(t, "https://chat.example/auth/providers/bsky/callback")
 	require.False(t, provider.loopback)
-	cfg, err := provider.clientConfig(t.Context())
+	metadata, _, err := provider.publicMetadata(t.Context())
 	require.NoError(t, err)
-	metadata := atprotoClientMetadata(cfg, "Chatto", "https://chat.example")
 	require.NoError(t, metadata.Validate("https://chat.example/oauth-client-metadata.json"))
 	require.Equal(t, "atproto", metadata.Scope)
 	require.Equal(t, []string{"https://chat.example/auth/providers/bsky/callback"}, metadata.RedirectURIs)
@@ -437,6 +435,30 @@ func TestATProtoClientMetadata(t *testing.T) {
 	require.Equal(t, "private_key_jwt", metadata.TokenEndpointAuthMethod)
 	require.Equal(t, "ES256", *metadata.TokenEndpointAuthSigningAlg)
 	require.Len(t, metadata.JWKS.Keys, 1)
+}
+
+func TestATProtoPublicMetadataCache(t *testing.T) {
+	p := newTestATProtoProvider(t, "https://chat.example/auth/providers/bsky/callback")
+	first, _, err := p.publicMetadata(t.Context())
+	require.NoError(t, err)
+	p.signingKey = func(context.Context, string) (*atcrypto.PrivateKeyP256, error) {
+		return nil, errors.New("key store unavailable")
+	}
+	cached, ttl, err := p.publicMetadata(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, first.JWKS, cached.JWKS)
+	require.Positive(t, ttl)
+	_, err = p.clientConfig(t.Context())
+	require.Error(t, err)
+
+	p.metadataExpires = time.Now().Add(-time.Second)
+	_, _, err = p.publicMetadata(t.Context())
+	require.Error(t, err)
+	replacement := newTestATProtoProvider(t, p.app.Config.CallbackURL)
+	p.signingKey = replacement.signingKey
+	refreshed, _, err := p.publicMetadata(t.Context())
+	require.NoError(t, err)
+	require.NotEqual(t, *first.JWKS.Keys[0].KeyID, *refreshed.JWKS.Keys[0].KeyID)
 }
 
 func TestATProtoPublishedMetadataIdentifiesServer(t *testing.T) {

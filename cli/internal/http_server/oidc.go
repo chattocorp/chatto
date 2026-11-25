@@ -250,15 +250,13 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 	if atproto != nil {
 		s.router.GET(atprotoClientMetadataPath, func(c *gin.Context) {
-			cfg, err := atproto.clientConfig(c.Request.Context())
+			metadata, ttl, err := atproto.publicMetadata(c.Request.Context())
 			if err != nil {
 				c.Status(http.StatusServiceUnavailable)
 				return
 			}
-			metadata := atprotoClientMetadata(cfg, s.authServerName(), configuredWebserverOrigin(s.config.Webserver.URL))
 			metadata.RedirectURIs = atprotoCallbacks
-			c.Header("Cache-Control", "public, max-age=300")
-			c.JSON(http.StatusOK, metadata)
+			s.writeATProtoMetadata(c, metadata, ttl)
 		})
 	}
 
@@ -268,10 +266,9 @@ func (s *HTTPServer) setupOIDCRoutes() {
 			c.Status(http.StatusNotFound)
 			return
 		}
-		c.Header("Cache-Control", "public, max-age=300")
-		metadata := atprotoClientMetadata(providerRuntime.atproto.app.Config, s.authServerName(), configuredWebserverOrigin(s.config.Webserver.URL))
+		metadata := providerRuntime.atproto.app.Config.ClientMetadata()
 		metadata.ClientID = legacyATProtoClientID(providerRuntime.callbackURL)
-		c.JSON(http.StatusOK, metadata)
+		s.writeATProtoMetadata(c, metadata, atprotoMetadataTTL)
 	})
 
 	auth.GET("providers/:providerID/callback", func(c *gin.Context) {

@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/bluesky-social/indigo/atproto/atcrypto"
 	"github.com/bluesky-social/indigo/atproto/auth/oauth"
@@ -54,6 +56,12 @@ type atprotoProvider struct {
 	// which returns to 127.0.0.1. The callback route forwards such callbacks
 	// to the configured origin, where the flow cookie is.
 	loopback bool
+
+	// Only the metadata route uses this cache. The public document contains
+	// the verification key. Signing operations always load the private key.
+	metadataMu      sync.Mutex
+	metadata        oauth.ClientMetadata
+	metadataExpires time.Time
 }
 
 // newATProtoProvider configures the client for a provider whose callback is
@@ -257,17 +265,36 @@ func (p *atprotoProvider) profile(ctx context.Context, pds string, did syntax.DI
 	return displayName, avatarURL
 }
 
-// atprotoClientMetadata returns the client metadata document. Loopback clients have
-// no document.
-func atprotoClientMetadata(cfg *oauth.ClientConfig, clientName, clientURI string) oauth.ClientMetadata {
-	metadata := cfg.ClientMetadata()
-	if cfg.IsConfidential() {
-		jwks := cfg.PublicJWKS()
-		metadata.JWKS = &jwks
+const atprotoMetadataTTL = 5 * time.Minute
+
+// publicMetadata returns a copy of the public HTTPS client metadata and its
+// remaining lifetime. The caller sets the current server name and callbacks.
+func (p *atprotoProvider) publicMetadata(ctx context.Context) (oauth.ClientMetadata, time.Duration, error) {
+	p.metadataMu.Lock()
+	defer p.metadataMu.Unlock()
+	if ttl := time.Until(p.metadataExpires); ttl > 0 {
+		return p.metadata, ttl, nil
 	}
-	metadata.ClientName = &clientName
-	metadata.ClientURI = &clientURI
-	return metadata
+	cfg, err := p.clientConfig(ctx)
+	if err != nil {
+		return oauth.ClientMetadata{}, 0, err
+	}
+	jwks := cfg.PublicJWKS()
+	metadata := cfg.ClientMetadata()
+	metadata.JWKS = &jwks
+	p.metadata = metadata
+	p.metadataExpires = time.Now().Add(atprotoMetadataTTL)
+	return metadata, atprotoMetadataTTL, nil
+}
+
+// writeATProtoMetadata adds the current server identity to the public document.
+func (s *HTTPServer) writeATProtoMetadata(c *gin.Context, metadata oauth.ClientMetadata, ttl time.Duration) {
+	name := s.authServerName()
+	origin := configuredWebserverOrigin(s.config.Webserver.URL)
+	metadata.ClientName = &name
+	metadata.ClientURI = &origin
+	c.Header("Cache-Control", fmt.Sprintf("public, max-age=%d", ttl/time.Second))
+	c.JSON(http.StatusOK, metadata)
 }
 
 // atprotoFlowStore keeps the request data of one sign-in in the encrypted
