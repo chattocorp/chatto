@@ -85,7 +85,7 @@ func (s *HTTPServer) requireBrowserAuthenticationRequest(c *gin.Context) {
 	}
 }
 
-func (s *HTTPServer) authEmailServerName() string {
+func (s *HTTPServer) authServerName() string {
 	if s.core != nil && s.core.ConfigModel() != nil {
 		if name := s.core.ConfigModel().GetEffectiveServerName(); strings.TrimSpace(name) != "" {
 			return name
@@ -597,7 +597,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Send registration email
-		serverName := s.authEmailServerName()
+		serverName := s.authServerName()
 		expirationText := s.emailOTPExpirationText()
 		err = s.mailer.SendContext(c.Request.Context(), email.Message{
 			ExpiresAt: expiresAt,
@@ -844,7 +844,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
 			return
 		}
-		serverName := s.authEmailServerName()
+		serverName := s.authServerName()
 		expirationText := s.emailOTPExpirationText()
 		if err := s.mailer.SendContext(c.Request.Context(), email.Message{
 			ExpiresAt: expiresAt,
@@ -938,7 +938,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Only send email if token was created (email exists and is verified)
 		if token != "" && s.mailer != nil {
-			serverName := s.authEmailServerName()
+			serverName := s.authServerName()
 			resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.config.Webserver.URL, token)
 			err = s.mailer.SendContext(c.Request.Context(), email.Message{
 				ExpiresAt: expiresAt,
