@@ -45,6 +45,8 @@ vi.mock('$app/navigation', () => ({
   replaceState: vi.fn()
 }));
 vi.mock('$app/paths', () => ({
+  base: '',
+  assets: '',
   resolve: (path: string, params?: Record<string, string>) =>
     Object.entries(params ?? {}).reduce(
       (resolved, [key, value]) => resolved.replace(`[${key}]`, value),
