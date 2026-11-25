@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bluesky-social/indigo/atproto/auth/oauth"
 	"github.com/bluesky-social/indigo/atproto/identity"
 	"github.com/bluesky-social/indigo/atproto/syntax"
 	"github.com/chattocorp/chatto/cli/internal/config"
@@ -32,6 +33,7 @@ const testATProtoWebDID = "did:web:alice.example.com"
 type fakeATProtoAuthServer struct {
 	server *httptest.Server
 	// parScope and tokenCode record what the client sent.
+	parClientID  string
 	parScope     string
 	parLoginHint string
 	tokenCode    string
@@ -84,6 +86,7 @@ func newFakeATProtoAuthServer(t *testing.T) *fakeATProtoAuthServer {
 			return
 		}
 		require.NoError(t, r.ParseForm())
+		fake.parClientID = r.PostForm.Get("client_id")
 		fake.parScope = r.PostForm.Get("scope")
 		fake.parLoginHint = r.PostForm.Get("login_hint")
 		w.WriteHeader(http.StatusCreated)
@@ -106,6 +109,7 @@ func newFakeATProtoAuthServer(t *testing.T) *fakeATProtoAuthServer {
 	mux.HandleFunc("POST /token", func(w http.ResponseWriter, r *http.Request) {
 		require.NotEmpty(t, r.Header.Get("DPoP"))
 		require.NoError(t, r.ParseForm())
+		require.Equal(t, fake.parClientID, r.PostForm.Get("client_id"))
 		fake.tokenCode = r.PostForm.Get("code")
 		w.Header().Set("DPoP-Nonce", "nonce-1")
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -214,7 +218,7 @@ func TestATProtoSignInVerifiesDIDWithIdentityScopeOnly(t *testing.T) {
 	authURL, err := url.Parse(start["url"])
 	require.NoError(t, err)
 	require.Equal(t, "pds.test", authURL.Host)
-	require.Equal(t, "https://chat.example/auth/providers/bsky/client-metadata.json", authURL.Query().Get("client_id"))
+	require.Equal(t, "https://chat.example/oauth-client-metadata.json", authURL.Query().Get("client_id"))
 	require.Equal(t, "atproto", fake.parScope, "the server must request identity only")
 	require.Equal(t, "alice.test", fake.parLoginHint)
 
@@ -232,6 +236,34 @@ func TestATProtoSignInVerifiesDIDWithIdentityScopeOnly(t *testing.T) {
 	// The public Bluesky profile supplies the new account's hints.
 	require.Equal(t, "Alice Example", result["display"])
 	require.Equal(t, "https://pds.test/xrpc/com.atproto.sync.getBlob?cid=bafkreiavatar&did="+url.QueryEscape(testATProtoDID), result["avatar"])
+}
+
+// A callback can reach an upgraded replica after an older replica sent PAR.
+func TestATProtoCompletesPreviousClientSignIn(t *testing.T) {
+	const callback = "https://chat.example/auth/providers/bsky/callback"
+	provider, err := newATProtoProvider(callback)
+	require.NoError(t, err)
+	fake := newFakeATProtoAuthServer(t)
+	useFakeATProtoNetwork(t, provider, fake)
+	router := gin.New()
+	router.Use(sessions.Sessions("flow", cookie.NewStore([]byte("test-only-cookie-key"))))
+	router.GET("/", func(c *gin.Context) {
+		session := sessions.Default(c)
+		previous := *provider.app
+		cfg := *previous.Config
+		cfg.ClientID = "https://chat.example/auth/providers/bsky/client-metadata.json"
+		previous.Config = &cfg
+		store := &atprotoFlowStore{session: session, key: providerSessionKey("bsky", "atproto_request")}
+		previous.Store = store
+		_, err := previous.StartAuthFlow(c.Request.Context(), "alice.test")
+		require.NoError(t, err)
+		account, err := provider.callback(c.Request.Context(), session, "bsky", url.Values{
+			"state": {store.state}, "iss": {"https://pds.test"}, "code": {"code-1"},
+		})
+		require.NoError(t, err)
+		require.Equal(t, testATProtoDID, account.DID.String())
+	})
+	router.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
 }
 
 func TestATProtoSignInWithWebDID(t *testing.T) {
@@ -323,11 +355,40 @@ func TestATProtoClientMetadata(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, provider.loopback)
 	metadata := provider.clientMetadata("Chatto", "https://chat.example")
-	require.NoError(t, metadata.Validate("https://chat.example/auth/providers/bsky/client-metadata.json"))
+	require.NoError(t, metadata.Validate("https://chat.example/oauth-client-metadata.json"))
 	require.Equal(t, "atproto", metadata.Scope)
 	require.Equal(t, []string{"https://chat.example/auth/providers/bsky/callback"}, metadata.RedirectURIs)
 	require.True(t, metadata.DPoPBoundAccessTokens)
 	require.Equal(t, "none", metadata.TokenEndpointAuthMethod)
+}
+
+func TestATProtoPublishedMetadataIdentifiesServer(t *testing.T) {
+	const origin = "https://chat.example"
+	server, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = origin
+		s.config.Auth.Providers = []config.AuthProviderConfig{
+			{ID: "bsky", Type: config.AuthProviderTypeATProto},
+			{ID: "github", Type: config.AuthProviderTypeGitHub},
+			{ID: "handles", Type: config.AuthProviderTypeATProto},
+		}
+		s.setupOIDCRoutes()
+	})
+	setTestServerName(t, t.Context(), chattoCore, "Engineering")
+	for path, callbacks := range map[string][]string{
+		"/oauth-client-metadata.json":               {origin + "/auth/providers/bsky/callback", origin + "/auth/providers/handles/callback"},
+		"/auth/providers/bsky/client-metadata.json": {origin + "/auth/providers/bsky/callback"},
+	} {
+		resp, err := client.Get(server.URL + path)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		var metadata oauth.ClientMetadata
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&metadata))
+		resp.Body.Close()
+		require.NoError(t, metadata.Validate(origin+path))
+		require.Equal(t, "Engineering", *metadata.ClientName)
+		require.Equal(t, origin, *metadata.ClientURI)
+		require.Equal(t, callbacks, metadata.RedirectURIs)
+	}
 }
 
 func TestATProtoLoopbackProviderForwardsCallbacks(t *testing.T) {

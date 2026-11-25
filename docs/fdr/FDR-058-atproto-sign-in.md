@@ -1,7 +1,7 @@
 # FDR-058: AT Protocol Sign-In
 
 **Status:** Experimental
-**Last reviewed:** 2026-11-12
+**Last reviewed:** 2026-11-25
 
 ## Overview
 
@@ -48,8 +48,12 @@ on the PDS. No other app or server can produce that proof. AT Protocol service
 tokens do not name the app that requested them, so any app with broad PDS
 access could use them to sign the user in to Chatto servers.
 **Tradeoff:** Each server asks for approval once. Production servers have an
-HTTPS client ID, so the PDS remembers the approval. Development servers use
-the loopback client, for which the PDS asks every time.
+HTTPS client ID at `/oauth-client-metadata.json`. All AT Protocol providers
+on the server share that ID and publish their exact callback URLs. Bluesky
+shows the hostname for this ID on the default HTTPS port. When the authorization
+server trusts the client, it can show the configured server name.
+The change of client ID can require approval again at the next sign-in.
+Development servers use the loopback client, for which the PDS asks every time.
 
 ### 2. No verified handles from repository records
 

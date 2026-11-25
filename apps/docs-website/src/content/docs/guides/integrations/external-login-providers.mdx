@@ -133,7 +133,10 @@ See [First owner without password login](/guides/operations/identity-login/#firs
 
 The `atproto` type lets people sign in with an internet handle: the handle of
 an AT Protocol account, for example `alice.bsky.social` or `alice.example.com`. You do not register a client. Chatto publishes its own client
-metadata, and the user's server reads it during sign-in.
+metadata, and the user's server reads it during sign-in. If your reverse proxy
+routes by path, forward `/oauth-client-metadata.json` on the public server
+origin to Chatto. If your authorization server has a trusted-client list,
+use the full HTTPS URL of that document for this Chatto server.
 
 ```toml
 [webserver]

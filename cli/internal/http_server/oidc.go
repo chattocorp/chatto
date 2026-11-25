@@ -184,6 +184,8 @@ func (s *HTTPServer) setupOIDCRoutes() {
 
 	configured := make(map[string]*authProviderRuntime, len(providers))
 	var legacyOIDCConfig *config.AuthProviderConfig
+	var atproto *atprotoProvider
+	var atprotoCallbacks []string
 	for _, providerConfig := range providers {
 		runtime, err := newAuthProviderRuntime(providerConfig, s.providerCallbackURL(providerConfig.ID))
 		if err != nil {
@@ -191,6 +193,10 @@ func (s *HTTPServer) setupOIDCRoutes() {
 			continue
 		}
 		configured[providerConfig.ID] = runtime
+		if runtime.atproto != nil && !runtime.atproto.loopback {
+			atproto = runtime.atproto
+			atprotoCallbacks = append(atprotoCallbacks, runtime.callbackURL)
+		}
 		if providerConfig.Type == config.AuthProviderTypeOpenIDConnect {
 			providerConfig := providerConfig
 			if legacyOIDCConfig == nil || providerConfig.ID == "oidc" {
@@ -241,14 +247,25 @@ func (s *HTTPServer) setupOIDCRoutes() {
 		s.handleProviderStart(c, providerRuntime, "reverify")
 	})
 
-	auth.GET("providers/:providerID"+atprotoClientMetadataPath, func(c *gin.Context) {
+	if atproto != nil {
+		s.router.GET(atprotoClientMetadataPath, func(c *gin.Context) {
+			metadata := atproto.clientMetadata(s.authServerName(), configuredWebserverOrigin(s.config.Webserver.URL))
+			metadata.RedirectURIs = atprotoCallbacks
+			c.Header("Cache-Control", "public, max-age=300")
+			c.JSON(http.StatusOK, metadata)
+		})
+	}
+
+	auth.GET("providers/:providerID/client-metadata.json", func(c *gin.Context) {
 		providerRuntime := configured[c.Param("providerID")]
 		if providerRuntime == nil || providerRuntime.atproto == nil || providerRuntime.atproto.loopback {
 			c.Status(http.StatusNotFound)
 			return
 		}
 		c.Header("Cache-Control", "public, max-age=300")
-		c.JSON(http.StatusOK, providerRuntime.atproto.clientMetadata("Chatto", configuredWebserverOrigin(s.config.Webserver.URL)))
+		metadata := providerRuntime.atproto.clientMetadata(s.authServerName(), configuredWebserverOrigin(s.config.Webserver.URL))
+		metadata.ClientID = legacyATProtoClientID(providerRuntime.callbackURL)
+		c.JSON(http.StatusOK, metadata)
 	})
 
 	auth.GET("providers/:providerID/callback", func(c *gin.Context) {
@@ -730,6 +747,7 @@ func deleteProviderExchangeState(session sessions.Session, providerID string) {
 	session.Delete(providerSessionKey(providerID, "nonce"))
 	session.Delete(providerSessionKey(providerID, "session"))
 	session.Delete(providerSessionKey(providerID, "atproto_request"))
+	session.Delete(providerSessionKey(providerID, "atproto_server_client_state"))
 }
 
 func (r *authProviderRuntime) ensureOIDC(c *gin.Context) bool {

@@ -32,9 +32,13 @@ const atprotoHandlePagePath = "/sso/handle"
 // specification limits DIDs to 2 KB.
 const atprotoMaxIdentifierLength = 2048
 
-// atprotoClientMetadataPath is the path of a provider's client metadata
-// document below its provider route. Its URL is the provider's client ID.
-const atprotoClientMetadataPath = "/client-metadata.json"
+// Bluesky shows the server hostname for this conventional HTTPS client ID.
+const atprotoClientMetadataPath = "/oauth-client-metadata.json"
+
+// Older replicas use one client ID per provider.
+func legacyATProtoClientID(callbackURL string) string {
+	return strings.TrimSuffix(callbackURL, "/callback") + "/client-metadata.json"
+}
 
 // atprotoProvider signs users in with AT Protocol OAuth. It keeps no tokens:
 // after the callback verifies the account DID, Chatto discards the session.
@@ -51,7 +55,7 @@ type atprotoProvider struct {
 
 // newATProtoProvider configures the client for a provider whose callback is
 // callbackURL. The client ID is the URL of the metadata document that
-// setupATProtoRoutes publishes, except for loopback deployments.
+// setupOIDCRoutes publishes, except for loopback deployments.
 func newATProtoProvider(callbackURL string) (*atprotoProvider, error) {
 	callback, err := url.Parse(callbackURL)
 	if err != nil || callback.Host == "" {
@@ -65,7 +69,7 @@ func newATProtoProvider(callbackURL string) (*atprotoProvider, error) {
 		relay.Host = net.JoinHostPort("127.0.0.1", callback.Port())
 		cfg = oauth.NewLocalhostConfig(relay.String(), scopes)
 	} else {
-		clientID := strings.TrimSuffix(callbackURL, "/callback") + atprotoClientMetadataPath
+		clientID := canonicalOrigin(callback) + atprotoClientMetadataPath
 		cfg = oauth.NewPublicConfig(clientID, callbackURL, scopes)
 	}
 	cfg.UserAgent = "Chatto"
@@ -97,6 +101,9 @@ func (p *atprotoProvider) authURL(ctx context.Context, session sessions.Session,
 	}
 	if store.state == "" {
 		return "", "", errors.New("atproto request was not stored")
+	}
+	if !p.loopback {
+		session.Set(providerSessionKey(providerID, "atproto_server_client_state"), store.state)
 	}
 	return redirect, store.state, nil
 }
@@ -140,7 +147,14 @@ const atprotoProfileRecordLimit = 64 << 10
 // subject is the DID; the handle is kept only when it resolves back to it.
 func (p *atprotoProvider) callback(ctx context.Context, session sessions.Session, providerID string, params url.Values) (atprotoAccount, error) {
 	app := *p.app
-	app.Store = &atprotoFlowStore{session: session, key: providerSessionKey(providerID, "atproto_request")}
+	key := providerSessionKey(providerID, "atproto_request")
+	if !p.loopback && session.Get(providerSessionKey(providerID, "atproto_server_client_state")) != params.Get("state") {
+		// Finish an in-flight request from before the server-wide client ID.
+		cfg := *app.Config
+		cfg.ClientID = legacyATProtoClientID(cfg.CallbackURL)
+		app.Config = &cfg
+	}
+	app.Store = &atprotoFlowStore{session: session, key: key}
 	data, err := app.ProcessCallback(ctx, params)
 	if err != nil {
 		return atprotoAccount{}, err
