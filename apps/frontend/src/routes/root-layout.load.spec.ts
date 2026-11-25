@@ -33,13 +33,16 @@ describe('root layout origin loading', () => {
       getPublicServerInfo.mockResolvedValue({ name: 'New server', setupRequired: true });
       loadCurrentUser.mockResolvedValue(null);
       await expect(
-        load({ url: new URL(path, 'https://chat.example') } as never)
+        load({ depends: vi.fn(), url: new URL(path, 'https://chat.example') } as never)
       ).rejects.toMatchObject({ status: 302, location: '/setup' });
     }
   );
 
   it('loads discovery and viewer state from an HTTP origin', async () => {
-    const data = await load({ url: new URL('https://chat.example/welcome') } as never);
+    const data = await load({
+      depends: vi.fn(),
+      url: new URL('https://chat.example/welcome')
+    } as never);
 
     expect(getPublicServerInfo).toHaveBeenCalledWith('https://chat.example');
     expect(loadCurrentUser).toHaveBeenCalledOnce();
@@ -50,7 +53,7 @@ describe('root layout origin loading', () => {
   });
 
   it('does not probe the Chatto Desktop application origin', async () => {
-    const data = await load({ url: new URL('chatto://desktop/login') } as never);
+    const data = await load({ depends: vi.fn(), url: new URL('chatto://desktop/login') } as never);
 
     expect(preloadPublicLocaleMessages).toHaveBeenCalledOnce();
     expect(getPublicServerInfo).not.toHaveBeenCalled();
@@ -61,8 +64,8 @@ describe('root layout origin loading', () => {
   it('deletes the legacy saved-view database once per page load', async () => {
     vi.resetModules();
     const { load: freshLoad } = await import('./+layout');
-    await freshLoad({ url: new URL('https://chat.example/welcome') } as never);
-    await freshLoad({ url: new URL('https://chat.example/chat') } as never);
+    await freshLoad({ depends: vi.fn(), url: new URL('https://chat.example/welcome') } as never);
+    await freshLoad({ depends: vi.fn(), url: new URL('https://chat.example/chat') } as never);
 
     expect(deleteLegacySavedViews).toHaveBeenCalledOnce();
   });

@@ -3,12 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   resetAccountMock,
   hasPendingReturnNavigationMock,
-  invalidateAllMock,
+  invalidateMock,
   resumeReturnNavigationMock
 } = vi.hoisted(() => ({
   resetAccountMock: vi.fn(),
   hasPendingReturnNavigationMock: vi.fn(),
-  invalidateAllMock: vi.fn(),
+  invalidateMock: vi.fn(),
   resumeReturnNavigationMock: vi.fn()
 }));
 
@@ -21,7 +21,7 @@ vi.mock('$lib/client', async () => ({
 }));
 
 vi.mock('$app/navigation', () => ({
-  invalidateAll: invalidateAllMock
+  invalidate: invalidateMock
 }));
 
 vi.mock('./returnNavigation', () => ({
@@ -40,7 +40,7 @@ describe('completeOriginAuthentication', () => {
     vi.stubGlobal('window', {
       location: { pathname: '/login', search: '', hash: '' }
     });
-    invalidateAllMock.mockResolvedValue(undefined);
+    invalidateMock.mockResolvedValue(undefined);
     resumeReturnNavigationMock.mockResolvedValue(true);
   });
 
@@ -55,9 +55,9 @@ describe('completeOriginAuthentication', () => {
     await expect(completeOriginAuthentication()).resolves.toBe(false);
 
     expect(resetAccountMock).toHaveBeenCalledOnce();
-    expect(invalidateAllMock).toHaveBeenCalledOnce();
+    expect(invalidateMock).toHaveBeenCalledWith('chatto:origin-session');
     expect(resetAccountMock.mock.invocationCallOrder[0]).toBeLessThan(
-      invalidateAllMock.mock.invocationCallOrder[0]
+      invalidateMock.mock.invocationCallOrder[0]
     );
     expect(resumeReturnNavigationMock).not.toHaveBeenCalled();
   });
@@ -68,13 +68,13 @@ describe('completeOriginAuthentication', () => {
 
     await expect(completeOriginAuthentication()).resolves.toBe(true);
 
-    expect(invalidateAllMock).toHaveBeenCalledOnce();
+    expect(invalidateMock).toHaveBeenCalledWith('chatto:origin-session');
     expect(resumeReturnNavigationMock).toHaveBeenCalledOnce();
   });
 
   it('reports when authenticated route invalidation already navigated', async () => {
     hasPendingReturnNavigationMock.mockReturnValue(false);
-    invalidateAllMock.mockImplementation(async () => {
+    invalidateMock.mockImplementation(async () => {
       window.location.pathname = '/chat';
     });
     const { completeOriginAuthentication } = await loadModule();
@@ -91,7 +91,7 @@ describe('completeOriginAuthentication', () => {
       false
     );
     expect(resetAccountMock).toHaveBeenCalledOnce();
-    expect(invalidateAllMock).toHaveBeenCalledOnce();
+    expect(invalidateMock).toHaveBeenCalledWith('chatto:origin-session');
     expect(resumeReturnNavigationMock).not.toHaveBeenCalled();
   });
 });

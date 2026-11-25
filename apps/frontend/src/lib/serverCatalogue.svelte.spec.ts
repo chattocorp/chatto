@@ -166,7 +166,7 @@ describe('root route and registry discovery', () => {
     const info = profile('New origin');
     mocks.getPublicServerInfo.mockResolvedValue(info);
 
-    const result = await load({ url: new URL('/chat/-', origin) } as never);
+    const result = await load({ depends: vi.fn(), url: new URL('/chat/-', origin) } as never);
 
     expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce();
     expect(result).toMatchObject({ serverInfo: info, user: null });
@@ -179,7 +179,7 @@ describe('root route and registry discovery', () => {
     let respond!: (info: PublicServerInfo) => void;
     mocks.getPublicServerInfo.mockReturnValue(new Promise((resolve) => (respond = resolve)));
     await registerOriginServer({ signedIn: true });
-    const pending = load({ url: new URL('/chat/-', origin) } as never);
+    const pending = load({ depends: vi.fn(), url: new URL('/chat/-', origin) } as never);
     expect(mocks.getPublicServerInfo).toHaveBeenCalledOnce();
 
     const info = profile('Known origin');
@@ -193,7 +193,7 @@ describe('root route and registry discovery', () => {
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce(profile('Recovered'));
 
-    await load({ url: new URL('/chat/-', origin) } as never);
+    await load({ depends: vi.fn(), url: new URL('/chat/-', origin) } as never);
 
     expect(mocks.getPublicServerInfo).toHaveBeenCalledTimes(2);
     expect(serverRegistry.originServer?.name).toBe('Recovered');

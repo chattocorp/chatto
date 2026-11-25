@@ -1,4 +1,4 @@
-import { invalidateAll } from '$app/navigation';
+import { invalidate } from '$app/navigation';
 import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
 import { hasPendingReturnNavigation, resumeReturnNavigation } from './returnNavigation';
 
@@ -24,7 +24,9 @@ export async function completeOriginAuthentication(
   const { serverRegistry } = await import('$lib/client');
   const origin = serverRegistry.originServer;
   if (origin) serverRegistry.getStore(origin.id).currentUser.reset();
-  await invalidateAll();
+  // Refresh the viewer and routes that read it. The SSO confirmation route
+  // has already used its one-time token when account creation succeeds.
+  await invalidate('chatto:origin-session');
   const originServerId = serverRegistry.originServer?.id;
   if (originServerId) resumePushRegistrationAfterAuthentication(originServerId);
 

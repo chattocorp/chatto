@@ -397,8 +397,20 @@ test.describe('External identity confirmation flows', () => {
       `${flow.confirmUrl}&existing=1`
     );
 
+    // Record even a brief confirmation error before navigation removes the page.
+    await page.evaluate(() => {
+      const observer = new MutationObserver(() => {
+        if (document.body.innerText.includes('This sign-in link is invalid or has expired.')) {
+          sessionStorage.setItem('e2e:invalid-link-flash', 'seen');
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { childList: true, characterData: true, subtree: true });
+    });
     await page.getByRole('button', { name: 'Create Account' }).click();
     await page.waitForURL(routes.patterns.chatRedirect);
+
+    expect(await page.evaluate(() => sessionStorage.getItem('e2e:invalid-link-flash'))).toBeNull();
 
     await page.goto(routes.settingsAccount);
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();

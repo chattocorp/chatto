@@ -64,14 +64,17 @@ describe('root layout load', () => {
       mocks.getPublicServerInfo.mockResolvedValue(pending);
       mocks.loadCurrentUser.mockResolvedValue(null);
       await expect(
-        load({ url: new URL(path, 'https://chat.example.test') } as never)
+        load({ depends: vi.fn(), url: new URL(path, 'https://chat.example.test') } as never)
       ).resolves.toMatchObject({ serverInfo: pending, user: null });
       expect(mocks.registerOriginServer).toHaveBeenCalledWith({ serverInfo: pending });
     }
   );
 
   it('initialises and settles the registry before child routes load', async () => {
-    const result = await load({ url: new URL('https://chat.example.test/chat/-') } as never);
+    const result = await load({
+      depends: vi.fn(),
+      url: new URL('https://chat.example.test/chat/-')
+    } as never);
 
     expect(mocks.init).toHaveBeenCalledOnce();
     expect(mocks.registerOriginServer).toHaveBeenCalledWith({ signedIn: true, serverInfo });
@@ -82,7 +85,7 @@ describe('root layout load', () => {
   it('settles an unauthenticated origin after the discovery result is available', async () => {
     mocks.loadCurrentUser.mockResolvedValue(null);
 
-    await load({ url: new URL('https://chat.example.test/chat/-') } as never);
+    await load({ depends: vi.fn(), url: new URL('https://chat.example.test/chat/-') } as never);
 
     expect(mocks.registerOriginServer).toHaveBeenCalledWith({ signedIn: false, serverInfo });
     expect(mocks.settleOriginUnauthenticated).not.toHaveBeenCalled();
@@ -92,7 +95,7 @@ describe('root layout load', () => {
     mocks.getPublicServerInfo.mockResolvedValue(null);
     mocks.loadCurrentUser.mockResolvedValue(null);
 
-    await load({ url: new URL('https://chat.example.test/chat/-') } as never);
+    await load({ depends: vi.fn(), url: new URL('https://chat.example.test/chat/-') } as never);
 
     expect(mocks.registerOriginServer).toHaveBeenCalledWith({ signedIn: false, serverInfo: null });
   });
