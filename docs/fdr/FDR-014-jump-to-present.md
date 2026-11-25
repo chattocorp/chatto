@@ -1,7 +1,7 @@
 # FDR-014: Jump to Present
 
 **Status:** Active
-**Last reviewed:** 2026-11-02
+**Last reviewed:** 2026-11-25
 
 ## Overview
 
@@ -64,6 +64,12 @@ When a user is reading older messages in a room — either because they scrolled
 **Decision:** During older-page loading, keep the position from the end only when the loaded window changes at its start and keeps the same last event. New messages that arrive at the end during the request keep normal start anchoring. The timeline disables browser scroll anchoring so that only the virtualizer and the timeline's explicit scroll actions control the position.
 **Why:** A pending history request does not mean that every concurrent update adds older messages. Treating a new message as an older page can move the content that the user is reading.
 **Tradeoff:** This check does not treat window replacement or changes at both ends as a simple prepend.
+
+### 8. Trim a long window that follows the latest message
+
+**Decision:** When a room window follows the latest message and holds more than 500 events, the client removes its oldest events. It keeps at least the latest 300 events, and the kept window starts at a message. A window that shows older messages, a jumped window, and a thread are not trimmed. Removed messages that kept messages reply to stay available as reply previews. When the user scrolls up past the start of a trimmed window, the client reads the page around its first message and keeps the older events of that page. Then it continues with the cursor of that page. If that message is gone, the client tries the next kept message.
+**Why:** Without a limit, a room that stays open for days keeps every live message. Each new message, edit, or reaction then costs time for each kept row, and the client can become slow (issue #3852). Page cursors are opaque, so the client cannot make a cursor for the new start of the window. A read around a kept message gives a correct cursor without a change to the API.
+**Tradeoff:** The first older page after a trim needs a read around a message instead of a cursor read. This read occurs only when the user scrolls up. History that the user scrolled through earlier is read again.
 
 ## Related
 

@@ -9,8 +9,10 @@ import {
 import {
   createRoomTimelineAPI,
   roomTimelineEventToView,
+  type EventConnectionPage,
   type RoomTimelineAPI
 } from '../../api/roomTimeline.js';
+import { isRootRoomEvent } from './filters.js';
 import type {
   RoomTimelineEvent,
   RoomTimelineIncludes
@@ -37,6 +39,16 @@ import { debugLog } from '../../util/debugLog.js';
 export const PAGE_SIZE = 50;
 /** Messages to backfill before an initial room window is considered filled. */
 export const INITIAL_ROOM_MESSAGE_BACKFILL_TARGET = 10;
+/**
+ * A room window that follows the latest event drops its oldest rows when it
+ * holds more events than this. Without a limit, a room that stays open for
+ * days keeps every live event, and each change costs time per retained row.
+ */
+export const FOLLOWING_WINDOW_TRIM_THRESHOLD = 500;
+/** Events that a trimmed following window keeps, at least. */
+export const FOLLOWING_WINDOW_RETAINED = 300;
+/** Retained messages that {@link MessagesStore.loadMore} tries as an anchor after a trim. */
+const TRIM_ANCHOR_ATTEMPTS = 3;
 
 export type {
   OptimisticReactionAction,
@@ -279,6 +291,13 @@ export class MessagesStore {
   private removedMessageEventIds = new ReactiveSet<string>();
   private oldestCursor: string | undefined;
   private newestCursor: string | undefined;
+  /**
+   * The oldest message that a trim kept. Page cursors are opaque, so a trim
+   * cannot make a cursor for the new start of the window. The next
+   * {@link loadMore} reads around this message instead, and continues with
+   * the cursor of that read. Null when the window was not trimmed.
+   */
+  #trimAnchor: string | null = null;
   private optimisticReactions = new OptimisticMutationRegistry();
   private optimisticThreadFollows = new OptimisticMutationRegistry();
 
@@ -919,27 +938,32 @@ export class MessagesStore {
 
   async loadMore(): Promise<void> {
     const source = this.source;
+    const trimAnchor = this.#currentTrimAnchor();
     if (
       this.#projectionAccessRevoked ||
       this.isLoadingMore ||
       this.hasReachedStart ||
-      !this.oldestCursor
+      (!trimAnchor && !this.oldestCursor)
     )
       return;
 
-    const before = this.oldestCursor;
+    const before = trimAnchor ? undefined : this.oldestCursor;
     const loadId = this.#loadId;
     this.isLoadingMore = true;
 
     try {
-      const page = await source.fetchPage({ limit: PAGE_SIZE, before });
+      const page = trimAnchor
+        ? await this.#fetchBeforeTrimAnchor(trimAnchor, loadId)
+        : await source.fetchPage({ limit: PAGE_SIZE, before });
 
       // A reset, access revocation, or owner disposal may have happened while
       // this page was in flight. Never let an older
       // authorization context reinstall plaintext or overwrite new cursors.
-      if (this.isStale(loadId) || this.#projectionAccessRevoked) {
+      if (!page || this.isStale(loadId) || this.#projectionAccessRevoked) {
         return;
       }
+      // The read gave a cursor for the start of the trimmed window.
+      if (trimAnchor) this.#trimAnchor = null;
 
       const olderEvents = this.unmaskEvents(page.events);
       if (olderEvents.length === 0) {
@@ -968,6 +992,102 @@ export class MessagesStore {
         this.isLoadingMore = false;
       }
     }
+  }
+
+  /** A message that can anchor the read before a trimmed window. */
+  #isTrimAnchor(event: TimelineEventView): boolean {
+    return (
+      isRootRoomEvent(event) &&
+      isMessagePostedPayload(event.event) &&
+      !event.event.echoOfEventId &&
+      !event.event.deletedAt
+    );
+  }
+
+  /** The trim anchor while the window still holds it; a replaced window forgets it. */
+  #currentTrimAnchor(): string | null {
+    const anchor = this.#trimAnchor;
+    if (anchor !== null && !this.events.some((event) => event.id === anchor)) {
+      this.#trimAnchor = null;
+    }
+    return this.#trimAnchor;
+  }
+
+  /**
+   * Read the page before a trimmed window. Reads around the trim anchor and
+   * keeps only the events before it. When the anchor message is gone, tries
+   * the next retained messages. Returns null when the load became stale.
+   */
+  async #fetchBeforeTrimAnchor(
+    trimAnchor: string,
+    loadId: number
+  ): Promise<EventConnectionPage | null> {
+    let anchor = trimAnchor;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const page = await this.source.fetchAround(anchor, PAGE_SIZE);
+        // A window that lost the anchor meanwhile has its own start.
+        const retained = this.events.find((event) => event.id === anchor);
+        if (!retained) return null;
+        const anchorIndex = page.events.findIndex((event) => event.id === anchor);
+        const anchorTime = Date.parse(retained.createdAt);
+        const events =
+          anchorIndex >= 0
+            ? page.events.slice(0, anchorIndex)
+            : page.events.filter((event) => Date.parse(event.createdAt) < anchorTime);
+        return { ...page, events };
+      } catch (error) {
+        if (this.isStale(loadId)) return null;
+        const index = this.events.findIndex((event) => event.id === anchor);
+        const next = this.events.slice(index + 1).find((event) => this.#isTrimAnchor(event));
+        if (!isConnectCode(error, Code.NotFound) || !next || attempt >= TRIM_ANCHOR_ATTEMPTS) {
+          throw error;
+        }
+        anchor = next.id;
+      }
+    }
+  }
+
+  /**
+   * Drop the oldest rows of a room window that follows the latest event, when
+   * it holds more than {@link FOLLOWING_WINDOW_TRIM_THRESHOLD} events. The
+   * window keeps at least {@link FOLLOWING_WINDOW_RETAINED} events and starts
+   * at a message, which anchors the next {@link loadMore}. Dropped reply
+   * targets of kept rows stay available as previews.
+   */
+  #trimFollowingWindow(): void {
+    const events = this.events;
+    if (
+      this.scope !== 'room' ||
+      events.length <= FOLLOWING_WINDOW_TRIM_THRESHOLD ||
+      this.#anchor !== null ||
+      this.isLoadingMore ||
+      !this.#isCurrent.peek()
+    ) {
+      return;
+    }
+    let start = events.length - FOLLOWING_WINDOW_RETAINED;
+    while (start > 0 && !this.#isTrimAnchor(events[start]!)) start--;
+    if (start === 0) return;
+
+    const kept = events.slice(start);
+    const dropped = events.slice(0, start);
+    const replyTargets = new Set<string>();
+    for (const event of kept) {
+      if (isMessagePostedPayload(event.event) && event.event.inReplyTo) {
+        replyTargets.add(event.event.inReplyTo);
+      }
+    }
+    batch(() => {
+      for (const event of dropped) {
+        this.seenIds.delete(event.id);
+        if (replyTargets.has(event.id)) this.previewEvents.set(this.previewKey(event.id), event);
+      }
+      this.events = kept;
+      this.oldestCursor = undefined;
+      this.hasReachedStart = false;
+      this.#trimAnchor = kept[0]!.id;
+    });
   }
 
   async refetchAll(): Promise<void> {
@@ -1382,6 +1502,7 @@ export class MessagesStore {
     if (this.seenIds.has(event.id)) return;
     this.seenIds.add(event.id);
     this.events = this.source.sort([...this.events, event]);
+    this.#trimFollowingWindow();
   }
 
   private appendMany(events: TimelineEventView[]): void {
@@ -1393,7 +1514,10 @@ export class MessagesStore {
       added.push(e);
     }
     // A live event can arrive before an older page of newer events.
-    if (added.length > 0) this.events = this.source.sort([...this.events, ...added]);
+    if (added.length > 0) {
+      this.events = this.source.sort([...this.events, ...added]);
+      this.#trimFollowingWindow();
+    }
   }
 
   private prependEvents(olderEvents: TimelineEventView[]): number {
@@ -1440,6 +1564,7 @@ export class MessagesStore {
       this.optimisticThreadFollows.clearAll();
       this.oldestCursor = undefined;
       this.newestCursor = undefined;
+      this.#trimAnchor = null;
       this.hasReachedStart = false;
       this.isLoadingMore = false;
     });
