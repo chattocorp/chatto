@@ -448,7 +448,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     );
     const row = threadMessageEvent('m1');
     const edited = { ...row, event: { ...row.event, body: 'edited' } };
-    store.captureMessageReconciliation()('m1', edited, true);
+    store.captureMessageReconciliation(new Set(['m1']))('m1', edited, true);
     pending.resolve(pageFromEvent(row));
     await vi.waitFor(() => expect(store.isInitialLoading).toBe(false));
     expect(store.getEventById('m1')?.event).toMatchObject({ body: 'edited' });
@@ -465,10 +465,30 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     const row = threadMessageEvent('m1');
     store.ingestEvent(row);
-    const apply = store.captureMessageReconciliation();
+    const apply = store.captureMessageReconciliation(new Set(['m1']));
     store.events = [{ ...row, event: { ...row.event, body: 'newer' } }];
     apply('m1', { ...row, event: { ...row.event, body: 'older' } }, false);
     expect(store.getEventById('m1')?.event).toMatchObject({ body: 'newer' });
+    store.dispose();
+  });
+
+  it('fingerprints only the reconciled rows', async () => {
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      { roomId: 'room-1' },
+      fakeTimelineAPI()
+    );
+    await settle();
+    const row = threadMessageEvent('m1');
+    const toJSON = vi.fn(() => ({}));
+    const unrelated = Object.assign(threadMessageEvent('m2'), { toJSON });
+    store.ingestEvent(row);
+    store.ingestEvent(unrelated);
+    const apply = store.captureMessageReconciliation(new Set(['m1']));
+    apply('m1', { ...row, event: { ...row.event, body: 'edited' } }, false);
+    expect(store.getEventById('m1')?.event).toMatchObject({ body: 'edited' });
+    expect(toJSON).not.toHaveBeenCalled();
     store.dispose();
   });
 
@@ -3812,7 +3832,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
         store.ingestEvent(preview);
         expect(store.threadSlowModeNextPostAt).toBeNull();
         if (path === 'reconciliation') {
-          store.captureMessageReconciliation()('reply', hydrated, true);
+          store.captureMessageReconciliation(new Set(['reply']))('reply', hydrated, true);
         } else {
           await store.refreshPostedMessage('reply');
         }
