@@ -46,6 +46,7 @@ type AnnouncementStage =
   | 'model turn'
   | 'response validation'
   | 'Chatto connection'
+  | 'follow-up memory'
   | 'thread lookup'
   | 'thread delivery'
   | 'root delivery'

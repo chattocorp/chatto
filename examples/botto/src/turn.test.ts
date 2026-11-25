@@ -96,7 +96,10 @@ test.each([true, false])(
       withTyping(new AbortController().signal, update, work)
     );
     naming.mockReturnValueOnce(finishNaming.promise);
-    agent.reply.mockReturnValueOnce(finishModel.promise);
+    agent.reply.mockImplementationOnce(async (_ctx, { onTyping }) => {
+      await onTyping!(true);
+      return finishModel.promise;
+    });
     server.postMessage.mockImplementationOnce(async () => {
       events.push('answer');
       return { ids: ['reply'] };
@@ -153,7 +156,7 @@ test.each(['silent', 'react', 'reply'] as const)(
     await turn([{ ...one, reasons: [] }]);
     expect(agent.reply).toHaveBeenCalledOnce();
     expect(beforeEffects).toHaveBeenCalledOnce();
-    expect(server.withTyping).toHaveBeenCalledOnce();
+    expect(server.withTyping).not.toHaveBeenCalled();
     expect(server.postMessage).toHaveBeenCalledTimes(action === 'reply' ? 1 : 0);
     expect(server.addReaction).toHaveBeenCalledTimes(action === 'react' ? 1 : 0);
     if (action === 'react')
@@ -212,7 +215,10 @@ test('reaction delivery stops typing first and never retries an uncertain write'
       typing = false;
     }
   });
-  agent.reply.mockResolvedValueOnce({ action: 'react', emoji: '+1' });
+  agent.reply.mockImplementationOnce(async (_ctx, { onTyping }) => {
+    await onTyping!(true);
+    return { action: 'react', emoji: '+1' };
+  });
   server.addReaction.mockImplementationOnce(async () => {
     expect(typing).toBe(false);
     throw new Error('Uncertain write');
@@ -245,7 +251,10 @@ test('passive typing starts before a completed message and ends even when later 
       typingActive = false;
     }
   });
-  agent.reply.mockImplementationOnce(async (_ctx, { postUpdate }) => {
+  agent.reply.mockImplementationOnce(async (_ctx, { postUpdate, onTyping }) => {
+    expect(server.withTyping).not.toHaveBeenCalled();
+    expect(typingActive).toBe(false);
+    await onTyping!(true);
     expect(server.withTyping).toHaveBeenCalledOnce();
     expect(typingActive).toBe(true);
     expect(server.postMessage).not.toHaveBeenCalled();
@@ -272,7 +281,7 @@ test('a mixed batch keeps addressing per message and acknowledges the addressed 
       (item: { reasons: string[] }) => item.reasons
     )
   ).toEqual([[], ['mention']]);
-  expect(server.withTyping).toHaveBeenCalledOnce();
+  expect(server.withTyping).not.toHaveBeenCalled();
   expect(server.addReaction.mock.calls[0]![0].messageId).toBe('two');
 });
 
@@ -443,6 +452,7 @@ test('a debounced batch becomes one prompt and one reply in its original thread'
       prompt: expect.any(String),
       signal: expect.any(AbortSignal),
       postUpdate: expect.any(Function),
+      onTyping: expect.any(Function),
       allowReaction: true,
       loadImages: undefined,
       context: {

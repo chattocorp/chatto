@@ -42,7 +42,8 @@ tools=["get_commit", "get_file_contents"]
 admin_tools=["issue_write"]
 [mcp.servers.memory]
 command="means"
-tools=["read", "create"]
+tools=["info", "search", "read", "create"]
+admin_tools=["update"]
 [announcements.github]
 enabled=true
 repository="owner/repo"
@@ -217,7 +218,7 @@ test('opted-in pushes check follow-ups without Sweet notes, but releases get no 
   const check = vi.spyOn(filter, 'loadChangedFiles').mockResolvedValue([]);
   const { createAgentSession } = await import('runling');
   const settings = parseSettings(
-    config + 'thread_replies=true\nmcp_servers=["github", "memory"]',
+    config + 'thread_replies=true\nfollowup_memory="memory"\nmcp_servers=["github", "memory"]',
     '/example/botto.toml',
     {}
   );
@@ -278,4 +279,17 @@ test('model failures identify setup or turn stages without leaking provider mess
     'Announcement model turn failed.'
   );
   expect(session.dispose).toHaveBeenCalled();
+});
+
+test('follow-up announcement agents cannot create or update delivery records', () => {
+  const settings = parseSettings(
+    config + 'mcp_servers=["memory"]\nthread_replies=true\nfollowup_memory="memory"',
+    '/example/botto.toml',
+    {}
+  );
+  const selected = announcementMcpSettings(settings).extraMcpServers[0]!;
+  expect(selected.tools).toEqual(['info', 'search', 'read']);
+  expect(selected.adminTools).toEqual([]);
+  expect(settings.extraMcpServers[1]!.tools).toContain('create');
+  expect(settings.extraMcpServers[1]!.adminTools).toContain('update');
 });

@@ -46,6 +46,7 @@ Release announcements are opt-in. Add these fields to the existing
 
 ```toml
 releases = true
+release_room_id = "YOUR_RELEASE_ROOM_ID" # Optional; defaults to room_id.
 release_prompt_file = "prompts/release-announcement.md"
 ```
 
@@ -166,48 +167,55 @@ other instead of maintaining separate copies of the same workflow.
 
 ### Issue-resolution follow-ups
 
-Klaus can use its existing Means collection to connect an issue to the Chatto
-thread where it was reported. Enable this in the existing announcement table:
+Klaus uses a separate Means collection for issue origins and delivery records.
+General knowledge stays in the Klaus collection. Enable follow-ups in the
+announcement table:
 
 ```toml
-mcp_servers = ["github", "memory_klaus"]
+mcp_servers = ["github", "issue_followups"]
 thread_replies = true
+followup_memory = "issue_followups"
 ```
 
-Use the supplied commit prompt and GitHub skill with the Klaus collection's
-`MEANS.md`. The memory connection needs `info`, `list`, `search`, `read`, and
-`create`; maintenance tools remain admin-only. Optional `issue_origin` and
-`issue_notification` schema fields preserve compatibility with existing entries.
+Connect `issue_followups` to `brains/issue-followups` through Means MCP. Expose
+`info`, `list`, `search`, `read`, and `create` as ordinary tools. Put `update`,
+`delete`, and `schema_set` in `admin_tools`. The host uses `update` for delivery
+records; the announcement agent cannot call it. Use the supplied commit prompt,
+GitHub skill, and collection `MEANS.md` together.
+
 After confirmed, owner-authorized issue creation, the conversation agent records
 the repository and issue number with the host-supplied server, room, and thread
 identifiers. It does not publish these private identifiers to GitHub. Existing
 issues do not get origins automatically.
 
-On each accepted push, the announcement agent checks those memory records and
-uses GitHub read tools to verify explicit issue resolution by a merge or commit
-included at the push's immutable `after` revision. A later push can therefore
-send a missed notice for an earlier fix. These older fixes do not enter the
-current channel announcement. Similar text, an issue mention, or closure alone
-is not enough.
-The agent posts a short fix notice in the recorded original thread, then creates
-a separate memory receipt with the returned message ID. The announcement session
-owns this receipt; conversation acknowledgments do not create another one. The
-origin is unchanged.
-No second memory collection or follow-up database is used. Destructive memory
-actions still require explicit owner approval. Release events do not send these
-follow-ups; a fix on the configured branch does not establish release availability.
+On each accepted push, the announcement agent reads these records and uses
+GitHub tools to verify explicit issue resolution by a merge or commit included
+at the push's immutable `after` revision. A later push can send a missed notice
+for an earlier fix. These older fixes do not enter the current channel summary.
+Similar text, an issue mention, or closure alone is not enough. Release events
+do not send these follow-ups; a fix on the configured branch does not establish
+release availability.
 
 The operator setting grants standing permission for these thread notifications.
-The host exposes `reply_to_thread` only in opted-in push sessions and rejects
-missing roots or replies passed as roots. Chatto permissions still apply. The
-agent selects the origin and verifies resolution under prompt instructions;
-the host does not independently validate the memory-to-issue association. Use
-only trusted collection writers. Each send reuses an idempotency key derived from
-the repository, origin memory ID, and destination. Memory receipts help suppress
-repeats after later pushes; posting and recording a receipt are separate actions.
-A lost receipt can cause a retry. Chatto deduplicates the same key and exact
-message arguments for 30 minutes; different text with that key conflicts during
-that window. Memory receipts remain the check for later pushes.
+The host exposes `reply_to_thread` only in opted-in push sessions. It validates
+the origin against the repository, server, and destination, then checks delivery
+records for all origins that refer to the same issue and thread. Existing
+standalone receipts remain valid. A confirmed receipt returns `alreadyDelivered`
+without posting. Incomplete lookups stop delivery.
+
+Before sending, the host saves a `sending` state in the origin through Means.
+After Chatto confirms the send, the host saves `delivered` and the message ID.
+The agent must not create receipts or change delivery state. A failed send or
+receipt write leaves the origin held for operator review, including after a
+restart. Check Chatto before resolving that state; do not clear it merely to
+retry. Destructive actions and manual state changes require owner authorization.
+
+One Botto process must own this collection. Host sends are serialized within that
+process, and Means hashes detect record changes. The host also rejects missing
+roots and replies passed as roots. Chatto permissions still apply. The agent
+verifies the fix; the host does not independently verify GitHub resolution. Use
+only trusted collection writers. The existing Chatto idempotency key remains an
+additional short-term safeguard. Means delivery records suppress later repeats.
 No historical pushes are replayed when this option is enabled.
 
 Memory context goes to the configured model provider. Notifications go only to
@@ -328,8 +336,9 @@ error messages, request URLs, tokens, and message contents are not included.
 Nested failures keep the original stage. Retry and uncertain-delivery handling
 remain unchanged.
 
-MCP failures remain visible in Runling's tool activity. For example, a failed
-`memory_klaus` create call after a thread reply identifies a failed receipt write;
-it is not reported as a failed Chatto send. Check that sequence when diagnosing
-follow-ups. The model can recover from a tool error, so a failed tool event does
-not necessarily mean the whole run failed.
+MCP failures remain visible in Runling's tool activity. Host memory failures use
+the `follow-up memory` stage. If a delivery remains in `sending`, inspect the
+original thread and saved message text before an owner resolves the state. Do
+not ask the agent to create a replacement origin or receipt to retry.
+
+Release announcements can use `release_room_id` while push summaries continue to use `room_id`. Grant the bot access and permission to post in both rooms. Each announcement saves its destination before delivery. Prepared announcements and pending replies keep their original room after configuration changes; older receipts without a saved destination use `room_id`. Changing the release room does not replay past releases or change issue-follow-up destinations.

@@ -44,6 +44,16 @@ reasoning_level = "off"
 # tools = ["info", "list", "search", "read", "create"]
 # admin_tools = ["update", "delete", "schema_set"]
 
+# Dedicated operational collection for issue origins and delivery state.
+# [mcp.servers.issue_followups]
+# command = "means"
+# args = ["mcp", "--path", "brains/issue-followups"]
+# serialize = true
+# tools = ["info", "list", "search", "read", "create"]
+# admin_tools = ["update", "delete", "schema_set"]
+# Set announcements.github.followup_memory = "issue_followups" and include
+# "issue_followups" in announcements.github.mcp_servers to enable host receipts.
+
 [web]
 # Search the web and fetch pages through Exa's hosted MCP server. Exa receives
 # the queries and URLs. Without a key, Exa applies low per-IP rate limits.

@@ -220,6 +220,19 @@ export function parseSettings(
     )
   )
     throw new Error('announcements.github.mcp_servers must name configured MCP servers.');
+  if (announcements?.threadReplies) {
+    const memory = extraMcpServers.find((server) => server.name === announcements.followupMemory);
+    if (
+      !memory ||
+      !announcements.mcpServers?.includes(memory.name) ||
+      !['info', 'read', 'search', 'create'].every((name) => memory.tools.includes(name)) ||
+      !memory.adminTools.includes('update') ||
+      memory.tools.includes('update')
+    )
+      throw new Error(
+        'Thread replies require followup_memory naming a selected Means MCP server with info/read/search/create tools and admin-only update.'
+      );
+  }
   const apiKey = string(chatto, 'api_key', 'chatto.api_key');
   return {
     serverUrl,

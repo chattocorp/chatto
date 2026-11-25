@@ -5,6 +5,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { createTaskContext, type TaskContext, type AgentRunOptions } from 'runling';
 import { createAgent, transcriptName } from './agent.ts';
 import { parseSettings } from './settings.ts';
+import type { ExtensionAPI, ExtensionFactory } from '@earendil-works/pi-coding-agent';
 import { threadContextExtension } from './thread-context.ts';
 
 const mock = vi.hoisted(() => ({ create: vi.fn() }));
@@ -214,4 +215,31 @@ test('MCP memory preserves existing documents and transcripts without reading de
   expect(await readFile(join(brain, 'original.md'), 'utf8')).toBe(document);
   expect(await readFile(join(brain, 'MEANS.md'), 'utf8')).toBe(description);
   expect(await readFile(transcript, 'utf8')).toBe('existing transcript with old initialMemory');
+});
+
+test('typing follows streamed text, not thinking or reaction tool arguments', async () => {
+  const { agent, session } = await setup();
+  const onTyping = vi.fn(async (_active: boolean) => {});
+  session.run.mockImplementationOnce(async () => {
+    const on = vi.fn();
+    const api = { on, registerTool: vi.fn() } as unknown as ExtensionAPI;
+    const extensions: ExtensionFactory[] = mock.create.mock.lastCall![0].extensions;
+    for (const extension of extensions) await extension(api);
+    const update = on.mock.calls.find(([name]) => name === 'message_update')![1];
+    const end = on.mock.calls.find(([name]) => name === 'message_end')![1];
+    for (const type of ['thinking_delta', 'toolcall_delta'])
+      await update({ assistantMessageEvent: { type, delta: 'heart' } });
+    await update({ assistantMessageEvent: { type: 'text_delta', delta: '  ' } });
+    expect(onTyping).not.toHaveBeenCalled();
+    await update({ assistantMessageEvent: { type: 'text_delta', delta: 'Hello' } });
+    await end({});
+    expect(onTyping.mock.calls).toEqual([[true], [false]]);
+    return { summary: 'Hello' };
+  });
+  await agent.reply(createTaskContext(), {
+    identity: ['server', 'bot', 'room', 'thread'],
+    prompt: 'hello',
+    signal: new AbortController().signal,
+    onTyping
+  });
 });

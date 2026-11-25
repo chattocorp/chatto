@@ -64,7 +64,13 @@ url="https://chat.example.com"
 api_key="unused"
 [agent]
 model="test/model"
+[mcp.servers.followups]
+command="means"
+tools=["info", "search", "read", "create"]
+admin_tools=["update"]
 [announcements.github]
+followup_memory="followups"
+mcp_servers=["followups"]
 enabled=true
 repository="owner/repo"
 branch="next"

@@ -297,8 +297,9 @@ The terminal reaction tool uses the Chatto client and works without Chatto MCP.
 Its target is fixed by the host to the latest incoming message. The prompt tells
 the model not to duplicate the host acknowledgement reaction.
 
-Botto shows typing throughout every accepted agent turn, including turns that
-end in silence or a reaction. It stops typing and joins any pending refresh before
+Botto starts typing when the model streams nonempty reply text. Thinking, tool
+calls, and reaction-only or silent turns do not start typing. Text followed by a
+reaction can still show typing briefly. Typing refreshes stop between model messages. It stops typing and joins any pending refresh before
 posting a final reply or reaction. Title generation does not keep typing active.
 
 Only final assistant text is posted automatically. The agent can call `post_update`
@@ -443,8 +444,9 @@ tools = ["info", "list", "search", "read", "create"]
 admin_tools = ["update", "delete", "schema_set"]
 ```
 
-The example uses one collection, defined in `brains/klaus/MEANS.md`, for project
-knowledge and personal preferences. Tags organize categories within it. Review
+The example uses `brains/klaus/MEANS.md` for project knowledge and personal
+preferences. Issue follow-ups use a separate collection at
+`brains/issue-followups`; see [announcement setup](ANNOUNCEMENTS.md#issue-resolution-follow-ups). Tags organize categories within it. Review
 these instructions before enabling the connection. Additional collections remain
 ordinary MCP connections when needed. `brains/`
 is a storage convention, not a special base directory. Relative `--path` values

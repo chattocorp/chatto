@@ -2,7 +2,46 @@
 import type { ExtensionAPI, ExtensionToolContext } from '@earendil-works/pi-coding-agent';
 import type { Server } from '@chatto/client';
 import { expect, test, vi } from 'vitest';
+import type { MeansCall } from './followup-memory.ts';
 import { announcementThreadTools } from './announcement-threads.ts';
+
+vi.mock('./followup-memory.ts', async (original) => ({
+  ...(await original<typeof import('./followup-memory.ts')>()),
+  withFollowupMemory: async (
+    _entry: unknown,
+    _signal: AbortSignal,
+    work: (call: MeansCall) => Promise<unknown>
+  ) => {
+    const origin = {
+      id: 'abc12',
+      hash: 'hash',
+      frontmatter: {
+        data: {
+          issue_origin: {
+            repository: 'owner/repo',
+            server_url: 'https://chat.example.com',
+            issue_number: 1,
+            room_id: 'room',
+            thread_id: 'root'
+          }
+        }
+      }
+    };
+    let id = 'abc12';
+    return work(async (name, args) => {
+      if (name === 'read') {
+        id = String(args.id);
+        return { ...origin, id };
+      }
+      if (name === 'update') return { ...origin, id };
+      return {
+        documents: (args.filter as Record<string, unknown>).issue_origin ? [{ ...origin, id }] : [],
+        diagnostics: [],
+        has_more: false
+      };
+    });
+  }
+}));
 
 async function setup() {
   const controller = new AbortController();
@@ -14,15 +53,15 @@ async function setup() {
   });
   const createMessage = vi.fn<Server['createMessage']>().mockResolvedValue({ id: 'notification' });
   const registerTool = vi.fn<ExtensionAPI['registerTool']>();
-  await announcementThreadTools(
-    { getMessage, createMessage },
-    'owner/repo',
-    controller.signal
-  )({ registerTool } as unknown as ExtensionAPI);
+  await announcementThreadTools({ getMessage, createMessage }, 'owner/repo', controller.signal, {
+    serverUrl: 'https://chat.example.com',
+    memory: {} as never
+  })({ registerTool } as unknown as ExtensionAPI);
   const call = (overrides = {}) =>
     registerTool.mock.calls[0]![0].execute(
       'call',
       {
+        commitSha: 'a'.repeat(40),
         originMemoryId: 'abc12',
         roomId: 'room',
         threadRootId: 'root',
@@ -42,7 +81,12 @@ test('posts to the recorded thread, returns its receipt, and reuses the origin k
   expect(result.content).toEqual([
     {
       type: 'text',
-      text: JSON.stringify({ messageId: 'notification', roomId: 'room', threadRootId: 'root' })
+      text: JSON.stringify({
+        messageId: 'notification',
+        alreadyDelivered: false,
+        roomId: 'room',
+        threadRootId: 'root'
+      })
     }
   ]);
   await call();

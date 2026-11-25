@@ -32,7 +32,15 @@ export function announcementMcpSettings(settings: Settings): Settings {
     web: false,
     extraMcpServers: settings.extraMcpServers
       .filter((server) => names.includes(server.name))
-      .map((server) => ({ ...server, adminTools: [] }))
+      .map((server) => ({
+        ...server,
+        // Origins are registered in conversations. Announcement agents only read this collection.
+        tools:
+          server.name === settings.announcements?.followupMemory
+            ? server.tools.filter((tool) => ['info', 'list', 'search', 'read'].includes(tool))
+            : server.tools,
+        adminTools: []
+      }))
   };
 }
 
@@ -65,7 +73,14 @@ export async function describeAnnouncement(
         response.extension,
         mcpExtension(announcementMcpSettings(settings)),
         ...(followups
-          ? [announcementThreadTools(server!, settings.announcements!.repository, signal)]
+          ? [
+              announcementThreadTools(server!, settings.announcements!.repository, signal, {
+                serverUrl: settings.serverUrl,
+                memory: settings.extraMcpServers.find(
+                  (entry) => entry.name === settings.announcements!.followupMemory
+                )!
+              })
+            ]
           : [])
       ],
       toolExecution: 'sequential',
@@ -84,7 +99,7 @@ export async function describeAnnouncement(
           ? 'Finish by calling finish_announcement with a short Markdown channel summary (at most 400 characters) and separate Markdown thread details (at most 4000 characters). The host adds the source link and posts details as a reply to the summary. For pushes, the link goes at the end of details; for releases, it goes in the summary.'
           : 'This push does not qualify for a channel announcement. Check only issue follow-ups, then call finish_followups. Do not prepare or post a channel summary.',
         followups
-          ? 'The operator authorizes issue-resolution replies only to their original threads recorded in memory. Use reply_to_thread only for this purpose and create memory entries for confirmed delivery receipts. Do not edit or delete memory. Follow the configured prompt for resolution checks and wording, and collection info for storage. Complete follow-ups before calling the terminal tool. Do not claim completion after a required lookup or delivery fails.'
+          ? 'The operator authorizes issue-resolution replies only to their original threads recorded in memory. Use reply_to_thread only for this purpose. The host validates origins and records delivery in the dedicated Means collection. Do not create delivery receipts or edit delivery state yourself. Do not edit or delete memory. Follow the configured prompt for resolution checks and wording, and collection info for storage. Complete follow-ups before calling the terminal tool. Do not claim completion after a required lookup or delivery fails.'
           : 'Do not post messages or perform external writes. The host handles announcement delivery.',
         ('kind' in event
           ? settings.announcements?.releasePrompt
@@ -183,7 +198,7 @@ export function createGithubAnnouncements(settings: Settings) {
         server: Server;
         store: AnnouncementStore;
         signal: AbortSignal;
-        registerRoot: (messageId: string) => void;
+        registerRoot: (messageId: string, roomId: string) => void;
       }
     | undefined;
   const workflow = task(
@@ -194,6 +209,7 @@ export function createGithubAnnouncements(settings: Settings) {
       const signal = AbortSignal.any([ctx.signal, sourceSignal, AbortSignal.timeout(120_000)]);
       const record = store.get(key);
       if (!record) throw new Error('Unknown announcement');
+      const roomId = store.destination(key, config.roomId, config.releaseRoomId);
       try {
         await announcementStep('Chatto connection', () => server.ready({ signal }));
         await deliverAnnouncement(
@@ -202,13 +218,13 @@ export function createGithubAnnouncements(settings: Settings) {
           (event) => describeAnnouncement(ctx, settings, event, signal, server),
           (body, idempotencyKey, threadRootId) => {
             signal.throwIfAborted();
-            return server.createMessage({ roomId: config.roomId, threadRootId }, body, {
+            return server.createMessage({ roomId, threadRootId }, body, {
               signal,
               idempotencyKey
             });
           },
           announcementLink(config.repository, record.push ?? record.release),
-          registerRoot
+          (messageId) => registerRoot(messageId, roomId)
         );
         return null;
       } catch (error) {
@@ -246,16 +262,17 @@ export function createGithubAnnouncements(settings: Settings) {
         config.branch,
         config.roomId
       ]);
-      const registerRoot = (threadRootId: string) =>
+      const registerRoot = (threadRootId: string, roomId: string) =>
         rememberParticipation(
           settings.directory,
           conversationIdentity(settings.serverUrl, viewerId, {
-            roomId: config.roomId,
+            roomId,
             threadRootId
           })
         );
       // Repair a crash between receipt and registration, and adopt older announcements.
-      for (const messageId of store.sentRoots) registerRoot(messageId);
+      for (const thread of store.sentThreads(config.roomId))
+        registerRoot(thread.threadRootId, thread.roomId);
       current = { server, store, signal, registerRoot };
       if (store.uncertain)
         log.warn('Announcement delivery needs operator review', { messages: store.uncertain });

@@ -11,6 +11,8 @@ export interface AnnouncementSettings {
   repository: string;
   branch: string;
   roomId: string;
+  /** Optional release destination; defaults to the push room. */
+  releaseRoomId?: string;
   secret: string;
   host: string;
   port: number;
@@ -26,6 +28,8 @@ export interface AnnouncementSettings {
   mcpServers?: string[];
   /** Permit push sessions to notify existing threads, including pushes without release notes. */
   threadReplies?: boolean;
+  /** Dedicated Means MCP connection used by host delivery checks and receipt writes. */
+  followupMemory?: string;
 }
 
 /** Disabled configuration can keep secret placeholders until the operator enables it. */
@@ -36,7 +40,7 @@ export function parseAnnouncements(
 ): AnnouncementSettings | undefined {
   const fail = (): never => {
     throw new Error(
-      'Invalid announcements.github settings. Check repository, branch, room_id, webhook_secret, host, port, cloudflared_command, cloudflare_tunnel_token, prompt_file, releases, release_prompt_file, mcp_servers, thread_replies, required_changed_path, required_changed_content, added_files_only, and GitHub App credentials.'
+      'Invalid announcements.github settings. Check repository, branch, room_id, release_room_id, webhook_secret, host, port, cloudflared_command, cloudflare_tunnel_token, prompt_file, releases, release_prompt_file, mcp_servers, thread_replies, followup_memory, required_changed_path, required_changed_content, added_files_only, and GitHub App credentials.'
     );
   };
   const table = (v: unknown): Record<string, unknown> => {
@@ -55,6 +59,7 @@ export function parseAnnouncements(
           'repository',
           'branch',
           'room_id',
+          'release_room_id',
           'webhook_secret',
           'host',
           'port',
@@ -65,6 +70,7 @@ export function parseAnnouncements(
           'release_prompt_file',
           'mcp_servers',
           'thread_replies',
+          'followup_memory',
           'required_changed_path',
           'required_changed_content',
           'added_files_only',
@@ -169,9 +175,11 @@ export function parseAnnouncements(
     ...(config.thread_replies !== undefined
       ? { threadReplies: config.thread_replies as boolean }
       : {}),
+    ...(config.followup_memory !== undefined ? { followupMemory: text('followup_memory') } : {}),
     repository,
     branch,
     roomId: text('room_id'),
+    ...(config.release_room_id !== undefined ? { releaseRoomId: text('release_room_id') } : {}),
     secret,
     host: text('host', '127.0.0.1'),
     port,

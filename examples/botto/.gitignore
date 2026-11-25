@@ -12,3 +12,5 @@ brains/*
 !brains/klaus/
 brains/klaus/*
 !brains/klaus/MEANS.md
+
+!brains/issue-followups/

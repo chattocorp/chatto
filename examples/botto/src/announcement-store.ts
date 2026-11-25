@@ -27,6 +27,8 @@ export type Announcement = AnnouncementReceipt &
   ({ push: PushSummary; release?: never } | { release: ReleaseSummary; push?: never });
 
 interface AnnouncementReceipt {
+  /** Pinned before delivery so a config change cannot move a pending reply. */
+  roomId?: string;
   deliveryId: string;
   status: 'queued' | 'sending' | 'sent' | 'skipped';
   /** Stable caller UUID and exact body are persisted before the external write. */
@@ -77,6 +79,7 @@ export class AnnouncementStore {
               typeof r.release.prerelease !== 'boolean' ||
               typeof r.release.publishedAt !== 'string' ||
               typeof r.release.truncated !== 'boolean')) ||
+          (r.roomId !== undefined && (typeof r.roomId !== 'string' || !r.roomId.trim())) ||
           typeof r.idempotencyKey !== 'string' ||
           !['queued', 'sending', 'sent', 'skipped'].includes(r.status) ||
           ((r.status === 'sending' || r.status === 'sent') && typeof r.body !== 'string') ||
@@ -128,6 +131,30 @@ export class AnnouncementStore {
     return Object.values(this.records)
       .filter((record) => record.status === 'sent' && record.messageId)
       .map((record) => record.messageId!);
+  }
+  /** Confirmed roots with their saved destinations; old receipts use the original push room. */
+  sentThreads(legacyRoomId: string): Array<{ roomId: string; threadRootId: string }> {
+    return Object.values(this.records)
+      .filter((record) => record.status === 'sent' && record.messageId)
+      .map((record) => ({
+        roomId: record.roomId ?? legacyRoomId,
+        threadRootId: record.messageId!
+      }));
+  }
+  /** Pin new deliveries; prepared legacy records must finish in their original room. */
+  destination(key: string, legacyRoomId: string, releaseRoomId = legacyRoomId): string {
+    const record = this.records[key];
+    if (!record) throw new Error('Unknown announcement');
+    if (record.roomId) return record.roomId;
+    const roomId =
+      record.body !== undefined || record.status === 'sent' || record.status === 'sending'
+        ? legacyRoomId
+        : record.release
+          ? releaseRoomId
+          : legacyRoomId;
+    if (!roomId.trim()) throw new Error('Announcement destination is empty');
+    this.save({ ...this.records, [key]: { ...record, roomId } });
+    return roomId;
   }
   get queued(): string[] {
     return Object.keys(this.records).filter((key) => {

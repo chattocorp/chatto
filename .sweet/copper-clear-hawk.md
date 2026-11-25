@@ -18,8 +18,14 @@ Klaus checks GitHub changes before starting an announcement agent and skips chan
 
 Botto follows human replies in threads it opens for announcements, without requiring another mention. Participation survives restarts, and existing confirmed announcement threads are registered on startup. Klaus treats reports of missed messages as uncertain behavior to investigate instead of inventing routing explanations.
 
-Enable `thread_replies` to let Klaus notify the original reporting thread when an owner-authorized issue has a verified fix on the configured branch. Issue origins and delivery receipts use the existing Means collection. Later pushes can catch up on missed notifications, including pushes without new release notes. A fix notification does not imply that the change is released or deployed.
+Enable `thread_replies` to let Klaus notify the original reporting thread when an owner-authorized issue has a verified fix on the configured branch. Issue origins and delivery receipts use a dedicated Means collection, selected with `followup_memory`. The host checks existing receipts before sending and records delivery state. Uncertain sends stay held for owner review. Later pushes can catch up on missed notifications, including pushes without new release notes. A fix notification does not imply that the change is released or deployed.
 
 Issue-thread notifications reject message bodies that contain only destination metadata before sending. Rejected metadata-only messages do not consume the delivery key. Notification instructions also require complete final text and prohibit placeholder or test sends.
 
 Klaus posts merge summaries only for newly added Sweet Release notes of type `highlight`, and uses only those highlights for the summary. Other note types, edits to existing notes, and deletions do not trigger a channel post. Issue-fix notices in the original reporting threads still run on pushes without highlights. Published release announcements are unchanged.
+
+Set `release_room_id` to send published release announcements to a different room from merge summaries. Pending replies keep the destination of their root message, and past releases are not posted again.
+
+Botto’s conversation prompt treats completed requests as a reason to stay silent. Thanks, status confirmations, and side conversations do not require another reply. New requests, corrections, and information needed for unfinished work still receive attention.
+
+Botto starts its typing indicator when the model generates reply text. Thinking, research, and reaction-only or silent turns no longer show typing.

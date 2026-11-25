@@ -24,6 +24,8 @@ export interface ReplyOptions {
   loadImages?: Parameters<typeof threadContextExtension>[1];
   /** Deliver an explicit progress update before its tool returns. */
   postUpdate?: (text: string) => void | Promise<void>;
+  /** Report visible text generation; thinking and tool calls do not count as typing. */
+  onTyping?: (active: boolean) => Promise<void>;
   /** Incoming reactions cannot be answered by reacting to the bot itself. */
   allowReaction?: boolean;
   /** Server-verified authors of the current batch, never historical participants. */
@@ -60,6 +62,7 @@ export async function createAgent(settings: Settings) {
         context,
         loadImages,
         postUpdate,
+        onTyping,
         allowReaction = true,
         userIds = [],
         tools = [],
@@ -91,6 +94,15 @@ export async function createAgent(settings: Settings) {
         },
         extensions: [
           response.extension,
+          (pi) => {
+            pi.on('message_update', async (event) => {
+              const update = event.assistantMessageEvent;
+              if (update.type === 'text_delta' && update.delta.trim()) await onTyping?.(true);
+            });
+            pi.on('message_end', async () => {
+              await onTyping?.(false);
+            });
+          },
           skillReadExtension(settings.skillsDirectory),
           ...tools,
           mcpExtension(settings, undefined, adminOnly),

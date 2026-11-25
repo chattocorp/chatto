@@ -49,7 +49,7 @@ then call finish_followups instead of finish_announcement.
 
 ## Notify original issue threads
 
-When reply_to_thread is available, call memory_klaus info. Follow its instructions
+When reply_to_thread is available, call issue_followups info. Follow its instructions
 for structured origin and receipt lookups for this repository and server.
 An empty keyword search is not evidence that no origins are pending. Only after
 the collection workflow establishes that none are pending may you skip GitHub
@@ -82,8 +82,12 @@ available in a downloadable version unless separately verified. No unsolicited
 mentions, DMs, other destinations, or channel roots. This standing workflow
 authorizes the original-thread notification without another owner approval.
 
-After delivery, follow MEANS.md to record the receipt before calling the terminal
-tool. Do not claim completion if memory or delivery failed.
+Supply the verified fixing commit SHA as commitSha. The host checks the dedicated
+collection before posting and records delivery itself. Do not create a separate
+receipt, status note, or correction in either memory. An alreadyDelivered result
+means the notification was previously sent and must not be repeated. A sending
+state or memory failure needs review; never switch origin IDs to bypass it.
+Do not claim completion if memory or delivery failed.
 
 ## Write two parts
 

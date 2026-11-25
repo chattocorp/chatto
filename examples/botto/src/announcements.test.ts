@@ -619,3 +619,57 @@ test('unconfirmed and skipped announcement roots do not register participation',
   expect(register).not.toHaveBeenCalled();
   expect(store.sentRoots).toEqual([]);
 });
+
+test('release destinations survive restart while pushes and legacy replies stay in their room', async () => {
+  const { directory, store } = ledger();
+  const release = {
+    kind: 'release' as const,
+    id: 900,
+    tag: 'v1',
+    name: 'v1',
+    body: '',
+    prerelease: false,
+    publishedAt: '',
+    truncated: false
+  };
+  store.accept(push, 'push');
+  store.accept(release, 'release');
+  const [pushKey, releaseKey] = store.queued as [string, string];
+  expect(store.destination(pushKey, 'development', 'announcements')).toBe('development');
+  expect(store.destination(releaseKey, 'development', 'announcements')).toBe('announcements');
+  store.prepare(releaseKey, 'Release', 'Details');
+  store.sending(releaseKey);
+  store.complete(releaseKey, 'release-root');
+  const restored = new AnnouncementStore(directory, ['server', 'viewer', 'repo', 'main', 'room']);
+  expect(restored.destination(releaseKey, 'development', 'different-room')).toBe('announcements');
+  expect(restored.sentThreads('development')).toEqual([
+    { roomId: 'announcements', threadRootId: 'release-root' }
+  ]);
+  const post = vi.fn(async () => ({ id: 'details' }));
+  await deliverAnnouncement(restored, releaseKey, vi.fn(), post, 'link');
+  expect(post).toHaveBeenCalledTimes(1);
+  expect(post.mock.calls[0]).toEqual(['Details', expect.any(String), 'release-root']);
+
+  restored.accept({ ...release, id: 901 }, 'old-release');
+  const oldKey = restored.queued.find((key) => restored.get(key)?.release?.id === 901)!;
+  restored.prepare(oldKey, 'Previously prepared', 'Pending details');
+  expect(restored.destination(oldKey, 'development', 'announcements')).toBe('development');
+  restored.accept({ ...release, id: 902 }, 'default-release');
+  const defaultKey = restored.queued.find((key) => restored.get(key)?.release?.id === 902)!;
+  expect(restored.destination(defaultKey, 'development')).toBe('development');
+});
+
+test('parses an optional release room without changing the push room', () => {
+  const github = {
+    enabled: true,
+    repository: 'owner/repo',
+    room_id: 'development',
+    release_room_id: 'announcements',
+    webhook_secret: 's'.repeat(32)
+  };
+  expect(parseAnnouncements({ github }, {})).toMatchObject({
+    roomId: 'development',
+    releaseRoomId: 'announcements'
+  });
+  expect(() => parseAnnouncements({ github: { ...github, release_room_id: '' } }, {})).toThrow();
+});
