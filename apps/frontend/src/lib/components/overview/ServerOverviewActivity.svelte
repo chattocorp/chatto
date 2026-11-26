@@ -25,7 +25,7 @@ action, so this component does not depend on app-shell state.
   import { m } from '$lib/i18n/messages';
   import type { CatchUpRoom } from '$lib/serverOverview';
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
-  import { NotificationBadge, Panel, UnreadDot } from '$lib/ui';
+  import { NotificationBadge, Panel, UnreadDot, PulseIcon } from '$lib/ui';
   import { Button } from '$lib/ui/form';
 
   let {
@@ -81,8 +81,7 @@ action, so this component does not depend on app-shell state.
               class="flex min-w-0 flex-1 items-center gap-2 py-1.5 ps-3"
               href={roomHref(call.roomId)}
             >
-              <span aria-hidden="true" class="iconify icon-[uil--volume] shrink-0 text-success"
-              ></span>
+              <span class="sidebar-icon text-action"><PulseIcon icon="icon-[uil--phone]" /></span>
               <bdi class="min-w-0 truncate font-medium">{call.roomName}</bdi>
             </a>
             <span
@@ -111,6 +110,7 @@ action, so this component does not depend on app-shell state.
             </span>
             <!-- The short visible label is part of the accessible name, which names the call. -->
             <Button
+              variant="secondary"
               size="compact"
               label={m('voice.join_call')}
               onclick={() => onjoincall(call.roomId)}

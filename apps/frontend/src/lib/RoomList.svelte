@@ -37,7 +37,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     MenuItem,
     MenuSection,
     contextMenuTrigger,
-    type ContextMenuTriggerDetails
+    type ContextMenuTriggerDetails,
+    PulseIcon
   } from '$lib/ui';
   import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import {
@@ -890,15 +891,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     aria-label={m('room_list.active_call')}
     data-testid="room-call-icon"
   >
-    <span class="relative inline-flex">
-      <span
-        class="absolute inset-0 icon-[uil--phone] pane-header-icon-glyph animate-ping opacity-45"
-        aria-hidden="true"
-        data-testid="active-call-pulse-icon"
-      ></span>
-      <span class="relative icon-[uil--phone] pane-header-icon-glyph text-action" aria-hidden="true"
-      ></span>
-    </span>
+    <PulseIcon icon="icon-[uil--phone]" />
   </span>
 {/snippet}
 
