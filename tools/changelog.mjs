@@ -75,15 +75,22 @@ export function parseChangelog(markdown) {
 }
 
 /**
- * Return the highlights of each release that has highlights, latest first.
+ * Return the releases for the in-app guide, latest first. Once the stable
+ * release contains the highlights from its prereleases, omit those entries.
+ * Include pending notes only when there are pending highlights.
  *
  * @param {string} markdown The text of `CHANGELOG.md`.
  * @returns {{ version: string, highlights: string[] }[]}
  */
 export function releaseHighlights(markdown) {
-  return parseChangelog(markdown).flatMap(({ version, sections }) => {
+  const releases = parseChangelog(markdown);
+  const latest = releases.find(({ version }) => version !== UNRELEASED);
+  const currentCyclePrefix = latest?.version.match(/^\d+\.\d+\.\d+-/)?.[0];
+  return releases.flatMap(({ version, sections }) => {
+    if (version.includes('-') && !(currentCyclePrefix && version.startsWith(currentCyclePrefix)))
+      return [];
     const highlights = sections.find(({ title }) => title === HIGHLIGHTS)?.notes ?? [];
-    return highlights.length ? [{ version, highlights }] : [];
+    return version !== UNRELEASED || highlights.length ? [{ version, highlights }] : [];
   });
 }
 

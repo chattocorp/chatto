@@ -1,7 +1,7 @@
 # FDR-060: Release Highlights and Changelog
 
 **Status:** Active
-**Last reviewed:** 2026-11-22
+**Last reviewed:** 2026-11-26
 
 ## Behavior
 
@@ -11,9 +11,9 @@ Sweet Release writes the highlights to `CHANGELOG.md` in a **Highlights** sectio
 
 The docs website has a **Changelog** page in the **Releases** group. It shows each Chatto release after 0.5.0, latest first, with all its sections. The highlights are in a tinted box. **Smaller changes** is folded. The page is generated from `CHANGELOG.md` when the website is built.
 
-In the app, **Help → What's new** shows the highlights of each release that has highlights, latest first. Each release links to its release notes on GitHub. The page also links to the docs website changelog. The app does not show releases without highlights. The highlight text is in English in every locale; the page controls are translated.
+In the app, **Help → What's new** lists stable releases after 0.5.0, latest first. During a prerelease cycle, the guide also lists the prereleases for that version. When the stable version ships, its entry contains the highlights from the cycle. Each entry links to its release notes on GitHub. If a release has highlights, they appear above the link. The page also links to the docs website changelog. The highlight text is in English in every locale; the page controls are translated.
 
-Both pages also show the pending notes in `.sweet/` as **Unreleased**, above the latest release. Development and preview builds thus show what the next release will contain. A release consumes all pending notes, so release builds have no Unreleased entry.
+The docs website shows pending notes in `.sweet/` as **Unreleased**, above the latest release. The app shows **Unreleased** only when there are pending highlights. Development and preview builds thus show what the next release will contain. A release consumes all pending notes, so release builds have no Unreleased entry.
 
 ## Rationale
 

@@ -674,7 +674,7 @@ For a change that most Chatto members or operators will want to know about, also
 add a `highlight` note in one or two short sentences. A highlight does not
 change the version; the `feature` or `fix` note of the same change does. The
 docs website changelog shows highlights first. Help → What's new in the app
-shows only highlights. See [FDR-060](docs/fdr/FDR-060-release-highlights.md). Describe the changed behavior and any required action. Commit
+lists stable releases and the current prerelease cycle, with highlights and a link to each GitHub release. See [FDR-060](docs/fdr/FDR-060-release-highlights.md). Describe the changed behavior and any required action. Commit
 the package's `.sweet/*.md` file with the change. Internal changes do not need
 a release note. Commit titles do not supply release notes.
 
