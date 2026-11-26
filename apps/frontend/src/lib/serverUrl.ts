@@ -31,10 +31,7 @@ export function serverHost(url: string): string {
 }
 
 /** Read the single DNS hostname in a web handoff. Never accept URL components or IP literals. */
-export function handoffHostname(query: URLSearchParams): string | null {
-  const entries = [...query];
-  if (entries.length !== 1 || entries[0][0] !== 'server') return null;
-  const value = entries[0][1];
+export function handoffHostname(value: string): string | null {
   if (!/^[A-Za-z0-9.-]+$/.test(value)) return null;
   const hostname = value.toLowerCase();
   const labels = hostname.split('.');

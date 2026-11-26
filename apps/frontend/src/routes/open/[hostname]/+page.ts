@@ -7,9 +7,9 @@ import { handoffHostname } from '$lib/serverUrl';
 import type { PageLoad } from './$types';
 
 /** Resolve a saved server locally. Discovery of a new origin requires a user action. */
-export const load: PageLoad = async ({ url, parent }) => {
+export const load: PageLoad = async ({ params, url, parent }) => {
   await parent();
-  const hostname = handoffHostname(url.searchParams);
+  const hostname = url.search ? null : handoffHostname(params.hostname);
   if (!hostname) return { hostname: null };
 
   const saved = findServerByUrl(`https://${hostname}`);

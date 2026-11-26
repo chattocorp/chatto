@@ -70,7 +70,7 @@ async function scanRoute(page: Page, state: string, route: string): Promise<void
 
 test.describe('Route accessibility', () => {
   test('the server handoff meets WCAG A and AA rules', async ({ page }) => {
-    await scanRoute(page, 'server handoff', '/open?server=book-club.example.com');
+    await scanRoute(page, 'server handoff', '/open/book-club.example.com');
   });
 
   for (const locale of ['en-GB', 'ar']) {

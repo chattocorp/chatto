@@ -57,15 +57,15 @@ pin and test the server releases that your client supports.
 ## Open a server in the web app
 
 Use an **Open in Chatto** link to send a person to a server. For example,
-`https://app.chatto.run/open?server=book-club.example.com` opens the server
+`https://app.chatto.run/open/book-club.example.com` opens the server
 at `https://book-club.example.com`. Supply one DNS hostname in ASCII form.
 Omit the scheme, port, path, account details, and credentials.
 
 A registered server opens directly. For a new server, the web app shows the
 hostname and asks the person to connect before it contacts the server.
 The server controls sign-in and access. Sharing the link grants no permissions.
-If you host the web app, exclude the query string from proxy access logs and
-analytics. It identifies the community that the person wants to visit.
+If you host the web app, exclude handoff paths from proxy access logs and
+analytics. Each path identifies the community that the person wants to visit.
 
 ## Authentication Choices
 

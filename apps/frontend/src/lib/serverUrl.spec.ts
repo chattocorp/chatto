@@ -27,15 +27,12 @@ describe('serverHost', () => {
 
 describe('handoffHostname', () => {
   it('accepts a single DNS hostname, including an ASCII IDN', () => {
-    expect(handoffHostname(new URLSearchParams({ server: 'Book-Club.Example.COM' }))).toBe(
-      'book-club.example.com'
-    );
-    expect(handoffHostname(new URLSearchParams({ server: 'xn--bcher-kva.example' }))).toBe(
-      'xn--bcher-kva.example'
-    );
+    expect(handoffHostname('Book-Club.Example.COM')).toBe('book-club.example.com');
+    expect(handoffHostname('xn--bcher-kva.example')).toBe('xn--bcher-kva.example');
   });
 
   it.each([
+    '',
     'https://host.example',
     'host.example:443',
     'host.example/',
@@ -54,13 +51,6 @@ describe('handoffHostname', () => {
     'K.example',
     'a'.repeat(64) + '.example'
   ])('rejects %s', (server) => {
-    expect(handoffHostname(new URLSearchParams({ server }))).toBeNull();
+    expect(handoffHostname(server)).toBeNull();
   });
-
-  it.each(['', 'server=', 'server=a.test&server=b.test', 'server=a.test&returnTo=b.test'])(
-    'rejects incomplete or ambiguous query %s',
-    (query) => {
-      expect(handoffHostname(new URLSearchParams(query))).toBeNull();
-    }
-  );
 });

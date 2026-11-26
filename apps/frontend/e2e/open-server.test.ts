@@ -4,7 +4,7 @@ test('a web handoff waits for a click, retries discovery and remembers the serve
   page
 }) => {
   const host = 'book-club.example.com';
-  const link = '/open?server=' + host;
+  const link = '/open/' + host;
   const origin = 'https://' + host;
   const requests: string[] = [];
   let online = false;
@@ -62,7 +62,7 @@ test('an incompatible server offers its exact website and stays out of the switc
       }
     })
   );
-  await page.goto('/open?server=old.example.com');
+  await page.goto('/open/old.example.com');
   await page.getByRole('button', { name: 'Add Server', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Open in new tab' })).toHaveAttribute('href', origin);
   await page.reload();
@@ -85,10 +85,10 @@ test('a registration on another port cannot claim the handoff', async ({ page })
     );
   }, hostname);
   await page.route('https://' + hostname + ':8443/**', (route) => route.abort());
-  await page.goto('/open?server=' + hostname);
+  await page.goto('/open/' + hostname);
   await expect(page.getByRole('link', { name: 'Open in new tab' })).toHaveAttribute(
     'href',
     'https://' + hostname
   );
-  await expect(page).toHaveURL(/\/open\?server=book-club\.example\.com$/);
+  await expect(page).toHaveURL(/\/open\/book-club\.example\.com$/);
 });
