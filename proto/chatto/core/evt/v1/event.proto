@@ -167,6 +167,8 @@ message Event {
     ServerNeighborTestimonialChangedEvent server_neighbor_testimonial_changed = 524 [deprecated = true];
     ServerRegistrationAdmissionChangedEvent server_registration_admission_changed = 525;
 
+    UserRoomGroupOrderChangedEvent user_room_group_order_changed = 526;
+
     // ----- Room groups (600-609, durable, evt.group.{groupId}) -----
     // The group aggregate owns its room-membership AND room-ordering.
     // Move-room is two events (RoomRemovedFromGroup on source +

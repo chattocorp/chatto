@@ -160,3 +160,9 @@ message ServerNeighborDeletedEvent {
 
 // Notifies clients that server configuration was updated.
 // Clients should refetch server info to get the new values.
+
+// Replaces the user's complete personal room group order. Empty uses server order.
+message UserRoomGroupOrderChangedEvent {
+  string user_id = 1;
+  repeated string group_ids = 2;
+}

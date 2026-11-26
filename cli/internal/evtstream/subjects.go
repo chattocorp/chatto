@@ -161,6 +161,7 @@ const (
 	EventUserRoomNotificationLevelSet           = "user_room_notification_level_set"
 	EventUserRoomNotificationLevelCleared       = "user_room_notification_level_cleared"
 	EventUserNotificationPolicyChanged          = "user_notification_policy_changed"
+	EventUserRoomGroupOrderChanged              = "user_room_group_order_changed"
 	EventUserRoomGroupNotificationPolicyChanged = "user_room_group_notification_policy_changed"
 	EventServerNeighborCreated                  = "server_neighbor_created"
 	EventServerNeighborOriginChanged            = "server_neighbor_origin_changed"
@@ -419,6 +420,8 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventUserRoomNotificationLevelCleared
 	case *evtv1.Event_UserNotificationPolicyChanged:
 		return EventUserNotificationPolicyChanged
+	case *evtv1.Event_UserRoomGroupOrderChanged:
+		return EventUserRoomGroupOrderChanged
 	case *evtv1.Event_UserRoomGroupNotificationPolicyChanged:
 		return EventUserRoomGroupNotificationPolicyChanged
 	case *evtv1.Event_ServerNeighborCreated:
