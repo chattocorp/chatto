@@ -19,6 +19,7 @@
 tools/**
 !tools/changelog.mjs
 !apps/
+apps/**
 !apps/docs-website/
 !apps/docs-website/**
 
