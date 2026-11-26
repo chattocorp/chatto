@@ -67,3 +67,11 @@ func TestPersonalRoomGroupOrderReplayAndSnapshot(t *testing.T) {
 	apply(nil)
 	require.Empty(t, p.RoomGroupOrder("u"))
 }
+
+func TestPersonalRoomGroupOrderLiveClassification(t *testing.T) {
+	event := &evtv1.Event{Event: &evtv1.Event_UserRoomGroupOrderChanged{
+		UserRoomGroupOrderChanged: &evtv1.UserRoomGroupOrderChangedEvent{UserId: "owner", GroupIds: []string{"a"}},
+	}}
+	require.True(t, isDeliverableLiveEVTUserConfigEvent(event))
+	require.Equal(t, "owner", userIDOfUserConfigEvent(event))
+}

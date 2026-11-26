@@ -555,7 +555,8 @@ func isDeliverableLiveEVTUserConfigEvent(event *evtv1.Event) bool {
 
 func isDeliverableLiveEVTUserConfigEventType(eventType string) bool {
 	switch eventType {
-	case evtstream.EventUserTimezoneChanged,
+	case evtstream.EventUserRoomGroupOrderChanged,
+		evtstream.EventUserTimezoneChanged,
 		evtstream.EventUserTimezoneCleared,
 		evtstream.EventUserTimeFormatChanged,
 		evtstream.EventUserTimeFormatCleared,
@@ -571,6 +572,8 @@ func userIDOfUserConfigEvent(event *evtv1.Event) string {
 		return ""
 	}
 	switch payload := event.GetEvent().(type) {
+	case *evtv1.Event_UserRoomGroupOrderChanged:
+		return payload.UserRoomGroupOrderChanged.GetUserId()
 	case *evtv1.Event_UserTimezoneChanged:
 		return payload.UserTimezoneChanged.GetUserId()
 	case *evtv1.Event_UserTimezoneCleared:
