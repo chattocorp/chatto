@@ -26,6 +26,6 @@ types:
   # Small visible changes that most readers can skip: spacing, colours, wording.
   polish:
     bump: patch
-    section: Smaller changes
+    section: Polish
   chore:
     bump: none
