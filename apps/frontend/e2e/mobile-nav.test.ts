@@ -167,7 +167,10 @@ test.describe('Mobile Navigation', () => {
     await expect(roomList).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
-  test('a mobile thread takes the first swipe before the sidebar opens', async ({ page, chatPage }) => {
+  test('a mobile thread takes the first swipe before the sidebar opens', async ({
+    page,
+    chatPage
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const room = await chatPage.enterRoom('general');
