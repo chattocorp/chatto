@@ -9,8 +9,8 @@ The server Overview at `/chat/{server}/overview` is the home page of a server. A
 
 1. **Identity.** The banner, logo, name, and description of the server. A server without a banner shows the gradient of its name.
 2. **Setup reminder.** Members with the server-management permission see a list of the empty public profile fields: logo, banner, description, and welcome message. The reminder links to the General settings. It goes away when the profile is complete.
-3. **Welcome and message of the day.** The welcome message and the message of the day, rendered as Markdown. The message of the day also stays in the application header.
-4. **Happening now.** A card for each active call in a joined room, with its participants and a **Join call** action. The action opens the room with its call panel. A **Catch up** card lists up to five joined channel rooms with unread messages or notifications. Rooms with important notifications come first. Direct messages stay in the sidebar.
+3. **Welcome and message of the day.** The welcome message and the message of the day, rendered with the message renderer, so links to Chatto rooms, servers, and messages show as pills. The message of the day also stays in the application header, with the same pills. Administrators edit both messages in the General settings with the composer editor that they selected for messages, which shows the same pills.
+4. **Happening now.** A compact card for each active call in a joined room, with its participants and a **Join** action. The action opens the room with its call panel. A **Catch up** card lists up to five joined channel rooms with unread messages or notifications. Rooms with important notifications come first. Direct messages stay in the sidebar.
 5. **Rooms.** The room directory with its room groups, search, and a membership filter: **All**, **Joined**, or **Not joined**. **All** is the default.
 6. **Neighbors.** The Neighbors that the server advertises ([FDR-042](FDR-042-chatto-neighbors.md)). A card opens the server when it is already in the app. Otherwise it opens the Server Directory, which owns the join flow.
 

@@ -15,7 +15,7 @@ the directory hides itself when it has nothing to show.
   import ServerOverviewNeighbors from '$lib/components/overview/ServerOverviewNeighbors.svelte';
   import ServerOverviewSetup from '$lib/components/overview/ServerOverviewSetup.svelte';
   import ServerOverviewWelcome from '$lib/components/overview/ServerOverviewWelcome.svelte';
-  import ServerMarkdown from '$lib/components/ServerMarkdown.svelte';
+  import MarkdownContent from '$lib/components/MarkdownContent.svelte';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { conversationPath } from '$lib/navigation/conversationPath';
@@ -106,7 +106,7 @@ the directory hides itself when it has nothing to show.
       <div
         class={[
           'grid gap-8',
-          hasAside && '@4xl:grid-cols-[minmax(0,1fr)_20rem] @4xl:grid-rows-[auto_1fr]'
+          hasAside && '@4xl:grid-cols-[minmax(0,1fr)_22rem] @4xl:grid-rows-[auto_1fr]'
         ]}
       >
         <div class="min-w-0 empty:hidden @4xl:col-start-1 @4xl:row-start-1">
@@ -122,7 +122,7 @@ the directory hides itself when it has nothing to show.
           >
             {#if motd}
               <Panel title={m('common.message_of_the_day')} icon="iconify icon-[uil--megaphone]">
-                <ServerMarkdown source={motd} />
+                <MarkdownContent source={motd} />
               </Panel>
             {/if}
             <ServerOverviewActivity {serverSegment} {calls} {catchUp} onjoincall={openCall} />

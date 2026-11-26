@@ -1,8 +1,18 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import type { Attachment } from 'svelte/attachments';
   import MarkdownHtml from './MarkdownHtml.svelte';
 
-  let { motd, onclick }: { motd: string; onclick: () => void } = $props();
+  let {
+    motd,
+    onclick,
+    enhanceLink
+  }: {
+    motd: string;
+    onclick: () => void;
+    /** Optional owner-supplied link enhancement, such as Chatto link pills. */
+    enhanceLink?: Attachment<HTMLAnchorElement>;
+  } = $props();
   const html = $derived.by(() => {
     const body = motd;
     return import('$lib/markdown').then(({ renderInlineMarkdown }) => renderInlineMarkdown(body));
@@ -33,7 +43,7 @@
       {#await html}
         {motd}
       {:then html}
-        <MarkdownHtml {html} />
+        <MarkdownHtml {html} {enhanceLink} />
       {:catch}
         {motd}
       {/await}

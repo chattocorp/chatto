@@ -4,8 +4,15 @@ import type { Attachment } from 'svelte/attachments';
 import EntityLink from './EntityLink.svelte';
 import { parseWebLink } from '$lib/navigation/webLink';
 
-/** Add hover previews; only recognised Chatto links can replace automatic URL text with pills. */
-export function enhanceEntityLinks(context: Map<unknown, unknown>): Attachment<HTMLAnchorElement> {
+/**
+ * Add hover previews; only recognised Chatto links can replace automatic URL text with pills.
+ * `currentServerId` names the server that the content belongs to when no server scope
+ * provides it, such as in the app header. Its links then show no server name.
+ */
+export function enhanceEntityLinks(
+  context: Map<unknown, unknown>,
+  currentServerId?: () => string | null | undefined
+): Attachment<HTMLAnchorElement> {
   return (anchor) => {
     const href = anchor.dataset.contentHref;
     if (!href || !parseWebLink(href)) return;
@@ -16,6 +23,7 @@ export function enhanceEntityLinks(context: Map<unknown, unknown>): Attachment<H
       context,
       props: {
         href,
+        currentServerId: currentServerId?.() ?? undefined,
         // Move the audited Markdown anchor intact, including formatted labels,
         // images, title, and navigation attributes. Never serialize it as HTML.
         children: anchor.hasAttribute('data-entity-autolink')

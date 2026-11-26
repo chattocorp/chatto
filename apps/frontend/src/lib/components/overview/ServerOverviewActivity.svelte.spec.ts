@@ -21,7 +21,7 @@ describe('ServerOverviewActivity', () => {
     const onjoincall = vi.fn();
     render(ServerOverviewActivity, { serverSegment: '-', calls: [call], catchUp: [], onjoincall });
 
-    await expect.element(page.getByRole('link', { name: '#lounge' })).toBeVisible();
+    await expect.element(page.getByText('#lounge')).toBeVisible();
     await expect.element(page.getByText('2 people in the call')).toBeVisible();
     await page.getByRole('button', { name: 'Join call' }).click();
     expect(onjoincall).toHaveBeenCalledWith('lounge-id');

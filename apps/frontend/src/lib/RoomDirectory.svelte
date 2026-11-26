@@ -293,7 +293,7 @@ store owns only optimistic join/leave state.
   {@const joining = directory.joiningGroupIds.has(set.id)}
   {@const canJoinAll = canJoinAllInGroup(rooms)}
   <div {@attach masonryItem} class="self-start">
-    <Panel title={set.name} noPadding>
+    <Panel title={set.name} noPadding inlineActions>
       {#snippet actions()}
         {#if canJoinAll || joining}
           <!-- Shares the row status column's minimum width, so it lines up with Join and Joined. -->

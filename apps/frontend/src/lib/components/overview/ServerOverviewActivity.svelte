@@ -42,7 +42,7 @@ action, so this component does not depend on app-shell state.
   } = $props();
 
   /** Avatars shown for each call; the count beside them includes everyone. */
-  const VISIBLE_PARTICIPANTS = 5;
+  const VISIBLE_PARTICIPANTS = 4;
 
   function roomHref(roomId: string) {
     return resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId });
@@ -52,38 +52,49 @@ action, so this component does not depend on app-shell state.
 {#if calls.length > 0 || catchUp.length > 0}
   <OverviewSection title={m('chat.overview.happening_now')}>
     <!-- One column in the side column; two when the stacked layout gives it the width. -->
-    <div class="grid items-start gap-4 @xl:grid-cols-2">
+    <div class="grid grid-cols-1 items-start gap-4 @xl:grid-cols-2">
       {#each calls as call (call.roomId)}
+        <!-- One row: a live icon, the room with its participants, and the join action. -->
         <div data-testid="server-overview-call">
           <Panel>
-            <div class="flex flex-col gap-3">
-              <div class="flex min-w-0 items-center gap-2 font-semibold text-text-top">
-                <span class="size-2 shrink-0 rounded-full bg-success" aria-hidden="true"></span>
-                <a class="truncate link" href={roomHref(call.roomId)}><bdi>#{call.roomName}</bdi></a
+            <div class="flex min-w-0 items-center gap-3">
+              <span
+                class="flex size-10 shrink-0 items-center justify-center rounded-full bg-success/15 text-success"
+                aria-hidden="true"
+              >
+                <span aria-hidden="true" class="iconify icon-[uil--volume] size-5"></span>
+              </span>
+              <div class="flex min-w-0 flex-1 flex-col gap-1">
+                <span class="truncate font-semibold text-text-top"><bdi>#{call.roomName}</bdi></span
                 >
-              </div>
-              <div class="flex min-w-0 items-center gap-3">
-                <div class="flex shrink-0 -space-x-1.5" aria-hidden="true">
-                  {#each call.participants.slice(0, VISIBLE_PARTICIPANTS) as participant (participant.userId)}
-                    <span class="inline-flex rounded-full ring-2 ring-surface">
-                      <UserAvatar
-                        user={callParticipantAvatarUser(participant)}
-                        size="sm"
-                        useLiveProfile={false}
-                      />
-                    </span>
-                  {/each}
+                <div class="flex min-w-0 items-center gap-2">
+                  <div class="flex shrink-0 -space-x-1" aria-hidden="true">
+                    {#each call.participants.slice(0, VISIBLE_PARTICIPANTS) as participant (participant.userId)}
+                      <span class="inline-flex rounded-full ring-2 ring-surface">
+                        <UserAvatar
+                          user={callParticipantAvatarUser(participant)}
+                          size="xs"
+                          useLiveProfile={false}
+                        />
+                      </span>
+                    {/each}
+                  </div>
+                  <span class="truncate text-muted">
+                    {m('chat.overview.call_participants_count', {
+                      count: call.participants.length
+                    })}
+                  </span>
                 </div>
-                <span class="text-muted">
-                  {m('chat.overview.call_participants_count', { count: call.participants.length })}
-                </span>
               </div>
-              <div>
-                <Button size="sm" onclick={() => onjoincall(call.roomId)}>
-                  <span aria-hidden="true" class="iconify icon-[uil--phone]"></span>
-                  {m('voice.join_call')}
-                </Button>
-              </div>
+              <!-- The short visible label is part of the accessible name, which names the call. -->
+              <Button
+                size="sm"
+                label={m('voice.join_call')}
+                onclick={() => onjoincall(call.roomId)}
+              >
+                <span aria-hidden="true" class="iconify icon-[uil--phone]"></span>
+                {m('room.directory.join')}
+              </Button>
             </div>
           </Panel>
         </div>

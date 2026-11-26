@@ -16,18 +16,22 @@
   import { SERVER_SETTINGS_ROOT_ROUTE } from '$lib/navigation/settingsRoutes';
   import { desktopUpdates, type DesktopUpdates } from '$lib/desktop/updates.svelte';
   import type { Snippet } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import type { ServerStateStore } from '@chatto/client/server/store';
 
   let {
     updates = desktopUpdates,
     gutterEnabled = configuredGutterEnabled,
-    callControls
+    callControls,
+    enhanceMotdLink
   }: {
     updates?: DesktopUpdates;
     /** Whether the hosting frontend offers multi-server navigation. */
     gutterEnabled?: boolean;
     /** App-owned controls for the connected call, independent of navigation. */
     callControls?: Snippet<[ServerStateStore]>;
+    /** App-owned link enhancement for the MOTD preview, such as Chatto link pills. */
+    enhanceMotdLink?: Attachment<HTMLAnchorElement>;
   } = $props();
 
   // The MOTD and the connection warning follow the active server. Without a
@@ -197,7 +201,11 @@
 
   <!-- MOTD -->
   {#if motd}
-    <MotdContent {motd} onclick={() => pushState('', { modal: { type: 'motd', motd } })} />
+    <MotdContent
+      {motd}
+      enhanceLink={enhanceMotdLink}
+      onclick={() => pushState('', { modal: { type: 'motd', motd } })}
+    />
   {:else}
     <span class={['flex-1', activeCallStore && callControls && 'max-sm:hidden']}></span>
   {/if}

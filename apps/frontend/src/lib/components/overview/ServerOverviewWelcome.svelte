@@ -5,7 +5,7 @@ The welcome message of the current server, rendered as Markdown. The viewer
 can hide it on this device. Renders nothing when there is no welcome message.
 -->
 <script lang="ts">
-  import ServerMarkdown from '$lib/components/ServerMarkdown.svelte';
+  import MarkdownContent from '$lib/components/MarkdownContent.svelte';
   import { m } from '$lib/i18n/messages';
   import { dismissOverviewCard, isOverviewCardDismissed } from '$lib/storage/overviewDismissals';
   import { CompactActionButton, Panel } from '$lib/ui';
@@ -32,7 +32,7 @@ can hide it on this device. Renders nothing when there is no welcome message.
           <span aria-hidden="true" class="iconify icon-[uil--times]"></span>
         </CompactActionButton>
       {/snippet}
-      <ServerMarkdown source={welcomeMessage} />
+      <MarkdownContent source={welcomeMessage} />
     </Panel>
   </div>
 {/if}

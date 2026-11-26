@@ -19,7 +19,8 @@ their frames.
     actions,
     noPadding = false,
     fillHeight = false,
-    titleHiddenOnNarrow = false
+    titleHiddenOnNarrow = false,
+    inlineActions = false
   }: {
     title?: string;
     /** Optional rich title content, with title kept as a plain-text fallback. */
@@ -35,6 +36,12 @@ their frames.
     fillHeight?: boolean;
     /** Visually hide the title below 768px while retaining its accessible heading. */
     titleHiddenOnNarrow?: boolean;
+    /**
+     * Keep compact actions on the title row in narrow panels; a long title
+     * truncates instead. Use it for card grids with a short title and one
+     * small action, such as room groups.
+     */
+    inlineActions?: boolean;
   } = $props();
 </script>
 
@@ -53,17 +60,25 @@ their frames.
       ]}
     >
       <!-- The 18rem basis moves the actions below the title when the panel, not the viewport, is too narrow. -->
-      <div class="flex min-w-0 flex-[1_1_18rem] flex-wrap items-baseline gap-x-3 gap-y-1">
+      <div
+        class={[
+          'flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1',
+          inlineActions ? 'flex-1' : 'flex-[1_1_18rem]'
+        ]}
+      >
         <h2
           class={[
             'flex items-center gap-2 text-base font-semibold text-text-top',
+            inlineActions && 'min-w-0',
             titleHiddenOnNarrow && 'max-md:sr-only'
           ]}
         >
           {#if icon}
             <span aria-hidden="true" class={icon}></span>
           {/if}
-          {#if titleContent}{@render titleContent()}{:else}{title}{/if}
+          {#if titleContent}{@render titleContent()}{:else if inlineActions}<span
+              class="min-w-0 truncate">{title}</span
+            >{:else}{title}{/if}
           {#if count !== undefined}
             <span class="text-muted">({count})</span>
           {/if}
@@ -79,7 +94,7 @@ their frames.
         {/if}
       </div>
       {#if actions}
-        <div class="flex items-center gap-2">
+        <div class={['flex items-center gap-2', inlineActions && 'shrink-0']}>
           {@render actions()}
         </div>
       {/if}
