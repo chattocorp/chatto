@@ -138,7 +138,7 @@ describe('sidebarSwipe', () => {
       document.documentElement.dir = direction;
       const { host, child } = makeGestureHost();
       Object.defineProperty(child, 'clientWidth', { value: 375 });
-      child.setAttribute('data-sidebar-swipe-ignore', '');
+      host.setAttribute('data-mobile-swipe-host', '');
       const close = vi.fn();
       const detach = threadDismissSwipe(child, close);
       const sidebar = sidebarSwipe(host);
@@ -165,7 +165,7 @@ describe('sidebarSwipe', () => {
       expect(close).toHaveBeenCalledOnce();
       expect(sidebarNav.isOpen).toBe(false);
       expect(sidebarNav.dragOffset).toBeNull();
-      detach();
+      detach?.();
       sidebar.destroy();
     }
   );

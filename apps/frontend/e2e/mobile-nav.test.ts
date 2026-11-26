@@ -8,7 +8,8 @@ async function touchDrag(
   page: import('@playwright/test').Page,
   fromX: number,
   toX: number,
-  y: number
+  y: number,
+  whileDragging?: () => Promise<void>
 ) {
   const client = await page.context().newCDPSession(page);
   const steps = 6;
@@ -24,6 +25,7 @@ async function touchDrag(
       type: 'touchMove',
       touchPoints: [{ x, y }]
     });
+    if (i === steps / 2) await whileDragging?.();
   }
 
   await client.send('Input.dispatchTouchEvent', {
@@ -189,7 +191,20 @@ test.describe('Mobile Navigation', () => {
     await preferences.goto(routes.appPreferencesExperiments);
     await preferences.getByText('Swipe to close threads on mobile', { exact: true }).click();
     await page.bringToFront();
-    await touchDrag(page, 80, 320, 200);
+    // The app header sits outside the thread. Both surfaces must drag the same overlay.
+    const pane = page.getByTestId('thread-pane');
+    const assertThreadDragging = async () => {
+      await expect.poll(async () => (await pane.boundingBox())?.x ?? 0).toBeGreaterThan(50);
+      await expect(page.locator('[data-sidebar-dragging="true"]')).toHaveCount(0);
+      await expect(page.getByTestId('mobile-sidebar-backdrop')).toHaveCSS('opacity', '0');
+    };
+    await touchDrag(page, 80, 320, 28, assertThreadDragging);
+    await room.expectThreadRouteClosed();
+    await expect(roomList).not.toBeVisible();
+
+    await page.goBack();
+    await room.expectThreadPaneVisible();
+    await touchDrag(page, 80, 320, 200, assertThreadDragging);
     await room.expectThreadRouteClosed();
     await expect(page.getByTestId('thread-pane')).toHaveCount(0);
     await expect(roomList).not.toBeVisible();

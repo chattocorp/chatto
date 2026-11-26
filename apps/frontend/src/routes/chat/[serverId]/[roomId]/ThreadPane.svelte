@@ -202,14 +202,13 @@
 <div
   id={paneId}
   class={[
-    'flex min-h-0 min-w-0 flex-col overflow-hidden border-s border-border bg-background',
+    'flex min-h-0 min-w-0 flex-col overflow-hidden border-s border-border bg-background motion-safe:data-swipe-dismissed:transition-[translate] motion-safe:data-swipe-dismissed:duration-150 motion-safe:data-swipe-dismissed:ease-out',
     presentation === 'split'
       ? 'relative w-[var(--thread-pane-width)] shrink-0'
       : 'absolute inset-y-0 end-0 z-10 w-full inline-end-overlay-shadow lg:w-[90%]'
   ]}
   data-testid="thread-pane"
   bind:clientWidth={paneWidth}
-  data-sidebar-swipe-ignore={swipeToClose || undefined}
   {@attach swipeToClose ? (node) => threadDismissSwipe(node, onClose) : undefined}
   {@attach revealThread}
   style:--thread-pane-width={`${threadPaneWidth.value}px`}

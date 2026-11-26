@@ -1,6 +1,6 @@
 import { sidebarNav } from '$lib/state/globals.svelte';
-import { toInlineEndDelta } from '$lib/i18n/direction';
-import { panGesture } from './panGesture.svelte';
+import { fromInlineEndOffset, toInlineEndDelta } from '$lib/i18n/direction';
+import { panGesture, type PanGestureConfig } from './panGesture.svelte';
 
 /** Keep physical viewport edges available for browser back/forward gestures. */
 const BROWSER_GESTURE_EDGE_PX = 24;
@@ -55,29 +55,40 @@ function canStartMobileSwipe(event: PointerEvent | TouchEvent, node: HTMLElement
   );
 }
 
-/** Attach to an opted-in thread pane. Its sidebar opt-out gives this drag one owner. */
+type SwipeTarget = Pick<PanGestureConfig, 'onStart'> &
+  Required<Pick<PanGestureConfig, 'shouldClaim' | 'onUpdate' | 'onEnd' | 'onCancel'>>;
+
+/** The shell owns one touch sequence, including swipes started outside the thread. */
+const threadOverlays = new WeakMap<HTMLElement, SwipeTarget>();
+
+/** Register the visible overlay as the shell's first destination for a back swipe. */
 export function threadDismissSwipe(node: HTMLElement, close: () => void) {
+  const shell = node.closest<HTMLElement>('[data-mobile-swipe-host]');
+  if (!shell) return;
   const reset = () => node.style.removeProperty('translate');
-  const gesture = panGesture(node, {
-    axis: 'x',
-    enabled: (event) => !sidebarNav.isOpen && canStartMobileSwipe(event, node),
+  const drag: SwipeTarget = {
     shouldClaim: (dx) => toInlineEndDelta(dx) > 0,
     onUpdate: (dx) => {
       const offset = Math.max(0, toInlineEndDelta(dx));
-      node.style.translate = `${toInlineEndDelta(offset)}px`;
+      node.style.translate = `${fromInlineEndOffset(offset)}px`;
     },
     onEnd: (dx, vx) => {
       const distance = toInlineEndDelta(dx);
       if (distance >= node.clientWidth / 2 || (distance >= 32 && toInlineEndDelta(vx) > 0.5)) {
+        // Finish sliding from the finger's release position during the route outro.
+        node.dataset.swipeDismissed = '';
+        node.style.translate = `${fromInlineEndOffset(100)}%`;
         close();
       } else {
         reset();
       }
     },
     onCancel: reset
-  });
+  };
+  threadOverlays.set(shell, drag);
   return () => {
-    gesture.destroy();
+    if (threadOverlays.get(shell) === drag) threadOverlays.delete(shell);
+    delete node.dataset.swipeDismissed;
     reset();
   };
 }
@@ -100,13 +111,30 @@ export function threadDismissSwipe(node: HTMLElement, close: () => void) {
  * flow.
  */
 export function sidebarSwipe(node: HTMLElement) {
-  return panGesture(node, {
-    axis: 'x',
-    enabled: (event) => canStartMobileSwipe(event, node),
+  const sidebar: SwipeTarget = {
     shouldClaim: (dx) => (sidebarNav.isOpen ? toInlineEndDelta(dx) < 0 : toInlineEndDelta(dx) > 0),
     onStart: () => sidebarNav.startDrag(),
     onUpdate: (dx) => sidebarNav.updateDrag(toInlineEndDelta(dx)),
     onEnd: (_dx, vx) => sidebarNav.endDrag(toInlineEndDelta(vx)),
     onCancel: () => sidebarNav.endDrag(0)
+  };
+  let owner = sidebar;
+  const stillMounted = () => owner === sidebar || threadOverlays.get(node) === owner;
+  return panGesture(node, {
+    axis: 'x',
+    enabled: (event) => {
+      if (!canStartMobileSwipe(event, node)) return false;
+      owner = sidebarNav.isOpen ? sidebar : (threadOverlays.get(node) ?? sidebar);
+      return true;
+    },
+    shouldClaim: (dx) => stillMounted() && owner.shouldClaim(dx),
+    onStart: () => owner.onStart?.(),
+    onUpdate: (dx) => {
+      if (stillMounted()) owner.onUpdate(dx);
+    },
+    onEnd: (dx, vx) => {
+      if (stillMounted()) owner.onEnd(dx, vx);
+    },
+    onCancel: () => owner.onCancel()
   });
 }
