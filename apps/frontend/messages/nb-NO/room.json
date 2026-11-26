@@ -97,7 +97,8 @@
       "filter_all": "Alle",
       "filter_not_joined": "Ikke med",
       "empty_joined": "Du har ikke blitt med i noen rom ennå.",
-      "empty_not_joined": "Du har blitt med i alle rom du kan bli med i."
+      "empty_not_joined": "Du har blitt med i alle rom du kan bli med i.",
+      "new": "Ny"
     },
     "server": {
       "remove_title": "Fjern server",

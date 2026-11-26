@@ -30,6 +30,8 @@ export type RoomListItem = {
   viewerCanManageRoom: boolean;
   /** For a direct message: whether it has messages. Null for other rooms. */
   hasMessageHistory?: boolean | null;
+  /** When the room was created, as an ISO 8601 timestamp; null when unknown. */
+  createdAt?: string | null;
   /** Latest ordinary DM post, including replies; null when unavailable. */
   lastMessageAt?: string | null;
   /** Latest ordinary DM root post; null when unavailable. */
@@ -118,6 +120,7 @@ export class RoomListView {
           viewerCanInvite: room.canInvite,
           viewerCanManageRoom: room.canManageRoom,
           hasMessageHistory: room.kind === RoomKind.DM ? (entry.hasMessageHistory ?? null) : null,
+          createdAt: room.createdAt,
           lastMessageAt: room.lastMessageAt,
           lastRootMessageAt: room.lastRootMessageAt,
           members

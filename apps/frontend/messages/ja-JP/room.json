@@ -97,7 +97,8 @@
       "filter_all": "すべて",
       "filter_not_joined": "未参加",
       "empty_joined": "まだどのルームにも参加していません。",
-      "empty_not_joined": "参加できるすべてのルームに参加しています。"
+      "empty_not_joined": "参加できるすべてのルームに参加しています。",
+      "new": "新着"
     },
     "server": {
       "remove_title": "サーバーを削除",

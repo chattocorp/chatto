@@ -97,7 +97,8 @@
       "filter_all": "Wszystkie",
       "filter_not_joined": "Niedołączone",
       "empty_joined": "Nie dołączyłeś jeszcze do żadnego pokoju.",
-      "empty_not_joined": "Dołączyłeś do wszystkich pokoi, do których możesz dołączyć."
+      "empty_not_joined": "Dołączyłeś do wszystkich pokoi, do których możesz dołączyć.",
+      "new": "Nowy"
     },
     "server": {
       "remove_title": "Usuń serwer",

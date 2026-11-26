@@ -97,7 +97,8 @@
       "filter_all": "Visas",
       "filter_not_joined": "Nepievienotās",
       "empty_joined": "Jūs vēl neesat pievienojies nevienai telpai.",
-      "empty_not_joined": "Jūs esat pievienojies visām pieejamajām telpām."
+      "empty_not_joined": "Jūs esat pievienojies visām pieejamajām telpām.",
+      "new": "Jauna"
     },
     "server": {
       "remove_title": "Noņemt serveri",

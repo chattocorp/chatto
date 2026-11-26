@@ -97,7 +97,8 @@
       "filter_all": "Tutte",
       "filter_not_joined": "Non iscritto",
       "empty_joined": "Non sei ancora entrato in nessuna stanza.",
-      "empty_not_joined": "Sei entrato in tutte le stanze disponibili."
+      "empty_not_joined": "Sei entrato in tutte le stanze disponibili.",
+      "new": "Nuova"
     },
     "server": {
       "remove_title": "Rimuovi server",

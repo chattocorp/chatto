@@ -97,7 +97,8 @@
       "filter_all": "Todas",
       "filter_not_joined": "Sin unirte",
       "empty_joined": "Todavía no te has unido a ninguna sala.",
-      "empty_not_joined": "Te has unido a todas las salas a las que puedes unirte."
+      "empty_not_joined": "Te has unido a todas las salas a las que puedes unirte.",
+      "new": "Nueva"
     },
     "server": {
       "remove_title": "Eliminar servidor",

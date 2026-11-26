@@ -97,7 +97,8 @@
       "filter_all": "Toutes",
       "filter_not_joined": "Non rejointes",
       "empty_joined": "Vous n’avez encore rejoint aucune salle.",
-      "empty_not_joined": "Vous avez rejoint toutes les salles accessibles."
+      "empty_not_joined": "Vous avez rejoint toutes les salles accessibles.",
+      "new": "Nouvelle"
     },
     "server": {
       "remove_title": "Retirer le serveur",

@@ -97,7 +97,8 @@
       "filter_all": "Vše",
       "filter_not_joined": "Nepřipojené",
       "empty_joined": "Zatím jste se nepřipojili k žádné místnosti.",
-      "empty_not_joined": "Připojili jste se ke všem místnostem, ke kterým se můžete připojit."
+      "empty_not_joined": "Připojili jste se ke všem místnostem, ke kterým se můžete připojit.",
+      "new": "Nová"
     },
     "server": {
       "remove_title": "Odebrat server",

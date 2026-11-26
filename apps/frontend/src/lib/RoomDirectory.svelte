@@ -16,7 +16,15 @@ store owns only optimistic join/leave state.
   import { resolve } from '$app/paths';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
-  import { ConfirmDialog, EmptyState, HelpTooltip, Pill, SegmentedControl } from '$lib/ui';
+  import {
+    ConfirmDialog,
+    EmptyState,
+    HelpTooltip,
+    Pill,
+    SegmentedControl,
+    UnreadDot
+  } from '$lib/ui';
+  import { isNewRoom } from '$lib/serverOverview';
   import { Button, TextInput } from '$lib/ui/form';
   import type { RoomDirectoryStore, DirectoryRoom } from '$lib/state/server/roomDirectory';
 
@@ -180,6 +188,13 @@ store owns only optimistic join/leave state.
         >
       {:else}
         <span class="min-w-0 flex-1 truncate font-semibold text-text"><bdi>{room.name}</bdi></span>
+      {/if}
+      {#if isNewRoom(room.createdAt)}
+        <!-- A neutral pill keeps contrast on the tile; the dot carries the accent. -->
+        <Pill tone="default" class="inline-flex shrink-0 items-center gap-1">
+          <UnreadDot color="action" />
+          {m('room.directory.new')}
+        </Pill>
       {/if}
       <div class="relative z-10 flex shrink-0 items-center gap-1">
         {#if joined && room.isUniversal}

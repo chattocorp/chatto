@@ -11,6 +11,7 @@ the directory hides itself when it has nothing to show.
   import ServerOverviewActivity, {
     type OverviewCall
   } from '$lib/components/overview/ServerOverviewActivity.svelte';
+  import ServerOverviewDirectMessages from '$lib/components/overview/ServerOverviewDirectMessages.svelte';
   import ServerOverviewHeader from '$lib/components/overview/ServerOverviewHeader.svelte';
   import ServerOverviewNeighbors from '$lib/components/overview/ServerOverviewNeighbors.svelte';
   import ServerOverviewSetup from '$lib/components/overview/ServerOverviewSetup.svelte';
@@ -21,11 +22,14 @@ the directory hides itself when it has nothing to show.
   import { conversationPath } from '$lib/navigation/conversationPath';
   import { openRoomNotification } from '$lib/notifications/openRoomNotification';
   import RoomDirectory from '$lib/RoomDirectory.svelte';
-  import { catchUpRooms, missingProfileItems } from '$lib/serverOverview';
+  import { catchUpRooms, missingProfileItems, recentDirectMessages } from '$lib/serverOverview';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
-  import { PaneContent, PaneHeader, PageTitle, Panel } from '$lib/ui';
+  import { Hint, PaneContent, PaneHeader, PageTitle, Panel } from '$lib/ui';
+  import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import { RoomKind } from '@chatto/client/api/roomDirectory';
+  import type { NotificationAttentionLevel } from '@chatto/client/api/notifications';
 
   // Re-derives reactively when the URL `[serverId]` changes. Directory rows
   // and membership are selected directly from that server's projection.
@@ -59,9 +63,26 @@ the directory hides itself when it has nothing to show.
     return catchUpRooms(navigation.rooms, (roomId) => roomUnread.roomIsUnread(roomId));
   });
 
+  const directMessages = $derived(recentDirectMessages(ui.navigation.rooms));
+
+  /** The viewer holds protected roles whose permissions Shield Mode would activate. */
+  const shieldAvailable = $derived.by(() => {
+    const privilegedMode = stores.projection.viewer?.privilegedMode;
+    return !!privilegedMode?.available && !privilegedMode.active;
+  });
+
   const motd = $derived(stores.projection.serverState?.motd?.trim() || null);
   /** The side column shows only when it has content; otherwise the main column takes the width. */
-  const hasAside = $derived(!!motd || calls.length > 0 || catchUp.length > 0);
+  const hasAside = $derived(
+    !!motd || calls.length > 0 || catchUp.length > 0 || directMessages.length > 0
+  );
+
+  function openNotification(roomId: string, attentionLevel: NotificationAttentionLevel) {
+    const isDM = ui.navigation.rooms.some(
+      (room) => room.id === roomId && room.type === RoomKind.DM
+    );
+    void openRoomNotification(serverScope, appUi, roomId, { isDM, attentionLevel });
+  }
 
   /** Open the room with its call panel, where the viewer joins the call. */
   function openCall(roomId: string) {
@@ -98,6 +119,15 @@ the directory hides itself when it has nothing to show.
         missing={missingProfile}
       />
 
+      {#if shieldAvailable}
+        <!-- Same notice as the Settings Overview: the shield button sits beside the user's name. -->
+        <div data-testid="server-overview-shield">
+          <Hint tone="warning" icon="icon-[uil--shield]"
+            >{m('settings.overview.shield_notice')}</Hint
+          >
+        </div>
+      {/if}
+
       <!--
         Wide containers: the welcome message and rooms on the left, the side column
         on the right. The side column spans both rows, and the second row takes
@@ -131,11 +161,15 @@ the directory hides itself when it has nothing to show.
               {calls}
               {catchUp}
               onjoincall={openCall}
-              onopennotification={(roomId, attentionLevel) =>
-                void openRoomNotification(serverScope, appUi, roomId, {
-                  isDM: false,
-                  attentionLevel
-                })}
+              onopennotification={openNotification}
+            />
+            <ServerOverviewDirectMessages
+              conversations={directMessages}
+              viewerId={stores.projectionViewerId}
+              serverId={serverScope.serverId}
+              isUnread={(roomId) => ui.roomUnread.roomIsUnread(roomId)}
+              getDisplayName={getLiveDisplayName}
+              onopennotification={openNotification}
             />
           </aside>
         {/if}

@@ -97,7 +97,8 @@
       "filter_all": "Alla",
       "filter_not_joined": "Inte med",
       "empty_joined": "Du har inte gått med i något rum än.",
-      "empty_not_joined": "Du har gått med i alla rum som du kan gå med i."
+      "empty_not_joined": "Du har gått med i alla rum som du kan gå med i.",
+      "new": "Ny"
     },
     "server": {
       "remove_title": "Ta bort server",

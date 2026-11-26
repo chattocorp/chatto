@@ -97,7 +97,8 @@
       "filter_all": "Tümü",
       "filter_not_joined": "Katılınmamış",
       "empty_joined": "Henüz hiçbir odaya katılmadınız.",
-      "empty_not_joined": "Katılabileceğiniz tüm odalara katıldınız."
+      "empty_not_joined": "Katılabileceğiniz tüm odalara katıldınız.",
+      "new": "Yeni"
     },
     "server": {
       "remove_title": "Sunucuyu Kaldır",

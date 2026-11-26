@@ -97,7 +97,8 @@
       "filter_all": "Ĉiuj",
       "filter_not_joined": "Ne aliĝintaj",
       "empty_joined": "Vi ankoraŭ ne aliĝis al iu ĉambro.",
-      "empty_not_joined": "Vi aliĝis al ĉiuj ĉambroj, al kiuj vi povas aliĝi."
+      "empty_not_joined": "Vi aliĝis al ĉiuj ĉambroj, al kiuj vi povas aliĝi.",
+      "new": "Nova"
     },
     "server": {
       "remove_title": "Forigi servilon",

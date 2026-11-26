@@ -98,7 +98,8 @@
       "filter_all": "הכול",
       "filter_not_joined": "לא הצטרפת",
       "empty_joined": "עדיין לא הצטרפת לאף חדר.",
-      "empty_not_joined": "הצטרפת לכל החדרים שאפשר להצטרף אליהם."
+      "empty_not_joined": "הצטרפת לכל החדרים שאפשר להצטרף אליהם.",
+      "new": "חדש"
     },
     "server": {
       "remove_title": "הסר שרת",

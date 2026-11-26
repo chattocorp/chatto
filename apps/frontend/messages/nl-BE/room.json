@@ -97,7 +97,8 @@
       "filter_all": "Alle",
       "filter_not_joined": "Geen lid",
       "empty_joined": "Je bent nog geen lid van een kamer.",
-      "empty_not_joined": "Je bent lid van alle kamers waar je lid van kunt worden."
+      "empty_not_joined": "Je bent lid van alle kamers waar je lid van kunt worden.",
+      "new": "Nieuw"
     },
     "server": {
       "remove_title": "Server verwijderen",

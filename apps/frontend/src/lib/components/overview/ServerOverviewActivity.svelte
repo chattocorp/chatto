@@ -24,8 +24,9 @@ action, so this component does not depend on app-shell state.
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
   import type { CatchUpRoom } from '$lib/serverOverview';
-  import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
-  import { NotificationBadge, Panel, UnreadDot, PulseIcon } from '$lib/ui';
+  import type { NotificationAttentionLevel } from '@chatto/client/api/notifications';
+  import { Panel, PulseIcon, UnreadDot } from '$lib/ui';
+  import RoomAttentionBadges from './RoomAttentionBadges.svelte';
   import { Button } from '$lib/ui/form';
 
   let {
@@ -51,20 +52,6 @@ action, so this component does not depend on app-shell state.
     return resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId });
   }
 </script>
-
-{#snippet badge(roomId: string, attentionLevel: NotificationAttentionLevel, count: number)}
-  {@const important = attentionLevel === NotificationAttentionLevel.IMPORTANT}
-  <button
-    type="button"
-    class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
-    aria-label={important
-      ? m('room_list.go_to_notifications', { count })
-      : m('room_list.go_to_other_notifications', { count })}
-    onclick={() => onopennotification(roomId, attentionLevel)}
-  >
-    <NotificationBadge {count} color={important ? 'warning' : 'ambient'} />
-  </button>
-{/snippet}
 
 {#if calls.length > 0 || catchUp.length > 0}
   <Panel title={m('chat.overview.happening_now')} noPadding>
@@ -148,12 +135,12 @@ action, so this component does not depend on app-shell state.
                   <span class="sr-only">{m('chat.overview.catch_up_unread')}</span>
                 {/if}
               </a>
-              {#if room.otherCount > 0}
-                {@render badge(room.id, NotificationAttentionLevel.AMBIENT, room.otherCount)}
-              {/if}
-              {#if room.importantCount > 0}
-                {@render badge(room.id, NotificationAttentionLevel.IMPORTANT, room.importantCount)}
-              {/if}
+              <RoomAttentionBadges
+                roomId={room.id}
+                importantCount={room.importantCount}
+                otherCount={room.otherCount}
+                onopen={onopennotification}
+              />
             </li>
           {/each}
         </ul>

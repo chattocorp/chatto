@@ -97,7 +97,8 @@
       "filter_all": "Kõik",
       "filter_not_joined": "Liitumata",
       "empty_joined": "Te pole veel ühegi ruumiga liitunud.",
-      "empty_not_joined": "Olete liitunud kõigi ruumidega, millega saate liituda."
+      "empty_not_joined": "Olete liitunud kõigi ruumidega, millega saate liituda.",
+      "new": "Uus"
     },
     "server": {
       "remove_title": "Eemalda server",

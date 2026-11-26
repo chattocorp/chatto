@@ -97,7 +97,8 @@
       "filter_all": "全部",
       "filter_not_joined": "未加入",
       "empty_joined": "你還沒有加入任何聊天室。",
-      "empty_not_joined": "你已加入所有可加入的聊天室。"
+      "empty_not_joined": "你已加入所有可加入的聊天室。",
+      "new": "新"
     },
     "server": {
       "remove_title": "移除伺服器",
