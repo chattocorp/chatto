@@ -235,9 +235,10 @@ the software keyboard; it is shared with task dialogs and bottom sheets.
 ### Tiles And Section Labels
 
 Use `tile` for a grid of small, similar items, such as the rooms of a room
-group on the server Overview. A tile has the panel frame's `surface` fill,
-corners, and depth lighting, but no border and no title band, so many tiles
-side by side stay calm. It sits directly on the `background` plane, one
+group on the server Overview. A tile has the panel frame's `surface` fill
+and corners, but no border, no title band, and no depth lighting. Bevels
+repeated on many small cards read as texture, so tiles stay flat at every
+depth setting. It sits directly on the `background` plane, one
 surface level up. Do not put tiles inside a `Panel`; group them under a
 `section-label` instead. Add `tile-interactive` when the whole tile opens
 something: it takes the hover fill of selectable rows. Keep actions inside a

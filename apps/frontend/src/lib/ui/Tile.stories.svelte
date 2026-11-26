@@ -9,7 +9,7 @@
       docs: {
         description: {
           component:
-            'A tile is a borderless card for one item in a grid. It shares the panel frame surface, corners, and depth lighting. tile-interactive adds the selectable-row hover fill for tiles that open something. A section-label names each group of tiles.'
+            'A tile is a flat, borderless card for one item in a grid. It shares the panel frame surface and corners, without depth lighting. tile-interactive adds the selectable-row hover fill for tiles that open something. A section-label names each group of tiles.'
         }
       }
     }

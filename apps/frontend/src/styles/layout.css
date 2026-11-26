@@ -92,12 +92,13 @@
   @apply overflow-hidden;
 }
 
-/* A borderless card for one item in a grid, such as a room in the room
- * directory. It shares the panel frame's surface, corners, and depth lighting
- * but has no border, so many tiles side by side stay calm. A tile holds its
+/* A flat, borderless card for one item in a grid, such as a room in the
+ * room directory. It shares the panel frame's surface and corners but has no
+ * border and no depth lighting: repeated bevels on many small cards look
+ * like texture, so tiles stay flat at every depth setting. A tile holds its
  * own padding and content; it is not a Panel and has no title band. */
 @utility tile {
-  @apply rounded-lg bg-surface surface-raised;
+  @apply rounded-lg bg-surface;
 }
 
 /* A tile that opens something. It takes the hover fill of selectable rows. */
