@@ -4,6 +4,12 @@
     "code_render": "Darstellung",
     "code_render_failed": "Vorschau nicht verfügbar. Der Quelltext ist weiterhin verfügbar.",
     "keyboard_shortcuts": {
+      "description": "Wähle Tasten für häufige Aktionen",
+      "system": "Systemweite Tastenkürzel",
+      "toggle_mute": "Mikrofon stummschalten oder aktivieren",
+      "record": "Drücke {modifier} oder Alt mit einer Taste",
+      "unavailable": "Tastenkürzel nicht verfügbar. Wähle eine andere Kombination.",
+      "reset": "Zurücksetzen",
       "title": "Tastenkürzel",
       "app": "App",
       "undo": "Rückgängig",

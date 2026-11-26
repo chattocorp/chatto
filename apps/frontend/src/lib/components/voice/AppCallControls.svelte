@@ -5,6 +5,9 @@ connection. With more than one registered server, the server logo comes first.
 It opens the call room.
 -->
 <script lang="ts">
+  import { bindDesktopMuteShortcut } from '$lib/desktop/muteShortcut';
+  import { shortcutPreferences } from '$lib/state/shortcutPreferences.svelte';
+  import { toastError } from '$lib/utils/errorMessage';
   import { conversationPath } from '$lib/navigation/conversationPath';
   import { goto } from '$app/navigation';
   import { serverUi } from '$lib/state/server/serverUi';
@@ -26,6 +29,14 @@ It opens the call room.
   const appUi = getAppUiState();
   const activeServerId = $derived(activeStore.serverId);
   const voiceCallState = $derived(serverUi(activeStore).voiceCall);
+  $effect(() => {
+    if (!voiceCallState.connected || !voiceCallState.canUseVoice || shortcutPreferences.recording)
+      return;
+    return bindDesktopMuteShortcut(
+      shortcutPreferences.bindings.mute,
+      () => void voiceCallState.toggleMute().catch((error) => toastError(error))
+    );
+  });
   const navigation = $derived(serverUi(activeStore).navigation);
   const activeCallRoomId = $derived(
     voiceCallState?.connected && voiceCallState.roomId ? voiceCallState.roomId : null

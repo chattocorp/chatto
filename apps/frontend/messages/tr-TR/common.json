@@ -4,6 +4,12 @@
     "code_render": "Görünüm",
     "code_render_failed": "Önizleme kullanılamıyor. Kaynak hâlâ kullanılabilir.",
     "keyboard_shortcuts": {
+      "description": "Sık kullanılan işlemler için tuş seçin",
+      "system": "Sistem genelinde kısayollar",
+      "toggle_mute": "Mikrofonu kapat veya aç",
+      "record": "Bir tuşla birlikte {modifier} veya Alt tuşuna basın",
+      "unavailable": "Kısayol kullanılamıyor. Başka bir tuş birleşimi seçin.",
+      "reset": "Sıfırla",
       "title": "Klavye kısayolları",
       "app": "Uygulama",
       "undo": "Geri al",

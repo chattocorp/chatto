@@ -1,7 +1,7 @@
 # FDR-055: Keyboard Shortcut Help
 
 **Status:** Active
-**Last reviewed:** 2026-10-28
+**Last reviewed:** 2026-11-26
 
 ## Overview
 
@@ -12,7 +12,7 @@ It lets users discover shortcuts without leaving their draft or changing setting
 
 - Narrow-screen help leaves the app header interactive. A header click closes help and runs the header action on the first click. Desktop help remains modal.
 
-- Cmd+Shift+K on Apple platforms, or Ctrl+Shift+K elsewhere, opens help.
+- By default, Cmd+Shift+K on Apple platforms, or Ctrl+Shift+K elsewhere, opens help.
   Cmd/Ctrl+/ keeps room search and filters.
 - Help lists registered app shortcuts and filters in the current view. A form's
   submit shortcut appears when the focused field belongs to a form.
@@ -33,6 +33,19 @@ It lets users discover shortcuts without leaving their draft or changing setting
 - Labels use the current language. Keycaps use the platform's modifier names.
 - Search filters the list by action label or displayed keys. Closing help clears
   the search, so the next opening shows the complete list for that view.
+
+- In App Preferences → Keyboard shortcuts, users can change, clear, or restore
+  the shortcuts for the quick switcher, shortcut help, next unread source,
+  Settings, form submission, and room search or filters. By default, Cmd+, on
+  macOS and Ctrl+, on other platforms open the Settings overview. Changes apply to all servers
+  on this device. Select a row to record a shortcut. Use the row menu to clear
+  the shortcut or restore its default. Help shows the current bindings.
+- Chatto Desktop also offers a system-wide microphone toggle. The user must
+  assign a shortcut first. A system-wide shortcut requires a trigger key. On
+  macOS it can combine Control, Command, and Option, for example ⌃⌘⌥M.
+  During a connected voice call, the shortcut works
+  while another application has focus. Leaving the call releases the shortcut.
+  If registration fails, Chatto asks the user to choose another combination.
 
 ## Design Decisions
 

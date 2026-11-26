@@ -1,3 +1,6 @@
+import ShortcutSettings from './settings/ShortcutSettings.svelte';
+import { shortcutPreferences, defaultBindings } from '$lib/state/shortcutPreferences.svelte';
+import { usesAppleShortcutModifier } from '$lib/utils/platformShortcuts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import {
@@ -565,4 +568,85 @@ describe('global keyboard shortcuts', () => {
     await expect.poll(() => mocks.info.mock.calls.length).toBe(1);
     expect(document.querySelector('dialog[open]')).toBeNull();
   });
+});
+
+it('records, rejects conflicting keys, and restores an app shortcut from preferences', async () => {
+  render(Harness);
+  const settings = render(ShortcutSettings);
+  const edit = settings.getByRole('button', { name: /^Open quick switcher ·/ });
+  try {
+    await edit.click();
+    press({
+      key: 'K',
+      ctrlKey: !usesAppleShortcutModifier(),
+      metaKey: usesAppleShortcutModifier(),
+      shiftKey: true,
+      altKey: false
+    });
+    await expect.element(settings.getByRole('alert')).toHaveTextContent('Shortcut unavailable');
+    press({
+      key: 'j',
+      ctrlKey: !usesAppleShortcutModifier(),
+      metaKey: usesAppleShortcutModifier(),
+      shiftKey: false,
+      altKey: false
+    });
+    flushSync();
+    expect(quickSwitcher.visible).toBe(false);
+    expect(
+      press({ key: 'k', ctrlKey: true, altKey: false, shiftKey: false }).defaultPrevented
+    ).toBe(false);
+    expect(
+      press({ key: 'j', ctrlKey: true, altKey: false, shiftKey: false }).defaultPrevented
+    ).toBe(true);
+    expect(quickSwitcher.visible).toBe(true);
+    expect(localStorage.getItem('chatto:shortcut:switcher')).toBe('CommandOrControl+J');
+    quickSwitcher.close();
+    flushSync();
+    const actions = settings.getByRole('button', { name: 'More actions · Open quick switcher' });
+    actions.element().focus();
+    await actions.click();
+    await settings.getByRole('menuitem', { name: 'Reset' }).click();
+    expect(shortcutPreferences.bindings.switcher).toBe(defaultBindings.switcher);
+    expect(settings.container.textContent).not.toContain('System-wide shortcuts');
+  } finally {
+    shortcutPreferences.set('switcher', defaultBindings.switcher);
+  }
+});
+
+it('checks a system-wide binding before saving it and can clear it', async () => {
+  const available = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+  window.chattoDesktop = { muteShortcut: { available, set: vi.fn(), onPress: vi.fn() } };
+  try {
+    const settings = render(ShortcutSettings);
+    await expect
+      .element(settings.getByRole('heading', { name: 'System-wide shortcuts' }))
+      .toBeVisible();
+    await settings.getByRole('button', { name: /^Mute or unmute microphone ·/ }).click();
+    press({ key: 'µ', code: 'KeyM', shiftKey: false });
+    expect(available).toHaveBeenCalledWith('Alt+M');
+    await expect.element(settings.getByRole('alert')).toHaveTextContent('Shortcut unavailable');
+    expect(shortcutPreferences.bindings.mute).toBe('');
+    press({
+      key: 'Unidentified',
+      code: 'KeyM',
+      ctrlKey: true,
+      metaKey: true,
+      altKey: true,
+      shiftKey: false,
+      modifierAltGraph: true,
+      isComposing: true
+    });
+    await expect.poll(() => shortcutPreferences.bindings.mute).toBe('Control+Super+Alt+M');
+    const actions = settings.getByRole('button', {
+      name: 'More actions · Mute or unmute microphone'
+    });
+    actions.element().focus();
+    await actions.click();
+    await settings.getByRole('menuitem', { name: 'Clear' }).click();
+    expect(shortcutPreferences.bindings.mute).toBe('');
+  } finally {
+    delete window.chattoDesktop;
+    shortcutPreferences.set('mute', '');
+  }
 });

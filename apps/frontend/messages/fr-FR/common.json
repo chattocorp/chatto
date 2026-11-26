@@ -4,6 +4,12 @@
     "code_render": "Rendu",
     "code_render_failed": "Aperçu indisponible. La source reste disponible.",
     "keyboard_shortcuts": {
+      "description": "Choisissez les touches des actions courantes",
+      "system": "Raccourcis système",
+      "toggle_mute": "Couper ou activer le micro",
+      "record": "Appuyez sur {modifier} ou Alt avec une touche",
+      "unavailable": "Raccourci indisponible. Choisissez une autre combinaison.",
+      "reset": "Réinitialiser",
       "title": "Raccourcis clavier",
       "app": "Application",
       "undo": "Annuler",

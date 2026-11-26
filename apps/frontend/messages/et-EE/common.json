@@ -4,6 +4,12 @@
     "code_render": "Vaade",
     "code_render_failed": "Eelvaade pole saadaval. Lähtekood on endiselt saadaval.",
     "keyboard_shortcuts": {
+      "description": "Valige klahvid sagedaste toimingute jaoks",
+      "system": "Süsteemi kiirklahvid",
+      "toggle_mute": "Vaigista mikrofon või lülita see sisse",
+      "record": "Vajutage {modifier} või Alt koos klahviga",
+      "unavailable": "Kiirklahv pole saadaval. Valige muu kombinatsioon.",
+      "reset": "Lähtesta",
       "title": "Klaviatuuri otseteed",
       "app": "Rakendus",
       "undo": "Võta tagasi",

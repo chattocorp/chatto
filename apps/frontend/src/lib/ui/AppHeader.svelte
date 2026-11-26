@@ -1,4 +1,10 @@
 <script lang="ts">
+  import KeyboardShortcut from '$lib/components/KeyboardShortcut.svelte';
+  import {
+    bindingText,
+    shortcutPreferences,
+    shortcutProps
+  } from '$lib/state/shortcutPreferences.svelte';
   import { page } from '$app/state';
   import { gutterEnabled as configuredGutterEnabled } from '$lib/frontendConfig';
   import { pushState } from '$app/navigation';
@@ -94,6 +100,7 @@
     const activeServerId = getActiveServer();
     return activeServerId && serverRegistry.isAuthenticated(activeServerId) ? activeServerId : null;
   });
+  let settingsLink: HTMLAnchorElement;
   const preferencesServerId = $derived.by(() => {
     const activeServerId = getActiveServer();
     if (activeServerId && serverRegistry.isAuthenticated(activeServerId)) return activeServerId;
@@ -153,13 +160,21 @@
         class="app-header-icon"
         onclick={() => quickSwitcher.open()}
         aria-label={m('ui.open_quick_switcher')}
-        title={m('ui.quick_switcher_shortcut')}
+        title={[m('ui.open_quick_switcher'), bindingText(shortcutPreferences.bindings.switcher)]
+          .filter(Boolean)
+          .join(' · ')}
       >
         <span aria-hidden="true" class="iconify icon-[uil--apps] text-lg"></span>
       </button>
     {/if}
 
+    <KeyboardShortcut
+      {...shortcutProps(shortcutPreferences.bindings.settings)}
+      description={m('settings.app_preferences.title')}
+      ontrigger={() => settingsLink.click()}
+    />
     <a
+      bind:this={settingsLink}
       href={preferencesServerId
         ? resolve(SERVER_SETTINGS_ROOT_ROUTE, {
             serverId: serverIdToSegment(preferencesServerId)

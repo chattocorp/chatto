@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 setup: mise setup
-# Each task listens on a named port of its own. Chatto uses that port. The other
+# Each server task listens on a named port of its own. Chatto uses that port. The other
 # development services use fixed offsets from GEORDI_PORT, the first of the ten
 # spare workspace ports; see the `[env]` section of mise.toml.
 # The chatto and chatto-full tasks use the same NATS port and data directory,
@@ -19,6 +19,13 @@ tasks:
     command: CHATTO_DEV_CHATTO_PORT_OVERRIDE=$PORT CHATTO_DEV_CHATTO_URL_OVERRIDE=http://localhost:$PORT mise dev-full
     ports: [chatto-full]
     url: http://localhost:{chatto-full}/
+  desktop:
+    label: Chatto Desktop / Run from source
+    command: CHATTO_DESKTOP_DEV_PROFILE="$PWD/.context/desktop-profile" mise desktop-dev
+  desktop-full:
+    label: Chatto Desktop / Run with local voice server
+    command: CHATTO_DESKTOP_DEV_PROFILE="$PWD/.context/desktop-profile" mise desktop-dev
+    needs: [chatto-full]
   docs:
     label: Docs website
     command: mise dev-docs-website -- --port "$PORT"

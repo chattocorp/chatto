@@ -4,6 +4,12 @@
     "code_render": "Render",
     "code_render_failed": "Preview unavailable. The source is still available.",
     "keyboard_shortcuts": {
+      "description": "Choose keys for common actions",
+      "system": "System-wide shortcuts",
+      "toggle_mute": "Mute or unmute microphone",
+      "record": "Press {modifier} or Alt with a key",
+      "unavailable": "Shortcut unavailable. Choose another combination.",
+      "reset": "Reset",
       "title": "Keyboard shortcuts",
       "app": "App",
       "undo": "Undo",

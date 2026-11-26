@@ -357,6 +357,17 @@ describe('AppHeader', () => {
     expect(container.querySelector('[data-testid="notifications-unread-dot"]')).toBeNull();
   });
 
+  it.each(['ctrlKey', 'metaKey'] as const)('opens Settings with %s and comma', (modifier) => {
+    const { container } = render(AppHeader);
+    const link = container.querySelector<HTMLAnchorElement>('a[href="/chat/preferences"]')!;
+    const activate = vi.fn((event: Event) => event.preventDefault());
+    link.addEventListener('click', activate);
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: ',', [modifier]: true, cancelable: true })
+    );
+    expect(activate).toHaveBeenCalledOnce();
+  });
+
   it('opens the canonical Settings entry point for the active authenticated server', () => {
     mocks.servers = [{ id: 'remote' }];
     mocks.activeServer = 'remote';

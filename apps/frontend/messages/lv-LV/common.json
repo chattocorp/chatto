@@ -4,6 +4,12 @@
     "code_render": "Skats",
     "code_render_failed": "Priekšskatījums nav pieejams. Avots joprojām ir pieejams.",
     "keyboard_shortcuts": {
+      "description": "Izvēlieties taustiņus biežākajām darbībām",
+      "system": "Sistēmas īsinājumtaustiņi",
+      "toggle_mute": "Izslēgt vai ieslēgt mikrofonu",
+      "record": "Nospiediet {modifier} vai Alt kopā ar taustiņu",
+      "unavailable": "Īsinājumtaustiņš nav pieejams. Izvēlieties citu kombināciju.",
+      "reset": "Atiestatīt",
       "title": "Tastatūras īsinājumtaustiņi",
       "app": "Lietotne",
       "undo": "Atsaukt",

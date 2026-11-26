@@ -88,8 +88,23 @@ From the repository root:
 mise desktop-dev
 ```
 
-The task builds the shared frontend and opens it in Electron. Electron stores
-the default session beneath the platform's application-data directory for
+The task builds the shared frontend and opens it in Electron. Quit and run the
+task again to load source changes.
+
+In Geordi, open **Tasks → Chatto Desktop**. Choose **Run from source** to use
+an existing server. To test voice calls, choose **Run with local voice server**.
+Geordi starts the full Chatto stack with LiveKit before Desktop. If the
+**Chatto** task is running, stop it first because the two server tasks share
+the development data directory. In Desktop, add the localhost URL shown on
+the **Chatto with Authling, Runling, Mailpit, and LiveKit** task and sign in.
+When you finish, stop the full server task to shut down its services.
+
+The Geordi tasks keep the Desktop profile in `.context/desktop-profile` in the
+worktree. Both tasks use this profile. You can run the installed Chatto app at
+the same time. In a terminal, set `CHATTO_DESKTOP_DEV_PROFILE` to an absolute
+directory path to select a separate profile.
+
+By default, Electron stores the session beneath the platform's application-data directory for
 `Chatto Desktop`. The shell stores update preferences separately in
 `updates.json` within this profile. This file contains no account credentials.
 

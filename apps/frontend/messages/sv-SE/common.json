@@ -4,6 +4,12 @@
     "code_render": "Visning",
     "code_render_failed": "Förhandsvisningen är inte tillgänglig. Källkoden finns kvar.",
     "keyboard_shortcuts": {
+      "description": "Välj tangenter för vanliga åtgärder",
+      "system": "Systemomfattande kortkommandon",
+      "toggle_mute": "Stäng av eller slå på mikrofonen",
+      "record": "Tryck på {modifier} eller Alt tillsammans med en tangent",
+      "unavailable": "Kortkommandot är inte tillgängligt. Välj en annan kombination.",
+      "reset": "Återställ",
       "title": "Kortkommandon",
       "app": "App",
       "undo": "Ångra",

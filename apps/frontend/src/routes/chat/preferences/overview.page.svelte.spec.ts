@@ -13,11 +13,12 @@ describe('signed-out settings overview', () => {
 
     await expect.element(view.getByRole('heading', { name: 'Overview' })).toBeVisible();
     expect(view.container.querySelectorAll('h2')).toHaveLength(1);
-    expect(view.container.querySelectorAll('nav a')).toHaveLength(4);
+    expect(view.container.querySelectorAll('nav a')).toHaveLength(5);
     for (const [name, path] of [
       ['Appearance', 'appearance'],
       ['Language', 'language'],
       ['Composer', 'composer'],
+      ['Keyboard shortcuts', 'shortcuts'],
       ['Experiments', 'experiments']
     ]) {
       const link = view.getByRole('link', { name, exact: true });

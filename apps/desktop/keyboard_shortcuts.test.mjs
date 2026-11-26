@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { test } from 'node:test';
-import { protectReloadShortcuts } from './keyboard_shortcuts.mjs';
+import { configureMuteShortcut, protectReloadShortcuts } from './keyboard_shortcuts.mjs';
 
 test('production windows block reloads and hard reloads before menu dispatch', () => {
   const contents = new EventEmitter();
@@ -45,4 +45,46 @@ test('development windows retain reload shortcuts', () => {
   const contents = new EventEmitter();
   protectReloadShortcuts(contents, false);
   assert.equal(contents.listenerCount('before-input-event'), 0);
+});
+
+test('mute binding follows its trusted document and ignores late releases', () => {
+  const contents = new EventEmitter();
+  const sent = [];
+  contents.isDestroyed = () => false;
+  contents.send = (...message) => sent.push(message);
+  const callbacks = new Map();
+  let set;
+  configureMuteShortcut({
+    contents,
+    isTrusted: (sender) => sender === 'app',
+    ipcMain: {
+      handle: (_channel, handler) => {
+        set = handler;
+      }
+    },
+    globalShortcut: {
+      register: (chord, cb) => {
+        if (chord === 'Alt+X') return false;
+        callbacks.set(chord, cb);
+        return true;
+      },
+      unregister: (chord) => callbacks.delete(chord)
+    }
+  });
+  assert.equal(set('app', 'M', '1'), false);
+  assert.equal(set('app', 'Alt+X', '1'), false);
+  assert.equal(set('app', 'Alt+M', '1'), true);
+  const previous = callbacks.get('Alt+M');
+  assert.equal(set('popup', '', '1'), false);
+  previous();
+  assert.equal(set('app', 'Alt+M', '2'), true);
+  set('app', '', '1');
+  previous();
+  callbacks.get('Alt+M')();
+  assert.deepEqual(
+    sent.map(([, token]) => token),
+    ['1', '2']
+  );
+  contents.emit('did-start-navigation', { isSameDocument: false, isMainFrame: true });
+  assert.equal(callbacks.size, 0);
 });
