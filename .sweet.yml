@@ -1,7 +1,6 @@
 name: Chatto
 version: 0.6.0-beta.9
 tag-prefix: v
-prerelease: beta
 version-files:
   - path: cli/version.go
     format: annotated
