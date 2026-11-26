@@ -3,6 +3,8 @@ import { ReactiveMap } from '../reactivity/index.js';
 /** Device-local authentication state for one known Chatto server. */
 export interface ServerSession {
   token: string | null;
+  /** Device-local ID for one sign-in. It stays the same across token rotations. */
+  bearerSessionId?: string | null;
   /** Rotating renewal credential; absent on pre-0.5 persisted sessions. */
   refreshToken?: string | null;
   /** Access credential expiry as Unix epoch milliseconds. */
