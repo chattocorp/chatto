@@ -35,6 +35,7 @@
     "activity_now": "現在",
     "older_conversations": "較早的對話",
     "show_older_conversations": "顯示較早的對話（{count}）",
-    "show_fewer_conversations": "收合"
+    "show_fewer_conversations": "收合",
+    "reset_server_order": "重設為伺服器順序"
   }
 }

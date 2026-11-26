@@ -35,6 +35,7 @@
     "activity_now": "nun",
     "older_conversations": "Pli malnovaj konversacioj",
     "show_older_conversations": "Montri pli malnovajn ({count})",
-    "show_fewer_conversations": "Montri malpli"
+    "show_fewer_conversations": "Montri malpli",
+    "reset_server_order": "Restarigi la servilan ordon"
   }
 }

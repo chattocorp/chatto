@@ -35,6 +35,7 @@
     "activity_now": "nå",
     "older_conversations": "Eldre samtaler",
     "show_older_conversations": "Vis eldre ({count})",
-    "show_fewer_conversations": "Vis færre"
+    "show_fewer_conversations": "Vis færre",
+    "reset_server_order": "Tilbakestill til serverrekkefølgen"
   }
 }

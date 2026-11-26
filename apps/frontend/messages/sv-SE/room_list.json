@@ -35,6 +35,7 @@
     "activity_now": "nu",
     "older_conversations": "Äldre konversationer",
     "show_older_conversations": "Visa äldre ({count})",
-    "show_fewer_conversations": "Visa färre"
+    "show_fewer_conversations": "Visa färre",
+    "reset_server_order": "Återställ till serverordningen"
   }
 }
