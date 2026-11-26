@@ -5,6 +5,11 @@ ES modules and declarations. The release build includes `@chatto/api-types`
 inside the package, because that workspace package is private. Both the
 client and its generated protocol code use Apache-2.0.
 
+The client keeps credential storage and migration rules in
+`src/server/sessionPersistence.ts`. That module decides whether an open tab
+can adopt stored credentials. The server registry applies the decision and
+owns token renewal, viewer state, and connection cleanup.
+
 Run these commands from the repository root:
 
 ```sh
