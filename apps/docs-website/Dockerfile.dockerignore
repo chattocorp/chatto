@@ -12,7 +12,11 @@
 !LICENSES/Apache-2.0.txt
 !NOTICE
 !CHANGELOG.md
+!.sweet.config.yml
+!.sweet/
+!.sweet/*.md
 !tools/
+tools/**
 !tools/changelog.mjs
 !apps/
 !apps/docs-website/

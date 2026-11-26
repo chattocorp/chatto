@@ -1,5 +1,6 @@
 import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
 import type { StarlightRouteData } from '@astrojs/starlight/route-data';
+import { getCollection } from 'astro:content';
 import { docsChannel } from './docsMetadata';
 
 type Head = StarlightRouteData['head'];
@@ -18,11 +19,20 @@ const upsertMeta = (head: Head, attribute: 'name' | 'property', key: string, con
   }
 };
 
-export const onRequest = defineRouteMiddleware(({ locals, site }) => {
+export const onRequest = defineRouteMiddleware(async ({ locals, site }) => {
   if (!site) throw new Error("Astro's site URL is required for Open Graph metadata.");
 
   const route = locals.starlightRoute;
   if (route.id === '404') return;
+
+  // The homepage links to the changelog until the first numbered release exists.
+  if (!route.id) {
+    const action = route.entry.data.hero?.actions.find(({ link }) => link === '/changelog/');
+    if (action) {
+      const [latest] = await getCollection('releases', ({ data }) => data.order === 0);
+      if (latest) action.link = latest.data.link;
+    }
+  }
 
   const title = route.entry.data.title;
   const description = route.entry.data.description ?? 'Self-hosting documentation for Chatto.';

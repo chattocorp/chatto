@@ -673,7 +673,7 @@ such as spacing, colours, or wording. Both use a patch release.
 For a change that most Chatto members or operators will want to know about, also
 add a `highlight` note in one or two short sentences. A highlight does not
 change the version; the `feature` or `fix` note of the same change does. The
-docs website changelog shows highlights first. Help → What's new in the app
+generated release pages show highlights first. When an upgrade requires action, add an `upgrade` note that gives the action and when to take it. This note does not change the version. Generated release pages show these notes immediately after the highlights. Help → What's new in the app
 lists stable releases and the current prerelease cycle, with highlights and a link to each GitHub release. See [FDR-060](docs/fdr/FDR-060-release-highlights.md). Describe the changed behavior and any required action. Commit
 the package's `.sweet/*.md` file with the change. Internal changes do not need
 a release note. Commit titles do not supply release notes.

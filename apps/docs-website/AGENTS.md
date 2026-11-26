@@ -24,14 +24,15 @@ Starlight.
 
 The landing page (`src/content/docs/index.mdx`), Introduction
 (`getting-started/introduction.mdx`), Quick Start
-(`getting-started/quick-start.mdx`), and release pages (`releases/*.mdx`) are
+(`getting-started/quick-start.mdx`), and release pages through 0.5.0 are
 human-authored. Agents can suggest changes. Edit these pages only when the user
 explicitly requests edits to them. Report a required correction instead of
 changing a protected page as part of a routine feature update.
 
-When adding a page for the newest minor release, update the homepage
-`Release Notes` link in the same change, even if the release is still
-in beta. This navigation update is part of adding the release page.
+The docs site generates release pages, sidebar entries, and the homepage
+Release Notes link from the root Sweet Release changelog. Each numbered
+version gets a page when its first prerelease or stable entry appears. Add
+highlights and upgrade actions to the root package notes.
 
 ## Page Scope And Navigation
 

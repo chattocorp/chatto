@@ -1,7 +1,12 @@
 // @ts-check
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { readReleasePages } from './src/releases.mjs';
 import { docsSiteUrl } from './src/docsMetadata.ts';
+
+const changelogPath = fileURLToPath(new URL('../../CHANGELOG.md', import.meta.url));
+const releases = readReleasePages(fileURLToPath(new URL('../../', import.meta.url)));
 
 // https://astro.build/config
 export default defineConfig({
@@ -49,6 +54,10 @@ export default defineConfig({
     '/guides/integrations/realtime-typescript': '/guides/integrations/realtime-protocol'
   },
   integrations: [
+    {
+      name: 'release-sidebar',
+      hooks: { 'astro:config:setup': ({ addWatchFile }) => addWatchFile(changelogPath) }
+    },
     starlight({
       title: 'Chatto',
       customCss: ['./src/custom.css'],
@@ -106,8 +115,8 @@ export default defineConfig({
           label: 'Releases',
           collapsed: true,
           items: [
-            { label: 'Changelog', link: '/changelog/' },
-            'releases/0-6-0',
+            'changelog',
+            ...releases.map(({ title, link }) => ({ label: title, link })),
             'releases/0-5-0',
             'releases/0-4-0',
             'releases/0-3-0',

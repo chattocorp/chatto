@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { releasePages } from '../apps/docs-website/src/releases.mjs';
 import { parseChangelog, readChangelog, releaseHighlights } from './changelog.mjs';
 
 const changelog = `# Changelog
@@ -118,4 +119,55 @@ test('adds pending notes as the first release, in section order', (t) => {
 
   rmSync(join(root, '.sweet'), { recursive: true });
   assert.equal(parseChangelog(readChangelog(root))[0].version, '0.6.0');
+});
+
+test('the release preview combines pending and target cycle notes, then uses only the stable entry', () => {
+  const pending = '## Unreleased\n### Upgrade notes\n- Set the URL.\n';
+  const beta = '## 0.6.0-rc.1\n### Highlights\n- New sign-in.\n### Fixes\n- A later fix.\n';
+  const previous = '## 0.5.1\n### Fixes\n- An older fix.\n';
+  const entries = parseChangelog(
+    pending +
+      beta +
+      changelog.slice(changelog.indexOf('## 0.6.0-beta.1'), changelog.indexOf('## [')) +
+      previous
+  );
+  const [preview] = releasePages(entries, ['Highlights', 'Upgrade notes', 'Fixes']);
+  assert.equal(preview.released, false);
+  assert.deepEqual(preview.sections, [
+    { title: 'Highlights', notes: ['New sign-in.'] },
+    { title: 'Upgrade notes', notes: ['Set the URL.'] },
+    { title: 'Fixes', notes: ['A later fix.', 'Another fix.'] }
+  ]);
+  const finalEntries = parseChangelog(pending + changelog);
+  const [stable] = releasePages(finalEntries, []);
+  assert.equal(stable.released, true);
+  assert.deepEqual(stable.sections, finalEntries[1].sections);
+});
+
+test('numbered releases get one permanent page in descending version order', () => {
+  const releases = [
+    'Unreleased',
+    '0.9.4',
+    '0.10.1-rc.2',
+    '0.10.0',
+    '0.10.0-beta.0',
+    '1.0.0-beta.1'
+  ].map((version) => ({ version, sections: [] }));
+  assert.deepEqual(
+    releasePages(releases, []).map(({ link }) => link),
+    ['/releases/1-0-0/', '/releases/0-10-1/', '/releases/0-10-0/', '/releases/0-9-4/']
+  );
+  assert.deepEqual(releasePages([{ version: 'Unreleased', sections: [] }], []), []);
+});
+
+test('only the newest open release page includes pending notes', () => {
+  const entries = parseChangelog(
+    '## Unreleased\n### Highlights\n- Pending.\n## 0.7.0-beta.1\n### Features\n- New.\n## 0.6.1-beta.1\n### Fixes\n- Patch.\n'
+  );
+  const [newest, patch] = releasePages(entries, ['Highlights']);
+  assert.deepEqual(
+    newest.sections.map((s) => s.title),
+    ['Highlights', 'Features']
+  );
+  assert.deepEqual(patch.sections, [{ title: 'Fixes', notes: ['Patch.'] }]);
 });
