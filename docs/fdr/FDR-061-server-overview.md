@@ -14,7 +14,7 @@ The server Overview at `/chat/{server}/overview` is the home page of a server. A
 5. **Rooms.** The room directory with its room groups, search, and a membership filter: **All**, **Joined**, or **Not joined**. **All** is the default.
 6. **Neighbors.** The Neighbors that the server advertises ([FDR-042](FDR-042-chatto-neighbors.md)). A card opens the server when it is already in the app. Otherwise it opens the Server Directory, which owns the join flow.
 
-The page hides each section that has nothing to show, except the identity and the rooms. A member can hide the welcome message, and an administrator can hide the setup reminder. Each choice applies to one server on the current device.
+On wide screens, the welcome message and the rooms form the main column. The message of the day, the calls, and **Catch up** form a narrow side column. On narrow screens, the side column moves between the welcome message and the rooms. The page hides each section that has nothing to show, except the identity and the rooms. Without side-column content, the main column takes the full width. A member can hide the welcome message, and an administrator can hide the setup reminder. Each choice applies to one server on the current device.
 
 ## Rationale
 
@@ -22,7 +22,7 @@ The Overview was only a room directory. New members land on it, so it is the bes
 
 The membership filter replaces a split into separate "Your rooms" and "Discover" tabs. With tabs, a room would move out of view when the member joins or leaves it. With the filter, rows stay in place in the default **All** view.
 
-The welcome message and setup reminder can be hidden because they repeat on every visit. The device stores only a flag for each server, not the content (ADR-107). Members cannot hide the message of the day, because administrators use it for current information.
+The side column keeps short, current items next to the long welcome message and the room directory, so no row is left half empty. The welcome message and setup reminder can be hidden because they repeat on every visit. The device stores only a flag for each server, not the content (ADR-107). Members cannot hide the message of the day, because administrators use it for current information.
 
 The Neighbors section reads the cached Neighborhood from the current server. The logos and banners are copies on that server, so the browser does not contact the Neighbors.
 

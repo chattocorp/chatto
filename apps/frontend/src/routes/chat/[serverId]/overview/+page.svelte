@@ -13,8 +13,9 @@ the directory hides itself when it has nothing to show.
   } from '$lib/components/overview/ServerOverviewActivity.svelte';
   import ServerOverviewHeader from '$lib/components/overview/ServerOverviewHeader.svelte';
   import ServerOverviewNeighbors from '$lib/components/overview/ServerOverviewNeighbors.svelte';
-  import ServerOverviewNotes from '$lib/components/overview/ServerOverviewNotes.svelte';
   import ServerOverviewSetup from '$lib/components/overview/ServerOverviewSetup.svelte';
+  import ServerOverviewWelcome from '$lib/components/overview/ServerOverviewWelcome.svelte';
+  import ServerMarkdown from '$lib/components/ServerMarkdown.svelte';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { conversationPath } from '$lib/navigation/conversationPath';
@@ -23,7 +24,7 @@ the directory hides itself when it has nothing to show.
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
-  import { PaneContent, PaneHeader, PageTitle } from '$lib/ui';
+  import { PaneContent, PaneHeader, PageTitle, Panel } from '$lib/ui';
 
   // Re-derives reactively when the URL `[serverId]` changes. Directory rows
   // and membership are selected directly from that server's projection.
@@ -57,6 +58,10 @@ the directory hides itself when it has nothing to show.
     return catchUpRooms(navigation.rooms, (roomId) => roomUnread.roomIsUnread(roomId));
   });
 
+  const motd = $derived(stores.projection.serverState?.motd?.trim() || null);
+  /** The side column shows only when it has content; otherwise the main column takes the width. */
+  const hasAside = $derived(!!motd || calls.length > 0 || catchUp.length > 0);
+
   /** Open the room with its call panel, where the viewer joins the call. */
   function openCall(roomId: string) {
     appUi.requestRoomSidebarPanel(
@@ -76,7 +81,7 @@ the directory hides itself when it has nothing to show.
 
   <!-- The directory's room groups are titled panels; the masonry uses the wide width. -->
   <PaneContent wide>
-    <div class="flex flex-col gap-8">
+    <div class="@container flex flex-col gap-8">
       {#if profile}
         <ServerOverviewHeader
           name={profile.name}
@@ -92,17 +97,42 @@ the directory hides itself when it has nothing to show.
         missing={missingProfile}
       />
 
-      <ServerOverviewNotes
-        serverId={serverScope.serverId}
-        welcomeMessage={profile?.welcomeMessage}
-        motd={stores.projection.serverState?.motd}
-      />
+      <!--
+        Wide containers: the welcome message and rooms on the left, the side column
+        on the right. The side column spans both rows, and the second row takes
+        the extra height, so a tall side column does not open a gap below the
+        welcome message. Narrow containers stack welcome, side column, and rooms.
+      -->
+      <div
+        class={[
+          'grid gap-8',
+          hasAside && '@4xl:grid-cols-[minmax(0,1fr)_20rem] @4xl:grid-rows-[auto_1fr]'
+        ]}
+      >
+        <div class="min-w-0 empty:hidden @4xl:col-start-1 @4xl:row-start-1">
+          <ServerOverviewWelcome
+            serverId={serverScope.serverId}
+            welcomeMessage={profile?.welcomeMessage}
+          />
+        </div>
 
-      <ServerOverviewActivity {serverSegment} {calls} {catchUp} onjoincall={openCall} />
+        {#if hasAside}
+          <aside
+            class="@container flex min-w-0 flex-col gap-6 @4xl:col-start-2 @4xl:row-span-2 @4xl:row-start-1"
+          >
+            {#if motd}
+              <Panel title={m('common.message_of_the_day')} icon="iconify icon-[uil--megaphone]">
+                <ServerMarkdown source={motd} />
+              </Panel>
+            {/if}
+            <ServerOverviewActivity {serverSegment} {calls} {catchUp} onjoincall={openCall} />
+          </aside>
+        {/if}
 
-      <section aria-label={m('common.rooms')}>
-        <RoomDirectory directory={ui.roomDirectory} {serverSegment} />
-      </section>
+        <section class="min-w-0 @4xl:col-start-1 @4xl:row-start-2" aria-label={m('common.rooms')}>
+          <RoomDirectory directory={ui.roomDirectory} {serverSegment} />
+        </section>
+      </div>
 
       <ServerOverviewNeighbors {serverOrigin} />
     </div>

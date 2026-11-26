@@ -3,37 +3,37 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { isOverviewCardDismissed } from '$lib/storage/overviewDismissals';
-import ServerOverviewNotes from './ServerOverviewNotes.svelte';
+import ServerOverviewWelcome from './ServerOverviewWelcome.svelte';
 import ServerOverviewSetup from './ServerOverviewSetup.svelte';
 
 afterEach(() => localStorage.clear());
 
-describe('ServerOverviewNotes', () => {
-  it('shows the welcome message and the message of the day', async () => {
-    render(ServerOverviewNotes, {
+describe('ServerOverviewWelcome', () => {
+  it('renders the welcome message as Markdown', async () => {
+    render(ServerOverviewWelcome, {
       serverId: 'origin',
-      welcomeMessage: 'Say hi in **introductions**',
-      motd: 'Community call on Friday'
+      welcomeMessage: 'Say hi in **introductions**'
     });
 
     await expect.element(page.getByText('introductions', { exact: true })).toBeVisible();
-    await expect.element(page.getByText('Community call on Friday')).toBeVisible();
   });
 
-  it('hides the welcome message on this device and keeps the message of the day', async () => {
-    render(ServerOverviewNotes, { serverId: 'origin', welcomeMessage: 'Hello', motd: 'News' });
+  it('hides the welcome message on this device', async () => {
+    render(ServerOverviewWelcome, { serverId: 'origin', welcomeMessage: 'Hello' });
 
     await page.getByRole('button', { name: 'Hide welcome message' }).click();
 
     await expect.element(page.getByText('Hello')).not.toBeInTheDocument();
-    await expect.element(page.getByText('News')).toBeVisible();
     expect(isOverviewCardDismissed('origin', 'welcome')).toBe(true);
     expect(isOverviewCardDismissed('other', 'welcome')).toBe(false);
   });
 
-  it('renders nothing without messages', () => {
-    const { container } = render(ServerOverviewNotes, { serverId: 'origin' });
-    expect(container.querySelector('[data-testid="server-overview-notes"]')).toBeNull();
+  it('renders nothing without a welcome message', () => {
+    const { container } = render(ServerOverviewWelcome, {
+      serverId: 'origin',
+      welcomeMessage: '  '
+    });
+    expect(container.querySelector('[data-testid="server-overview-welcome"]')).toBeNull();
   });
 });
 

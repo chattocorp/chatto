@@ -1,8 +1,9 @@
 <!--
 @component
 
-The "Happening now" row of the server Overview: a card for each active call
-in a joined room, and the joined rooms with unread messages or notifications.
+The "Happening now" column of the server Overview: a card for each active
+call in a joined room, and the joined rooms with unread messages or
+notifications, stacked for the narrow side column.
 Renders nothing when there is no activity. The owner supplies the call
 action, so this component does not depend on app-shell state.
 -->
@@ -50,9 +51,8 @@ action, so this component does not depend on app-shell state.
 
 {#if calls.length > 0 || catchUp.length > 0}
   <OverviewSection title={m('chat.overview.happening_now')}>
-    <div
-      class="grid grid-cols-1 gap-4 md:grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))]"
-    >
+    <!-- One column in the side column; two when the stacked layout gives it the width. -->
+    <div class="grid items-start gap-4 @xl:grid-cols-2">
       {#each calls as call (call.roomId)}
         <div data-testid="server-overview-call">
           <Panel>
