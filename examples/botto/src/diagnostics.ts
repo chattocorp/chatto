@@ -38,3 +38,42 @@ export async function startupStep<T>(description: string, work: () => Promise<T>
     throw new StartupError(`${description}${errorHint(error)}`);
   }
 }
+
+/** Fixed host stages only: never use provider text, arguments, or URLs as a stage. */
+type AnnouncementStage =
+  | 'GitHub lookup'
+  | 'model setup'
+  | 'model turn'
+  | 'response validation'
+  | 'Chatto connection'
+  | 'follow-up memory'
+  | 'thread lookup'
+  | 'thread delivery'
+  | 'root delivery'
+  | 'details delivery'
+  | 'workflow';
+
+/** Retain a safe failure stage across nested operations without retaining the external cause. */
+export class AnnouncementError extends Error {
+  constructor(stage: AnnouncementStage, error: unknown) {
+    super(`Announcement ${stage} failed.${errorHint(error)}`);
+    this.name = 'AnnouncementError';
+  }
+}
+
+/** Preserve an already classified failure; replace all external messages with fixed diagnostics. */
+export function announcementError(stage: AnnouncementStage, error: unknown): AnnouncementError {
+  return error instanceof AnnouncementError ? error : new AnnouncementError(stage, error);
+}
+
+/** Label a host operation without changing retry or delivery state. */
+export async function announcementStep<T>(
+  stage: AnnouncementStage,
+  work: () => T | Promise<T>
+): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    throw announcementError(stage, error);
+  }
+}

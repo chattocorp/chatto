@@ -3,3 +3,14 @@
 .env
 botto.toml
 *.pem
+
+# Publish placeholders, never the local credentials.
+!.env.github.example
+
+# Durable local Means collections.
+brains/*
+!brains/klaus/
+brains/klaus/*
+!brains/klaus/MEANS.md
+
+!brains/issue-followups/

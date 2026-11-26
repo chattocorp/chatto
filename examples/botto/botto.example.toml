@@ -4,7 +4,7 @@
 [chatto]
 api_key = "${BOTTO_CHATTO_API_KEY}"
 url = "https://chat.example.com"
-# Enable every tool advertised by this server's /mcp endpoint, including writes.
+# Enable the permitted read tools from this server's /mcp endpoint.
 mcp = false
 # Show the bot account as online while Botto runs.
 report_presence = true
@@ -34,11 +34,25 @@ You are a helpful assistant. Be friendly, clear, and concise.
 # model = "provider/small-model"
 reasoning_level = "off"
 
-[memory]
-# Requires the means executable. Relative paths use this TOML file's directory.
-enabled = false
-command = "means"
-path = "memory"
+# Means collections are ordinary MCP servers; see README.md.
+# For memory-based issue follow-ups, see ANNOUNCEMENTS.md.
+# Create MEANS.md before enabling a collection. Paths are relative to this TOML file.
+# [mcp.servers.memory_klaus]
+# command = "means"
+# args = ["mcp", "--path", "brains/klaus"]
+# serialize = true
+# tools = ["info", "list", "search", "read", "create"]
+# admin_tools = ["update", "delete", "schema_set"]
+
+# Dedicated operational collection for issue origins and delivery state.
+# [mcp.servers.issue_followups]
+# command = "means"
+# args = ["mcp", "--path", "brains/issue-followups"]
+# serialize = true
+# tools = ["info", "list", "search", "read", "create"]
+# admin_tools = ["update", "delete", "schema_set"]
+# Set announcements.github.followup_memory = "issue_followups" and include
+# "issue_followups" in announcements.github.mcp_servers to enable host receipts.
 
 [web]
 # Search the web and fetch pages through Exa's hosted MCP server. Exa receives
@@ -47,12 +61,28 @@ enabled = false
 # exa_api_key = "${EXA_API_KEY}"
 
 # Additional MCP tools for the main agent. Restart after changing connections.
+# GitHub App setup: see GITHUB.md and .env.github.example.
 # [mcp.servers.github]
-# url = "https://example.com/mcp"
-# tools = ["search_issues", "list_issues", "issue_read"]
+# command = "${BOTTO_GITHUB_MCP_COMMAND}"
+# args = ["stdio"]
+# tools = [
+#   "get_commit",
+#   "list_commits",
+#   "get_file_contents",
+#   "search_code",
+#   "list_issues",
+#   "search_issues",
+#   "issue_read",
+#   "list_pull_requests",
+#   "search_pull_requests",
+#   "pull_request_read",
+# ]
 # admin_tools = ["issue_write", "add_issue_comment"]
-# [mcp.servers.github.headers]
-# Authorization = "Bearer ${GITHUB_TOKEN}"
+#
+# [mcp.servers.github.env]
+# GITHUB_APP_ID = "${BOTTO_GITHUB_APP_ID}"
+# GITHUB_APP_INSTALLATION_ID = "${BOTTO_GITHUB_APP_INSTALLATION_ID}"
+# GITHUB_APP_PRIVATE_KEY_PATH = "${BOTTO_GITHUB_APP_PRIVATE_KEY_PATH}"
 # [mcp.servers.custom]
 # command = "my-mcp-server"
 # args = ["--stdio"]

@@ -65,6 +65,24 @@ export function createTurnHandler(
       safeStep('Reply post', () => server.postMessage(destination, body, { signal }), metrics);
     let naming: Promise<void> | undefined;
     let response: ConversationResponse | undefined;
+    // Start presence only when the agent emits text. Join any in-flight refresh before delivery.
+    let typing: { stop: () => void; done: Promise<void> } | undefined;
+    const onTyping = async (active: boolean) => {
+      if (active) {
+        if (typing || signal.aborted) return;
+        const lifetime = Promise.withResolvers<void>();
+        typing = {
+          stop: () => lifetime.resolve(),
+          // Presence is best effort and must not reject while the model is still running.
+          done: server.withTyping(destination, () => lifetime.promise, { signal }).catch(() => {})
+        };
+      } else if (typing) {
+        const current = typing;
+        current.stop();
+        await current.done;
+        if (typing === current) typing = undefined;
+      }
+    };
     const work = async () => {
       // Read-only failures remain queued and can be retried after reconnect.
       const currentIds = messages.map((item) => item.reaction?.messageId ?? item.id);
@@ -171,6 +189,7 @@ export function createTurnHandler(
             prompt,
             signal,
             postUpdate,
+            onTyping,
             allowReaction: !message.reaction,
             context,
             loadImages: context.messages.some((message) =>
@@ -194,7 +213,8 @@ export function createTurnHandler(
     };
     // All accepted activity reaches the same conversation agent.
     try {
-      await server.withTyping(destination, work, { signal });
+      await work();
+      await onTyping(false);
       // End typing, including any refresh in flight, before the final message
       // clears the indicator. Title generation does not represent chat activity.
       signal.throwIfAborted();
@@ -214,6 +234,7 @@ export function createTurnHandler(
         );
       }
     } finally {
+      await onTyping(false);
       // Naming handles its own errors. Join it even if delivery has failed.
       await naming;
     }

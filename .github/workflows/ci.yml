@@ -282,11 +282,15 @@ jobs:
           install-cli-deps: 'false'
       - run: mise x -- pnpm --filter runling build:runtime
       - run: mise x -- pnpm --filter @chatto/example-botto check
-      - name: Test Botto without network access
+      - name: Test Botto without external network access
         working-directory: examples/botto
-        # Pi tests use mocks or local transcripts. A separate network namespace
-        # also prevents accidental provider requests, including from child processes.
-        run: sudo unshare --net -- env PI_OFFLINE=1 "$(mise which node)" node_modules/vitest/vitest.mjs run
+        # Keep provider requests blocked, including from child processes. Only
+        # loopback is enabled for the local HTTP webhook integration test.
+        run: |
+          sudo unshare --net -- sh -ec '
+            ip link set lo up
+            exec env PI_OFFLINE=1 "$1" node_modules/vitest/vitest.mjs run
+          ' sh "$(mise which node)"
 
   test-chattobot:
     needs: changes

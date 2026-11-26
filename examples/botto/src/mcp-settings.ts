@@ -7,6 +7,8 @@ import type { McpServerEntry } from '@earendil-works/pi-coding-agent';
 export interface AuthorizedMcpServer extends McpServerEntry {
   tools: string[];
   adminTools: string[];
+  /** Serialize calls to this server across conversations in one bot process. */
+  serialize: boolean;
 }
 
 /** Custom servers belong to the main agent. Built-in namespaces remain reserved. */
@@ -51,18 +53,15 @@ export function parseMcpServers(
   const root = table(value ?? {});
   if (Object.keys(root).some((key) => key !== 'servers')) return fail();
   return Object.entries(table(root.servers ?? {})).map(([name, raw]) => {
-    if (
-      !/^[a-z][a-z0-9_]*$/.test(name) ||
-      name.includes('__') ||
-      ['chatto', 'exa', 'memory'].includes(name)
-    )
+    if (!/^[a-z][a-z0-9_]*$/.test(name) || name.includes('__') || ['chatto', 'exa'].includes(name))
       return fail();
     const server = table(raw);
     const remote = server.url !== undefined;
     const allowed = [
       ...(remote ? ['url', 'headers'] : ['command', 'args', 'env']),
       'tools',
-      'admin_tools'
+      'admin_tools',
+      'serialize'
     ];
     if (Object.keys(server).some((key) => !allowed.includes(key))) return fail();
     const names = (value: unknown): string[] => {
@@ -74,12 +73,20 @@ export function parseMcpServers(
         return fail();
       return value;
     };
+    if (server.serialize !== undefined && typeof server.serialize !== 'boolean') return fail();
     const tools = names(server.tools);
     const adminTools = names(server.admin_tools);
     // Pi normalizes hyphens in tool names. Reject ambiguous grants across both lists.
     const normalized = [...tools, ...adminTools].map((tool) => tool.replaceAll('-', '_'));
     if (new Set(normalized).size !== normalized.length) return fail();
-    const base = { name, source: configPath, scope: 'extension' as const, tools, adminTools };
+    const base = {
+      name,
+      source: configPath,
+      scope: 'extension' as const,
+      tools,
+      adminTools,
+      serialize: server.serialize === true
+    };
     if (remote) {
       const url = text(server.url);
       try {

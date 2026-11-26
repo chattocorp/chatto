@@ -10,7 +10,7 @@ import {
   SettingsManager,
   type McpTransportFactory
 } from '@earendil-works/pi-coding-agent';
-import { EXA_MCP_URL, mcpExtension, memoryLockExtension, mcpServers } from './mcp.ts';
+import { EXA_MCP_URL, mcpExtension, mcpLockExtension, mcpServers, createMcpLock } from './mcp.ts';
 import { mcpFixture } from './mcp.fixture.ts';
 import { parseSettings } from './settings.ts';
 import { createAgentSession as createRunlingSession } from 'runling';
@@ -56,7 +56,7 @@ test.each([
     noPromptTemplates: true,
     noThemes: true,
     noContextFiles: true,
-    extensionFactories: [mcpExtension(settings, undefined, () => transport, privileged)]
+    extensionFactories: [mcpExtension(settings, () => transport, privileged)]
   });
   await loader.reload();
   const { session } = await createAgentSession({
@@ -130,7 +130,7 @@ test('Runling starts native MCP extensions and awaits their shutdown without a m
         promptTemplates: false,
         themes: false
       },
-      extensions: [mcpExtension(settings, undefined, create)]
+      extensions: [mcpExtension(settings, create)]
     });
     try {
       await vi.waitFor(() => expect(create).toHaveBeenCalledOnce());
@@ -160,6 +160,12 @@ test.each([false, true])(
       'botto.toml'
     );
     settings.mcp = enabled;
+    settings.extraMcpServers = enabled
+      ? parseSettings(
+          '[chatto]\nurl="https://example.com"\napi_key="unused"\n[agent]\nmodel="test/model"\n[mcp.servers.memory_test]\ncommand="means"\ntools=["read", "post_message"]\nserialize=true',
+          'botto.toml'
+        ).extraMcpServers
+      : [];
     const call = vi.fn(async (_name: string, args: Record<string, unknown>) =>
       args.fail
         ? { isError: true, content: [{ type: 'text' as const, text: 'private failure' }] }
@@ -167,11 +173,14 @@ test.each([false, true])(
     );
     const transports: Array<ReturnType<typeof mcpFixture>> = [];
     const createTransport = vi.fn((entry) => {
-      expect(entry.config.exposure).toBe('direct');
+      expect(entry.config.exposure).toBe('hidden');
       if (entry.name === 'chatto')
         expect(entry.config.headers).toEqual({ Authorization: 'Bearer private-key' });
       const transport = mcpFixture(
-        ['read', 'post_message'].map((name) => ({
+        (entry.name === 'chatto'
+          ? ['get_message', 'post_message', 'send_direct_message']
+          : ['read', 'post_message']
+        ).map((name) => ({
           name,
           inputSchema: { type: 'object' as const }
         })),
@@ -212,8 +221,8 @@ test.each([false, true])(
         noThemes: true,
         noContextFiles: true,
         extensionFactories: [
-          mcpExtension(settings, enabled ? directory : undefined, createTransport),
-          memoryLockExtension(controller.signal, acquire)
+          mcpExtension(settings, createTransport),
+          mcpLockExtension(controller.signal, acquire, 'memory_test')
         ]
       });
       await loader.reload();
@@ -235,14 +244,23 @@ test.each([false, true])(
         }
         await vi.waitFor(() =>
           expect(session.getActiveToolNames().sort()).toEqual([
-            'mcp__chatto__post_message',
-            'mcp__chatto__read',
-            'mcp__memory__post_message',
-            'mcp__memory__read'
+            'mcp__chatto__get_message',
+            'mcp__memory_test__post_message',
+            'mcp__memory_test__read'
           ])
         );
+        for (const name of ['post_message', 'send_direct_message', 'update_message', 'new_write']) {
+          const blocked = await session.extensionRunner.emitToolCall({
+            type: 'tool_call',
+            toolCallId: name,
+            toolName: `mcp__chatto__${name}`,
+            input: { body: 'placeholder' }
+          });
+          expect(blocked?.block).toBe(true);
+          expect(call).not.toHaveBeenCalled();
+        }
         const execute = async (id: string, fail = false) => {
-          const toolName = 'mcp__memory__read';
+          const toolName = 'mcp__memory_test__read';
           const input = { fail, secret: 'private-argument' };
           await session.extensionRunner.emitToolCall({
             type: 'tool_call',
@@ -294,7 +312,7 @@ test.each([false, true])(
               ? ['batch-one', 'batch-two'].map((id) => ({
                   type: 'toolCall' as const,
                   id,
-                  name: 'mcp__memory__read',
+                  name: 'mcp__memory_test__read',
                   arguments: {}
                 }))
               : [{ type: 'text', text: 'Done' }],
@@ -328,7 +346,7 @@ test.each([false, true])(
         await session.extensionRunner.emitToolCall({
           type: 'tool_call',
           toolCallId: 'unfinished',
-          toolName: 'mcp__memory__read',
+          toolName: 'mcp__memory_test__read',
           input: {}
         });
         expect(acquire).toHaveBeenCalledTimes(5);
@@ -360,4 +378,24 @@ test('Exa web tools are opt-in and send an optional key only in a header', () =>
     url: EXA_MCP_URL,
     headers: { 'x-api-key': 'exa-secret' }
   });
+});
+
+test('cancelled queued MCP calls release their place without bypassing the active call', async () => {
+  const acquire = createMcpLock();
+  const signal = new AbortController().signal;
+  const release = await acquire(signal);
+  const controller = new AbortController();
+  const cancelled = acquire(controller.signal);
+  controller.abort();
+  await expect(cancelled).rejects.toThrow();
+  let acquired = false;
+  const next = acquire(signal).then((unlock) => {
+    acquired = true;
+    return unlock;
+  });
+  await Promise.resolve();
+  expect(acquired).toBe(false);
+  release();
+  (await next)();
+  (await acquire(signal))();
 });
