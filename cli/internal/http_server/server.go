@@ -254,9 +254,6 @@ func requestLogger(logger *log.Logger) gin.HandlerFunc {
 }
 
 func requestLogPath(path string) string {
-	if isChatHostnamePath(path) {
-		return "/chat/:hostname"
-	}
 	if strings.HasPrefix(path, "/webhooks/incoming/") {
 		return "/webhooks/incoming/:credential"
 	}

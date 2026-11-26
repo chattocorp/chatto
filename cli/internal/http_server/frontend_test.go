@@ -878,22 +878,6 @@ func TestSecurityHeaders(t *testing.T) {
 		c.String(http.StatusOK, "content")
 	})
 
-	for _, tc := range []struct{ path, policy, logged string }{
-		{"/chat/book-club.example.com", "no-referrer", "/chat/:hostname"},
-		{"/chat/book-club.example.com/", "no-referrer", "/chat/:hostname"},
-		{"/chat/book-club.example.com/room", "no-referrer", "/chat/:hostname"},
-		{"/chat/servers", "strict-origin-when-cross-origin", "/chat/servers"},
-		{"/chat/preferences", "strict-origin-when-cross-origin", "/chat/preferences"},
-		{"/chat/-/room.example", "strict-origin-when-cross-origin", "/chat/-/room.example"},
-	} {
-		t.Run(tc.path, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, tc.path, nil))
-			assert.Equal(t, tc.policy, w.Header().Get("Referrer-Policy"))
-			assert.Equal(t, tc.logged, requestLogPath(tc.path))
-		})
-	}
-
 	t.Run("security headers are set", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/index.html", nil)
 		w := httptest.NewRecorder()

@@ -45,23 +45,10 @@ type pwaServerIconURLs struct {
 	Icon512 string
 }
 
-// isChatHostnamePath identifies the community in a handoff or a deeper chat link.
-// Match the standalone frontend's nginx privacy rule. Static chat pages have
-// single-word segments such as "servers" and "preferences".
-func isChatHostnamePath(path string) bool {
-	rest, ok := strings.CutPrefix(path, "/chat/")
-	segment, _, _ := strings.Cut(rest, "/")
-	return ok && strings.Contains(segment, ".")
-}
-
 func setFrontendSecurityHeaders(c *gin.Context) {
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Header("X-Frame-Options", "DENY")
-	policy := "strict-origin-when-cross-origin"
-	if isChatHostnamePath(c.Request.URL.Path) {
-		policy = "no-referrer"
-	}
-	c.Header("Referrer-Policy", policy)
+	c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 	c.Header("Content-Security-Policy", contentSecurityPolicyHeader)
 }
 
