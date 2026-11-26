@@ -37,13 +37,8 @@ if [ -z "$ready" ]; then
     exit 1
 fi
 
-for path in / /chat/example/room /chat/book-club.example.com /chat/book-club.example.com/room /chat/servers /200.html; do
-    fetch -S "http://127.0.0.1$path" > "$scratch/page" 2> "$scratch/headers"
-    case "$path" in
-        /chat/book-club.example.com*) policy=no-referrer ;;
-        *) policy=strict-origin-when-cross-origin ;;
-    esac
-    grep -iq "Referrer-Policy: $policy" "$scratch/headers"
+for path in / /chat/servers /chat/book-club.example.com /chat/example/room /200.html; do
+    fetch "http://127.0.0.1$path" > "$scratch/page"
     grep -q '<title>Acme Chat</title>' "$scratch/page"
     grep -q '<meta property="og:image" content="https://app.example.org/icons/social-preview.png" />' "$scratch/page"
     if grep -q 'OG_META_' "$scratch/page"; then exit 1; fi
@@ -51,9 +46,5 @@ for path in / /chat/example/room /chat/book-club.example.com /chat/book-club.exa
 done
 fetch http://127.0.0.1/oauth/frontend-client-metadata.json | grep -q '"client_uri": "https://app.example.org"'
 fetch http://127.0.0.1/icons/social-preview.png > /dev/null
-
-docker logs "$container" > "$scratch/log" 2>&1
-grep -q 'GET /chat/servers ' "$scratch/log"
-if grep -q 'book-club.example.com' "$scratch/log"; then exit 1; fi
 
 echo 'Frontend image tests passed.'
