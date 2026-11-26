@@ -139,7 +139,9 @@ recommendation, not a trust or reciprocal relationship.
   hostname on this device. Production links accept a hostname without a port. For a new hostname, the person must select **Add Server**
   before the client requests public server data. A successful check adds the
   server to the switcher and opens its normal signed-out view. A failed
-  request keeps the hostname and offers a retry.
+  request keeps the hostname and offers a retry. Both saved and new server
+  links keep the query string when navigating within the web app. Discovery
+  receives only the server origin.
 - A user can enter a server address directly when the wanted server is not in
   the directory.
 - Neighbor administration does not contact a Neighbor, on the server or in

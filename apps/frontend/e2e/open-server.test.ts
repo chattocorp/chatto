@@ -4,7 +4,7 @@ test('a web handoff waits for a click, retries discovery and remembers the serve
   page
 }) => {
   const host = 'book-club.example.com';
-  const link = '/chat/' + host;
+  const link = '/chat/' + host + '?welcome=true';
   const origin = 'https://' + host;
   const requests: string[] = [];
   let online = false;
@@ -13,6 +13,7 @@ test('a web handoff waits for a click, retries discovery and remembers the serve
     if (online && route.request().url().includes('ServerDiscoveryService/GetServer?')) {
       expect(route.request().headers().authorization).toBeUndefined();
       expect(route.request().headers().referer).toBeUndefined();
+      expect(new URL(route.request().url()).searchParams.has('welcome')).toBe(false);
       return route.fulfill({
         json: {
           profile: { name: 'Book Club', version: '0.6.0' },
@@ -42,11 +43,11 @@ test('a web handoff waits for a click, retries discovery and remembers the serve
   online = true;
   await retry.click();
   await expect(page.getByTestId('server-signed-out')).toBeVisible();
-  await expect(page).toHaveURL(/\/chat\/book-club\.example\.com\/overview$/);
+  await expect(page).toHaveURL(/\/chat\/book-club\.example\.com\/overview\?welcome=true$/);
   expect(await registrations()).toBe(1);
   await page.goto(link);
   await expect(page.getByTestId('server-signed-out')).toBeVisible();
-  await expect(page).toHaveURL(/\/chat\/book-club\.example\.com\/overview$/);
+  await expect(page).toHaveURL(/\/chat\/book-club\.example\.com\/overview\?welcome=true$/);
   expect(await registrations()).toBe(1);
 });
 
