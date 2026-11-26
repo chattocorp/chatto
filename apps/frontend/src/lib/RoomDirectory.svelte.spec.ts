@@ -85,7 +85,7 @@ describe('RoomDirectory', () => {
       item.textContent?.includes('r1')
     ) as HTMLElement;
     // A joined tile opens the room, so it shows the interactive surface.
-    expect(joinedRow.className).toContain('hover:bg-surface-emphasized');
+    expect(joinedRow.className).toContain('tile-interactive');
   });
 
   it('renders universal joined rooms without a leave action', () => {

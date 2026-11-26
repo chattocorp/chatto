@@ -126,7 +126,7 @@ action, so this component does not depend on app-shell state.
     {#if catchUp.length > 0}
       <div data-testid="server-overview-catch-up">
         {#if calls.length > 0}
-          <h3 class="px-3 pt-3 pb-1 text-xs font-semibold tracking-wide text-muted uppercase">
+          <h3 class="px-3 pt-3 pb-1 section-label text-muted">
             {m('chat.overview.catch_up')}
           </h3>
         {/if}

@@ -163,10 +163,7 @@ store owns only optimistic join/leave state.
     the link. Joined rests as a quiet label; hover and focus reveal Leave.
   -->
   <li
-    class={[
-      'relative flex min-w-0 flex-col gap-1 rounded-xl px-3 py-2.5 transition-colors feedback-quick',
-      linked ? 'bg-surface hover:bg-surface-emphasized' : 'bg-surface/50'
-    ]}
+    class={['relative flex min-w-0 flex-col gap-1 tile px-3 py-2.5', linked && 'tile-interactive']}
   >
     <div class="flex min-h-6 min-w-0 items-center gap-2">
       {#if room.isUniversal}
@@ -178,7 +175,7 @@ store owns only optimistic join/leave state.
       {#if linked}
         <a
           href={roomHref}
-          class="min-w-0 flex-1 truncate font-semibold text-text-top after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-action"
+          class="min-w-0 flex-1 truncate font-semibold text-text-top after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-action"
           ><bdi>{room.name}</bdi></a
         >
       {:else}
@@ -263,7 +260,7 @@ store owns only optimistic join/leave state.
   {@const canJoinAll = canJoinAllInGroup(rooms)}
   <section class="flex flex-col gap-2" aria-label={set.name}>
     <div class="flex min-h-6 items-center justify-between gap-3 px-1">
-      <h3 class="truncate text-xs font-semibold tracking-wide text-muted uppercase">
+      <h3 class="truncate section-label text-muted">
         {set.name}
         <span class="font-normal">· {rooms.length}</span>
       </h3>

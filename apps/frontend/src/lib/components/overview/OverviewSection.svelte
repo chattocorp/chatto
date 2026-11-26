@@ -13,7 +13,7 @@ several cards without adding another frame around them.
 </script>
 
 <section class="flex flex-col gap-3" aria-labelledby={titleId}>
-  <h2 id={titleId} class="px-1 text-xs font-semibold tracking-wide text-muted uppercase">
+  <h2 id={titleId} class="px-1 section-label text-muted">
     {title}
   </h2>
   {@render children()}

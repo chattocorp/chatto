@@ -92,6 +92,25 @@
   @apply overflow-hidden;
 }
 
+/* A borderless card for one item in a grid, such as a room in the room
+ * directory. It shares the panel frame's surface, corners, and depth lighting
+ * but has no border, so many tiles side by side stay calm. A tile holds its
+ * own padding and content; it is not a Panel and has no title band. */
+@utility tile {
+  @apply rounded-lg bg-surface surface-raised;
+}
+
+/* A tile that opens something. It takes the hover fill of selectable rows. */
+@utility tile-interactive {
+  @apply transition-colors feedback-quick hover:bg-surface-emphasized;
+}
+
+/* Small uppercase label that names a group of items, such as a room group in
+ * the sidebar or a section of the server Overview. Callers set the colour. */
+@utility section-label {
+  @apply text-xs font-semibold tracking-wider uppercase;
+}
+
 @utility data-table-viewport {
   @apply rounded-md bg-background;
 }
