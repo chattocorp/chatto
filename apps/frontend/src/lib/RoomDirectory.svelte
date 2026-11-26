@@ -1,11 +1,11 @@
 <!--
 @component
 
-Room directory rendered as a responsive grid of group cards. Each card
-represents one room group from the admin-defined layout; rooms inside
-are compact rows with a join / joined / invited / restricted indicator. The
-header carries a "Join all" affordance when there's at least one
-joinable, non-joined room left in the group. A search field and a membership
+Room directory: one section per room group from the admin-defined layout,
+each with a responsive grid of room tiles. A tile shows the room's name,
+description, and a join / joined / invited / restricted control. The section
+heading carries a "Join all" action when at least one joinable, non-joined
+room is left in the group. A search field and a membership
 filter (all, joined, or not joined rooms) narrow the rooms.
 
 The active server's command store is passed as a prop. Directory rows and
@@ -16,7 +16,7 @@ store owns only optimistic join/leave state.
   import { resolve } from '$app/paths';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
-  import { ConfirmDialog, EmptyState, HelpTooltip, Panel, Pill, SegmentedControl } from '$lib/ui';
+  import { ConfirmDialog, EmptyState, HelpTooltip, Pill, SegmentedControl } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import type { RoomDirectoryStore, DirectoryRoom } from '$lib/state/server/roomDirectory';
 
@@ -122,37 +122,6 @@ store owns only optimistic join/leave state.
     );
   }
 
-  // JS-based masonry: each card spans as many small grid rows as its
-  // measured height needs, so the browser packs cards via
-  // `grid-auto-flow: dense` and they end up left-to-right per row
-  // (proper Pinterest layout) without depending on the still-
-  // experimental `grid-template-rows: masonry` property.
-  const MASONRY_ROW = 8; // px; must match the grid container's grid-auto-rows
-  const MASONRY_GAP = 16; // px; must match the container's gap-4
-
-  function masonryItem(node: HTMLElement) {
-    let raf = 0;
-    function measure() {
-      // Use the card's natural content height — we set align-self: start
-      // on grid items, so the row span doesn't feed back into the height.
-      const h = node.getBoundingClientRect().height;
-      if (!h) return;
-      const rows = Math.max(1, Math.ceil((h + MASONRY_GAP) / (MASONRY_ROW + MASONRY_GAP)));
-      node.style.gridRow = `span ${rows}`;
-    }
-    function schedule() {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(measure);
-    }
-    schedule();
-    const ro = new ResizeObserver(schedule);
-    ro.observe(node);
-    return () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-    };
-  }
-
   function promptLeaveRoom(room: DirectoryRoom) {
     leaveConfirmRoom = room;
     leaveConfirmVisible = true;
@@ -178,151 +147,149 @@ store owns only optimistic join/leave state.
   }
 </script>
 
-{#snippet roomRow(room: DirectoryRoom)}
+{#snippet roomTile(room: DirectoryRoom)}
   {@const joined = directory.isJoined(room.id)}
   {@const invited = !!room.viewerInvitation}
   {@const joining = directory.joiningIds.has(room.id)}
   {@const leaving = directory.leavingIds.has(room.id)}
-  <!--
-    Every status control uses a column of at least w-28, so Join, Joined, and
-    the Universal and Restricted labels line up; longer translations widen the
-    column instead of overflowing it. Joined rests as a quiet
-    danger-ghost button, so the eye goes to the Join buttons; hover and focus
-    reveal the Leave action.
-  -->
+  {@const linked = joined || invited}
   {@const roomHref = resolve('/chat/[serverId]/[roomId]', {
     serverId: serverSegment,
     roomId: room.id
   })}
-  <li class="flex items-center gap-3 selectable-list-item px-3 py-1.5">
-    {#snippet roomLabel()}
-      <div class="flex min-w-0 items-start gap-2 font-medium">
-        <span class="mt-0.5 shrink-0 text-muted/60">#</span>
-        <div class="min-w-0 flex-1">
-          <div class="flex min-w-0 items-center gap-2">
-            <span class="min-w-0 truncate">{room.name}</span>
+  <!--
+    A tile for one room. Joined and invited rooms open from anywhere on the
+    tile: the name link stretches over it, and the status control sits above
+    the link. Joined rests as a quiet label; hover and focus reveal Leave.
+  -->
+  <li
+    class={[
+      'relative flex min-w-0 flex-col gap-1 rounded-xl px-3 py-2.5 transition-colors feedback-quick',
+      linked ? 'bg-surface hover:bg-surface-emphasized' : 'bg-surface/50'
+    ]}
+  >
+    <div class="flex min-h-6 min-w-0 items-center gap-2">
+      {#if room.isUniversal}
+        <span aria-hidden="true" class="iconify icon-[uil--globe] w-4 shrink-0 text-muted/70"
+        ></span>
+      {:else}
+        <span aria-hidden="true" class="w-4 shrink-0 text-center text-muted/70">#</span>
+      {/if}
+      {#if linked}
+        <a
+          href={roomHref}
+          class="min-w-0 flex-1 truncate font-semibold text-text-top after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-action"
+          ><bdi>{room.name}</bdi></a
+        >
+      {:else}
+        <span class="min-w-0 flex-1 truncate font-semibold text-text"><bdi>{room.name}</bdi></span>
+      {/if}
+      <div class="relative z-10 flex shrink-0 items-center gap-1">
+        {#if joined && room.isUniversal}
+          <!-- A quiet label like Joined; the leading globe already marks the room. -->
+          <span class="px-2 text-xs font-medium text-muted">{m('room.directory.universal')}</span>
+          <HelpTooltip>{m('room.directory.universal_title')}</HelpTooltip>
+        {:else if joined}
+          <div class="group/leave">
+            <Button
+              variant="danger-ghost"
+              size="compact"
+              loading={leaving}
+              disabled={leaving}
+              title={m('room.directory.joined_title', { room: room.name })}
+              onclick={() => promptLeaveRoom(room)}
+            >
+              {#if leaving}
+                {m('room.directory.leaving')}
+              {:else}
+                <!-- Both states share one grid cell, so the swap does not change the width. -->
+                <span class="grid justify-items-end">
+                  <span
+                    class="col-start-1 row-start-1 inline-flex items-center gap-1 group-focus-within/leave:invisible group-hover/leave:invisible"
+                  >
+                    <span aria-hidden="true" class="iconify icon-[uil--check]"></span>
+                    <span>{m('room.directory.joined')}</span>
+                  </span>
+                  <span
+                    class="invisible col-start-1 row-start-1 inline-flex items-center gap-1 group-focus-within/leave:visible group-hover/leave:visible"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="iconify icon-[uil--sign-out-alt] rtl:-scale-x-100"
+                    ></span>
+                    <span>{m('room.directory.leave')}</span>
+                  </span>
+                </span>
+              {/if}
+            </Button>
           </div>
-          {#if room.description}
-            <div class="truncate text-xs font-normal text-muted">{room.description}</div>
-          {/if}
-        </div>
-      </div>
-    {/snippet}
-    {#if joined || invited}
-      <a href={roomHref} class="min-w-0 flex-1">
-        {@render roomLabel()}
-      </a>
-    {:else}
-      <div class="min-w-0 flex-1">
-        {@render roomLabel()}
-      </div>
-    {/if}
-
-    <div class="flex min-w-28 shrink-0 items-center justify-center gap-1">
-      {#if joined && room.isUniversal}
-        <Pill tone="action" class="inline-flex items-center gap-1">
-          <span aria-hidden="true" class="iconify icon-[uil--globe]"></span>
-          {m('room.directory.universal')}
-        </Pill>
-        <HelpTooltip>{m('room.directory.universal_title')}</HelpTooltip>
-      {:else if joined}
-        <div class="group/leave w-full">
+        {:else if invited}
+          <Pill tone="action" class="inline-flex items-center gap-1">
+            <span aria-hidden="true" class="iconify icon-[uil--envelope-alt]"></span>
+            {m('room.directory.invited')}
+          </Pill>
+        {:else if room.viewerCanJoinRoom || joining}
           <Button
-            variant="danger-ghost"
-            size="sm"
-            fullWidth
-            loading={leaving}
-            disabled={leaving}
-            title={m('room.directory.joined_title', { room: room.name })}
-            onclick={() => promptLeaveRoom(room)}
+            variant="secondary"
+            size="compact"
+            loading={joining}
+            disabled={joining}
+            onclick={() => handleJoin(room.id)}
           >
-            {#if leaving}
-              {m('room.directory.leaving')}
+            {#if joining}
+              {m('room.directory.joining')}
             {:else}
-              <!-- Both states share one grid cell, so the swap does not change the width. -->
-              <span class="grid justify-items-center">
-                <span
-                  class="col-start-1 row-start-1 inline-flex items-center gap-2 group-focus-within/leave:invisible group-hover/leave:invisible"
-                >
-                  <span aria-hidden="true" class="iconify icon-[uil--check]"></span>
-                  <span>{m('room.directory.joined')}</span>
-                </span>
-                <span
-                  class="invisible col-start-1 row-start-1 inline-flex items-center gap-2 group-focus-within/leave:visible group-hover/leave:visible"
-                >
-                  <span aria-hidden="true" class="iconify icon-[uil--sign-out-alt] rtl:-scale-x-100"
-                  ></span>
-                  <span>{m('room.directory.leave')}</span>
-                </span>
-              </span>
+              <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
+              {m('room.directory.join')}
             {/if}
           </Button>
-        </div>
-      {:else if invited}
-        <Pill tone="action" class="inline-flex items-center gap-1">
-          <span aria-hidden="true" class="iconify icon-[uil--envelope-alt]"></span>
-          {m('room.directory.invited')}
-        </Pill>
-      {:else if room.viewerCanJoinRoom || joining}
+        {:else}
+          <Pill tone="muted" class="inline-flex items-center gap-1">
+            <span aria-hidden="true" class="iconify icon-[uil--lock]"></span>
+            {m('room.directory.restricted')}
+          </Pill>
+          <HelpTooltip>{m('room.directory.restricted_title')}</HelpTooltip>
+        {/if}
+      </div>
+    </div>
+    {#if room.description}
+      <p class="line-clamp-2 ps-6 text-sm text-muted">{room.description}</p>
+    {/if}
+  </li>
+{/snippet}
+
+{#snippet group(set: { id: string; name: string; roomIds: string[] }, rooms: DirectoryRoom[])}
+  {@const joining = directory.joiningGroupIds.has(set.id)}
+  {@const canJoinAll = canJoinAllInGroup(rooms)}
+  <section class="flex flex-col gap-2" aria-label={set.name}>
+    <div class="flex min-h-6 items-center justify-between gap-3 px-1">
+      <h3 class="truncate text-xs font-semibold tracking-wide text-muted uppercase">
+        {set.name}
+        <span class="font-normal">· {rooms.length}</span>
+      </h3>
+      {#if canJoinAll || joining}
         <Button
-          size="sm"
-          fullWidth
+          variant="ghost"
+          size="compact"
           loading={joining}
           disabled={joining}
-          onclick={() => handleJoin(room.id)}
+          onclick={() => handleJoinGroup(set)}
         >
           {#if joining}
             {m('room.directory.joining')}
           {:else}
             <span aria-hidden="true" class="iconify icon-[uil--plus]"></span>
-            {m('room.directory.join')}
+            {m('room.directory.join_all')}
           {/if}
         </Button>
-      {:else}
-        <Pill tone="muted" class="inline-flex items-center gap-1">
-          <span aria-hidden="true" class="iconify icon-[uil--lock]"></span>
-          {m('room.directory.restricted')}
-        </Pill>
-        <HelpTooltip>{m('room.directory.restricted_title')}</HelpTooltip>
       {/if}
     </div>
-  </li>
-{/snippet}
-
-{#snippet groupCard(set: { id: string; name: string; roomIds: string[] }, rooms: DirectoryRoom[])}
-  {@const joining = directory.joiningGroupIds.has(set.id)}
-  {@const canJoinAll = canJoinAllInGroup(rooms)}
-  <div {@attach masonryItem} class="self-start">
-    <Panel title={set.name} noPadding inlineActions>
-      {#snippet actions()}
-        {#if canJoinAll || joining}
-          <!-- Shares the row status column's minimum width, so it lines up with Join and Joined. -->
-          <div class="min-w-28 shrink-0">
-            <Button
-              size="sm"
-              fullWidth
-              loading={joining}
-              disabled={joining}
-              onclick={() => handleJoinGroup(set)}
-            >
-              {#if joining}
-                {m('room.directory.joining')}
-              {:else}
-                <span aria-hidden="true" class="iconify icon-[uil--plus-circle]"></span>
-                {m('room.directory.join_all')}
-              {/if}
-            </Button>
-          </div>
-        {/if}
-      {/snippet}
-
-      <ul class="selectable-list">
-        {#each rooms as room (room.id)}
-          {@render roomRow(room)}
-        {/each}
-      </ul>
-    </Panel>
-  </div>
+    <ul class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-2">
+      {#each rooms as room (room.id)}
+        {@render roomTile(room)}
+      {/each}
+    </ul>
+  </section>
 {/snippet}
 
 <div class="mb-6 flex flex-wrap items-center gap-3">
@@ -357,29 +324,16 @@ store owns only optimistic join/leave state.
 {:else if !hasVisibleResults}
   <EmptyState icon="icon-[uil--search-minus]" title={m('room.directory.no_results')} />
 {:else if hasLayout}
-  <!-- Row-major masonry via JS row-spans. Each card is measured by the
-       `masonryItem` attachment, which sets `grid-row: span N` to fit
-       its content. `grid-auto-flow: dense` then packs cards left-to-
-       right, filling shorter columns first. Works everywhere CSS Grid
-       does — no dependency on the experimental masonry track. -->
-  <div
-    class="grid grid-cols-1 gap-4 md:grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))]"
-    style="grid-auto-rows: 8px; grid-auto-flow: row dense;"
-  >
+  <div class="flex flex-col gap-6">
     {#each visibleSets as set (set.id)}
-      {@render groupCard(set, getSetRooms(set))}
+      {@render group(set, getSetRooms(set))}
     {/each}
   </div>
 {:else}
-  <div
-    class="grid grid-cols-1 gap-4 md:grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))]"
-    style="grid-auto-rows: 8px; grid-auto-flow: row dense;"
-  >
-    {@render groupCard(
-      { id: 'all', name: m('common.rooms'), roomIds: filteredRooms.map((r) => r.id) },
-      filteredRooms
-    )}
-  </div>
+  {@render group(
+    { id: 'all', name: m('common.rooms'), roomIds: filteredRooms.map((r) => r.id) },
+    filteredRooms
+  )}
 {/if}
 
 <ConfirmDialog

@@ -28,8 +28,8 @@ describe('ServerOverviewActivity', () => {
       onopennotification: vi.fn()
     });
 
-    await expect.element(page.getByText('#lounge')).toBeVisible();
-    await expect.element(page.getByText('2 people in the call')).toBeVisible();
+    await expect.element(page.getByRole('link', { name: 'lounge' })).toBeVisible();
+    await expect.element(page.getByRole('img', { name: '2 people in the call' })).toBeVisible();
     await page.getByRole('button', { name: 'Join call' }).click();
     expect(onjoincall).toHaveBeenCalledWith('lounge-id');
   });

@@ -84,8 +84,8 @@ describe('RoomDirectory', () => {
     const joinedRow = [...container.querySelectorAll('li')].find((item) =>
       item.textContent?.includes('r1')
     ) as HTMLElement;
-    expect(joinedRow.className).toContain('selectable-list-item');
-    expect(joinedRow.className).not.toContain('hover:bg-surface/70');
+    // A joined tile opens the room, so it shows the interactive surface.
+    expect(joinedRow.className).toContain('hover:bg-surface-emphasized');
   });
 
   it('renders universal joined rooms without a leave action', () => {
@@ -268,16 +268,11 @@ describe('RoomDirectory', () => {
     // The section header is rendered.
     expect(container.textContent).toContain('Important');
 
-    const shell = container.querySelector('.panel-shell') as HTMLElement;
-    const header = shell.querySelector(':scope > .panel-header') as HTMLElement;
-    const inset = shell.querySelector('.panel-inset') as HTMLElement;
-    expect(shell.className).toContain('shrink-0');
-    expect(header.className).toContain('px-6');
-    expect(inset).not.toBeNull();
-
-    // Selectable lists own their standard compact inset inside `Panel noPadding`.
-    const list = shell.querySelector('ul') as HTMLElement;
-    expect(list.className).toBe('selectable-list');
+    // Each group is a labelled section with its own grid of room tiles.
+    const section = container.querySelector('section[aria-label="Important"]') as HTMLElement;
+    expect(section).not.toBeNull();
+    const tiles = [...section.querySelectorAll('li')];
+    expect(tiles.map((tile) => tile.textContent)).toEqual([expect.stringContaining('general')]);
   });
 
   // -- "Join all" group action -----------------------------------------------

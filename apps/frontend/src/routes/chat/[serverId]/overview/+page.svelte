@@ -119,7 +119,7 @@ the directory hides itself when it has nothing to show.
 
         {#if hasAside}
           <aside
-            class="@container flex min-w-0 flex-col gap-6 @4xl:col-start-2 @4xl:row-span-2 @4xl:row-start-1"
+            class="flex min-w-0 flex-col gap-6 @4xl:col-start-2 @4xl:row-span-2 @4xl:row-start-1"
           >
             {#if motd}
               <Panel title={m('common.message_of_the_day')} icon="iconify icon-[uil--megaphone]">

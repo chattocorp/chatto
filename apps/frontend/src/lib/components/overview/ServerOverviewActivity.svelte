@@ -1,9 +1,9 @@
 <!--
 @component
 
-The "Happening now" column of the server Overview: a card for each active
-call in a joined room, and the joined rooms with unread messages or
-notifications, stacked for the narrow side column.
+The "Happening now" panel of the server Overview: a row for each active call
+in a joined room, then the joined rooms with unread messages or
+notifications.
 Renders nothing when there is no activity. The owner supplies the call
 action, so this component does not depend on app-shell state.
 -->
@@ -27,7 +27,6 @@ action, so this component does not depend on app-shell state.
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
   import { NotificationBadge, Panel, UnreadDot } from '$lib/ui';
   import { Button } from '$lib/ui/form';
-  import OverviewSection from './OverviewSection.svelte';
 
   let {
     serverSegment,
@@ -45,8 +44,8 @@ action, so this component does not depend on app-shell state.
     onopennotification: (roomId: string, attentionLevel: NotificationAttentionLevel) => void;
   } = $props();
 
-  /** Avatars shown for each call; the count beside them includes everyone. */
-  const VISIBLE_PARTICIPANTS = 4;
+  /** Avatars shown for each call; an overflow count follows them. */
+  const VISIBLE_PARTICIPANTS = 3;
 
   function roomHref(roomId: string) {
     return resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId });
@@ -68,93 +67,97 @@ action, so this component does not depend on app-shell state.
 {/snippet}
 
 {#if calls.length > 0 || catchUp.length > 0}
-  <OverviewSection title={m('chat.overview.happening_now')}>
-    <!-- One column in the side column; two when the stacked layout gives it the width. -->
-    <div class="grid grid-cols-1 items-start gap-4 @xl:grid-cols-2">
-      {#each calls as call (call.roomId)}
-        <!-- One row: a live icon, the room with its participants, and the join action. -->
-        <div data-testid="server-overview-call">
-          <Panel>
-            <div class="flex min-w-0 items-center gap-3">
-              <span
-                class="flex size-10 shrink-0 items-center justify-center rounded-full bg-success/15 text-success"
-                aria-hidden="true"
-              >
-                <span aria-hidden="true" class="iconify icon-[uil--volume] size-5"></span>
-              </span>
-              <div class="flex min-w-0 flex-1 flex-col gap-1">
-                <span class="truncate font-semibold text-text-top"><bdi>#{call.roomName}</bdi></span
-                >
-                <div class="flex min-w-0 items-center gap-2">
-                  <div class="flex shrink-0 -space-x-1" aria-hidden="true">
-                    {#each call.participants.slice(0, VISIBLE_PARTICIPANTS) as participant (participant.userId)}
-                      <span class="inline-flex rounded-full ring-2 ring-surface">
-                        <UserAvatar
-                          user={callParticipantAvatarUser(participant)}
-                          size="xs"
-                          useLiveProfile={false}
-                        />
-                      </span>
-                    {/each}
-                  </div>
-                  <span class="truncate text-muted">
-                    {m('chat.overview.call_participants_count', {
-                      count: call.participants.length
-                    })}
-                  </span>
-                </div>
-              </div>
-              <!-- The short visible label is part of the accessible name, which names the call. -->
-              <Button
-                size="sm"
-                label={m('voice.join_call')}
-                onclick={() => onjoincall(call.roomId)}
-              >
-                <span aria-hidden="true" class="iconify icon-[uil--phone]"></span>
-                {m('room.directory.join')}
-              </Button>
-            </div>
-          </Panel>
-        </div>
-      {/each}
-
-      {#if catchUp.length > 0}
-        <div data-testid="server-overview-catch-up">
-          <Panel title={m('chat.overview.catch_up')} noPadding>
-            <ul class="selectable-list">
-              {#each catchUp as room (room.id)}
-                <!-- The link opens the room; each badge opens its newest notification, as in the sidebar. -->
-                <li class="flex min-w-0 items-center gap-1 selectable-list-item pe-3">
-                  <a
-                    class="flex min-w-0 flex-1 items-center gap-2 py-1.5 ps-3"
-                    href={roomHref(room.id)}
-                  >
-                    <span class="shrink-0 text-muted/60" aria-hidden="true">#</span>
-                    <bdi class="min-w-0 flex-1 truncate font-medium">{room.name}</bdi>
-                    {#if room.importantCount === 0 && room.otherCount === 0}
-                      <!-- The badge buttons' 24 px slot, so dots and badges share a centre line. -->
-                      <span class="flex size-6 shrink-0 items-center justify-center">
-                        <UnreadDot color="neutral" />
-                      </span>
-                      <span class="sr-only">{m('chat.overview.catch_up_unread')}</span>
-                    {/if}
-                  </a>
-                  {#if room.otherCount > 0}
-                    {@render badge(room.id, NotificationAttentionLevel.AMBIENT, room.otherCount)}
-                  {/if}
-                  {#if room.importantCount > 0}
-                    {@render badge(
-                      room.id,
-                      NotificationAttentionLevel.IMPORTANT,
-                      room.importantCount
-                    )}
-                  {/if}
-                </li>
+  <Panel title={m('chat.overview.happening_now')} noPadding>
+    {#if calls.length > 0}
+      <ul class="selectable-list" data-testid="server-overview-calls">
+        {#each calls as call (call.roomId)}
+          {@const overflow = call.participants.length - VISIBLE_PARTICIPANTS}
+          <!-- One row per call: the room, who is in it, and the join action. -->
+          <li
+            class="flex min-w-0 items-center gap-2 selectable-list-item pe-2"
+            data-testid="server-overview-call"
+          >
+            <a
+              class="flex min-w-0 flex-1 items-center gap-2 py-1.5 ps-3"
+              href={roomHref(call.roomId)}
+            >
+              <span aria-hidden="true" class="iconify icon-[uil--volume] shrink-0 text-success"
+              ></span>
+              <bdi class="min-w-0 truncate font-medium">{call.roomName}</bdi>
+            </a>
+            <span
+              class="flex shrink-0 items-center -space-x-1"
+              role="img"
+              aria-label={m('chat.overview.call_participants_count', {
+                count: call.participants.length
+              })}
+            >
+              {#each call.participants.slice(0, VISIBLE_PARTICIPANTS) as participant (participant.userId)}
+                <span class="inline-flex rounded-full ring-2 ring-surface" aria-hidden="true">
+                  <UserAvatar
+                    user={callParticipantAvatarUser(participant)}
+                    size="xs"
+                    useLiveProfile={false}
+                  />
+                </span>
               {/each}
-            </ul>
-          </Panel>
-        </div>
-      {/if}
-    </div>
-  </OverviewSection>
+              {#if overflow > 0}
+                <span
+                  aria-hidden="true"
+                  class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-surface-emphasized px-1 text-xs text-muted ring-2 ring-surface"
+                  >+{overflow}</span
+                >
+              {/if}
+            </span>
+            <!-- The short visible label is part of the accessible name, which names the call. -->
+            <Button
+              size="compact"
+              label={m('voice.join_call')}
+              onclick={() => onjoincall(call.roomId)}
+            >
+              <span aria-hidden="true" class="iconify icon-[uil--phone]"></span>
+              {m('room.directory.join')}
+            </Button>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    {#if catchUp.length > 0}
+      <div data-testid="server-overview-catch-up">
+        {#if calls.length > 0}
+          <h3 class="px-3 pt-3 pb-1 text-xs font-semibold tracking-wide text-muted uppercase">
+            {m('chat.overview.catch_up')}
+          </h3>
+        {/if}
+        <ul class="selectable-list">
+          {#each catchUp as room (room.id)}
+            <!-- The link opens the room; each badge opens its newest notification, as in the sidebar. -->
+            <li class="flex min-w-0 items-center gap-1 selectable-list-item pe-2">
+              <a
+                class="flex min-w-0 flex-1 items-center gap-2 py-1.5 ps-3"
+                href={roomHref(room.id)}
+              >
+                <span aria-hidden="true" class="shrink-0 text-muted/60">#</span>
+                <bdi class="min-w-0 flex-1 truncate font-medium">{room.name}</bdi>
+                {#if room.importantCount === 0 && room.otherCount === 0}
+                  <!-- The badge buttons' 24 px slot, so dots and badges share a centre line. -->
+                  <span class="flex size-6 shrink-0 items-center justify-center">
+                    <UnreadDot color="neutral" />
+                  </span>
+                  <span class="sr-only">{m('chat.overview.catch_up_unread')}</span>
+                {/if}
+              </a>
+              {#if room.otherCount > 0}
+                {@render badge(room.id, NotificationAttentionLevel.AMBIENT, room.otherCount)}
+              {/if}
+              {#if room.importantCount > 0}
+                {@render badge(room.id, NotificationAttentionLevel.IMPORTANT, room.importantCount)}
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
+  </Panel>
 {/if}
