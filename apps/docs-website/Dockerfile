@@ -17,11 +17,12 @@ ARG CHATTO_DOCS_CHANNEL=dev
 ARG CHATTO_DOCS_VERSION=main
 ARG CHATTO_DOCS_REVISION=local
 ARG CHATTO_DOCS_SITE_URL=https://dev-docs.chatto.run
+# Use the filtered install above. pnpm can start a full install before a script.
 RUN CHATTO_DOCS_CHANNEL="$CHATTO_DOCS_CHANNEL" \
     CHATTO_DOCS_VERSION="$CHATTO_DOCS_VERSION" \
     CHATTO_DOCS_REVISION="$CHATTO_DOCS_REVISION" \
     CHATTO_DOCS_SITE_URL="$CHATTO_DOCS_SITE_URL" \
-    pnpm build
+    npm run build
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine
 
