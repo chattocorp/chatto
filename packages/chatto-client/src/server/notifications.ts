@@ -61,6 +61,24 @@ export type RoomNotificationResolveOptions = {
   attentionLevel?: NotificationAttentionLevel;
 };
 
+/** Whether the signal reports a new message that a user can read. */
+export function isNewMessageNotification(notification: NotificationOccurrenceItem): boolean {
+  switch (notification.signalKind) {
+    case NotificationSignalKind.DIRECT_MESSAGE:
+    case NotificationSignalKind.ROOM_MESSAGE:
+    case NotificationSignalKind.DIRECT_MENTION:
+    case NotificationSignalKind.REPLY:
+    case NotificationSignalKind.ROLE_MENTION:
+    case NotificationSignalKind.HERE:
+    case NotificationSignalKind.ALL:
+    case NotificationSignalKind.FOLLOWED_THREAD:
+    case NotificationSignalKind.FOLLOWED_ROOM:
+      return true;
+    default:
+      return false;
+  }
+}
+
 /** Whether an occurrence belongs to a direct message. */
 export function isDMNotification(notification: NotificationOccurrenceItem): boolean {
   return notification.signalKind === NotificationSignalKind.DIRECT_MESSAGE;
@@ -93,7 +111,7 @@ export function notificationTarget(n: NotificationOccurrenceItem): NotificationT
   };
 }
 
-/** Return the strongest unread notification attention for one exact thread. */
+/** Return the strongest unread new-message notification attention for one exact thread. */
 export function notificationAttentionForThread(
   notifications: readonly NotificationOccurrenceItem[],
   roomId: string,
@@ -101,7 +119,7 @@ export function notificationAttentionForThread(
 ): NotificationAttentionLevel {
   let strongest = NotificationAttentionLevel.UNSPECIFIED;
   for (const notification of notifications) {
-    if (!notification.unread) continue;
+    if (!notification.unread || !isNewMessageNotification(notification)) continue;
     const target = notificationTarget(notification);
     if (target.roomId !== roomId || target.threadRootId !== threadRootId) continue;
     if (notification.attentionLevel === NotificationAttentionLevel.IMPORTANT) {

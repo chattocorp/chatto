@@ -3,7 +3,10 @@
   import { serverUi } from '$lib/state/server/serverUi';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { notificationTarget } from '@chatto/client/server/notifications';
+  import {
+    isNewMessageNotification,
+    notificationTarget
+  } from '@chatto/client/server/notifications';
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
   import { NotificationBadge } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
@@ -14,6 +17,7 @@
   const serverId = serverScope.serverId;
   const threadNotifications = $derived(
     serverUi(serverScope.store).attention.occurrences.filter((notification) => {
+      if (!isNewMessageNotification(notification)) return false;
       const target = notificationTarget(notification);
       if (!target.roomId || !target.threadRootId) return false;
       // A loaded room timeline can prove that a thread is not followed. When

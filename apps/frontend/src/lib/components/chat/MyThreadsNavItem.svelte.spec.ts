@@ -1,16 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  NotificationAttentionLevel,
+  NotificationSignalKind
+} from '@chatto/client/api/notifications';
 import { render } from 'vitest-browser-svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { createTestServerScope } from '$lib/test-utils/serverScope.svelte';
 
 const mocks = {
-  unreadOccurrences: [] as Array<{
-    room: { id: string } | null;
-    eventId: string;
-    threadRootId: string | null;
-    attentionLevel: number;
-  }>,
+  unreadOccurrences: [] as ReturnType<typeof occurrence>[],
   threadFollowStates: new Map<string, boolean>()
 };
 
@@ -50,7 +49,9 @@ describe('MyThreadsNavItem', () => {
 
   it('shows an Important count badge for a followed-thread notification', async () => {
     mocks.threadFollowStates.set('room-1\u0000root-1', true);
-    mocks.unreadOccurrences = [occurrence('reply-1', 'root-1', 2)];
+    mocks.unreadOccurrences = [
+      occurrence('reply-1', 'root-1', NotificationAttentionLevel.IMPORTANT)
+    ];
 
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
@@ -61,14 +62,39 @@ describe('MyThreadsNavItem', () => {
     expect(container.querySelector('a')?.textContent).not.toContain('1 notifications');
   });
 
-  it('shows an ambient count badge for an Ambient notification occurrence', async () => {
+  it('counts only the Ambient reply when an Important reaction targets the same thread', async () => {
     mocks.threadFollowStates.set('room-1\u0000root-1', true);
-    mocks.unreadOccurrences = [occurrence('reply-1', 'root-1', 1)];
+    mocks.unreadOccurrences = [
+      occurrence('reply-1', 'root-1', NotificationAttentionLevel.AMBIENT),
+      occurrence(
+        'reaction',
+        'root-1',
+        NotificationAttentionLevel.IMPORTANT,
+        NotificationSignalKind.REACTION
+      )
+    ];
 
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
     const badge = await waitForTestId(container, 'my-threads-notification-badge');
+    expect(badge.textContent).toBe('1');
     expect(badge.classList).toContain('bg-text');
+  });
+
+  it('hides the badge when a reaction is the only followed-thread notification', async () => {
+    mocks.threadFollowStates.set('room-1\u0000root-1', true);
+    mocks.unreadOccurrences = [
+      occurrence(
+        'reaction',
+        'root-1',
+        NotificationAttentionLevel.AMBIENT,
+        NotificationSignalKind.REACTION
+      )
+    ];
+
+    const { container } = render(MyThreadsNavItem, { props: { active: false } });
+
+    expect(container.querySelector('[data-testid="my-threads-notification-badge"]')).toBeNull();
   });
 
   it('counts notification occurrences across followed threads only', async () => {
@@ -76,10 +102,10 @@ describe('MyThreadsNavItem', () => {
     mocks.threadFollowStates.set('room-1\u0000root-2', true);
     mocks.threadFollowStates.set('room-1\u0000root-3', false);
     mocks.unreadOccurrences = [
-      occurrence('reply-1', 'root-1', 1),
-      occurrence('reply-2', 'root-1', 1),
-      occurrence('reply-3', 'root-2', 2),
-      occurrence('reply-4', 'root-3', 2)
+      occurrence('reply-1', 'root-1', NotificationAttentionLevel.AMBIENT),
+      occurrence('reply-2', 'root-1', NotificationAttentionLevel.AMBIENT),
+      occurrence('reply-3', 'root-2', NotificationAttentionLevel.IMPORTANT),
+      occurrence('reply-4', 'root-3', NotificationAttentionLevel.IMPORTANT)
     ];
 
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
@@ -92,7 +118,9 @@ describe('MyThreadsNavItem', () => {
 
   it('ignores notification attention for a thread that is not followed', async () => {
     mocks.threadFollowStates.set('room-1\u0000root-1', false);
-    mocks.unreadOccurrences = [occurrence('reply-1', 'root-1', 2)];
+    mocks.unreadOccurrences = [
+      occurrence('reply-1', 'root-1', NotificationAttentionLevel.IMPORTANT)
+    ];
 
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
@@ -115,8 +143,13 @@ describe('MyThreadsNavItem', () => {
   });
 });
 
-function occurrence(eventId: string, threadRootId: string, attentionLevel: number) {
-  return { room: { id: 'room-1' }, eventId, threadRootId, attentionLevel };
+function occurrence(
+  eventId: string,
+  threadRootId: string,
+  attentionLevel: NotificationAttentionLevel,
+  signalKind: NotificationSignalKind = NotificationSignalKind.REPLY
+) {
+  return { room: { id: 'room-1' }, eventId, threadRootId, attentionLevel, signalKind };
 }
 
 async function waitForTestId(container: HTMLElement, testid: string): Promise<Element> {
