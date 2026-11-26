@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { sidebarSwipe } from './useSidebarSwipe.svelte';
+import { sidebarSwipe, threadDismissSwipe } from './useSidebarSwipe.svelte';
 import { sidebarNav } from '$lib/state/globals.svelte';
 
 function resetSidebar() {
@@ -131,6 +131,44 @@ describe('sidebarSwipe', () => {
 
     action.destroy();
   });
+
+  it.each(['ltr', 'rtl'])(
+    'keeps the thread open after cancelled, short, and vertical drags in %s',
+    (direction) => {
+      document.documentElement.dir = direction;
+      const { host, child } = makeGestureHost();
+      Object.defineProperty(child, 'clientWidth', { value: 375 });
+      host.setAttribute('data-mobile-swipe-host', '');
+      const close = vi.fn();
+      const detach = threadDismissSwipe(child, close);
+      const sidebar = sidebarSwipe(host);
+      const sign = direction === 'rtl' ? -1 : 1;
+      const start = 200;
+      const move = (delta: number, y = 24) =>
+        window.dispatchEvent(touch('touchmove', start + delta * sign, y));
+      const begin = () => child.dispatchEvent(touch('touchstart', start));
+      begin();
+      move(120);
+      expect(child.style.translate).toBe(`${120 * sign}px`);
+      window.dispatchEvent(touch('touchcancel', start + 120 * sign));
+      expect(child.style.translate).toBe('');
+      begin();
+      move(15);
+      window.dispatchEvent(touch('touchend', start + 15 * sign));
+      begin();
+      move(40, 190);
+      window.dispatchEvent(touch('touchend', start + 40 * sign, 190));
+      expect(close).not.toHaveBeenCalled();
+      begin();
+      move(200);
+      window.dispatchEvent(touch('touchend', start + 200 * sign));
+      expect(close).toHaveBeenCalledOnce();
+      expect(sidebarNav.isOpen).toBe(false);
+      expect(sidebarNav.dragOffset).toBeNull();
+      detach?.();
+      sidebar.destroy();
+    }
+  );
 
   it.each(['ltr', 'rtl'])('leaves viewport-edge swipes to the browser in %s', (direction) => {
     document.documentElement.dir = direction;

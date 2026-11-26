@@ -56,6 +56,7 @@ can configure their Threading Mode. DMs always use Enabled behavior.
   notifications in that thread. Emoji reactions do not activate this dot. They
   remain in the notification list and notification counts.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
+- In the mobile drawer layout, swipe right while a thread is open to slide the thread overlay away and return to the room. Swipe again to open the sidebar. Swipes can start in the thread or on the app header. In right-to-left layouts, swipe left.
 - Below 1024 px viewport width, the thread header has one back arrow to return to the room and no trailing close button. Desktop controls remain available at wider widths. Header targets are at least 44 px square whenever touch input is available.
 - The thread header shows up to 3, 5, 8, or 12 participant avatars at pane widths
   below 360 px, from 360 px, from 480 px, or from 640 px respectively, plus the

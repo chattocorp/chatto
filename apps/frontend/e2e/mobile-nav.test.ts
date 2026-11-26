@@ -8,7 +8,8 @@ async function touchDrag(
   page: import('@playwright/test').Page,
   fromX: number,
   toX: number,
-  y: number
+  y: number,
+  whileDragging?: () => Promise<void>
 ) {
   const client = await page.context().newCDPSession(page);
   const steps = 6;
@@ -24,6 +25,7 @@ async function touchDrag(
       type: 'touchMove',
       touchPoints: [{ x, y }]
     });
+    if (i === steps / 2) await whileDragging?.();
   }
 
   await client.send('Input.dispatchTouchEvent', {
@@ -163,6 +165,41 @@ test.describe('Mobile Navigation', () => {
     await touchDrag(page, 100, 320, 160);
 
     await expect(roomList).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+  });
+
+  test('a mobile thread takes the first swipe before the sidebar opens', async ({
+    page,
+    chatPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const room = await chatPage.enterRoom('general');
+    const message = await room.sendMessage('Thread swipe test');
+    await message.openThread();
+    await room.expectThreadPaneVisible();
+    await page.setViewportSize({ width: 375, height: 667 });
+
+    const roomList = page.locator('.room-list');
+    // The app header sits outside the thread. Both surfaces must drag the same overlay.
+    const pane = page.getByTestId('thread-pane');
+    const assertThreadDragging = async () => {
+      await expect.poll(async () => (await pane.boundingBox())?.x ?? 0).toBeGreaterThan(50);
+      await expect(page.locator('[data-sidebar-dragging="true"]')).toHaveCount(0);
+      await expect(page.getByTestId('mobile-sidebar-backdrop')).toHaveCSS('opacity', '0');
+    };
+    await touchDrag(page, 80, 320, 28, assertThreadDragging);
+    await room.expectThreadRouteClosed();
+    await expect(roomList).not.toBeVisible();
+
+    await page.goBack();
+    await room.expectThreadPaneVisible();
+    await touchDrag(page, 80, 320, 200, assertThreadDragging);
+    await room.expectThreadRouteClosed();
+    await expect(page.getByTestId('thread-pane')).toHaveCount(0);
+    await expect(roomList).not.toBeVisible();
+
+    await touchDrag(page, 80, 320, 200);
+    await expect(roomList).toBeVisible();
   });
 
   test('sidebar ignores mouse drags in the narrow layout', async ({ page, chatPage }) => {

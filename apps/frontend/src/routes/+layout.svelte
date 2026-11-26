@@ -200,6 +200,7 @@
   <div
     {@attach initialPageReveal}
     {@attach watchMotionPreference}
+    data-mobile-swipe-host
     use:sidebarSwipe
     class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] desktop-presentation:px-3 desktop-presentation:pb-3"
   >
