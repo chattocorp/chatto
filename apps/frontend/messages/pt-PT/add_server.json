@@ -1,6 +1,6 @@
 {
   "add_server": {
-    "handoff_notice": "Estabeleça ligação para adicionar este servidor à sua lista. O servidor verá o seu endereço IP.",
+    "handoff_notice": "O servidor verá o seu endereço IP.",
     "sign_in": "Iniciar sessão",
     "connecting": "Ligar...",
     "start_failed": "Falha ao iniciar o login.",

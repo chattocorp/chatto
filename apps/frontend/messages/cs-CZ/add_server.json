@@ -1,6 +1,6 @@
 {
   "add_server": {
-    "handoff_notice": "Připojením přidáte tento server do svého seznamu serverů. Server uvidí vaši IP adresu.",
+    "handoff_notice": "Server uvidí vaši IP adresu.",
     "sign_in": "Přihlaste se",
     "connecting": "Připojování...",
     "start_failed": "Nepodařilo se zahájit přihlašování.",

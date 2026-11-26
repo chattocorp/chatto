@@ -8,7 +8,9 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { serverIdForHostname } from '$lib/navigation/serverHostname';
   import { addSignedOutServer, findServerByUrl } from '$lib/serverCatalogue';
-  import { Hint, PageTitle, PaneContent } from '$lib/ui';
+  import { Hint, PageTitle, ScrollFader } from '$lib/ui';
+  import ServerLogo from '$lib/components/ServerLogo.svelte';
+  import chattoIcon from '$lib/assets/chatto-icon.png';
   import { Button } from '$lib/ui/form';
   import { loadErrorMessage } from '$lib/utils/errorMessage';
   import type { PageProps } from './$types';
@@ -70,37 +72,60 @@
   }
 </script>
 
-<PageTitle title={m('add_server.directory.connect_by_address')} />
-<PaneContent>
-  {#key data.hostname}
-    <section
-      class="mx-auto flex w-full max-w-md flex-col items-start gap-4 py-8"
-      {@attach linkLifetime}
-    >
-      {#if data.hostname}
-        {@const hostname = data.hostname}
-        <h1 class="text-2xl font-semibold wrap-anywhere text-text-top">
-          <bdi dir="ltr">{hostname}</bdi>
-        </h1>
-        {#if external || data.external}
-          <Button href={`https://${hostname}`} opensInNewTab
-            >{m('add_server.directory.open_in_new_tab')}</Button
-          >
-        {:else}
-          <p>{m('add_server.handoff_notice')}</p>
-          {#if error}<div role="alert"><Hint tone="danger">{error}</Hint></div>{/if}
-          <Button
-            onclick={() => connect(hostname)}
-            loading={pending}
-            loadingText={m('add_server.connecting')}
-          >
-            {error ? m('common.retry') : m('add_server.directory.connect_by_address')}
-          </Button>
-        {/if}
-      {:else}
-        <Hint tone="warning">{m('add_server.invalid_url')}</Hint>
-        <Button href={resolve('/chat/servers')}>{m('add_server.directory.title')}</Button>
-      {/if}
-    </section>
-  {/key}
-</PaneContent>
+<PageTitle title={m('chat.server_gutter.add_server')} />
+<ScrollFader top bottom mask>
+  <div class="flex min-h-full flex-1 items-center justify-center px-4 py-6 sm:p-8">
+    {#key data.hostname}
+      <section
+        class="w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-surface shadow-md"
+        {@attach linkLifetime}
+      >
+        <div
+          class="flex h-28 items-center justify-center gap-4 bg-action/10 bg-[radial-gradient(circle,color-mix(in_srgb,var(--color-action)_28%,transparent)_1px,transparent_1px)] bg-size-[12px_12px] sm:h-32"
+          aria-hidden="true"
+        >
+          <img src={chattoIcon} alt="" class="size-14 -rotate-6 rounded-xl shadow-md" />
+          <span aria-hidden="true" class="iconify icon-[uil--link] text-2xl text-text"></span>
+          <div class="grid size-14 rotate-6 place-items-center rounded-xl bg-surface shadow-md">
+            {#if data.hostname}
+              <ServerLogo server={{ name: data.hostname }} fill />
+            {:else}
+              <span aria-hidden="true" class="iconify icon-[uil--globe] text-3xl"></span>
+            {/if}
+          </div>
+        </div>
+        <div class="flex flex-col items-stretch gap-5 p-6 text-center sm:p-8">
+          {#if data.hostname}
+            {@const hostname = data.hostname}
+            <h1
+              class="text-xl leading-tight font-bold tracking-tight wrap-anywhere text-text-top sm:text-2xl"
+            >
+              <bdi dir="ltr">{hostname}</bdi>
+            </h1>
+            {#if external || data.external}
+              <Button size="lg" href={`https://${hostname}`} opensInNewTab
+                >{m('add_server.directory.open_in_new_tab')}</Button
+              >
+            {:else}
+              {#if error}<div role="alert" class="text-start">
+                  <Hint tone="danger">{error}</Hint>
+                </div>{/if}
+              <Button
+                size="lg"
+                onclick={() => connect(hostname)}
+                loading={pending}
+                loadingText={m('add_server.connecting')}
+              >
+                {error ? m('common.retry') : m('chat.server_gutter.add_server')}
+              </Button>
+              <p class="text-sm text-muted">{m('add_server.handoff_notice')}</p>
+            {/if}
+          {:else}
+            <Hint tone="warning">{m('add_server.invalid_url')}</Hint>
+            <Button href={resolve('/chat/servers')}>{m('add_server.directory.title')}</Button>
+          {/if}
+        </div>
+      </section>
+    {/key}
+  </div>
+</ScrollFader>

@@ -34,7 +34,7 @@ test('a web handoff waits for a click, retries discovery and remembers the serve
   await expect(page.getByRole('heading', { name: host })).toBeVisible();
   expect(requests).toEqual([]);
   expect(await registrations()).toBe(0);
-  await page.getByRole('button', { name: 'Connect by address' }).click();
+  await page.getByRole('button', { name: 'Add Server', exact: true }).click();
   const retry = page.getByRole('button', { name: 'Try Again' });
   await expect(retry).toBeVisible();
   await expect(page.getByRole('heading', { name: host })).toBeVisible();
@@ -63,10 +63,10 @@ test('an incompatible server offers its exact website and stays out of the switc
     })
   );
   await page.goto('/open?server=old.example.com');
-  await page.getByRole('button', { name: 'Connect by address' }).click();
+  await page.getByRole('button', { name: 'Add Server', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Open in new tab' })).toHaveAttribute('href', origin);
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Connect by address' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add Server', exact: true })).toBeVisible();
 });
 
 test('a registration on another port cannot claim the handoff', async ({ page }) => {
