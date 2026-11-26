@@ -67,16 +67,23 @@ func (s *roomDirectoryService) ListRoomGroups(ctx context.Context, req *connect.
 		return nil, err
 	}
 
-	groups, err := s.api.core.RoomDirectoryReads().ListRoomGroups(ctx, caller.UserID, core.RoomDirectoryGroupOptions{})
+	var response *apiv1.ListRoomGroupsResponse
+	err = s.api.core.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
+		groups, err := s.api.core.RoomDirectoryReads().ListRoomGroups(readCtx, caller.UserID, core.RoomDirectoryGroupOptions{})
+		if err != nil {
+			return err
+		}
+		apiGroups := make([]*apiv1.RoomGroup, 0, len(groups))
+		for _, group := range groups {
+			apiGroups = append(apiGroups, apiRoomGroup(group))
+		}
+		response = &apiv1.ListRoomGroupsResponse{Groups: apiGroups, PersonalGroupOrder: s.api.core.RoomDirectoryReads().PersonalRoomGroupOrder(caller.UserID), SupportsPersonalGroupOrder: personalOrderSupported()}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	apiGroups := make([]*apiv1.RoomGroup, 0, len(groups))
-	for _, group := range groups {
-		apiGroups = append(apiGroups, apiRoomGroup(group))
-	}
-	return connect.NewResponse(&apiv1.ListRoomGroupsResponse{Groups: apiGroups, PersonalGroupOrder: s.api.core.RoomDirectoryReads().PersonalRoomGroupOrder(caller.UserID), SupportsPersonalGroupOrder: personalOrderSupported()}), nil
+	return connect.NewResponse(response), nil
 }
 
 func (s *roomDirectoryService) GetRoomGroup(ctx context.Context, req *connect.Request[apiv1.GetRoomGroupRequest]) (*connect.Response[apiv1.GetRoomGroupResponse], error) {

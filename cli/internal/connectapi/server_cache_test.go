@@ -31,6 +31,9 @@ func TestDiscoveryFeatureCatalog(t *testing.T) {
 		}
 		seen[feature.Id] = true
 	}
+	if !seen["personalRoomGroupOrder"] {
+		t.Fatal("discovery omitted personal room group order")
+	}
 	if !seen["shieldRoleSelection"] {
 		t.Fatal("discovery omitted Shield Mode role selection")
 	}
@@ -122,12 +125,12 @@ func TestListFeaturesVersionFilter(t *testing.T) {
 		version string
 		count   int
 	}{
-		{"0.5.0-beta.15", 4},
-		{"0.5.0-beta.16", 3},
-		{"0.5.0-beta.17", 3},
-		{"0.5.0-beta.18", 2},
-		{"0.5.0-beta.18+custom.1", 2},
-		{"0.5.0", 2},
+		{"0.5.0-beta.15", 5},
+		{"0.5.0-beta.16", 4},
+		{"0.5.0-beta.17", 4},
+		{"0.5.0-beta.18", 3},
+		{"0.5.0-beta.18+custom.1", 3},
+		{"0.5.0", 3},
 		{"0.6.0-beta.0", 0},
 		{"0.6.0", 0},
 		{"9.0.0", 0},

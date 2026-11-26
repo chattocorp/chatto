@@ -68,7 +68,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import RoomContextMenu from '$lib/components/menus/RoomContextMenu.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
-  import { createRoomDirectoryAPI } from '@chatto/client/api/roomDirectory';
   import { createAdminRoomLayoutAPI } from '$lib/api/adminRoomLayout';
   import {
     archiveRoomFromMenu,
@@ -106,7 +105,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const activeCallRooms = $derived(serverUi(stores).activeCallRooms);
   const appUi = getAppUiState();
   const roomLayoutAPI = serverScope.connection.getAPI(createAdminRoomLayoutAPI);
-  const personalOrderAPI = serverScope.connection.getAPI(createRoomDirectoryAPI);
   const personalOrderSupported = $derived(stores.projection.supportsPersonalGroupOrder);
   const touchOnly = new MediaQuery(TOUCH_ONLY_QUERY, false);
   /**
@@ -310,10 +308,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   }
 
   async function persistPersonalOrder(ids: string[]): Promise<void> {
-    const response = await personalOrderAPI.setPersonalRoomGroupOrder(ids);
-    // Realtime owns reconciliation; the response confirms this mutation.
-    stores.projection.roomGroups = response.groups;
-    stores.projection.personalGroupOrder = response.personalGroupOrder;
+    await stores.setPersonalRoomGroupOrder(ids);
   }
 
   async function movePersonalGroup(groupId: string, direction: number): Promise<void> {

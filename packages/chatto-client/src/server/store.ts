@@ -50,7 +50,7 @@ import { RoomStores, type KeepRecent, type RoomStoreAccess } from './roomStores.
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { RoomKind } from '../api/roomDirectory.js';
+import { RoomKind, createRoomDirectoryAPI } from '../api/roomDirectory.js';
 import { mapDirectoryMember } from '../api/memberDirectory.js';
 import {
   createPrivilegedModeAPI,
@@ -1276,6 +1276,15 @@ export class ServerStateStore {
 
   private scrubRemovedRoom(roomId: string): void {
     this.clearRoomAccess(roomId, true);
+  }
+
+  /** Replace the personal order and reconcile through the generation-fenced resource reader. */
+  async setPersonalRoomGroupOrder(groupIds: string[]): Promise<void> {
+    const generation = this.#realtimeProjectionGeneration;
+    await this.connection.getAPI(createRoomDirectoryAPI).setPersonalRoomGroupOrder(groupIds);
+    this.requireCurrentRealtimeProjection(generation);
+    if (this.#disposed) return;
+    this.refreshRealtimeResource('roomGroups');
   }
 
   private refreshRealtimeResource(family: RealtimeResourceFamily, minimumCursor?: string): void {

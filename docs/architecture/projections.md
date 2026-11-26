@@ -8,7 +8,7 @@ The room snapshot includes it, so the schema fingerprint selects a new snapshot
 contract. Public room metadata assembly does not include the notice. Authorized
 notice reads use `RoomCommandModel.GetNotice`.
 
-The config component uses snapshot contract `v3`. Timezone-clear events retain
+The config component stores each user’s personal room group order. Its snapshot includes the complete preference; a schema fingerprint change selects the new snapshot contract. The config component uses snapshot contract `v3`. Timezone-clear events retain
 an empty optional value for an explicit browser-default choice. Older snapshots
 are rebuilt from EVT because they represented that choice as an absent value.
 

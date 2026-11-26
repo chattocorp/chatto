@@ -133,7 +133,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ### 10. Lightweight layout management stays in the sidebar
 
-**Decision:** Creation, removal, and ordering actions live next to the affected room group, room, or sidebar link. Detailed metadata and permission settings remain on resource pages in the management area. The room-layout overview remains available during the transition.
+**Decision:** Creation and removal actions live next to the affected room group, room, or sidebar link. Sidebar group ordering changes only the viewer’s preference. Server-wide group ordering remains in Server Admin → Rooms. Detailed metadata and permission settings remain on resource pages in the management area. The room-layout overview remains available during the transition.
 **Why:** Operators can adjust the navigation structure without leaving the navigation context. The split also keeps complex forms out of the narrow sidebar.
 **Tradeoff:** The permanent creation button uses space in each group header so users can find it. Drag handles appear on hover or focus. Touch-only devices have no drag handles in the sidebar. The drag library blocks scrolling for each touch that starts on a handle, and each managed row has a handle. Relative move commands preserve entries that the caller cannot see, so a filtered sidebar cannot remove hidden rooms from the authoritative layout.
 
@@ -152,6 +152,16 @@ changes during the decision. They can retry the complete command when a
 concurrent room, group, or layout change advances a domain OCC boundary. See
 ADR-086 and ADR-087.
 
+### 12. Personal group order
+
+**Decision:** Each authenticated user can store a personal group order that applies on all devices. Listed groups come first. Other visible groups follow in server order. Deleted and unknown IDs are skipped. New groups appear at the bottom. The preference stores the complete list, with at most 1000 distinct IDs. An empty list restores server order.
+
+**Why:** Members need their own navigation order without changing other members’ sidebars. The server applies the same order for every client and bot.
+
+**Tradeoff:** New groups are not inserted between the user’s listed groups. No extra tracking state is required.
+
+Group menus provide Move up and Move down on all devices, and Reset to server order when a personal order exists. Older servers do not show these controls. Collapse state remains device-local. This feature makes no third-party connections.
+
 ## Permissions
 
 - `room.create` — configured per group (or at server scope as a default).
@@ -164,19 +174,9 @@ ADR-086 and ADR-087.
 
 ## Open Questions
 
-- Touch-only devices have no sidebar drag handles. A viewer with group `room.manage` but not server-wide `room.manage` cannot open **Server Admin → Rooms**. This viewer cannot reorder the layout on a touch-only device. Move commands in the row and group context menus can close this gap.
+- Touch-only devices have no sidebar drag handles. A viewer with group `room.manage` but not server-wide `room.manage` cannot open **Server Admin → Rooms**. This viewer cannot move room or link entries on a touch-only device. Row move commands can close this gap. Personal group ordering is available through group menus.
 
 ## Related
 
 - **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-086 (atomic room-layout structural mutations), ADR-087 (request-time authorization with aggregate OCC), [ADR-115](../adr/ADR-115-in-process-domain-services.md) (in-process domain services)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-019 (Room Lifecycle)
-
-### Personal group order
-
-**Decision:** Each authenticated user can store a personal group order that applies on all devices. Listed groups come first. Other visible groups follow in server order. Deleted and unknown IDs are skipped. New groups appear at the bottom. The preference stores the complete list, with at most 1000 distinct IDs. An empty list restores server order.
-
-**Why:** Members need their own navigation order without changing other members’ sidebars. The server applies the same order for every client and bot.
-
-**Tradeoff:** New groups are not inserted between the user’s listed groups. No extra tracking state is required.
-
-Group menus provide Move up and Move down on all devices, and Reset to server order when a personal order exists. Older servers do not show these controls. Collapse state remains device-local. This feature makes no third-party connections.

@@ -15,6 +15,10 @@
     "shieldRoleSelection": {
       "name": "Rollenauswahl im privilegierten Modus",
       "description": "Wähle die Rollen aus, die du für 15 Minuten aktivieren möchtest."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Persönliche Gruppensortierung",
+      "description": "Persönliche Gruppensortierung. Auf Serverreihenfolge zurücksetzen."
     }
   },
   "fr": {
@@ -33,6 +37,10 @@
     "shieldRoleSelection": {
       "name": "Sélection des rôles en mode privilégié",
       "description": "Choisissez les rôles à activer pendant 15 minutes."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Ordre personnel des groupes",
+      "description": "Ordre personnel des groupes. Rétablir l’ordre du serveur."
     }
   },
   "es": {
@@ -51,6 +59,10 @@
     "shieldRoleSelection": {
       "name": "Selección de roles en modo privilegiado",
       "description": "Elige los roles que quieres activar durante 15 minutos."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Orden personal de grupos",
+      "description": "Orden personal de grupos. Restablecer el orden del servidor."
     }
   },
   "nl": {
@@ -69,6 +81,10 @@
     "shieldRoleSelection": {
       "name": "Rolselectie in de bevoorrechte modus",
       "description": "Kies de rollen die je 15 minuten wilt activeren."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Persoonlijke groepsvolgorde",
+      "description": "Persoonlijke groepsvolgorde. Servervolgorde herstellen."
     }
   },
   "sv": {
@@ -87,6 +103,10 @@
     "shieldRoleSelection": {
       "name": "Rollval i privilegierat läge",
       "description": "Välj vilka roller du vill aktivera i 15 minuter."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Personlig gruppordning",
+      "description": "Personlig gruppordning. Återställ till serverordningen."
     }
   },
   "pt": {
@@ -105,6 +125,10 @@
     "shieldRoleSelection": {
       "name": "Seleção de funções no modo privilegiado",
       "description": "Selecione as funções que pretende ativar durante 15 minutos."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Ordem pessoal dos grupos",
+      "description": "Ordem pessoal dos grupos. Repor a ordem do servidor."
     }
   },
   "pt-BR": {
@@ -123,6 +147,10 @@
     "shieldRoleSelection": {
       "name": "Seleção de funções no modo privilegiado",
       "description": "Escolha as funções que deseja ativar por 15 minutos."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Ordem pessoal dos grupos",
+      "description": "Ordem pessoal dos grupos. Restaurar a ordem do servidor."
     }
   },
   "nb": {
@@ -141,6 +169,10 @@
     "shieldRoleSelection": {
       "name": "Rollevalg i privilegert modus",
       "description": "Velg rollene du vil aktivere i 15 minutter."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Personlig grupperekkefølge",
+      "description": "Personlig grupperekkefølge. Tilbakestill til serverrekkefølgen."
     }
   },
   "pl": {
@@ -159,6 +191,10 @@
     "shieldRoleSelection": {
       "name": "Wybór ról w trybie uprzywilejowanym",
       "description": "Wybierz role, które chcesz włączyć na 15 minut."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Osobista kolejność grup",
+      "description": "Osobista kolejność grup. Przywróć kolejność serwera."
     }
   },
   "uk": {
@@ -177,6 +213,10 @@
     "shieldRoleSelection": {
       "name": "Вибір ролей у привілейованому режимі",
       "description": "Виберіть ролі, які хочете активувати на 15 хвилин."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Особистий порядок груп",
+      "description": "Особистий порядок груп. Відновити порядок сервера."
     }
   },
   "it": {
@@ -195,6 +235,10 @@
     "shieldRoleSelection": {
       "name": "Selezione dei ruoli in modalità privilegiata",
       "description": "Scegli i ruoli da attivare per 15 minuti."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Ordine personale dei gruppi",
+      "description": "Ordine personale dei gruppi. Ripristina l’ordine del server."
     }
   },
   "lv": {
@@ -213,6 +257,10 @@
     "shieldRoleSelection": {
       "name": "Lomu izvēle privileģētajā režīmā",
       "description": "Izvēlieties lomas, kuras vēlaties aktivizēt uz 15 minūtēm."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Personiskā grupu secība",
+      "description": "Personiskā grupu secība. Atjaunot servera secību."
     }
   },
   "et": {
@@ -231,6 +279,10 @@
     "shieldRoleSelection": {
       "name": "Rollide valik kõrgendatud õigustega režiimis",
       "description": "Valige rollid, mida soovite 15 minutiks aktiveerida."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Isiklik rühmade järjestus",
+      "description": "Isiklik rühmade järjestus. Taasta serveri järjestus."
     }
   },
   "tr": {
@@ -249,6 +301,10 @@
     "shieldRoleSelection": {
       "name": "Ayrıcalıklı modda rol seçimi",
       "description": "15 dakika boyunca etkinleştirmek istediğiniz rolleri seçin."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Kişisel grup sırası",
+      "description": "Kişisel grup sırası. Sunucu sırasına sıfırlayın."
     }
   },
   "cs": {
@@ -267,6 +323,10 @@
     "shieldRoleSelection": {
       "name": "Výběr rolí v privilegovaném režimu",
       "description": "Vyberte role, které chcete aktivovat na 15 minut."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Osobní pořadí skupin",
+      "description": "Osobní pořadí skupin. Obnovit pořadí serveru."
     }
   },
   "ru": {
@@ -285,6 +345,10 @@
     "shieldRoleSelection": {
       "name": "Выбор ролей в привилегированном режиме",
       "description": "Выберите роли, которые хотите активировать на 15 минут."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Личный порядок групп",
+      "description": "Личный порядок групп. Восстановить порядок сервера."
     }
   },
   "el": {
@@ -303,6 +367,10 @@
     "shieldRoleSelection": {
       "name": "Επιλογή ρόλων σε προνομιούχο λειτουργία",
       "description": "Επιλέξτε τους ρόλους που θα ενεργοποιηθούν για 15 λεπτά."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Προσωπική σειρά ομάδων",
+      "description": "Προσωπική σειρά ομάδων. Επαναφορά στη σειρά του διακομιστή."
     }
   },
   "ar": {
@@ -321,6 +389,10 @@
     "shieldRoleSelection": {
       "name": "اختيار الأدوار في وضع الامتيازات",
       "description": "اختر الأدوار التي تريد تفعيلها لمدة 15 دقيقة."
+    },
+    "personalRoomGroupOrder": {
+      "name": "ترتيب المجموعات الشخصي",
+      "description": "ترتيب المجموعات الشخصي. إعادة الترتيب إلى ترتيب الخادم."
     }
   },
   "he": {
@@ -339,6 +411,10 @@
     "shieldRoleSelection": {
       "name": "בחירת תפקידים במצב הרשאות מוגברות",
       "description": "בחר את התפקידים שברצונך להפעיל למשך 15 דקות."
+    },
+    "personalRoomGroupOrder": {
+      "name": "סדר קבוצות אישי",
+      "description": "סדר קבוצות אישי. איפוס לסדר השרת."
     }
   },
   "ja": {
@@ -357,6 +433,10 @@
     "shieldRoleSelection": {
       "name": "特権モードのロール選択",
       "description": "15分間有効にするロールを選んでください。"
+    },
+    "personalRoomGroupOrder": {
+      "name": "個人用グループ順序",
+      "description": "個人用グループ順序. サーバーの順序に戻す."
     }
   },
   "zh": {
@@ -375,6 +455,10 @@
     "shieldRoleSelection": {
       "name": "特权模式角色选择",
       "description": "选择要启用 15 分钟的角色。"
+    },
+    "personalRoomGroupOrder": {
+      "name": "个人分组顺序",
+      "description": "个人分组顺序. 重置为服务器顺序."
     }
   },
   "zh-Hant": {
@@ -393,6 +477,10 @@
     "shieldRoleSelection": {
       "name": "特權模式角色選擇",
       "description": "選擇要啟用 15 分鐘的角色。"
+    },
+    "personalRoomGroupOrder": {
+      "name": "個人群組順序",
+      "description": "個人群組順序. 重設為伺服器順序."
     }
   },
   "eo": {
@@ -411,6 +499,10 @@
     "shieldRoleSelection": {
       "name": "Elekto de roloj en privilegia reĝimo",
       "description": "Elektu la rolojn por aktivigi dum 15 minutoj."
+    },
+    "personalRoomGroupOrder": {
+      "name": "Persona grupa ordo",
+      "description": "Persona grupa ordo. Restarigi la servilan ordon."
     }
   },
   "zh-TW": {
@@ -429,6 +521,10 @@
     "shieldRoleSelection": {
       "name": "特權模式角色選擇",
       "description": "選擇要啟用 15 分鐘的角色。"
+    },
+    "personalRoomGroupOrder": {
+      "name": "個人群組順序",
+      "description": "個人群組順序. 重設為伺服器順序."
     }
   }
 }
