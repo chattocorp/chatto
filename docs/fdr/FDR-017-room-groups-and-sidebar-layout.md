@@ -9,6 +9,8 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ## Behavior
 
+- Personal room group order controls require an explicit support flag in the room directory response or realtime snapshot. Missing support keeps these controls hidden, including for administrators. This feature does not change either server version threshold.
+
 - In the mobile drawer layout, swipes that start within 24 CSS pixels of either
   physical viewport edge do not open or close the sidebar. This leaves edge
   gestures available to the browser and prevents the menu from appearing during

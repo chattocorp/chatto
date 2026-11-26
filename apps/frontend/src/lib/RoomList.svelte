@@ -295,7 +295,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         .filter((id) => id !== groupId);
       const before = beforeGroupId ? ids.indexOf(beforeGroupId) : -1;
       ids.splice(before < 0 ? ids.length : before, 0, groupId);
-      await persistPersonalOrder(ids);
+      await stores.setPersonalRoomGroupOrder(ids);
       optimisticGroupSections = null;
     } catch (error) {
       optimisticGroupSections = null;
@@ -305,10 +305,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         })
       );
     }
-  }
-
-  async function persistPersonalOrder(ids: string[]): Promise<void> {
-    await stores.setPersonalRoomGroupOrder(ids);
   }
 
   async function movePersonalGroup(groupId: string, direction: number): Promise<void> {
@@ -322,7 +318,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   async function resetPersonalOrder(): Promise<void> {
     try {
-      await persistPersonalOrder([]);
+      await stores.setPersonalRoomGroupOrder([]);
     } catch (error) {
       toast.error(m('room.management.reorder_groups_failed', { error: errorMessage(error) }));
     }

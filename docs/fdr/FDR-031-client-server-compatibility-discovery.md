@@ -13,8 +13,6 @@ Chatto's pre-1.0 API remains experimental.
 
 ## Behavior
 
-- Personal room group order controls require an explicit support flag in the room directory response or realtime snapshot. Missing support keeps these controls hidden, including for administrators. This feature does not change either server version threshold.
-
 - A registered server's Server information page starts with its public profile:
   logo, name, banner, description, and welcome message. It uses the same branding
   component and Markdown rendering as the login page and omits empty optional

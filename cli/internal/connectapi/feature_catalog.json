@@ -18,7 +18,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Persönliche Gruppensortierung",
-      "description": "Persönliche Gruppensortierung. Auf Serverreihenfolge zurücksetzen."
+      "description": "Ordne die Raumgruppen in der Seitenleiste für dein Konto geräteübergreifend an oder setze sie auf die Serverreihenfolge zurück."
     }
   },
   "fr": {
@@ -40,7 +40,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Ordre personnel des groupes",
-      "description": "Ordre personnel des groupes. Rétablir l’ordre du serveur."
+      "description": "Organisez les groupes de salons de la barre latérale pour votre compte sur tous vos appareils, ou rétablissez l’ordre du serveur."
     }
   },
   "es": {
@@ -62,7 +62,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Orden personal de grupos",
-      "description": "Orden personal de grupos. Restablecer el orden del servidor."
+      "description": "Organiza los grupos de salas de la barra lateral para tu cuenta en todos tus dispositivos o restablece el orden del servidor."
     }
   },
   "nl": {
@@ -84,7 +84,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Persoonlijke groepsvolgorde",
-      "description": "Persoonlijke groepsvolgorde. Servervolgorde herstellen."
+      "description": "Rangschik de kamergroepen in de zijbalk voor je account op al je apparaten, of herstel de servervolgorde."
     }
   },
   "sv": {
@@ -106,7 +106,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Personlig gruppordning",
-      "description": "Personlig gruppordning. Återställ till serverordningen."
+      "description": "Ordna sidofältets rumsgrupper för ditt konto på alla enheter eller återställ till serverordningen."
     }
   },
   "pt": {
@@ -128,7 +128,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Ordem pessoal dos grupos",
-      "description": "Ordem pessoal dos grupos. Repor a ordem do servidor."
+      "description": "Organize os grupos de salas da barra lateral para a sua conta em todos os dispositivos ou reponha a ordem do servidor."
     }
   },
   "pt-BR": {
@@ -150,7 +150,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Ordem pessoal dos grupos",
-      "description": "Ordem pessoal dos grupos. Restaurar a ordem do servidor."
+      "description": "Organize os grupos de salas da barra lateral para sua conta em todos os dispositivos ou restaure a ordem do servidor."
     }
   },
   "nb": {
@@ -172,7 +172,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Personlig grupperekkefølge",
-      "description": "Personlig grupperekkefølge. Tilbakestill til serverrekkefølgen."
+      "description": "Ordne romgruppene i sidefeltet for kontoen din på alle enheter, eller tilbakestill til serverrekkefølgen."
     }
   },
   "pl": {
@@ -194,7 +194,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Osobista kolejność grup",
-      "description": "Osobista kolejność grup. Przywróć kolejność serwera."
+      "description": "Ustaw kolejność grup pokoi na pasku bocznym dla swojego konta na wszystkich urządzeniach lub przywróć kolejność serwera."
     }
   },
   "uk": {
@@ -216,7 +216,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Особистий порядок груп",
-      "description": "Особистий порядок груп. Відновити порядок сервера."
+      "description": "Упорядкуйте групи кімнат на бічній панелі для свого облікового запису на всіх пристроях або відновіть порядок сервера."
     }
   },
   "it": {
@@ -238,7 +238,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Ordine personale dei gruppi",
-      "description": "Ordine personale dei gruppi. Ripristina l’ordine del server."
+      "description": "Ordina i gruppi di stanze nella barra laterale per il tuo account su tutti i dispositivi oppure ripristina l’ordine del server."
     }
   },
   "lv": {
@@ -260,7 +260,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Personiskā grupu secība",
-      "description": "Personiskā grupu secība. Atjaunot servera secību."
+      "description": "Sakārtojiet sānjoslas istabu grupas savam kontam visās ierīcēs vai atjaunojiet servera secību."
     }
   },
   "et": {
@@ -282,7 +282,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Isiklik rühmade järjestus",
-      "description": "Isiklik rühmade järjestus. Taasta serveri järjestus."
+      "description": "Järjestage külgriba tubade rühmad oma konto jaoks kõigis seadmetes või taastage serveri järjestus."
     }
   },
   "tr": {
@@ -304,7 +304,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Kişisel grup sırası",
-      "description": "Kişisel grup sırası. Sunucu sırasına sıfırlayın."
+      "description": "Hesabınızın kenar çubuğundaki oda gruplarını tüm cihazlarda düzenleyin veya sunucu sırasına sıfırlayın."
     }
   },
   "cs": {
@@ -326,7 +326,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Osobní pořadí skupin",
-      "description": "Osobní pořadí skupin. Obnovit pořadí serveru."
+      "description": "Uspořádejte skupiny místností v postranním panelu pro svůj účet na všech zařízeních nebo obnovte pořadí serveru."
     }
   },
   "ru": {
@@ -348,7 +348,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Личный порядок групп",
-      "description": "Личный порядок групп. Восстановить порядок сервера."
+      "description": "Упорядочьте группы комнат на боковой панели для своей учётной записи на всех устройствах или восстановите порядок сервера."
     }
   },
   "el": {
@@ -370,7 +370,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Προσωπική σειρά ομάδων",
-      "description": "Προσωπική σειρά ομάδων. Επαναφορά στη σειρά του διακομιστή."
+      "description": "Ταξινομήστε τις ομάδες δωματίων στην πλαϊνή γραμμή για τον λογαριασμό σας σε όλες τις συσκευές ή επαναφέρετε τη σειρά του διακομιστή."
     }
   },
   "ar": {
@@ -392,7 +392,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "ترتيب المجموعات الشخصي",
-      "description": "ترتيب المجموعات الشخصي. إعادة الترتيب إلى ترتيب الخادم."
+      "description": "رتّب مجموعات الغرف في الشريط الجانبي لحسابك على جميع أجهزتك، أو أعد ترتيب الخادم."
     }
   },
   "he": {
@@ -414,7 +414,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "סדר קבוצות אישי",
-      "description": "סדר קבוצות אישי. איפוס לסדר השרת."
+      "description": "סדר את קבוצות החדרים בסרגל הצד עבור החשבון שלך בכל המכשירים, או שחזר את סדר השרת."
     }
   },
   "ja": {
@@ -436,7 +436,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "個人用グループ順序",
-      "description": "個人用グループ順序. サーバーの順序に戻す."
+      "description": "アカウントのサイドバーにあるルームグループの順序をすべてのデバイスで共通に設定するか、サーバーの順序に戻します。"
     }
   },
   "zh": {
@@ -458,7 +458,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "个人分组顺序",
-      "description": "个人分组顺序. 重置为服务器顺序."
+      "description": "为你的账户排列侧边栏中的房间分组，并在所有设备间同步，或重置为服务器顺序。"
     }
   },
   "zh-Hant": {
@@ -480,7 +480,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "個人群組順序",
-      "description": "個人群組順序. 重設為伺服器順序."
+      "description": "為你的帳戶排列側邊欄中的房間群組，並在所有裝置間同步，或重設為伺服器順序。"
     }
   },
   "eo": {
@@ -502,7 +502,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "Persona grupa ordo",
-      "description": "Persona grupa ordo. Restarigi la servilan ordon."
+      "description": "Ordigu la ĉambrajn grupojn en la flanka breto por via konto sur ĉiuj aparatoj, aŭ restarigu la servilan ordon."
     }
   },
   "zh-TW": {
@@ -524,7 +524,7 @@
     },
     "personalRoomGroupOrder": {
       "name": "個人群組順序",
-      "description": "個人群組順序. 重設為伺服器順序."
+      "description": "為你的帳戶排列側邊欄中的房間群組，並在所有裝置間同步，或重設為伺服器順序。"
     }
   }
 }

@@ -131,8 +131,9 @@ func TestListFeaturesVersionFilter(t *testing.T) {
 		{"0.5.0-beta.18", 3},
 		{"0.5.0-beta.18+custom.1", 3},
 		{"0.5.0", 3},
-		{"0.6.0-beta.0", 0},
-		{"0.6.0", 0},
+		{"0.6.0-beta.0", 1},
+		{"0.6.0", 1},
+		{"0.6.1", 0},
 		{"9.0.0", 0},
 	} {
 		t.Run(test.version, func(t *testing.T) {

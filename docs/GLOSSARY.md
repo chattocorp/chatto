@@ -123,6 +123,8 @@ another address does not change the selection. See
 
 **Room Group** — Named collection of rooms within a server, with its own per-group permission overrides. See [ADR-031](adr/ADR-031-room-group-centric-acl.md) and [FDR-017](fdr/FDR-017-room-groups-and-sidebar-layout.md).
 
+**Personal group order** — A user’s stored order for sidebar room groups. It applies across devices. Listed groups come first; other visible groups follow in server order. An empty preference uses server order. See [FDR-017](fdr/FDR-017-room-groups-and-sidebar-layout.md).
+
 **Sidebar Link** — Operator-managed link shown in the Server Sidebar inside a Room Group, ordered alongside rooms and stored as a durable group aggregate fact. See [FDR-017](fdr/FDR-017-room-groups-and-sidebar-layout.md).
 
 **DM (Direct Message)** — Private conversation between users, modelled as a room with `kind: dm`. See [FDR-007](fdr/FDR-007-direct-messages.md).
@@ -388,7 +390,3 @@ See [FDR-038](fdr/FDR-038-bot-accounts.md) and
 **Operational Log (LOG)** — Retained diagnostic records shared by Chatto server
 replicas. LOG uses typed protobufs and an operator-configured age limit. It is
 not domain history or recovery state. See [ADR-098](adr/ADR-098-retained-operational-log.md).
-
-## Personal group order
-
-A user’s stored order for sidebar room groups. It applies across devices. Listed groups come first; other visible groups follow in server order. An empty preference uses server order. See [FDR-017](fdr/FDR-017-room-groups-and-sidebar-layout.md).
