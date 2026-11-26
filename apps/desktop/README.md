@@ -37,13 +37,15 @@ opens the server. Older servers can show their login page first.
 **Continue in the browser** opens the server's page for external providers,
 registration, and password recovery in the system browser. After consent, the
 browser opens `chatto://desktop/servers/callback?mode=popup` to return to
-Desktop. Keep Desktop running until sign-in completes. Desktop checks the
+Desktop. Keep Desktop running until sign-in completes. If the browser asks for permission
+to open Desktop, allow it. Desktop checks the
 state and issuer and exchanges the code with the PKCE verifier for that
 request. Chatto 0.5 servers accept this callback for the built-in
 `chatto://desktop` client. Operators need no extra origin configuration.
 
 On Linux, Desktop registers a user-local URL handler for the running AppImage
-or extracted executable with `xdg-mime` when sign-in starts. For local
+or extracted executable with `xdg-mime` when sign-in starts. Install
+`xdg-utils` if the command is missing. For local
 development, use a packaged build to test the return from the browser.
 
 ## Notifications and background operation

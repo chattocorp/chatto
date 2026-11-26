@@ -32,5 +32,8 @@ export async function registerLinuxCallback(packageName) {
       ''
     ].join('\n')
   );
-  await promisify(execFile)('xdg-mime', ['default', name, 'x-scheme-handler/chatto']);
+  const xdgMime = promisify(execFile);
+  await xdgMime('xdg-mime', ['default', name, 'x-scheme-handler/chatto']);
+  const { stdout } = await xdgMime('xdg-mime', ['query', 'default', 'x-scheme-handler/chatto']);
+  return stdout.trim() === name;
 }

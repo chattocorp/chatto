@@ -91,11 +91,12 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 // A cold-start callback has no PKCE verifier. Never navigate to a deep link.
-const browserAuthorization = createBrowserAuthorization(async (url) => {
-  if (process.platform === 'linux') await registerLinuxCallback(buildProfile.packageName);
-  else if (!app.isDefaultProtocolClient('chatto') && !app.setAsDefaultProtocolClient('chatto'))
-    throw new Error('Cannot register the sign-in callback.');
-  await shell.openExternal(url);
+const browserAuthorization = createBrowserAuthorization({
+  register: () =>
+    process.platform === 'linux'
+      ? registerLinuxCallback(buildProfile.packageName)
+      : app.isDefaultProtocolClient('chatto') || app.setAsDefaultProtocolClient('chatto'),
+  openExternal: (url) => shell.openExternal(url)
 });
 app.on('open-url', (event, url) => {
   event.preventDefault();

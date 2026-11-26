@@ -274,6 +274,30 @@ describe('remote server OAuth popup', () => {
     }
   );
 
+  it.each([
+    [
+      'install-in-applications',
+      'Move Chatto Desktop to Applications, open it there and try signing in again.'
+    ],
+    [
+      'callback-registration',
+      'Set Chatto Desktop as the app for chatto: links in your system settings, then try signing in again.'
+    ],
+    [
+      'missing-xdg-mime',
+      'Install xdg-utils so Desktop can register chatto: links, then try signing in again.'
+    ]
+  ])('explains how to recover from %s', async (error, message) => {
+    vi.stubGlobal('window', {
+      chattoDesktop: { browserAuthorization: { start: async () => ({ error }), cancel: vi.fn() } }
+    });
+    const { startRemoteReauthentication } = await import('./reauth');
+    const { popupErrorMessage } = await import('$lib/oauth/popupError');
+    const result = startRemoteReauthentication(remote);
+    await expect(result).rejects.toMatchObject({ reason: error });
+    expect(await result.catch((cause) => popupErrorMessage(cause, 'Failed'))).toBe(message);
+  });
+
   it('cancels a Desktop sign-in while the browser is open and ignores its late callback', async () => {
     const pending = Promise.withResolvers<string>();
     const start = vi.fn((_origin: string, _url: string) => pending.promise);

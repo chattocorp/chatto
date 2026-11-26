@@ -1,10 +1,11 @@
+import type { CallbackRegistrationFailure } from '$lib/desktop/bridge';
 import { m } from '$lib/i18n/messages';
 
 /** Typed popup outcomes distinguish a deliberate close from a failed sign-in. */
 export class OAuthPopupError extends Error {
   constructor(
     message: string,
-    readonly reason: 'failed' | 'blocked' | 'cancelled' = 'failed'
+    readonly reason: 'failed' | 'blocked' | 'cancelled' | CallbackRegistrationFailure = 'failed'
   ) {
     super(message);
     this.name = 'OAuthPopupError';
@@ -15,6 +16,10 @@ export class OAuthPopupError extends Error {
 export function popupErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof OAuthPopupError) {
     if (error.reason === 'cancelled') return '';
+    if (error.reason === 'install-in-applications')
+      return m('auth.desktop.install_in_applications');
+    if (error.reason === 'missing-xdg-mime') return m('auth.desktop.missing_xdg_mime');
+    if (error.reason === 'callback-registration') return m('auth.desktop.callback_registration');
     if (error.reason === 'blocked') return m('auth.popup.blocked');
   }
   return fallback;

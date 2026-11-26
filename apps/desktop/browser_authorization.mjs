@@ -1,12 +1,28 @@
 // The OS can deliver any chatto: URL. Only a live sign-in can claim its callback.
 const callback = 'chatto://desktop/servers/callback?mode=popup';
 
+/** Return only a safe recovery reason across IPC. Platform errors can contain local paths. */
+async function registrationError(register, platform) {
+  try {
+    if (await register()) return;
+  } catch (error) {
+    if (error?.code === 'ENOENT' && error.syscall === 'spawn xdg-mime') return 'missing-xdg-mime';
+  }
+  return platform === 'darwin' ? 'install-in-applications' : 'callback-registration';
+}
+
 /** Own the pending browser requests for one main renderer. Never persist a callback. */
-export function createBrowserAuthorization(openExternal) {
+export function createBrowserAuthorization({
+  openExternal,
+  register,
+  platform = process.platform
+}) {
   const pending = new Map();
 
   function cancel(state) {
-    pending.get(state)?.reject(new Error('Browser sign-in ended.'));
+    const request = pending.get(state);
+    pending.delete(state);
+    request?.reject(new Error('Browser sign-in ended.'));
   }
 
   return {
@@ -37,13 +53,19 @@ export function createBrowserAuthorization(openExternal) {
       const timeout = setTimeout(() => cancel(state), 5 * 60 * 1000);
       try {
         // Register the waiter before launching. A browser with a session can return immediately.
-        void openExternal(url.href).catch(request.reject);
+        void registrationError(register, platform)
+          .then((error) => {
+            if (pending.get(state) !== request) return;
+            if (error) request.resolve({ error });
+            else return openExternal(url.href);
+          })
+          .catch(request.reject);
         return await request.promise;
       } catch {
         throw new Error('Browser sign-in failed or timed out.');
       } finally {
         clearTimeout(timeout);
-        pending.delete(state);
+        if (pending.get(state) === request) pending.delete(state);
       }
     },
     /** Return true only when the OS supplied a callback to a waiting renderer. */

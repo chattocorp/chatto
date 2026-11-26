@@ -279,7 +279,10 @@ the buttons alone. The system browser can use the member's existing provider
 session and passkeys. It returns the code to the running app through the
 registered `chatto://desktop/servers/callback?mode=popup` link. Desktop checks
 the state and issuer before it exchanges the code with its in-memory PKCE
-verifier. A cancelled or expired attempt requires a new sign-in.
+verifier. The browser can ask the user before it opens Desktop, including
+on repeat sign-in after the user grants consent. If the operating system
+cannot register the callback, Desktop shows recovery steps for the platform.
+A cancelled or expired attempt requires a new sign-in.
 
 ### 5. Synchronize Desktop and Chatto releases
 

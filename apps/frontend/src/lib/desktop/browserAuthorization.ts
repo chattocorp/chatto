@@ -31,6 +31,11 @@ export function desktopBrowserAuthorization(origin: string, state: string): OAut
         bridge
           .start(origin, url)
           .then((callback) => {
+            if (typeof callback !== 'string')
+              throw new OAuthPopupError(
+                'Cannot register the Desktop sign-in callback.',
+                callback.error
+              );
             if (!isOAuthCallback({ origin, state, redirectUri: DESKTOP_CALLBACK }, callback))
               throw new OAuthPopupError('Invalid browser sign-in callback.');
             const response = oauthPopupResponseFromURL(new URL(callback));

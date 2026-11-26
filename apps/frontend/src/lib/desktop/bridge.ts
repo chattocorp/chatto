@@ -5,12 +5,15 @@ import type {
 } from './nativeScreenShare';
 import type { DesktopUpdatesBridge } from './updates.svelte';
 
+export type CallbackRegistrationFailure =
+  'callback-registration' | 'missing-xdg-mime' | 'install-in-applications';
+
 export interface ChattoDesktopBridge {
   /** Subscribe to native popup closures, identified by the original window name. */
   onAuthorizationWindowClosed?: (callback: (frameName: string) => void) => () => void;
   /** Open an authorization request in the system browser and wait for its deep link. */
   browserAuthorization?: {
-    start(origin: string, url: string): Promise<string>;
+    start(origin: string, url: string): Promise<string | { error: CallbackRegistrationFailure }>;
     cancel(state: string): void;
   };
   updates?: DesktopUpdatesBridge;
