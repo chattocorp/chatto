@@ -15,16 +15,11 @@
   />
   <PaneContent>
     <Panel title={m('settings.experiments.title')} icon="iconify icon-[uil--flask]">
-      <div class="flex max-w-md flex-col gap-3">
+      <div class="max-w-md">
         <Checkbox
           id="new-message-header"
           label={m('settings.experiments.new_message_header')}
           bind:checked={experimentalFeatures.newMessageHeader.enabled}
-        />
-        <Checkbox
-          id="swipe-to-close-thread"
-          label={m('settings.experiments.swipe_to_close_thread')}
-          bind:checked={experimentalFeatures.swipeToCloseThread.enabled}
         />
       </div>
     </Panel>

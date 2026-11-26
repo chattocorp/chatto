@@ -3,8 +3,7 @@
     "experiments": {
       "nav": "Experimenten",
       "title": "Experimentele functies",
-      "new_message_header": "Nieuwe berichtkop",
-      "swipe_to_close_thread": "Swipe om threads te sluiten op mobiel"
+      "new_message_header": "Nieuwe berichtkop"
     },
     "desktop": {
       "title": "Updates",

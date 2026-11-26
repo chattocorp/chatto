@@ -3,8 +3,7 @@
     "experiments": {
       "nav": "Katsed",
       "title": "Katsefunktsioonid",
-      "new_message_header": "Uus sõnumipäis",
-      "swipe_to_close_thread": "Lõime sulgemine mobiilis pühkimisega"
+      "new_message_header": "Uus sõnumipäis"
     },
     "desktop": {
       "title": "Uuendused",

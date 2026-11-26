@@ -3,8 +3,7 @@
     "experiments": {
       "nav": "Deneyler",
       "title": "Deneysel özellikler",
-      "new_message_header": "Yeni ileti başlığı",
-      "swipe_to_close_thread": "Mobil cihazlarda ileti dizilerini kaydırarak kapatın"
+      "new_message_header": "Yeni ileti başlığı"
     },
     "desktop": {
       "title": "Güncellemeler",

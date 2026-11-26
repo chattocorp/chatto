@@ -3,8 +3,7 @@
     "experiments": {
       "nav": "Experimenty",
       "title": "Experimentální funkce",
-      "new_message_header": "Nové záhlaví zprávy",
-      "swipe_to_close_thread": "Zavřít vlákno na mobilu přejetím prstem"
+      "new_message_header": "Nové záhlaví zprávy"
     },
     "desktop": {
       "title": "Aktualizace",

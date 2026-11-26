@@ -3,8 +3,7 @@
     "experiments": {
       "nav": "Experiments",
       "title": "Experimental Features",
-      "new_message_header": "New message header",
-      "swipe_to_close_thread": "Swipe to close threads on mobile"
+      "new_message_header": "New message header"
     },
     "desktop": {
       "title": "Updates",

@@ -3,8 +3,7 @@
     "experiments": {
       "nav": "Esperimenti",
       "title": "Funzioni sperimentali",
-      "new_message_header": "Nuova intestazione del messaggio",
-      "swipe_to_close_thread": "Scorri per chiudere le discussioni su mobile"
+      "new_message_header": "Nuova intestazione del messaggio"
     },
     "desktop": {
       "title": "Aggiornamenti",

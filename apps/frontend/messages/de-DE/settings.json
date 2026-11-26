@@ -3,8 +3,7 @@
     "experiments": {
       "nav": "Experimente",
       "title": "Experimentelle Funktionen",
-      "new_message_header": "Neue Nachrichtenkopfzeile",
-      "swipe_to_close_thread": "Threads auf dem Smartphone durch Wischen schließen"
+      "new_message_header": "Neue Nachrichtenkopfzeile"
     },
     "desktop": {
       "title": "Updates",

@@ -3,8 +3,7 @@
     "experiments": {
       "nav": "Experiment",
       "title": "Experimentella funktioner",
-      "new_message_header": "Ny meddelanderubrik",
-      "swipe_to_close_thread": "Svep för att stänga trådar på mobilen"
+      "new_message_header": "Ny meddelanderubrik"
     },
     "desktop": {
       "title": "Uppdateringar",

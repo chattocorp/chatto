@@ -3,8 +3,7 @@
     "experiments": {
       "nav": "Experimentos",
       "title": "Funciones experimentales",
-      "new_message_header": "Nuevo encabezado de mensaje",
-      "swipe_to_close_thread": "Desliza el dedo para cerrar hilos en dispositivos móviles"
+      "new_message_header": "Nuevo encabezado de mensaje"
     },
     "desktop": {
       "title": "Actualizaciones",

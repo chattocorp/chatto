@@ -3,8 +3,7 @@
     "experiments": {
       "nav": "Experiências",
       "title": "Funcionalidades experimentais",
-      "new_message_header": "Novo cabeçalho de mensagem",
-      "swipe_to_close_thread": "Deslizar para fechar conversas em dispositivos móveis"
+      "new_message_header": "Novo cabeçalho de mensagem"
     },
     "desktop": {
       "title": "Atualizações",

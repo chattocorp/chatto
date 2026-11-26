@@ -3,8 +3,7 @@
     "experiments": {
       "nav": "実験",
       "title": "試験的な機能",
-      "new_message_header": "新しいメッセージヘッダー",
-      "swipe_to_close_thread": "モバイルでスワイプしてスレッドを閉じる"
+      "new_message_header": "新しいメッセージヘッダー"
     },
     "desktop": {
       "title": "更新",

@@ -167,11 +167,7 @@ test.describe('Mobile Navigation', () => {
     await expect(roomList).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
-  test('a mobile thread takes the first swipe when the experiment is enabled', async ({
-    page,
-    context,
-    chatPage
-  }) => {
+  test('a mobile thread takes the first swipe before the sidebar opens', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     const room = await chatPage.enterRoom('general');
@@ -181,16 +177,6 @@ test.describe('Mobile Navigation', () => {
     await page.setViewportSize({ width: 375, height: 667 });
 
     const roomList = page.locator('.room-list');
-    await touchDrag(page, 80, 320, 200);
-    await expect(roomList).toBeVisible();
-    await page.getByRole('button', { name: 'Toggle sidebar' }).click();
-    await expect(roomList).not.toBeVisible();
-    await room.expectThreadPaneVisible();
-
-    const preferences = await context.newPage();
-    await preferences.goto(routes.appPreferencesExperiments);
-    await preferences.getByText('Swipe to close threads on mobile', { exact: true }).click();
-    await page.bringToFront();
     // The app header sits outside the thread. Both surfaces must drag the same overlay.
     const pane = page.getByTestId('thread-pane');
     const assertThreadDragging = async () => {
