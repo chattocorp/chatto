@@ -1,3 +1,4 @@
+import { sha256 } from 'js-sha256';
 import { ReactiveMap, batch, untrack } from '../reactivity/index.js';
 import { clearUserStores } from './users.js';
 import { Server } from './server.js';
@@ -206,11 +207,24 @@ function emptyServerAuthentication(): ServerAuthentication {
   return authenticationFromSession(emptyServerSession());
 }
 
-/** Older clients have no sign-in ID. Only an unchanged credential pair proves continuity. */
+/** Tabs that hold the same pre-upgrade pair must agree on its ID before either rotates it. */
+function legacyBearerSessionId(access: string, refresh: string): string {
+  return 'legacy:' + sha256(JSON.stringify([access, refresh]));
+}
+
+/** Adopt a rotation only when the sign-in ID or the original credential pair proves continuity. */
 function sameBearerSession(session: ServerSession, stored: ServerAuthentication): boolean {
   if (session.bearerSessionId && stored.bearerSessionId)
     return session.bearerSessionId === stored.bearerSessionId;
-  return session.token === stored.token && (session.refreshToken ?? null) === stored.refreshToken;
+  if (session.token === stored.token && (session.refreshToken ?? null) === stored.refreshToken)
+    return true;
+  return !!(
+    !session.bearerSessionId &&
+    stored.bearerSessionId?.startsWith('legacy:') &&
+    session.token &&
+    session.refreshToken &&
+    legacyBearerSessionId(session.token, session.refreshToken) === stored.bearerSessionId
+  );
 }
 
 /** Keep cached profile fields only when the credentials still identify the same session. */
@@ -798,7 +812,8 @@ export class ServerRegistry {
       if (session.refreshRequestId !== requestId || !session.bearerSessionId) {
         this.sessions.update(id, {
           refreshRequestId: requestId,
-          bearerSessionId: session.bearerSessionId ?? crypto.randomUUID()
+          bearerSessionId:
+            session.bearerSessionId ?? legacyBearerSessionId(session.token, session.refreshToken)
         });
         session = this.sessions.get(id);
       }

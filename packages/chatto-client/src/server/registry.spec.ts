@@ -837,6 +837,43 @@ describe('ServerRegistry', () => {
       }
     );
 
+    it.each(['same pair', 'different access token', 'different refresh token'] as const)(
+      'recognizes a migrated sign-in from its original legacy credentials (%s)',
+      async (scenario) => {
+        const refresh = vi.fn(refreshedResponse);
+        vi.stubGlobal('fetch', (input: RequestInfo | URL) =>
+          String(input).endsWith('/oauth/token') ? refresh() : new Response(null, { status: 503 })
+        );
+        serverRegistry.addServer({ ...renewableServer(), userId: 'first' });
+        // Both tabs loaded the legacy pair before the first tab rotated it.
+        serverRegistry.sessions.update('renewable', { bearerSessionId: null });
+        updatePersistedAuthentication('renewable', { bearerSessionId: null });
+        const legacy = serverRegistry.sessions.get('renewable')!;
+        await expect(serverRegistry.renewServerAuthentication('renewable', true)).resolves.toBe(
+          'access-2'
+        );
+        const shared = localStorage.getItem(authenticationStorageKey('renewable'));
+        serverRegistry.sessions.replace('renewable', {
+          ...legacy,
+          token: scenario === 'different access token' ? 'other-access' : legacy.token,
+          refreshToken:
+            scenario === 'different refresh token' ? 'other-refresh' : legacy.refreshToken
+        });
+        const store = serverRegistry.getStore('renewable');
+        const token = await serverRegistry.renewServerAuthentication('renewable');
+        if (scenario === 'same pair') {
+          expect(token).toBe('access-2');
+          expect(serverRegistry.getStore('renewable')).toBe(store);
+          expect(serverRegistry.getServer('renewable')?.userId).toBe('first');
+        } else {
+          expect(token).toBeNull();
+          expect(serverRegistry.getServer('renewable')?.userId).toBeNull();
+        }
+        expect(refresh).toHaveBeenCalledOnce();
+        expect(localStorage.getItem(authenticationStorageKey('renewable'))).toBe(shared);
+      }
+    );
+
     it('restores the credentials but drops the profile from a catalogue written by an older tab', () => {
       serverRegistry.addServer({ ...renewableServer(), userId: 'current', userLogin: 'current' });
       const catalogue = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
