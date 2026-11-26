@@ -60,19 +60,21 @@ Development builds also show the pending highlights, without a version.
       {:then releases}
         {#each releases as release (release.version ?? '')}
           <Panel title={release.version ?? m('help.whats_new.unreleased')}>
-            <ul class="flex flex-col gap-3" lang="en" dir="ltr">
-              {#each release.highlights as html, index (index)}
-                <li class="flex gap-3 leading-relaxed">
-                  <span
-                    class="iconify mt-1 icon-[uil--star] shrink-0 text-action"
-                    aria-hidden="true"
-                  ></span>
-                  <span class="min-w-0"><MarkdownHtml {html} /></span>
-                </li>
-              {/each}
-            </ul>
+            {#if release.highlights.length}
+              <ul class="flex flex-col gap-3" lang="en" dir="ltr">
+                {#each release.highlights as html, index (index)}
+                  <li class="flex gap-3 leading-relaxed">
+                    <span
+                      class="iconify mt-1 icon-[uil--star] shrink-0 text-action"
+                      aria-hidden="true"
+                    ></span>
+                    <span class="min-w-0"><MarkdownHtml {html} /></span>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
             {#if release.version}
-              <p class="mt-4 text-sm">
+              <p class={['text-sm', release.highlights.length > 0 && 'mt-4']}>
                 <a
                   href={`https://github.com/chattocorp/chatto/releases/tag/v${release.version}`}
                   target="_blank"

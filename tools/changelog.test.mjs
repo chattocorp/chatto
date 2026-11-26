@@ -60,8 +60,18 @@ test('parses releases, sections, and multi-paragraph notes', () => {
   ]);
 });
 
-test('returns only releases with highlights', () => {
-  assert.deepEqual(releaseHighlights(changelog), [
+test('shows stable releases and skips prereleases and pending fixes', () => {
+  const pending = '## Unreleased\n\n### Fixes\n\n- A pending fix.\n\n';
+  assert.deepEqual(releaseHighlights(pending + changelog), [
+    { version: '0.6.0', highlights: ['Sign in with your **internet handle**.'] }
+  ]);
+});
+
+test('shows the current prerelease cycle above the stable release history', () => {
+  const prereleases = '## 0.7.0-rc.1\n\n## 0.7.0-beta.1\n\n### Highlights\n\n- New feature.\n\n';
+  assert.deepEqual(releaseHighlights(prereleases + changelog), [
+    { version: '0.7.0-rc.1', highlights: [] },
+    { version: '0.7.0-beta.1', highlights: ['New feature.'] },
     { version: '0.6.0', highlights: ['Sign in with your **internet handle**.'] }
   ]);
 });
@@ -101,6 +111,10 @@ test('adds pending notes as the first release, in section order', (t) => {
     ]
   });
   assert.equal(latest.version, '0.6.0');
+  assert.deepEqual(releaseHighlights(readChangelog(root))[0], {
+    version: 'Unreleased',
+    highlights: ['A pending highlight.']
+  });
 
   rmSync(join(root, '.sweet'), { recursive: true });
   assert.equal(parseChangelog(readChangelog(root))[0].version, '0.6.0');

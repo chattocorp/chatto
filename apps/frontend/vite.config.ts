@@ -144,12 +144,21 @@ const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
 function releaseHighlights(): Plugin {
   return {
     name: 'chatto-release-highlights',
+    buildStart() {
+      // Watch the directory for new notes without importing it into the virtual module.
+      this.addWatchFile(`${repositoryRoot}.sweet`);
+    },
+    hotUpdate({ file, modules }) {
+      if (!file.startsWith(`${repositoryRoot}.sweet/`) || !file.endsWith('.md')) return;
+      const guide = this.environment.moduleGraph.getModuleById(resolvedReleaseHighlightsModule);
+      if (guide) return [...modules, guide];
+    },
     resolveId(id) {
       return id === releaseHighlightsModule ? resolvedReleaseHighlightsModule : null;
     },
     load(id) {
       if (id !== resolvedReleaseHighlightsModule) return null;
-      for (const file of ['CHANGELOG.md', '.sweet.config.yml', '.sweet']) {
+      for (const file of ['CHANGELOG.md', '.sweet.config.yml']) {
         this.addWatchFile(`${repositoryRoot}${file}`);
       }
       const releases = parseReleaseHighlights(readChangelog(repositoryRoot)).map(
