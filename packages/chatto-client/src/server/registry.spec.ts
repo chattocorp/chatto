@@ -802,6 +802,72 @@ describe('ServerRegistry', () => {
       ).toHaveLength(0);
     });
 
+    it.each(['new-sign-in', null])(
+      'discards the local viewer when another tab replaces the credentials (binding %s)',
+      async (bearerSessionId) => {
+        vi.stubGlobal('fetch', vi.fn());
+        serverRegistry.addServer({ ...renewableServer(), userId: 'first', userLogin: 'first' });
+        const oldStore = serverRegistry.getStore('renewable');
+        updatePersistedAuthentication('renewable', {
+          bearerSessionId,
+          token: 'second-access',
+          refreshToken: 'second-refresh'
+        });
+        const key = authenticationStorageKey('renewable');
+        const secondSignIn = localStorage.getItem(key);
+
+        serverRegistry.updateRegistration('renewable', { name: 'Updated' });
+        expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)[0]).toMatchObject({
+          token: 'second-access',
+          userId: null,
+          userLogin: null
+        });
+
+        await expect(serverRegistry.renewServerAuthentication('renewable')).resolves.toBeNull();
+        await expect(
+          serverRegistry.renewServerAuthentication('renewable', true)
+        ).resolves.toBeNull();
+        expect(serverRegistry.getStore('renewable')).not.toBe(oldStore);
+        expect(serverRegistry.getServer('renewable')).toMatchObject({
+          token: null,
+          refreshToken: null,
+          userId: null
+        });
+        expect(localStorage.getItem(key)).toBe(secondSignIn);
+      }
+    );
+
+    it('restores the credentials but drops the profile from a catalogue written by an older tab', () => {
+      serverRegistry.addServer({ ...renewableServer(), userId: 'current', userLogin: 'current' });
+      const catalogue = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+      const auth = JSON.parse(localStorage.getItem(authenticationStorageKey('renewable'))!);
+      expect(restorePersistedServerState().sessions[0][1].userId).toBe('current');
+      // The older writer copies all credential fields beside its own cached summary.
+      delete catalogue[0].profileSignInId;
+      Object.assign(catalogue[0], auth, { userId: 'previous', userLogin: 'previous' });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(catalogue));
+      expect(restorePersistedServerState().sessions[0][1]).toMatchObject({
+        token: auth.token,
+        bearerSessionId: auth.bearerSessionId,
+        userId: null,
+        userLogin: null
+      });
+    });
+
+    it('assigns a fresh binding when the same server signs in again', () => {
+      serverRegistry.addServer(renewableServer());
+      const previous = serverRegistry.getServer('renewable')!.bearerSessionId;
+      serverRegistry.replaceServerAuthentication('renewable', {
+        ...renewableServer(),
+        userId: 'second',
+        token: 'second-access',
+        refreshToken: 'second-refresh'
+      });
+      const installed = JSON.parse(localStorage.getItem(authenticationStorageKey('renewable'))!);
+      expect(installed.bearerSessionId).toBeTruthy();
+      expect(installed.bearerSessionId).not.toBe(previous);
+    });
+
     it("adopts another tab's persisted rotation after acquiring the refresh lock", async () => {
       const fetchMock = vi.fn();
       vi.stubGlobal('fetch', fetchMock);

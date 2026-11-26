@@ -58,10 +58,16 @@ export interface AuthenticatedUserSummary {
 // Storage key intentionally stays as 'instances' — renaming would lose users'
 // multi-server registrations (including remote bearer tokens that can't be
 // regenerated). The in-code rename is purely cosmetic.
-type PersistedRegisteredServer = RegisteredServer & { source?: 'local' | 'synced' };
+type PersistedRegisteredServer = Omit<RegisteredServer, 'bearerSessionId'> & {
+  source?: 'local' | 'synced';
+  /** Sign-in that supplied the cached profile. Older tabs omit this when they write the catalogue. */
+  profileSignInId?: string | null;
+};
 
 type PersistedServerAuthentication = {
   version: 1;
+  /** Local sign-in ID shared by all rotations of this credential pair. */
+  bearerSessionId?: string | null;
   token: string | null;
   refreshToken: string | null;
   accessTokenExpiresAt: number | null;
@@ -74,7 +80,7 @@ type PersistedServerAuthentication = {
 /** Durable credential fields; hosts must never log their values. */
 export type ServerAuthentication = Omit<PersistedServerAuthentication, 'version'>;
 
-function normalizeRegisteredServer(server: PersistedRegisteredServer): RegisteredServer {
+function normalizeRegisteredServer(server: PersistedRegisteredServer): PersistedRegisteredServer {
   const { source: _retiredSource, ...local } = server;
   return {
     ...emptyServerSession(),
@@ -107,6 +113,7 @@ function isPersistedServerAuthentication(value: unknown): value is PersistedServ
   const authentication = value as Record<string, unknown>;
   return (
     authentication.version === 1 &&
+    isOptionalNullableString(authentication.bearerSessionId) &&
     isNullableString(authentication.token) &&
     isNullableString(authentication.refreshToken) &&
     isNullableNumber(authentication.accessTokenExpiresAt) &&
@@ -129,6 +136,7 @@ function isPersistedServer(value: unknown): value is PersistedRegisteredServer {
     !Number.isFinite(server.addedAt) ||
     !isOptionalNullableString(server.iconUrl) ||
     !isOptionalNullableString(server.token) ||
+    !isOptionalNullableString(server.profileSignInId) ||
     !isOptionalNullableString(server.refreshToken) ||
     !isOptionalNullableNumber(server.accessTokenExpiresAt) ||
     !isOptionalNullableNumber(server.refreshTokenExpiresAt) ||
@@ -171,22 +179,19 @@ function registrationFromServer(server: RegisteredServer): ServerRegistration {
 
 function sessionFromServer(server: RegisteredServer): ServerSession {
   return {
-    token: server.token,
-    refreshToken: server.refreshToken ?? null,
-    accessTokenExpiresAt: server.accessTokenExpiresAt ?? null,
-    refreshTokenExpiresAt: server.refreshTokenExpiresAt ?? null,
-    oauthClientId: server.oauthClientId ?? null,
-    refreshRequestId: server.refreshRequestId ?? null,
+    ...authenticationFromSession(server),
     userId: server.userId,
     userLogin: server.userLogin,
     userDisplayName: server.userDisplayName,
-    userAvatarUrl: server.userAvatarUrl,
-    reauthRequiredAt: server.reauthRequiredAt
+    userAvatarUrl: server.userAvatarUrl
   };
 }
 
-function authenticationFromSession(session: ServerSession): ServerAuthentication {
+function authenticationFromSession(
+  session: ServerSession | ServerAuthentication
+): ServerAuthentication {
   return {
+    bearerSessionId: session.bearerSessionId ?? null,
     token: session.token,
     refreshToken: session.refreshToken ?? null,
     accessTokenExpiresAt: session.accessTokenExpiresAt ?? null,
@@ -201,6 +206,27 @@ function emptyServerAuthentication(): ServerAuthentication {
   return authenticationFromSession(emptyServerSession());
 }
 
+/** Older clients have no sign-in ID. Only an unchanged credential pair proves continuity. */
+function sameBearerSession(session: ServerSession, stored: ServerAuthentication): boolean {
+  if (session.bearerSessionId && stored.bearerSessionId)
+    return session.bearerSessionId === stored.bearerSessionId;
+  return session.token === stored.token && (session.refreshToken ?? null) === stored.refreshToken;
+}
+
+/** Keep cached profile fields only when the credentials still identify the same session. */
+function mergeAuthentication<T extends ServerSession>(
+  session: T,
+  stored: ServerAuthentication | null
+): T {
+  const auth = authenticationFromSession(stored ?? emptyServerSession());
+  const clearProfile = (session.token || auth.token) && !sameBearerSession(session, auth);
+  return {
+    ...session,
+    ...(clearProfile ? emptyServerSession() : {}),
+    ...auth
+  };
+}
+
 /** Split the legacy combined persistence shape into its runtime owners. */
 export function splitPersistedServers(servers: PersistedRegisteredServer[]): {
   registrations: ServerRegistration[];
@@ -209,7 +235,17 @@ export function splitPersistedServers(servers: PersistedRegisteredServer[]): {
   const normalized = servers.map(normalizeRegisteredServer);
   return {
     registrations: normalized.map(registrationFromServer),
-    sessions: normalized.map((server) => [server.id, sessionFromServer(server)] as const)
+    sessions: normalized.map((server) => {
+      const session = sessionFromServer(server);
+      session.bearerSessionId = server.profileSignInId ?? null;
+      // Older tabs could put their stale viewer beside newer credentials.
+      if (session.refreshToken && !session.bearerSessionId)
+        return [
+          server.id,
+          { ...emptyServerSession(), ...authenticationFromSession(session) }
+        ] as const;
+      return [server.id, session] as const;
+    })
   };
 }
 
@@ -248,17 +284,22 @@ function readPersistedAuthentication(serverId: string): ServerAuthentication | n
   }
   const stored = slot.get();
   if (!stored) return null;
-  const { version: _version, ...authentication } = stored;
-  return authentication;
+  return authenticationFromSession(stored);
 }
 
 function persistAuthentication(serverId: string, authentication: ServerAuthentication): boolean {
   const slot = authenticationSlot(serverId);
   slot.set({ version: 1, ...authentication });
   const stored = readPersistedAuthentication(serverId);
+  return !!stored && sameAuthentication(stored, authentication);
+}
+
+function sameAuthentication(
+  stored: ServerAuthentication,
+  authentication: ServerAuthentication
+): boolean {
   return (
-    stored !== undefined &&
-    stored !== null &&
+    (stored.bearerSessionId ?? null) === (authentication.bearerSessionId ?? null) &&
     stored.token === authentication.token &&
     stored.refreshToken === authentication.refreshToken &&
     stored.accessTokenExpiresAt === authentication.accessTokenExpiresAt &&
@@ -297,7 +338,7 @@ export function restorePersistedServerState(): ReturnType<typeof splitPersistedS
     if (authentication === undefined) {
       persistAuthentication(serverId, authenticationFromSession(session));
     } else {
-      Object.assign(session, authentication ?? emptyServerAuthentication());
+      Object.assign(session, mergeAuthentication(session, authentication));
     }
   }
   clearRetiredAccountDataStorage();
@@ -427,15 +468,12 @@ export class ServerRegistry {
     if (options.persistence) {
       const saved = options.persistence.readServers();
       if (!isPersistedServerArray(saved)) throw new Error('Invalid persisted server catalogue.');
-      persisted = splitPersistedServers(
-        saved.map((server) => {
-          const authentication = options.persistence!.readAuthentication(server.id);
-          return {
-            ...server,
-            ...(authentication === undefined ? {} : (authentication ?? emptyServerAuthentication()))
-          };
-        })
-      );
+      persisted = splitPersistedServers(saved);
+      for (const [id, session] of persisted.sessions) {
+        const savedAuth = this.#storage.readAuthentication(id);
+        if (savedAuth !== undefined)
+          Object.assign(session, mergeAuthentication(session, savedAuth));
+      }
     } else {
       persisted = options.deviceStorage
         ? restorePersistedServerState()
@@ -613,19 +651,7 @@ export class ServerRegistry {
     batch(() => {
       const server = this.getServer(id);
       if (!server) return;
-      this.#replaceServerAuth(id, {
-        token: null,
-        refreshToken: null,
-        accessTokenExpiresAt: null,
-        refreshTokenExpiresAt: null,
-        oauthClientId: null,
-        refreshRequestId: null,
-        userId: null,
-        userLogin: null,
-        userDisplayName: null,
-        userAvatarUrl: null,
-        reauthRequiredAt: null
-      });
+      this.#replaceServerAuth(id, emptyServerSession());
       const store = this.tryGetStore(id);
       if (store) {
         store.currentUser.reset();
@@ -769,8 +795,11 @@ export class ServerRegistry {
       }
 
       const requestId = session.refreshRequestId || crypto.randomUUID();
-      if (session.refreshRequestId !== requestId) {
-        this.sessions.update(id, { refreshRequestId: requestId });
+      if (session.refreshRequestId !== requestId || !session.bearerSessionId) {
+        this.sessions.update(id, {
+          refreshRequestId: requestId,
+          bearerSessionId: session.bearerSessionId ?? crypto.randomUUID()
+        });
         session = this.sessions.get(id);
       }
       if (!session?.refreshToken) {
@@ -856,34 +885,13 @@ export class ServerRegistry {
     if (persisted === undefined && !this.#storage.shared) return;
     const current = this.sessions.get(id);
     if (!current) return;
-    if (!persisted?.token) {
-      if (current.token) this.clearServerAuthentication(id);
+    if (!persisted?.token || !sameBearerSession(current, persisted)) {
+      // A different sign-in owns storage. Discard this tab's private state only.
+      if (current.token) this.#replaceServerAuth(id, emptyServerSession(), { persist: false });
       return;
     }
-    if (
-      persisted.token === current.token &&
-      persisted.refreshToken === current.refreshToken &&
-      persisted.accessTokenExpiresAt === current.accessTokenExpiresAt &&
-      persisted.refreshTokenExpiresAt === current.refreshTokenExpiresAt &&
-      persisted.oauthClientId === current.oauthClientId &&
-      persisted.refreshRequestId === current.refreshRequestId &&
-      persisted.reauthRequiredAt === current.reauthRequiredAt
-    ) {
-      return;
-    }
-    this.#updateBearerSessionInPlace(
-      id,
-      {
-        token: persisted.token,
-        refreshToken: persisted.refreshToken,
-        accessTokenExpiresAt: persisted.accessTokenExpiresAt,
-        refreshTokenExpiresAt: persisted.refreshTokenExpiresAt,
-        oauthClientId: persisted.oauthClientId,
-        refreshRequestId: persisted.refreshRequestId,
-        reauthRequiredAt: persisted.reauthRequiredAt
-      },
-      false
-    );
+    if (sameAuthentication(persisted, authenticationFromSession(current))) return;
+    this.#updateBearerSessionInPlace(id, authenticationFromSession(persisted), false);
   }
 
   #updateBearerSessionInPlace(id: string, data: Partial<ServerSession>, persist = true): void {
@@ -947,7 +955,10 @@ export class ServerRegistry {
       claimServerId(registration.id, this);
       if (!this.catalog.add(publicRegistration)) return;
       if (options.fixedToken) this.#fixedTokenServers.add(registration.id);
-      this.sessions.replace(registration.id, localSession);
+      this.sessions.replace(registration.id, {
+        ...localSession,
+        bearerSessionId: localSession.refreshToken ? crypto.randomUUID() : null
+      });
       this.#persistAuthentication(registration.id);
       this.#persist();
       try {
@@ -1060,43 +1071,17 @@ export class ServerRegistry {
     return true;
   }
 
-  replaceServerAuthentication(
-    id: string,
-    data: Pick<
-      RegisteredServer,
-      | 'token'
-      | 'refreshToken'
-      | 'accessTokenExpiresAt'
-      | 'refreshTokenExpiresAt'
-      | 'oauthClientId'
-      | 'refreshRequestId'
-      | 'userId'
-      | 'userLogin'
-      | 'userDisplayName'
-      | 'userAvatarUrl'
-      | 'reauthRequiredAt'
-    >
-  ): boolean {
-    return this.#replaceServerAuth(id, data);
+  replaceServerAuthentication(id: string, data: Omit<ServerSession, 'bearerSessionId'>): boolean {
+    return this.#replaceServerAuth(id, {
+      ...data,
+      bearerSessionId: data.refreshToken ? crypto.randomUUID() : null
+    });
   }
 
   #replaceServerAuth(
     id: string,
-    data: Pick<
-      RegisteredServer,
-      | 'token'
-      | 'refreshToken'
-      | 'accessTokenExpiresAt'
-      | 'refreshTokenExpiresAt'
-      | 'oauthClientId'
-      | 'refreshRequestId'
-      | 'userId'
-      | 'userLogin'
-      | 'userDisplayName'
-      | 'userAvatarUrl'
-      | 'reauthRequiredAt'
-    >,
-    startNetwork = true
+    data: ServerSession,
+    { startNetwork = true, persist = true }: { startNetwork?: boolean; persist?: boolean } = {}
   ): boolean {
     return batch(() => {
       if (!this.catalog.get(id) || !this.sessions.get(id)) return false;
@@ -1116,8 +1101,10 @@ export class ServerRegistry {
       this.#context.connections.destroyClient(id);
 
       this.sessions.replace(id, data);
-      this.#persistAuthentication(id);
-      this.#persist();
+      if (persist) {
+        this.#persistAuthentication(id);
+        this.#persist();
+      }
       this.#createStore(
         id,
         startNetwork,
@@ -1138,12 +1125,9 @@ export class ServerRegistry {
         .filter((server) => !this.#fixedTokenServers.has(server.id))
         .map((server) => {
           const persisted = this.#storage.readAuthentication(server.id);
-          return {
-            ...server,
-            ...(persisted === undefined
-              ? authenticationFromSession(server)
-              : (persisted ?? emptyServerAuthentication()))
-          };
+          const merged = persisted === undefined ? server : mergeAuthentication(server, persisted);
+          const { bearerSessionId, ...snapshot } = merged;
+          return { ...snapshot, profileSignInId: bearerSessionId ?? null };
         })
     );
   }
@@ -1160,6 +1144,8 @@ export class ServerRegistry {
     if (!session) return false;
     if (this.#fixedTokenServers.has(id)) return true;
     const stored = this.#storage.readAuthentication(id);
+    if (stored && (session.token || stored.token) && !sameBearerSession(session, stored))
+      return false;
     const current = stored ?? authenticationFromSession(session);
     return this.#storage.writeAuthentication(id, { ...current, ...patch });
   }
@@ -1244,29 +1230,33 @@ export class ServerRegistry {
       } else {
         const session = this.sessions.get(id);
         if (!session || session.reauthRequiredAt !== null) return;
-        if (session.userId && session.userId !== user.id) {
-          this.#replaceServerAuth(
-            id,
-            {
-              ...session,
-              userId: user.id,
-              userLogin: user.login,
-              userDisplayName: user.displayName,
-              userAvatarUrl: user.avatarUrl ?? null
-            },
-            false
-          );
+        const stored = this.#storage.readAuthentication(id);
+        if (
+          session.token &&
+          !this.hasFixedToken(id) &&
+          this.#storage.shared &&
+          (!stored || !sameBearerSession(session, stored))
+        ) {
+          this.#replaceServerAuth(id, emptyServerSession(), { persist: false });
+          return;
         }
-        const store = this.#stores.get(id);
-        if (!store) return;
-        store.currentUser.accept(user);
-        this.#startServerNetwork(id);
-        this.sessions.update(id, {
+        const profile = {
           userId: user.id,
           userLogin: user.login,
           userDisplayName: user.displayName,
-          userAvatarUrl: user.avatarUrl
-        });
+          userAvatarUrl: user.avatarUrl ?? null
+        };
+        if (session.userId && session.userId !== user.id) {
+          this.#replaceServerAuth(
+            id,
+            { ...session, ...profile },
+            { startNetwork: false, persist: false }
+          );
+        } else {
+          this.sessions.update(id, profile);
+        }
+        this.getStore(id).currentUser.accept(user);
+        this.#startServerNetwork(id);
         this.#persist();
       }
     });
