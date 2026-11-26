@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "Connect to add this server to your server list. The server will see your IP address.",
     "sign_in": "Sign in",
     "connecting": "Connecting...",
     "start_failed": "Failed to start sign-in.",

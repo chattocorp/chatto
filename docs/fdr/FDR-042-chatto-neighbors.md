@@ -135,6 +135,13 @@ recommendation, not a trust or reciprocal relationship.
   compatible with the client. When the version is incompatible or unknown,
   the client opens the server origin in a new tab. The server can then provide
   its own compatible client.
+- A web handoff at `/open?server=<hostname>` opens the registered HTTPS
+  origin on this device. For a new hostname, the person must select Connect
+  before the client requests public server data. A successful check adds the
+  server to the switcher and opens its normal signed-out view. A failed
+  request keeps the hostname and offers a retry. When the chat route already
+  identifies another origin with the same hostname, the handoff offers the
+  exact HTTPS website.
 - A user can enter a server address directly when the wanted server is not in
   the directory.
 - Neighbor administration does not contact a Neighbor, on the server or in

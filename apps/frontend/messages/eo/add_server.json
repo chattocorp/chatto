@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "Konektiĝu por aldoni ĉi tiun servilon al via listo de serviloj. La servilo vidos vian IP-adreson.",
     "sign_in": "Ensalutu",
     "connecting": "Konektante...",
     "start_failed": "Malsukcesis komenci ensaluti.",

@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "Izveidojiet savienojumu, lai pievienotu šo serveri savam serveru sarakstam. Serveris redzēs jūsu IP adresi.",
     "sign_in": "Pierakstīties",
     "connecting": "Notiek savienojuma izveide...",
     "start_failed": "Neizdevās sākt pierakstīšanos.",

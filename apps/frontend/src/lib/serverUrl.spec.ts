@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalServerOrigin, serverHost } from './serverUrl';
+import { canonicalServerOrigin, handoffHostname, serverHost } from './serverUrl';
 
 describe('canonicalServerOrigin', () => {
   it('normalizes case, default ports, and paths of HTTP(S) URLs', () => {
@@ -23,4 +23,44 @@ describe('serverHost', () => {
   it('returns a value that is not a URL unchanged', () => {
     expect(serverHost('not a url')).toBe('not a url');
   });
+});
+
+describe('handoffHostname', () => {
+  it('accepts a single DNS hostname, including an ASCII IDN', () => {
+    expect(handoffHostname(new URLSearchParams({ server: 'Book-Club.Example.COM' }))).toBe(
+      'book-club.example.com'
+    );
+    expect(handoffHostname(new URLSearchParams({ server: 'xn--bcher-kva.example' }))).toBe(
+      'xn--bcher-kva.example'
+    );
+  });
+
+  it.each([
+    'https://host.example',
+    'host.example:443',
+    'host.example/',
+    'host.example?x',
+    'host.example#section',
+    'person@host.example',
+    'host.example\\other',
+    ' host.example',
+    '.example',
+    'a..example',
+    '127.0.0.1',
+    '0x7f.0x1',
+    '[::1]',
+    'localhost',
+    'host-.example',
+    'K.example',
+    'a'.repeat(64) + '.example'
+  ])('rejects %s', (server) => {
+    expect(handoffHostname(new URLSearchParams({ server }))).toBeNull();
+  });
+
+  it.each(['', 'server=', 'server=a.test&server=b.test', 'server=a.test&returnTo=b.test'])(
+    'rejects incomplete or ambiguous query %s',
+    (query) => {
+      expect(handoffHostname(new URLSearchParams(query))).toBeNull();
+    }
+  );
 });

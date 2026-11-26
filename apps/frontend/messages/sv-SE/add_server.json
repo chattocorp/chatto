@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "Anslut för att lägga till servern i din serverlista. Servern ser då din IP-adress.",
     "sign_in": "Logga in",
     "connecting": "Ansluter...",
     "start_failed": "Det gick inte att starta inloggningen.",

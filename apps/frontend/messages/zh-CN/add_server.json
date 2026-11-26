@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "连接即可将此服务器添加到你的服务器列表。服务器将看到你的 IP 地址。",
     "sign_in": "登录",
     "connecting": "正在连接...",
     "start_failed": "无法开始登录。",
