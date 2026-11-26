@@ -4,7 +4,7 @@ test('a web handoff waits for a click, retries discovery and remembers the serve
   page
 }) => {
   const host = 'book-club.example.com';
-  const link = '/open/' + host;
+  const link = '/chat/' + host;
   const origin = 'https://' + host;
   const requests: string[] = [];
   let online = false;
@@ -62,14 +62,14 @@ test('an incompatible server offers its exact website and stays out of the switc
       }
     })
   );
-  await page.goto('/open/old.example.com');
+  await page.goto('/chat/old.example.com');
   await page.getByRole('button', { name: 'Add Server', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Open in new tab' })).toHaveAttribute('href', origin);
   await page.reload();
   await expect(page.getByRole('button', { name: 'Add Server', exact: true })).toBeVisible();
 });
 
-test('a registration on another port cannot claim the handoff', async ({ page }) => {
+test('a saved server opens by hostname using its registered port', async ({ page }) => {
   const hostname = 'book-club.example.com';
   await page.addInitScript((hostname) => {
     localStorage.setItem(
@@ -85,10 +85,18 @@ test('a registration on another port cannot claim the handoff', async ({ page })
     );
   }, hostname);
   await page.route('https://' + hostname + ':8443/**', (route) => route.abort());
-  await page.goto('/open/' + hostname);
-  await expect(page.getByRole('link', { name: 'Open in new tab' })).toHaveAttribute(
-    'href',
-    'https://' + hostname
-  );
-  await expect(page).toHaveURL(/\/open\/book-club\.example\.com$/);
+  await page.goto('/chat/' + hostname);
+  await expect(page).toHaveURL(/\/chat\/book-club\.example\.com\/overview$/);
+  await expect(page.getByRole('button', { name: 'Add Server', exact: true })).toHaveCount(0);
+});
+
+test('production links reject an explicit port before discovery', async ({ page }) => {
+  const requests: string[] = [];
+  await page.route('https://book-club.example.com:8443/**', (route) => {
+    requests.push(route.request().url());
+    return route.abort();
+  });
+  await page.goto('/chat/book-club.example.com:8443');
+  await expect(page.getByText('Please enter a valid URL.')).toBeVisible();
+  expect(requests).toEqual([]);
 });

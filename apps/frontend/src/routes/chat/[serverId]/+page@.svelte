@@ -6,8 +6,9 @@
   import { evaluateServerCompatibility } from '@chatto/client/server/compatibility';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
+  import { serverHost } from '$lib/serverUrl';
   import { serverIdForHostname } from '$lib/navigation/serverHostname';
-  import { addSignedOutServer, findServerByUrl } from '$lib/serverCatalogue';
+  import { addSignedOutServer } from '$lib/serverCatalogue';
   import { Hint, PageTitle, ScrollFader } from '$lib/ui';
   import ServerLogo from '$lib/components/ServerLogo.svelte';
   import chattoIcon from '$lib/assets/chatto-icon.png';
@@ -31,22 +32,20 @@
     };
   }
 
-  async function connect(hostname: string) {
+  async function connect(origin: string) {
     if (pending) return;
     const request = new AbortController();
     controller = request;
     pending = true;
     error = '';
-    const origin = `https://${hostname}`;
+
     try {
       const profile = await getPublicServerInfo(origin, { signal: request.signal });
       request.signal.throwIfAborted();
-      const saved = findServerByUrl(origin);
-      const owner = serverIdForHostname(hostname);
+      const saved = serverIdForHostname(new URL(origin).hostname);
       if (
-        (owner && owner !== saved?.id) ||
-        (!saved &&
-          evaluateServerCompatibility({ serverVersion: profile.version }).status === 'unsupported')
+        !saved &&
+        evaluateServerCompatibility({ serverVersion: profile.version }).status === 'unsupported'
       ) {
         external = true;
         return;
@@ -55,9 +54,10 @@
         error = m('add_server.directory.sign_in_unavailable');
         return;
       }
-      const id = saved?.id ?? addSignedOutServer(origin, profile);
+      const id = saved ?? addSignedOutServer(origin, profile);
       await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(id) }), {
-        replaceState: true
+        replaceState: true,
+        invalidateAll: true
       });
     } catch (cause) {
       if (!request.signal.aborted) {
@@ -75,7 +75,7 @@
 <PageTitle title={m('chat.server_gutter.add_server')} />
 <ScrollFader top bottom mask>
   <div class="flex min-h-full flex-1 items-center justify-center px-4 py-6 sm:p-8">
-    {#key data.hostname}
+    {#key data.origin}
       <section
         class="w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-surface shadow-md"
         {@attach linkLifetime}
@@ -87,23 +87,23 @@
           <img src={chattoIcon} alt="" class="size-14 -rotate-6 rounded-xl shadow-md" />
           <span aria-hidden="true" class="iconify icon-[uil--link] text-2xl text-text"></span>
           <div class="grid size-14 rotate-6 place-items-center rounded-xl bg-surface shadow-md">
-            {#if data.hostname}
-              <ServerLogo server={{ name: data.hostname }} fill />
+            {#if data.origin}
+              <ServerLogo server={{ name: serverHost(data.origin) }} fill />
             {:else}
               <span aria-hidden="true" class="iconify icon-[uil--globe] text-3xl"></span>
             {/if}
           </div>
         </div>
         <div class="flex flex-col items-stretch gap-5 p-6 text-center sm:p-8">
-          {#if data.hostname}
-            {@const hostname = data.hostname}
+          {#if data.origin}
+            {@const origin = data.origin}
             <h1
               class="text-xl leading-tight font-bold tracking-tight wrap-anywhere text-text-top sm:text-2xl"
             >
-              <bdi dir="ltr">{hostname}</bdi>
+              <bdi dir="ltr">{serverHost(origin)}</bdi>
             </h1>
-            {#if external || data.external}
-              <Button size="lg" href={`https://${hostname}`} opensInNewTab
+            {#if external}
+              <Button size="lg" href={origin} opensInNewTab
                 >{m('add_server.directory.open_in_new_tab')}</Button
               >
             {:else}
@@ -112,7 +112,7 @@
                 </div>{/if}
               <Button
                 size="lg"
-                onclick={() => connect(hostname)}
+                onclick={() => connect(origin)}
                 loading={pending}
                 loadingText={m('add_server.connecting')}
               >

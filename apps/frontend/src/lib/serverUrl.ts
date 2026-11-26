@@ -31,7 +31,7 @@ export function serverHost(url: string): string {
 }
 
 /** Read the single DNS hostname in a web handoff. Never accept URL components or IP literals. */
-export function handoffHostname(value: string): string | null {
+function handoffHostname(value: string): string | null {
   if (!/^[A-Za-z0-9.-]+$/.test(value)) return null;
   const hostname = value.toLowerCase();
   const labels = hostname.split('.');
@@ -49,4 +49,18 @@ export function handoffHostname(value: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** Shared chat links use HTTPS. Only a dev build accepts an explicit TCP port. */
+export function handoffHost(segment: string, development: boolean): URL | null {
+  const [name, port, ...extra] = segment.split(':');
+  if (
+    extra.length ||
+    (port !== undefined && (!development || !/^[1-9]\d{0,4}$/.test(port) || Number(port) > 65535))
+  )
+    return null;
+  const loopback = development && (name === 'localhost' || name === '127.0.0.1');
+  const hostname = loopback ? name : handoffHostname(name);
+  if (!hostname) return null;
+  return new URL(`${loopback ? 'http' : 'https'}://${hostname}${port ? ':' + port : ''}`);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalServerOrigin, handoffHostname, serverHost } from './serverUrl';
+import { canonicalServerOrigin, handoffHost, serverHost } from './serverUrl';
 
 describe('canonicalServerOrigin', () => {
   it('normalizes case, default ports, and paths of HTTP(S) URLs', () => {
@@ -25,10 +25,10 @@ describe('serverHost', () => {
   });
 });
 
-describe('handoffHostname', () => {
+describe('handoffHost', () => {
   it('accepts a single DNS hostname, including an ASCII IDN', () => {
-    expect(handoffHostname('Book-Club.Example.COM')).toBe('book-club.example.com');
-    expect(handoffHostname('xn--bcher-kva.example')).toBe('xn--bcher-kva.example');
+    expect(handoffHost('Book-Club.Example.COM', false)?.hostname).toBe('book-club.example.com');
+    expect(handoffHost('xn--bcher-kva.example', false)?.hostname).toBe('xn--bcher-kva.example');
   });
 
   it.each([
@@ -51,6 +51,16 @@ describe('handoffHostname', () => {
     'K.example',
     'a'.repeat(64) + '.example'
   ])('rejects %s', (server) => {
-    expect(handoffHostname(server)).toBeNull();
+    expect(handoffHost(server, false)).toBeNull();
+  });
+
+  it('accepts explicit ports only during development', () => {
+    expect(handoffHost('host.example:8443', false)).toBeNull();
+    expect(handoffHost('host.example:8443', true)?.origin).toBe('https://host.example:8443');
+    expect(handoffHost('localhost:8080', true)?.origin).toBe('http://localhost:8080');
+    expect(handoffHost('localhost:8080', false)).toBeNull();
+    for (const port of ['', '0', '65536', '443:80', '443/path']) {
+      expect(handoffHost('host.example:' + port, true)).toBeNull();
+    }
   });
 });

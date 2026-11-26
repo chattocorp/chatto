@@ -16,6 +16,7 @@ vi.mock('$app/paths', () => ({
 }));
 
 vi.mock('$lib/navigation', () => ({
+  serverIdToSegment: () => '-',
   segmentToServerId: () => mocks.serverId
 }));
 
@@ -26,7 +27,7 @@ vi.mock('$lib/storage/lastRoom', () => ({
 import { load } from './+page';
 
 async function routeLoad(path = 'https://chat.example.test/chat/-') {
-  return load({ params: { serverId: '-' }, url: new URL(path) } as never);
+  return load({ params: { serverId: '-' }, parent: async () => ({}), url: new URL(path) } as never);
 }
 
 describe('server landing load', () => {
