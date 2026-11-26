@@ -1247,6 +1247,43 @@ func (x *SetPersonalRoomGroupOrderRequest) GetGroupIds() []string {
 	return nil
 }
 
+// Confirms that the personal order was saved. Read ListRoomGroups for current state.
+type SetPersonalRoomGroupOrderResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetPersonalRoomGroupOrderResponse) Reset() {
+	*x = SetPersonalRoomGroupOrderResponse{}
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPersonalRoomGroupOrderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPersonalRoomGroupOrderResponse) ProtoMessage() {}
+
+func (x *SetPersonalRoomGroupOrderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPersonalRoomGroupOrderResponse.ProtoReflect.Descriptor instead.
+func (*SetPersonalRoomGroupOrderResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{19}
+}
+
 var File_chatto_api_v1_room_directory_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
@@ -1322,7 +1359,8 @@ const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\x15BatchGetRoomsResponse\x128\n" +
 	"\x05rooms\x18\x01 \x03(\v2\".chatto.api.v1.RoomWithViewerStateR\x05rooms\"?\n" +
 	" SetPersonalRoomGroupOrderRequest\x12\x1b\n" +
-	"\tgroup_ids\x18\x01 \x03(\tR\bgroupIds*\x99\x01\n" +
+	"\tgroup_ids\x18\x01 \x03(\tR\bgroupIds\"#\n" +
+	"!SetPersonalRoomGroupOrderResponse*\x99\x01\n" +
 	"\x12RoomDirectoryScope\x12$\n" +
 	" ROOM_DIRECTORY_SCOPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18ROOM_DIRECTORY_SCOPE_ALL\x10\x01\x12!\n" +
@@ -1332,9 +1370,9 @@ const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\x1fROOM_ARCHIVE_FILTER_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aROOM_ARCHIVE_FILTER_ACTIVE\x10\x01\x12 \n" +
 	"\x1cROOM_ARCHIVE_FILTER_ARCHIVED\x10\x02\x12\x1b\n" +
-	"\x17ROOM_ARCHIVE_FILTER_ALL\x10\x032\xa4\x05\n" +
-	"\x14RoomDirectoryService\x12s\n" +
-	"\x19SetPersonalRoomGroupOrder\x12/.chatto.api.v1.SetPersonalRoomGroupOrderRequest\x1a%.chatto.api.v1.ListRoomGroupsResponse\x12N\n" +
+	"\x17ROOM_ARCHIVE_FILTER_ALL\x10\x032\xaf\x05\n" +
+	"\x14RoomDirectoryService\x12~\n" +
+	"\x19SetPersonalRoomGroupOrder\x12/.chatto.api.v1.SetPersonalRoomGroupOrderRequest\x1a0.chatto.api.v1.SetPersonalRoomGroupOrderResponse\x12N\n" +
 	"\tListRooms\x12\x1f.chatto.api.v1.ListRoomsRequest\x1a .chatto.api.v1.ListRoomsResponse\x12]\n" +
 	"\x0eListRoomGroups\x12$.chatto.api.v1.ListRoomGroupsRequest\x1a%.chatto.api.v1.ListRoomGroupsResponse\x12W\n" +
 	"\fGetRoomGroup\x12\".chatto.api.v1.GetRoomGroupRequest\x1a#.chatto.api.v1.GetRoomGroupResponse\x12i\n" +
@@ -1356,54 +1394,55 @@ func file_chatto_api_v1_room_directory_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_room_directory_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_api_v1_room_directory_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_chatto_api_v1_room_directory_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_chatto_api_v1_room_directory_proto_goTypes = []any{
-	(RoomDirectoryScope)(0),                  // 0: chatto.api.v1.RoomDirectoryScope
-	(RoomArchiveFilter)(0),                   // 1: chatto.api.v1.RoomArchiveFilter
-	(*RoomViewerState)(nil),                  // 2: chatto.api.v1.RoomViewerState
-	(*RoomWithViewerState)(nil),              // 3: chatto.api.v1.RoomWithViewerState
-	(*SidebarLink)(nil),                      // 4: chatto.api.v1.SidebarLink
-	(*RoomGroupItem)(nil),                    // 5: chatto.api.v1.RoomGroupItem
-	(*RoomGroupViewerState)(nil),             // 6: chatto.api.v1.RoomGroupViewerState
-	(*RoomGroup)(nil),                        // 7: chatto.api.v1.RoomGroup
-	(*ListRoomsRequest)(nil),                 // 8: chatto.api.v1.ListRoomsRequest
-	(*ListRoomsResponse)(nil),                // 9: chatto.api.v1.ListRoomsResponse
-	(*ListRoomGroupsRequest)(nil),            // 10: chatto.api.v1.ListRoomGroupsRequest
-	(*ListRoomGroupsResponse)(nil),           // 11: chatto.api.v1.ListRoomGroupsResponse
-	(*GetRoomGroupRequest)(nil),              // 12: chatto.api.v1.GetRoomGroupRequest
-	(*GetRoomGroupResponse)(nil),             // 13: chatto.api.v1.GetRoomGroupResponse
-	(*BatchGetRoomGroupsRequest)(nil),        // 14: chatto.api.v1.BatchGetRoomGroupsRequest
-	(*BatchGetRoomGroupsResponse)(nil),       // 15: chatto.api.v1.BatchGetRoomGroupsResponse
-	(*GetRoomRequest)(nil),                   // 16: chatto.api.v1.GetRoomRequest
-	(*GetRoomResponse)(nil),                  // 17: chatto.api.v1.GetRoomResponse
-	(*BatchGetRoomsRequest)(nil),             // 18: chatto.api.v1.BatchGetRoomsRequest
-	(*BatchGetRoomsResponse)(nil),            // 19: chatto.api.v1.BatchGetRoomsResponse
-	(*SetPersonalRoomGroupOrderRequest)(nil), // 20: chatto.api.v1.SetPersonalRoomGroupOrderRequest
-	(*PermissionGrant)(nil),                  // 21: chatto.api.v1.PermissionGrant
-	(*timestamppb.Timestamp)(nil),            // 22: google.protobuf.Timestamp
-	(*RoomInvitation)(nil),                   // 23: chatto.api.v1.RoomInvitation
-	(*Room)(nil),                             // 24: chatto.api.v1.Room
-	(*PageRequest)(nil),                      // 25: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                         // 26: chatto.api.v1.PageInfo
+	(RoomDirectoryScope)(0),                   // 0: chatto.api.v1.RoomDirectoryScope
+	(RoomArchiveFilter)(0),                    // 1: chatto.api.v1.RoomArchiveFilter
+	(*RoomViewerState)(nil),                   // 2: chatto.api.v1.RoomViewerState
+	(*RoomWithViewerState)(nil),               // 3: chatto.api.v1.RoomWithViewerState
+	(*SidebarLink)(nil),                       // 4: chatto.api.v1.SidebarLink
+	(*RoomGroupItem)(nil),                     // 5: chatto.api.v1.RoomGroupItem
+	(*RoomGroupViewerState)(nil),              // 6: chatto.api.v1.RoomGroupViewerState
+	(*RoomGroup)(nil),                         // 7: chatto.api.v1.RoomGroup
+	(*ListRoomsRequest)(nil),                  // 8: chatto.api.v1.ListRoomsRequest
+	(*ListRoomsResponse)(nil),                 // 9: chatto.api.v1.ListRoomsResponse
+	(*ListRoomGroupsRequest)(nil),             // 10: chatto.api.v1.ListRoomGroupsRequest
+	(*ListRoomGroupsResponse)(nil),            // 11: chatto.api.v1.ListRoomGroupsResponse
+	(*GetRoomGroupRequest)(nil),               // 12: chatto.api.v1.GetRoomGroupRequest
+	(*GetRoomGroupResponse)(nil),              // 13: chatto.api.v1.GetRoomGroupResponse
+	(*BatchGetRoomGroupsRequest)(nil),         // 14: chatto.api.v1.BatchGetRoomGroupsRequest
+	(*BatchGetRoomGroupsResponse)(nil),        // 15: chatto.api.v1.BatchGetRoomGroupsResponse
+	(*GetRoomRequest)(nil),                    // 16: chatto.api.v1.GetRoomRequest
+	(*GetRoomResponse)(nil),                   // 17: chatto.api.v1.GetRoomResponse
+	(*BatchGetRoomsRequest)(nil),              // 18: chatto.api.v1.BatchGetRoomsRequest
+	(*BatchGetRoomsResponse)(nil),             // 19: chatto.api.v1.BatchGetRoomsResponse
+	(*SetPersonalRoomGroupOrderRequest)(nil),  // 20: chatto.api.v1.SetPersonalRoomGroupOrderRequest
+	(*SetPersonalRoomGroupOrderResponse)(nil), // 21: chatto.api.v1.SetPersonalRoomGroupOrderResponse
+	(*PermissionGrant)(nil),                   // 22: chatto.api.v1.PermissionGrant
+	(*timestamppb.Timestamp)(nil),             // 23: google.protobuf.Timestamp
+	(*RoomInvitation)(nil),                    // 24: chatto.api.v1.RoomInvitation
+	(*Room)(nil),                              // 25: chatto.api.v1.Room
+	(*PageRequest)(nil),                       // 26: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                          // 27: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_room_directory_proto_depIdxs = []int32{
-	21, // 0: chatto.api.v1.RoomViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
-	22, // 1: chatto.api.v1.RoomViewerState.slow_mode_next_post_at:type_name -> google.protobuf.Timestamp
-	23, // 2: chatto.api.v1.RoomViewerState.invitation:type_name -> chatto.api.v1.RoomInvitation
-	24, // 3: chatto.api.v1.RoomWithViewerState.room:type_name -> chatto.api.v1.Room
+	22, // 0: chatto.api.v1.RoomViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
+	23, // 1: chatto.api.v1.RoomViewerState.slow_mode_next_post_at:type_name -> google.protobuf.Timestamp
+	24, // 2: chatto.api.v1.RoomViewerState.invitation:type_name -> chatto.api.v1.RoomInvitation
+	25, // 3: chatto.api.v1.RoomWithViewerState.room:type_name -> chatto.api.v1.Room
 	2,  // 4: chatto.api.v1.RoomWithViewerState.viewer_state:type_name -> chatto.api.v1.RoomViewerState
-	22, // 5: chatto.api.v1.RoomWithViewerState.last_message_at:type_name -> google.protobuf.Timestamp
-	22, // 6: chatto.api.v1.RoomWithViewerState.last_root_message_at:type_name -> google.protobuf.Timestamp
+	23, // 5: chatto.api.v1.RoomWithViewerState.last_message_at:type_name -> google.protobuf.Timestamp
+	23, // 6: chatto.api.v1.RoomWithViewerState.last_root_message_at:type_name -> google.protobuf.Timestamp
 	3,  // 7: chatto.api.v1.RoomGroupItem.room:type_name -> chatto.api.v1.RoomWithViewerState
 	4,  // 8: chatto.api.v1.RoomGroupItem.sidebar_link:type_name -> chatto.api.v1.SidebarLink
-	21, // 9: chatto.api.v1.RoomGroupViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
+	22, // 9: chatto.api.v1.RoomGroupViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
 	5,  // 10: chatto.api.v1.RoomGroup.items:type_name -> chatto.api.v1.RoomGroupItem
 	6,  // 11: chatto.api.v1.RoomGroup.viewer_state:type_name -> chatto.api.v1.RoomGroupViewerState
 	0,  // 12: chatto.api.v1.ListRoomsRequest.scope:type_name -> chatto.api.v1.RoomDirectoryScope
 	1,  // 13: chatto.api.v1.ListRoomsRequest.archive_filter:type_name -> chatto.api.v1.RoomArchiveFilter
-	25, // 14: chatto.api.v1.ListRoomsRequest.page:type_name -> chatto.api.v1.PageRequest
+	26, // 14: chatto.api.v1.ListRoomsRequest.page:type_name -> chatto.api.v1.PageRequest
 	3,  // 15: chatto.api.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
-	26, // 16: chatto.api.v1.ListRoomsResponse.page:type_name -> chatto.api.v1.PageInfo
+	27, // 16: chatto.api.v1.ListRoomsResponse.page:type_name -> chatto.api.v1.PageInfo
 	7,  // 17: chatto.api.v1.ListRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
 	7,  // 18: chatto.api.v1.GetRoomGroupResponse.group:type_name -> chatto.api.v1.RoomGroup
 	7,  // 19: chatto.api.v1.BatchGetRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
@@ -1416,7 +1455,7 @@ var file_chatto_api_v1_room_directory_proto_depIdxs = []int32{
 	14, // 26: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:input_type -> chatto.api.v1.BatchGetRoomGroupsRequest
 	16, // 27: chatto.api.v1.RoomDirectoryService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
 	18, // 28: chatto.api.v1.RoomDirectoryService.BatchGetRooms:input_type -> chatto.api.v1.BatchGetRoomsRequest
-	11, // 29: chatto.api.v1.RoomDirectoryService.SetPersonalRoomGroupOrder:output_type -> chatto.api.v1.ListRoomGroupsResponse
+	21, // 29: chatto.api.v1.RoomDirectoryService.SetPersonalRoomGroupOrder:output_type -> chatto.api.v1.SetPersonalRoomGroupOrderResponse
 	9,  // 30: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
 	11, // 31: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
 	13, // 32: chatto.api.v1.RoomDirectoryService.GetRoomGroup:output_type -> chatto.api.v1.GetRoomGroupResponse
@@ -1452,7 +1491,7 @@ func file_chatto_api_v1_room_directory_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_room_directory_proto_rawDesc), len(file_chatto_api_v1_room_directory_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   19,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

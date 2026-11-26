@@ -237,12 +237,15 @@ message SetPersonalRoomGroupOrderRequest {
   repeated string group_ids = 1;
 }
 
+// Confirms that the personal order was saved. Read ListRoomGroups for current state.
+message SetPersonalRoomGroupOrderResponse {}
+
 // Reads room directory data.
 service RoomDirectoryService {
-  // Replaces only the caller's order and returns the current visible groups.
+  // Replaces only the caller's order.
   // Listed groups come first; unlisted groups retain server order.
   // Any authenticated user may call this. Empty resets to server order.
-  rpc SetPersonalRoomGroupOrder(SetPersonalRoomGroupOrderRequest) returns (ListRoomGroupsResponse);
+  rpc SetPersonalRoomGroupOrder(SetPersonalRoomGroupOrderRequest) returns (SetPersonalRoomGroupOrderResponse);
   // Lists rooms visible to the current user. Defaults to active rooms; use
   // archive_filter to discover archived rooms or include both states. Channel
   // rooms require membership or room.list. DM membership exposes room and

@@ -1064,3 +1064,36 @@ export class SetPersonalRoomGroupOrderRequest extends Message<SetPersonalRoomGro
     return proto3.util.equals(SetPersonalRoomGroupOrderRequest, a, b);
   }
 }
+
+/**
+ * Confirms that the personal order was saved. Read ListRoomGroups for current state.
+ *
+ * @generated from message chatto.api.v1.SetPersonalRoomGroupOrderResponse
+ */
+export class SetPersonalRoomGroupOrderResponse extends Message<SetPersonalRoomGroupOrderResponse> {
+  constructor(data?: PartialMessage<SetPersonalRoomGroupOrderResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetPersonalRoomGroupOrderResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetPersonalRoomGroupOrderResponse {
+    return new SetPersonalRoomGroupOrderResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetPersonalRoomGroupOrderResponse {
+    return new SetPersonalRoomGroupOrderResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetPersonalRoomGroupOrderResponse {
+    return new SetPersonalRoomGroupOrderResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetPersonalRoomGroupOrderResponse | PlainMessage<SetPersonalRoomGroupOrderResponse> | undefined, b: SetPersonalRoomGroupOrderResponse | PlainMessage<SetPersonalRoomGroupOrderResponse> | undefined): boolean {
+    return proto3.util.equals(SetPersonalRoomGroupOrderResponse, a, b);
+  }
+}

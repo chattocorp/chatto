@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetRoomGroupsRequest, BatchGetRoomGroupsResponse, BatchGetRoomsRequest, BatchGetRoomsResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse, SetPersonalRoomGroupOrderRequest } from "./room_directory_pb.js";
+import { BatchGetRoomGroupsRequest, BatchGetRoomGroupsResponse, BatchGetRoomsRequest, BatchGetRoomsResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse, SetPersonalRoomGroupOrderRequest, SetPersonalRoomGroupOrderResponse } from "./room_directory_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,7 +15,7 @@ export const RoomDirectoryService = {
   typeName: "chatto.api.v1.RoomDirectoryService",
   methods: {
     /**
-     * Replaces only the caller's order and returns the current visible groups.
+     * Replaces only the caller's order.
      * Listed groups come first; unlisted groups retain server order.
      * Any authenticated user may call this. Empty resets to server order.
      *
@@ -24,7 +24,7 @@ export const RoomDirectoryService = {
     setPersonalRoomGroupOrder: {
       name: "SetPersonalRoomGroupOrder",
       I: SetPersonalRoomGroupOrderRequest,
-      O: ListRoomGroupsResponse,
+      O: SetPersonalRoomGroupOrderResponse,
       kind: MethodKind.Unary,
     },
     /**

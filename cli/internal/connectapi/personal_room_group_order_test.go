@@ -23,7 +23,7 @@ func TestPersonalGroupOrderCommandAndConcurrentReads(t *testing.T) {
 	}
 	done := make(chan error, 1)
 	go func() {
-		for i := 0; i < 40; i++ {
+		for i := range 40 {
 			ids := []string{second.Id, first}
 			if i%2 == 0 {
 				ids = nil
@@ -36,7 +36,7 @@ func TestPersonalGroupOrderCommandAndConcurrentReads(t *testing.T) {
 		}
 		done <- nil
 	}()
-	for i := 0; i < 40; i++ {
+	for range 40 {
 		response, err := env.directory.ListRoomGroups(ctx, connect.NewRequest(&apiv1.ListRoomGroupsRequest{}))
 		if err != nil {
 			t.Fatal(err)

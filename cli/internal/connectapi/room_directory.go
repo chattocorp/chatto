@@ -77,7 +77,7 @@ func (s *roomDirectoryService) ListRoomGroups(ctx context.Context, req *connect.
 		for _, group := range groups {
 			apiGroups = append(apiGroups, apiRoomGroup(group))
 		}
-		response = &apiv1.ListRoomGroupsResponse{Groups: apiGroups, PersonalGroupOrder: s.api.core.RoomDirectoryReads().PersonalRoomGroupOrder(caller.UserID), SupportsPersonalGroupOrder: personalOrderSupported()}
+		response = &apiv1.ListRoomGroupsResponse{Groups: apiGroups, PersonalGroupOrder: s.api.core.RoomDirectoryReads().PersonalRoomGroupOrder(caller.UserID), SupportsPersonalGroupOrder: new(true)}
 		return nil
 	})
 	if err != nil {
@@ -295,7 +295,7 @@ func apiSidebarLink(link *readmodel.SidebarLink) *apiv1.SidebarLink {
 	}
 }
 
-func (s *roomDirectoryService) SetPersonalRoomGroupOrder(ctx context.Context, req *connect.Request[apiv1.SetPersonalRoomGroupOrderRequest]) (*connect.Response[apiv1.ListRoomGroupsResponse], error) {
+func (s *roomDirectoryService) SetPersonalRoomGroupOrder(ctx context.Context, req *connect.Request[apiv1.SetPersonalRoomGroupOrderRequest]) (*connect.Response[apiv1.SetPersonalRoomGroupOrderResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -303,7 +303,5 @@ func (s *roomDirectoryService) SetPersonalRoomGroupOrder(ctx context.Context, re
 	if err := s.api.core.SetPersonalRoomGroupOrder(ctx, caller.UserID, req.Msg.GetGroupIds()); err != nil {
 		return nil, err
 	}
-	return s.ListRoomGroups(ctx, connect.NewRequest(&apiv1.ListRoomGroupsRequest{}))
+	return connect.NewResponse(&apiv1.SetPersonalRoomGroupOrderResponse{}), nil
 }
-
-func personalOrderSupported() *bool { supported := true; return &supported }

@@ -58,10 +58,10 @@ const (
 
 // RoomDirectoryServiceClient is a client for the chatto.api.v1.RoomDirectoryService service.
 type RoomDirectoryServiceClient interface {
-	// Replaces only the caller's order and returns the current visible groups.
+	// Replaces only the caller's order.
 	// Listed groups come first; unlisted groups retain server order.
 	// Any authenticated user may call this. Empty resets to server order.
-	SetPersonalRoomGroupOrder(context.Context, *connect.Request[v1.SetPersonalRoomGroupOrderRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error)
+	SetPersonalRoomGroupOrder(context.Context, *connect.Request[v1.SetPersonalRoomGroupOrderRequest]) (*connect.Response[v1.SetPersonalRoomGroupOrderResponse], error)
 	// Lists rooms visible to the current user. Defaults to active rooms; use
 	// archive_filter to discover archived rooms or include both states. Channel
 	// rooms require membership or room.list. DM membership exposes room and
@@ -104,7 +104,7 @@ func NewRoomDirectoryServiceClient(httpClient connect.HTTPClient, baseURL string
 	baseURL = strings.TrimRight(baseURL, "/")
 	roomDirectoryServiceMethods := v1.File_chatto_api_v1_room_directory_proto.Services().ByName("RoomDirectoryService").Methods()
 	return &roomDirectoryServiceClient{
-		setPersonalRoomGroupOrder: connect.NewClient[v1.SetPersonalRoomGroupOrderRequest, v1.ListRoomGroupsResponse](
+		setPersonalRoomGroupOrder: connect.NewClient[v1.SetPersonalRoomGroupOrderRequest, v1.SetPersonalRoomGroupOrderResponse](
 			httpClient,
 			baseURL+RoomDirectoryServiceSetPersonalRoomGroupOrderProcedure,
 			connect.WithSchema(roomDirectoryServiceMethods.ByName("SetPersonalRoomGroupOrder")),
@@ -151,7 +151,7 @@ func NewRoomDirectoryServiceClient(httpClient connect.HTTPClient, baseURL string
 
 // roomDirectoryServiceClient implements RoomDirectoryServiceClient.
 type roomDirectoryServiceClient struct {
-	setPersonalRoomGroupOrder *connect.Client[v1.SetPersonalRoomGroupOrderRequest, v1.ListRoomGroupsResponse]
+	setPersonalRoomGroupOrder *connect.Client[v1.SetPersonalRoomGroupOrderRequest, v1.SetPersonalRoomGroupOrderResponse]
 	listRooms                 *connect.Client[v1.ListRoomsRequest, v1.ListRoomsResponse]
 	listRoomGroups            *connect.Client[v1.ListRoomGroupsRequest, v1.ListRoomGroupsResponse]
 	getRoomGroup              *connect.Client[v1.GetRoomGroupRequest, v1.GetRoomGroupResponse]
@@ -161,7 +161,7 @@ type roomDirectoryServiceClient struct {
 }
 
 // SetPersonalRoomGroupOrder calls chatto.api.v1.RoomDirectoryService.SetPersonalRoomGroupOrder.
-func (c *roomDirectoryServiceClient) SetPersonalRoomGroupOrder(ctx context.Context, req *connect.Request[v1.SetPersonalRoomGroupOrderRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error) {
+func (c *roomDirectoryServiceClient) SetPersonalRoomGroupOrder(ctx context.Context, req *connect.Request[v1.SetPersonalRoomGroupOrderRequest]) (*connect.Response[v1.SetPersonalRoomGroupOrderResponse], error) {
 	return c.setPersonalRoomGroupOrder.CallUnary(ctx, req)
 }
 
@@ -198,10 +198,10 @@ func (c *roomDirectoryServiceClient) BatchGetRooms(ctx context.Context, req *con
 // RoomDirectoryServiceHandler is an implementation of the chatto.api.v1.RoomDirectoryService
 // service.
 type RoomDirectoryServiceHandler interface {
-	// Replaces only the caller's order and returns the current visible groups.
+	// Replaces only the caller's order.
 	// Listed groups come first; unlisted groups retain server order.
 	// Any authenticated user may call this. Empty resets to server order.
-	SetPersonalRoomGroupOrder(context.Context, *connect.Request[v1.SetPersonalRoomGroupOrderRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error)
+	SetPersonalRoomGroupOrder(context.Context, *connect.Request[v1.SetPersonalRoomGroupOrderRequest]) (*connect.Response[v1.SetPersonalRoomGroupOrderResponse], error)
 	// Lists rooms visible to the current user. Defaults to active rooms; use
 	// archive_filter to discover archived rooms or include both states. Channel
 	// rooms require membership or room.list. DM membership exposes room and
@@ -307,7 +307,7 @@ func NewRoomDirectoryServiceHandler(svc RoomDirectoryServiceHandler, opts ...con
 // UnimplementedRoomDirectoryServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedRoomDirectoryServiceHandler struct{}
 
-func (UnimplementedRoomDirectoryServiceHandler) SetPersonalRoomGroupOrder(context.Context, *connect.Request[v1.SetPersonalRoomGroupOrderRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error) {
+func (UnimplementedRoomDirectoryServiceHandler) SetPersonalRoomGroupOrder(context.Context, *connect.Request[v1.SetPersonalRoomGroupOrderRequest]) (*connect.Response[v1.SetPersonalRoomGroupOrderResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomDirectoryService.SetPersonalRoomGroupOrder is not implemented"))
 }
 
