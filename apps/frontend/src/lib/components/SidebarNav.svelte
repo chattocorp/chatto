@@ -29,6 +29,7 @@
     items = [],
     groups = [],
     backHref,
+    onBack,
     backLabel = m('ui.sidebar_nav.back_to_chat'),
     isActive = defaultIsActive
   }: {
@@ -37,6 +38,8 @@
     items?: NavItem[];
     groups?: NavGroup[];
     backHref?: string;
+    /** Run a back action when the destination depends on navigation history. */
+    onBack?: () => void;
     backLabel?: string;
     isActive?: (href: string, items: NavItem[]) => boolean;
   } = $props();
@@ -84,7 +87,7 @@
   </a>
 {/snippet}
 
-<PaneHeader {title} {subtitle} {backHref} {backLabel} />
+<PaneHeader {title} {subtitle} {backHref} {onBack} {backLabel} />
 
 <ScrollFader top bottom>
   <nav aria-label={title}>

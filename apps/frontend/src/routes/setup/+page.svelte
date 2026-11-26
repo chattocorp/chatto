@@ -110,7 +110,9 @@
 <PageTitle title={m('auth.setup.title')} />
 <CenteredPage>
   {#snippet header()}
-    {#if data.step !== 'welcome' || !data.setupServer.directLoginEnabled}
+    {#if !data.setupServer.directLoginEnabled}
+      <PaneHeader title={m('auth.setup.title')} onBack={() => history.back()} />
+    {:else if data.step !== 'welcome'}
       <PaneHeader title={m('auth.setup.title')} backHref={resolve('/setup')} />
     {/if}
   {/snippet}
