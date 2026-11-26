@@ -47,15 +47,6 @@
   </div>
 </Story>
 
-<Story name="Inline actions in a narrow card" asChild>
-  <div class="w-80">
-    <Panel title="Outdoors and other long group names" noPadding inlineActions>
-      {#snippet actions()}<Button size="sm">Join all</Button>{/snippet}
-      <p class="p-3">Rooms</p>
-    </Panel>
-  </div>
-</Story>
-
 <Story name="Account title" asChild>
   <Panel title="Assistant (BOT)">
     {#snippet titleContent()}<AccountName name="Assistant" identity={{ isBot: true }} />{/snippet}

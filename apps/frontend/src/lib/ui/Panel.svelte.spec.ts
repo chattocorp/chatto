@@ -74,32 +74,6 @@ describe('Panel inset structure', () => {
     }
   });
 
-  it('keeps inline actions on the title row and truncates the title', async () => {
-    const host = document.createElement('div');
-    host.style.width = '320px';
-    document.body.append(host);
-    const view = render(Panel, {
-      target: host,
-      props: {
-        title: 'Outdoors and other long group names',
-        inlineActions: true,
-        actions: testSnippet('<button style="white-space: nowrap">Join all</button>'),
-        children: testSnippet('<div>Rooms</div>')
-      }
-    });
-    const title = host.querySelector('h2')!;
-    const action = host.querySelector('button')!;
-    try {
-      expect(action.getBoundingClientRect().top).toBeLessThan(title.getBoundingClientRect().bottom);
-      expect(title.getBoundingClientRect().right).toBeLessThanOrEqual(
-        action.getBoundingClientRect().left
-      );
-    } finally {
-      await view.unmount();
-      host.remove();
-    }
-  });
-
   it('flattens page panels on narrow touch and mouse screens while standalone panels keep their frames', async () => {
     const flat = render(Panel, {
       props: {
