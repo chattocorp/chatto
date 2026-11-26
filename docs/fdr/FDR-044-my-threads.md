@@ -56,7 +56,7 @@ find replies that they have not read.
 - Search stays within the selected tab. The tab selects the root author;
   `from:username` selects the author of a matching root message or reply.
 - The search input receives focus when Threads opens.
-- A row with a matching unread notification uses a neutral marker for all
+- A row with a matching unread message notification uses a neutral marker for all
   attention levels. The client reads this decoration from its current
   Notifications view. Row backgrounds remain neutral.
 - A user can mark a thread with unread replies as read, or stop following any
@@ -154,7 +154,9 @@ each search page counts distinct threads.
 ### 4. The navigation indicator covers followed threads
 
 **Decision:** The Threads navigation indicator counts loaded unread
-notifications for followed threads. The badge uses notification orange when
+message notifications for followed threads. Reactions stay in Notifications.
+They do not add a navigation badge or a thread-row marker because they add no
+unread reply. The badge uses notification orange when
 one notification has Important attention, and the neutral badge color when all
 have Ambient attention. Unread replies without an unread notification do not
 show a navigation indicator.

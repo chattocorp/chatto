@@ -143,6 +143,28 @@ describe('notificationAttentionForThread', () => {
       NotificationAttentionLevel.UNSPECIFIED
     );
   });
+
+  it('ignores an Important reaction when choosing the thread row marker', () => {
+    const reply = {
+      ...mention('reply'),
+      threadRootId: 'root-1',
+      signalKind: NotificationSignalKind.REPLY,
+      attentionLevel: NotificationAttentionLevel.AMBIENT
+    };
+    const reaction = {
+      ...reply,
+      id: 'reaction',
+      signalKind: NotificationSignalKind.REACTION,
+      attentionLevel: NotificationAttentionLevel.IMPORTANT
+    };
+
+    expect(notificationAttentionForThread([reaction], 'r1', 'root-1')).toBe(
+      NotificationAttentionLevel.UNSPECIFIED
+    );
+    expect(notificationAttentionForThread([reaction, reply], 'r1', 'root-1')).toBe(
+      NotificationAttentionLevel.AMBIENT
+    );
+  });
 });
 
 describe('NotificationStore', () => {
