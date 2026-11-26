@@ -1510,6 +1510,42 @@ Result of lifting a room suspension.
 
 Reads room directory data.
 
+<a id="chatto-api-v1-RoomDirectoryService-SetPersonalRoomGroupOrder"></a>
+
+### SetPersonalRoomGroupOrder
+
+Replaces only the caller's order and returns the current visible groups.
+Listed groups come first; unlisted groups retain server order.
+Any authenticated user may call this. Empty resets to server order.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/SetPersonalRoomGroupOrder
+```
+
+<a id="chatto-api-v1-SetPersonalRoomGroupOrderRequest"></a>
+
+#### Input: SetPersonalRoomGroupOrderRequest
+
+Replaces the authenticated user's personal room group order.
+Empty restores server order. Unknown IDs are retained but skipped when listing.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_ids` | `repeated string` | At most 1000 distinct IDs, each containing 1 to 128 bytes. |
+
+
+<a id="chatto-api-v1-ListRoomGroupsResponse"></a>
+
+#### Result: ListRoomGroupsResponse
+
+Finite snapshot of ordered room groups visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `groups` | repeated [`RoomGroup`](#chatto-api-v1-RoomGroup) | Channel room groups in sidebar order. |
+| `personal_group_order` | `repeated string` | Full personal preference; empty means server order. Unknown IDs are inert. |
+
+
 <a id="chatto-api-v1-RoomDirectoryService-ListRooms"></a>
 
 ### ListRooms
@@ -1579,6 +1615,7 @@ Finite snapshot of ordered room groups visible to the current user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `groups` | repeated [`RoomGroup`](#chatto-api-v1-RoomGroup) | Channel room groups in sidebar order. |
+| `personal_group_order` | `repeated string` | Full personal preference; empty means server order. Unknown IDs are inert. |
 
 
 <a id="chatto-api-v1-RoomDirectoryService-GetRoomGroup"></a>
