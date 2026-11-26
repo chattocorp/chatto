@@ -132,7 +132,10 @@ action, so this component does not depend on app-shell state.
                     <span class="shrink-0 text-muted/60" aria-hidden="true">#</span>
                     <bdi class="min-w-0 flex-1 truncate font-medium">{room.name}</bdi>
                     {#if room.importantCount === 0 && room.otherCount === 0}
-                      <UnreadDot color="neutral" />
+                      <!-- The badge buttons' 24 px slot, so dots and badges share a centre line. -->
+                      <span class="flex size-6 shrink-0 items-center justify-center">
+                        <UnreadDot color="neutral" />
+                      </span>
                       <span class="sr-only">{m('chat.overview.catch_up_unread')}</span>
                     {/if}
                   </a>
