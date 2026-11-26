@@ -92,7 +92,12 @@
       "left": "W lewo #{room}",
       "left_generic": "Opuścił pokój",
       "leave_confirm": "Czy na pewno chcesz opuścić #{room}?",
-      "invited": "Zaproszono"
+      "invited": "Zaproszono",
+      "filter_label": "Pokaż pokoje",
+      "filter_all": "Wszystkie",
+      "filter_not_joined": "Niedołączone",
+      "empty_joined": "Nie dołączyłeś jeszcze do żadnego pokoju.",
+      "empty_not_joined": "Dołączyłeś do wszystkich pokoi, do których możesz dołączyć."
     },
     "server": {
       "remove_title": "Usuń serwer",

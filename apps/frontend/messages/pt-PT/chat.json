@@ -40,7 +40,35 @@
       }
     },
     "overview": {
-      "title": "Visão geral"
+      "title": "Visão geral",
+      "welcome_title": "Boas-vindas",
+      "hide_welcome": "Ocultar a mensagem de boas-vindas",
+      "happening_now": "A acontecer agora",
+      "call_participants_count": {
+        "one": "{count} pessoa na chamada",
+        "other": "{count} pessoas na chamada"
+      },
+      "catch_up": "Por pôr em dia",
+      "catch_up_unread": "Mensagens não lidas",
+      "catch_up_notifications_count": {
+        "one": "{count} notificação",
+        "other": "{count} notificações"
+      },
+      "neighbors": "Vizinhos",
+      "open_neighbor": "Abrir {server}",
+      "view_neighbor": "Encontrar {server} no diretório de servidores",
+      "setup": {
+        "title": "Conclua a configuração do servidor",
+        "missing": "Ainda falta: {items}.",
+        "edit_profile": "Editar o perfil do servidor",
+        "hide": "Ocultar o lembrete de configuração",
+        "items": {
+          "logo": "logótipo",
+          "banner": "faixa",
+          "description": "descrição",
+          "welcome_message": "mensagem de boas-vindas"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Voltar ao servidor",

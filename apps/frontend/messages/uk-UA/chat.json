@@ -40,7 +40,39 @@
       }
     },
     "overview": {
-      "title": "Огляд"
+      "title": "Огляд",
+      "welcome_title": "Ласкаво просимо",
+      "hide_welcome": "Сховати привітання",
+      "happening_now": "Зараз відбувається",
+      "call_participants_count": {
+        "one": "{count} людина у дзвінку",
+        "few": "{count} людини у дзвінку",
+        "many": "{count} людей у дзвінку",
+        "other": "{count} людини у дзвінку"
+      },
+      "catch_up": "Непрочитане",
+      "catch_up_unread": "Непрочитані повідомлення",
+      "catch_up_notifications_count": {
+        "one": "{count} сповіщення",
+        "few": "{count} сповіщення",
+        "many": "{count} сповіщень",
+        "other": "{count} сповіщення"
+      },
+      "neighbors": "Сусіди",
+      "open_neighbor": "Відкрити {server}",
+      "view_neighbor": "Знайти {server} у каталозі серверів",
+      "setup": {
+        "title": "Завершіть налаштування сервера",
+        "missing": "Ще не задано: {items}.",
+        "edit_profile": "Змінити профіль сервера",
+        "hide": "Сховати нагадування про налаштування",
+        "items": {
+          "logo": "логотип",
+          "banner": "банер",
+          "description": "опис",
+          "welcome_message": "привітання"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Назад на сервер",

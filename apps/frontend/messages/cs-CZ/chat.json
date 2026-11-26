@@ -40,7 +40,39 @@
       }
     },
     "overview": {
-      "title": "Přehled"
+      "title": "Přehled",
+      "welcome_title": "Vítejte",
+      "hide_welcome": "Skrýt uvítací zprávu",
+      "happening_now": "Právě probíhá",
+      "call_participants_count": {
+        "one": "{count} osoba v hovoru",
+        "few": "{count} osoby v hovoru",
+        "many": "{count} osoby v hovoru",
+        "other": "{count} osob v hovoru"
+      },
+      "catch_up": "K dohnání",
+      "catch_up_unread": "Nepřečtené zprávy",
+      "catch_up_notifications_count": {
+        "one": "{count} oznámení",
+        "few": "{count} oznámení",
+        "many": "{count} oznámení",
+        "other": "{count} oznámení"
+      },
+      "neighbors": "Sousedé",
+      "open_neighbor": "Otevřít {server}",
+      "view_neighbor": "Najít {server} v adresáři serverů",
+      "setup": {
+        "title": "Dokončete nastavení serveru",
+        "missing": "Stále chybí: {items}.",
+        "edit_profile": "Upravit profil serveru",
+        "hide": "Skrýt připomenutí nastavení",
+        "items": {
+          "logo": "logo",
+          "banner": "banner",
+          "description": "popis",
+          "welcome_message": "uvítací zpráva"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Zpět na Server",

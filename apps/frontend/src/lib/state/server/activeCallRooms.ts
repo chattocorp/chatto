@@ -7,6 +7,8 @@
 
 import { computed } from '@chatto/client/reactivity';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import type { UserAvatarUserView } from '@chatto/client/timeline/users';
 import type { CallConnection } from './callTypes';
 
 /** Participant info for display in the room list sidebar. */
@@ -17,6 +19,22 @@ export type CallRoomParticipant = {
   avatarUrl: string | null;
   isBot: boolean;
 };
+
+/**
+ * Avatar data of a call participant. The call snapshot has no presence, so
+ * the avatar shows none.
+ */
+export function callParticipantAvatarUser(participant: CallRoomParticipant): UserAvatarUserView {
+  return {
+    id: participant.userId,
+    login: participant.login,
+    displayName: participant.displayName,
+    deleted: false,
+    isBot: participant.isBot,
+    avatarUrl: participant.avatarUrl,
+    presenceStatus: PresenceStatus.OFFLINE
+  };
+}
 
 export type CallPresenceKind = 'voice' | 'video';
 

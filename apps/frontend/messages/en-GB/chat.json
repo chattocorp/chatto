@@ -40,7 +40,35 @@
       }
     },
     "overview": {
-      "title": "Overview"
+      "title": "Overview",
+      "welcome_title": "Welcome",
+      "hide_welcome": "Hide welcome message",
+      "happening_now": "Happening now",
+      "call_participants_count": {
+        "one": "{count} person in the call",
+        "other": "{count} people in the call"
+      },
+      "catch_up": "Catch up",
+      "catch_up_unread": "Unread messages",
+      "catch_up_notifications_count": {
+        "one": "{count} notification",
+        "other": "{count} notifications"
+      },
+      "neighbors": "Neighbors",
+      "open_neighbor": "Open {server}",
+      "view_neighbor": "Find {server} in the Server Directory",
+      "setup": {
+        "title": "Finish setting up your server",
+        "missing": "Still missing: {items}.",
+        "edit_profile": "Edit server profile",
+        "hide": "Hide setup reminder",
+        "items": {
+          "logo": "logo",
+          "banner": "banner",
+          "description": "description",
+          "welcome_message": "welcome message"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Back to Server",

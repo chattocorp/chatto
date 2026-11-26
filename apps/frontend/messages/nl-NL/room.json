@@ -92,7 +92,12 @@
       "left": "Links #{room}",
       "left_generic": "Linkerkamer",
       "leave_confirm": "Weet je zeker dat je #{room} wilt verlaten?",
-      "invited": "Uitgenodigd"
+      "invited": "Uitgenodigd",
+      "filter_label": "Kamers tonen",
+      "filter_all": "Alle",
+      "filter_not_joined": "Geen lid",
+      "empty_joined": "Je bent nog geen lid van een kamer.",
+      "empty_not_joined": "Je bent lid van alle kamers waar je lid van kunt worden."
     },
     "server": {
       "remove_title": "Server verwijderen",

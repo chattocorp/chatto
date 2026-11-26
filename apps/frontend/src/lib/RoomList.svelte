@@ -12,7 +12,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { serverUi } from '$lib/state/server/serverUi';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -64,7 +63,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type RoomsListGroup,
     type RoomsListGroupItem
   } from '$lib/state/server/navigation';
-  import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms';
+  import { callParticipantAvatarUser } from '$lib/state/server/activeCallRooms';
   import RoomContextMenu from '$lib/components/menus/RoomContextMenu.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
@@ -790,18 +789,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function openSelectedDM(): void {
     if (!dmMenuRoom) return;
     void goto(conversationPath(activeServerId, dmMenuRoom.id, { store: stores }));
-  }
-
-  function callParticipantAvatarUser(participant: CallRoomParticipant): UserAvatarUserView {
-    return {
-      id: participant.userId,
-      login: participant.login,
-      displayName: participant.displayName,
-      deleted: false,
-      isBot: participant.isBot,
-      avatarUrl: participant.avatarUrl,
-      presenceStatus: PresenceStatus.OFFLINE
-    };
   }
 
   // Keep active rooms and rooms needing attention visible when their group is collapsed.

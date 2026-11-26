@@ -92,7 +92,12 @@
       "left": "Venstre #{room}",
       "left_generic": "Venstre rom",
       "leave_confirm": "Er du sikker på at du vil forlate #{room}?",
-      "invited": "Invitert"
+      "invited": "Invitert",
+      "filter_label": "Vis rom",
+      "filter_all": "Alle",
+      "filter_not_joined": "Ikke med",
+      "empty_joined": "Du har ikke blitt med i noen rom ennå.",
+      "empty_not_joined": "Du har blitt med i alle rom du kan bli med i."
     },
     "server": {
       "remove_title": "Fjern server",

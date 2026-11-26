@@ -1,0 +1,36 @@
+# FDR-061: Server Overview
+
+**Status:** Active
+**Last reviewed:** 2026-11-26
+
+## Behavior
+
+The server Overview at `/chat/{server}/overview` is the home page of a server. A member opens it from the sidebar **Overview** entry, or lands on it when the app has no last room for the server ([FDR-026](FDR-026-last-room-memory.md)). The page shows these sections from top to bottom:
+
+1. **Identity.** The banner, logo, name, and description of the server. A server without a banner shows the gradient of its name.
+2. **Setup reminder.** Members with the server-management permission see a list of the empty public profile fields: logo, banner, description, and welcome message. The reminder links to the General settings. It goes away when the profile is complete.
+3. **Welcome and message of the day.** The welcome message and the message of the day, rendered as Markdown. The message of the day also stays in the application header.
+4. **Happening now.** A card for each active call in a joined room, with its participants and a **Join call** action. The action opens the room with its call panel. A **Catch up** card lists up to five joined channel rooms with unread messages or notifications. Rooms with important notifications come first. Direct messages stay in the sidebar.
+5. **Rooms.** The room directory with its room groups, search, and a membership filter: **All**, **Joined**, or **Not joined**. **All** is the default.
+6. **Neighbors.** The Neighbors that the server advertises ([FDR-042](FDR-042-chatto-neighbors.md)). A card opens the server when it is already in the app. Otherwise it opens the Server Directory, which owns the join flow.
+
+The page hides each section that has nothing to show, except the identity and the rooms. A member can hide the welcome message, and an administrator can hide the setup reminder. Each choice applies to one server on the current device.
+
+## Rationale
+
+The Overview was only a room directory. New members land on it, so it is the best place to introduce the server and to show where activity is. All of its data is already in the server projection or in public server data. The page does not need a new API, so it works with every connectable server version.
+
+The membership filter replaces a split into separate "Your rooms" and "Discover" tabs. With tabs, a room would move out of view when the member joins or leaves it. With the filter, rows stay in place in the default **All** view.
+
+The welcome message and setup reminder can be hidden because they repeat on every visit. The device stores only a flag for each server, not the content (ADR-107). Members cannot hide the message of the day, because administrators use it for current information.
+
+The Neighbors section reads the cached Neighborhood from the current server. The logos and banners are copies on that server, so the browser does not contact the Neighbors.
+
+The page shows no online-member count. The API has no server-wide presence count, and a count from a universal room is not available on every server.
+
+## Implementation
+
+- `apps/frontend/src/routes/chat/[serverId]/overview/+page.svelte` composes the sections from `$lib/components/overview/`.
+- `$lib/serverOverview` selects the missing profile fields and the catch-up rooms.
+- `$lib/storage/overviewDismissals` stores the hidden cards per server.
+- `RoomDirectory` owns the membership filter.

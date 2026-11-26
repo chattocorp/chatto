@@ -40,7 +40,39 @@
       }
     },
     "overview": {
-      "title": "Przegląd"
+      "title": "Przegląd",
+      "welcome_title": "Witaj",
+      "hide_welcome": "Ukryj wiadomość powitalną",
+      "happening_now": "Teraz się dzieje",
+      "call_participants_count": {
+        "one": "{count} osoba w rozmowie",
+        "few": "{count} osoby w rozmowie",
+        "many": "{count} osób w rozmowie",
+        "other": "{count} osoby w rozmowie"
+      },
+      "catch_up": "Do nadrobienia",
+      "catch_up_unread": "Nieprzeczytane wiadomości",
+      "catch_up_notifications_count": {
+        "one": "{count} powiadomienie",
+        "few": "{count} powiadomienia",
+        "many": "{count} powiadomień",
+        "other": "{count} powiadomienia"
+      },
+      "neighbors": "Sąsiedzi",
+      "open_neighbor": "Otwórz {server}",
+      "view_neighbor": "Znajdź {server} w katalogu serwerów",
+      "setup": {
+        "title": "Dokończ konfigurację swojego serwera",
+        "missing": "Nadal brakuje: {items}.",
+        "edit_profile": "Edytuj profil serwera",
+        "hide": "Ukryj przypomnienie o konfiguracji",
+        "items": {
+          "logo": "logo",
+          "banner": "baner",
+          "description": "opis",
+          "welcome_message": "wiadomość powitalna"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Powrót do serwera",

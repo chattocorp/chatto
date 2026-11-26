@@ -40,7 +40,35 @@
       }
     },
     "overview": {
-      "title": "Oversikt"
+      "title": "Oversikt",
+      "welcome_title": "Velkommen",
+      "hide_welcome": "Skjul velkomstmeldingen",
+      "happening_now": "Skjer nå",
+      "call_participants_count": {
+        "one": "{count} person i samtalen",
+        "other": "{count} personer i samtalen"
+      },
+      "catch_up": "Ta igjen",
+      "catch_up_unread": "Uleste meldinger",
+      "catch_up_notifications_count": {
+        "one": "{count} varsel",
+        "other": "{count} varsler"
+      },
+      "neighbors": "Naboer",
+      "open_neighbor": "Åpne {server}",
+      "view_neighbor": "Finn {server} i serverkatalogen",
+      "setup": {
+        "title": "Fullfør oppsettet av serveren din",
+        "missing": "Mangler fortsatt: {items}.",
+        "edit_profile": "Rediger serverprofil",
+        "hide": "Skjul påminnelsen om oppsett",
+        "items": {
+          "logo": "logo",
+          "banner": "banner",
+          "description": "beskrivelse",
+          "welcome_message": "velkomstmelding"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Tilbake til server",

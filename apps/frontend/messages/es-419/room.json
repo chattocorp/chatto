@@ -92,7 +92,12 @@
       "left": "Izquierda #{room}",
       "left_generic": "Sala izquierda",
       "leave_confirm": "¿Estás seguro de que quieres salir de #{room}?",
-      "invited": "Invitado"
+      "invited": "Invitado",
+      "filter_label": "Mostrar salas",
+      "filter_all": "Todas",
+      "filter_not_joined": "Sin unirte",
+      "empty_joined": "Aún no te uniste a ninguna sala.",
+      "empty_not_joined": "Te uniste a todas las salas a las que puedes unirte."
     },
     "server": {
       "remove_title": "Eliminar servidor",

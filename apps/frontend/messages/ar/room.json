@@ -96,7 +96,12 @@
       "left": "غادرت #{room}",
       "left_generic": "غادرت الغرفة",
       "leave_confirm": "هل أنت متأكد أنك تريد مغادرة #{room}؟",
-      "invited": "مدعو"
+      "invited": "مدعو",
+      "filter_label": "اعرض الغرف",
+      "filter_all": "الكل",
+      "filter_not_joined": "غير منضم",
+      "empty_joined": "لم تنضم إلى أي غرفة بعد.",
+      "empty_not_joined": "انضممت إلى كل الغرف التي يمكنك الانضمام إليها."
     },
     "server": {
       "remove_title": "إزالة الخادم",

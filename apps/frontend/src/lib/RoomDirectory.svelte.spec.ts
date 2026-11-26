@@ -100,7 +100,8 @@ describe('RoomDirectory', () => {
 
     expect(container.textContent).toContain('Universal');
     expect(container.textContent?.match(/Universal/g)?.length).toBe(1);
-    expect(container.textContent).not.toContain('Joined');
+    // Scope to the room list: the membership filter also has a "Joined" option.
+    expect(container.querySelector('ul')?.textContent).not.toContain('Joined');
     expect(container.textContent).not.toContain('Leave');
     expect(findButton(container, 'Universal')).toBeUndefined();
   });
@@ -115,7 +116,7 @@ describe('RoomDirectory', () => {
     });
     flushSync();
 
-    expect(container.textContent).not.toContain('Joined');
+    expect(container.querySelector('ul')?.textContent).not.toContain('Joined');
     expect(findButton(container, 'Join')).toBeDefined();
   });
 
@@ -376,5 +377,35 @@ describe('RoomDirectory', () => {
     const items = container.querySelectorAll('li');
     expect(items.length).toBe(1);
     expect(items[0].textContent).toContain('random');
+  });
+
+  it('filters by membership and explains an empty filter', async () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('general'), room('random')],
+        joinedRooms: [joined('general')],
+        roomGroups: null
+      }
+    });
+    flushSync();
+    const rowNames = () => [...container.querySelectorAll('li')].map((li) => li.textContent ?? '');
+
+    await page.getByRole('radio', { name: 'Not joined' }).click();
+    expect(rowNames()).toEqual([expect.stringContaining('random')]);
+
+    await page.getByRole('radio', { name: 'Joined', exact: true }).click();
+    expect(rowNames()).toEqual([expect.stringContaining('general')]);
+
+    await page.getByRole('radio', { name: 'All', exact: true }).click();
+    expect(rowNames()).toHaveLength(2);
+  });
+
+  it('shows a membership empty state instead of the no-results message', async () => {
+    render(Harness, {
+      props: { initialRooms: [room('general')], joinedRooms: [], roomGroups: null }
+    });
+
+    await page.getByRole('radio', { name: 'Joined', exact: true }).click();
+    await expect.element(page.getByText("You haven't joined any rooms yet.")).toBeVisible();
   });
 });

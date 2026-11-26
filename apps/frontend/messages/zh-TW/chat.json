@@ -40,7 +40,33 @@
       }
     },
     "overview": {
-      "title": "總覽"
+      "title": "總覽",
+      "welcome_title": "歡迎",
+      "hide_welcome": "隱藏歡迎訊息",
+      "happening_now": "正在進行",
+      "call_participants_count": {
+        "other": "通話中有 {count} 人"
+      },
+      "catch_up": "待查看",
+      "catch_up_unread": "未讀訊息",
+      "catch_up_notifications_count": {
+        "other": "{count} 則通知"
+      },
+      "neighbors": "鄰居",
+      "open_neighbor": "開啟 {server}",
+      "view_neighbor": "在伺服器目錄中尋找 {server}",
+      "setup": {
+        "title": "完成伺服器設定",
+        "missing": "仍未設定：{items}。",
+        "edit_profile": "編輯伺服器資料",
+        "hide": "隱藏設定提醒",
+        "items": {
+          "logo": "標誌",
+          "banner": "橫幅",
+          "description": "描述",
+          "welcome_message": "歡迎訊息"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "返回伺服器",

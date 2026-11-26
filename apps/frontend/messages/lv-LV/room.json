@@ -92,7 +92,12 @@
       "left": "Pa kreisi #{room}",
       "left_generic": "Kreisā istaba",
       "leave_confirm": "Vai tiešām vēlaties atstāt #{room}?",
-      "invited": "Uzaicināts"
+      "invited": "Uzaicināts",
+      "filter_label": "Rādīt telpas",
+      "filter_all": "Visas",
+      "filter_not_joined": "Nepievienotās",
+      "empty_joined": "Jūs vēl neesat pievienojies nevienai telpai.",
+      "empty_not_joined": "Jūs esat pievienojies visām pieejamajām telpām."
     },
     "server": {
       "remove_title": "Noņemt serveri",

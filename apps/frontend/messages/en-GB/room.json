@@ -92,7 +92,12 @@
       "left": "Left #{room}",
       "left_generic": "Left room",
       "leave_confirm": "Are you sure you want to leave #{room}?",
-      "invited": "Invited"
+      "invited": "Invited",
+      "filter_label": "Show rooms",
+      "filter_all": "All",
+      "filter_not_joined": "Not joined",
+      "empty_joined": "You haven't joined any rooms yet.",
+      "empty_not_joined": "You've joined every room you can join."
     },
     "server": {
       "remove_title": "Remove Server",

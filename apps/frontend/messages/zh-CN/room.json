@@ -92,7 +92,12 @@
       "left": "已退出 #{room}",
       "left_generic": "已退出聊天室",
       "leave_confirm": "确定要退出 #{room} 吗？",
-      "invited": "已获邀请"
+      "invited": "已获邀请",
+      "filter_label": "显示聊天室",
+      "filter_all": "全部",
+      "filter_not_joined": "未加入",
+      "empty_joined": "你还没有加入任何聊天室。",
+      "empty_not_joined": "你已加入所有可加入的聊天室。"
     },
     "server": {
       "remove_title": "移除服务器",

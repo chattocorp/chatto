@@ -93,7 +93,12 @@
       "left": "עזבת את #{room}",
       "left_generic": "עזבת את החדר",
       "leave_confirm": "האם אתה בטוח שאתה רוצה לעזוב את #{room}?",
-      "invited": "הוזמנת"
+      "invited": "הוזמנת",
+      "filter_label": "הצג חדרים",
+      "filter_all": "הכול",
+      "filter_not_joined": "לא הצטרפת",
+      "empty_joined": "עדיין לא הצטרפת לאף חדר.",
+      "empty_not_joined": "הצטרפת לכל החדרים שאפשר להצטרף אליהם."
     },
     "server": {
       "remove_title": "הסר שרת",

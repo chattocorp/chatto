@@ -40,7 +40,35 @@
       }
     },
     "overview": {
-      "title": "Översikt"
+      "title": "Översikt",
+      "welcome_title": "Välkommen",
+      "hide_welcome": "Dölj välkomstmeddelandet",
+      "happening_now": "Händer nu",
+      "call_participants_count": {
+        "one": "{count} person i samtalet",
+        "other": "{count} personer i samtalet"
+      },
+      "catch_up": "Ikapp",
+      "catch_up_unread": "Olästa meddelanden",
+      "catch_up_notifications_count": {
+        "one": "{count} avisering",
+        "other": "{count} aviseringar"
+      },
+      "neighbors": "Grannar",
+      "open_neighbor": "Öppna {server}",
+      "view_neighbor": "Hitta {server} i serverkatalogen",
+      "setup": {
+        "title": "Slutför konfigurationen av din server",
+        "missing": "Saknas fortfarande: {items}.",
+        "edit_profile": "Redigera serverprofil",
+        "hide": "Dölj konfigurationspåminnelsen",
+        "items": {
+          "logo": "logotyp",
+          "banner": "banner",
+          "description": "beskrivning",
+          "welcome_message": "välkomstmeddelande"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Tillbaka till servern",

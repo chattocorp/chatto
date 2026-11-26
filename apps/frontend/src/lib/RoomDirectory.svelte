@@ -5,7 +5,8 @@ Room directory rendered as a responsive grid of group cards. Each card
 represents one room group from the admin-defined layout; rooms inside
 are compact rows with a join / joined / invited / restricted indicator. The
 header carries a "Join all" affordance when there's at least one
-joinable, non-joined room left in the group.
+joinable, non-joined room left in the group. A search field and a membership
+filter (all, joined, or not joined rooms) narrow the rooms.
 
 The active server's command store is passed as a prop. Directory rows and
 membership are read through its projection-backed navigation view, while the
@@ -15,7 +16,7 @@ store owns only optimistic join/leave state.
   import { resolve } from '$app/paths';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
-  import { ConfirmDialog, EmptyState, HelpTooltip, Panel, Pill } from '$lib/ui';
+  import { ConfirmDialog, EmptyState, HelpTooltip, Panel, Pill, SegmentedControl } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import type { RoomDirectoryStore, DirectoryRoom } from '$lib/state/server/roomDirectory';
 
@@ -29,6 +30,8 @@ store owns only optimistic join/leave state.
 
   const searchInputId = $props.id();
   let searchQuery = $state('');
+  /** Membership filter. Rows stay in "All" when the viewer joins or leaves them. */
+  let membershipFilter = $state<'all' | 'joined' | 'not_joined'>('all');
   let leaveConfirmVisible = $state(false);
   let leaveConfirmRoom = $state<DirectoryRoom | null>(null);
 
@@ -37,7 +40,11 @@ store owns only optimistic join/leave state.
   const roomGroups = $derived(directory.roomGroups);
   const visibleRooms = $derived(directory.allRooms.filter((room) => !room.archived));
 
-  function matchesSearch(room: DirectoryRoom): boolean {
+  function matchesFilters(room: DirectoryRoom): boolean {
+    if (membershipFilter !== 'all') {
+      const joined = directory.isJoined(room.id);
+      if (joined !== (membershipFilter === 'joined')) return false;
+    }
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -47,7 +54,7 @@ store owns only optimistic join/leave state.
   }
 
   const filteredRooms = $derived(
-    visibleRooms.filter(matchesSearch).sort((a, b) => a.name.localeCompare(b.name))
+    visibleRooms.filter(matchesFilters).sort((a, b) => a.name.localeCompare(b.name))
   );
 
   const visibleRoomMap = $derived(new Map(visibleRooms.map((r) => [r.id, r])));
@@ -55,7 +62,7 @@ store owns only optimistic join/leave state.
   function getSetRooms(set: { roomIds: string[] }): DirectoryRoom[] {
     return set.roomIds
       .map((id) => visibleRoomMap.get(id))
-      .filter((r): r is DirectoryRoom => r != null && matchesSearch(r));
+      .filter((r): r is DirectoryRoom => r != null && matchesFilters(r));
   }
 
   const visibleSets = $derived.by(() => {
@@ -318,19 +325,35 @@ store owns only optimistic join/leave state.
   </div>
 {/snippet}
 
-<div class="mb-6">
-  <TextInput
-    id={searchInputId}
-    label={m('room.directory.search_placeholder')}
-    labelHidden
-    leadingIcon="iconify icon-[uil--search]"
-    placeholder={m('room.directory.search_placeholder')}
-    bind:value={searchQuery}
+<div class="mb-6 flex flex-wrap items-center gap-3">
+  <div class="min-w-[min(100%,16rem)] flex-1">
+    <TextInput
+      id={searchInputId}
+      label={m('room.directory.search_placeholder')}
+      labelHidden
+      leadingIcon="iconify icon-[uil--search]"
+      placeholder={m('room.directory.search_placeholder')}
+      bind:value={searchQuery}
+    />
+  </div>
+  <SegmentedControl
+    label={m('room.directory.filter_label')}
+    options={[
+      { value: 'all', label: m('room.directory.filter_all') },
+      { value: 'joined', label: m('room.directory.joined') },
+      { value: 'not_joined', label: m('room.directory.filter_not_joined') }
+    ]}
+    value={membershipFilter}
+    onchange={(value) => (membershipFilter = value)}
   />
 </div>
 
 {#if visibleRooms.length === 0}
   <EmptyState icon="icon-[uil--comments]" title={m('room.directory.empty')} />
+{:else if !hasVisibleResults && !searchQuery.trim() && membershipFilter === 'joined'}
+  <EmptyState icon="icon-[uil--comments]" title={m('room.directory.empty_joined')} />
+{:else if !hasVisibleResults && !searchQuery.trim() && membershipFilter === 'not_joined'}
+  <EmptyState icon="icon-[uil--check-circle]" title={m('room.directory.empty_not_joined')} />
 {:else if !hasVisibleResults}
   <EmptyState icon="icon-[uil--search-minus]" title={m('room.directory.no_results')} />
 {:else if hasLayout}
