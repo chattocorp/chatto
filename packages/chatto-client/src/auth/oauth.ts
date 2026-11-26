@@ -114,7 +114,10 @@ export function isExpectedOAuthIssuer(
 }
 
 /** Validate the exact callback route, transaction state and issuer before accepting a code. */
-export function isOAuthCallback(flow: OAuthFlow, value: string): boolean {
+export function isOAuthCallback(
+  flow: Pick<OAuthFlow, 'origin' | 'redirectUri' | 'state'>,
+  value: string
+): boolean {
   try {
     const url = new URL(value);
     const expected = new URL(flow.redirectUri);

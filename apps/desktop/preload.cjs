@@ -86,6 +86,12 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.on('chatto:authorization:closed', listener);
       return () => ipcRenderer.removeListener('chatto:authorization:closed', listener);
     },
+    browserAuthorization: process.argv.includes('--chatto-browser-authorization')
+      ? Object.freeze({
+          start: (origin, url) => ipcRenderer.invoke('chatto:authorization:start', origin, url),
+          cancel: (state) => ipcRenderer.send('chatto:authorization:cancel', state)
+        })
+      : undefined,
     passwordLogin: (request) =>
       ipcRenderer.invoke('chatto:password-login', {
         serverUrl: request?.serverUrl,
