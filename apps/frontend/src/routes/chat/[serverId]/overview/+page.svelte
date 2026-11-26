@@ -99,17 +99,11 @@ the directory hides itself when it has nothing to show.
       />
 
       <!--
-        Wide containers: the welcome message and rooms on the left, the side column
-        on the right. The side column spans both rows, and the second row takes
-        the extra height, so a tall side column does not open a gap below the
-        welcome message. Narrow containers stack welcome, side column, and rooms.
+        Wide containers: the welcome message beside the side column, then the
+        rooms across the full width. Narrow containers stack welcome, side
+        column, and rooms.
       -->
-      <div
-        class={[
-          'grid gap-8',
-          hasAside && '@4xl:grid-cols-[minmax(0,1fr)_22rem] @4xl:grid-rows-[auto_1fr]'
-        ]}
-      >
+      <div class={['grid items-start gap-8', hasAside && '@4xl:grid-cols-[minmax(0,1fr)_22rem]']}>
         <div class="min-w-0 empty:hidden @4xl:col-start-1 @4xl:row-start-1">
           <ServerOverviewWelcome
             serverId={serverScope.serverId}
@@ -118,9 +112,7 @@ the directory hides itself when it has nothing to show.
         </div>
 
         {#if hasAside}
-          <aside
-            class="flex min-w-0 flex-col gap-6 @4xl:col-start-2 @4xl:row-span-2 @4xl:row-start-1"
-          >
+          <aside class="flex min-w-0 flex-col gap-6 @4xl:col-start-2 @4xl:row-start-1">
             {#if motd}
               <Panel title={m('common.message_of_the_day')} icon="iconify icon-[uil--megaphone]">
                 <MarkdownContent source={motd} />
@@ -140,7 +132,7 @@ the directory hides itself when it has nothing to show.
           </aside>
         {/if}
 
-        <section class="min-w-0 @4xl:col-start-1 @4xl:row-start-2" aria-label={m('common.rooms')}>
+        <section class="min-w-0 @4xl:col-span-full @4xl:row-start-2" aria-label={m('common.rooms')}>
           <RoomDirectory directory={ui.roomDirectory} {serverSegment} />
         </section>
       </div>
