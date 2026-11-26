@@ -1,0 +1,32 @@
+---
+import { getCollection } from 'astro:content';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import ChangelogSection from '../../components/ChangelogSection.astro';
+
+/** Render each stable version and each open prerelease cycle at its permanent URL. */
+export async function getStaticPaths() {
+  return (await getCollection('releases')).map(({ id, data }) => ({
+    params: { version: id },
+    props: data
+  }));
+}
+
+const { version, title, description, released, sections } = Astro.props;
+const groups = sections.map(section => ({
+  ...section,
+  id: section.title.toLowerCase().replaceAll(' ', '-')
+}));
+---
+
+<StarlightPage
+  frontmatter={{ title, description }}
+  headings={groups.map(({ id, title }) => ({ depth: 2, slug: id, text: title }))}
+>
+  {!released && (
+    <p><strong>Unreleased.</strong> These notes include changes prepared for Chatto {version}.</p>
+  )}
+  {groups.map((section) => <ChangelogSection {...section} />)}
+  {released && (
+    <p><a href={`https://github.com/chattocorp/chatto/releases/tag/v${version}`}>Download Chatto {version} on GitHub</a></p>
+  )}
+</StarlightPage>

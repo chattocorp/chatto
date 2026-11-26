@@ -10,9 +10,8 @@ COPY apps/docs-website/package.json apps/docs-website/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter docs-website...
 
-COPY CHANGELOG.md CHANGELOG.md
-COPY tools/changelog.mjs tools/changelog.mjs
-COPY apps/docs-website apps/docs-website
+# The Dockerfile allowlist includes the changelog and any pending Sweet notes.
+COPY . .
 WORKDIR /app/apps/docs-website
 ARG CHATTO_DOCS_CHANNEL=dev
 ARG CHATTO_DOCS_VERSION=main

@@ -1,0 +1,16 @@
+---
+import { getCollection } from 'astro:content';
+
+const generated = (await getCollection('releases'))
+  .map(({ data }) => data)
+  .sort((a, b) => a.order - b.order);
+const manual = (await getCollection('docs', ({ id, data }) => id.startsWith('releases/') && !data.draft))
+  .sort((a, b) => b.id.localeCompare(a.id, 'en', { numeric: true }))
+  .map(({ id, data }) => ({ title: data.title, link: `/${id}/`, released: true }));
+---
+
+<ul>
+    {[...generated, ...manual].map(({ title, link, released }) => (
+      <li><a href={link}>{title}</a>{!released && ' (prerelease)'}</li>
+    ))}
+</ul>

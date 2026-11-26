@@ -13,6 +13,10 @@ const pages = Object.fromEntries(
   ])
 );
 
+for (const { id, data } of await getCollection('releases')) {
+  pages[`releases/${id}`] = { title: data.title, description: data.description };
+}
+
 const wrapText = (value: string, maxLineLength: number) => {
   const words = value.split(/\s+/);
   const lines: string[] = [];

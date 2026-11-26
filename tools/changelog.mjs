@@ -95,16 +95,6 @@ export function releaseHighlights(markdown) {
 }
 
 /**
- * Return the stable HTML ID of a release on the docs website changelog page,
- * such as `v0-6-0-beta-4` for `0.6.0-beta.4`.
- *
- * @param {string} version A version from {@link parseChangelog}.
- */
-export function releaseAnchor(version) {
-  return `v${version.replace(/[^\w-]+/g, '-')}`;
-}
-
-/**
  * Read `CHANGELOG.md` from the repository root, with the pending notes in
  * `.sweet/` added as the first release, named {@link UNRELEASED}.
  *
@@ -131,7 +121,7 @@ export function readChangelog(root) {
 function unreleasedChangelog(root) {
   const directory = join(root, '.sweet');
   if (!existsSync(directory)) return '';
-  const sections = sweetSections(readFileSync(join(root, '.sweet.config.yml'), 'utf8'));
+  const sections = readSweetSections(root);
   /** @type {Map<string, string[]>} */
   const notes = new Map([...new Set(sections.values())].map((title) => [title, []]));
   const files = readdirSync(directory)
@@ -161,10 +151,11 @@ function unreleasedChangelog(root) {
  * order. Types without a section are left out. This reads only the simple
  * `types:` mapping that the file uses, so that no YAML parser is needed.
  *
- * @param {string} config The text of `.sweet.config.yml`.
+ * @param {string} root The repository root directory.
  * @returns {Map<string, string>} The section title of each type.
  */
-function sweetSections(config) {
+export function readSweetSections(root) {
+  const config = readFileSync(join(root, '.sweet.config.yml'), 'utf8');
   /** @type {Map<string, string>} */
   const sections = new Map();
   let type;

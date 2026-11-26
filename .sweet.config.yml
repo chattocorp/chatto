@@ -1,5 +1,5 @@
 # Sweet repository configuration.
-# The sections appear in this order. The docs website changelog shows all of
+# The sections appear in this order. The generated release pages show all of
 # them. The in-app help shows only Highlights.
 types:
   # A short, user-facing summary of a notable change, in one or two sentences.
@@ -8,6 +8,9 @@ types:
   highlight:
     bump: none
     section: Highlights
+  upgrade:
+    bump: none
+    section: Upgrade notes
   breaking:
     bump: minor
     section: Breaking changes

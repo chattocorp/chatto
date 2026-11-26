@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - 'apps/docs-website/**'
+      - 'CHANGELOG.md'
+      - '.sweet.config.yml'
+      - '.sweet/*.md'
+      - 'tools/changelog.mjs'
       - '.npmrc'
       - 'package.json'
       - 'pnpm-lock.yaml'
