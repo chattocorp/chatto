@@ -400,7 +400,8 @@ describe('AppHeader', () => {
     async (width) => {
       mocks.servers = [{ id: 'remote' }];
       mocks.activeServer = 'remote';
-      const motd = '**Chatto HQ** · https://chatto.run\n\n' + 'Server news. '.repeat(30);
+      const motd =
+        '**Chatto HQ** · https://chatto.run ' + 'Server news. '.repeat(30) + '\n\nSecond paragraph';
       await page.viewport(width, 800);
       try {
         const empty = render(AppHeader);
@@ -432,6 +433,7 @@ describe('AppHeader', () => {
           expect(bounds.right).toBeLessThanOrEqual(headerBounds.right);
         }
         const preview = container.querySelector<HTMLElement>('[data-testid="motd-preview"]')!;
+        expect(preview.textContent).not.toContain('Second paragraph');
         expect(preview.scrollWidth).toBeGreaterThan(preview.clientWidth);
         expect(getComputedStyle(preview).textOverflow).toBe('ellipsis');
         await getByRole('button', { name: 'Message of the Day' }).click({

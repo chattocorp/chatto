@@ -24,7 +24,7 @@
     "saving": "A guardar...",
     "save_button": "Guardar alterações",
     "description_help": "Exibido no diretório de servidores e na página Informações do servidor, e utilizado como descrição para as visualizações de links.",
-    "motd_help": "Mensagem de uma linha apresentada no cabeçalho do chat. Suporta Markdown.",
+    "motd_help": "O cabeçalho do chat mostra a primeira linha. Suporta Markdown.",
     "welcome_message_help": "Apresentada ao iniciar sessão e na página Informações do servidor. Suporta Markdown.",
     "logo_description": "Faça o upload de um logótipo para a sua instância. As imagens serão redimensionadas para 512x512 pixéis.",
     "banner_description": "Faça o upload de um banner para a sua instância. O banner também funciona como imagem de visualização do link - as imagens são redimensionadas para 1200x630 pixels (a relação de aspecto padrão OpenGraph).",

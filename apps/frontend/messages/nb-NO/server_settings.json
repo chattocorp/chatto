@@ -24,7 +24,7 @@
     "saving": "Lagrer...",
     "save_button": "Lagre endringer",
     "description_help": "Vises i serverkatalogen og på siden med serverinformasjon, og brukes som beskrivelse for forhåndsvisninger av koblinger.",
-    "motd_help": "Melding på én linje som vises i chatteoverskriften. Støtter Markdown.",
+    "motd_help": "Chatteoverskriften viser den første linjen. Støtter Markdown.",
     "welcome_message_help": "Vises ved pålogging og på siden med serverinformasjon. Støtter Markdown.",
     "logo_description": "Last opp en logo for forekomsten din. Bildene vil bli endret til 512 x 512 piksler.",
     "banner_description": "Last opp et banner for din forekomst. Banneret fungerer også som lenkeforhåndsvisningsbildet - bildene endres til 1200x630 piksler (standard OpenGraph-sideforhold).",

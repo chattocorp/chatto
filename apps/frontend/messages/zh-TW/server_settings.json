@@ -24,7 +24,7 @@
     "saving": "儲存中...",
     "save_button": "儲存變更",
     "description_help": "顯示於伺服器目錄和伺服器資訊頁面，並用作連結預覽的說明。",
-    "motd_help": "顯示於聊天標頭的單行訊息。支援 Markdown。",
+    "motd_help": "聊天頂欄顯示第一行。支援 Markdown。",
     "welcome_message_help": "在登入時和伺服器資訊頁面上顯示。支援 Markdown。",
     "logo_description": "上傳執行個體的標誌。圖片將調整為 512x512 像素。",
     "banner_description": "上傳執行個體的橫幅。橫幅也會用作連結預覽圖片；圖片將調整為 1200x630 像素（標準 OpenGraph 長寬比）。",

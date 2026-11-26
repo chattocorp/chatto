@@ -24,7 +24,7 @@
     "saving": "Opslaan...",
     "save_button": "Wijzigingen opslaan",
     "description_help": "Wordt weergegeven in de servergids en op de pagina Serverinformatie, en gebruikt als beschrijving voor linkvoorbeelden.",
-    "motd_help": "Bericht van één regel in de chatkop. Ondersteunt Markdown.",
+    "motd_help": "De chatkop toont de eerste regel. Ondersteunt Markdown.",
     "welcome_message_help": "Wordt weergegeven bij het aanmelden en op de pagina Serverinformatie. Ondersteunt Markdown.",
     "logo_description": "Upload een logo voor uw exemplaar. Het formaat van afbeeldingen wordt gewijzigd naar 512 x 512 pixels.",
     "banner_description": "Upload een banner voor uw exemplaar. De banner fungeert ook als linkvoorbeeldafbeelding; de grootte van afbeeldingen wordt gewijzigd naar 1200 x 630 pixels (de standaard OpenGraph-beeldverhouding).",

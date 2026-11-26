@@ -24,7 +24,7 @@
     "saving": "Saving...",
     "save_button": "Save changes",
     "description_help": "Shown in the Server Directory and on the Server information page, and used as the description for link previews.",
-    "motd_help": "Single-line message shown in the chat header. Supports Markdown.",
+    "motd_help": "The chat header shows the first line. Supports Markdown.",
     "welcome_message_help": "Shown when people sign in, and on the Server information page. Supports Markdown.",
     "logo_description": "Upload a logo for your instance. Images will be resized to 512x512 pixels.",
     "banner_description": "Upload a banner for your instance. The banner doubles as the link-preview image - images are resized to 1200x630 pixels (the standard OpenGraph aspect ratio).",

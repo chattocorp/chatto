@@ -24,7 +24,7 @@
     "saving": "Zapisywanie...",
     "save_button": "Zapisz zmiany",
     "description_help": "Wyświetlany w katalogu serwerów i na stronie Informacje o serwerze oraz używany jako opis podglądu linków.",
-    "motd_help": "Jednowierszowa wiadomość wyświetlana w nagłówku czatu. Obsługuje Markdown.",
+    "motd_help": "Nagłówek czatu pokazuje pierwszy wiersz. Obsługuje Markdown.",
     "welcome_message_help": "Wyświetlana podczas logowania i na stronie Informacje o serwerze. Obsługuje Markdown.",
     "logo_description": "Prześlij logo swojej instancji. Rozmiar obrazów zostanie zmieniony na 512 x 512 pikseli.",
     "banner_description": "Prześlij baner dla swojej instancji. Baner pełni także funkcję obrazu podglądu łącza — rozmiar obrazów jest zmieniany do 1200 x 630 pikseli (standardowy współczynnik proporcji OpenGraph).",

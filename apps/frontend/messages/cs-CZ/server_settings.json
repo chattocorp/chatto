@@ -24,7 +24,7 @@
     "saving": "Ukládání...",
     "save_button": "Uložit změny",
     "description_help": "Zobrazuje se v adresáři serverů a na stránce Informace o serveru a používá se jako popis pro náhledy odkazů.",
-    "motd_help": "Jednořádková zpráva zobrazená v záhlaví chatu. Podporuje Markdown.",
+    "motd_help": "Záhlaví chatu zobrazuje první řádek. Podporuje Markdown.",
     "welcome_message_help": "Zobrazuje se při přihlášení a na stránce Informace o serveru. Podporuje Markdown.",
     "logo_description": "Nahrajte logo pro vaši instanci. Velikost obrázků bude změněna na 512 x 512 pixelů.",
     "banner_description": "Nahrajte banner pro vaši instanci. Banner funguje jako náhledový obrázek odkazu - obrázky jsou zmenšeny na 1200x630 pixelů (standardní poměr stran OpenGraph).",

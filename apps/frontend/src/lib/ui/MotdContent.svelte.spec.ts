@@ -31,4 +31,15 @@ describe('MOTD preview', () => {
     });
     expect(onclick).toHaveBeenCalledOnce();
   });
+
+  it('shows only the first line of a multi-line message', async () => {
+    const rendered = render(MotdContent, {
+      motd: '\n**Meetup** on Friday\n\nDetails in the second paragraph',
+      onclick: vi.fn()
+    });
+    await expect.element(rendered.getByText('Meetup')).toBeVisible();
+    await expect
+      .element(rendered.getByTestId('motd-content'))
+      .not.toHaveTextContent('second paragraph');
+  });
 });
