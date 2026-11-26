@@ -45,13 +45,13 @@
         return;
       }
       const id = saved ?? addSignedOutServer(origin, profile);
-      await goto(
-        resolve('/chat/[serverId]', { serverId: serverIdToSegment(id) }) + page.url.search,
-        {
-          replaceState: true,
-          invalidateAll: true
-        }
-      );
+      // Keep the shared link's query, such as an invitation code, on the server route.
+      // resolve() adds the base path; the cast follows NotificationsPage.
+      const segment = encodeURIComponent(serverIdToSegment(id));
+      await goto(resolve(`/chat/${segment}${page.url.search}` as '/'), {
+        replaceState: true,
+        invalidateAll: true
+      });
     } catch (cause) {
       if (!lifetime.signal.aborted) {
         error =

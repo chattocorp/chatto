@@ -44,7 +44,7 @@ surrounding padding, and the section divider.
     type="button"
     onclick={ontoggle}
     aria-expanded={!collapsed}
-    data-testid={testid}
+    data-testid={testid ?? 'room-group-header'}
     class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-start section-label focus-visible:text-text focus-visible:outline-2 focus-visible:outline-action"
   >
     <span class="relative sidebar-icon">
