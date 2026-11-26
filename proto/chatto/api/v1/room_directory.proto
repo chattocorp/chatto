@@ -158,6 +158,8 @@ message ListRoomGroupsResponse {
   repeated RoomGroup groups = 1;
   // Full personal preference; empty means server order. Unknown IDs are inert.
   repeated string personal_group_order = 2;
+  // Present and true when SetPersonalRoomGroupOrder is supported.
+  optional bool supports_personal_group_order = 3;
 }
 
 // Request for one ordered room group visible to the current user.

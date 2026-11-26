@@ -76,7 +76,7 @@ func (s *roomDirectoryService) ListRoomGroups(ctx context.Context, req *connect.
 	for _, group := range groups {
 		apiGroups = append(apiGroups, apiRoomGroup(group))
 	}
-	return connect.NewResponse(&apiv1.ListRoomGroupsResponse{Groups: apiGroups, PersonalGroupOrder: s.api.core.RoomDirectoryReads().PersonalRoomGroupOrder(caller.UserID)}), nil
+	return connect.NewResponse(&apiv1.ListRoomGroupsResponse{Groups: apiGroups, PersonalGroupOrder: s.api.core.RoomDirectoryReads().PersonalRoomGroupOrder(caller.UserID), SupportsPersonalGroupOrder: personalOrderSupported()}), nil
 }
 
 func (s *roomDirectoryService) GetRoomGroup(ctx context.Context, req *connect.Request[apiv1.GetRoomGroupRequest]) (*connect.Response[apiv1.GetRoomGroupResponse], error) {
@@ -298,3 +298,5 @@ func (s *roomDirectoryService) SetPersonalRoomGroupOrder(ctx context.Context, re
 	}
 	return s.ListRoomGroups(ctx, connect.NewRequest(&apiv1.ListRoomGroupsRequest{}))
 }
+
+func personalOrderSupported() *bool { supported := true; return &supported }

@@ -656,6 +656,13 @@ export class ListRoomGroupsResponse extends Message<ListRoomGroupsResponse> {
    */
   personalGroupOrder: string[] = [];
 
+  /**
+   * Present and true when SetPersonalRoomGroupOrder is supported.
+   *
+   * @generated from field: optional bool supports_personal_group_order = 3;
+   */
+  supportsPersonalGroupOrder?: boolean;
+
   constructor(data?: PartialMessage<ListRoomGroupsResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -666,6 +673,7 @@ export class ListRoomGroupsResponse extends Message<ListRoomGroupsResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "groups", kind: "message", T: RoomGroup, repeated: true },
     { no: 2, name: "personal_group_order", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "supports_personal_group_order", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomGroupsResponse {

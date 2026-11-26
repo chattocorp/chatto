@@ -773,8 +773,10 @@ type ListRoomGroupsResponse struct {
 	Groups []*RoomGroup `protobuf:"bytes,1,rep,name=groups,proto3" json:"groups,omitempty"`
 	// Full personal preference; empty means server order. Unknown IDs are inert.
 	PersonalGroupOrder []string `protobuf:"bytes,2,rep,name=personal_group_order,json=personalGroupOrder,proto3" json:"personal_group_order,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Present and true when SetPersonalRoomGroupOrder is supported.
+	SupportsPersonalGroupOrder *bool `protobuf:"varint,3,opt,name=supports_personal_group_order,json=supportsPersonalGroupOrder,proto3,oneof" json:"supports_personal_group_order,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *ListRoomGroupsResponse) Reset() {
@@ -819,6 +821,13 @@ func (x *ListRoomGroupsResponse) GetPersonalGroupOrder() []string {
 		return x.PersonalGroupOrder
 	}
 	return nil
+}
+
+func (x *ListRoomGroupsResponse) GetSupportsPersonalGroupOrder() bool {
+	if x != nil && x.SupportsPersonalGroupOrder != nil {
+		return *x.SupportsPersonalGroupOrder
+	}
+	return false
 }
 
 // Request for one ordered room group visible to the current user.
@@ -1288,10 +1297,12 @@ const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\x11ListRoomsResponse\x128\n" +
 	"\x05rooms\x18\x01 \x03(\v2\".chatto.api.v1.RoomWithViewerStateR\x05rooms\x12+\n" +
 	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"5\n" +
-	"\x15ListRoomGroupsRequestJ\x04\b\x01\x10\x02R\x16include_archived_rooms\"|\n" +
+	"\x15ListRoomGroupsRequestJ\x04\b\x01\x10\x02R\x16include_archived_rooms\"\xe6\x01\n" +
 	"\x16ListRoomGroupsResponse\x120\n" +
 	"\x06groups\x18\x01 \x03(\v2\x18.chatto.api.v1.RoomGroupR\x06groups\x120\n" +
-	"\x14personal_group_order\x18\x02 \x03(\tR\x12personalGroupOrder\"W\n" +
+	"\x14personal_group_order\x18\x02 \x03(\tR\x12personalGroupOrder\x12F\n" +
+	"\x1dsupports_personal_group_order\x18\x03 \x01(\bH\x00R\x1asupportsPersonalGroupOrder\x88\x01\x01B \n" +
+	"\x1e_supports_personal_group_order\"W\n" +
 	"\x13GetRoomGroupRequest\x12\"\n" +
 	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupIdJ\x04\b\x02\x10\x03R\x16include_archived_rooms\"F\n" +
 	"\x14GetRoomGroupResponse\x12.\n" +
@@ -1434,6 +1445,7 @@ func file_chatto_api_v1_room_directory_proto_init() {
 		(*RoomGroupItem_Room)(nil),
 		(*RoomGroupItem_SidebarLink)(nil),
 	}
+	file_chatto_api_v1_room_directory_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

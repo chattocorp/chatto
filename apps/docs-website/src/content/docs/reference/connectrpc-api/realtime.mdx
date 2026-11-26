@@ -99,6 +99,8 @@ snapshot and remain available through ConnectRPC.
 | `room_groups` | `repeated chatto.api.v1.RoomGroup` | All room groups visible to the caller at the snapshot boundary. |
 | `users` | `repeated chatto.api.v1.DirectoryMember` | The viewer and public users referenced by another snapshot family. |
 | `active_calls` | `repeated chatto.api.v1.ActiveCall` | All active calls visible to the caller at the snapshot boundary. |
+| `personal_group_order` | `repeated string` | Full personal group preference; empty uses server order. |
+| `supports_personal_group_order` | `optional bool` | True when the personal order command is supported. |
 
 <a id="chatto-realtime-v1-RealtimeSubscribe"></a>
 

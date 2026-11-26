@@ -370,6 +370,20 @@ export class RealtimeSnapshot extends Message<RealtimeSnapshot> {
    */
   activeCalls: ActiveCall[] = [];
 
+  /**
+   * Full personal group preference; empty uses server order.
+   *
+   * @generated from field: repeated string personal_group_order = 6;
+   */
+  personalGroupOrder: string[] = [];
+
+  /**
+   * True when the personal order command is supported.
+   *
+   * @generated from field: optional bool supports_personal_group_order = 7;
+   */
+  supportsPersonalGroupOrder?: boolean;
+
   constructor(data?: PartialMessage<RealtimeSnapshot>) {
     super();
     proto3.util.initPartial(data, this);
@@ -383,6 +397,8 @@ export class RealtimeSnapshot extends Message<RealtimeSnapshot> {
     { no: 3, name: "room_groups", kind: "message", T: RoomGroup, repeated: true },
     { no: 4, name: "users", kind: "message", T: DirectoryMember, repeated: true },
     { no: 5, name: "active_calls", kind: "message", T: ActiveCall, repeated: true },
+    { no: 6, name: "personal_group_order", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 7, name: "supports_personal_group_order", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeSnapshot {

@@ -25,11 +25,13 @@ func (s *HTTPServer) realtimeSnapshotFrame(ctx context.Context, userID string) (
 		return 0, nil, err
 	}
 	snapshot := &realtimev1.RealtimeSnapshot{
-		Server:      resources.Server,
-		Rooms:       resources.Rooms.GetRooms(),
-		RoomGroups:  resources.RoomGroups.GetGroups(),
-		Users:       resources.Users.GetUsers(),
-		ActiveCalls: resources.ActiveCalls.GetCalls(),
+		Server:                     resources.Server,
+		Rooms:                      resources.Rooms.GetRooms(),
+		RoomGroups:                 resources.RoomGroups.GetGroups(),
+		PersonalGroupOrder:         resources.RoomGroups.GetPersonalGroupOrder(),
+		SupportsPersonalGroupOrder: resources.RoomGroups.SupportsPersonalGroupOrder,
+		Users:                      resources.Users.GetUsers(),
+		ActiveCalls:                resources.ActiveCalls.GetCalls(),
 	}
 	frame := &realtimev1.RealtimeServerFrame{
 		Frame: &realtimev1.RealtimeServerFrame_Snapshot{Snapshot: snapshot},

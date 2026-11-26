@@ -54,6 +54,7 @@ Finite snapshot of ordered room groups visible to the current user.
 | --- | --- | --- |
 | `groups` | repeated [`RoomGroup`](/reference/connectrpc-api/types/#chatto-api-v1-RoomGroup) | Channel room groups in sidebar order. |
 | `personal_group_order` | `repeated string` | Full personal preference; empty means server order. Unknown IDs are inert. |
+| `supports_personal_group_order` | `optional bool` | Present and true when SetPersonalRoomGroupOrder is supported. |
 
 
 <a id="chatto-api-v1-RoomDirectoryService-ListRooms"></a>

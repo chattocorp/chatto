@@ -1251,6 +1251,8 @@ export class ServerStateStore {
         break;
       case 'roomGroups':
         this.projection.roomGroups = [];
+        this.projection.personalGroupOrder = [];
+        this.projection.supportsPersonalGroupOrder = false;
         break;
       case 'serverState':
         this.projection.serverState = null;

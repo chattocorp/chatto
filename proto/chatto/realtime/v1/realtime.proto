@@ -72,6 +72,10 @@ message RealtimeSnapshot {
   repeated chatto.api.v1.DirectoryMember users = 4;
   // All active calls visible to the caller at the snapshot boundary.
   repeated chatto.api.v1.ActiveCall active_calls = 5;
+  // Full personal group preference; empty uses server order.
+  repeated string personal_group_order = 6;
+  // True when the personal order command is supported.
+  optional bool supports_personal_group_order = 7;
 }
 
 // Confirms that recovery is complete and live delivery has begun.

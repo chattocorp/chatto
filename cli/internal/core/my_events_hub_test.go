@@ -1298,3 +1298,90 @@ func TestMyEventsHubDrainsPendingQueueBeforeAdmission(t *testing.T) {
 		t.Fatalf("drained messages = %d, want %d", got, total)
 	}
 }
+
+func TestMyEventsHubPersonalOrderReachesBothSessions(t *testing.T) {
+	// Keep the server so that the test can read this connection's
+	// subscriptions from it.
+	ns, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	core, err := NewChattoCore(ctx, nc, testCoreConfig())
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+	startCoreServices(t, core)
+
+	author, err := core.CreateUser(ctx, SystemActorID, "hub-author", "Hub Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, SystemActorID, "hub-viewer", "Hub Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "hub-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom viewer: %v", err)
+	}
+
+	select {
+	case <-core.myEventsModel.hub.ready:
+	case <-ctx.Done():
+		t.Fatal("myEvents hub did not become ready")
+	}
+	baselineSubscriptions := liveSubscriptionCount(t, ns, nc)
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	stream1, err := core.StreamMyEventsWithOptions(streamCtx, viewer.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents first session: %v", err)
+	}
+	stream2, err := core.StreamMyEventsWithOptions(streamCtx, viewer.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents second session: %v", err)
+	}
+	if got := liveSubscriptionCount(t, ns, nc); got != baselineSubscriptions {
+		t.Fatalf("live NATS subscriptions after opening streams = %d, want %d", got, baselineSubscriptions)
+	}
+
+	core.myEventsModel.hub.mu.Lock()
+	state := core.myEventsModel.hub.users[entitledMyEventsPrincipal(viewer.Id)]
+	if state == nil || len(state.subscribers) != 2 {
+		core.myEventsModel.hub.mu.Unlock()
+		t.Fatalf("shared user state = %#v, want two subscribers", state)
+	}
+	core.myEventsModel.hub.mu.Unlock()
+
+	if err := core.SetPersonalRoomGroupOrder(ctx, viewer.Id, []string{"second", "first"}); err != nil {
+		t.Fatal(err)
+	}
+	for i, stream := range []<-chan EventEnvelope{stream1, stream2} {
+		timer := time.NewTimer(2 * time.Second)
+		received := false
+		for !received {
+			select {
+			case envelope, ok := <-stream:
+				if !ok {
+					t.Fatalf("session %d closed", i)
+				}
+				event := envelope.EVTEvent()
+				if event == nil || event.GetUserRoomGroupOrderChanged() == nil {
+					continue
+				}
+				order := event.GetUserRoomGroupOrderChanged()
+				if order.GetUserId() != viewer.Id || !slices.Equal(order.GetGroupIds(), []string{"second", "first"}) {
+					t.Fatalf("session %d received wrong preference", i)
+				}
+				received = true
+			case <-timer.C:
+				t.Fatalf("session %d did not receive personal order", i)
+			}
+		}
+		timer.Stop()
+	}
+}
