@@ -48,12 +48,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserMenu from '$lib/components/users/UserMenu.svelte';
   import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
-  import { notificationTarget } from '@chatto/client/server/notifications';
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
-  import {
-    prepareUiForNotificationTarget,
-    navigateNotification
-  } from '$lib/notifications/notificationNavigationUi';
+  import { openRoomNotification } from '$lib/notifications/openRoomNotification';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -77,7 +73,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { fromAction, type Attachment } from 'svelte/attachments';
   import { MediaQuery, SvelteMap } from 'svelte/reactivity';
   import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
-  import { notificationPath } from '$lib/notificationPath';
   import {
     dragHandle,
     dragHandleZone,
@@ -849,33 +844,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     event.preventDefault();
     event.stopPropagation();
 
-    const lookup = await serverUi(stores).attention.resolveRoomNotification(roomId, {
-      isDM,
-      attentionLevel
-    });
-    if (!serverScope.isCurrent()) return;
-    const notification = lookup.notification;
-
-    if (!notification) {
-      if (!lookup.ok || lookup.totalCount !== 0) {
-        await goto(resolve('/chat/notifications'));
-      }
-      return;
-    }
-
-    const target = notificationTarget(notification);
-    prepareUiForNotificationTarget(appUi, activeServerId, target);
-    if (target.eventId && target.roomId) {
-      serverUi(stores).pendingHighlights.set(
-        target.roomId,
-        target.threadRootId,
-        target.eventId,
-        notification.id
-      );
-    }
-
-    const path = notificationPath(activeServerId, notification);
-    await navigateNotification(stores, notification, () => goto(path));
+    await openRoomNotification(serverScope, appUi, roomId, { isDM, attentionLevel });
   }
 </script>
 

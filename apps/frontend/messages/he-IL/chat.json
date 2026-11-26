@@ -51,11 +51,6 @@
       },
       "catch_up": "להשלים",
       "catch_up_unread": "הודעות שלא נקראו",
-      "catch_up_notifications_count": {
-        "one": "{count} התראה",
-        "two": "{count} התראות",
-        "other": "{count} התראות"
-      },
       "neighbors": "שכנים",
       "open_neighbor": "פתח את {server}",
       "view_neighbor": "מצא את {server} במדריך השרתים",

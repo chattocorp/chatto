@@ -50,10 +50,6 @@
       },
       "catch_up": "Bijlezen",
       "catch_up_unread": "Ongelezen berichten",
-      "catch_up_notifications_count": {
-        "one": "{count} melding",
-        "other": "{count} meldingen"
-      },
       "neighbors": "Buren",
       "open_neighbor": "{server} openen",
       "view_neighbor": "{server} zoeken in de servergids",

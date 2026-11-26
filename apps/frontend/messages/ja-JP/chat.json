@@ -50,10 +50,6 @@
       },
       "catch_up": "未読をチェック",
       "catch_up_unread": "未読メッセージ",
-      "catch_up_notifications_count": {
-        "one": "{count} 件の通知",
-        "other": "{count} 件の通知"
-      },
       "neighbors": "ネイバー",
       "open_neighbor": "{server} を開く",
       "view_neighbor": "サーバーディレクトリで {server} を探す",

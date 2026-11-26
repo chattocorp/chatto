@@ -51,11 +51,6 @@
       },
       "catch_up": "Jāpanāk",
       "catch_up_unread": "Nelasītas ziņas",
-      "catch_up_notifications_count": {
-        "zero": "{count} paziņojumu",
-        "one": "{count} paziņojums",
-        "other": "{count} paziņojumi"
-      },
       "neighbors": "Kaimiņi",
       "open_neighbor": "Atvērt {server}",
       "view_neighbor": "Atrast {server} serveru katalogā",

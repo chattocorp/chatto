@@ -52,12 +52,6 @@
       },
       "catch_up": "Непрочитанное",
       "catch_up_unread": "Непрочитанные сообщения",
-      "catch_up_notifications_count": {
-        "one": "{count} уведомление",
-        "few": "{count} уведомления",
-        "many": "{count} уведомлений",
-        "other": "{count} уведомления"
-      },
       "neighbors": "Соседи",
       "open_neighbor": "Открыть {server}",
       "view_neighbor": "Найти {server} в каталоге серверов",

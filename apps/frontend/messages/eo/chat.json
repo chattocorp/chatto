@@ -50,10 +50,6 @@
       },
       "catch_up": "Atingi",
       "catch_up_unread": "Nelegitaj mesaĝoj",
-      "catch_up_notifications_count": {
-        "one": "{count} sciigo",
-        "other": "{count} sciigoj"
-      },
       "neighbors": "Najbaroj",
       "open_neighbor": "Malfermi {server}",
       "view_neighbor": "Trovi {server} en la servila katalogo",

@@ -50,10 +50,6 @@
       },
       "catch_up": "Para colocar em dia",
       "catch_up_unread": "Mensagens não lidas",
-      "catch_up_notifications_count": {
-        "one": "{count} notificação",
-        "other": "{count} notificações"
-      },
       "neighbors": "Vizinhos",
       "open_neighbor": "Abrir {server}",
       "view_neighbor": "Encontrar {server} no diretório de servidores",

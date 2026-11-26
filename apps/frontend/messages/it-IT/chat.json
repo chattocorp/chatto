@@ -50,10 +50,6 @@
       },
       "catch_up": "Da recuperare",
       "catch_up_unread": "Messaggi non letti",
-      "catch_up_notifications_count": {
-        "one": "{count} notifica",
-        "other": "{count} notifiche"
-      },
       "neighbors": "Vicini",
       "open_neighbor": "Apri {server}",
       "view_neighbor": "Trova {server} nella directory dei server",

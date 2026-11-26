@@ -52,12 +52,6 @@
       },
       "catch_up": "K dohnání",
       "catch_up_unread": "Nepřečtené zprávy",
-      "catch_up_notifications_count": {
-        "one": "{count} oznámení",
-        "few": "{count} oznámení",
-        "many": "{count} oznámení",
-        "other": "{count} oznámení"
-      },
       "neighbors": "Sousedé",
       "open_neighbor": "Otevřít {server}",
       "view_neighbor": "Najít {server} v adresáři serverů",

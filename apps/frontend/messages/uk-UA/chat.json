@@ -52,12 +52,6 @@
       },
       "catch_up": "Непрочитане",
       "catch_up_unread": "Непрочитані повідомлення",
-      "catch_up_notifications_count": {
-        "one": "{count} сповіщення",
-        "few": "{count} сповіщення",
-        "many": "{count} сповіщень",
-        "other": "{count} сповіщення"
-      },
       "neighbors": "Сусіди",
       "open_neighbor": "Відкрити {server}",
       "view_neighbor": "Знайти {server} у каталозі серверів",

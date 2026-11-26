@@ -50,10 +50,6 @@
       },
       "catch_up": "Για ενημέρωση",
       "catch_up_unread": "Μη αναγνωσμένα μηνύματα",
-      "catch_up_notifications_count": {
-        "one": "{count} ειδοποίηση",
-        "other": "{count} ειδοποιήσεις"
-      },
       "neighbors": "Γειτονικοί διακομιστές",
       "open_neighbor": "Άνοιγμα {server}",
       "view_neighbor": "Εύρεση {server} στον Κατάλογο διακομιστών",

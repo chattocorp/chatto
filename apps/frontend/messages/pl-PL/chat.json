@@ -52,12 +52,6 @@
       },
       "catch_up": "Do nadrobienia",
       "catch_up_unread": "Nieprzeczytane wiadomości",
-      "catch_up_notifications_count": {
-        "one": "{count} powiadomienie",
-        "few": "{count} powiadomienia",
-        "many": "{count} powiadomień",
-        "other": "{count} powiadomienia"
-      },
       "neighbors": "Sąsiedzi",
       "open_neighbor": "Otwórz {server}",
       "view_neighbor": "Znajdź {server} w katalogu serwerów",

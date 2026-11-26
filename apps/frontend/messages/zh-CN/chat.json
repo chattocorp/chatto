@@ -49,9 +49,6 @@
       },
       "catch_up": "待查看",
       "catch_up_unread": "未读消息",
-      "catch_up_notifications_count": {
-        "other": "{count} 条通知"
-      },
       "neighbors": "邻居",
       "open_neighbor": "打开 {server}",
       "view_neighbor": "在服务器目录中查找 {server}",

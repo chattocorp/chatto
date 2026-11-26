@@ -50,10 +50,6 @@
       },
       "catch_up": "Ta igjen",
       "catch_up_unread": "Uleste meldinger",
-      "catch_up_notifications_count": {
-        "one": "{count} varsel",
-        "other": "{count} varsler"
-      },
       "neighbors": "Naboer",
       "open_neighbor": "Åpne {server}",
       "view_neighbor": "Finn {server} i serverkatalogen",

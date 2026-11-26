@@ -49,9 +49,6 @@
       },
       "catch_up": "待查看",
       "catch_up_unread": "未讀訊息",
-      "catch_up_notifications_count": {
-        "other": "{count} 則通知"
-      },
       "neighbors": "鄰居",
       "open_neighbor": "開啟 {server}",
       "view_neighbor": "在伺服器目錄中尋找 {server}",

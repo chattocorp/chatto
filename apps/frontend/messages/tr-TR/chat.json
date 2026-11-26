@@ -50,10 +50,6 @@
       },
       "catch_up": "Kaçırdıklarınız",
       "catch_up_unread": "Okunmamış mesajlar",
-      "catch_up_notifications_count": {
-        "one": "{count} bildirim",
-        "other": "{count} bildirim"
-      },
       "neighbors": "Komşular",
       "open_neighbor": "{server} sunucusunu açın",
       "view_neighbor": "{server} sunucusunu Sunucu Dizini’nde bulun",

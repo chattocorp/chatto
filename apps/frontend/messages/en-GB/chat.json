@@ -50,10 +50,6 @@
       },
       "catch_up": "Catch up",
       "catch_up_unread": "Unread messages",
-      "catch_up_notifications_count": {
-        "one": "{count} notification",
-        "other": "{count} notifications"
-      },
       "neighbors": "Neighbors",
       "open_neighbor": "Open {server}",
       "view_neighbor": "Find {server} in the Server Directory",

@@ -50,10 +50,6 @@
       },
       "catch_up": "À rattraper",
       "catch_up_unread": "Messages non lus",
-      "catch_up_notifications_count": {
-        "one": "{count} notification non lue",
-        "other": "{count} notifications non lues"
-      },
       "neighbors": "Voisins",
       "open_neighbor": "Ouvrir {server}",
       "view_neighbor": "Trouver {server} dans l’annuaire des serveurs",

@@ -50,10 +50,6 @@
       },
       "catch_up": "Ikapp",
       "catch_up_unread": "Olästa meddelanden",
-      "catch_up_notifications_count": {
-        "one": "{count} avisering",
-        "other": "{count} aviseringar"
-      },
       "neighbors": "Grannar",
       "open_neighbor": "Öppna {server}",
       "view_neighbor": "Hitta {server} i serverkatalogen",

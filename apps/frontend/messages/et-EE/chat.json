@@ -50,10 +50,6 @@
       },
       "catch_up": "Järele jõudmine",
       "catch_up_unread": "Lugemata sõnumid",
-      "catch_up_notifications_count": {
-        "one": "{count} teavitus",
-        "other": "{count} teavitust"
-      },
       "neighbors": "Naabrid",
       "open_neighbor": "Ava {server}",
       "view_neighbor": "Leia {server} serverite kataloogist",

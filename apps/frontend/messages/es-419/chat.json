@@ -50,10 +50,6 @@
       },
       "catch_up": "Pendiente",
       "catch_up_unread": "Mensajes sin leer",
-      "catch_up_notifications_count": {
-        "one": "{count} notificación",
-        "other": "{count} notificaciones"
-      },
       "neighbors": "Vecinos",
       "open_neighbor": "Abrir {server}",
       "view_neighbor": "Buscar {server} en el directorio de servidores",

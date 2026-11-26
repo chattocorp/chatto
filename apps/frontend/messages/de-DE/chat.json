@@ -50,10 +50,6 @@
       },
       "catch_up": "Verpasst",
       "catch_up_unread": "Ungelesene Nachrichten",
-      "catch_up_notifications_count": {
-        "one": "{count} Benachrichtigung",
-        "other": "{count} Benachrichtigungen"
-      },
       "neighbors": "Nachbarn",
       "open_neighbor": "{server} öffnen",
       "view_neighbor": "{server} im Serververzeichnis finden",

@@ -19,6 +19,7 @@ the directory hides itself when it has nothing to show.
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { conversationPath } from '$lib/navigation/conversationPath';
+  import { openRoomNotification } from '$lib/notifications/openRoomNotification';
   import RoomDirectory from '$lib/RoomDirectory.svelte';
   import { catchUpRooms, missingProfileItems } from '$lib/serverOverview';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
@@ -125,7 +126,17 @@ the directory hides itself when it has nothing to show.
                 <MarkdownContent source={motd} />
               </Panel>
             {/if}
-            <ServerOverviewActivity {serverSegment} {calls} {catchUp} onjoincall={openCall} />
+            <ServerOverviewActivity
+              {serverSegment}
+              {calls}
+              {catchUp}
+              onjoincall={openCall}
+              onopennotification={(roomId, attentionLevel) =>
+                void openRoomNotification(serverScope, appUi, roomId, {
+                  isDM: false,
+                  attentionLevel
+                })}
+            />
           </aside>
         {/if}
 
