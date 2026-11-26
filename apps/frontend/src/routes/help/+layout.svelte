@@ -23,7 +23,13 @@
 </script>
 
 <ServerSidebar showCurrentUserBar={false}>
-  <SidebarNav title={m('ui.help')} {groups} {items} backHref={resolve('/chat')} />
+  <SidebarNav
+    title={m('ui.help')}
+    {groups}
+    {items}
+    onBack={() => history.back()}
+    backLabel={m('ui.pane_header.back')}
+  />
 </ServerSidebar>
 <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-navigation-content>
   {@render children()}

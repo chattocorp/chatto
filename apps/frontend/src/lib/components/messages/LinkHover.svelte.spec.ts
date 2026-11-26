@@ -317,33 +317,34 @@ it.each([removeRegisteredServerQueries, refreshRegisteredServerQueries])(
   'reloads metadata on the next interaction after %s',
   async (reset) => {
     const scope = createTestServerScope({ api: { fetchLinkMetadata: fetchLinkPreview } });
-    const { container } = render(LinkTitleTestHarness, { href });
-    const trigger = container.querySelector('.url-link')!;
-    hover(container);
-    await vi.waitFor(() =>
-      expect(container.querySelector('[data-testid="link-hover-card"]')?.textContent).toContain(
-        'A useful guide'
-      )
-    );
-    fetchLinkPreview.mockResolvedValue({ url: href, title: 'Reauthorized title' });
-    await reset(scope.serverId);
-    hover(container);
-    await vi.waitFor(() =>
-      expect(container.querySelector('[data-testid="link-hover-card"]')?.textContent).toContain(
-        'Reauthorized title'
-      )
-    );
-    expect(fetchLinkPreview).toHaveBeenCalledTimes(2);
-    expect(trigger.textContent).not.toContain('A useful guide');
-    fetchLinkPreview.mockResolvedValue({ url: href, title: 'Another permission change' });
-    await reset(scope.serverId);
-    hover(container);
-    await vi.waitFor(() =>
-      expect(container.querySelector('[data-testid="link-hover-card"]')?.textContent).toContain(
-        'Another permission change'
-      )
-    );
-    expect(fetchLinkPreview).toHaveBeenCalledTimes(3);
+    const { container, getByTestId } = render(LinkTitleTestHarness, { href });
+    const trigger = container.querySelector<HTMLAnchorElement>('.url-link')!;
+    const card = getByTestId('link-hover-card');
+
+    function focusLink() {
+      // Complete the focus delay before browser pointer events can cancel it.
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        trigger.focus();
+        vi.advanceTimersByTime(350);
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+
+    focusLink();
+    await expect.element(card).toHaveTextContent('A useful guide');
+    for (const [index, title] of ['Reauthorized title', 'Another permission change'].entries()) {
+      trigger.blur();
+      fetchLinkPreview.mockResolvedValue({ url: href, title });
+      await reset(scope.serverId);
+      await expect.element(card).not.toBeInTheDocument();
+      expect(fetchLinkPreview).toHaveBeenCalledTimes(index + 1);
+      focusLink();
+      await expect.element(card).toHaveTextContent(title);
+      expect(fetchLinkPreview).toHaveBeenCalledTimes(index + 2);
+      expect(trigger.textContent).toBe(href);
+    }
   }
 );
 

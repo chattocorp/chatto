@@ -51,9 +51,10 @@ describe('App Preferences layout', () => {
     expect(container.querySelector('[data-testid="server-sidebar"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="current-user-identity-card"]')).toBeNull();
     await expect.element(getByRole('heading', { name: 'Settings' })).toBeVisible();
-    const exit = getByRole('link', { name: 'Back', exact: true });
-    await expect.element(exit).toBeVisible();
-    await expect.element(exit).toHaveAttribute('href', '/');
+    const back = vi.spyOn(history, 'back').mockImplementation(() => {});
+    await getByRole('button', { name: 'Back', exact: true }).click();
+    expect(back).toHaveBeenCalledOnce();
+    back.mockRestore();
     expect(container.querySelectorAll('[data-testid="room-group-section"]')).toHaveLength(1);
     await expect
       .element(getByRole('button', { name: 'App preferences' }))

@@ -117,6 +117,10 @@ describe('first-run wizard', () => {
 
   it('shows configuration guidance immediately when password login is disabled', async () => {
     const view = renderSetup('welcome', false);
+    const back = vi.spyOn(history, 'back').mockImplementation(() => {});
+    await view.getByRole('button', { name: 'Back', exact: true }).click();
+    expect(back).toHaveBeenCalledOnce();
+    back.mockRestore();
     await expect
       .element(
         view.getByText(
