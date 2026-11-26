@@ -388,3 +388,7 @@ See [FDR-038](fdr/FDR-038-bot-accounts.md) and
 **Operational Log (LOG)** — Retained diagnostic records shared by Chatto server
 replicas. LOG uses typed protobufs and an operator-configured age limit. It is
 not domain history or recovery state. See [ADR-098](adr/ADR-098-retained-operational-log.md).
+
+## Personal group order
+
+A user’s stored order for sidebar room groups. It applies across devices. Listed groups come first; other visible groups follow in server order. An empty preference uses server order. See [FDR-017](fdr/FDR-017-room-groups-and-sidebar-layout.md).

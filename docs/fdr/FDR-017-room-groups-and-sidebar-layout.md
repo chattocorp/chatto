@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-11-01
+**Last reviewed:** 2026-11-26
 
 ## Overview
 
@@ -22,10 +22,10 @@ Channel rooms are organized into **room groups** — named, ordered containers t
   drag-enabled rows and footer controls. Highlighted rows remain visible when
   required. Reduced-motion preferences disable spatial animation.
 
-- The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed or expanded. A viewer with effective group `room.manage` also sees group actions, including when no rooms in the group are otherwise visible.
+- The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in the viewer's personal order, or server order when no personal order is set. Groups can be collapsed or expanded. A viewer with effective group `room.manage` also sees group actions, including when no rooms in the group are otherwise visible.
 - Authorized viewers manage the layout where they use it. Group headers provide actions to create rooms and links, open group settings, or delete an empty group. Room and link rows provide their applicable settings, edit, archive, and delete actions. Server-wide room managers can create a group from a compact control after the last room group.
 - A group header shows a permanent **+** button when the viewer can create a room or manage the group. It opens a small menu with **New Room** (`room.create`) and **New Link** (group `room.manage`), showing only permitted actions. The button also works when the group is collapsed. The controls and open creation menu update when group permissions change, including when privileged mode is enabled or disabled. Each action creates its entry in that group. The header context menu keeps the creation and management actions.
-- Explicit drag handles let authorized viewers reorder groups and move room or link entries within or between groups. Each drag handle fades in over the leading row icon on hover or focus. Touch-only devices have a coarse pointer and no hover input. These devices show no drag handles in the sidebar. A swipe that starts on a row icon scrolls the list. A tap on a group chevron collapses or expands the group. On these devices, server-wide room managers reorder the layout in **Server Admin → Rooms**.
+- Group drag handles change the viewer’s personal group order, including for administrators. Room and link drag handles retain their existing permission checks. The server-wide group order is edited only in **Server Admin → Rooms**. Each drag handle fades in over the leading row icon on hover or focus. Touch-only devices have a coarse pointer and no hover input. These devices show no drag handles in the sidebar. A swipe that starts on a row icon scrolls the list. A tap on a group chevron collapses or expands the group. On these devices, server-wide room managers reorder the layout in **Server Admin → Rooms**.
 - Configured room groups, the alphabetical fallback used before a layout exists, and the Direct Messages section share the same sidebar heading, spacing, and collapse/expand interaction. This presentation does not make Direct Messages an operator-managed room group.
 - When a channel room or DM becomes current, its sidebar row scrolls into view
   if the row exists. An already visible row stays in place. A closed sidebar
@@ -170,3 +170,13 @@ ADR-086 and ADR-087.
 
 - **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-086 (atomic room-layout structural mutations), ADR-087 (request-time authorization with aggregate OCC), [ADR-115](../adr/ADR-115-in-process-domain-services.md) (in-process domain services)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-019 (Room Lifecycle)
+
+### Personal group order
+
+**Decision:** Each authenticated user can store a personal group order that applies on all devices. Listed groups come first. Other visible groups follow in server order. Deleted and unknown IDs are skipped. New groups appear at the bottom. The preference stores the complete list, with at most 1000 distinct IDs. An empty list restores server order.
+
+**Why:** Members need their own navigation order without changing other members’ sidebars. The server applies the same order for every client and bot.
+
+**Tradeoff:** New groups are not inserted between the user’s listed groups. No extra tracking state is required.
+
+Group menus provide Move up and Move down on all devices, and Reset to server order when a personal order exists. Older servers do not show these controls. Collapse state remains device-local. This feature makes no third-party connections.
