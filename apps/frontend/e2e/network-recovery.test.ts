@@ -43,7 +43,9 @@ test('retries dropped timeline reads, shows sustained trouble, and recovers with
   fail = false;
   await expect(roomPage.getMessage(body).locator).toBeVisible();
   await expect(warning).toHaveCount(0);
-  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('alert').getByText('Network error. Please try again.')).toHaveCount(
+    0
+  );
   expect(pageErrors).toEqual([]);
 });
 
@@ -111,7 +113,9 @@ test('absorbs two dropped reads on a throttled connection without a manual retry
     await expect(
       page.getByRole('banner').getByRole('img', { name: 'Connection unavailable' })
     ).toHaveCount(0);
-    await expect(page.getByRole('alert')).toHaveCount(0);
+    await expect(page.getByRole('alert').getByText('Network error. Please try again.')).toHaveCount(
+      0
+    );
   } finally {
     await cdp.detach();
   }

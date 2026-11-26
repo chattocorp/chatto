@@ -121,7 +121,8 @@ for (const answer of ['accept', 'decline'] as const) {
       ).toBeVisible();
       const overviewInvitation = recipientPage
         .getByRole('listitem')
-        .filter({ hasText: 'Private invitation project' });
+        .filter({ hasText: 'Private invitation project' })
+        .filter({ has: recipientPage.getByText('Invited', { exact: true }) });
       await expect(overviewInvitation.getByText('Invited', { exact: true })).toBeVisible();
       await recipientPage.screenshot({
         animations: 'disabled',
