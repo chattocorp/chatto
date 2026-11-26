@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "השרת יראה את כתובת ה־IP שלך.",
     "sign_in": "היכנס",
     "connecting": "מתחבר...",
     "start_failed": "התחלת הכניסה נכשלה.",

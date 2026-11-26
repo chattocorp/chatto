@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "接続先のサーバーにはあなたの IP アドレスが伝わります。",
     "sign_in": "サインイン",
     "connecting": "接続中...",
     "start_failed": "サインインの開始に失敗しました。",

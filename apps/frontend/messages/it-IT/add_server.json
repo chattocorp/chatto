@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "Il server vedrà il tuo indirizzo IP.",
     "sign_in": "Accedi",
     "connecting": "Connessione...",
     "start_failed": "Impossibile avviare l'accesso.",

@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "Server näeb teie IP-aadressi.",
     "sign_in": "Logi sisse",
     "connecting": "Ühendamine...",
     "start_failed": "Sisselogimise alustamine ebaõnnestus.",

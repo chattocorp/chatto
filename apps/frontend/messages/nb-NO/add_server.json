@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "Serveren vil se IP-adressen din.",
     "sign_in": "Logg på",
     "connecting": "Kobler til...",
     "start_failed": "Kunne ikke starte pålogging.",

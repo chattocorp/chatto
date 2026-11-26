@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "De server ziet dan je IP-adres.",
     "sign_in": "Inloggen",
     "connecting": "Verbinden...",
     "start_failed": "Kan inloggen niet starten.",

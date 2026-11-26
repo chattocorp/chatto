@@ -37,7 +37,7 @@ if [ -z "$ready" ]; then
     exit 1
 fi
 
-for path in / /chat/example/room /200.html; do
+for path in / /chat/servers /chat/book-club.example.com /chat/example/room /200.html; do
     fetch "http://127.0.0.1$path" > "$scratch/page"
     grep -q '<title>Acme Chat</title>' "$scratch/page"
     grep -q '<meta property="og:image" content="https://app.example.org/icons/social-preview.png" />' "$scratch/page"
