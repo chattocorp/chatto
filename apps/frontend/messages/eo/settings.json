@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Eksperimentoj",
       "title": "Eksperimentaj funkcioj",
-      "new_message_header": "Nova mesaĝokapo"
+      "new_message_header": "Nova mesaĝokapo",
+      "swipe_to_close_thread": "Glitu por fermi fadenojn ĉe poŝtelefono"
     },
     "desktop": {
       "title": "Ĝisdatigoj",

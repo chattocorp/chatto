@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "تجارب",
       "title": "ميزات تجريبية",
-      "new_message_header": "ترويسة رسالة جديدة"
+      "new_message_header": "ترويسة رسالة جديدة",
+      "swipe_to_close_thread": "اسحب لإغلاق سلاسل المحادثات على الهاتف"
     },
     "desktop": {
       "title": "التحديثات",

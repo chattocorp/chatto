@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Eksperimenti",
       "title": "Eksperimentālās funkcijas",
-      "new_message_header": "Jauna ziņojuma galvene"
+      "new_message_header": "Jauna ziņojuma galvene",
+      "swipe_to_close_thread": "Pavelciet, lai tālrunī aizvērtu pavedienus"
     },
     "desktop": {
       "title": "Atjauninājumi",

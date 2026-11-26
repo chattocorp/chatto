@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "ניסויים",
       "title": "תכונות ניסיוניות",
-      "new_message_header": "כותרת הודעה חדשה"
+      "new_message_header": "כותרת הודעה חדשה",
+      "swipe_to_close_thread": "החלק כדי לסגור שרשורים בטלפון"
     },
     "desktop": {
       "title": "עדכונים",

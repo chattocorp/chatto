@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Eksperymenty",
       "title": "Funkcje eksperymentalne",
-      "new_message_header": "Nowy nagłówek wiadomości"
+      "new_message_header": "Nowy nagłówek wiadomości",
+      "swipe_to_close_thread": "Przesuń palcem, aby zamknąć wątek na telefonie"
     },
     "desktop": {
       "title": "Aktualizacje",

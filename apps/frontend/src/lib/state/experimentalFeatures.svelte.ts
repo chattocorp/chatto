@@ -26,6 +26,7 @@ class ClientExperiment {
 }
 
 export const experimentalFeatures = {
+  swipeToCloseThread: new ClientExperiment('swipe-to-close-thread'),
   newMessageHeader: new ClientExperiment('new-message-header')
 };
 

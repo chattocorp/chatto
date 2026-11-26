@@ -16,23 +16,6 @@ function startsAwayFromViewportEdge(event: PointerEvent | TouchEvent): boolean {
   );
 }
 
-/**
- * Svelte action: drives the mobile sidebar's open/close state from a
- * horizontal touch drag inside the app-shell host, except within 24 CSS pixels
- * of either physical viewport edge. Edge starts are left to browser navigation,
- * regardless of text direction or whether the sidebar is open.
- *
- * Mouse and pen input are ignored, including on touch-capable devices.
- * Touch gestures require the narrow drawer layout (`sidebarNav.isMobile`). When closed, only
- * drags towards the inline end claim; when open, only drags towards the inline
- * start claim. Gestures that
- * begin inside horizontally scrollable content are ignored so galleries and
- * wide tables retain their native scrolling. Dialogs, popovers, fullscreen
- * surfaces, form fields, media controls, and elements marked with
- * `data-sidebar-swipe-ignore` also retain their own gestures. Unclaimed taps,
- * long presses, and vertical movement continue through normal browser event
- * flow.
- */
 function startsInsideExcludedSurface(event: PointerEvent | TouchEvent, host: HTMLElement): boolean {
   for (const pathEntry of event.composedPath()) {
     if (pathEntry === host) return false;
@@ -62,14 +45,64 @@ function startsInsideExcludedSurface(event: PointerEvent | TouchEvent, host: HTM
   return false;
 }
 
+/** Both mobile navigation gestures yield to browser edges and nested controls. */
+function canStartMobileSwipe(event: PointerEvent | TouchEvent, node: HTMLElement): boolean {
+  return (
+    event.type === 'touchstart' &&
+    sidebarNav.isMobile &&
+    startsAwayFromViewportEdge(event) &&
+    !startsInsideExcludedSurface(event, node)
+  );
+}
+
+/** Attach to an opted-in thread pane. Its sidebar opt-out gives this drag one owner. */
+export function threadDismissSwipe(node: HTMLElement, close: () => void) {
+  const reset = () => node.style.removeProperty('translate');
+  const gesture = panGesture(node, {
+    axis: 'x',
+    enabled: (event) => !sidebarNav.isOpen && canStartMobileSwipe(event, node),
+    shouldClaim: (dx) => toInlineEndDelta(dx) > 0,
+    onUpdate: (dx) => {
+      const offset = Math.max(0, toInlineEndDelta(dx));
+      node.style.translate = `${toInlineEndDelta(offset)}px`;
+    },
+    onEnd: (dx, vx) => {
+      const distance = toInlineEndDelta(dx);
+      if (distance >= node.clientWidth / 2 || (distance >= 32 && toInlineEndDelta(vx) > 0.5)) {
+        close();
+      } else {
+        reset();
+      }
+    },
+    onCancel: reset
+  });
+  return () => {
+    gesture.destroy();
+    reset();
+  };
+}
+
+/**
+ * Svelte action: drives the mobile sidebar's open/close state from a
+ * horizontal touch drag inside the app-shell host, except within 24 CSS pixels
+ * of either physical viewport edge. Edge starts are left to browser navigation,
+ * regardless of text direction or whether the sidebar is open.
+ *
+ * Mouse and pen input are ignored, including on touch-capable devices.
+ * Touch gestures require the narrow drawer layout (`sidebarNav.isMobile`). When closed, only
+ * drags towards the inline end claim; when open, only drags towards the inline
+ * start claim. Gestures that
+ * begin inside horizontally scrollable content are ignored so galleries and
+ * wide tables retain their native scrolling. Dialogs, popovers, fullscreen
+ * surfaces, form fields, media controls, and elements marked with
+ * `data-sidebar-swipe-ignore` also retain their own gestures. Unclaimed taps,
+ * long presses, and vertical movement continue through normal browser event
+ * flow.
+ */
 export function sidebarSwipe(node: HTMLElement) {
   return panGesture(node, {
     axis: 'x',
-    enabled: (event) =>
-      event.type === 'touchstart' &&
-      sidebarNav.isMobile &&
-      startsAwayFromViewportEdge(event) &&
-      !startsInsideExcludedSurface(event, node),
+    enabled: (event) => canStartMobileSwipe(event, node),
     shouldClaim: (dx) => (sidebarNav.isOpen ? toInlineEndDelta(dx) < 0 : toInlineEndDelta(dx) > 0),
     onStart: () => sidebarNav.startDrag(),
     onUpdate: (dx) => sidebarNav.updateDrag(toInlineEndDelta(dx)),

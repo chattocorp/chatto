@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Eksperimenter",
       "title": "Eksperimentelle funksjoner",
-      "new_message_header": "Ny meldingsoverskrift"
+      "new_message_header": "Ny meldingsoverskrift",
+      "swipe_to_close_thread": "Sveip for å lukke tråder på mobilen"
     },
     "desktop": {
       "title": "Oppdateringer",

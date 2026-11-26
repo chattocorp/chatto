@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Expériences",
       "title": "Fonctionnalités expérimentales",
-      "new_message_header": "Nouvel en-tête de message"
+      "new_message_header": "Nouvel en-tête de message",
+      "swipe_to_close_thread": "Balayer pour fermer les fils de discussion sur mobile"
     },
     "desktop": {
       "title": "Mises à jour",

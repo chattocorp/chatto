@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "實驗",
       "title": "實驗性功能",
-      "new_message_header": "新版訊息標頭"
+      "new_message_header": "新版訊息標頭",
+      "swipe_to_close_thread": "在行動裝置上滑動以關閉討論串"
     },
     "desktop": {
       "title": "更新",

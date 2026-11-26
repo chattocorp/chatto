@@ -1,6 +1,9 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { serverUi } from '$lib/state/server/serverUi';
+  import { experimentalFeatures } from '$lib/state/experimentalFeatures.svelte';
+  import { sidebarNav } from '$lib/state/globals.svelte';
+  import { threadDismissSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
   import { fly } from 'svelte/transition';
   import { createPanelReveal } from '$lib/dom/panelReveal';
   import { fromInlineEndOffset } from '$lib/i18n/direction';
@@ -67,6 +70,12 @@
     onHighlightComplete?: (highlight: PendingHighlight) => void;
     onComposerInputConsumed?: (input: PendingComposerInput) => void;
   } = $props();
+
+  const swipeToClose = $derived(
+    experimentalFeatures.swipeToCloseThread.enabled &&
+      sidebarNav.isMobile &&
+      presentation === 'overlay'
+  );
 
   const serverScope = useServerScope();
   const stores = serverScope.store;
@@ -200,6 +209,8 @@
   ]}
   data-testid="thread-pane"
   bind:clientWidth={paneWidth}
+  data-sidebar-swipe-ignore={swipeToClose || undefined}
+  {@attach swipeToClose ? (node) => threadDismissSwipe(node, onClose) : undefined}
   {@attach revealThread}
   style:--thread-pane-width={`${threadPaneWidth.value}px`}
   transition:fly|global={{
