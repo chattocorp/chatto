@@ -54,6 +54,7 @@ const [bundleRoot] = await packager({
   executableName: platform === 'darwin' ? undefined : 'chatto-desktop',
   appVersion: macVersions?.shortVersion ?? packageJson.version,
   buildVersion: macVersions?.bundleVersion ?? releaseBuildVersion(packageJson.version),
+  protocols: [{ name: 'Chatto Desktop sign-in', schemes: ['chatto'] }],
   appBundleId: profile.bundleIdentifier,
   // The packager overwrites package.json after afterCopy and afterPrune.
   // Restore SemVer before archiving so update channels and comparisons retain it.

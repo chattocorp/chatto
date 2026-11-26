@@ -42,9 +42,9 @@ system-browser authentication, and clean-machine media behavior are hardened.
   server and stores its renewable session. It does not store the password.
   Configured provider buttons appear above the password form. Selecting one
   starts the server's PKCE-protected OAuth flow with that provider selected.
-  The provider still owns its login page in a separate window. Servers that
+  The provider still owns its login page in the system browser. Servers that
   do not support the provider hint show their normal login page instead.
-  **Continue in the browser** opens the existing PKCE-protected OAuth window
+  **Continue in the browser** opens the system browser
   for external providers, account creation, and password recovery. Browser
   deployments continue to use the server-owned OAuth pages for remote login.
 - The sign-in screen reuses the web authentication layout and server branding.
@@ -208,8 +208,8 @@ system-browser authentication, and clean-machine media behavior are hardened.
 - Servers recognize the built-in `chatto://desktop` OAuth client and its exact
   callback. Desktop API and realtime access use bearer credentials and require
   no origin configuration.
-- Identity providers that reject embedded user agents are not supported until
-  Chatto Desktop gains a system-browser authorization handoff.
+- Installed Desktop uses the system browser for provider sign-in. This lets the
+  provider request passkeys from the user’s browser.
 
 ## Design Decisions
 
@@ -273,15 +273,16 @@ keeps an independent session. A late response cannot replace a session after
 the user leaves the form, removes the server, or replaces its session.
 **Tradeoff:** Users trust the installed app with their server password.
 External provider buttons send only the configured provider ID to the Chatto
-server, which owns provider selection and account mapping. Registration and
-recovery also use the server-owned OAuth window and its existing PKCE and
-callback handling. Selecting a provider contacts that provider and reveals
+server, which owns provider selection and account mapping. Registration and recovery use the same system browser flow. Selecting a provider contacts that provider and reveals
 the user's IP address to it. No provider connection starts from displaying
-the buttons alone. Some providers
-require a future system-browser flow, and the host
-must tightly constrain popup and navigation behavior. The host opens a new
-window only on the frontend's `/servers/authorize` launch page and sends all
-other window requests to the system browser.
+the buttons alone. The system browser can use the member's existing provider
+session and passkeys. It returns the code to the running app through the
+registered `chatto://desktop/servers/callback?mode=popup` link. Desktop checks
+the state and issuer before it exchanges the code with its in-memory PKCE
+verifier. The browser can ask the user before it opens Desktop, including
+on repeat sign-in after the user grants consent. If the operating system
+cannot register the callback, Desktop shows recovery steps for the platform.
+A cancelled or expired attempt requires a new sign-in.
 
 ### 5. Synchronize Desktop and Chatto releases
 
@@ -431,7 +432,7 @@ The iOS shell shares the frontend but uses native system authentication. See
 
 ## Open Questions
 
-- How system-browser OAuth callbacks and normal external links should return to
+- How normal external links should return to
   or focus the application on every platform.
 - Which Linux distribution packages should accompany the AppImage and tarball.
 - Whether Electron's shipped codec set covers every media artifact Chatto

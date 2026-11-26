@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "Sunucu IP adresinizi görecektir.",
     "sign_in": "Oturum aç",
     "connecting": "Bağlanıyor...",
     "start_failed": "Oturum açma işlemi başlatılamadı.",

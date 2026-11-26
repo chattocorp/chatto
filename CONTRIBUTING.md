@@ -664,9 +664,9 @@ mise x -- sweet change packages/runling
 mise x -- sweet change authling
 ```
 
-Choose `fix` for a patch release, `feature` for a minor release, or `breaking`
-for a breaking change. While these packages are below 1.0, breaking changes use
-a minor release. In Chatto, use `performance` for a faster or lighter server or
+Use `fix` for a bug fix and `feature` for a new feature. Both select a patch
+release. Use `breaking` for a breaking change. It selects a minor release
+while these packages are below 1.0. In Chatto, use `performance` for a faster or lighter server or
 client, and `polish` for a small visible change that most readers can skip,
 such as spacing, colours, or wording. Both use a patch release.
 

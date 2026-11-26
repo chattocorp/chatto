@@ -31,16 +31,22 @@ buttons without a password form.
 
 **Create account** opens server-hosted registration when direct registration
 is enabled. Email-code verification and account creation stay in the
-authorization window. After consent, Desktop receives the new session and
+system browser. After consent, Desktop receives the new session and
 opens the server. Older servers can show their login page first.
 
 **Continue in the browser** opens the server's page for external providers,
-registration, and password recovery. The official desktop origin is accepted
-by Chatto's OAuth redirect policy. The desktop shell uses Electron's ordinary
-popup support for the same PKCE and
-`BroadcastChannel` flow as a browser. Chatto 0.5 servers recognize the built-in
-`chatto://desktop` client identity and exact callback; bearer-authenticated API
-and realtime access requires no server origin configuration.
+registration, and password recovery in the system browser. After consent, the
+browser opens `chatto://desktop/servers/callback?mode=popup` to return to
+Desktop. Keep Desktop running until sign-in completes. If the browser asks for permission
+to open Desktop, allow it. Desktop checks the
+state and issuer and exchanges the code with the PKCE verifier for that
+request. Chatto 0.5 servers accept this callback for the built-in
+`chatto://desktop` client. Operators need no extra origin configuration.
+
+On Linux, Desktop registers a user-local URL handler for the running AppImage
+or extracted executable with `xdg-mime` when sign-in starts. Install
+`xdg-utils` if the command is missing. For local
+development, use a packaged build to test the return from the browser.
 
 ## Notifications and background operation
 
@@ -542,7 +548,5 @@ is sandboxed.
 
 ## Prototype boundaries
 
-This scaffold does not yet provide OS deep links, Linux distro packages, or
-end-to-end desktop tests. Some identity providers
-reject authentication inside embedded user agents, so a system-browser OAuth
-handoff may still be required before treating this as a general release.
+This scaffold does not yet provide Linux distro packages or
+end-to-end desktop tests.

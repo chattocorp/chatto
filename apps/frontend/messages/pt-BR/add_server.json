@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "O servidor verá seu endereço IP.",
     "sign_in": "Faça login",
     "connecting": "Conectando...",
     "start_failed": "Falha ao iniciar o login.",

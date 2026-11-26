@@ -1,5 +1,6 @@
 {
   "add_server": {
+    "handoff_notice": "伺服器將會看到你的 IP 位址。",
     "sign_in": "登入",
     "connecting": "正在連線...",
     "start_failed": "無法開始登入。",

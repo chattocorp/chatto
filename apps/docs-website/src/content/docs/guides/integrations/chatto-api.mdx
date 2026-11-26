@@ -54,6 +54,19 @@ the available login providers, the public profile to show before sign-in, and
 the software version. Discovery does not expose method-level feature flags, so
 pin and test the server releases that your client supports.
 
+## Open a server in the web app
+
+Use an **Open in Chatto** link to send a person to a server. For example,
+`https://app.chatto.run/chat/book-club.example.com` identifies the server by
+hostname. Supply one DNS hostname in ASCII form.
+Omit the scheme, port, path, account details, and credentials.
+
+A saved server with that hostname opens at its registered address. For a new server,
+the web app shows the hostname and asks the person to connect before it
+contacts the server over HTTPS.
+The server controls sign-in and access. Sharing the link grants no permissions.
+If your proxy logs request paths, its access log includes the community hostname.
+
 ## Authentication Choices
 
 | Client                       | Credential                                                          |

@@ -60,7 +60,11 @@ export function parseChangelog(markdown) {
       releases.push({ version: line.slice(3).trim(), sections: [] });
     } else if (line.startsWith('### ')) {
       finishNote();
-      releases.at(-1)?.sections.push({ title: line.slice(4).trim(), notes: [] });
+      // Published changelogs use the former title for Polish.
+      const title = line.slice(4).trim();
+      releases
+        .at(-1)
+        ?.sections.push({ title: title === 'Smaller changes' ? 'Polish' : title, notes: [] });
     } else if (line.startsWith('- ')) {
       finishNote();
       note = [line.slice(2)];
