@@ -225,6 +225,79 @@ describe('remote server OAuth popup', () => {
     }
   );
 
+  it.each(['valid', 'wrong issuer', 'wrong state', 'duplicate code'])(
+    'checks the Desktop browser callback before exchanging the code (%s)',
+    async (variant) => {
+      const redirect = 'chatto://desktop/servers/callback?mode=popup';
+      const start = vi.fn(async (origin: string, raw: string) => {
+        const url = new URL(raw);
+        expect(origin).toBe(remote.url);
+        expect(url.origin).toBe(origin);
+        expect(url.searchParams.get('redirect_uri')).toBe(redirect);
+        expect(url.searchParams.get('provider_id')).toBe('pocket-id');
+        expect(url.searchParams.get('code_challenge_method')).toBe('S256');
+        const callback = new URL(redirect);
+        callback.searchParams.set(
+          'state',
+          variant === 'wrong state' ? 'wrong' : url.searchParams.get('state')!
+        );
+        callback.searchParams.set(
+          'iss',
+          variant === 'wrong issuer' ? 'https://other.example' : origin
+        );
+        callback.searchParams.set('code', 'desktop-code');
+        if (variant === 'duplicate code') callback.searchParams.append('code', 'another');
+        return callback.href;
+      });
+      vi.stubGlobal('window', {
+        chattoDesktop: { browserAuthorization: { start, cancel: vi.fn() } }
+      });
+      const exchange = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        tokenResponse()
+      );
+      vi.stubGlobal('fetch', exchange);
+      const { startRemoteReauthentication } = await import('./reauth');
+      const result = startRemoteReauthentication(remote, 'pocket-id');
+      if (variant === 'valid') {
+        await result;
+        expect(JSON.parse(exchange.mock.calls[0]?.[1]?.body as string)).toMatchObject({
+          code: 'desktop-code',
+          client_id: 'chatto://desktop',
+          redirect_uri: redirect,
+          code_verifier: expect.any(String)
+        });
+        expect(gotoMock).toHaveBeenCalledWith('/chat/remote');
+      } else {
+        await expect(result).rejects.toThrow();
+        expect(exchange).not.toHaveBeenCalled();
+      }
+    }
+  );
+
+  it('cancels a Desktop sign-in while the browser is open and ignores its late callback', async () => {
+    const pending = Promise.withResolvers<string>();
+    const start = vi.fn((_origin: string, _url: string) => pending.promise);
+    const cancel = vi.fn();
+    vi.stubGlobal('window', { chattoDesktop: { browserAuthorization: { start, cancel } } });
+    const exchange = vi.fn();
+    vi.stubGlobal('fetch', exchange);
+    const { startRemoteReauthentication, cancelServerOAuthFlow } = await import('./reauth');
+    const result = startRemoteReauthentication(remote);
+    await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
+    const state = new URL(start.mock.calls[0][1]).searchParams.get('state');
+    cancelServerOAuthFlow(remote.url);
+    await expect(result).rejects.toMatchObject({ reason: 'cancelled' });
+    expect(cancel).toHaveBeenCalledWith(state);
+    pending.resolve(
+      'chatto://desktop/servers/callback?mode=popup&code=late&state=' +
+        state +
+        '&iss=' +
+        encodeURIComponent(remote.url)
+    );
+    await pending.promise;
+    expect(exchange).not.toHaveBeenCalled();
+  });
+
   it('stays on the route of the server that the user signs in to', async () => {
     native.available = true;
     native.authorize.mockImplementation(async (_raw: string, state: string) => ({

@@ -43,6 +43,8 @@ import packageJson from './package.json' with { type: 'json' };
 import { desktopBuildProfile } from './build_profile.mjs';
 import { StreamDiagnostics } from './stream_diagnostics.mjs';
 import { defaultScreenShareMode, screenShareModes } from './screen_share_modes.mjs';
+import { createBrowserAuthorization } from './browser_authorization.mjs';
+import { registerLinuxCallback } from './linux_protocol.mjs';
 import { passwordLogin } from './password_login.mjs';
 import { configureUpdateMenu } from './update_menu.mjs';
 import { configureUpdateBridge } from './update_bridge.mjs';
@@ -88,6 +90,25 @@ protocol.registerSchemesAsPrivileged([
   }
 ]);
 
+// A cold-start callback has no PKCE verifier. Never navigate to a deep link.
+const browserAuthorization = createBrowserAuthorization(async (url) => {
+  if (process.platform === 'linux') await registerLinuxCallback(buildProfile.packageName);
+  else if (!app.isDefaultProtocolClient('chatto') && !app.setAsDefaultProtocolClient('chatto'))
+    throw new Error('Cannot register the sign-in callback.');
+  await shell.openExternal(url);
+});
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  if (browserAuthorization.accept(url)) {
+    if (mainWindow?.isMinimized()) mainWindow.restore();
+    mainWindow?.show();
+    mainWindow?.focus();
+  }
+});
+app.on('second-instance', (_event, argv) => {
+  for (const value of argv) if (browserAuthorization.accept(value)) break;
+});
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -131,15 +152,17 @@ async function start() {
   );
   configureSession(session.defaultSession);
   configureGameCaptureIPC();
+  ipcMain.handle('chatto:authorization:start', (event, origin, url) => {
+    if (!isTrustedMainRenderer(event))
+      throw new Error('Sign-in is available only to the Chatto renderer.');
+    return browserAuthorization.start(origin, url);
+  });
+  ipcMain.on('chatto:authorization:cancel', (event, state) => {
+    if (isTrustedMainRenderer(event)) browserAuthorization.cancel(state);
+  });
   ipcMain.handle('chatto:password-login', (event, request) => {
-    if (
-      !mainWindow ||
-      event.sender !== mainWindow.webContents ||
-      event.senderFrame !== mainWindow.webContents.mainFrame ||
-      !hasAppOrigin(event.senderFrame.url)
-    ) {
-      throw new Error('Password sign-in is available only to the Chatto renderer.');
-    }
+    if (!isTrustedMainRenderer(event))
+      throw new Error('Sign-in is available only to the Chatto renderer.');
     return passwordLogin(request);
   });
   mainWindow = createMainWindow();
@@ -153,16 +176,15 @@ async function start() {
     Notification,
     getWindow: () => mainWindow,
     open: background.open,
-    isTrusted: (event) =>
-      Boolean(
-        mainWindow &&
-        event.sender === mainWindow.webContents &&
-        event.senderFrame === mainWindow.webContents.mainFrame &&
-        hasAppOrigin(event.senderFrame.url)
-      )
+    isTrusted: isTrustedMainRenderer
   });
+  mainWindow.webContents.on('render-process-gone', () => browserAuthorization.clear());
+  mainWindow.webContents.on('destroyed', () => browserAuthorization.clear());
   mainWindow.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
-    if (isMainFrame && !isInPlace) notifications.clear();
+    if (isMainFrame && !isInPlace) {
+      browserAuthorization.clear();
+      notifications.clear();
+    }
   });
   mainWindow.webContents.on('render-process-gone', () => notifications.clear());
   app.on('before-quit', () => notifications.clear());
@@ -175,14 +197,7 @@ async function start() {
   configureUpdateBridge({
     ipcMain,
     controller: updateController,
-    isTrusted: (event) =>
-      Boolean(
-        mainWindow &&
-        !mainWindow.isDestroyed() &&
-        event.sender === mainWindow.webContents &&
-        event.senderFrame === mainWindow.webContents.mainFrame &&
-        hasAppOrigin(event.senderFrame.url)
-      ),
+    isTrusted: isTrustedMainRenderer,
     send: (state) => {
       if (mainWindow && !mainWindow.isDestroyed() && hasAppOrigin(mainWindow.webContents.getURL()))
         mainWindow.webContents.send('chatto:updates:changed', state);
@@ -532,6 +547,18 @@ function createMainWindow() {
   return window;
 }
 
+/** Only the main document of the bundled frontend may use privileged host IPC. */
+function isTrustedMainRenderer(event) {
+  return Boolean(
+    mainWindow &&
+    !mainWindow.isDestroyed() &&
+    event.senderFrame &&
+    event.sender === mainWindow.webContents &&
+    event.senderFrame === event.sender.mainFrame &&
+    hasAppOrigin(event.senderFrame.url)
+  );
+}
+
 function mainWindowWebPreferences() {
   const preferences = secureWebPreferences();
   // Hidden windows still receive notifications and maintain authenticated connections.
@@ -540,6 +567,7 @@ function mainWindowWebPreferences() {
   preferences.additionalArguments = isGameCaptureAvailable()
     ? ['--chatto-native-screen-share']
     : [];
+  if (app.isPackaged) preferences.additionalArguments.push('--chatto-browser-authorization');
   return preferences;
 }
 

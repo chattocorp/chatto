@@ -1,3 +1,4 @@
+import { desktopBrowserAuthorization, DESKTOP_CALLBACK } from '$lib/desktop/browserAuthorization';
 import { OAuthPopupError } from '$lib/oauth/popupError';
 import { goto, invalidateAll } from '$app/navigation';
 import { resolve } from '$app/paths';
@@ -90,14 +91,19 @@ async function runServerOAuthFlow(
     await openSignedInServer(serverId);
     return;
   }
-  const redirectUri = `${window.location.origin}/servers/callback?mode=popup`;
-  const clientId = oauthClientIdForLocation(window.location, serverUrl);
+  const desktop = desktopBrowserAuthorization(serverUrl, state);
+  const redirectUri = desktop
+    ? DESKTOP_CALLBACK
+    : `${window.location.origin}/servers/callback?mode=popup`;
+  const clientId = desktop
+    ? DESKTOP_CLIENT_ID
+    : oauthClientIdForLocation(window.location, serverUrl);
 
   // Open synchronously from the user's click before hashing the PKCE verifier;
   // otherwise browsers may treat the secondary window as an unsolicited popup.
   let popup: OAuthPopup;
   try {
-    popup = openOAuthPopup(state);
+    popup = desktop ?? openOAuthPopup(state);
   } catch (error) {
     // The blocked window replaces any later server-data error.
     serverInfo.catch(() => {});
