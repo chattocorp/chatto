@@ -189,12 +189,12 @@ store owns only optimistic join/leave state.
       {:else}
         <span class="min-w-0 flex-1 truncate font-semibold text-text"><bdi>{room.name}</bdi></span>
       {/if}
-      {#if isNewRoom(room.createdAt)}
-        <!-- A neutral pill keeps contrast on the tile; the dot carries the accent. -->
-        <Pill tone="default" class="inline-flex shrink-0 items-center gap-1">
+      {#if !joined && isNewRoom(room.createdAt)}
+        <!-- Only rooms to discover: a joined room is already known. Quiet text; the dot carries the accent. -->
+        <span class="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted">
           <UnreadDot color="action" />
           {m('room.directory.new')}
-        </Pill>
+        </span>
       {/if}
       <div class="relative z-10 flex shrink-0 items-center gap-1">
         {#if joined && room.isUniversal}
@@ -220,7 +220,8 @@ store owns only optimistic join/leave state.
                     class="col-start-1 row-start-1 inline-flex items-center gap-1 group-focus-within/leave:invisible group-hover/leave:invisible"
                   >
                     <span aria-hidden="true" class="iconify icon-[uil--check]"></span>
-                    <span>{m('room.directory.joined')}</span>
+                    <!-- At rest only the check shows; the label names the button. -->
+                    <span class="sr-only">{m('room.directory.joined')}</span>
                   </span>
                   <span
                     class="invisible col-start-1 row-start-1 inline-flex items-center gap-1 group-focus-within/leave:visible group-hover/leave:visible"

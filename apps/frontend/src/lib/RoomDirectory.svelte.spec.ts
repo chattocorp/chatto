@@ -16,7 +16,8 @@ const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom
   archived: overrides.archived ?? false,
   isUniversal: overrides.isUniversal ?? false,
   viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
-  viewerInvitation: overrides.viewerInvitation
+  viewerInvitation: overrides.viewerInvitation,
+  createdAt: overrides.createdAt
 });
 
 const listedRoom = (id: string, overrides: Partial<RoomsListItem> = {}): RoomsListItem => ({
@@ -402,5 +403,28 @@ describe('RoomDirectory', () => {
 
     await page.getByRole('radio', { name: 'Joined', exact: true }).click();
     await expect.element(page.getByText("You haven't joined any rooms yet.")).toBeVisible();
+  });
+
+  it('labels only new rooms that the viewer has not joined', () => {
+    const now = new Date().toISOString();
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [
+          room('fresh', { createdAt: now }),
+          room('joined-fresh', { createdAt: now }),
+          room('old', { createdAt: '2020-01-01T00:00:00Z' })
+        ],
+        joinedRooms: [joined('joined-fresh')],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    const rowText = (id: string) =>
+      [...container.querySelectorAll('li')].find((li) => li.textContent?.includes(id))
+        ?.textContent ?? '';
+    expect(rowText('fresh')).toContain('New');
+    expect(rowText('joined-fresh')).not.toContain('New');
+    expect(rowText('old')).not.toContain('New');
   });
 });
