@@ -1,7 +1,9 @@
+import type { ServerRegistration } from './catalog.js';
 import { ReactiveMap } from '../reactivity/index.js';
 
 /** Device-local authentication state for one known Chatto server. */
 export interface ServerSession {
+  /** Bearer token for API auth, or null when unauthenticated/legacy cookie auth */
   token: string | null;
   /** Device-local ID for one sign-in. It stays the same across token rotations. */
   bearerSessionId?: string | null;
@@ -15,12 +17,20 @@ export interface ServerSession {
   oauthClientId?: string | null;
   /** Persisted idempotency key for an in-flight refresh rotation. */
   refreshRequestId?: string | null;
+  /** Authenticated user ID on this server, or null if not yet authenticated */
   userId: string | null;
+  /** Authenticated user's login on this server */
   userLogin: string | null;
+  /** Authenticated user's display name on this server */
   userDisplayName: string | null;
+  /** Authenticated user's avatar URL on this server */
   userAvatarUrl: string | null;
+  /** Epoch ms when this server last rejected auth, or null when auth is usable */
   reauthRequiredAt: number | null;
 }
+
+/** Public catalogue metadata and the device-local session for one registered server. */
+export interface RegisteredServer extends ServerRegistration, ServerSession {}
 
 export function emptyServerSession(): ServerSession {
   return {
