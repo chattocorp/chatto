@@ -543,7 +543,9 @@ test.describe('Room Layout', () => {
       await waitForSidebarRooms(page, 4);
 
       // Click section header to collapse "Main"
-      await page.locator('.room-list [data-testid="room-group-header"]', { hasText: 'Main' }).click();
+      await page
+        .locator('.room-list [data-testid="room-group-header"]', { hasText: 'Main' })
+        .click();
 
       // "alpha", "general", "announcements" should be hidden
       await expect(
@@ -569,7 +571,9 @@ test.describe('Room Layout', () => {
       await expect(page.locator('.room-list a .truncate', { hasText: 'bravo' })).toBeVisible();
 
       // Click to expand again
-      await page.locator('.room-list [data-testid="room-group-header"]', { hasText: 'Main' }).click();
+      await page
+        .locator('.room-list [data-testid="room-group-header"]', { hasText: 'Main' })
+        .click();
       await expect(page.locator('.room-list a .truncate', { hasText: 'general' })).toBeVisible();
     });
   });
@@ -755,9 +759,12 @@ test.describe('Room Layout', () => {
       await page.reload();
       // The saved layout can contain both groups in their previous order.
       // Wait for the reordered layout to arrive through realtime catch-up.
-      await expect(page.locator('.room-list [data-testid="room-group-header"]')).toHaveText(['Projects', 'Main'], {
-        timeout: TIMEOUTS.SERVER_MUTATION_SYNC
-      });
+      await expect(page.locator('.room-list [data-testid="room-group-header"]')).toHaveText(
+        ['Projects', 'Main'],
+        {
+          timeout: TIMEOUTS.SERVER_MUTATION_SYNC
+        }
+      );
       await expect(page.locator('[data-testid="room-group-section"]')).toHaveCount(2);
     });
   });
