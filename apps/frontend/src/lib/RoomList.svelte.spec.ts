@@ -47,6 +47,12 @@ const { mocks } = vi.hoisted(() => ({
       moveRoomGroup: vi.fn().mockResolvedValue([]),
       moveSidebarItem: vi.fn().mockResolvedValue(null)
     },
+    personalOrderAPI: {
+      setPersonalRoomGroupOrder: vi.fn(async (ids: string[]) => ({
+        groups: ids.map((id) => ({ id })),
+        personalGroupOrder: ids
+      }))
+    },
     roomCommandAPI: {
       createRoom: vi.fn().mockResolvedValue(null),
       joinRoom: vi.fn().mockResolvedValue(null),
@@ -66,7 +72,12 @@ const { mocks } = vi.hoisted(() => ({
         canAdminManageAccounts: false,
         canAdminViewUsers: false
       },
-      projection: { rooms: new Map<string, { memberUserIds: string[] }>() },
+      projection: {
+        rooms: new Map<string, { memberUserIds: string[] }>(),
+        supportsPersonalGroupOrder: true,
+        personalGroupOrder: [] as string[],
+        roomGroups: [] as { id: string }[]
+      },
       notifications: {
         hasDMRoomNotification: vi.fn().mockReturnValue(false),
         hasRoomNotification: vi.fn().mockReturnValue(false),
@@ -191,7 +202,11 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     store: mocks.store,
     connection: {
       getAPI: vi.fn((factory: { name?: string }) =>
-        factory.name === 'createAdminRoomLayoutAPI' ? mocks.layoutAPI : mocks.roomCommandAPI
+        factory.name === 'createAdminRoomLayoutAPI'
+          ? mocks.layoutAPI
+          : factory.name === 'createRoomDirectoryAPI'
+            ? mocks.personalOrderAPI
+            : mocks.roomCommandAPI
       )
     },
     isCurrent: () => true
@@ -2420,7 +2435,7 @@ describe('RoomList', () => {
     const heading = getByRole('button', { name: 'Projects', exact: true });
     const icon = q(container, '[data-testid="room-group-disclosure-icon"]')!;
     const handle = q(container, '[data-testid="room-group-drag-handle"]');
-    const hasOverlay = canReorderGroups;
+    const hasOverlay = true;
 
     expect(Boolean(handle)).toBe(hasOverlay);
     await userEvent.unhover(heading);
@@ -2808,6 +2823,7 @@ describe('RoomList', () => {
       items: []
     };
     mocks.store.navigation.roomGroups = [first, second];
+    mocks.store.projection.roomGroups = [first, second];
     const { container } = render(RoomList, { props: { canReorderGroups: true } });
     const dropzone = q(container, '[data-testid="room-groups-dropzone"]') as HTMLElement;
     const keepVisibleWhenCollapsed = () => false;
@@ -2835,10 +2851,11 @@ describe('RoomList', () => {
     );
 
     await vi.waitFor(() => {
-      expect(mocks.layoutAPI.moveRoomGroup).toHaveBeenCalledWith({
-        groupId: 'second',
-        beforeGroupId: 'first'
-      });
+      expect(mocks.personalOrderAPI.setPersonalRoomGroupOrder).toHaveBeenCalledWith([
+        'second',
+        'first'
+      ]);
+      expect(mocks.layoutAPI.moveRoomGroup).not.toHaveBeenCalled();
     });
   });
 
