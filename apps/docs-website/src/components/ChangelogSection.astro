@@ -9,16 +9,14 @@ interface Props {
 }
 
 const { id, title, notes } = Astro.props;
-const folded = title === 'Smaller changes';
-const Container = folded ? 'details' : 'div';
 ---
 
-<Container class:list={{ 'changelog-highlights': title === HIGHLIGHTS }}>
-  {folded ? <summary id={id}>{title} ({notes.length})</summary> : <h2 id={id}>{title}</h2>}
+<div class:list={{ 'changelog-highlights': title === HIGHLIGHTS }}>
+  <h2 id={id}>{title}</h2>
   <ul>
     {notes.map((note) => <li set:html={note} />)}
   </ul>
-</Container>
+</div>
 
 <style>
   .changelog-highlights {
@@ -36,11 +34,6 @@ const Container = folded ? 'details' : 'div';
   }
 
   .changelog-highlights li {
-    font-weight: 600;
-  }
-
-  summary {
-    cursor: pointer;
     font-weight: 600;
   }
 </style>
