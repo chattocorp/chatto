@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Öppna ett utkast i …",
+      "title": "Dela till Chatto",
+      "unavailable": "Innehållet är inte tillgängligt. Dela det igen från den andra appen.",
+      "no_rooms": "Inga tillgängliga rum. Logga in på en server med ett rum där du kan skriva."
+    },
     "privileged_mode": {
       "enable": "Aktivera privilegierat läge",
       "disable": "Inaktivera privilegierat läge",

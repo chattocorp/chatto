@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Ouvrir un brouillon dans…",
+      "title": "Partager dans Chatto",
+      "unavailable": "Ce contenu est indisponible. Partagez-le à nouveau depuis l’autre application.",
+      "no_rooms": "Aucun salon disponible. Connectez-vous à un serveur avec un salon où vous pouvez publier."
+    },
     "privileged_mode": {
       "enable": "Activer le mode privilégié",
       "disable": "Désactiver le mode privilégié",

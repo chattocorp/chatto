@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Abrir un borrador en…",
+      "title": "Compartir en Chatto",
+      "unavailable": "Este contenido no está disponible. Vuelve a compartirlo desde la otra aplicación.",
+      "no_rooms": "No hay salas disponibles. Inicia sesión en un servidor con una sala donde puedas publicar."
+    },
     "privileged_mode": {
       "enable": "Activar modo privilegiado",
       "disable": "Desactivar modo privilegiado",

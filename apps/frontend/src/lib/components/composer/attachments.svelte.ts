@@ -95,11 +95,13 @@ export class AttachmentsState {
     }));
   }
 
+  /** Remaining slots include reservations for files currently being prepared. */
+  get availableSlots(): number {
+    return Math.max(0, MAX_MESSAGE_ATTACHMENTS - this.filesWithUrls.length - this.preparingCount);
+  }
+
   async stageFiles(files: File[]): Promise<void> {
-    const available = Math.max(
-      0,
-      MAX_MESSAGE_ATTACHMENTS - this.filesWithUrls.length - this.preparingCount
-    );
+    const available = this.availableSlots;
     const eligibleFiles = this.validateFiles(files, true);
     const selected = eligibleFiles.slice(0, available);
     if (eligibleFiles.length > available) {

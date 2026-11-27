@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Entwurf öffnen in …",
+      "title": "Mit Chatto teilen",
+      "unavailable": "Dieser Inhalt ist nicht verfügbar. Teile ihn erneut aus der anderen App.",
+      "no_rooms": "Keine Räume verfügbar. Melde dich bei einem Server mit einem Raum an, in dem du schreiben kannst."
+    },
     "privileged_mode": {
       "enable": "Privilegierten Modus aktivieren",
       "disable": "Privilegierten Modus deaktivieren",

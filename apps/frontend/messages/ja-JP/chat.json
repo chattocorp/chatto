@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "下書きを開く場所",
+      "title": "Chatto に共有",
+      "unavailable": "共有された内容を開けません。元のアプリからもう一度共有してください。",
+      "no_rooms": "利用できるルームがありません。投稿できるルームがあるサーバーにサインインしてください。"
+    },
     "privileged_mode": {
       "enable": "特権モードを有効にする",
       "disable": "特権モードを無効にする",
