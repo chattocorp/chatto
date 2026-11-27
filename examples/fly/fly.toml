@@ -1,0 +1,59 @@
+# deploy.sh fills in these three values for the operator's app.
+app = "APP_NAME"
+primary_region = "APP_REGION"
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  image = "ghcr.io/chattocorp/chatto:0.5.0"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "1gb"
+
+[mounts]
+  source = "chatto_data"
+  destination = "/data"
+  initial_size = "10gb"
+
+[env]
+  CHATTO_WEBSERVER_URL = "https://APP_DOMAIN"
+  CHATTO_NATS_EMBEDDED_DATA_DIR = "/data/chatto/jetstream"
+  CHATTO_NATS_EMBEDDED_SYNC_INTERVAL = "always"
+  CHATTO_CORE_SKIP_SETUP_WIZARD = "true"
+
+# The Machine has the volume during startup. Fly release commands do not.
+[experimental]
+  exec = ["/bin/sh", "-ec", '''
+    mkdir -p /data/chatto
+    chown chatto:chatto /data/chatto
+    cd /data/chatto
+    if [ ! -f chatto.toml ]; then
+      if [ "$CHATTO_CORE_SKIP_SETUP_WIZARD" != false ] || [ -e jetstream ]; then
+        echo "Missing Chatto configuration. Check the volume before starting." >&2
+        exit 1
+      fi
+      staging=$(mktemp -d .init.XXXXXX)
+      chown chatto:chatto "$staging"
+      trap 'rm -rf "$staging"' EXIT
+      docker-entrypoint.sh init -c "$staging/chatto.toml"
+      mv "$staging/chatto.toml" chatto.toml
+      rmdir "$staging"
+      trap - EXIT
+    fi
+    exec docker-entrypoint.sh run -c /data/chatto/chatto.toml
+  ''']
+
+# Keep the public service last. deploy.sh omits it during first-owner setup.
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "off"
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/readyz"
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "30s"
