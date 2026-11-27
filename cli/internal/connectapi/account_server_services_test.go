@@ -25,6 +25,39 @@ import (
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 )
 
+// BenchmarkGetViewer measures the authenticated handler with a warm core and embedded NATS.
+// Credential validation, transport encoding, and fixture setup are outside the timed loop.
+func BenchmarkGetViewer(b *testing.B) {
+	for _, role := range []string{"member", core.RoleModerator, core.RoleOwner} {
+		b.Run(role, func(b *testing.B) {
+			env := newConnectAPITestEnvWithTimeout(b, 10*time.Minute)
+			if role != "member" {
+				require.NoError(b, env.core.AssignServerRole(env.ctx, core.SystemActorID, env.viewer.Id, role))
+			}
+			ctx := authctx.WithCredential(withCaller(env.ctx, env.viewer), authctx.RuntimeCredential{
+				UserID: env.viewer.Id, Kind: authctx.RuntimeCredentialKindCookieSession,
+			})
+			measure := func(b *testing.B, ctx context.Context) {
+				req := connect.NewRequest(&apiv1.GetViewerRequest{})
+				_, err := env.viewerService.GetViewer(ctx, req)
+				require.NoError(b, err)
+				b.ReportAllocs()
+				for b.Loop() {
+					if _, err := env.viewerService.GetViewer(ctx, req); err != nil {
+						b.Fatal(err)
+					}
+				}
+			}
+			b.Run("inactive", func(b *testing.B) { measure(b, ctx) })
+			if role != "member" {
+				b.Run("active", func(b *testing.B) {
+					measure(b, privilegedModeContext(ctx, time.Now().Add(core.PrivilegedModeWindow), role))
+				})
+			}
+		})
+	}
+}
+
 func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "privileged-viewer", "Privileged Viewer", "password")
