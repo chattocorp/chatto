@@ -465,6 +465,12 @@ func TestAuthGenerationWindowAcceptsRevokedCredentialOnLaggingReplicaOnlyInsideW
 // it. The strict rejection also clears the record of the user.
 func TestAuthGenerationWindowRejectsAppliedRevocation(t *testing.T) {
 	core, _ := setupTestCore(t)
+	// Account deletion also schedules cookie removal. Keep the cookie present
+	// so validation reaches the generation check in every case.
+	_, err := core.storage.jobsStream.PauseConsumer(testContext(t), JobsConsumerName(jobTypeRuntimeCredentialCleanup), time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
 	installAuthClock(core)
 	for name, revoke := range map[string]func(userID string) *evtv1.Event{
 		"password change": passwordChangedEvent,

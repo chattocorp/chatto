@@ -46,7 +46,9 @@ The following Authling warning conditions are accepted and remain visible:
 
 Any other warning condition fails the run. Failures, unexpected skips, review
 results, interruptions, and timeouts also fail. The summary file contains
-module names, outcomes, condition names, and fixed client assertion results only. Do not upload raw suite logs
+module names, outcomes, condition names, and fixed client assertion results.
+If the harness stops during a module, its entry records `HARNESS_ERROR` and the
+operation that stopped. Do not upload raw suite logs
 or state: they contain test credentials and tokens.
 
 The unsigned-ID-token client module is one explicit skip exception: the suite
