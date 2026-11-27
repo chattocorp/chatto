@@ -2243,6 +2243,31 @@ describe('VoiceCallState', () => {
     expect(microphone.mock.calls).toEqual([[false], [true]]);
   });
 
+  it('disconnects the call when push-to-talk release cannot mute the microphone', async () => {
+    const client = createVoiceCallClient();
+    const state = createPermittedCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.setPushToTalkHeld(true);
+    const room = lastRoom!;
+    room.localParticipant.setMicrophoneEnabled.mockRejectedValueOnce(new Error('mute failed'));
+    await state.setPushToTalkHeld(false);
+    expect(room.disconnect).toHaveBeenCalled();
+    expect(state.connected).toBe(false);
+    expect(client.leaveCall).toHaveBeenCalledWith('R1');
+  });
+
+  it('keeps the call when an ordinary unmute supersedes a failed release', async () => {
+    const state = createPermittedCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.setPushToTalkHeld(true);
+    const room = lastRoom!;
+    room.localParticipant.setMicrophoneEnabled.mockRejectedValueOnce(new Error('mute failed'));
+    const release = state.setPushToTalkHeld(false);
+    await Promise.all([release, state.toggleMute()]);
+    expect(room.disconnect).not.toHaveBeenCalled();
+    expect(state.isMuted).toBe(false);
+  });
+
   it('applies a release that arrives while the microphone is starting', async () => {
     const state = createPermittedCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');

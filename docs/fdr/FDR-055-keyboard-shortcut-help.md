@@ -53,7 +53,8 @@ It lets users discover shortcuts without leaving their draft or changing setting
   unassigned. During a call, press it to open the microphone and release it to
   mute, even if the microphone was open before the press. Use the ordinary
   unmute control or mute shortcut to speak continuously again. Editing or
-  clearing a held shortcut ends the hold.
+  clearing a held shortcut ends the hold. If the microphone cannot mute on
+  release, Desktop disconnects the call to stop transmitting.
 
 ## Design Decisions
 
