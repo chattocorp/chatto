@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "Kies toetsen voor veelgebruikte acties",
       "system": "Systeembrede sneltoetsen",
+      "push_to_talk": "Druk om te spreken",
       "toggle_mute": "Microfoon dempen of inschakelen",
       "record": "Druk op {modifier} of {alternative} met een toets",
       "unavailable": "Sneltoets niet beschikbaar. Kies een andere combinatie.",

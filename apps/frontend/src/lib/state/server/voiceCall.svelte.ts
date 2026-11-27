@@ -304,6 +304,9 @@ export class VoiceCallState implements CallConnection {
   private joinInFlight: Promise<void> | null = null;
   private joinInFlightRoomId: string | null = null;
   private leaveInFlight: Promise<void> | null = null;
+  private pushToTalkHeld = false;
+  private microphoneIntent = 0;
+  private holdMuteTarget: boolean | null = null;
   private microphoneToggleInFlight: Promise<void> | null = null;
   private cameraToggleInFlight: Promise<void> | null = null;
   private screenShareToggleInFlight: Promise<void> | null = null;
@@ -872,6 +875,39 @@ export class VoiceCallState implements CallConnection {
    * Toggle microphone mute.
    */
   async toggleMute(): Promise<void> {
+    this.pushToTalkHeld = false;
+    const intent = ++this.microphoneIntent;
+    if (this.holdMuteTarget !== null) {
+      // A normal toggle takes ownership, including while release is still muting.
+      const muted = !this.holdMuteTarget;
+      this.holdMuteTarget = null;
+      return this.applyMicrophoneIntent(muted, intent);
+    }
+    return this.toggleMicrophone();
+  }
+
+  /** Press opens the microphone; release always closes it, even if it started open. */
+  async setPushToTalkHeld(held: boolean): Promise<void> {
+    if (this.pushToTalkHeld === held) return;
+    this.pushToTalkHeld = held;
+    const intent = ++this.microphoneIntent;
+    this.holdMuteTarget = !held;
+    try {
+      await this.applyMicrophoneIntent(!held, intent);
+    } finally {
+      if (this.microphoneIntent === intent) this.holdMuteTarget = null;
+    }
+  }
+
+  private async applyMicrophoneIntent(muted: boolean, intent: number): Promise<void> {
+    const room = this.room;
+    if (this.microphoneToggleInFlight) await this.microphoneToggleInFlight;
+    if (intent === this.microphoneIntent && this.room === room && this.isMuted !== muted) {
+      await this.toggleMicrophone();
+    }
+  }
+
+  private async toggleMicrophone(): Promise<void> {
     if (this.isMuted && !this.canUseVoice) return;
     if (this.microphoneToggleInFlight) return this.microphoneToggleInFlight;
 
@@ -900,7 +936,14 @@ export class VoiceCallState implements CallConnection {
       });
       if (this.room !== room) return;
     } catch (err) {
-      if (this.room === room && !newMuted) {
+      if (this.room !== room) return;
+      if (newMuted && this.holdMuteTarget === true) {
+        // A failed release can leave live audio flowing. Disconnect before waiting for the server.
+        const roomId = this.roomId;
+        this.disconnectNow();
+        toast.error(m('voice.disconnected'));
+        if (roomId) await this.recordLeaveIntent(roomId);
+      } else if (!newMuted) {
         this.notifyMediaDeviceError(
           getVoiceCallMediaDeviceErrorMessage('microphone', err, 'enable')
         );
@@ -1806,6 +1849,9 @@ export class VoiceCallState implements CallConnection {
     this.activeCallId = null;
     this.liveKitURL = null;
     this.pendingOwnJoinSound = null;
+    this.microphoneIntent++;
+    this.pushToTalkHeld = false;
+    this.holdMuteTarget = null;
     this.microphoneToggleInFlight = null;
     this.cameraToggleInFlight = null;
     this.screenShareToggleInFlight = null;

@@ -11,6 +11,7 @@ import {
   desktopCapturer,
   dialog,
   globalShortcut,
+  powerMonitor,
   ipcMain,
   MessageChannelMain,
   Menu,
@@ -24,6 +25,7 @@ import {
 } from 'electron';
 import { createFrontendProtocolHandler } from './frontend_protocol.mjs';
 import { configureYouTubeEmbeds } from './youtube.mjs';
+import { configurePushToTalk } from './push_to_talk.mjs';
 import { configureMuteShortcut, protectReloadShortcuts } from './keyboard_shortcuts.mjs';
 import { configureNativeNavigation } from './native_navigation.mjs';
 import { configureMediaContextMenu } from './media_context_menu.mjs';
@@ -183,6 +185,17 @@ async function start() {
     wayland:
       process.platform === 'linux' &&
       (process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY)
+  });
+  configurePushToTalk({
+    ipcMain,
+    powerMonitor,
+    contents: mainWindow.webContents,
+    isTrusted: isTrustedMainRenderer,
+    appId: buildProfile.bundleIdentifier,
+    executable: path.join(
+      app.isPackaged ? process.resourcesPath : path.join(desktopRoot, 'dist/native'),
+      process.platform === 'win32' ? 'push-to-talk.exe' : 'push-to-talk'
+    )
   });
   const background = configureBackgroundWindow({
     app,

@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "Sık kullanılan işlemler için tuş seçin",
       "system": "Sistem genelinde kısayollar",
+      "push_to_talk": "Bas konuş",
       "toggle_mute": "Mikrofonu kapat veya aç",
       "record": "Bir tuşla birlikte {modifier} veya {alternative} tuşuna basın",
       "unavailable": "Kısayol kullanılamıyor. Başka bir tuş birleşimi seçin.",

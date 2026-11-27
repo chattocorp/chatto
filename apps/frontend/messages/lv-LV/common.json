@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "Izvēlieties taustiņus biežākajām darbībām",
       "system": "Sistēmas īsinājumtaustiņi",
+      "push_to_talk": "Nospiest, lai runātu",
       "toggle_mute": "Izslēgt vai ieslēgt mikrofonu",
       "record": "Nospiediet {modifier} vai {alternative} kopā ar taustiņu",
       "unavailable": "Īsinājumtaustiņš nav pieejams. Izvēlieties citu kombināciju.",

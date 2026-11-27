@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "Wähle Tasten für häufige Aktionen",
       "system": "Systemweite Tastenkürzel",
+      "push_to_talk": "Push-to-Talk",
       "toggle_mute": "Mikrofon stummschalten oder aktivieren",
       "record": "Drücke {modifier} oder {alternative} mit einer Taste",
       "unavailable": "Tastenkürzel nicht verfügbar. Wähle eine andere Kombination.",
