@@ -315,9 +315,11 @@ describe('Account settings page', () => {
     await expect.element(submitButton).toBeEnabled();
     await submitButton.click();
 
+    // The app language goes with the request, so the email uses it.
     expect(mocks.requestEmailVerification).toHaveBeenCalledWith(
       'U123abcetc.',
-      'alice.new@example.com'
+      'alice.new@example.com',
+      { locale: expect.any(String) }
     );
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/settings/account/verify-email');
   });
