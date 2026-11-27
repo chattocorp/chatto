@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Atvērt melnrakstu telpā…",
+      "title": "Kopīgot ar Chatto",
+      "unavailable": "Šis saturs nav pieejams. Kopīgojiet to vēlreiz no otras lietotnes.",
+      "no_rooms": "Nav pieejamu istabu. Pierakstieties serverī ar istabu, kurā varat publicēt ziņas."
+    },
     "privileged_mode": {
       "enable": "Ieslēgt privileģēto režīmu",
       "disable": "Izslēgt privileģēto režīmu",

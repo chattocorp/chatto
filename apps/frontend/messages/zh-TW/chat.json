@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "選擇要開啟草稿的對話",
+      "title": "分享到 Chatto",
+      "unavailable": "這個分享內容無法使用。請從其他應用程式重新分享。",
+      "no_rooms": "沒有可用的房間。請登入有你可以發言的房間的伺服器。"
+    },
     "privileged_mode": {
       "enable": "啟用特權模式",
       "disable": "停用特權模式",

@@ -1,16 +1,18 @@
 # FDR-027: PWA & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-10-26
+**Last reviewed:** 2026-11-27
 
 ## Overview
 
-Chatto is an installable web app that requires a server connection. Service workers handle push notifications and notification clicks. The app does not keep an offline application shell or chat data on the device.
+Chatto is an installable web app that requires a server connection. Service workers handle push notifications, notification clicks, and incoming shares. The app does not keep an offline application shell or chat data on the device.
 
 Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps the normal chat layout and its retained data visible while fresh resources arrive. The worker does not cache or replay API responses or live-event traffic.
 
 ## Behavior
 
+- The Android share sheet offers the installed Chatto PWA for text, links, and images. The share worker normally handles the form request on the device. If the worker is unavailable, the request can reach the hosting server before the member selects a destination.
+- The local share handoff keeps the payload in memory until the selected composer accepts the text and all images. A rejected draft returns the member to the destination picker with the share intact.
 - Web Push uses a separate service-worker registration for each server, including the serving server. Push notifications do not require an offline application shell.
 - The app does not preload the complete frontend build or provide an offline launch fallback. Normal browser HTTP caching still applies to frontend files.
 - The installed app opens the origin chat route. That route opens the last room that the device remembers, or the overview.
@@ -45,7 +47,7 @@ Reconnect catch-up is owned by the foreground web app. A warm reconnect keeps th
 
 ### 3. Keep push subscriptions during shell removal
 
-**Decision:** Fresh installations create only the server-specific registrations needed for Web Push. Upgrade cleanup removes old offline caches and root registrations that have no push subscription. A subscribed root registration remains until its subscription has migrated to a server-specific registration (see FDR-013 Decision 8).
+**Decision:** Fresh installations use server-specific registrations for Web Push and a separate registration for incoming shares. Upgrade cleanup removes old offline caches and root registrations that have no push subscription. A subscribed root registration remains until its subscription has migrated to a server-specific registration (see FDR-013 Decision 8).
 **Why:** Removing a subscribed registration would stop notifications before its replacement is ready. Repeated cleanup lets a later visit finish an interrupted upgrade without a device reset.
 **Tradeoff:** A legacy root registration can remain until the user returns and its push migration completes. It uses the push-only worker and does not preload the app.
 

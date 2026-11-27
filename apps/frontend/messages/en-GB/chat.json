@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Open a draft in…",
+      "title": "Share to Chatto",
+      "unavailable": "This share is unavailable. Share it again from the other app.",
+      "no_rooms": "No available rooms. Sign in to a server with a room you can post in."
+    },
     "privileged_mode": {
       "enable": "Enable privileged mode",
       "disable": "Disable privileged mode",

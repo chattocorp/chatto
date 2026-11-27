@@ -8,7 +8,9 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { client } from '$lib/client';
 
-  const activeServerId = $derived(page.route.id?.startsWith('/chat') ? getActiveServer() : '');
+  const activeServerId = $derived(
+    page.route.id?.startsWith('/chat') || page.route.id === '/share' ? getActiveServer() : ''
+  );
 
   $effect(() => {
     // Starting reads client state; it must not make this effect restart.

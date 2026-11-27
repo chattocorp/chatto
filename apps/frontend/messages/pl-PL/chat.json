@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Otwórz szkic w…",
+      "title": "Udostępnij w Chatto",
+      "unavailable": "Ta treść jest niedostępna. Udostępnij ją ponownie z drugiej aplikacji.",
+      "no_rooms": "Brak dostępnych pokoi. Zaloguj się na serwer z pokojem, w którym możesz pisać."
+    },
     "privileged_mode": {
       "enable": "Włącz tryb uprzywilejowany",
       "disable": "Wyłącz tryb uprzywilejowany",
