@@ -20,6 +20,7 @@
     defaultBindings,
     isSystemShortcut,
     eventChord,
+    shortcutAccelerator,
     shortcutLabel,
     shortcutPreferences,
     type ShortcutAction
@@ -66,7 +67,7 @@
     const current = ++revision;
     if (isSystemShortcut(action) && chord) {
       const available = await desktopMuteShortcut()
-        ?.available(chord)
+        ?.available(shortcutAccelerator(chord))
         .catch(() => false);
       if (revision !== current) return;
       if (!available) {
@@ -100,7 +101,11 @@
     const chord =
       !isSystemShortcut(action) && wrongModifier
         ? undefined
-        : eventChord(event, isSystemShortcut(action));
+        : eventChord(
+            event,
+            isSystemShortcut(action),
+            action === 'pushToTalk' && usesAppleShortcutModifier()
+          );
     if (chord) save(action, chord);
     else error = recordingHint(action);
   }

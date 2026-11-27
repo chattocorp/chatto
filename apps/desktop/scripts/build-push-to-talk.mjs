@@ -42,7 +42,7 @@ export function buildPushToTalk(architecture = process.arch) {
       path.join(source, 'windows.go')
     ]);
   } else {
-    const flags = execFileSync('pkg-config', ['--cflags', '--libs', 'gio-unix-2.0', 'x11'], {
+    const flags = execFileSync('pkg-config', ['--cflags', '--libs', 'gio-unix-2.0', 'x11', 'xi'], {
       encoding: 'utf8'
     })
       .trim()

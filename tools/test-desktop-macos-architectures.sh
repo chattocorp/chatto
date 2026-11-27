@@ -22,4 +22,4 @@ while IFS= read -r -d '' binary; do
   fi
 done < <(find "$bundle" -type f -print0)
 
-swift apps/desktop/native/push-to-talk/test-macos.swift "$bundle/Contents/Resources/push-to-talk"
+swift -import-objc-header apps/desktop/native/push-to-talk/macos-key.h apps/desktop/native/push-to-talk/test-macos.swift "$bundle/Contents/Resources/push-to-talk"

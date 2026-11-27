@@ -302,9 +302,9 @@ jobs:
       - name: Install Linux hotkey helper build dependencies
         if: runner.os == 'Linux'
         run: |
-          if ! pkg-config --exists gio-unix-2.0 x11; then
+          if ! pkg-config --exists gio-unix-2.0 x11 xi; then
             sudo apt-get -o Acquire::Retries=2 update
-            sudo apt-get -o Acquire::Retries=2 install -y --no-install-recommends pkg-config libglib2.0-dev libx11-dev
+            sudo apt-get -o Acquire::Retries=2 install -y --no-install-recommends pkg-config libglib2.0-dev libx11-dev libxi-dev
           fi
 
       - name: Build desktop bundle

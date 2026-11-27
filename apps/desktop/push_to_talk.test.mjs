@@ -24,8 +24,9 @@ test('only the current call receives hold edges and helper failure releases its 
     isTrusted: (e) => e === 'main',
     executable: 'helper',
     appId: 'run.chatto.desktop',
-    launch: () => {
+    launch: (_executable, args) => {
       const child = new EventEmitter();
+      child.args = args;
       child.stdout = new PassThrough();
       child.kill = () => queueMicrotask(() => child.emit('close', 0));
       helpers.push(child);
@@ -34,8 +35,11 @@ test('only the current call receives hold edges and helper failure releases its 
   });
   assert.equal(set('other', 'Control+M', 'a'), false);
   assert.equal(set('main', 'Alt+M', 'a'), false);
-  assert.equal(set('main', 'Control+M', 'a'), true);
+  const trigger = process.platform === 'darwin' ? '@M' : 'M';
+  assert.equal(set('main', 'Control+@invalid', 'a'), false);
+  assert.equal(set('main', 'Control+' + trigger, 'a'), true);
   await tick();
+  assert.deepEqual(helpers[0].args.slice(0, 2), ['1', trigger]);
   helpers[0].stdout.write('ready\ndown\ndown\nup\nup\ndown\n');
   powerMonitor.emit('suspend');
   helpers[0].stdout.write('down\n');

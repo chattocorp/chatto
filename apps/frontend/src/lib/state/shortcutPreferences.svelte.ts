@@ -80,12 +80,23 @@ export function isSystemShortcut(action: ShortcutAction): boolean {
   return action === 'mute' || action === 'pushToTalk';
 }
 
+/** A leading @ marks a macOS push-to-talk trigger recovered from its physical position. */
+export function shortcutAccelerator(chord: string): string {
+  return chord.replace(/\+@([A-Z0-9/,])$/, '+$1');
+}
+
 function validBinding(action: ShortcutAction, chord: string) {
-  return (isSystemShortcut(action) ? validSystemChord : validAppChord).test(chord);
+  return (isSystemShortcut(action) ? validSystemChord : validAppChord).test(
+    action === 'pushToTalk' ? shortcutAccelerator(chord) : chord
+  );
 }
 
 /** Return a canonical chord only for supported keys. Keep plain typing available. */
-export function eventChord(event: KeyboardEvent, systemWide = false): string | undefined {
+export function eventChord(
+  event: KeyboardEvent,
+  systemWide = false,
+  preservePosition = false
+): string | undefined {
   // In the explicit system recorder the modifier flags describe the accelerator.
   // The input method can also flag Option as AltGraph or start composing text.
   if (
@@ -105,7 +116,11 @@ export function eventChord(event: KeyboardEvent, systemWide = false): string | u
   ]
     .filter(Boolean)
     .join('+');
-  return (systemWide ? validSystemChord : validAppChord).test(chord) ? chord : undefined;
+  if (!(systemWide ? validSystemChord : validAppChord).test(chord)) return;
+  if (preservePosition && key.length === 1 && key !== event.key) {
+    return chord.replace(/[^+]+$/, '@' + key.toUpperCase());
+  }
+  return chord;
 }
 
 function slot(action: ShortcutAction) {
@@ -123,6 +138,8 @@ function loadBindings(): Record<ShortcutAction, string> {
 
 /** In-app command shortcuts accept either Control or Meta. Check both aliases. */
 function bindingsOverlap(a: string, b: string): boolean {
+  a = shortcutAccelerator(a);
+  b = shortcutAccelerator(b);
   return ['Control', 'Super'].some(
     (modifier) =>
       a.replace('CommandOrControl', modifier) === b.replace('CommandOrControl', modifier)
@@ -166,7 +183,7 @@ export function shortcutProps(chord: string) {
 /** Show the key names used on this platform. */
 export function bindingText(chord: string): string {
   const apple = usesAppleShortcutModifier();
-  return chord
+  return shortcutAccelerator(chord)
     .split('+')
     .map((part) => {
       if (part === 'Control') return apple ? '⌃' : 'Ctrl';

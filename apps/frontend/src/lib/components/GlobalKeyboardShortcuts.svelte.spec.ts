@@ -1,5 +1,11 @@
 import ShortcutSettings from './settings/ShortcutSettings.svelte';
-import { shortcutPreferences, defaultBindings } from '$lib/state/shortcutPreferences.svelte';
+import {
+  shortcutPreferences,
+  defaultBindings,
+  eventChord,
+  shortcutAccelerator,
+  bindingText
+} from '$lib/state/shortcutPreferences.svelte';
 import { usesAppleShortcutModifier } from '$lib/utils/platformShortcuts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
@@ -693,6 +699,27 @@ it('offers an unassigned push-to-talk shortcut and rejects a mute shortcut colli
     expect(shortcutPreferences.set('mute', 'Control+Alt+M')).toBe(false);
   } finally {
     delete window.chattoDesktop;
+    shortcutPreferences.set('pushToTalk', '');
+  }
+});
+
+it('retains the physical Mac key when its fallback has the same label as a layout character', () => {
+  // On French AZERTY, the physical Comma key types a semicolon and KeyM types a comma.
+  const physical = new KeyboardEvent('keydown', { ctrlKey: true, key: ';', code: 'Comma' });
+  const literal = new KeyboardEvent('keydown', { ctrlKey: true, key: ',', code: 'KeyM' });
+  const chord = eventChord(physical, true, true)!;
+  expect(chord).toBe('Control+@,');
+  expect(eventChord(literal, true, true)).toBe('Control+,');
+  expect(shortcutAccelerator(chord)).toBe('Control+,');
+  expect(bindingText(chord)).toBe(bindingText('Control+,'));
+  expect(eventChord(physical, true)).toBe('Control+,');
+  try {
+    // The default Settings shortcut reserves this combination on at least one platform.
+    expect(shortcutPreferences.set('pushToTalk', chord)).toBe(false);
+    const modified = 'Control+Shift+@,';
+    expect(shortcutPreferences.set('pushToTalk', modified)).toBe(true);
+    expect(shortcutPreferences.set('mute', 'Control+Shift+,')).toBe(false);
+  } finally {
     shortcutPreferences.set('pushToTalk', '');
   }
 });

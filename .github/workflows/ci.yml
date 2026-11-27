@@ -486,13 +486,11 @@ jobs:
       - name: Check and test desktop shell
         run: mise test-desktop
 
-      - name: Install Linux hotkey helper build dependencies
+      - name: Install Linux hotkey build and test dependencies
         if: runner.os == 'Linux'
         run: |
-          if ! pkg-config --exists gio-unix-2.0 x11; then
-            sudo apt-get -o Acquire::Retries=2 update
-            sudo apt-get -o Acquire::Retries=2 install -y --no-install-recommends pkg-config libglib2.0-dev libx11-dev
-          fi
+          sudo apt-get -o Acquire::Retries=2 update
+          sudo apt-get -o Acquire::Retries=2 install -y --no-install-recommends pkg-config libglib2.0-dev libx11-dev libxi-dev xvfb xauth python3-xlib
 
       - name: Build desktop bundle
         run: mise desktop-build
@@ -512,6 +510,10 @@ jobs:
         # Packaging downloads builder binaries. Retry only transport failures;
         # ordinary packaging errors still fail on the first attempt.
         run: node tools/ci-retry-download.mjs pnpm --filter chatto-desktop build:linux-appimage
+
+      - name: Test X11 push-to-talk while another window receives input
+        if: runner.os == 'Linux'
+        run: xvfb-run -a /usr/bin/python3 apps/desktop/native/push-to-talk/test-x11.py apps/desktop/dist/chatto-desktop/resources/push-to-talk
 
       - name: Verify Linux launcher and icons
         if: runner.os == 'Linux'

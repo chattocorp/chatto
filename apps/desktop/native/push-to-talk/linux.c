@@ -2,6 +2,7 @@
 // disconnect the process exits and the display server releases its resources.
 #include <X11/XKBlib.h>
 #include <X11/keysym.h>
+#include <X11/extensions/XInput2.h>
 #include <gio/gio.h>
 #include <glib-unix.h>
 #include <stdio.h>
@@ -17,6 +18,8 @@ static GDBusConnection *bus;
 static char *request, *session, *shortcut_id, *trigger;
 static Display *display;
 static KeyCode trigger_code;
+static int xi_opcode;
+static gboolean x_held;
 
 static gboolean parent_closed(gint fd, GIOCondition condition, gpointer data) { exit(0); }
 
@@ -129,15 +132,41 @@ static void start_portal(int mask, const char *key, const char *app_id) {
 }
 
 static int grab_error(Display *d, XErrorEvent *event) { exit(1); }
+// Subscribe to releases only during a hold. XI2 keeps reporting the trigger's
+// release after we give the foreground application its keyboard back.
+static void watch_release(gboolean held) {
+    unsigned char bits[XIMaskLen(XI_RawKeyRelease)] = {0};
+    if (held)
+        XISetMask(bits, XI_RawKeyRelease);
+    XIEventMask mask = {XIAllMasterDevices, sizeof(bits), bits};
+    XISelectEvents(display, DefaultRootWindow(display), &mask, 1);
+    x_held = held;
+}
+
 static gboolean x_events(gint fd, GIOCondition condition, gpointer data) {
     if (condition & (G_IO_ERR | G_IO_HUP))
         exit(1);
     while (XPending(display)) {
         XEvent event;
         XNextEvent(display, &event);
-        if ((event.type == KeyPress || event.type == KeyRelease) &&
-            event.xkey.keycode == trigger_code)
-            puts(event.type == KeyPress ? "down" : "up");
+        if (event.type == KeyPress && event.xkey.keycode == trigger_code) {
+            if (!x_held) {
+                watch_release(TRUE);
+                puts("down");
+            }
+            // The synchronous passive grab freezes later keystrokes until this
+            // request. They then go to the focused window, even during the hold.
+            XUngrabKeyboard(display, event.xkey.time);
+            XFlush(display);
+        } else if (event.type == GenericEvent && event.xcookie.extension == xi_opcode &&
+                   event.xcookie.evtype == XI_RawKeyRelease && XGetEventData(display, &event.xcookie)) {
+            XIRawEvent *release = event.xcookie.data;
+            if (x_held && release->detail == trigger_code) {
+                watch_release(FALSE);
+                puts("up");
+            }
+            XFreeEventData(display, &event.xcookie);
+        }
     }
     return G_SOURCE_CONTINUE;
 }
@@ -145,6 +174,10 @@ static gboolean x_events(gint fd, GIOCondition condition, gpointer data) {
 static void start_x11(int mask, const char *key) {
     display = XOpenDisplay(NULL);
     if (!display)
+        exit(1);
+    int event_base, error_base, major = 2, minor = 1;
+    if (!XQueryExtension(display, "XInputExtension", &xi_opcode, &event_base, &error_base) ||
+        XIQueryVersion(display, &major, &minor) != Success || (major == 2 && minor < 1))
         exit(1);
     trigger_code = XKeysymToKeycode(display, XStringToKeysym(key));
     Bool repeat;
@@ -158,7 +191,7 @@ static void start_x11(int mask, const char *key) {
     for (unsigned extra = 0; extra < 256; extra++)
         if (!(extra & ~locks))
             XGrabKey(display, trigger_code, mods | extra, DefaultRootWindow(display), False,
-                     GrabModeAsync, GrabModeAsync);
+                     GrabModeAsync, GrabModeSync);
     XSync(display, False);
     puts("ready");
     x_events(ConnectionNumber(display), G_IO_IN, NULL);

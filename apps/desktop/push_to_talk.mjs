@@ -80,7 +80,10 @@ export function configurePushToTalk({
       if (owner?.token === token) clear();
       return true;
     }
-    if (typeof chord !== 'string' || !validSystemChord.test(chord)) return false;
+    if (typeof chord !== 'string') return false;
+    const accelerator =
+      process.platform === 'darwin' ? chord.replace(/\+@([A-Z0-9/,])$/, '+$1') : chord;
+    if (!validSystemChord.test(accelerator)) return false;
     clear();
     owner = { chord, token, child: null };
     const binding = owner;

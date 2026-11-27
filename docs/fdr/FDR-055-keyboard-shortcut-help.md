@@ -54,7 +54,9 @@ It lets users discover shortcuts without leaving their draft or changing setting
   mute, even if the microphone was open before the press. Use the ordinary
   unmute control or mute shortcut to speak continuously again. Editing or
   clearing a held shortcut ends the hold. If the microphone cannot mute on
-  release, Desktop disconnects the call to stop transmitting.
+  release, Desktop disconnects the call to stop transmitting. On Wayland,
+  the Global Shortcuts portal must be available when the call registers the
+  shortcut. Saving the shortcut in Preferences does not verify portal support.
 
 ## Design Decisions
 
