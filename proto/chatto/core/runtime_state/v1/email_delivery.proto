@@ -7,7 +7,13 @@ option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/ru
 message EmailDelivery {
   string to = 1;
   string subject = 2;
+  // Plain-text body.
   string body = 3;
+  // Optional HTML alternative to body. Records from older servers omit it and
+  // are sent as plain text.
+  string html_body = 4;
+  // Optional sender display name, used when the configured sender has none.
+  string from_name = 5;
 }
 
 // SealedEmailDelivery binds ciphertext to its runtime key through associated data.

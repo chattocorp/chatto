@@ -108,7 +108,7 @@
       request: PendingHighlight | null
     ) => void;
     onReachedBottom?: () => void;
-    /** Report a user return-to-latest request before replacing the current window. */
+    /** Clear the pending highlight when the reader asks to return to the latest messages. */
     onJumpToPresent?: () => void;
     /**
      * Reports the newest position that the viewer can see when it changes.
@@ -716,13 +716,6 @@
     }
   });
 
-  // Scroll to bottom when clicking the new messages indicator
-  function scrollToBottom() {
-    viewport.requestBottom();
-    onReachedBottom?.();
-    void requestBottomScroll();
-  }
-
   /** Read the latest window again after a failed read left the timeline empty. */
   function retryLoad() {
     viewport.retryEntry();
@@ -731,6 +724,15 @@
 
   async function handleJumpToPresentClick() {
     onJumpToPresent?.();
+    if (!isJumpedMode) {
+      // The target can already be in the latest window. Cancel its pending
+      // scroll retries before scrolling to the bottom of that same window.
+      jumpState.scrollToEventId = null;
+      viewport.requestBottom();
+      onReachedBottom?.();
+      void requestBottomScroll();
+      return;
+    }
     // The replacement latest window must perform a fresh initial-style bottom
     // scroll. Virtua otherwise preserves the historical window's offset when
     // the keyed data is replaced and can leave the user stranded mid-window.
@@ -1129,7 +1131,7 @@
   {#if !viewport.shouldScrollToBottom}
     <button
       transition:fade={{ duration: userPreferences.reducedMotion ? 0 : 150 }}
-      onclick={isJumpedMode ? handleJumpToPresentClick : scrollToBottom}
+      onclick={handleJumpToPresentClick}
       data-testid="jump-to-present"
       class="absolute bottom-4 left-1/2 z-40 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
     >

@@ -1,6 +1,7 @@
 package email_test
 
 import (
+	"net/mail"
 	"regexp"
 	"strings"
 	"testing"
@@ -87,6 +88,41 @@ func TestMailer_Integration_SendSuccess(t *testing.T) {
 	}
 	if !regexp.MustCompile(`(?m)^Message-ID: <[0-9a-f]{32}@example\.com>\r?$`).MatchString(data) {
 		t.Errorf("expected Message-ID with the sender domain, got %q", data)
+	}
+}
+
+func TestMailer_Integration_SendHTMLAlternative(t *testing.T) {
+	server := startMockServer(t, smtpmock.ConfigurationAttr{})
+
+	mailer := email.NewMailer(config.SMTPConfig{
+		Enabled: true,
+		Host:    "127.0.0.1",
+		Port:    server.PortNumber(),
+		TLS:     config.SMTPTLSOpportunistic,
+		From:    "sender@example.com",
+	})
+	if err := mailer.Send(email.Message{
+		To:       "recipient@example.com",
+		FromName: `Acme "Ünited" \ Chat`,
+		Subject:  "Test Subject",
+		Body:     "Plain part",
+		HTMLBody: "<p>HTML part</p>",
+	}); err != nil {
+		t.Fatalf("Send() failed: %v", err)
+	}
+	messages, err := server.WaitForMessages(1, time.Second)
+	if err != nil {
+		t.Fatalf("WaitForMessages failed: %v", err)
+	}
+	data := messages[0].MsgRequest()
+	for _, want := range []string{"multipart/alternative", "text/plain", "Plain part", "text/html", "<p>HTML part</p>", "<sender@example.com>"} {
+		if !strings.Contains(data, want) {
+			t.Errorf("message lacks %q:\n%s", want, data)
+		}
+	}
+	header, err := mail.ParseAddress(regexp.MustCompile(`(?m)^From: (.+?)\r?$`).FindStringSubmatch(data)[1])
+	if err != nil || header.Name != `Acme "Ünited" \ Chat` {
+		t.Errorf("From header = %v (%v), want the server name", header, err)
 	}
 }
 

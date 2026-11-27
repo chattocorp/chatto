@@ -1,6 +1,6 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
-import { waitForVerificationCode } from './mailpit';
+import { messageCount, waitForVerificationCode } from './mailpit';
 import type { TestStack } from './stack';
 
 export async function completeSignup(
@@ -12,7 +12,12 @@ export async function completeSignup(
 ): Promise<string> {
   await page.goto('/signup');
   await page.getByLabel('Email address').fill(email);
+  // A second signup in the same test can leave the previous code in Mailpit.
+  const previousCount = await messageCount(request, stack.mailpitURL);
   await page.getByRole('button', { name: 'Email me a code' }).click();
+  await expect
+    .poll(() => messageCount(request, stack.mailpitURL), { timeout: 10_000 })
+    .toBeGreaterThan(previousCount);
   const code = await waitForVerificationCode(request, stack.mailpitURL);
   await page.getByLabel('Verification code').fill(code);
   await page.getByRole('button', { name: 'Verify email' }).click();

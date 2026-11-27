@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"sync"
@@ -509,6 +510,76 @@ func TestChattoCore_FreshAuthSurvivesConcurrentAccessRotation(t *testing.T) {
 	}
 	if err := chattoCore.RequireFreshAuthForBearerToken(ctx, rotated.AccessToken); err != nil {
 		t.Fatalf("rotated access token did not adopt session fresh auth: %v", err)
+	}
+}
+
+// afterAccessRecordCreate lets another replica act after the rotation commits
+// and before the issuing replica confirms that the session is still active.
+type afterAccessRecordCreate struct {
+	jetstream.KeyValue
+	key   string
+	after func()
+}
+
+func (kv afterAccessRecordCreate) Create(ctx context.Context, key string, value []byte, opts ...jetstream.KVCreateOpt) (uint64, error) {
+	revision, err := kv.KeyValue.Create(ctx, key, value, opts...)
+	if err == nil && key == kv.key {
+		kv.after()
+	}
+	return revision, err
+}
+
+func TestChattoCore_RefreshConfirmationAcrossReplicas(t *testing.T) {
+	for _, action := range []string{"rotate", "revoke"} {
+		t.Run(action, func(t *testing.T) {
+			ctx := testContext(t)
+			ns, _ := testutil.StartNATS(t)
+			peer := startReplica(t, ns, testCoreConfig())
+			user, err := peer.CreateUser(ctx, SystemActorID, "confirmation-user", "Confirmation User", "password123")
+			if err != nil {
+				t.Fatal(err)
+			}
+			initial, err := peer.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+			if err != nil {
+				t.Fatal(err)
+			}
+			issuer, err := NewChattoCore(ctx, newReplicaConn(t, ns), testCoreConfig())
+			if err != nil {
+				t.Fatal(err)
+			}
+			sessionID, generation, _ := peer.parseRefreshToken(initial.RefreshToken)
+			expectedAccess := peer.accessTokenForGeneration(sessionID, generation+1)
+			acted := false
+			issuer.storage.runtimeStateKV = bindTestKeyValue(t, issuer.js, afterAccessRecordCreate{
+				KeyValue: issuer.storage.runtimeStateKV.KeyValue,
+				key:      issuer.authTokenKey(expectedAccess),
+				after: func() {
+					if action == "rotate" {
+						_, err = peer.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDB, "")
+					} else {
+						err = peer.RevokeRefreshTokenWithReason(ctx, initial.RefreshToken, "logout")
+					}
+					if err != nil {
+						t.Fatal(err)
+					}
+					acted = true
+				},
+			})
+			startCoreServices(t, issuer)
+			pair, err := issuer.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, "")
+			if !acted {
+				t.Fatal("peer did not act during refresh")
+			}
+			if action == "revoke" {
+				if !errors.Is(err, ErrRefreshTokenNotFound) {
+					t.Fatalf("refresh after revocation = %v, want ErrRefreshTokenNotFound", err)
+				}
+				return
+			}
+			if err != nil || pair.AccessToken != expectedAccess {
+				t.Fatalf("expected the issuing replica's committed credential, error = %v", err)
+			}
+		})
 	}
 }
 

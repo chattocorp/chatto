@@ -1,0 +1,19 @@
+{{.Heading}}
+
+{{.Intro}}
+{{- if .Code}}
+
+    {{.Code}}
+
+{{.Expiry}}
+{{- end}}
+{{- if .ButtonURL}}
+
+{{.ButtonLabel}}:
+{{.ButtonURL}}
+
+{{.Expiry}}
+{{- end}}
+
+--
+{{.Footer}}

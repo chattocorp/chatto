@@ -520,7 +520,7 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
 </EnvVar>
 
 <EnvVar name="CHATTO_EMAIL_JMAP_FROM" toml="email.jmap.from">
-  From address for outgoing email. It must match a sending identity in the JMAP account. Required when `email.transport` is `jmap`.
+  From address for outgoing email. It must match a sending identity in the JMAP account. Required when `email.transport` is `jmap`. If the address has no display name, such as `chat@example.com`, Chatto uses the server name as the display name.
 </EnvVar>
 
 <EnvVar name="CHATTO_EMAIL_JMAP_ACCOUNT_ID" toml="email.jmap.account_id">
@@ -570,7 +570,7 @@ SMTP is the default transactional email transport. Set `email.transport = "jmap"
 </EnvVar>
 
 <EnvVar name="CHATTO_SMTP_FROM" toml="smtp.from">
-  From address for outgoing emails.
+  From address for outgoing emails. If the address has no display name, such as `chat@example.com`, Chatto uses the server name as the display name.
 </EnvVar>
 
 ## Push Notifications
