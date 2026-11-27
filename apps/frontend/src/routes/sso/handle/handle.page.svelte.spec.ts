@@ -29,6 +29,8 @@ describe('AT Protocol handle page', () => {
     await expect
       .element(screen.getByRole('heading', { name: 'Sign in with your Atmosphere account' }))
       .toBeVisible();
+    const label = screen.getByText('Handle', { exact: true });
+    await expect.element(label).not.toHaveClass('sr-only');
     const field = screen.getByLabelText('Handle', { exact: true });
     await expect.element(field).toHaveValue('alice.example');
     await screen.getByRole('button', { name: 'Use another handle' }).click();

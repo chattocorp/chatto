@@ -89,7 +89,6 @@ then continues the same sign-in (FDR-058). It runs in the sign-in window.
         <TextInput
           id="atproto-handle"
           label={m('auth.login.atproto_handle_label')}
-          labelHidden
           placeholder={m('auth.login.atproto_handle_placeholder')}
           autocomplete="username"
           leadingIcon="icon-[mdi--at]"
