@@ -39,13 +39,17 @@
 
 {#snippet atWidths(props: typeof server)}
   <div class="flex flex-col gap-8 p-6">
+    <!--
+      Each sample is a labelled section. Outside a section, each header is a
+      page banner landmark, and a page must have only one.
+    -->
     {#each widths as width (width.label)}
-      <div class="flex flex-col gap-2">
-        <span class="text-sm text-muted">{width.label}</span>
+      <section class="flex flex-col gap-2" aria-label={width.label}>
+        <span class="text-sm text-muted" aria-hidden="true">{width.label}</span>
         <div class={['w-full', width.className]}>
           <ServerOverviewHeader {...props} />
         </div>
-      </div>
+      </section>
     {/each}
   </div>
 {/snippet}
