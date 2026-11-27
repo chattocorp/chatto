@@ -1,13 +1,11 @@
 <!-- @component Open a shared server link. An unknown server is contacted only on click. -->
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { page } from '$app/state';
-  import { goto } from '$app/navigation';
+  import { invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { getPublicServerInfo, InvalidPublicServerError } from '@chatto/client/api/server';
   import { evaluateServerCompatibility } from '@chatto/client/server/compatibility';
   import { m } from '$lib/i18n/messages';
-  import { serverIdToSegment } from '$lib/navigation';
   import { serverHost } from '$lib/serverUrl';
   import { serverIdForHostname } from '$lib/navigation/serverHostname';
   import { addSignedOutServer } from '$lib/serverCatalogue';
@@ -44,14 +42,9 @@
         error = m('add_server.directory.sign_in_unavailable');
         return;
       }
-      const id = saved ?? addSignedOutServer(origin, profile);
-      await goto(
-        resolve('/chat/[serverId]', { serverId: serverIdToSegment(id) }) + page.url.search,
-        {
-          replaceState: true,
-          invalidateAll: true
-        }
-      );
+      if (!saved) addSignedOutServer(origin, profile);
+      // The landing route can now resolve this hostname and redirect with the original query.
+      await invalidateAll();
     } catch (cause) {
       if (!lifetime.signal.aborted) {
         error =
