@@ -191,7 +191,7 @@
       "fallback_title": "Профиль",
       "not_found": "Пользователь не найден",
       "bot": "Бот",
-      "local_time": "{time} местное время ({zone})",
+      "local_time": "{time} местное время",
       "permissions": {
         "title": "Что он может делать",
         "empty": "Нет активных разрешений, видимых тебе.",
@@ -216,7 +216,19 @@
         "manage_messages": "Управлять сообщениями"
       },
       "owned_by": "Владелец",
-      "open_card": "Открыть карточку профиля {name}"
+      "open_card": "Открыть карточку профиля {name}",
+      "time_offset": {
+        "ahead": "На {offset} впереди вас",
+        "behind": "На {offset} позади вас",
+        "same": "То же время, что и у вас"
+      },
+      "member_since": "Участник с {date}",
+      "roles": "Роли",
+      "details": "Подробности",
+      "actions": {
+        "mention": "Упомянуть",
+        "search_messages": "Искать сообщения"
+      }
     },
     "management_nav": {
       "general": "Общий",

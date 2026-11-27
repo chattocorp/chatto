@@ -183,7 +183,7 @@
       "fallback_title": "Profil",
       "not_found": "Benutzer nicht gefunden",
       "bot": "Bot",
-      "local_time": "{time} Ortszeit ({zone})",
+      "local_time": "{time} Ortszeit",
       "permissions": {
         "title": "Was er tun kann",
         "empty": "Für dich sind keine aktiven Berechtigungen sichtbar.",
@@ -208,7 +208,19 @@
         "manage_messages": "Nachrichten verwalten"
       },
       "owned_by": "Gehört",
-      "open_card": "Profilkarte von {name} öffnen"
+      "open_card": "Profilkarte von {name} öffnen",
+      "time_offset": {
+        "ahead": "{offset} vor dir",
+        "behind": "{offset} hinter dir",
+        "same": "Gleiche Uhrzeit wie bei dir"
+      },
+      "member_since": "Mitglied seit {date}",
+      "roles": "Rollen",
+      "details": "Details",
+      "actions": {
+        "mention": "Erwähnen",
+        "search_messages": "Nachrichten durchsuchen"
+      }
     },
     "management_nav": {
       "general": "Allgemein",

@@ -1,4 +1,4 @@
-import type { VerifiedIdentity } from '@chatto/client/api/users';
+import type { UserProfileDetails, VerifiedIdentity } from '@chatto/client/api/users';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,6 +13,12 @@ import RoomSidebarProfile from './RoomSidebarProfile.svelte';
 
 const batchGetUsers = vi.fn();
 const getVerifiedIdentities = vi.fn<() => Promise<VerifiedIdentity[]>>();
+/** The shared profile-details read, built from the identity mock. */
+const getProfileDetails = vi.fn(async (): Promise<UserProfileDetails> => ({
+  roles: [],
+  createdAt: null,
+  verifiedIdentities: await getVerifiedIdentities()
+}));
 let server: TestServerScope;
 /** The shared profile store of the fixture's server session. */
 const userStore = () => getUserStore('origin', server.scope.connection.queryScope);
@@ -77,7 +83,13 @@ const user = {
 
 let currentRender: ReturnType<typeof render> | null = null;
 
-function renderProfile(props: { userId?: string; onSendMessage?: (userId: string) => void } = {}) {
+function renderProfile(
+  props: {
+    userId?: string;
+    onSendMessage?: (userId: string) => void;
+    onMention?: (login: string) => void;
+  } = {}
+) {
   currentRender = render(RoomSidebarProfile, { props: { userId: 'user-1', ...props } });
   return currentRender;
 }
@@ -98,7 +110,7 @@ describe('RoomSidebarProfile', () => {
     resetUserStoresForTests();
     server = createTestServerScope({
       serverId: 'origin',
-      api: { batchGetUsers, getVerifiedIdentities },
+      api: { batchGetUsers, getProfileDetails },
       viewer: {
         settings: { timezone: 'Europe/Berlin', timeFormat: TimeFormat.TIME_FORMAT_24_HOUR }
       },
@@ -106,7 +118,14 @@ describe('RoomSidebarProfile', () => {
         get projection() {
           return { users: userStore() };
         },
-        presence: { get: () => undefined }
+        presence: { get: () => undefined },
+        mentionRoles: {
+          roles: [
+            { name: 'admin', displayName: 'Admin' },
+            { name: 'moderator', displayName: 'Moderator' }
+          ],
+          load: async () => true
+        }
       }
     });
     getVerifiedIdentities.mockResolvedValue([
@@ -120,6 +139,42 @@ describe('RoomSidebarProfile', () => {
     currentRender?.unmount();
     currentRender = null;
     vi.restoreAllMocks();
+  });
+
+  it('shows the member date and roles in catalogue order', async () => {
+    getProfileDetails.mockResolvedValueOnce({
+      roles: ['moderator', 'custom', 'admin'],
+      createdAt: '2025-03-14T12:00:00Z',
+      verifiedIdentities: []
+    });
+    userStore().set(user.id, userProfileFixture(user));
+    const { container } = renderProfile();
+
+    const roles = page.getByRole('list', { name: 'Roles' });
+    await expect.element(roles).toBeVisible();
+    expect(
+      Array.from(roles.element().querySelectorAll('li')).map((role) => role.textContent?.trim())
+    ).toEqual(['Admin', 'Moderator', 'custom']);
+    // The date follows the browser's formatting locale.
+    expect(q(container, '[data-testid="profile-member-since"]')?.textContent).toMatch(
+      /Member since .*2025/
+    );
+    expect(q(container, '[data-testid="profile-local-time"]')?.textContent).toContain(
+      'Same time as you'
+    );
+  });
+
+  it('offers Mention only with a host composer and passes the login', async () => {
+    userStore().set(user.id, userProfileFixture(user));
+    const withoutHost = renderProfile();
+    await expect.element(page.getByTestId('profile-quick-actions')).toBeVisible();
+    expect(q(withoutHost.container, '[data-testid="profile-action-mention"]')).toBeNull();
+    withoutHost.unmount();
+
+    const onMention = vi.fn();
+    renderProfile({ onMention });
+    await page.getByTestId('profile-action-mention').click();
+    expect(onMention).toHaveBeenCalledWith('alice');
   });
 
   it('shows known and unfamiliar verified identities in the full profile and its popup', async () => {
@@ -161,10 +216,10 @@ describe('RoomSidebarProfile', () => {
           server.scope.connection.queryScope,
           'user',
           user.id,
-          'verified-identities'
+          'profile-details'
         ])
       )
-      .toEqual([]);
+      .toEqual({ roles: [], createdAt: null, verifiedIdentities: [] });
     expect(container.textContent).not.toContain('Verified identities');
     const menu = await openProfileMenu(container);
     expect(menu.querySelector('ul[aria-label="Verified identities"]')).toBeNull();

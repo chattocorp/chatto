@@ -183,7 +183,7 @@
       "fallback_title": "Profilo",
       "not_found": "Utente non trovato",
       "bot": "Bot",
-      "local_time": "{time} ora locale ({zone})",
+      "local_time": "{time} ora locale",
       "permissions": {
         "title": "Cosa può fare",
         "empty": "Non ci sono permessi attivi visibili per te.",
@@ -208,7 +208,19 @@
         "manage_messages": "Gestire i messaggi"
       },
       "owned_by": "Proprietario",
-      "open_card": "Apri la scheda profilo di {name}"
+      "open_card": "Apri la scheda profilo di {name}",
+      "time_offset": {
+        "ahead": "{offset} avanti rispetto a te",
+        "behind": "{offset} indietro rispetto a te",
+        "same": "Stesso orario tuo"
+      },
+      "member_since": "Membro dal {date}",
+      "roles": "Ruoli",
+      "details": "Dettagli",
+      "actions": {
+        "mention": "Menziona",
+        "search_messages": "Cerca messaggi"
+      }
     },
     "management_nav": {
       "general": "Generale",

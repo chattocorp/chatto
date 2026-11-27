@@ -161,6 +161,9 @@ function buildStore(
       serverId: t.serverId,
       connection,
       projection: { rooms: new Map(), users: new UserStore(), activeCalls: [] },
+      // No observed presence and an empty public role catalogue.
+      presence: new Map(),
+      mentionRoles: { roles: [], status: 'ready', load: async () => true },
       // A fake store reports no boundary events.
       onUpdate: subscribe,
       onReset: subscribe,

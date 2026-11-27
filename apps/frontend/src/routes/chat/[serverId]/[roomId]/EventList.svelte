@@ -1174,6 +1174,9 @@
       canBanRoomMembers={roomPermissions.canBanRoomMembers}
       {isUniversal}
       {onOpenProfile}
+      onMention={composerContext.mentionInsertionState.available
+        ? (login) => composerContext.mentionInsertionState.requestMention(login)
+        : undefined}
     />
   {/key}
 </div>

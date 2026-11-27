@@ -100,6 +100,40 @@ export class QuoteInsertionState {
   }
 }
 
+/** The mounted composer that accepts mentions from profile surfaces. */
+export type MentionTarget = {
+  /** Whether the composer accepts input now. Read reactively. */
+  canInsert: () => boolean;
+  insert: (login: string) => void;
+};
+
+/**
+ * Connects profile surfaces to the pane's mounted composer, so that they can
+ * mention a user there. `available` is true only while a connected composer
+ * accepts input.
+ */
+export class MentionInsertionState {
+  #target = $state.raw<MentionTarget | null>(null);
+
+  get available(): boolean {
+    return this.#target?.canInsert() ?? false;
+  }
+
+  /** Insert `@login` into the connected composer, when it accepts input. */
+  requestMention(login: string): void {
+    const target = this.#target;
+    if (login && target?.canInsert()) target.insert(login);
+  }
+
+  /** Connect a composer. The returned function disconnects it. */
+  connect(target: MentionTarget): () => void {
+    this.#target = target;
+    return () => {
+      if (this.#target === target) this.#target = null;
+    };
+  }
+}
+
 // ---------------------------------------------------------------------------
 // LastEditableMessageContext — finder for up-arrow-to-edit
 // ---------------------------------------------------------------------------
@@ -155,12 +189,18 @@ export class ComposerContext {
   readonly editState = new EditState();
   readonly #localReply = new ReplyState();
   readonly quoteInsertionState = new QuoteInsertionState();
+  readonly mentionInsertionState: MentionInsertionState;
   readonly lastEditableMessage = new LastEditableMessageContext();
   readonly jumpState = new JumpToMessageState();
   readonly scrollState = new ScrollState();
 
   /** Select reply state from the current destination, or keep local state for standalone panes. */
-  constructor(private readonly getReplyState?: () => ReplyState) {}
+  constructor(
+    private readonly getReplyState?: () => ReplyState,
+    mentionInsertionState: MentionInsertionState = new MentionInsertionState()
+  ) {
+    this.mentionInsertionState = mentionInsertionState;
+  }
 
   /** The current room or thread draft's reply target. */
   get replyState(): ReplyState {
@@ -174,9 +214,14 @@ export const [getComposerContext, setComposerContext] = createContext<ComposerCo
  * Create the composer context and set it in Svelte context.
  * ConversationPane calls it during initialization, before its children render.
  * The optional selector reads the current room/thread so reply state follows navigation.
+ * An owner outside the pane, such as the room for its sidebar, can supply the
+ * mention state so that it can mention users in this pane's composer.
  */
-export function createComposerContext(getReplyState?: () => ReplyState): ComposerContext {
-  const ctx = new ComposerContext(getReplyState);
+export function createComposerContext(
+  getReplyState?: () => ReplyState,
+  mentionInsertionState?: MentionInsertionState
+): ComposerContext {
+  const ctx = new ComposerContext(getReplyState, mentionInsertionState);
   setComposerContext(ctx);
   return ctx;
 }

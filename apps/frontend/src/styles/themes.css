@@ -196,6 +196,10 @@
 
   --color-image-outline: rgba(0, 0, 0, 0.1);
 
+  /* Profile bands take a hue from the user ID; see profileBand.ts. */
+  --profile-band-lightness: 82%;
+  --profile-band-chroma: 0.07;
+
   /* Shimmer hover effect gradient */
   --shimmer-gradient: linear-gradient(
     120deg,
@@ -273,6 +277,9 @@
   --color-server: oklch(74% 0.13 305);
 
   --color-image-outline: rgba(255, 255, 255, 0.1);
+
+  --profile-band-lightness: 40%;
+  --profile-band-chroma: 0.08;
 }
 
 /* Palette variables also scope colour samples without changing the app theme. */

@@ -183,7 +183,7 @@
       "fallback_title": "Profil",
       "not_found": "Kullanıcı bulunamadı",
       "bot": "Bot",
-      "local_time": "{time} yerel saat ({zone})",
+      "local_time": "{time} yerel saat",
       "permissions": {
         "title": "Yapabilecekleri",
         "empty": "Görebildiğin etkin bir izin yok.",
@@ -208,7 +208,19 @@
         "manage_messages": "Mesajları yönet"
       },
       "owned_by": "Sahibi",
-      "open_card": "{name} profil kartını aç"
+      "open_card": "{name} profil kartını aç",
+      "time_offset": {
+        "ahead": "Sizden {offset} ileride",
+        "behind": "Sizden {offset} geride",
+        "same": "Sizinle aynı saat"
+      },
+      "member_since": "{date} tarihinden beri üye",
+      "roles": "Roller",
+      "details": "Ayrıntılar",
+      "actions": {
+        "mention": "Bahset",
+        "search_messages": "Mesajlarda ara"
+      }
     },
     "management_nav": {
       "general": "Genel",

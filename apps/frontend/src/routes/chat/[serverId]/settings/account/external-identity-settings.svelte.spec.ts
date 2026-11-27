@@ -11,7 +11,7 @@ import {
 } from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
 import { authorizationLaunchTarget } from '$lib/test-utils';
-import { profileVerifiedIdentitiesKey } from '$lib/query/keys';
+import { profileDetailsKey } from '$lib/query/keys';
 import { settingsQueryKeys } from '$lib/query/settings';
 import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
 
@@ -370,13 +370,14 @@ describe('external identity settings query lifecycle', () => {
   });
 
   it('refreshes identities without signing out after a successful disconnect', async () => {
-    const profileKey = profileVerifiedIdentitiesKey(
-      { serverId: 'origin', connection },
-      'user-alice'
-    );
-    queryClient.setQueryData(profileKey, [
-      { method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' }
-    ]);
+    const profileKey = profileDetailsKey({ serverId: 'origin', connection }, 'user-alice');
+    queryClient.setQueryData(profileKey, {
+      roles: [],
+      createdAt: null,
+      verifiedIdentities: [
+        { method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' }
+      ]
+    });
     const view = renderSettings();
     await settle();
 
@@ -569,11 +570,8 @@ describe('identity link popup', () => {
       .element(browserPage.getByRole('button', { name: 'Link', exact: true }))
       .toBeEnabled();
     mocks.list.mockResolvedValue(linkedIdentityList());
-    const profileKey = profileVerifiedIdentitiesKey(
-      { serverId: 'origin', connection },
-      'user-alice'
-    );
-    queryClient.setQueryData(profileKey, []);
+    const profileKey = profileDetailsKey({ serverId: 'origin', connection }, 'user-alice');
+    queryClient.setQueryData(profileKey, { roles: [], createdAt: null, verifiedIdentities: [] });
     const callback = new BroadcastChannel('chatto-provider-linked');
     callback.postMessage('user-alice');
     callback.close();

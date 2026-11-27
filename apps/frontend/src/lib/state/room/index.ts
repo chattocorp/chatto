@@ -3,6 +3,7 @@ export {
   EditState,
   ReplyState,
   LastEditableMessageContext,
+  MentionInsertionState,
   ScrollState,
   JumpToMessageState,
   getComposerContext,

@@ -14,8 +14,9 @@ profile settings.
 - `anchorRect` - Bounding rect of the trigger element (used for desktop positioning)
 - `position` - Viewport point used by right-click and long-press triggers
 - `presentation` - Optional floating/sheet presentation selected by the trigger
-- `canSendMessage` - Whether to show the "Open conversation" button
+- `canSendMessage` - Whether to show the "Open conversation" quick action
 - `onSendMessage` - Callback when "Open conversation" is clicked
+- `onMention` - Optional callback that mentions the user in the host's composer
 - `canBanFromRoom` - Whether to show the room removal action
 - `banningFromRoom` - Whether the room removal action is currently running
 - `onBanFromRoom` - Callback when "Remove from room" is clicked
@@ -26,17 +27,17 @@ profile settings.
 -->
 <script lang="ts">
   import ProfileVerifiedIdentities from '$lib/components/users/ProfileVerifiedIdentities.svelte';
-  import AccountName from '$lib/components/users/AccountName.svelte';
+  import ProfileDetails from '$lib/components/users/ProfileDetails.svelte';
+  import ProfileHeader from '$lib/components/users/ProfileHeader.svelte';
+  import ProfileQuickActions from '$lib/components/users/ProfileQuickActions.svelte';
+  import { searchUserMessages } from '$lib/components/users/searchUserMessages';
   import { serverUi } from '$lib/state/server/serverUi';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { resolve } from '$app/paths';
 
-  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import ParticipantAudioControls from '$lib/components/voice/ParticipantAudioControls.svelte';
   import type { ParticipantVolumeControl } from '$lib/state/server/callPreferences.svelte';
-  import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserBio from '$lib/components/users/UserBio.svelte';
-  import Interval from '$lib/lifecycle/Interval.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { ContextMenu, ScrollFader, MenuItem, MenuSection } from '$lib/ui';
@@ -52,11 +53,7 @@ profile settings.
   import { m } from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
   import type { Snippet } from 'svelte';
-  import {
-    formatMessageTime,
-    timeFormatSettingsFor,
-    type ViewerTimeSettings
-  } from '$lib/utils/formatTime';
+  import type { ViewerTimeSettings } from '$lib/utils/formatTime';
 
   let {
     user,
@@ -72,6 +69,7 @@ profile settings.
     header,
     onSendMessage,
     onBanFromRoom,
+    onMention,
     onOpenProfile,
     onClose
   }: {
@@ -104,6 +102,8 @@ profile settings.
     header?: Snippet;
     onSendMessage?: () => void;
     onBanFromRoom?: () => void;
+    /** Mention the user in the host's composer. Hosts pass it only while one accepts input. */
+    onMention?: (login: string) => void;
     onOpenProfile?: (userId: string) => void;
     onClose?: () => void;
   } = $props();
@@ -122,20 +122,8 @@ profile settings.
   const customStatus = $derived(getLiveCustomStatus(user.id, user.customStatus));
   const bio = $derived(getLiveBio(user.id, user.bio ?? null));
   const timezone = $derived(getLiveTimezone(user.id, user.timezone ?? null));
-  const viewerTimeSettings = $derived(timeFormatSettingsFor(viewerSettings));
-  // Re-render the local-time line once a minute while the card is open.
-  let now = $state(Date.now());
-  const localTime = $derived.by(() => {
-    if (!timezone) return null;
-    try {
-      return formatMessageTime(new Date(now), {
-        ...viewerTimeSettings,
-        effectiveTimezone: timezone
-      });
-    } catch {
-      return null;
-    }
-  });
+  const login = $derived(getLiveLogin(user.id, user.login));
+  const presence = $derived(serverScope.store.presence.get(user.id) ?? user.presenceStatus);
   const botOwnerUserId = $derived(
     user.isBot ? getLiveBotOwnerUserId(user.id, user.bot?.ownerUserId ?? null) : null
   );
@@ -173,6 +161,18 @@ profile settings.
     onClose?.();
   }
 
+  function handleMention() {
+    onMention?.(login);
+    onClose?.();
+  }
+
+  function handleSearchMessages() {
+    // Closing can clear the host's user, so read the login first.
+    const target = login;
+    onClose?.();
+    searchUserMessages(serverScope.serverId, serverUi(serverScope.store).messageSearch, target);
+  }
+
   function handleBanFromRoom() {
     onBanFromRoom?.();
   }
@@ -200,58 +200,50 @@ profile settings.
   {presentation}
   role="dialog"
   ariaLabel={m('chat.user_menu.profile')}
-  class={audioParticipant ? 'w-72' : 'w-64'}
+  class="w-72"
   onclose={() => onClose?.()}
 >
   {@render header?.()}
-  <div class="flex items-center gap-3 menu-section p-3 text-start">
-    <UserAvatar {user} size="md" />
-    <div class="min-w-0 flex-1">
-      <AccountName name={displayName} identity={user} class="font-semibold" />
-      <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
-      <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
-    </div>
+  <div class="overflow-hidden inset-content" data-testid="user-menu-profile">
+    <ProfileHeader {user} name={displayName} {login} {presence} {customStatus} />
+    {#if !user.deleted}
+      <ProfileQuickActions
+        class="px-3 pb-3"
+        onSendMessage={canSendMessage ? handleSendMessage : undefined}
+        onMention={onMention ? handleMention : undefined}
+        onSearchMessages={handleSearchMessages}
+      />
+    {/if}
   </div>
 
   {#if !user.isBot && !user.deleted}
     <ProfileVerifiedIdentities userId={user.id} />
   {/if}
 
-  {#if bio || localTime}
-    <div class="space-y-1 menu-section px-3 py-2 text-start">
-      {#if bio}
-        <ScrollFader
-          top
-          bottom
-          fill={false}
-          fadeHeight="h-5"
-          scrollClass="max-h-40 overscroll-contain"
-          aria-label={m('settings.profile.bio.label')}
-          data-testid="user-menu-bio-scroll"
-        >
-          <UserBio {bio} class="text-sm" />
-        </ScrollFader>
-      {/if}
-      {#if timezone && localTime}
-        <p class="flex items-center gap-1.5 text-sm text-muted">
-          <span aria-hidden="true" class="iconify icon-[uil--clock-three] shrink-0"></span>
-          <span>{localTime}</span>
-          <span class="truncate" dir="ltr">({timezone})</span>
-        </p>
-      {/if}
+  {#if bio && !user.deleted}
+    <div class="menu-section px-3 py-2 text-start">
+      <ScrollFader
+        top
+        bottom
+        fill={false}
+        fadeHeight="h-5"
+        scrollClass="max-h-40 overscroll-contain"
+        aria-label={m('settings.profile.bio.label')}
+        data-testid="user-menu-bio-scroll"
+      >
+        <UserBio {bio} />
+      </ScrollFader>
     </div>
-    <Interval milliseconds={60_000} ontick={() => (now = Date.now())} />
+  {/if}
+
+  {#if !user.deleted}
+    <ProfileDetails userId={user.id} {timezone} {viewerSettings} class="menu-section px-3 py-2" />
   {/if}
 
   {@render extraActions?.()}
 
-  {#if canSendMessage || onOpenProfile || editProfileHref || manageBotHref || adminUserHref || canBanFromRoom}
+  {#if onOpenProfile || editProfileHref || manageBotHref || adminUserHref || canBanFromRoom}
     <MenuSection>
-      {#if canSendMessage}
-        <MenuItem icon="icon-[uil--comment-alt-message]" onclick={handleSendMessage}>
-          {m('chat.user_menu.send_message')}
-        </MenuItem>
-      {/if}
       {#if onOpenProfile}
         <MenuItem icon="icon-[uil--user]" onclick={handleOpenProfile}>
           {m('chat.user_menu.view_profile')}

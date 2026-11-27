@@ -183,7 +183,7 @@
       "fallback_title": "Profilo",
       "not_found": "Uzanto ne trovita",
       "bot": "Roboto",
-      "local_time": "Loka tempo {time} ({zone})",
+      "local_time": "Loka tempo {time}",
       "permissions": {
         "title": "Kion ĝi povas fari",
         "empty": "Neniuj aktivaj permesoj estas videblaj al vi.",
@@ -208,7 +208,19 @@
         "manage_messages": "Administri mesaĝojn"
       },
       "owned_by": "Posedanto",
-      "open_card": "Malfermi la profilkarton de {name}"
+      "open_card": "Malfermi la profilkarton de {name}",
+      "time_offset": {
+        "ahead": "{offset} antaŭ vi",
+        "behind": "{offset} malantaŭ vi",
+        "same": "Sama tempo kiel vi"
+      },
+      "member_since": "Membro ekde {date}",
+      "roles": "Roloj",
+      "details": "Detaloj",
+      "actions": {
+        "mention": "Mencii",
+        "search_messages": "Serĉi mesaĝojn"
+      }
     },
     "management_nav": {
       "general": "Generalo",

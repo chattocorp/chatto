@@ -191,7 +191,7 @@
       "fallback_title": "Профіль",
       "not_found": "Користувача не знайдено",
       "bot": "Бот",
-      "local_time": "{time} місцевий час ({zone})",
+      "local_time": "{time} місцевий час",
       "permissions": {
         "title": "Що він може робити",
         "empty": "Немає активних дозволів, видимих для тебе.",
@@ -216,7 +216,19 @@
         "manage_messages": "Керувати повідомленнями"
       },
       "owned_by": "Власник",
-      "open_card": "Відкрити картку профілю {name}"
+      "open_card": "Відкрити картку профілю {name}",
+      "time_offset": {
+        "ahead": "На {offset} попереду вас",
+        "behind": "На {offset} позаду вас",
+        "same": "Той самий час, що й у вас"
+      },
+      "member_since": "Учасник з {date}",
+      "roles": "Ролі",
+      "details": "Подробиці",
+      "actions": {
+        "mention": "Згадати",
+        "search_messages": "Шукати повідомлення"
+      }
     },
     "management_nav": {
       "general": "Загальне",

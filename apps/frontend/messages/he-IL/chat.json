@@ -187,7 +187,7 @@
       "fallback_title": "פרופיל",
       "not_found": "המשתמש לא נמצא",
       "bot": "בוט",
-      "local_time": "{time} שעון מקומי ({zone})",
+      "local_time": "{time} שעון מקומי",
       "permissions": {
         "title": "מה הוא יכול לעשות",
         "empty": "אין הרשאות פעילות שגלויות לך.",
@@ -212,7 +212,19 @@
         "manage_messages": "לנהל הודעות"
       },
       "owned_by": "בבעלות",
-      "open_card": "פתיחת כרטיס הפרופיל של {name}"
+      "open_card": "פתיחת כרטיס הפרופיל של {name}",
+      "time_offset": {
+        "ahead": "{offset} לפניך",
+        "behind": "{offset} אחריך",
+        "same": "אותה שעה כמו אצלך"
+      },
+      "member_since": "חבר מאז {date}",
+      "roles": "תפקידים",
+      "details": "פרטים",
+      "actions": {
+        "mention": "הזכר",
+        "search_messages": "חפש הודעות"
+      }
     },
     "management_nav": {
       "general": "כללי",

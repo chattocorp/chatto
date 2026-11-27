@@ -14,7 +14,12 @@ import { q } from '$lib/test-utils';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { getToasts, toast } from '$lib/ui/toast';
 import type { RoomMember } from '$lib/state/room';
-import { EditState, ReplyState, QuoteInsertionState } from '$lib/state/room/composerContext.svelte';
+import {
+  EditState,
+  MentionInsertionState,
+  ReplyState,
+  QuoteInsertionState
+} from '$lib/state/room/composerContext.svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 import { TimelineEventKind } from '@chatto/client/timeline/timelineEvents';
@@ -92,6 +97,7 @@ const roomStateMock = vi.hoisted(() => ({
   /** Real reply state; the composer reads the reply target from context. */
   replyState: null as ReplyState | null,
   quoteInsertionState: null! as QuoteInsertionState,
+  mentionInsertionState: null! as MentionInsertionState,
   lastEditableMessage: {
     getLastEditableMessage: vi.fn(() => null as { eventId: string; body: string } | null),
     setFinder: vi.fn()
@@ -164,6 +170,7 @@ vi.mock('$lib/state/room', () => ({
     editState: roomStateMock.reactiveEditState ?? roomStateMock.editState,
     replyState: roomStateMock.replyState,
     quoteInsertionState: roomStateMock.quoteInsertionState,
+    mentionInsertionState: roomStateMock.mentionInsertionState,
     lastEditableMessage: roomStateMock.lastEditableMessage,
     scrollState: roomStateMock.scrollState
   })
@@ -462,6 +469,7 @@ describe('MessageComposer', () => {
     roomStateMock.reactiveEditState = null;
     roomStateMock.replyState = new ReplyState();
     roomStateMock.quoteInsertionState = new QuoteInsertionState();
+    roomStateMock.mentionInsertionState = new MentionInsertionState();
     roomStateMock.lastEditableMessage.getLastEditableMessage.mockReset();
     roomStateMock.lastEditableMessage.getLastEditableMessage.mockReturnValue(null);
     roomStateMock.lastEditableMessage.setFinder.mockClear();
@@ -3565,6 +3573,18 @@ describe('MessageComposer', () => {
         roomId,
         body: 'first line\n\nsecond line'
       });
+    });
+
+    it('inserts a requested mention after draft text and reports availability', async () => {
+      const mentions = roomStateMock.mentionInsertionState;
+      const { container } = renderMessageComposer({ roomId: 'room_mention' });
+      const editor = await findEditor(container);
+      await vi.waitFor(() => expect(mentions.available).toBe(true));
+
+      await typeInEditor(editor, 'hello');
+      mentions.requestMention('alice');
+
+      await vi.waitFor(() => expect(editor.textContent).toContain('hello @alice'));
     });
 
     it('inserts selected reply quotes without replacing draft text', async () => {

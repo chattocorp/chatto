@@ -187,7 +187,7 @@
       "fallback_title": "Profils",
       "not_found": "Lietotājs nav atrasts",
       "bot": "Bots",
-      "local_time": "{time} vietējais laiks ({zone})",
+      "local_time": "{time} vietējais laiks",
       "permissions": {
         "title": "Ko tas var darīt",
         "empty": "Tev nav redzamu aktīvu atļauju.",
@@ -212,7 +212,19 @@
         "manage_messages": "Pārvaldīt ziņojumus"
       },
       "owned_by": "Īpašnieks",
-      "open_card": "Atvērt lietotāja {name} profila karti"
+      "open_card": "Atvērt lietotāja {name} profila karti",
+      "time_offset": {
+        "ahead": "{offset} pirms jums",
+        "behind": "{offset} aiz jums",
+        "same": "Tāds pats laiks kā jums"
+      },
+      "member_since": "Dalībnieks kopš {date}",
+      "roles": "Lomas",
+      "details": "Detaļas",
+      "actions": {
+        "mention": "Pieminēt",
+        "search_messages": "Meklēt ziņojumus"
+      }
     },
     "management_nav": {
       "general": "Ģenerālis",
