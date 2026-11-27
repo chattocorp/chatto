@@ -32,10 +32,6 @@ type EmailDelivery struct {
 	Subject string `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
 	// Rendered plain-text body.
 	Body string `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
-	// Rendered HTML alternative, if any.
-	HtmlBody string `protobuf:"bytes,4,opt,name=html_body,json=htmlBody,proto3" json:"html_body,omitempty"`
-	// Sender display name, if any.
-	FromName string `protobuf:"bytes,5,opt,name=from_name,json=fromName,proto3" json:"from_name,omitempty"`
 	// Types that are valid to be assigned to Content:
 	//
 	//	*EmailDelivery_RegistrationCode
@@ -93,20 +89,6 @@ func (x *EmailDelivery) GetSubject() string {
 func (x *EmailDelivery) GetBody() string {
 	if x != nil {
 		return x.Body
-	}
-	return ""
-}
-
-func (x *EmailDelivery) GetHtmlBody() string {
-	if x != nil {
-		return x.HtmlBody
-	}
-	return ""
-}
-
-func (x *EmailDelivery) GetFromName() string {
-	if x != nil {
-		return x.FromName
 	}
 	return ""
 }
@@ -331,17 +313,15 @@ var File_chatto_core_runtime_state_v1_email_delivery_proto protoreflect.FileDesc
 
 const file_chatto_core_runtime_state_v1_email_delivery_proto_rawDesc = "" +
 	"\n" +
-	"1chatto/core/runtime_state/v1/email_delivery.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1egoogle/protobuf/duration.proto\"\xa8\x03\n" +
+	"1chatto/core/runtime_state/v1/email_delivery.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1egoogle/protobuf/duration.proto\"\x90\x03\n" +
 	"\rEmailDelivery\x12\x0e\n" +
 	"\x02to\x18\x01 \x01(\tR\x02to\x12\x18\n" +
 	"\asubject\x18\x02 \x01(\tR\asubject\x12\x12\n" +
-	"\x04body\x18\x03 \x01(\tR\x04body\x12\x1b\n" +
-	"\thtml_body\x18\x04 \x01(\tR\bhtmlBody\x12\x1b\n" +
-	"\tfrom_name\x18\x05 \x01(\tR\bfromName\x12V\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x12V\n" +
 	"\x11registration_code\x18\x06 \x01(\v2'.chatto.core.runtime_state.v1.EmailCodeH\x00R\x10registrationCode\x12a\n" +
 	"\x17email_verification_code\x18\a \x01(\v2'.chatto.core.runtime_state.v1.EmailCodeH\x00R\x15emailVerificationCode\x12Y\n" +
 	"\x0epassword_reset\x18\b \x01(\v20.chatto.core.runtime_state.v1.PasswordResetEmailH\x00R\rpasswordResetB\t\n" +
-	"\acontent\"L\n" +
+	"\acontentJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\thtml_bodyR\tfrom_name\"L\n" +
 	"\tEmailCode\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12+\n" +
 	"\x03ttl\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x03ttl\"W\n" +

@@ -50,3 +50,32 @@ test('storage exceptions accept only the reviewed file and field relocations', (
     assert.equal(isReviewedStorageChange(diagnostic), false);
   }
 });
+
+test('only the unreleased rendered-email fields of queued email may be removed', () => {
+  for (const [number, name] of [
+    ['4', 'html_body'],
+    ['5', 'from_name']
+  ]) {
+    const removal = {
+      path: 'chatto/core/runtime_state/v1/email_delivery.proto',
+      type: 'FIELD_NO_DELETE',
+      message: `Previously present field "${number}" with name "${name}" on message "EmailDelivery" was deleted.`
+    };
+    assert.equal(isReviewedStorageChange(removal), true);
+    for (const diagnostic of [
+      { ...removal, path: 'chatto/core/runtime_state/v1/sessions.proto' },
+      { ...removal, type: 'FIELD_SAME_TYPE' },
+      { ...removal, message: removal.message.replace(name, 'subject') },
+      { ...removal, message: removal.message.replace('EmailDelivery', 'SealedEmailDelivery') }
+    ]) {
+      assert.equal(isReviewedStorageChange(diagnostic), false);
+    }
+  }
+  const legacySubject = {
+    path: 'chatto/core/runtime_state/v1/email_delivery.proto',
+    type: 'FIELD_NO_DELETE',
+    message:
+      'Previously present field "2" with name "subject" on message "EmailDelivery" was deleted.'
+  };
+  assert.equal(isReviewedStorageChange(legacySubject), false);
+});

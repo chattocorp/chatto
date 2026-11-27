@@ -62,7 +62,7 @@ Chatto sends transactional email for account registration, email-address verific
 
 **Decision:** The queue stores the content of an email (recipient, code or reset token, lifetime) and renders it in the job worker.
 **Why:** The stored record holds a credential. It should contain only that credential and the data needed to send it, not several kilobytes of rendered text and HTML. A small record also keeps wording and layout out of storage, so template changes and later translations apply to every email that is still waiting.
-**Tradeoff:** The worker needs the server branding. The HTTP runtime supplies it when it creates the queue. A record from an older version, which holds a rendered message, is sent as it is.
+**Tradeoff:** The worker needs the server branding. The HTTP runtime supplies it when it creates the queue. A record from an older version, which holds a rendered plain-text message, is sent as plain text.
 
 ## Related
 

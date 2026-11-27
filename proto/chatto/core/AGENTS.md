@@ -41,9 +41,12 @@ storage contracts. Keep stored changes additive unless an approved migration
 or compatibility plan says otherwise.
 
 Do not delete a field from a stored message, also when you reserve its number
-and name, and also when no release contains the field. Merged fields can be in
-stored data, for example on a server that runs `main`. Keep an unused field and
-document it as a legacy field. Before you push a change to a stored message,
+and name. Keep an unused field and document it as a legacy field. A deletion
+needs a reviewed exception in `isReviewedStorageChange` of
+`tools/check-storage-proto-breaking.mjs`, with a test and the reason. Ask the
+user before you add one. A field that no release contains can qualify, but
+servers that run `main` can still have it in stored data, so give the reason
+why that data does not matter. Before you push a change to a stored message,
 run the storage compatibility check from the repository root:
 
 ```sh
