@@ -273,7 +273,7 @@ store owns only optimistic join/leave state.
       </div>
     </div>
     {#if room.description}
-      <p class="line-clamp-2 ps-6 text-sm text-muted">{room.description}</p>
+      <p class="truncate ps-6 text-sm text-muted" title={room.description}>{room.description}</p>
     {/if}
   </li>
 {/snippet}
