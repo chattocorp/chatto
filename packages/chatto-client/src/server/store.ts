@@ -54,6 +54,7 @@ import { RoomKind } from '../api/roomDirectory.js';
 import { mapDirectoryMember } from '../api/memberDirectory.js';
 import {
   createPrivilegedModeAPI,
+  viewerAuthorizationFromAPI,
   viewerResponseToState,
   type PrivilegedModeAPI
 } from '../api/viewer.js';
@@ -261,6 +262,22 @@ export class ServerStateStore {
   });
   get permissions(): ServerPermissions {
     return this.#permissionsComputed.get();
+  }
+
+  /** Server decisions for Settings discovery. The preview describes all protected roles while inactive, or ordinary access while active. */
+  get privilegedPermissionPreview():
+    { active: boolean; permissions: ServerPermissions } | undefined {
+    const mode = this.projection.viewer?.privilegedMode;
+    const preview = mode?.active
+      ? mode.roleSelection?.withoutActivation
+      : mode?.roleSelection?.preview;
+    if (!this.permissions.loaded || !mode?.available || !preview) return undefined;
+    return {
+      active: mode.active,
+      permissions: serverPermissionsFromViewer(
+        viewerAuthorizationFromAPI(preview.grants, preview.viewerPermissions)
+      )
+    };
   }
 
   /**

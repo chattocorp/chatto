@@ -69,6 +69,8 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 		t.Fatal("unarmed owner has effective system capability")
 	}
 
+	preview := unarmed.Msg.PrivilegedMode.GetRoleSelection().GetPreview()
+	require.True(t, apiCapabilityGranted(preview.GetGrants(), viewerCapabilityAdminViewSystem))
 	if roles := unarmed.Msg.PrivilegedMode.GetRoleSelection().GetAvailableRoles(); !slices.Equal(roles, []string{core.RoleModerator, core.RoleOwner}) {
 		t.Fatalf("selectable roles = %v", roles)
 	}
@@ -101,6 +103,12 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ActivatePrivilegedMode: %v", err)
 	}
+	require.True(t, proto.Equal(preview.GetViewerPermissions(), activated.Msg.ViewerPermissions))
+	require.Nil(t, activated.Msg.PrivilegedMode.RoleSelection.Preview)
+	ordinary := activated.Msg.PrivilegedMode.RoleSelection.WithoutActivation
+	require.NotNil(t, ordinary)
+	require.True(t, proto.Equal(ordinary.ViewerPermissions, unarmed.Msg.ViewerPermissions))
+	require.False(t, apiCapabilityGranted(ordinary.Grants, viewerCapabilityAdminViewSystem))
 	if !activated.Msg.GetPrivilegedMode().GetActive() || activated.Msg.GetPrivilegedMode().GetExpiresAt() == nil {
 		t.Fatalf("activated privileged mode = %+v, want active deadline", activated.Msg.GetPrivilegedMode())
 	}
@@ -163,6 +171,7 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetViewer disarmed: %v", err)
 	}
+	require.True(t, proto.Equal(preview, deactivated.Msg.PrivilegedMode.RoleSelection.Preview))
 	if disarmed.Msg.GetPrivilegedMode().GetActive() {
 		t.Fatal("deactivated privileged mode remains active")
 	}
@@ -303,6 +312,37 @@ func TestViewerCanEndShieldModeAfterLastProtectedRoleIsRevoked(t *testing.T) {
 	viewer, err = env.viewerService.GetViewer(request(), connect.NewRequest(&apiv1.GetViewerRequest{}))
 	require.NoError(t, err)
 	require.False(t, viewer.Msg.PrivilegedMode.Active)
+}
+
+// A preview uses the same server scope as an active selection.
+func TestViewerPreviewsCustomProtectedRole(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	const helper = "room-helper"
+	require.NoError(t, env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleManage))
+	_, err := env.core.AdminCreateServerRole(env.ctx, env.viewer.Id, core.AdminRoleInput{
+		Name: helper, DisplayName: "Room helper", RequiresShieldMode: true,
+	})
+	require.NoError(t, err)
+	user := env.viewer
+	require.NoError(t, env.core.AssignServerRole(env.ctx, core.SystemActorID, user.Id, helper))
+	require.NoError(t, env.core.GrantServerPermission(env.ctx, core.SystemActorID, helper, core.PermRoleAssign))
+	groups, err := env.core.ListRoomGroupsOrdered(env.ctx, core.KindChannel)
+	require.NoError(t, err)
+	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, groups[0].GetId(), "preview-room", "")
+	require.NoError(t, err)
+	require.NoError(t, env.core.GrantRoomPermission(env.ctx, core.SystemActorID, room.Id, helper, core.PermRoomMemberRemove))
+	handle, _, err := env.core.CreateCookieSession(env.ctx, user.Id, "password_login")
+	require.NoError(t, err)
+	ctx := authctx.WithCredential(withCaller(env.ctx, user), authctx.RuntimeCredential{
+		Kind: authctx.RuntimeCredentialKindCookieSession, UserID: user.Id, Handle: handle,
+	})
+	viewer, err := env.viewerService.GetViewer(ctx, connect.NewRequest(&apiv1.GetViewerRequest{}))
+	require.NoError(t, err)
+	preview := viewer.Msg.PrivilegedMode.GetRoleSelection().GetPreview()
+	require.True(t, apiCapabilityGranted(preview.GetGrants(), viewerCapabilityAssignRoles))
+	require.False(t, apiCapabilityGranted(viewer.Msg.Capabilities.Grants, viewerCapabilityAssignRoles))
+	require.False(t, apiCapabilityGranted(preview.GetGrants(), viewerCapabilityAdminViewSystem))
+	require.False(t, apiPermissionGranted(preview.GetViewerPermissions().GetPermissions(), string(core.PermRoomMemberRemove)))
 }
 
 func TestViewerServicePrivilegedModeRejectsIneligibleCallers(t *testing.T) {

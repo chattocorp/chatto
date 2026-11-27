@@ -59,6 +59,7 @@
         "jobs": "Visualizza le attività in background e riprova quelle non riuscite."
       },
       "title": "Panoramica",
+      "shield_active": "Modalità privilegiata attiva",
       "shield_notice": "Per usare i tuoi permessi aggiuntivi su questo server, attiva la modalità privilegiata con il pulsante dello scudo accanto al tuo nome."
     },
     "nav": {

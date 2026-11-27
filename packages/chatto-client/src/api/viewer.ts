@@ -176,9 +176,6 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
     throw new Error('viewer response did not include a user profile');
   }
   const user = response.user.profile;
-  const grants = mapCapabilityGrants(response.capabilities?.grants);
-  const viewerPermissions = mapPermissionGrants(response.viewerPermissions?.permissions);
-  const can = (capability: string) => grants[capability] ?? false;
   return {
     user: {
       id: user.id,
@@ -216,6 +213,26 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
           }
         : null
     },
+    ...viewerAuthorizationFromAPI(response.capabilities?.grants, response.viewerPermissions),
+    viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false,
+    privilegedMode: {
+      availableRoles: response.privilegedMode?.roleSelection?.availableRoles,
+      available: response.privilegedMode?.available ?? false,
+      active: response.privilegedMode?.active ?? false,
+      expiresAt: response.privilegedMode?.expiresAt?.toDate().toISOString() ?? null
+    }
+  };
+}
+
+/** Decode permission and capability decisions from an effective or preview snapshot. */
+export function viewerAuthorizationFromAPI(
+  capabilities: APIViewerCapabilities['grants'] | undefined,
+  permissions: ServerViewerPermissions | undefined
+) {
+  const grants = mapCapabilityGrants(capabilities);
+  const viewerPermissions = mapPermissionGrants(permissions?.permissions);
+  const can = (capability: string) => grants[capability] ?? false;
+  return {
     canViewAdmin: can(capabilityKeys.adminView),
     canStartDMs: can(capabilityKeys.dmStart),
     canAdminViewUsers: can(capabilityKeys.adminViewUsers),
@@ -227,14 +244,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
     canAdminViewAudit: can(capabilityKeys.adminViewAudit),
     canManageUserPermissions: can(capabilityKeys.manageUserPermissions),
     canManageInvites: can(capabilityKeys.manageInvites),
-    viewerPermissions,
-    viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false,
-    privilegedMode: {
-      availableRoles: response.privilegedMode?.roleSelection?.availableRoles,
-      available: response.privilegedMode?.available ?? false,
-      active: response.privilegedMode?.active ?? false,
-      expiresAt: response.privilegedMode?.expiresAt?.toDate().toISOString() ?? null
-    }
+    viewerPermissions
   };
 }
 

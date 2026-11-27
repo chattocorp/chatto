@@ -59,6 +59,7 @@
         "jobs": "Przeglądaj zadania w tle i ponawiaj nieudane zadania."
       },
       "title": "Przegląd",
+      "shield_active": "Tryb uprzywilejowany aktywny",
       "shield_notice": "Aby użyć dodatkowych uprawnień na tym serwerze, włącz tryb uprzywilejowany przyciskiem tarczy obok swojego imienia."
     },
     "nav": {

@@ -59,6 +59,7 @@
         "jobs": "Consulte as tarefas em segundo plano e repita as que falharam."
       },
       "title": "Visão geral",
+      "shield_active": "Modo privilegiado ativo",
       "shield_notice": "Para utilizar as suas permissões adicionais neste servidor, ative o modo privilegiado com o botão de escudo junto ao seu nome."
     },
     "nav": {

@@ -477,8 +477,13 @@ type PrivilegedRoleSelection struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Assigned protected roles. An empty list means there are no roles to activate.
 	AvailableRoles []string `protobuf:"bytes,1,rep,name=available_roles,json=availableRoles,proto3" json:"available_roles,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Decisions with all assigned protected roles active. Present while inactive if the viewer has protected roles.
+	// Older servers omit the preview.
+	Preview *PrivilegedPermissionPreview `protobuf:"bytes,2,opt,name=preview,proto3" json:"preview,omitempty"`
+	// Decisions with Shield Mode off. Present during activation if the viewer has protected roles.
+	WithoutActivation *PrivilegedPermissionPreview `protobuf:"bytes,3,opt,name=without_activation,json=withoutActivation,proto3" json:"without_activation,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PrivilegedRoleSelection) Reset() {
@@ -518,6 +523,76 @@ func (x *PrivilegedRoleSelection) GetAvailableRoles() []string {
 	return nil
 }
 
+func (x *PrivilegedRoleSelection) GetPreview() *PrivilegedPermissionPreview {
+	if x != nil {
+		return x.Preview
+	}
+	return nil
+}
+
+func (x *PrivilegedRoleSelection) GetWithoutActivation() *PrivilegedPermissionPreview {
+	if x != nil {
+		return x.WithoutActivation
+	}
+	return nil
+}
+
+// Permission and capability decisions for the role state specified by the containing field.
+// Use the effective viewer decisions for access to resources and actions.
+type PrivilegedPermissionPreview struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Server-level permission decisions for that role state.
+	ViewerPermissions *ServerViewerPermissions `protobuf:"bytes,1,opt,name=viewer_permissions,json=viewerPermissions,proto3" json:"viewer_permissions,omitempty"`
+	// Capability decisions for that role state.
+	Grants        []*CapabilityGrant `protobuf:"bytes,2,rep,name=grants,proto3" json:"grants,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PrivilegedPermissionPreview) Reset() {
+	*x = PrivilegedPermissionPreview{}
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrivilegedPermissionPreview) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrivilegedPermissionPreview) ProtoMessage() {}
+
+func (x *PrivilegedPermissionPreview) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrivilegedPermissionPreview.ProtoReflect.Descriptor instead.
+func (*PrivilegedPermissionPreview) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *PrivilegedPermissionPreview) GetViewerPermissions() *ServerViewerPermissions {
+	if x != nil {
+		return x.ViewerPermissions
+	}
+	return nil
+}
+
+func (x *PrivilegedPermissionPreview) GetGrants() []*CapabilityGrant {
+	if x != nil {
+		return x.Grants
+	}
+	return nil
+}
+
 // Request for the authenticated viewer snapshot.
 type GetViewerRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -527,7 +602,7 @@ type GetViewerRequest struct {
 
 func (x *GetViewerRequest) Reset() {
 	*x = GetViewerRequest{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -539,7 +614,7 @@ func (x *GetViewerRequest) String() string {
 func (*GetViewerRequest) ProtoMessage() {}
 
 func (x *GetViewerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -552,7 +627,7 @@ func (x *GetViewerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetViewerRequest.ProtoReflect.Descriptor instead.
 func (*GetViewerRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{7}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{8}
 }
 
 // Authenticated viewer snapshot needed by application shells.
@@ -574,7 +649,7 @@ type GetViewerResponse struct {
 
 func (x *GetViewerResponse) Reset() {
 	*x = GetViewerResponse{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -586,7 +661,7 @@ func (x *GetViewerResponse) String() string {
 func (*GetViewerResponse) ProtoMessage() {}
 
 func (x *GetViewerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -599,7 +674,7 @@ func (x *GetViewerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetViewerResponse.ProtoReflect.Descriptor instead.
 func (*GetViewerResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{8}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetViewerResponse) GetUser() *ViewerUser {
@@ -646,7 +721,7 @@ type ActivatePrivilegedModeRequest struct {
 
 func (x *ActivatePrivilegedModeRequest) Reset() {
 	*x = ActivatePrivilegedModeRequest{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -658,7 +733,7 @@ func (x *ActivatePrivilegedModeRequest) String() string {
 func (*ActivatePrivilegedModeRequest) ProtoMessage() {}
 
 func (x *ActivatePrivilegedModeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -671,7 +746,7 @@ func (x *ActivatePrivilegedModeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivatePrivilegedModeRequest.ProtoReflect.Descriptor instead.
 func (*ActivatePrivilegedModeRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{9}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{10}
 }
 
 // Result of activating privileged mode for the current session.
@@ -689,7 +764,7 @@ type ActivatePrivilegedModeResponse struct {
 
 func (x *ActivatePrivilegedModeResponse) Reset() {
 	*x = ActivatePrivilegedModeResponse{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -701,7 +776,7 @@ func (x *ActivatePrivilegedModeResponse) String() string {
 func (*ActivatePrivilegedModeResponse) ProtoMessage() {}
 
 func (x *ActivatePrivilegedModeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -714,7 +789,7 @@ func (x *ActivatePrivilegedModeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivatePrivilegedModeResponse.ProtoReflect.Descriptor instead.
 func (*ActivatePrivilegedModeResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{10}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ActivatePrivilegedModeResponse) GetPrivilegedMode() *PrivilegedModeState {
@@ -749,7 +824,7 @@ type ActivatePrivilegedRolesRequest struct {
 
 func (x *ActivatePrivilegedRolesRequest) Reset() {
 	*x = ActivatePrivilegedRolesRequest{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -761,7 +836,7 @@ func (x *ActivatePrivilegedRolesRequest) String() string {
 func (*ActivatePrivilegedRolesRequest) ProtoMessage() {}
 
 func (x *ActivatePrivilegedRolesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -774,7 +849,7 @@ func (x *ActivatePrivilegedRolesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivatePrivilegedRolesRequest.ProtoReflect.Descriptor instead.
 func (*ActivatePrivilegedRolesRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{11}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ActivatePrivilegedRolesRequest) GetRoleNames() []string {
@@ -799,7 +874,7 @@ type ActivatePrivilegedRolesResponse struct {
 
 func (x *ActivatePrivilegedRolesResponse) Reset() {
 	*x = ActivatePrivilegedRolesResponse{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -811,7 +886,7 @@ func (x *ActivatePrivilegedRolesResponse) String() string {
 func (*ActivatePrivilegedRolesResponse) ProtoMessage() {}
 
 func (x *ActivatePrivilegedRolesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -824,7 +899,7 @@ func (x *ActivatePrivilegedRolesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivatePrivilegedRolesResponse.ProtoReflect.Descriptor instead.
 func (*ActivatePrivilegedRolesResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{12}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ActivatePrivilegedRolesResponse) GetPrivilegedMode() *PrivilegedModeState {
@@ -857,7 +932,7 @@ type DeactivatePrivilegedModeRequest struct {
 
 func (x *DeactivatePrivilegedModeRequest) Reset() {
 	*x = DeactivatePrivilegedModeRequest{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -869,7 +944,7 @@ func (x *DeactivatePrivilegedModeRequest) String() string {
 func (*DeactivatePrivilegedModeRequest) ProtoMessage() {}
 
 func (x *DeactivatePrivilegedModeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -882,7 +957,7 @@ func (x *DeactivatePrivilegedModeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeactivatePrivilegedModeRequest.ProtoReflect.Descriptor instead.
 func (*DeactivatePrivilegedModeRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{13}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{14}
 }
 
 // Result of deactivating privileged mode for the current session.
@@ -900,7 +975,7 @@ type DeactivatePrivilegedModeResponse struct {
 
 func (x *DeactivatePrivilegedModeResponse) Reset() {
 	*x = DeactivatePrivilegedModeResponse{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -912,7 +987,7 @@ func (x *DeactivatePrivilegedModeResponse) String() string {
 func (*DeactivatePrivilegedModeResponse) ProtoMessage() {}
 
 func (x *DeactivatePrivilegedModeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -925,7 +1000,7 @@ func (x *DeactivatePrivilegedModeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeactivatePrivilegedModeResponse.ProtoReflect.Descriptor instead.
 func (*DeactivatePrivilegedModeResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{14}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DeactivatePrivilegedModeResponse) GetPrivilegedMode() *PrivilegedModeState {
@@ -984,9 +1059,14 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\x06active\x18\x02 \x01(\bR\x06active\x129\n" +
 	"\n" +
 	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12M\n" +
-	"\x0erole_selection\x18\x04 \x01(\v2&.chatto.api.v1.PrivilegedRoleSelectionR\rroleSelection\"B\n" +
+	"\x0erole_selection\x18\x04 \x01(\v2&.chatto.api.v1.PrivilegedRoleSelectionR\rroleSelection\"\xe3\x01\n" +
 	"\x17PrivilegedRoleSelection\x12'\n" +
-	"\x0favailable_roles\x18\x01 \x03(\tR\x0eavailableRoles\"\x12\n" +
+	"\x0favailable_roles\x18\x01 \x03(\tR\x0eavailableRoles\x12D\n" +
+	"\apreview\x18\x02 \x01(\v2*.chatto.api.v1.PrivilegedPermissionPreviewR\apreview\x12Y\n" +
+	"\x12without_activation\x18\x03 \x01(\v2*.chatto.api.v1.PrivilegedPermissionPreviewR\x11withoutActivation\"\xac\x01\n" +
+	"\x1bPrivilegedPermissionPreview\x12U\n" +
+	"\x12viewer_permissions\x18\x01 \x01(\v2&.chatto.api.v1.ServerViewerPermissionsR\x11viewerPermissions\x126\n" +
+	"\x06grants\x18\x02 \x03(\v2\x1e.chatto.api.v1.CapabilityGrantR\x06grants\"\x12\n" +
 	"\x10GetViewerRequest\"\xbd\x03\n" +
 	"\x11GetViewerResponse\x12-\n" +
 	"\x04user\x18\x01 \x01(\v2\x19.chatto.api.v1.ViewerUserR\x04user\x12E\n" +
@@ -1037,7 +1117,7 @@ func file_chatto_api_v1_viewer_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_viewer_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_viewer_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_chatto_api_v1_viewer_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_chatto_api_v1_viewer_proto_goTypes = []any{
 	(TimeFormat)(0),                          // 0: chatto.api.v1.TimeFormat
 	(*UserSettings)(nil),                     // 1: chatto.api.v1.UserSettings
@@ -1047,57 +1127,62 @@ var file_chatto_api_v1_viewer_proto_goTypes = []any{
 	(*ServerViewerState)(nil),                // 5: chatto.api.v1.ServerViewerState
 	(*PrivilegedModeState)(nil),              // 6: chatto.api.v1.PrivilegedModeState
 	(*PrivilegedRoleSelection)(nil),          // 7: chatto.api.v1.PrivilegedRoleSelection
-	(*GetViewerRequest)(nil),                 // 8: chatto.api.v1.GetViewerRequest
-	(*GetViewerResponse)(nil),                // 9: chatto.api.v1.GetViewerResponse
-	(*ActivatePrivilegedModeRequest)(nil),    // 10: chatto.api.v1.ActivatePrivilegedModeRequest
-	(*ActivatePrivilegedModeResponse)(nil),   // 11: chatto.api.v1.ActivatePrivilegedModeResponse
-	(*ActivatePrivilegedRolesRequest)(nil),   // 12: chatto.api.v1.ActivatePrivilegedRolesRequest
-	(*ActivatePrivilegedRolesResponse)(nil),  // 13: chatto.api.v1.ActivatePrivilegedRolesResponse
-	(*DeactivatePrivilegedModeRequest)(nil),  // 14: chatto.api.v1.DeactivatePrivilegedModeRequest
-	(*DeactivatePrivilegedModeResponse)(nil), // 15: chatto.api.v1.DeactivatePrivilegedModeResponse
-	(*timestamppb.Timestamp)(nil),            // 16: google.protobuf.Timestamp
-	(*User)(nil),                             // 17: chatto.api.v1.User
-	(*AccountActions)(nil),                   // 18: chatto.api.v1.AccountActions
-	(*CapabilityGrant)(nil),                  // 19: chatto.api.v1.CapabilityGrant
-	(*PermissionGrant)(nil),                  // 20: chatto.api.v1.PermissionGrant
+	(*PrivilegedPermissionPreview)(nil),      // 8: chatto.api.v1.PrivilegedPermissionPreview
+	(*GetViewerRequest)(nil),                 // 9: chatto.api.v1.GetViewerRequest
+	(*GetViewerResponse)(nil),                // 10: chatto.api.v1.GetViewerResponse
+	(*ActivatePrivilegedModeRequest)(nil),    // 11: chatto.api.v1.ActivatePrivilegedModeRequest
+	(*ActivatePrivilegedModeResponse)(nil),   // 12: chatto.api.v1.ActivatePrivilegedModeResponse
+	(*ActivatePrivilegedRolesRequest)(nil),   // 13: chatto.api.v1.ActivatePrivilegedRolesRequest
+	(*ActivatePrivilegedRolesResponse)(nil),  // 14: chatto.api.v1.ActivatePrivilegedRolesResponse
+	(*DeactivatePrivilegedModeRequest)(nil),  // 15: chatto.api.v1.DeactivatePrivilegedModeRequest
+	(*DeactivatePrivilegedModeResponse)(nil), // 16: chatto.api.v1.DeactivatePrivilegedModeResponse
+	(*timestamppb.Timestamp)(nil),            // 17: google.protobuf.Timestamp
+	(*User)(nil),                             // 18: chatto.api.v1.User
+	(*AccountActions)(nil),                   // 19: chatto.api.v1.AccountActions
+	(*CapabilityGrant)(nil),                  // 20: chatto.api.v1.CapabilityGrant
+	(*PermissionGrant)(nil),                  // 21: chatto.api.v1.PermissionGrant
 }
 var file_chatto_api_v1_viewer_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.UserSettings.time_format:type_name -> chatto.api.v1.TimeFormat
 	1,  // 1: chatto.api.v1.ViewerUser.settings:type_name -> chatto.api.v1.UserSettings
-	16, // 2: chatto.api.v1.ViewerUser.last_login_change:type_name -> google.protobuf.Timestamp
-	17, // 3: chatto.api.v1.ViewerUser.profile:type_name -> chatto.api.v1.User
-	18, // 4: chatto.api.v1.ViewerUser.actions:type_name -> chatto.api.v1.AccountActions
-	19, // 5: chatto.api.v1.ViewerCapabilities.grants:type_name -> chatto.api.v1.CapabilityGrant
-	20, // 6: chatto.api.v1.ServerViewerPermissions.permissions:type_name -> chatto.api.v1.PermissionGrant
-	16, // 7: chatto.api.v1.PrivilegedModeState.expires_at:type_name -> google.protobuf.Timestamp
+	17, // 2: chatto.api.v1.ViewerUser.last_login_change:type_name -> google.protobuf.Timestamp
+	18, // 3: chatto.api.v1.ViewerUser.profile:type_name -> chatto.api.v1.User
+	19, // 4: chatto.api.v1.ViewerUser.actions:type_name -> chatto.api.v1.AccountActions
+	20, // 5: chatto.api.v1.ViewerCapabilities.grants:type_name -> chatto.api.v1.CapabilityGrant
+	21, // 6: chatto.api.v1.ServerViewerPermissions.permissions:type_name -> chatto.api.v1.PermissionGrant
+	17, // 7: chatto.api.v1.PrivilegedModeState.expires_at:type_name -> google.protobuf.Timestamp
 	7,  // 8: chatto.api.v1.PrivilegedModeState.role_selection:type_name -> chatto.api.v1.PrivilegedRoleSelection
-	2,  // 9: chatto.api.v1.GetViewerResponse.user:type_name -> chatto.api.v1.ViewerUser
-	3,  // 10: chatto.api.v1.GetViewerResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
-	4,  // 11: chatto.api.v1.GetViewerResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
-	5,  // 12: chatto.api.v1.GetViewerResponse.viewer_state:type_name -> chatto.api.v1.ServerViewerState
-	6,  // 13: chatto.api.v1.GetViewerResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
-	6,  // 14: chatto.api.v1.ActivatePrivilegedModeResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
-	3,  // 15: chatto.api.v1.ActivatePrivilegedModeResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
-	4,  // 16: chatto.api.v1.ActivatePrivilegedModeResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
-	6,  // 17: chatto.api.v1.ActivatePrivilegedRolesResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
-	3,  // 18: chatto.api.v1.ActivatePrivilegedRolesResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
-	4,  // 19: chatto.api.v1.ActivatePrivilegedRolesResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
-	6,  // 20: chatto.api.v1.DeactivatePrivilegedModeResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
-	3,  // 21: chatto.api.v1.DeactivatePrivilegedModeResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
-	4,  // 22: chatto.api.v1.DeactivatePrivilegedModeResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
-	8,  // 23: chatto.api.v1.ViewerService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
-	10, // 24: chatto.api.v1.ViewerService.ActivatePrivilegedMode:input_type -> chatto.api.v1.ActivatePrivilegedModeRequest
-	12, // 25: chatto.api.v1.ViewerService.ActivatePrivilegedRoles:input_type -> chatto.api.v1.ActivatePrivilegedRolesRequest
-	14, // 26: chatto.api.v1.ViewerService.DeactivatePrivilegedMode:input_type -> chatto.api.v1.DeactivatePrivilegedModeRequest
-	9,  // 27: chatto.api.v1.ViewerService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
-	11, // 28: chatto.api.v1.ViewerService.ActivatePrivilegedMode:output_type -> chatto.api.v1.ActivatePrivilegedModeResponse
-	13, // 29: chatto.api.v1.ViewerService.ActivatePrivilegedRoles:output_type -> chatto.api.v1.ActivatePrivilegedRolesResponse
-	15, // 30: chatto.api.v1.ViewerService.DeactivatePrivilegedMode:output_type -> chatto.api.v1.DeactivatePrivilegedModeResponse
-	27, // [27:31] is the sub-list for method output_type
-	23, // [23:27] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	8,  // 9: chatto.api.v1.PrivilegedRoleSelection.preview:type_name -> chatto.api.v1.PrivilegedPermissionPreview
+	8,  // 10: chatto.api.v1.PrivilegedRoleSelection.without_activation:type_name -> chatto.api.v1.PrivilegedPermissionPreview
+	4,  // 11: chatto.api.v1.PrivilegedPermissionPreview.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
+	20, // 12: chatto.api.v1.PrivilegedPermissionPreview.grants:type_name -> chatto.api.v1.CapabilityGrant
+	2,  // 13: chatto.api.v1.GetViewerResponse.user:type_name -> chatto.api.v1.ViewerUser
+	3,  // 14: chatto.api.v1.GetViewerResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
+	4,  // 15: chatto.api.v1.GetViewerResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
+	5,  // 16: chatto.api.v1.GetViewerResponse.viewer_state:type_name -> chatto.api.v1.ServerViewerState
+	6,  // 17: chatto.api.v1.GetViewerResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
+	6,  // 18: chatto.api.v1.ActivatePrivilegedModeResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
+	3,  // 19: chatto.api.v1.ActivatePrivilegedModeResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
+	4,  // 20: chatto.api.v1.ActivatePrivilegedModeResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
+	6,  // 21: chatto.api.v1.ActivatePrivilegedRolesResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
+	3,  // 22: chatto.api.v1.ActivatePrivilegedRolesResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
+	4,  // 23: chatto.api.v1.ActivatePrivilegedRolesResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
+	6,  // 24: chatto.api.v1.DeactivatePrivilegedModeResponse.privileged_mode:type_name -> chatto.api.v1.PrivilegedModeState
+	3,  // 25: chatto.api.v1.DeactivatePrivilegedModeResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
+	4,  // 26: chatto.api.v1.DeactivatePrivilegedModeResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
+	9,  // 27: chatto.api.v1.ViewerService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
+	11, // 28: chatto.api.v1.ViewerService.ActivatePrivilegedMode:input_type -> chatto.api.v1.ActivatePrivilegedModeRequest
+	13, // 29: chatto.api.v1.ViewerService.ActivatePrivilegedRoles:input_type -> chatto.api.v1.ActivatePrivilegedRolesRequest
+	15, // 30: chatto.api.v1.ViewerService.DeactivatePrivilegedMode:input_type -> chatto.api.v1.DeactivatePrivilegedModeRequest
+	10, // 31: chatto.api.v1.ViewerService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
+	12, // 32: chatto.api.v1.ViewerService.ActivatePrivilegedMode:output_type -> chatto.api.v1.ActivatePrivilegedModeResponse
+	14, // 33: chatto.api.v1.ViewerService.ActivatePrivilegedRoles:output_type -> chatto.api.v1.ActivatePrivilegedRolesResponse
+	16, // 34: chatto.api.v1.ViewerService.DeactivatePrivilegedMode:output_type -> chatto.api.v1.DeactivatePrivilegedModeResponse
+	31, // [31:35] is the sub-list for method output_type
+	27, // [27:31] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_viewer_proto_init() }
@@ -1115,7 +1200,7 @@ func file_chatto_api_v1_viewer_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_viewer_proto_rawDesc), len(file_chatto_api_v1_viewer_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

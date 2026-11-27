@@ -413,6 +413,21 @@ export class PrivilegedRoleSelection extends Message<PrivilegedRoleSelection> {
    */
   availableRoles: string[] = [];
 
+  /**
+   * Decisions with all assigned protected roles active. Present while inactive if the viewer has protected roles.
+   * Older servers omit the preview.
+   *
+   * @generated from field: chatto.api.v1.PrivilegedPermissionPreview preview = 2;
+   */
+  preview?: PrivilegedPermissionPreview;
+
+  /**
+   * Decisions with Shield Mode off. Present during activation if the viewer has protected roles.
+   *
+   * @generated from field: chatto.api.v1.PrivilegedPermissionPreview without_activation = 3;
+   */
+  withoutActivation?: PrivilegedPermissionPreview;
+
   constructor(data?: PartialMessage<PrivilegedRoleSelection>) {
     super();
     proto3.util.initPartial(data, this);
@@ -422,6 +437,8 @@ export class PrivilegedRoleSelection extends Message<PrivilegedRoleSelection> {
   static readonly typeName = "chatto.api.v1.PrivilegedRoleSelection";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "available_roles", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 2, name: "preview", kind: "message", T: PrivilegedPermissionPreview },
+    { no: 3, name: "without_activation", kind: "message", T: PrivilegedPermissionPreview },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PrivilegedRoleSelection {
@@ -438,6 +455,56 @@ export class PrivilegedRoleSelection extends Message<PrivilegedRoleSelection> {
 
   static equals(a: PrivilegedRoleSelection | PlainMessage<PrivilegedRoleSelection> | undefined, b: PrivilegedRoleSelection | PlainMessage<PrivilegedRoleSelection> | undefined): boolean {
     return proto3.util.equals(PrivilegedRoleSelection, a, b);
+  }
+}
+
+/**
+ * Permission and capability decisions for the role state specified by the containing field.
+ * Use the effective viewer decisions for access to resources and actions.
+ *
+ * @generated from message chatto.api.v1.PrivilegedPermissionPreview
+ */
+export class PrivilegedPermissionPreview extends Message<PrivilegedPermissionPreview> {
+  /**
+   * Server-level permission decisions for that role state.
+   *
+   * @generated from field: chatto.api.v1.ServerViewerPermissions viewer_permissions = 1;
+   */
+  viewerPermissions?: ServerViewerPermissions;
+
+  /**
+   * Capability decisions for that role state.
+   *
+   * @generated from field: repeated chatto.api.v1.CapabilityGrant grants = 2;
+   */
+  grants: CapabilityGrant[] = [];
+
+  constructor(data?: PartialMessage<PrivilegedPermissionPreview>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.PrivilegedPermissionPreview";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "viewer_permissions", kind: "message", T: ServerViewerPermissions },
+    { no: 2, name: "grants", kind: "message", T: CapabilityGrant, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PrivilegedPermissionPreview {
+    return new PrivilegedPermissionPreview().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PrivilegedPermissionPreview {
+    return new PrivilegedPermissionPreview().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PrivilegedPermissionPreview {
+    return new PrivilegedPermissionPreview().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PrivilegedPermissionPreview | PlainMessage<PrivilegedPermissionPreview> | undefined, b: PrivilegedPermissionPreview | PlainMessage<PrivilegedPermissionPreview> | undefined): boolean {
+    return proto3.util.equals(PrivilegedPermissionPreview, a, b);
   }
 }
 

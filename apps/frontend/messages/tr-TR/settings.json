@@ -59,6 +59,7 @@
         "jobs": "Arka plan işlerini görüntüleyin ve başarısız işleri yeniden deneyin."
       },
       "title": "Genel bakış",
+      "shield_active": "Ayrıcalıklı mod etkin",
       "shield_notice": "Bu sunucudaki ek izinlerinizi kullanmak için adınızın yanındaki kalkan düğmesiyle ayrıcalıklı modu etkinleştirin."
     },
     "nav": {

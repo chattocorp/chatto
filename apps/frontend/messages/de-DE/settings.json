@@ -59,6 +59,7 @@
         "jobs": "Sieh dir Hintergrundaufträge an und wiederhole fehlgeschlagene Aufträge."
       },
       "title": "Übersicht",
+      "shield_active": "Privilegierter Modus aktiv",
       "shield_notice": "Aktiviere den privilegierten Modus mit der Schild-Schaltfläche neben deinem Namen, um deine zusätzlichen Berechtigungen auf diesem Server zu nutzen."
     },
     "nav": {

@@ -985,6 +985,18 @@ State of explicit privileged-mode activation for this authenticated session.
 | `expires_at` | `google.protobuf.Timestamp` | Absolute activation deadline. Present only while privileged mode is active. |
 | `role_selection` | [`PrivilegedRoleSelection`](#chatto-api-v1-PrivilegedRoleSelection) | Present when this server supports selective activation, even when no roles are available. |
 
+<a id="chatto-api-v1-PrivilegedPermissionPreview"></a>
+
+### PrivilegedPermissionPreview
+
+Permission and capability decisions for the role state specified by the containing field.
+Use the effective viewer decisions for access to resources and actions.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Server-level permission decisions for that role state. |
+| `grants` | repeated [`CapabilityGrant`](#chatto-api-v1-CapabilityGrant) | Capability decisions for that role state. |
+
 <a id="chatto-api-v1-PrivilegedRoleSelection"></a>
 
 ### PrivilegedRoleSelection
@@ -994,6 +1006,8 @@ Protected roles that the caller can select for this session.
 | Field | Type | Description |
 | --- | --- | --- |
 | `available_roles` | `repeated string` | Assigned protected roles. An empty list means there are no roles to activate. |
+| `preview` | [`PrivilegedPermissionPreview`](#chatto-api-v1-PrivilegedPermissionPreview) | Decisions with all assigned protected roles active. Present while inactive if the viewer has protected roles. Older servers omit the preview. |
+| `without_activation` | [`PrivilegedPermissionPreview`](#chatto-api-v1-PrivilegedPermissionPreview) | Decisions with Shield Mode off. Present during activation if the viewer has protected roles. |
 
 <a id="chatto-api-v1-ServerViewerPermissions"></a>
 

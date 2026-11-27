@@ -89,6 +89,55 @@ async function expectRestrictedAccessDenied(page: Page, roomId: string): Promise
   }
 }
 
+test('Settings offers Shield Mode from the sidebar and Overview and opens the requested page', async ({
+  page
+}) => {
+  await page.goto(routes.root);
+  await loginAsAdminAndUsePrimaryServer(page, { activatePrivilegedMode: false });
+  await page.goto(routes.settingsOverview);
+  const button = { name: 'General', exact: true };
+  const sidebar = page.getByTestId('server-sidebar');
+  const overview = page.getByRole('region', { name: 'Server', exact: true });
+  await expect(overview.getByRole('button', button)).toBeVisible();
+  await expect(
+    overview.getByText(/Select a page marked with a shield|To use your additional permissions/)
+  ).toHaveCount(0);
+  await sidebar.getByRole('button', button).click();
+  const dialog = page.getByRole('dialog', { name: 'Enable privileged mode' });
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page).toHaveURL(new RegExp(routes.settingsOverview + '$'));
+  await overview.getByRole('button', button).click();
+  await dialog.getByText('owner', { exact: true }).click();
+  await dialog.getByRole('button', { name: 'Enable privileged mode' }).click();
+  await expect(page).toHaveURL(/\/manage\/server\/general$/);
+  await expect(sidebar.getByRole('link', { name: 'General', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page'
+  );
+  const activeColor = await page
+    .getByTestId('privileged-mode-toggle')
+    .evaluate((el) => getComputedStyle(el).color);
+  await expect(sidebar.getByRole('link', button).locator('.iconify.text-warning')).toHaveCSS(
+    'color',
+    activeColor
+  );
+  await expect(
+    sidebar.getByRole('link', { name: 'Bots', exact: true }).locator('.text-warning')
+  ).toHaveCount(0);
+  await page.goto(routes.settingsOverview);
+  const card = overview.getByRole('link', button);
+  await expect(card).toHaveAccessibleDescription(/Shield Mode active/);
+  await expect(
+    overview.getByText('General', { exact: true }).locator('.iconify.text-warning')
+  ).toHaveCSS('color', activeColor);
+  await expect(
+    overview.getByRole('link', { name: 'Bots', exact: true })
+  ).not.toHaveAccessibleDescription(/Shield Mode active/);
+  await deactivate(page);
+  await expect(overview.getByRole('button', button)).toBeVisible();
+});
+
 test('confirmation can be cancelled and pending activation prevents duplicate requests', async ({
   page
 }) => {

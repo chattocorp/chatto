@@ -3,6 +3,8 @@ import { render } from 'vitest-browser-svelte';
 import { createTestServerScope, type TestServerScope } from '$lib/test-utils/serverScope.svelte';
 import { SvelteMap } from 'svelte/reactivity';
 
+vi.mock('$lib/state/server/shieldMode', () => ({ useShieldMode: () => ({ open: vi.fn() }) }));
+
 vi.mock('$lib/navigation', () => ({
   serverIdToSegment: (serverId: string) => serverId,
   segmentToServerId: (segment: string) => segment

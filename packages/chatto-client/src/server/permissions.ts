@@ -48,7 +48,9 @@ export const NO_SERVER_PERMISSIONS: ServerPermissions = Object.freeze({
 });
 
 /** Map a loaded viewer projection to the permissions that the UI checks. */
-export function serverPermissionsFromViewer(viewer: ViewerState): ServerPermissions {
+export function serverPermissionsFromViewer(
+  viewer: ViewerCapabilities & Pick<ViewerState, 'viewerPermissions'>
+): ServerPermissions {
   const can = (permission: string) => viewer.viewerPermissions[permission] ?? false;
   return {
     loaded: true,

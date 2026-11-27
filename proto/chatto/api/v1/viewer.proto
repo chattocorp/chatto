@@ -92,6 +92,20 @@ message PrivilegedModeState {
 message PrivilegedRoleSelection {
   // Assigned protected roles. An empty list means there are no roles to activate.
   repeated string available_roles = 1;
+  // Decisions with all assigned protected roles active. Present while inactive if the viewer has protected roles.
+  // Older servers omit the preview.
+  PrivilegedPermissionPreview preview = 2;
+  // Decisions with Shield Mode off. Present during activation if the viewer has protected roles.
+  PrivilegedPermissionPreview without_activation = 3;
+}
+
+// Permission and capability decisions for the role state specified by the containing field.
+// Use the effective viewer decisions for access to resources and actions.
+message PrivilegedPermissionPreview {
+  // Server-level permission decisions for that role state.
+  ServerViewerPermissions viewer_permissions = 1;
+  // Capability decisions for that role state.
+  repeated CapabilityGrant grants = 2;
 }
 
 // Request for the authenticated viewer snapshot.
