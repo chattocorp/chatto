@@ -34,7 +34,7 @@ column, so end-side tabs and actions stay next to the content on wide screens.
 The bottom border still spans the pane. Elsewhere the row fills the pane.
 
 Set `collapseActions` to put actions behind a three-dot button below 32 rem
-of pane width. `collapsedActions` can keep important actions visible in that
+of pane width, or use `collapseActions="wide"` for 48 rem. `collapsedActions` can keep important actions visible in that
 state. Expansion stays inside the header and lets the title truncate.
 
 Set `hideOnKeyboard` to remove the header from the mobile layout while the
@@ -71,8 +71,8 @@ shared viewport detector reports an open software keyboard.
     /** Section navigation, normally a `TabNav`, shown before the actions. */
     tabs?: Snippet;
     actions?: Snippet;
-    /** Collapse actions below 32 rem of pane width. Expand them beside the title. */
-    collapseActions?: boolean;
+    /** Collapse actions below 32 rem of pane width, or 48 rem with "wide". Expand them beside the title. */
+    collapseActions?: boolean | 'wide';
     /** Hide in narrow touch-capable windows while the software keyboard is detected. */
     hideOnKeyboard?: boolean;
     /** Important actions to show instead of the full list while collapsed. */
@@ -115,6 +115,11 @@ shared viewport detector reports an open software keyboard.
     actionsExpanded = false;
     actionsButton.focus();
   }
+  const hideWhenWide = $derived(
+    collapseActions === 'wide'
+      ? '@min-[48rem]/pane-header:hidden'
+      : '@min-[32rem]/pane-header:hidden'
+  );
 </script>
 
 <svelte:window onkeydown={handleEscape} />
@@ -193,7 +198,9 @@ shared viewport detector reports an open software keyboard.
             'items-center',
             collapseActions
               ? [
-                  '@min-[32rem]/pane-header:flex @min-[32rem]/pane-header:gap-2',
+                  collapseActions === 'wide'
+                    ? '@min-[48rem]/pane-header:flex @min-[48rem]/pane-header:gap-2'
+                    : '@min-[32rem]/pane-header:flex @min-[32rem]/pane-header:gap-2',
                   actionsExpanded ? 'flex' : 'hidden'
                 ]
               : 'flex gap-2'
@@ -203,14 +210,14 @@ shared viewport detector reports an open software keyboard.
         </div>
         {#if collapseActions}
           {#if !actionsExpanded && collapsedActions}
-            <div class="flex items-center @min-[32rem]/pane-header:hidden">
+            <div class={['flex items-center', hideWhenWide]}>
               {@render collapsedActions()}
             </div>
           {/if}
           <button
             bind:this={actionsButton}
             type="button"
-            class="pane-header-icon-button @min-[32rem]/pane-header:hidden"
+            class={['pane-header-icon-button', hideWhenWide]}
             aria-label={actionsLabel}
             aria-expanded={actionsExpanded}
             aria-controls={actionsId}
