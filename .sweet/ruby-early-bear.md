@@ -2,4 +2,4 @@
 type: highlight
 ---
 
-The server Overview is now a home page for the server, with its welcome message, active calls, the rooms and direct messages that need your attention, and a refreshed room directory.
+The server **Overview** is now a home page for your server, with its welcome message, live calls, and the rooms and direct messages that are waiting for you.
