@@ -42,8 +42,8 @@ var fallbackLocales = map[string]string{
 }
 
 // rtlLanguages are the base languages of the supported locales that are
-// written right to left.
-var rtlLanguages = map[string]bool{"ar": true, "he": true, "fa": true, "ur": true}
+// written right to left. Add a language here when its locale is added.
+var rtlLanguages = map[string]bool{"ar": true, "he": true}
 
 //go:embed messages
 var embedded embed.FS
@@ -184,9 +184,6 @@ func isPluralCategory(key string) bool {
 	}
 	return false
 }
-
-// Locales returns the locales that Match can select, BaseLocale first.
-func (c *Catalog) Locales() []string { return append([]string(nil), c.locales...) }
 
 // Match returns the supported locale that best fits an Accept-Language header
 // value. It returns BaseLocale for an empty or invalid value or when no

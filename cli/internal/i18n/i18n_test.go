@@ -8,6 +8,8 @@ import (
 	"sort"
 	"testing"
 	"testing/fstest"
+
+	"golang.org/x/text/language"
 )
 
 // sourceMessages is the frontend translation tree, relative to this package.
@@ -83,7 +85,7 @@ func TestEveryFrontendLocaleHasServerCatalogs(t *testing.T) {
 func TestCatalogsMatchBaseKeysAndPlaceholders(t *testing.T) {
 	c := Default()
 	base := c.messages[BaseLocale]
-	for _, locale := range c.Locales() {
+	for _, locale := range c.locales {
 		if _, sparse := fallbackLocales[locale]; sparse && len(c.messages[locale]) == 0 {
 			continue
 		}
@@ -103,6 +105,30 @@ func TestCatalogsMatchBaseKeysAndPlaceholders(t *testing.T) {
 		for key := range base {
 			if _, ok := c.messages[locale][key]; !ok {
 				t.Errorf("%s: missing key %q", locale, key)
+			}
+		}
+	}
+}
+
+// A plural message must have every CLDR category that its language uses for
+// whole numbers. A missing category would fall back to "other" and give the
+// wrong grammar, for example "5 минуты" instead of "5 минут".
+func TestPluralMessagesHaveTheLanguagesCategories(t *testing.T) {
+	c := Default()
+	for _, locale := range c.locales {
+		tag := language.MustParse(locale)
+		needed := map[string]bool{}
+		for n := 0; n <= 1000; n++ {
+			needed[pluralCategory(tag, n)] = true
+		}
+		for key, msg := range c.messages[locale] {
+			if msg.plural == nil {
+				continue
+			}
+			for category := range needed {
+				if msg.plural[category] == "" {
+					t.Errorf("%s: %q lacks the %q form", locale, key, category)
+				}
 			}
 		}
 	}
