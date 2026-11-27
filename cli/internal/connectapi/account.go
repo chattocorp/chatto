@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/email"
+	"github.com/chattocorp/chatto/cli/internal/i18n"
 	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -100,8 +101,11 @@ func (s *accountService) RequestEmailVerification(ctx context.Context, req *conn
 		return nil, err
 	}
 	err = s.api.emailQueue.Enqueue(ctx, email.Delivery{
-		To:        address,
-		Content:   email.EmailVerificationCode{Code: code, TTL: s.api.config.Auth.EmailOTP.TTLOrDefault()},
+		To:      address,
+		Content: email.EmailVerificationCode{Code: code, TTL: s.api.config.Auth.EmailOTP.TTLOrDefault()},
+		// The language follows the request's Accept-Language header, which
+		// @chatto/client sets from its locale option.
+		Locale:    i18n.Default().Match(req.Header().Get("Accept-Language")),
 		ExpiresAt: expiresAt,
 	})
 	if err != nil {

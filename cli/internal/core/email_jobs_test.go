@@ -76,7 +76,7 @@ func TestEmailJobsPersistPrivateContentAndRetry(t *testing.T) {
 	ctx := testContext(t)
 	transport := &retryMailSender{MockSender: email.NewMockSender(true)}
 	sender := c.NewEmailJobs(transport, testEmailBranding("Old name"))
-	delivery := email.Delivery{To: "secret@example.invalid", Content: email.RegistrationCode{Code: "123456", TTL: time.Minute}, ExpiresAt: time.Now().Add(time.Minute)}
+	delivery := email.Delivery{To: "secret@example.invalid", Content: email.RegistrationCode{Code: "123456", TTL: time.Minute}, Locale: "de-DE", ExpiresAt: time.Now().Add(time.Minute)}
 	require.NoError(t, sender.Enqueue(ctx, delivery))
 	require.Zero(t, transport.calls.Load(), "request must not call transport")
 	info, err := c.storage.jobsStream.Info(ctx)
@@ -94,6 +94,7 @@ func TestEmailJobsPersistPrivateContentAndRetry(t *testing.T) {
 	record := storedEmailDelivery(t, ctx, sender, id)
 	require.Equal(t, "123456", record.GetRegistrationCode().GetCode())
 	require.Equal(t, time.Minute, record.GetRegistrationCode().GetTtl().AsDuration())
+	require.Equal(t, "de-DE", record.GetLocale())
 	require.Empty(t, record.GetSubject())
 	require.Empty(t, record.GetBody())
 	// A fresh core and sender can recover the accepted job without request
@@ -108,7 +109,7 @@ func TestEmailJobsPersistPrivateContentAndRetry(t *testing.T) {
 	require.Eventually(t, func() bool { return len(transport.Messages()) == 1 }, 10*time.Second, 10*time.Millisecond)
 	require.Equal(t, int32(2), transport.calls.Load())
 	delivered := transport.Messages()[0]
-	require.Equal(t, "123456 is your code for New name", delivered.Subject)
+	require.Equal(t, "123456 ist dein Code für New name", delivered.Subject)
 	require.Equal(t, "New name", delivered.FromName)
 	require.Contains(t, delivered.HTMLBody, "123456")
 	require.Eventually(t, func() bool {

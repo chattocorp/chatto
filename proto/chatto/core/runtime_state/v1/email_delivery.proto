@@ -30,6 +30,10 @@ message EmailDelivery {
     EmailCode email_verification_code = 7;
     PasswordResetEmail password_reset = 8;
   }
+
+  // Language of the email, as a supported locale such as "de-DE". Empty, for
+  // a record from an older version, selects the base language (en-GB).
+  string locale = 9;
 }
 
 // EmailCode is a one-time code and its lifetime, which the email shows.

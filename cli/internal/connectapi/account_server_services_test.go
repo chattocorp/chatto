@@ -2009,3 +2009,21 @@ func TestListExternalIdentitiesAccountLabels(t *testing.T) {
 	directory.Insert(identity.Identity{DID: "did:plc:member", Handle: "new.example"})
 	require.Equal(t, map[string]string{atproto: "new.example", oidc: ""}, read())
 }
+
+// The verification email uses the language of the request's Accept-Language
+// header, which @chatto/client sets from its locale option.
+func TestMyAccountServiceVerificationEmailFollowsAcceptLanguage(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	mailer := email.NewMockSender(true)
+	env.api.emailQueue = mailer
+
+	req := connect.NewRequest(&apiv1.RequestEmailVerificationRequest{Email: "polski@example.com", ExpectedUserId: env.viewer.Id})
+	req.Header().Set("Accept-Language", "pl-PL")
+	if _, err := env.account.RequestEmailVerification(ctx, req); err != nil {
+		t.Fatalf("RequestEmailVerification: %v", err)
+	}
+	if message := mailer.LastMessage(); message == nil || !strings.Contains(message.Subject, "to Twój kod do") {
+		t.Fatalf("verification message = %+v, want Polish", message)
+	}
+}

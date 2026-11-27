@@ -10,6 +10,8 @@ import (
 	"strings"
 	texttemplate "text/template"
 	"time"
+
+	"github.com/chattocorp/chatto/cli/internal/i18n"
 )
 
 //go:embed templates/layout.html templates/layout.txt
@@ -71,17 +73,24 @@ func (b Branding) host() string {
 
 // layoutData fills both layouts. A message shows either Code or ButtonURL.
 type layoutData struct {
-	Subject     string
-	Preheader   string
-	ServerName  string
-	Heading     string
-	Intro       string
-	Code        string
-	ButtonLabel string
-	ButtonURL   string
-	Expiry      string
-	Footer      string
-	Accent      Accent
+	// Lang is the BCP 47 tag of the email's language.
+	Lang string
+	// Dir is "rtl" or "ltr". Align is the matching start side for clients
+	// that ignore the dir attribute.
+	Dir            string
+	Align          string
+	Subject        string
+	Preheader      string
+	ServerName     string
+	Heading        string
+	Intro          string
+	Code           string
+	ButtonLabel    string
+	ButtonURL      string
+	ButtonFallback string
+	Expiry         string
+	Footer         string
+	Accent         Accent
 }
 
 // Content is what a transactional email says, without its wording or layout.
@@ -89,7 +98,7 @@ type layoutData struct {
 // stored records hold only the recipient, the secret, and its lifetime. The
 // unexported method limits Content to the kinds in this package.
 type Content interface {
-	layout(b Branding) layoutData
+	layout(b Branding, t i18n.Translator) layoutData
 }
 
 // RegistrationCode is the email that carries a registration code.
@@ -115,40 +124,46 @@ type PasswordReset struct {
 	TTL time.Duration
 }
 
-func (c RegistrationCode) layout(b Branding) layoutData {
+func (c RegistrationCode) layout(b Branding, t i18n.Translator) layoutData {
+	args := i18n.Args{"code": c.Code, "server": b.ServerName, "host": b.host()}
+	intro := t.T("email.registration.intro", args)
 	return layoutData{
-		Subject:   fmt.Sprintf("%s is your code for %s", c.Code, b.ServerName),
-		Preheader: "Enter this code to finish creating your account.",
-		Heading:   fmt.Sprintf("Welcome to %s", b.ServerName),
-		Intro:     "Enter this code to finish creating your account.",
+		Subject:   t.T("email.registration.subject", args),
+		Preheader: intro,
+		Heading:   t.T("email.registration.heading", args),
+		Intro:     intro,
 		Code:      c.Code,
-		Expiry:    fmt.Sprintf("This code expires in %s.", ExpirationText(c.TTL)),
-		Footer:    fmt.Sprintf("Someone used this address to sign up on %s. If that wasn't you, ignore this email. No account will be created.", b.host()),
+		Expiry:    t.T("email.common.code_expiry", i18n.Args{"duration": durationText(t, c.TTL)}),
+		Footer:    t.T("email.registration.footer", args),
 	}
 }
 
-func (c EmailVerificationCode) layout(b Branding) layoutData {
+func (c EmailVerificationCode) layout(b Branding, t i18n.Translator) layoutData {
+	args := i18n.Args{"code": c.Code, "server": b.ServerName, "host": b.host()}
+	intro := t.T("email.verification.intro", args)
 	return layoutData{
-		Subject:   fmt.Sprintf("%s is your code for %s", c.Code, b.ServerName),
-		Preheader: fmt.Sprintf("Enter this code to add this address to your %s account.", b.ServerName),
-		Heading:   "Verify your email address",
-		Intro:     fmt.Sprintf("Enter this code to add this address to your %s account.", b.ServerName),
+		Subject:   t.T("email.verification.subject", args),
+		Preheader: intro,
+		Heading:   t.T("email.verification.heading", args),
+		Intro:     intro,
 		Code:      c.Code,
-		Expiry:    fmt.Sprintf("This code expires in %s.", ExpirationText(c.TTL)),
-		Footer:    fmt.Sprintf("Someone asked to add this address to an account on %s. If that wasn't you, ignore this email.", b.host()),
+		Expiry:    t.T("email.common.code_expiry", i18n.Args{"duration": durationText(t, c.TTL)}),
+		Footer:    t.T("email.verification.footer", args),
 	}
 }
 
-func (c PasswordReset) layout(b Branding) layoutData {
+func (c PasswordReset) layout(b Branding, t i18n.Translator) layoutData {
+	args := i18n.Args{"server": b.ServerName, "host": b.host()}
 	return layoutData{
-		Subject:     fmt.Sprintf("Reset your %s password", b.ServerName),
-		Preheader:   "Choose a new password for your account.",
-		Heading:     "Reset your password",
-		Intro:       fmt.Sprintf("We received a request to reset the password for your %s account. Choose a new one with the link below.", b.ServerName),
-		ButtonLabel: "Set a new password",
-		ButtonURL:   passwordResetURL(b.ServerURL, c.Token),
-		Expiry:      fmt.Sprintf("This link expires in %s.", ExpirationText(c.TTL)),
-		Footer:      fmt.Sprintf("Sent by %s. If you didn't ask for this, ignore this email. Your password stays the same.", b.host()),
+		Subject:        t.T("email.password_reset.subject", args),
+		Preheader:      t.T("email.password_reset.preheader", args),
+		Heading:        t.T("email.password_reset.heading", args),
+		Intro:          t.T("email.password_reset.intro", args),
+		ButtonLabel:    t.T("email.password_reset.button", args),
+		ButtonURL:      passwordResetURL(b.ServerURL, c.Token),
+		ButtonFallback: t.T("email.common.button_fallback", nil),
+		Expiry:         t.T("email.common.link_expiry", i18n.Args{"duration": durationText(t, c.TTL)}),
+		Footer:         t.T("email.password_reset.footer", args),
 	}
 }
 
@@ -159,12 +174,20 @@ func passwordResetURL(serverURL, token string) string {
 }
 
 // Render builds the complete message for content, with the wording and
-// layout of this version and the given branding.
-func Render(b Branding, to string, content Content) (Message, error) {
+// layout of this version, the given branding, and the language of locale.
+// An empty or unsupported locale uses the base language (en-GB).
+func Render(b Branding, locale, to string, content Content) (Message, error) {
 	if content == nil {
 		return Message{}, errors.New("email content required")
 	}
-	data := content.layout(b)
+	t := i18n.Default().Translator(locale)
+	data := content.layout(b, t)
+	data.Lang = t.Locale()
+	data.Dir = t.Dir()
+	data.Align = "left"
+	if data.Dir == "rtl" {
+		data.Align = "right"
+	}
 	data.ServerName = b.ServerName
 	data.Accent = b.Accent
 	if data.Accent == (Accent{}) {
@@ -186,24 +209,17 @@ func Render(b Branding, to string, content Content) (Message, error) {
 	}, nil
 }
 
-// ExpirationText formats a lifetime in whole hours, minutes, or seconds, for
-// example "1 hour" or "30 minutes".
-func ExpirationText(ttl time.Duration) string {
+// durationText formats a lifetime in whole hours, minutes, or seconds, for
+// example "1 hour" or "30 minutes", in the translator's language.
+func durationText(t i18n.Translator, ttl time.Duration) string {
 	switch {
 	case ttl%time.Hour == 0:
-		return pluralDuration(int(ttl/time.Hour), "hour")
+		return t.N("email.common.duration.hours", int(ttl/time.Hour), nil)
 	case ttl%time.Minute == 0:
-		return pluralDuration(int(ttl/time.Minute), "minute")
+		return t.N("email.common.duration.minutes", int(ttl/time.Minute), nil)
 	case ttl%time.Second == 0:
-		return pluralDuration(int(ttl/time.Second), "second")
+		return t.N("email.common.duration.seconds", int(ttl/time.Second), nil)
 	default:
 		return ttl.String()
 	}
-}
-
-func pluralDuration(value int, unit string) string {
-	if value == 1 {
-		return "1 " + unit
-	}
-	return fmt.Sprintf("%d %ss", value, unit)
 }

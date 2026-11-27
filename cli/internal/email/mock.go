@@ -62,7 +62,7 @@ func (m *MockSender) Enqueue(ctx context.Context, delivery Delivery) error {
 	if m.Branding != nil {
 		branding = m.Branding()
 	}
-	msg, err := Render(branding, delivery.To, delivery.Content)
+	msg, err := Render(branding, delivery.Locale, delivery.To, delivery.Content)
 	if err != nil {
 		return err
 	}

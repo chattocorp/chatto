@@ -13,6 +13,7 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/connectapi"
 	"github.com/chattocorp/chatto/cli/internal/core"
 	"github.com/chattocorp/chatto/cli/internal/email"
+	"github.com/chattocorp/chatto/cli/internal/i18n"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -95,6 +96,13 @@ func serverDisplayName(c *core.ChattoCore) string {
 		}
 	}
 	return "Chatto"
+}
+
+// emailLocale selects the language of a transactional email from the
+// request's Accept-Language header. The bundled frontend sends the language
+// that the user selected in the app.
+func emailLocale(r *http.Request) string {
+	return i18n.Default().Match(r.Header.Get("Accept-Language"))
 }
 
 // emailBranding returns the branding that the email queue uses when it renders
@@ -586,6 +594,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		err = s.mailer.Enqueue(c.Request.Context(), email.Delivery{
 			To:        req.Email,
 			Content:   email.RegistrationCode{Code: code, TTL: s.config.Auth.EmailOTP.TTLOrDefault()},
+			Locale:    emailLocale(c.Request),
 			ExpiresAt: expiresAt,
 		})
 		if err != nil {
@@ -830,6 +839,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		if err := s.mailer.Enqueue(c.Request.Context(), email.Delivery{
 			To:        body.Email,
 			Content:   email.EmailVerificationCode{Code: code, TTL: s.config.Auth.EmailOTP.TTLOrDefault()},
+			Locale:    emailLocale(c.Request),
 			ExpiresAt: expiresAt,
 		}); err != nil {
 			log.Error("Failed to send email verification code", "userId", user.Id, "error", err)
@@ -921,6 +931,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			err = s.mailer.Enqueue(c.Request.Context(), email.Delivery{
 				To:        normalizedEmail,
 				Content:   email.PasswordReset{Token: token, TTL: core.PasswordResetTokenTTL},
+				Locale:    emailLocale(c.Request),
 				ExpiresAt: expiresAt,
 			})
 			if err != nil {

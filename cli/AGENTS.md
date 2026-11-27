@@ -46,6 +46,11 @@ authorization, live events, backup and restore, and backend tests.
   with architectural changes.
 - Use the `chatto-jobs-implementation` skill before you add, change, or
   remove a background job type.
+- Translate server texts with `internal/i18n` (ADR-129). Put the catalogs in
+  `apps/frontend/messages/<locale>/server/<section>.json`, never directly in
+  `cli/internal/i18n/messages/`, and run `mise sync-server-messages`. Select
+  the locale from the request's `Accept-Language` header with
+  `i18n.Default().Match`. Store it with queued work.
 - Store what queued work must do, not its result. A queued record holds IDs,
   codes, tokens, and their lifetimes. The worker renders or derives all other
   data, such as email text and HTML, when it runs. This keeps records with

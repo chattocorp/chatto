@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{.Lang}}" dir="{{.Dir}}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -44,15 +44,20 @@
             width="100%"
             cellpadding="0"
             cellspacing="0"
+            dir="{{.Dir}}"
             style="max-width: 520px"
           >
             <tr>
-              <td style="padding: 0 8px 16px; font-size: 15px; font-weight: bold; color: #18181b">
+              <td
+                align="{{.Align}}"
+                style="padding: 0 8px 16px; font-size: 15px; font-weight: bold; color: #18181b"
+              >
                 {{.ServerName}}
               </td>
             </tr>
             <tr>
               <td
+                align="{{.Align}}"
                 bgcolor="#ffffff"
                 style="background-color: #ffffff; border-radius: 12px; padding: 32px"
               >
@@ -67,6 +72,7 @@
                   <tr>
                     <td
                       align="center"
+                      dir="ltr"
                       bgcolor="{{.Accent.Tint}}"
                       style="background-color:{{.Accent.Tint}};border-radius:8px;padding:20px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:32px;font-weight:bold;letter-spacing:8px;color:{{.Accent.Strong}};"
                     >
@@ -106,16 +112,22 @@
                   </tr>
                 </table>
                 <p style="margin: 24px 0 4px; font-size: 13px; line-height: 1.5; color: #71717a">
-                  {{.Expiry}} If the button doesn't work, open this address:
+                  {{.Expiry}} {{.ButtonFallback}}
                 </p>
-                <p style="margin: 0; font-size: 13px; line-height: 1.5; word-break: break-all">
+                <p
+                  dir="ltr"
+                  style="margin: 0; font-size: 13px; line-height: 1.5; word-break: break-all"
+                >
                   <a href="{{.ButtonURL}}" style="color:{{.Accent.Strong}};">{{.ButtonURL}}</a>
                 </p>
                 {{- end}}
               </td>
             </tr>
             <tr>
-              <td style="padding: 20px 8px 0; font-size: 12px; line-height: 1.6; color: #a1a1aa">
+              <td
+                align="{{.Align}}"
+                style="padding: 20px 8px 0; font-size: 12px; line-height: 1.6; color: #a1a1aa"
+              >
                 {{.Footer}}
               </td>
             </tr>
