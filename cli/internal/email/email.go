@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	netmail "net/mail"
 	"strings"
 	"time"
 
@@ -27,8 +28,14 @@ type Message struct {
 	// ExpiresAt is the last time a queued message may be delivered.
 	ExpiresAt time.Time
 	To        string
-	Subject   string
-	Body      string
+	// FromName is the display name for the sender. Transports use it only when
+	// the configured sender address has no display name.
+	FromName string
+	Subject  string
+	// Body is the plain-text part. Every message has one.
+	Body string
+	// HTMLBody is an optional HTML alternative to Body.
+	HTMLBody string
 }
 
 // Sender is the interface for sending emails. Implemented by Mailer.
@@ -75,15 +82,22 @@ func (m *Mailer) SendContext(ctx context.Context, msg Message) error {
 	// Create the message
 	message := mail.NewMsg()
 	// Address parse errors repeat the address, so do not wrap them.
-	if err := message.From(m.config.From); err != nil {
+	from, err := senderAddress(m.config.From, msg.FromName)
+	if err != nil {
 		return errors.New("invalid from address")
 	}
+	// Pass the parsed address. FromFormat formats and parses again, which
+	// fails for a display name that contains a quote or a backslash.
+	message.SetAddrHeaderFromMailAddress(mail.HeaderFrom, from)
 	if err := message.To(msg.To); err != nil {
 		return errors.New("invalid to address")
 	}
 	setMessageID(message)
 	message.Subject(msg.Subject)
 	message.SetBodyString(mail.TypeTextPlain, msg.Body)
+	if msg.HTMLBody != "" {
+		message.AddAlternativeString(mail.TypeTextHTML, msg.HTMLBody)
+	}
 
 	// Build client options
 	opts := mailOptions(m.config)
@@ -111,6 +125,20 @@ func (m *Mailer) SendContext(ctx context.Context, msg Message) error {
 	}
 
 	return nil
+}
+
+// senderAddress parses the configured sender. When the configured value has no
+// display name, it uses fallbackName, so that recipients see the server name
+// instead of a bare address.
+func senderAddress(configured, fallbackName string) (*netmail.Address, error) {
+	from, err := netmail.ParseAddress(configured)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(from.Name) == "" {
+		from.Name = strings.TrimSpace(fallbackName)
+	}
+	return from, nil
 }
 
 // setMessageID sets a Message-ID that uses the domain of the sender address.

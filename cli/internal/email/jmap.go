@@ -86,7 +86,7 @@ func (m *JMAPMailer) SendContext(ctx context.Context, msg Message) error {
 	}
 
 	// Address parse errors can repeat the address, so do not wrap them.
-	from, err := mail.ParseAddress(m.config.From)
+	from, err := senderAddress(m.config.From, msg.FromName)
 	if err != nil {
 		return errors.New("invalid JMAP from address")
 	}
@@ -117,18 +117,13 @@ func (m *JMAPMailer) SendContext(ctx context.Context, msg Message) error {
 					AccountID: accountID,
 					Create: map[string]jmapEmail{
 						"email": {
-							MailboxIDs: map[string]bool{draftMailboxID: true},
-							Keywords:   map[string]bool{"$draft": true},
-							From:       []jmapAddress{{Name: from.Name, Email: from.Address}},
-							To:         []jmapAddress{{Name: to.Name, Email: to.Address}},
-							Subject:    msg.Subject,
-							BodyStructure: jmapBodyPart{
-								PartID: "text",
-								Type:   "text/plain",
-							},
-							BodyValues: map[string]jmapBodyValue{
-								"text": {Value: msg.Body},
-							},
+							MailboxIDs:    map[string]bool{draftMailboxID: true},
+							Keywords:      map[string]bool{"$draft": true},
+							From:          []jmapAddress{{Name: from.Name, Email: from.Address}},
+							To:            []jmapAddress{{Name: to.Name, Email: to.Address}},
+							Subject:       msg.Subject,
+							BodyStructure: jmapBodyStructure(msg),
+							BodyValues:    jmapBodyValues(msg),
 						},
 					},
 				},
@@ -409,8 +404,27 @@ type jmapAddress struct {
 }
 
 type jmapBodyPart struct {
-	PartID string `json:"partId"`
-	Type   string `json:"type"`
+	PartID   string         `json:"partId,omitempty"`
+	Type     string         `json:"type"`
+	SubParts []jmapBodyPart `json:"subParts,omitempty"`
+}
+
+// jmapBodyStructure returns a text/plain part, or a multipart/alternative with
+// text and HTML parts when the message has an HTML body (RFC 8621, section 4.1.4).
+func jmapBodyStructure(msg Message) jmapBodyPart {
+	text := jmapBodyPart{PartID: "text", Type: "text/plain"}
+	if msg.HTMLBody == "" {
+		return text
+	}
+	return jmapBodyPart{Type: "multipart/alternative", SubParts: []jmapBodyPart{text, {PartID: "html", Type: "text/html"}}}
+}
+
+func jmapBodyValues(msg Message) map[string]jmapBodyValue {
+	values := map[string]jmapBodyValue{"text": {Value: msg.Body}}
+	if msg.HTMLBody != "" {
+		values["html"] = jmapBodyValue{Value: msg.HTMLBody}
+	}
+	return values
 }
 
 type jmapBodyValue struct {
