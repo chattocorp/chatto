@@ -548,14 +548,10 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 		if err := c.createAccessTokenRecord(ctx, sessionID, next, now, now); err != nil {
 			return BearerSessionCredentials{}, err
 		}
-		confirmed, _, err := c.validateRenewableSession(ctx, sessionID, now)
-		if err != nil {
+		// Check for revocation after publishing the access record. Another
+		// replica can commit a later rotation while this generation is still valid.
+		if _, _, err := c.validateRenewableSession(ctx, sessionID, now); err != nil {
 			return BearerSessionCredentials{}, err
-		}
-		if confirmed.CurrentGeneration != next.CurrentGeneration ||
-			!refreshRequestVerifierMatches(confirmed.LastRefreshRequestVerifier, requestVerifier) ||
-			!confirmed.LastRotatedAt.Equal(now) {
-			return BearerSessionCredentials{}, ErrRefreshTokenNotFound
 		}
 		if lostResponse {
 			c.logger.Info("Rotated bearer session again after a lost refresh response")

@@ -168,7 +168,7 @@ test.describe('Server Admin Members', () => {
       });
 
       // Should NOT be loading or showing error
-      await expect(page.getByRole('status', { name: 'Loading member...' })).not.toBeVisible({
+      await expect(page.getByRole('status', { name: 'Loading member...' })).toHaveCount(0, {
         timeout: TIMEOUTS.REALTIME_EVENT
       });
       await expect(page.getByText('Member not found')).not.toBeVisible({
@@ -251,7 +251,7 @@ test.describe('Server Admin Members', () => {
       });
 
       // Should NOT be loading
-      await expect(page.getByRole('status', { name: 'Loading member...' })).not.toBeVisible({
+      await expect(page.getByRole('status', { name: 'Loading member...' })).toHaveCount(0, {
         timeout: TIMEOUTS.REALTIME_EVENT
       });
 

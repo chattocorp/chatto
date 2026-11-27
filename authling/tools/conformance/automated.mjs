@@ -23,6 +23,10 @@ function failure(message) {
 // module must finish; suite skips and review requests are not successful checks.
 export async function runAutomated({ api, suite, issuer, state, configPath, summaryPath, checkRunning, clientDriver, clientEnv, signal }) {
   const results = [];
+  // Keep the active module and operation when a browser or suite API call
+  // fails. Raw exceptions can contain credentials and authorization URLs.
+  let activeModule;
+  let operation;
   const browser = await chromium.launch({ args: ['--host-resolver-rules=MAP conformance.localhost 127.0.0.1'] });
   const context = await browser.newContext({ ignoreHTTPSErrors: true });
   const page = await context.newPage();
@@ -55,11 +59,15 @@ export async function runAutomated({ api, suite, issuer, state, configPath, summ
     await page.getByRole('button', { name: 'Save profile' }).click();
 
     async function run(plan, name, { drive, variant, configFile, expectedSkip = false, scenario } = {}) {
+      activeModule = name;
+      operation = 'create module';
       const query = new URLSearchParams({ test: name });
       if (plan) query.set('plan', plan);
       if (variant) query.set('variant', JSON.stringify(variant));
       const test = await api(`/api/runner?${query}`, configFile ?? null);
+      operation = 'start module';
       await api(`/api/runner/${test.id}`, null);
+      operation = 'read module status';
       const visited = new Set();
       let driverError;
       if (drive) {
@@ -78,8 +86,10 @@ export async function runAutomated({ api, suite, issuer, state, configPath, summ
       }
       for (let attempt = 0; attempt < 120; attempt++) {
         checkRunning();
+        operation = 'read module status';
         const info = await api(`/api/info/${test.id}`);
         if (['FINISHED', 'INTERRUPTED'].includes(info.status)) {
+          operation = 'read module results';
           const logs = await api(`/api/log/${test.id}`);
           const findings = [...new Set(logs.filter((entry) => ['WARNING', 'FAILURE'].includes(entry.result))
             .map((entry) => entry.src).filter((src) => typeof src === 'string' && /^[A-Za-z0-9_.]+$/.test(src)))];
@@ -87,6 +97,7 @@ export async function runAutomated({ api, suite, issuer, state, configPath, summ
             clientChecked: Boolean(drive) && !driverError,
             clientAssertion: driverError ? (driverError.safeMessage ?? 'Client driver failed') : undefined };
           results.push(result);
+          activeModule = undefined;
           console.log(`${name}: ${info.result}${findings.length ? ` (${findings.join(', ')})` : ''}`);
           if (driverError) throw driverError;
           // Some official client modules classify deliberate rejection of an
@@ -103,17 +114,21 @@ export async function runAutomated({ api, suite, issuer, state, configPath, summ
           return;
         }
         if (!drive) {
+          operation = 'read browser instructions';
           const pending = await api(`/api/runner/browser/${test.id}`);
           for (const url of pending.urls ?? []) {
             if (visited.has(url)) continue;
             visited.add(url);
+            operation = 'open authorization page';
             await page.goto(url);
             if (await page.getByLabel('Password', { exact: true }).isVisible()) {
+              operation = 'sign in';
               await page.getByLabel('Email address').fill(email);
               await page.getByLabel('Password', { exact: true }).fill(password);
               await page.getByRole('button', { name: 'Sign in', exact: true }).click();
             }
             if (await page.getByRole('button', { name: 'Authorize', exact: true }).isVisible()) {
+              operation = 'approve authorization';
               await page.getByRole('button', { name: 'Authorize', exact: true }).click();
             }
           }
@@ -122,6 +137,7 @@ export async function runAutomated({ api, suite, issuer, state, configPath, summ
       }
       results.push({ module: name, scenario, variant, status: 'TIMEOUT', result: 'FAILED',
         clientAssertion: driverError ? (driverError.safeMessage ?? 'Client driver failed') : undefined });
+      activeModule = undefined;
       throw driverError ?? failure(`Conformance module ${name} timed out`);
     }
 
@@ -145,6 +161,10 @@ export async function runAutomated({ api, suite, issuer, state, configPath, summ
       const { runClientChecks } = await import(pathToFileURL(clientDriver).href);
       await runClientChecks({ api, run, suite, state, env: clientEnv, signal, fail: failure });
     }
+  } catch (error) {
+    if (!activeModule) throw error;
+    results.push({ module: activeModule, status: 'HARNESS_ERROR', operation });
+    throw failure(`Conformance harness failed to ${operation} for ${activeModule}`);
   } finally {
     await browser.close();
     // Only outcomes are suitable for CI artifacts. Raw suite state contains secrets.

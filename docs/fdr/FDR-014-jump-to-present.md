@@ -1,7 +1,7 @@
 # FDR-014: Jump to Present
 
 **Status:** Active
-**Last reviewed:** 2026-11-25
+**Last reviewed:** 2026-11-27
 
 ## Overview
 
@@ -12,7 +12,7 @@ When a user is reading older messages in a room — either because they scrolled
 - The button appears in two situations:
   1. **Scrolled up from the bottom** — the user manually scrolled away from the latest messages in a room that has enough history to overflow the viewport.
   2. **Jumped mode** — the user clicked a reply-attribution link, a search result, or a notification, and the room loaded a window of messages around that historical target.
-- In either case, clicking the button returns the user to the latest messages.
+- In either case, clicking the button cancels any pending scroll to an older message and returns the user to the latest messages.
 - The button shows the date of the first visible message ("Yesterday | Jump to Present", "March 12 | Jump to Present").
 - When new messages arrive while the user is scrolled up, the button label switches from "Jump to Present" to "New messages".
 - The button auto-dismisses when the user is back near the bottom (within ~50px). In jumped mode, it also dismisses if the user has scrolled all the way to the bottom and all newer messages have loaded.
