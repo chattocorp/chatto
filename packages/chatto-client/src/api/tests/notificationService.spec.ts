@@ -43,6 +43,49 @@ const effective = {
 };
 
 describe('createNotificationAPI', () => {
+  it('maps an incoming call to the original call in its room', () => {
+    expect(
+      notificationOccurrence(
+        new NotificationOccurrence({
+          signal: {
+            kind: {
+              case: 'incomingCall',
+              value: { roomId: 'dm', callId: 'original', direct: true }
+            }
+          }
+        })
+      )
+    ).toMatchObject({
+      signalKind: NotificationSignalKind.INCOMING_CALL,
+      targetSupported: true,
+      room: { id: 'dm' },
+      eventId: '',
+      call: { id: 'original', direct: true }
+    });
+  });
+
+  it('updates the call fields independently of an existing direct message policy', async () => {
+    const updatedPolicy = {
+      ...effective,
+      directMessages: NotificationDeliveryMode.OFF,
+      directCalls: PUSH,
+      roomCalls: NotificationDeliveryMode.OFF
+    };
+    policies.getNotificationPolicy.mockReturnValue({ policy: { policy: { effective } } });
+    policies.updateNotificationPolicy.mockReturnValue({
+      policy: { policy: { effective: updatedPolicy } }
+    });
+    const api = notificationAPI();
+    expect((await api.getNotificationPolicy()).supportsCallPolicy).toBe(false);
+    const updated = await api.updateNotificationPolicy({ directCalls: null }, 'dm');
+    expect(updated.supportsCallPolicy).toBe(true);
+    expect(updated.effective).toMatchObject(updatedPolicy);
+    expect(receivedRequest(policies.updateNotificationPolicy)).toMatchObject({
+      scope: { scope: { case: 'roomId', value: 'dm' } },
+      updateMask: { paths: ['direct_calls'] }
+    });
+  });
+
   it('maps an invitation to a room-only target with no fabricated message', () => {
     const item = notificationOccurrence(
       new NotificationOccurrence({

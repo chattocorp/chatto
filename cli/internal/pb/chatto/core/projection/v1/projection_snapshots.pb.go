@@ -1939,13 +1939,15 @@ func (x *CallStateProjectionSnapshot) GetRooms() []*CallRoomStateSnapshot {
 }
 
 type CallRoomStateSnapshot struct {
-	state         protoimpl.MessageState     `protogen:"open.v1"`
-	RoomId        string                     `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	Sequence      uint64                     `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	Call          *CallSessionSnapshot       `protobuf:"bytes,3,opt,name=call,proto3" json:"call,omitempty"`
-	Participants  []*CallParticipantSnapshot `protobuf:"bytes,4,rep,name=participants,proto3" json:"participants,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState     `protogen:"open.v1"`
+	RoomId       string                     `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Sequence     uint64                     `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Call         *CallSessionSnapshot       `protobuf:"bytes,3,opt,name=call,proto3" json:"call,omitempty"`
+	Participants []*CallParticipantSnapshot `protobuf:"bytes,4,rep,name=participants,proto3" json:"participants,omitempty"`
+	// Members who answered this active call and left it.
+	DepartedUserIds []string `protobuf:"bytes,5,rep,name=departed_user_ids,json=departedUserIds,proto3" json:"departed_user_ids,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CallRoomStateSnapshot) Reset() {
@@ -2006,12 +2008,22 @@ func (x *CallRoomStateSnapshot) GetParticipants() []*CallParticipantSnapshot {
 	return nil
 }
 
+func (x *CallRoomStateSnapshot) GetDepartedUserIds() []string {
+	if x != nil {
+		return x.DepartedUserIds
+	}
+	return nil
+}
+
 type CallSessionSnapshot struct {
-	state         protoimpl.MessageState        `protogen:"open.v1"`
-	CallId        string                        `protobuf:"bytes,1,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
-	E2EeKeyRef    string                        `protobuf:"bytes,2,opt,name=e2ee_key_ref,json=e2eeKeyRef,proto3" json:"e2ee_key_ref,omitempty"`
-	StartedAt     int64                         `protobuf:"varint,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	Source        v1.CallParticipantEventSource `protobuf:"varint,4,opt,name=source,proto3,enum=chatto.core.evt.v1.CallParticipantEventSource" json:"source,omitempty"`
+	state      protoimpl.MessageState        `protogen:"open.v1"`
+	CallId     string                        `protobuf:"bytes,1,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	E2EeKeyRef string                        `protobuf:"bytes,2,opt,name=e2ee_key_ref,json=e2eeKeyRef,proto3" json:"e2ee_key_ref,omitempty"`
+	StartedAt  int64                         `protobuf:"varint,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	Source     v1.CallParticipantEventSource `protobuf:"varint,4,opt,name=source,proto3,enum=chatto.core.evt.v1.CallParticipantEventSource" json:"source,omitempty"`
+	// Call-start coordinates used to evaluate unread attention.
+	StartedBy     string `protobuf:"bytes,5,opt,name=started_by,json=startedBy,proto3" json:"started_by,omitempty"`
+	StartSequence uint64 `protobuf:"varint,6,opt,name=start_sequence,json=startSequence,proto3" json:"start_sequence,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2072,6 +2084,20 @@ func (x *CallSessionSnapshot) GetSource() v1.CallParticipantEventSource {
 		return x.Source
 	}
 	return v1.CallParticipantEventSource(0)
+}
+
+func (x *CallSessionSnapshot) GetStartedBy() string {
+	if x != nil {
+		return x.StartedBy
+	}
+	return ""
+}
+
+func (x *CallSessionSnapshot) GetStartSequence() uint64 {
+	if x != nil {
+		return x.StartSequence
+	}
+	return 0
 }
 
 type CallParticipantSnapshot struct {
@@ -5308,19 +5334,23 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\vreply_count\x18\x02 \x01(\x04R\n" +
 	"replyCount\"e\n" +
 	"\x1bCallStateProjectionSnapshot\x12F\n" +
-	"\x05rooms\x18\x01 \x03(\v20.chatto.core.projection.v1.CallRoomStateSnapshotR\x05rooms\"\xe8\x01\n" +
+	"\x05rooms\x18\x01 \x03(\v20.chatto.core.projection.v1.CallRoomStateSnapshotR\x05rooms\"\x94\x02\n" +
 	"\x15CallRoomStateSnapshot\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1a\n" +
 	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12B\n" +
 	"\x04call\x18\x03 \x01(\v2..chatto.core.projection.v1.CallSessionSnapshotR\x04call\x12V\n" +
-	"\fparticipants\x18\x04 \x03(\v22.chatto.core.projection.v1.CallParticipantSnapshotR\fparticipants\"\xb7\x01\n" +
+	"\fparticipants\x18\x04 \x03(\v22.chatto.core.projection.v1.CallParticipantSnapshotR\fparticipants\x12*\n" +
+	"\x11departed_user_ids\x18\x05 \x03(\tR\x0fdepartedUserIds\"\xfd\x01\n" +
 	"\x13CallSessionSnapshot\x12\x17\n" +
 	"\acall_id\x18\x01 \x01(\tR\x06callId\x12 \n" +
 	"\fe2ee_key_ref\x18\x02 \x01(\tR\n" +
 	"e2eeKeyRef\x12\x1d\n" +
 	"\n" +
 	"started_at\x18\x03 \x01(\x03R\tstartedAt\x12F\n" +
-	"\x06source\x18\x04 \x01(\x0e2..chatto.core.evt.v1.CallParticipantEventSourceR\x06source\"\xb0\x01\n" +
+	"\x06source\x18\x04 \x01(\x0e2..chatto.core.evt.v1.CallParticipantEventSourceR\x06source\x12\x1d\n" +
+	"\n" +
+	"started_by\x18\x05 \x01(\tR\tstartedBy\x12%\n" +
+	"\x0estart_sequence\x18\x06 \x01(\x04R\rstartSequence\"\xb0\x01\n" +
 	"\x17CallParticipantSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
 	"\acall_id\x18\x02 \x01(\tR\x06callId\x12\x1b\n" +

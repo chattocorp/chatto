@@ -444,6 +444,8 @@
           "followed_thread": "Discussioni seguite",
           "reaction": "Reazioni ai tuoi messaggi",
           "activity": "Attività",
+          "direct_call": "Chiamate dirette",
+          "room_call": "Chiamate nelle stanze",
           "room_invitation": "Inviti alle stanze"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Messaggi che usano @all in una stanza di cui fai parte.",
           "followed_thread": "Nuove risposte nelle discussioni che segui.",
           "reaction": "Reazioni aggiunte ai tuoi messaggi da altri membri.",
+          "direct_call": "Chiamate avviate in una conversazione privata.",
+          "room_call": "Chiamate avviate nella stanza di un canale.",
           "room_invitation": "Inviti a entrare nelle stanze."
         }
       }

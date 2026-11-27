@@ -81,7 +81,10 @@ export function isNewMessageNotification(notification: NotificationOccurrenceIte
 
 /** Whether an occurrence belongs to a direct message. */
 export function isDMNotification(notification: NotificationOccurrenceItem): boolean {
-  return notification.signalKind === NotificationSignalKind.DIRECT_MESSAGE;
+  return (
+    notification.signalKind === NotificationSignalKind.DIRECT_MESSAGE ||
+    notification.call?.direct === true
+  );
 }
 
 /** Whether an occurrence belongs to a room lookup with the given options. */

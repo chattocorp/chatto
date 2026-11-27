@@ -277,6 +277,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   [`notification_badge_sources.go`](../../cli/internal/core/notification_badge_sources.go),
   [`notification_projection.go`](../../cli/internal/core/notification_projection.go),
   [`notification_materializer.go`](../../cli/internal/core/notification_materializer.go),
+  [`notification_calls.go`](../../cli/internal/core/notification_calls.go),
   [`notification_invitations.go`](../../cli/internal/core/notification_invitations.go),
   [`notification_decision_projection.go`](../../cli/internal/core/notification_decision_projection.go),
   [`notification_alert_delivery.go`](../../cli/internal/core/notification_alert_delivery.go),
@@ -298,6 +299,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   direct durable push consumption from `notifications.signalled` with an
   immutable deadline and current policy, visibility, DND, and subscription
   revalidation.
+  Call alerts use the active call ID and current call admission. The call projection retains the start sequence, caller, and members who have already answered until the call ends.
   A separate role-protection consumer removes stored attention that a member loses permission to read.
 - **`MessageModel`**
   ([`message_model.go`](../../cli/internal/core/message_model.go),

@@ -185,7 +185,8 @@ Request to record joining a room call.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Required. Room whose call is being joined. |
+| `room_id` | `string` | Target for an ordinary room action. Omit when you set call. |
+| `call` | [`CallReference`](/reference/connectrpc-api/types/#chatto-api-v1-CallReference) | Join only this call. An ended call returns NOT_FOUND. |
 
 
 <a id="chatto-api-v1-JoinCallResponse"></a>
@@ -231,7 +232,8 @@ Request for a LiveKit token for a room call.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Required. Room whose active call should be joined. |
+| `room_id` | `string` | Target for an ordinary room action. Omit when you set call. |
+| `call` | [`CallReference`](/reference/connectrpc-api/types/#chatto-api-v1-CallReference) | Issue a token only for this call. An ended call returns NOT_FOUND. |
 
 
 <a id="chatto-api-v1-CreateCallTokenResponse"></a>
@@ -314,7 +316,8 @@ Request to record leaving a room call.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Required. Room whose call is being left. |
+| `room_id` | `string` | Target for an ordinary room action. Omit when you set call. |
+| `call` | [`CallReference`](/reference/connectrpc-api/types/#chatto-api-v1-CallReference) | Leave only this call. An ended call requires no cleanup. |
 
 
 <a id="chatto-api-v1-LeaveCallResponse"></a>

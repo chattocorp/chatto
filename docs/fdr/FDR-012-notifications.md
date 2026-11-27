@@ -227,6 +227,8 @@ server value.
 
 | Cause                          | Default             |
 | ------------------------------ | ------------------- |
+| Direct calls                   | Push notification   |
+| Room calls                     | Off                 |
 | Root direct message            | Push notification   |
 | Root message in a channel room | Unread dot          |
 | Direct username mention        | Push notification   |
@@ -236,6 +238,25 @@ server value.
 | `@all`                         | Push notification   |
 | Followed thread activity       | In-app notification |
 | Reaction to the user's message | In-app notification |
+
+Direct calls use the server setting and an optional override for the individual DM.
+Room calls also support a room-group override. These settings apply when a member
+starts a call. The Direct messages row still controls root messages in a DM.
+Members can join or dismiss an incoming-call alert. Joining on another device
+or ending the call clears the alert.
+
+During a rolling upgrade, an older replica cannot read an incoming-call signal.
+If the member's stored occurrences include that signal, a notification-list request
+to that replica returns `UNIMPLEMENTED` for the whole list, even when the call
+would fall outside the requested page. An upgraded replica can return the list.
+Dismiss marks the occurrence as read. Joining the call or ending it removes the
+occurrence. To restore list access for all members on every replica, finish the
+server rollout.
+
+When a client joins from an alert, it sends the room and session IDs together in
+the call reference for join, token, and leave requests. Earlier replicas require
+the top-level room ID and reject these requests before changing call membership.
+Clients must keep the call reference on retry.
 
 Attention level controls presentation separately: reactions are Ambient and all
 other current causes are Important. Bell, server, and app indicators use
@@ -253,7 +274,7 @@ modes when the notification has Important attention.
 **Tradeoff:** More than one policy dimension exists conceptually, although the
 current product exposes only delivery-mode preferences.
 
-The notification settings page shows the ten supported causes as matrix rows.
+The notification settings page shows the supported causes as matrix rows.
 It shows the server, visible room groups, joined or invited channel rooms, and
 current-member direct-message rooms as columns. Each group column is followed
 by its room columns. A server cell always shows a concrete value. When no user

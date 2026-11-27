@@ -63,44 +63,44 @@ describe('notificationPolicyColumns', () => {
     ).toEqual(['server', 'roomGroup:g2', 'room:r2']);
   });
 
-  it('limits direct-message controls to the server and DM conversations', () => {
-    const columns = notificationPolicyColumns('Server', groups, rooms, '');
-    const applicability = Object.fromEntries(
-      columns.map((column) => [
-        column.key,
-        notificationPolicyCellApplicable('directMessages', column)
-      ])
-    );
+  it.each(['directMessages', 'directCalls'] as const)(
+    'limits %s to the server and DM conversations',
+    (field) => {
+      const columns = notificationPolicyColumns('Server', groups, rooms, '');
+      const applicability = Object.fromEntries(
+        columns.map((column) => [column.key, notificationPolicyCellApplicable(field, column)])
+      );
 
-    expect(applicability).toEqual({
-      server: true,
-      'roomGroup:g1': false,
-      'room:r1': false,
-      'roomGroup:g2': false,
-      'room:r2': false,
-      'room:d1': true
-    });
-    expect(
-      columns.every((column) => notificationPolicyCellApplicable('directMentions', column))
-    ).toBe(true);
-  });
+      expect(applicability).toEqual({
+        server: true,
+        'roomGroup:g1': false,
+        'room:r1': false,
+        'roomGroup:g2': false,
+        'room:r2': false,
+        'room:d1': true
+      });
+      expect(
+        columns.every((column) => notificationPolicyCellApplicable('directMentions', column))
+      ).toBe(true);
+    }
+  );
 
-  it('limits room-message controls to the server, groups, and channel rooms', () => {
-    const columns = notificationPolicyColumns('Server', groups, rooms, '');
-    const applicability = Object.fromEntries(
-      columns.map((column) => [
-        column.key,
-        notificationPolicyCellApplicable('roomMessages', column)
-      ])
-    );
+  it.each(['roomMessages', 'roomCalls'] as const)(
+    'limits %s to the server, groups, and channel rooms',
+    (field) => {
+      const columns = notificationPolicyColumns('Server', groups, rooms, '');
+      const applicability = Object.fromEntries(
+        columns.map((column) => [column.key, notificationPolicyCellApplicable(field, column)])
+      );
 
-    expect(applicability).toEqual({
-      server: true,
-      'roomGroup:g1': true,
-      'room:r1': true,
-      'roomGroup:g2': true,
-      'room:r2': true,
-      'room:d1': false
-    });
-  });
+      expect(applicability).toEqual({
+        server: true,
+        'roomGroup:g1': true,
+        'room:r1': true,
+        'roomGroup:g2': true,
+        'room:r2': true,
+        'room:d1': false
+      });
+    }
+  );
 });

@@ -82,7 +82,11 @@ export class NotificationAttention {
   /** Whether an occurrence needs attention: unread and not viewed. Also decides in-app sounds. */
   needsAttention(occurrence: NotificationOccurrenceItem): boolean {
     const target = notificationTarget(occurrence);
-    return occurrence.unread && !this.#readViews.covers(target.roomId, target.threadRootId);
+    // Reading a conversation does not answer its incoming call.
+    return (
+      occurrence.unread &&
+      (!!occurrence.call || !this.#readViews.covers(target.roomId, target.threadRootId))
+    );
   }
 
   /** Loaded unread occurrences that need attention, newest first. Reactive. */

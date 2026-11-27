@@ -41,6 +41,8 @@
     'followedThreads',
     'followedRooms',
     'roomInvitations',
+    'roomCalls',
+    'directCalls',
     'reactions'
   ];
   const productDefaults: NotificationPolicyModes = {
@@ -53,6 +55,8 @@
     allMentions: NotificationDeliveryMode.OFF,
     followedThreads: NotificationDeliveryMode.IN_APP_NOTIFICATION,
     followedRooms: NotificationDeliveryMode.OFF,
+    directCalls: NotificationDeliveryMode.PUSH_NOTIFICATION,
+    roomCalls: NotificationDeliveryMode.OFF,
     roomInvitations: NotificationDeliveryMode.PUSH_NOTIFICATION,
     reactions: NotificationDeliveryMode.IN_APP_NOTIFICATION
   };

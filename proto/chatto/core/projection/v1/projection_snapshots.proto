@@ -251,6 +251,8 @@ message CallRoomStateSnapshot {
   uint64 sequence = 2;
   CallSessionSnapshot call = 3;
   repeated CallParticipantSnapshot participants = 4;
+  // Members who answered this active call and left it.
+  repeated string departed_user_ids = 5;
 }
 
 message CallSessionSnapshot {
@@ -258,6 +260,9 @@ message CallSessionSnapshot {
   string e2ee_key_ref = 2;
   int64 started_at = 3;
   chatto.core.evt.v1.CallParticipantEventSource source = 4;
+  // Call-start coordinates used to evaluate unread attention.
+  string started_by = 5;
+  uint64 start_sequence = 6;
 }
 
 message CallParticipantSnapshot {

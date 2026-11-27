@@ -45,6 +45,8 @@ export type NotificationOccurrenceItem = {
   reactionEmoji?: string | null;
   /** Invitation identity for the invitation-only room access boundary. */
   invitationId?: string;
+  /** Exact active call identified by a call-start notification. */
+  call?: { id: string; direct: boolean };
   expiresAt?: string;
 };
 
@@ -85,6 +87,7 @@ export const NotificationSignalKind = {
   FOLLOWED_ROOM: 'followedRoomActivity',
   REACTION: 'reactionReceived',
   ROOM_INVITATION: 'roomInvitationReceived',
+  INCOMING_CALL: 'incomingCall',
   UNSUPPORTED: 'unsupported'
 } as const;
 
@@ -93,6 +96,8 @@ export type NotificationSignalKind =
 
 type NotificationPolicyShape<Value> = {
   directMessages: Value;
+  directCalls: Value;
+  roomCalls: Value;
   roomMessages: Value;
   directMentions: Value;
   replies: Value;
@@ -111,6 +116,8 @@ export type NotificationPolicyField = keyof NotificationPolicyOverrides;
 export type NotificationPolicyPatch = Partial<NotificationPolicyOverrides>;
 
 export type NotificationPolicy = {
+  /** False when connected to a server that predates call notification policies. */
+  supportsCallPolicy?: boolean;
   overrides: NotificationPolicyOverrides;
   effective: NotificationPolicyModes;
 };
@@ -231,7 +238,11 @@ export type NotificationAPI = ReturnType<typeof createNotificationAPI>;
 
 function notificationPolicy(policy: APINotificationPolicy | undefined): NotificationPolicy {
   return {
+    supportsCallPolicy:
+      policy?.effective?.directCalls !== undefined && policy?.effective?.roomCalls !== undefined,
     overrides: {
+      directCalls: policy?.overrides?.directCalls ?? null,
+      roomCalls: policy?.overrides?.roomCalls ?? null,
       directMessages: policy?.overrides?.directMessages ?? null,
       roomMessages: policy?.overrides?.roomMessages ?? null,
       directMentions: policy?.overrides?.directMentions ?? null,
@@ -245,6 +256,14 @@ function notificationPolicy(policy: APINotificationPolicy | undefined): Notifica
       roomInvitations: policy?.overrides?.roomInvitations ?? null
     },
     effective: {
+      directCalls: requiredNotificationDeliveryMode(
+        policy?.effective?.directCalls ?? NotificationDeliveryMode.PUSH_NOTIFICATION,
+        'direct_calls'
+      ),
+      roomCalls: requiredNotificationDeliveryMode(
+        policy?.effective?.roomCalls ?? NotificationDeliveryMode.OFF,
+        'room_calls'
+      ),
       directMessages: requiredNotificationDeliveryMode(
         policy?.effective?.directMessages,
         'direct_messages'
@@ -341,6 +360,8 @@ function notificationPolicyUpdate(patch: NotificationPolicyPatch): {
 
   addNotificationPolicyUpdate(patch, overrides, paths, 'directMessages', 'direct_messages');
   addNotificationPolicyUpdate(patch, overrides, paths, 'roomMessages', 'room_messages');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'directCalls', 'direct_calls');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'roomCalls', 'room_calls');
   addNotificationPolicyUpdate(patch, overrides, paths, 'directMentions', 'direct_mentions');
   addNotificationPolicyUpdate(patch, overrides, paths, 'replies', 'replies');
   addNotificationPolicyUpdate(patch, overrides, paths, 'roleMentions', 'role_mentions');
@@ -406,6 +427,7 @@ export function notificationOccurrence(
     unread: item.unread,
     reactionEmoji: mapped.reactionEmoji,
     invitationId: mapped.invitationId,
+    call: mapped.call,
     expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
   };
 }
@@ -425,10 +447,20 @@ function notificationSignal(item: APINotificationOccurrence): {
   /** Room-only signals never fabricate a message reference. */
   room?: { id: string; name: string } | null;
   invitationId?: string;
+  call?: NotificationOccurrenceItem['call'];
   reactionEmoji: string | null;
 } {
   const kind = item.signal?.kind;
   switch (kind?.case) {
+    case 'incomingCall':
+      return {
+        supported: !!kind.value.roomId && !!kind.value.callId,
+        kind: NotificationSignalKind.INCOMING_CALL,
+        call: { id: kind.value.callId, direct: kind.value.direct },
+        message: null,
+        room: { id: kind.value.roomId, name: '' },
+        reactionEmoji: null
+      };
     case 'roomInvitationReceived':
       return {
         supported: true,

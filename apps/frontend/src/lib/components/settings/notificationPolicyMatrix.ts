@@ -95,10 +95,10 @@ export function notificationPolicyCellApplicable(
   field: NotificationPolicyField,
   column: NotificationPolicyColumn
 ): boolean {
-  if (field === 'directMessages') {
+  if (field === 'directMessages' || field === 'directCalls') {
     return column.kind === 'server' || column.roomKind === RoomKind.DM;
   }
-  if (field === 'roomMessages' || field === 'roomInvitations') {
+  if (field === 'roomMessages' || field === 'roomInvitations' || field === 'roomCalls') {
     return (
       column.kind === 'server' ||
       column.kind === 'roomGroup' ||

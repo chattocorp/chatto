@@ -730,6 +730,15 @@ export class ServerStateStore {
     }
   }
 
+  /**
+   * Reconcile a call notification with active calls. The creation hint and
+   * call-start event use different deliveries and can arrive in either order.
+   */
+  async refreshNotificationCalls(): Promise<boolean> {
+    this.refreshRealtimeResource('activeCalls');
+    return this.waitForRealtimeResourceRefresh('activeCalls');
+  }
+
   /** Wait for this family's queued reads without consuming cursor-owner errors.
    * Returns false if a read failed. Does not start another resource request.
    */

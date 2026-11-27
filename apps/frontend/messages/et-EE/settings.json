@@ -444,6 +444,8 @@
           "followed_thread": "Jälgitavad lõimed",
           "reaction": "Reaktsioonid sinu sõnumitele",
           "activity": "Tegevus",
+          "direct_call": "Otsekõned",
+          "room_call": "Ruumikõned",
           "room_invitation": "Ruumide kutsed"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Sõnumid, mis kasutavad @all ruumis, mille liige sa oled.",
           "followed_thread": "Uued vastused lõimedes, mida jälgid.",
           "reaction": "Teiste liikmete lisatud reaktsioonid sinu sõnumitele.",
+          "direct_call": "Privaatses vestluses alustatud kõned.",
+          "room_call": "Kanaliruumis alustatud kõned.",
           "room_invitation": "Kutsed ruumidega liitumiseks."
         }
       }

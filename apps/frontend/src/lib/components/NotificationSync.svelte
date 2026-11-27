@@ -34,9 +34,50 @@ Include this component once in the application root so signed-out pages also cle
     hasDesktopNotifications,
     listenForDesktopNotificationClicks
   } from '$lib/desktop/notifications.svelte';
+  import IncomingCallAlert from './voice/IncomingCallAlert.svelte';
   import DesktopNotificationSync from './DesktopNotificationSync.svelte';
 
   $effect(() => listenForDesktopNotificationClicks());
+
+  type CallLink = { serverId: string; roomId: string; callId: string };
+  type CallAlert = CallLink & { occurrenceId?: string; accountId: string; fromLink: boolean };
+  let {
+    callLink = null,
+    onCloseCallLink
+  }: { callLink?: CallLink | null; onCloseCallLink?: () => void } = $props();
+  let liveCalls = $state.raw<(CallAlert & { occurrenceId: string })[]>([]);
+  const callAlerts = $derived.by(() => {
+    if (!callLink) return liveCalls;
+    const link = callLink;
+    const store = serverRegistry.tryGetStore(link.serverId);
+    if (!store?.isAuthenticated || !store.accountId) return liveCalls;
+    const same = (alert: CallAlert) =>
+      alert.serverId === link.serverId &&
+      alert.accountId === store.accountId &&
+      alert.callId === link.callId;
+    return [
+      ...liveCalls.filter((alert) => !same(alert)),
+      { ...liveCalls.find(same), ...link, accountId: store.accountId, fromLink: true }
+    ];
+  });
+
+  function closeCall(alert: CallAlert) {
+    if (
+      liveCalls.some(
+        (item) =>
+          item.serverId === alert.serverId &&
+          item.accountId === alert.accountId &&
+          item.callId === alert.callId
+      )
+    )
+      liveCalls = liveCalls.filter(
+        (item) =>
+          item.serverId !== alert.serverId ||
+          item.accountId !== alert.accountId ||
+          item.callId !== alert.callId
+      );
+    if (alert.fromLink) onCloseCallLink?.();
+  }
 
   const rememberedNotificationIds = 256;
 
@@ -68,12 +109,11 @@ Include this component once in the application root so signed-out pages also cle
           // A snapshot reset can cancel this read.
         }
         // Ambient notifications keep their badges but never trigger local audio.
-        const hasAudibleCreation =
-          eligibleNotificationAlerts(
-            instance.id,
-            stores,
-            stores.notifications.occurrences.filter((row) => pendingCreations.includes(row.id))
-          ).length > 0;
+        const eligible = eligibleNotificationAlerts(
+          instance.id,
+          stores,
+          stores.notifications.occurrences.filter((row) => pendingCreations.includes(row.id))
+        );
         pendingCreations.length = 0;
         checkingSound = false;
         if (
@@ -81,15 +121,61 @@ Include this component once in the application root so signed-out pages also cle
           !active ||
           !stores.isAuthenticated ||
           stores.accountId !== accountId ||
-          !hasAudibleCreation
+          eligible.length === 0
         )
           return;
+        const calls = eligible.flatMap((row) =>
+          row.call && row.room && accountId
+            ? [
+                {
+                  serverId: instance.id,
+                  accountId,
+                  roomId: row.room.id,
+                  callId: row.call.id,
+                  occurrenceId: row.id,
+                  fromLink: false
+                }
+              ]
+            : []
+        );
+        if (calls.length) {
+          // A call hint can arrive before its call-start event. A current read
+          // also suppresses late hints for a call that has ended.
+          const refreshed = await stores.refreshNotificationCalls().catch(() => false);
+          if (
+            !active ||
+            !stores.isAuthenticated ||
+            stores.accountId !== accountId ||
+            notificationAlertsMuted(instance.id, stores)
+          )
+            return;
+          const ui = serverUi(stores);
+          const current =
+            refreshed && stores.realtimeSync.phase === 'ready'
+              ? calls.filter(
+                  (call) =>
+                    !liveCalls.some(
+                      (live) => live.serverId === call.serverId && live.callId === call.callId
+                    ) &&
+                    ui.voiceCall.permissionsFor(call.roomId).join &&
+                    ui.activeCallRooms.getCallId(call.roomId) === call.callId &&
+                    !ui.activeCallRooms.getParticipantCallPresence(call.roomId, call.accountId)
+                )
+              : [];
+          if (current.length)
+            liveCalls = [...liveCalls, ...current].slice(-rememberedNotificationIds);
+          else if (eligible.length === calls.length) return;
+        }
         // Desktop alerts own their sound for both live and polled updates.
         if (hasDesktopNotifications() && desktopNotifications.enabled) return;
         playNotificationAlertSound(instance.id);
       }
 
       const handler: ProjectionHandler = (event) => {
+        if (event.reset) {
+          pendingCreations.length = 0;
+          liveCalls = liveCalls.filter((call) => call.serverId !== instance.id);
+        }
         const semantic = event.event?.event;
         if (semantic?.case !== 'notificationOccurrencesChanged') return;
         const notificationId = semantic.value.createdNotificationId;
@@ -108,6 +194,7 @@ Include this component once in the application root so signed-out pages also cle
       const unsubscribe = bus.subscribe(handler);
       cleanups.push(() => {
         active = false;
+        liveCalls = liveCalls.filter((call) => call.serverId !== instance.id);
         unsubscribe();
       });
     }
@@ -153,7 +240,14 @@ Include this component once in the application root so signed-out pages also cle
     {#if stores.accountId}
       {#key stores.accountId}
         {#if hasDesktopNotifications()}
-          <DesktopNotificationSync store={stores} />
+          <DesktopNotificationSync
+            store={stores}
+            liveCallOccurrenceIds={liveCalls
+              .filter(
+                (call) => call.serverId === instance.id && call.accountId === stores.accountId
+              )
+              .map((call) => call.occurrenceId)}
+          />
         {/if}
         <PushNotificationSync
           serverUrl={instance.url}
@@ -179,3 +273,24 @@ Include this component once in the application root so signed-out pages also cle
     {/if}
   {/if}
 {/each}
+
+{#if callAlerts.length}
+  <div
+    class="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+1rem)] z-50 flex flex-col items-end gap-2"
+    role="status"
+  >
+    {#each callAlerts as alert ([alert.serverId, alert.accountId, alert.callId].join('/'))}
+      {@const store = serverRegistry.getStore(alert.serverId)}
+      {#if store.isAuthenticated && store.accountId === alert.accountId}
+        <IncomingCallAlert
+          {store}
+          roomId={alert.roomId}
+          callId={alert.callId}
+          occurrenceId={alert.occurrenceId}
+          fromLink={alert.fromLink}
+          onclose={() => closeCall(alert)}
+        />
+      {/if}
+    {/each}
+  </div>
+{/if}

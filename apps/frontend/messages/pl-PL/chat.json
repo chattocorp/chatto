@@ -36,6 +36,7 @@
         "followed_thread": "Osoba {actor} odpowiedziała w obserwowanym przez Ciebie wątku",
         "new_message": "Osoba {actor} opublikowała nową wiadomość",
         "activity": "Masz nowe powiadomienie od {actor}",
+        "incoming_call": "{actor} rozpoczyna połączenie",
         "room_invitation": "{actor} zaprasza Cię do pokoju"
       }
     },

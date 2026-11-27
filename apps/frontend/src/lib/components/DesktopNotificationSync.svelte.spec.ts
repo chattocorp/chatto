@@ -177,6 +177,26 @@ describe('DesktopNotificationSync', () => {
     }
   );
 
+  it('keeps a call recovered by a poll silent until a live call hint arrives', async () => {
+    const f = fixture();
+    const view = render(DesktopNotificationSync, { store: f.store });
+    await vi.waitFor(() => expect(f.resetListeners.size).toBe(1));
+    f.rows.set([
+      row('call', 101, {
+        signalKind: NotificationSignalKind.INCOMING_CALL,
+        call: { id: 'original', direct: true }
+      })
+    ]);
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+    expect(mocks.show).not.toHaveBeenCalled();
+    expect(mocks.sound).not.toHaveBeenCalled();
+    await view.rerender({ liveCallOccurrenceIds: ['call'] });
+    await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
+    expect(mocks.sound).toHaveBeenCalledOnce();
+  });
+
   it('does not lose its baseline during an ordinary reconnect snapshot', async () => {
     const f = fixture();
     render(DesktopNotificationSync, { store: f.store });

@@ -8,7 +8,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/chattocorp/chatto/cli/internal/core"
+	"github.com/chattocorp/chatto/cli/internal/notificationstream"
+	apiv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/api/v1"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
+	"github.com/nats-io/nats.go/jetstream"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -165,4 +170,40 @@ func TestNotificationSummaryIncludesRoomOnlyInvitation(t *testing.T) {
 	if summary.unreadCount != 0 || len(summary.roomCounts) != 0 {
 		t.Fatalf("read invitation summary = %+v", summary)
 	}
+}
+
+// A newer replica can write a signal before all replicas know its type. The
+// list must report that it cannot produce a complete result, even on an empty
+// page. A removal from the newer replica makes the list readable again.
+func TestNotificationListDuringRollingUpgrade(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	js, err := jetstream.New(env.nc)
+	require.NoError(t, err)
+	publish := func(subject string, event *notificationv1.NotificationEvent) {
+		data, err := proto.Marshal(event)
+		require.NoError(t, err)
+		_, err = js.Publish(ctx, subject, data)
+		require.NoError(t, err)
+	}
+	signal := &notificationv1.NotificationSignal{}
+	signal.ProtoReflect().SetUnknown(protowire.AppendBytes(protowire.AppendTag(nil, 127, protowire.BytesType), nil))
+	now := timestamppb.Now()
+	event := &notificationv1.NotificationEvent{
+		Id: "signal", RecipientId: env.viewer.Id, NotificationId: "future",
+		OccurredAt: now, ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
+		Event: &notificationv1.NotificationEvent_Signalled{Signalled: &notificationv1.NotificationSignalled{
+			SourceEventId: "start", SourceCreatedAt: now, Signal: signal,
+		}},
+	}
+	publish(notificationstream.SignalledSubject, event)
+	page := connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{Page: &apiv1.PageRequest{Offset: 100, Limit: 1}})
+	_, err = env.notifications.ListNotificationOccurrences(ctx, page)
+	require.Equal(t, connect.CodeUnimplemented, errorCode(err))
+	event.Id = "remove"
+	event.Event = &notificationv1.NotificationEvent_Removed{Removed: &notificationv1.NotificationRemoved{}}
+	publish(notificationstream.RemovedSubject, event)
+	list, err := env.notifications.ListNotificationOccurrences(ctx, page)
+	require.NoError(t, err)
+	require.Empty(t, list.Msg.GetOccurrences())
 }

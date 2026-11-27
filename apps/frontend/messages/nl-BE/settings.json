@@ -444,6 +444,8 @@
           "followed_thread": "Gevolgde threads",
           "reaction": "Reacties op je berichten",
           "activity": "Activiteit",
+          "direct_call": "Directe oproepen",
+          "room_call": "Ruimteoproepen",
           "room_invitation": "Uitnodigingen voor ruimtes"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Berichten met @all in een ruimte waarvan je lid bent.",
           "followed_thread": "Nieuwe antwoorden in threads die je volgt.",
           "reaction": "Reacties die andere leden aan je berichten toevoegen.",
+          "direct_call": "Oproepen die in een privégesprek beginnen.",
+          "room_call": "Oproepen die in een kanaalruimte beginnen.",
           "room_invitation": "Uitnodigingen om deel te nemen aan ruimtes."
         }
       }

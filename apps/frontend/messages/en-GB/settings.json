@@ -444,6 +444,8 @@
           "followed_thread": "Followed threads",
           "reaction": "Reactions to your messages",
           "activity": "Activity",
+          "direct_call": "Direct calls",
+          "room_call": "Room calls",
           "room_invitation": "Room invitations"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Messages that use @all in a room you belong to.",
           "followed_thread": "New replies in threads that you follow.",
           "reaction": "Reactions that other members add to your messages.",
+          "direct_call": "Calls started in a direct-message conversation.",
+          "room_call": "Calls started in a channel room.",
           "room_invitation": "Invitations to join rooms."
         }
       }

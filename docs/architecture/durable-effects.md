@@ -37,6 +37,8 @@ materialization use application-owned durable consumers through this boundary.
 application site still owns its name, filters, handler, retry policy, and
 lifecycle.
 
+The call notification consumer reads new call starts, participant joins, and call ends in order. It evaluates the direct or room call policy for each eligible member. A join removes the member's alert. A call end removes all remaining alerts for that call ID. Reads and push delivery check that the same call is active and the recipient can still join.
+
 Room invitation notification effects use a separate durable consumer owned by
 `NotificationMaterializer` (see
 [`notification_invitations.go`](../../cli/internal/core/notification_invitations.go)).

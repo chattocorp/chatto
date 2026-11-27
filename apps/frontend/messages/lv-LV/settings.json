@@ -444,6 +444,8 @@
           "followed_thread": "Sekotie pavedieni",
           "reaction": "Reakcijas uz jūsu ziņojumiem",
           "activity": "Aktivitāte",
+          "direct_call": "Tiešie zvani",
+          "room_call": "Istabu zvani",
           "room_invitation": "Uzaicinājumi uz telpām"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Ziņojumi ar @all telpā, kuras dalībnieks esat.",
           "followed_thread": "Jaunas atbildes pavedienos, kuriem sekojat.",
           "reaction": "Reakcijas, ko citi dalībnieki pievieno jūsu ziņojumiem.",
+          "direct_call": "Zvani, kas sākti privātā sarunā.",
+          "room_call": "Zvani, kas sākti kanāla istabā.",
           "room_invitation": "Uzaicinājumi pievienoties telpām."
         }
       }

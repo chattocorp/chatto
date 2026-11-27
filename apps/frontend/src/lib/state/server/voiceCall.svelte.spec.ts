@@ -1173,13 +1173,120 @@ describe('VoiceCallState', () => {
     await state.leave();
   });
 
+  it('uses the original notification call ID throughout admission and failure cleanup', async () => {
+    const client = createVoiceCallClient({ createCallToken: vi.fn(async () => null) });
+    const state = createPermittedCallState(client);
+    await expect(state.join('wss://livekit.example.test', 'room', 'original')).rejects.toThrow();
+    expect(client.joinCall).toHaveBeenCalledWith('room', 'original');
+    expect(client.createCallToken).toHaveBeenCalledWith('room', 'original');
+    expect(client.leaveCall).toHaveBeenCalledWith('room', 'original');
+    expect(calls).not.toContain('connect');
+  });
+
+  it('keeps a successful notification join guarded through normal hangup', async () => {
+    const client = createVoiceCallClient();
+    const state = createPermittedCallState(client);
+    await state.join('wss://livekit.example.test', 'room', 'call-1');
+    const lateDisconnect = roomEventHandlers.get('Disconnected');
+    await state.leave();
+    expect(client.leaveCall).toHaveBeenCalledWith('room', 'call-1');
+    await state.join('wss://livekit.example.test', 'room');
+    lateDisconnect?.();
+    expect(state.connected).toBe(true);
+    await state.leave();
+    expect(client.leaveCall).toHaveBeenLastCalledWith('room', undefined);
+  });
+
+  it('does not coalesce notification joins for different calls in one room', async () => {
+    const client = createVoiceCallClient();
+    const state = createPermittedCallState(client);
+    const original = state.join('wss://livekit.example.test', 'room', 'call-1');
+    const stale = state.join('wss://livekit.example.test', 'room', 'other-call');
+    const rejected = expect(stale).rejects.toMatchObject({
+      userMessage: 'The active call has ended'
+    });
+    await original;
+    await rejected;
+    expect(client.joinCall).toHaveBeenCalledOnce();
+    expect(client.leaveCall).not.toHaveBeenCalled();
+  });
+
+  it.each(['hangup', 'ended'] as const)(
+    'releases a guarded admission after %s without requesting a token',
+    async (reason) => {
+      const admission = deferredVoid();
+      const client = createVoiceCallClient({
+        joinCall: vi.fn(async () => {
+          await admission.promise;
+          return true;
+        })
+      });
+      const state = createPermittedCallState(client);
+      const pending = state.join('wss://livekit.example.test', 'room', 'original');
+      await vi.waitFor(() => expect(client.joinCall).toHaveBeenCalled());
+      if (reason === 'hangup') await state.leave();
+      else state.handleCallEndedEvent('room', 'original');
+      const result =
+        reason === 'hangup'
+          ? expect(pending).resolves.toBeUndefined()
+          : expect(pending).rejects.toMatchObject({ userMessage: 'The active call has ended' });
+      admission.resolve();
+      await result;
+      expect(client.createCallToken).not.toHaveBeenCalled();
+      expect(client.leaveCall).toHaveBeenCalledExactlyOnceWith('room', 'original');
+      expect(state.connected).toBe(false);
+    }
+  );
+
+  it.each(['hangup', 'ended'] as const)(
+    'cancels a notification join during token creation on %s',
+    async (reason) => {
+      const token = deferredVoid();
+      const client = createVoiceCallClient({
+        createCallToken: vi.fn(async () => {
+          await token.promise;
+          return { callId: 'original', token: 'token', e2eeKey: 'key' };
+        })
+      });
+      const state = createPermittedCallState(client);
+      const pending = state.join('wss://livekit.example.test', 'room', 'original');
+      await vi.waitFor(() => expect(client.createCallToken).toHaveBeenCalled());
+      if (reason === 'hangup') await state.leave();
+      else state.handleCallEndedEvent('room', 'original');
+      token.resolve();
+      await pending;
+      expect(client.leaveCall).toHaveBeenCalledWith('room', 'original');
+      expect(calls).not.toContain('connect');
+      expect(state.connected).toBe(false);
+    }
+  );
+
+  it.each([
+    [Code.NotFound, 'The active call has ended'],
+    [Code.FailedPrecondition, 'Failed to join voice call']
+  ] as const)(
+    'maps guarded admission status %s without retrying room-wide',
+    async (code, message) => {
+      const failure = new ConnectError('admission failed', code);
+      const client = createVoiceCallClient({ joinCall: vi.fn().mockRejectedValue(failure) });
+      const state = createPermittedCallState(client);
+      const error = await state
+        .join('wss://livekit.example.test', 'room', 'original')
+        .catch((error: unknown) => error);
+      expect(getVoiceCallJoinErrorMessage(error)).toBe(message);
+      expect(client.joinCall).toHaveBeenCalledOnce();
+      expect(client.createCallToken).not.toHaveBeenCalled();
+      expect(client.leaveCall).not.toHaveBeenCalled();
+    }
+  );
+
   it('sets up LiveKit E2EE before connecting', async () => {
     const client = createVoiceCallClient();
 
     const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
 
-    expect(client.joinCall).toHaveBeenCalledWith('R1');
+    expect(client.joinCall).toHaveBeenCalledWith('R1', undefined);
     expect(lastKeyProvider?.setKey).toHaveBeenCalledWith('shared-e2ee-key');
     expect(lastRoomOptions?.encryption).toMatchObject({
       keyProvider: lastKeyProvider
@@ -1866,7 +1973,7 @@ describe('VoiceCallState', () => {
     await expect(state.join('wss://livekit.example.test', 'R1')).rejects.toThrow('connect failed');
 
     expect(client.joinCall).toHaveBeenCalledTimes(1);
-    expect(client.leaveCall).toHaveBeenCalledWith('R1');
+    expect(client.leaveCall).toHaveBeenCalledWith('R1', undefined);
     expect(state.isInAnyCall).toBe(false);
     expect(soundMocks.playCallSound).not.toHaveBeenCalled();
   });

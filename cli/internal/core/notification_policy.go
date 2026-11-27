@@ -226,6 +226,8 @@ func effectiveNotificationDeliveryModesAtScope(server, group, room *evtv1.Notifi
 		FollowedThreads: resolvedNotificationMode(room.FollowedThreads, group.FollowedThreads, server.FollowedThreads, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION).Enum(),
 		FollowedRooms:   resolvedNotificationMode(room.FollowedRooms, group.FollowedRooms, server.FollowedRooms, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF).Enum(),
 		Reactions:       resolvedNotificationMode(room.Reactions, group.Reactions, server.Reactions, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION).Enum(),
+		DirectCalls:     resolvedNotificationMode(room.DirectCalls, group.DirectCalls, server.DirectCalls, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
+		RoomCalls:       resolvedNotificationMode(room.RoomCalls, group.RoomCalls, server.RoomCalls, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF).Enum(),
 		RoomInvitations: resolvedNotificationMode(room.RoomInvitations, group.RoomInvitations, server.RoomInvitations, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION).Enum(),
 		RoomMessages:    resolvedNotificationMode(room.RoomMessages, group.RoomMessages, server.RoomMessages, evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE).Enum(),
 	}
@@ -260,6 +262,11 @@ func notificationModeForSignal(modes *evtv1.NotificationDeliveryModes, signal *n
 		return modes.GetReactions()
 	case *notificationv1.NotificationSignal_RoomMessageReceived:
 		return modes.GetRoomMessages()
+	case *notificationv1.NotificationSignal_IncomingCall:
+		if signal.GetIncomingCall().GetDirect() {
+			return modes.GetDirectCalls()
+		}
+		return modes.GetRoomCalls()
 	case *notificationv1.NotificationSignal_RoomInvitationReceived:
 		return modes.GetRoomInvitations()
 	default:

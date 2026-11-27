@@ -46,6 +46,8 @@ function policy(
       followedThreads: null,
       followedRooms: null,
       roomInvitations: null,
+      directCalls: null,
+      roomCalls: null,
       reactions: null
     },
     effective: {
@@ -58,6 +60,8 @@ function policy(
       allMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
       followedThreads: NotificationDeliveryMode.IN_APP_NOTIFICATION,
       followedRooms: NotificationDeliveryMode.OFF,
+      directCalls: NotificationDeliveryMode.PUSH_NOTIFICATION,
+      roomCalls: NotificationDeliveryMode.OFF,
       roomInvitations: NotificationDeliveryMode.PUSH_NOTIFICATION,
       reactions: NotificationDeliveryMode.IN_APP_NOTIFICATION
     }
@@ -130,7 +134,7 @@ describe('NotificationPolicySettings', () => {
     ).toEqual(['server', 'roomGroup:group-1', 'room:room-1', 'room:dm-1']);
     expect(container.querySelector('th[data-notification-scope="room:room-2"]')).toBeNull();
     expect(container.querySelector('[data-notification-field="followedRooms"]')).toBeNull();
-    expect(container.querySelectorAll('[data-matrix-row]')).toHaveLength(10 * 4);
+    expect(container.querySelectorAll('[data-matrix-row]')).toHaveLength(12 * 4);
     expect(container.textContent).toContain('Room invitations');
     expect(container.textContent).not.toContain('Followed rooms');
     expect(container.textContent).not.toContain('Reset to defaults');
@@ -143,7 +147,7 @@ describe('NotificationPolicySettings', () => {
       'tbody th button[aria-label^="More information: "]'
     );
 
-    expect(helpButtons).toHaveLength(10);
+    expect(helpButtons).toHaveLength(12);
     expect(helpButtons[0]?.getAttribute('aria-label')).toBe('More information: Direct messages');
     (helpButtons[0] as HTMLButtonElement).dispatchEvent(new MouseEvent('mouseenter'));
     flushSync();
@@ -152,6 +156,20 @@ describe('NotificationPolicySettings', () => {
     );
     expect(container.querySelectorAll('td[data-notification-field] [title]')).toHaveLength(0);
     await page.viewport(1280, 900);
+  });
+
+  it('shows the existing matrix on servers without call policies', async () => {
+    mocks.batch.mockImplementation(async (requested: NotificationPolicyScope[]) =>
+      requested.map((scope) => ({ ...policy(scope), supportsCallPolicy: false }))
+    );
+    const { container } = render(NotificationPolicySettings);
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-notification-field="directCalls"]')).toBeNull()
+    );
+    expect(container.querySelector('[data-notification-field="roomCalls"]')).toBeNull();
+    expect(
+      container.querySelector('[data-notification-field="directMessages"] button')
+    ).not.toBeNull();
   });
 
   it('marks direct messages as not applicable to room groups and channel rooms', () => {
@@ -372,12 +390,12 @@ describe('NotificationPolicySettings', () => {
 
     const { container } = render(NotificationPolicySettings);
 
-    expect(container.querySelectorAll('[class~="icon-[uil--spinner]"]')).toHaveLength(10 * 4 - 4);
+    expect(container.querySelectorAll('[class~="icon-[uil--spinner]"]')).toHaveLength(12 * 4 - 7);
     expect(container.querySelectorAll('td[data-notification-field] button')).toHaveLength(0);
     const placeholders = container.querySelectorAll(
       'td[data-notification-field] > span[role="status"]'
     );
-    expect(placeholders).toHaveLength(10 * 4 - 4);
+    expect(placeholders).toHaveLength(12 * 4 - 7);
     expect([...placeholders].every((item) => item.textContent?.trim() === 'Loading...')).toBe(true);
   });
 
@@ -419,7 +437,7 @@ describe('NotificationPolicySettings', () => {
     await vi.waitFor(() =>
       expect(loadFailure.container.textContent).toContain('You do not have permission to do that.')
     );
-    expect(loadFailure.container.querySelectorAll('[data-matrix-row]')).toHaveLength(10 * 4);
+    expect(loadFailure.container.querySelectorAll('[data-matrix-row]')).toHaveLength(12 * 4);
     loadFailure.unmount();
 
     queryClient.clear();
@@ -441,7 +459,7 @@ describe('NotificationPolicySettings', () => {
     );
     expect(
       saveFailure.container.querySelectorAll('td[data-notification-field] button')
-    ).toHaveLength(10 * 4 - 4);
+    ).toHaveLength(12 * 4 - 7);
   });
 
   it('does not restore a saved policy after the server cache is removed', async () => {

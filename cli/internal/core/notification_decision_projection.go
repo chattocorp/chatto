@@ -120,7 +120,7 @@ func (p *NotificationDecisionProjection) Apply(event *evtv1.Event, seq uint64) e
 }
 
 func notificationVisibilityPermission(permission string) bool {
-	return permission == string(PermRoomJoin) || permission == string(PermMessageRead) || permission == string(PermMessageReadInteractions)
+	return permission == string(PermCallJoin) || permission == string(PermRoomJoin) || permission == string(PermMessageRead) || permission == string(PermMessageReadInteractions)
 }
 
 func (*NotificationDecisionProjection) SnapshotContractID() string {

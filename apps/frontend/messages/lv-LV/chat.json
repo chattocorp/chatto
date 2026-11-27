@@ -36,6 +36,7 @@
         "followed_thread": "{actor} atbildēja pavedienā, kuram sekojat",
         "new_message": "{actor} publicēja jaunu ziņu",
         "activity": "{actor} nosūtīja jums paziņojumu",
+        "incoming_call": "{actor} sāka zvanu",
         "room_invitation": "{actor} uzaicināja jūs uz telpu"
       }
     },

@@ -113,6 +113,12 @@ func serverFeatureCatalog(locale string) []*discoveryv1.ServerFeature {
 			Description:       "See which Settings pages you can open by activating protected roles.",
 			IntroducedVersion: "0.6.1",
 		},
+		{
+			Id:                "incomingCallAlerts",
+			Name:              "Incoming call alerts",
+			Description:       "Choose how direct calls and room calls notify you.",
+			IntroducedVersion: "0.6.1",
+		},
 	}
 	for _, feature := range features {
 		if text, ok := featureTranslation(locale, feature.Id); ok {

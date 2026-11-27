@@ -17,10 +17,13 @@ type CallParticipant struct {
 }
 
 type CallSession struct {
-	CallID     string
-	E2EEKeyRef string
-	StartedAt  int64
-	Source     evtv1.CallParticipantEventSource
+	// StartSequence and StartedBy identify the source of incoming-call attention.
+	StartSequence uint64
+	StartedBy     string
+	CallID        string
+	E2EEKeyRef    string
+	StartedAt     int64
+	Source        evtv1.CallParticipantEventSource
 }
 
 // CallStateProjection derives the active-call snapshot from durable room
@@ -30,7 +33,10 @@ type CallStateProjection struct {
 	events.MemoryProjection
 	rooms       map[string]map[string]CallParticipant
 	activeCalls map[string]CallSession
-	roomSeq     map[string]uint64
+	// departed remembers members who already answered the current call after they leave.
+	// Dropped when that call ends or is replaced.
+	departed map[string]map[string]bool
+	roomSeq  map[string]uint64
 }
 
 type CallRoomSnapshot struct {
@@ -43,6 +49,7 @@ func NewCallStateProjection() *CallStateProjection {
 	return &CallStateProjection{
 		rooms:       make(map[string]map[string]CallParticipant),
 		activeCalls: make(map[string]CallSession),
+		departed:    make(map[string]map[string]bool),
 		roomSeq:     make(map[string]uint64),
 	}
 }
@@ -75,12 +82,14 @@ func (p *CallStateProjection) Apply(event *evtv1.Event, seq uint64) error {
 		}
 		source := normalizeCallParticipantSource(e.VoiceCallStarted.GetSource())
 		session := CallSession{
+			StartedBy: event.GetActorId(), StartSequence: seq,
 			CallID:     e.VoiceCallStarted.GetCallId(),
 			E2EEKeyRef: e.VoiceCallStarted.GetE2EeKeyRef(),
 			StartedAt:  startedAt,
 			Source:     source,
 		}
 		p.activeCalls[roomID] = session
+		delete(p.departed, roomID)
 		delete(p.rooms, roomID)
 	case *evtv1.Event_VoiceCallParticipantJoined:
 		if event.GetActorId() == "" {
@@ -105,6 +114,7 @@ func (p *CallStateProjection) Apply(event *evtv1.Event, seq uint64) error {
 		if exists && joinedAt == existing.JoinedAt && callParticipantSourcePriority(existing.Source) > callParticipantSourcePriority(source) {
 			source = existing.Source
 		}
+		delete(p.departed[roomID], event.GetActorId())
 		p.rooms[roomID][event.GetActorId()] = CallParticipant{
 			UserID:   event.GetActorId(),
 			CallID:   callID,
@@ -118,6 +128,12 @@ func (p *CallStateProjection) Apply(event *evtv1.Event, seq uint64) error {
 		if participants := p.rooms[roomID]; participants != nil {
 			callID := e.VoiceCallParticipantLeft.GetCallId()
 			if existing, ok := participants[event.GetActorId()]; ok && (callID == "" || existing.CallID == "" || existing.CallID == callID) {
+				if active, ok := p.activeCalls[roomID]; ok && active.CallID == existing.CallID {
+					if p.departed[roomID] == nil {
+						p.departed[roomID] = make(map[string]bool)
+					}
+					p.departed[roomID][event.GetActorId()] = true
+				}
 				delete(participants, event.GetActorId())
 			}
 			if len(participants) == 0 {
@@ -128,6 +144,7 @@ func (p *CallStateProjection) Apply(event *evtv1.Event, seq uint64) error {
 		if active := p.activeCalls[roomID]; e.VoiceCallEnded.GetCallId() == "" || active.CallID == "" || active.CallID == e.VoiceCallEnded.GetCallId() {
 			delete(p.rooms, roomID)
 			delete(p.activeCalls, roomID)
+			delete(p.departed, roomID)
 		}
 	case *evtv1.Event_UserLeftRoom:
 		if event.GetActorId() == "" {
@@ -139,12 +156,14 @@ func (p *CallStateProjection) Apply(event *evtv1.Event, seq uint64) error {
 				if len(participants) == 0 {
 					delete(p.rooms, roomID)
 					delete(p.activeCalls, roomID)
+					delete(p.departed, roomID)
 				}
 			}
 		}
 	case *evtv1.Event_RoomDeleted:
 		delete(p.rooms, roomID)
 		delete(p.activeCalls, roomID)
+		delete(p.departed, roomID)
 	}
 	return nil
 }

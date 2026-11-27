@@ -495,3 +495,34 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		})
 	}
 }
+
+func TestCallSnapshotRestoresNotificationEligibility(t *testing.T) {
+	p := NewCallStateProjection()
+	for i, event := range []*evtv1.Event{
+		callStartedTimelineEvent("start", "room", "host", "call", 1),
+		callParticipantJoinedTimelineEvent("host-join", "room", "host", "call", 2),
+		callParticipantJoinedTimelineEvent("guest-join", "room", "guest", "call", 3),
+		callParticipantLeftTimelineEvent("guest-leave", "room", "guest", "call", 4),
+	} {
+		if err := p.Apply(event, uint64(41+i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data, err := p.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := NewCallStateProjection()
+	if err := restored.Restore(data); err != nil {
+		t.Fatal(err)
+	}
+	call := restored.RoomSnapshot("room").Call
+	if call.StartedBy != "host" || call.StartSequence != 41 {
+		t.Fatalf("restored call started by %q at sequence %d", call.StartedBy, call.StartSequence)
+	}
+	for user, want := range map[string]bool{"host": false, "guest": false, "unanswered": true} {
+		if got := restored.awaitingJoin("room", "call", user); got != want {
+			t.Errorf("awaitingJoin(%s) = %v, want %v", user, got, want)
+		}
+	}
+}

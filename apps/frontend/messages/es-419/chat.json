@@ -36,6 +36,7 @@
         "followed_thread": "{actor} respondió en un hilo que sigues",
         "new_message": "{actor} publicó un mensaje nuevo",
         "activity": "{actor} te envió una notificación",
+        "incoming_call": "{actor} inició una llamada",
         "room_invitation": "{actor} te ha invitado a una sala"
       }
     },

@@ -23,6 +23,8 @@ export function notificationActivitySummary(
   }
   if (!actor) return m('chat.notifications.activity');
   switch (kind) {
+    case NotificationSignalKind.INCOMING_CALL:
+      return m('chat.notifications.summary.incoming_call', { actor });
     case NotificationSignalKind.ROOM_INVITATION:
       return m('chat.notifications.summary.room_invitation', { actor });
     case NotificationSignalKind.DIRECT_MESSAGE:

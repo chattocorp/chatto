@@ -154,6 +154,43 @@ test.describe('Voice calls', () => {
     });
   });
 
+  test('an incoming DM call can be dismissed and its old link cannot join a later call', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    const recipient = await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page);
+
+    await withServerUser(browser!, serverURL, async ({ page: caller }) => {
+      await new DMPage(caller).startConversation(recipient.login);
+      const { roomId } = await getIdsFromUrlViaConnect(caller);
+      await joinCallViaConnect(caller, roomId);
+      const { callId } = await createCallTokenViaConnect(caller, roomId);
+      expect(callId).toBeTruthy();
+
+      const banner = page
+        .getByRole('status')
+        .filter({ has: page.getByRole('button', { name: 'Join call', exact: true }) });
+      await expect(banner).toBeVisible();
+      await banner.getByRole('button', { name: /dismiss/i }).click();
+      await expect(banner).toBeHidden();
+      await leaveCallViaConnect(caller, roomId);
+
+      await joinCallViaConnect(caller, roomId);
+      await page.goto(`/chat/-/${roomId}?callId=${callId}`);
+      await expect(
+        page.getByText('The active call has ended', { exact: true }).first()
+      ).toBeVisible();
+      await expect(banner).toBeHidden();
+      expect(await listCallParticipantsViaConnect(caller, roomId)).toHaveLength(1);
+      await leaveCallViaConnect(caller, roomId);
+    });
+  });
+
   test('call token RPC returns a valid JWT', async ({ page, chatPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();

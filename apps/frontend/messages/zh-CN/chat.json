@@ -36,6 +36,7 @@
         "followed_thread": "{actor} 回复了你关注的主题",
         "new_message": "{actor} 发布了一条新消息",
         "activity": "{actor} 向你发送了一条通知",
+        "incoming_call": "{actor} 发起了通话",
         "room_invitation": "{actor} 邀请你加入房间"
       }
     },

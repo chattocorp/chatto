@@ -444,6 +444,8 @@
           "followed_thread": "Fulgte tråder",
           "reaction": "Reaksjoner på meldingene dine",
           "activity": "Aktivitet",
+          "direct_call": "Direkteanrop",
+          "room_call": "Romanrop",
           "room_invitation": "Invitasjoner til rom"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Meldinger som bruker @all i et rom du er medlem av.",
           "followed_thread": "Nye svar i tråder du følger.",
           "reaction": "Reaksjoner som andre medlemmer legger til på meldingene dine.",
+          "direct_call": "Anrop som startes i en direktemeldingssamtale.",
+          "room_call": "Anrop som startes i et kanalrom.",
           "room_invitation": "Invitasjoner til å bli med i rom."
         }
       }

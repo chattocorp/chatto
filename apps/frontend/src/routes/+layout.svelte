@@ -128,6 +128,19 @@
     );
   });
 
+  const callLink = $derived.by(() => {
+    const callId = page.url.searchParams.get('callId');
+    return callId && activeRoomId && activeServerId
+      ? { callId, roomId: activeRoomId, serverId: activeServerId }
+      : null;
+  });
+
+  function closeCallLink() {
+    const url = new URL(page.url);
+    url.searchParams.delete('callId');
+    void goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+  }
+
   $effect(() => {
     if (typeof activeRoomId === 'string' && activeRoomId) {
       appUi.setActiveRoomScope(activeServerId, activeRoomId);
@@ -185,7 +198,7 @@
 <InputModalityTracker />
 <TouchPressFeedback />
 <ServerRuntimeCoordinator />
-<NotificationSync />
+<NotificationSync {callLink} onCloseCallLink={closeCallLink} />
 <UpdateNotifier />
 
 {#if standaloneOAuth}

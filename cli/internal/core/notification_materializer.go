@@ -53,6 +53,8 @@ type NotificationMaterializer struct {
 	identityConsumerInfoMu    sync.Mutex
 	protectionConsumer        jetstream.Consumer
 	protectionConsumerInfoMu  sync.Mutex
+	callConsumer              jetstream.Consumer
+	callConsumerInfoMu        sync.Mutex
 	invitationConsumer        jetstream.Consumer
 	invitationConsumerInfoMu  sync.Mutex
 }
@@ -78,6 +80,13 @@ func (m *NotificationMaterializer) Initialize(ctx context.Context) error {
 		return err
 	}
 	m.consumer = consumer
+	m.callConsumer, err = evtstream.CreateEffectConsumer(ctx, m.core.storage.serverEvtStream, evtstream.EffectConsumerConfig{
+		Name: callNotificationConsumerName, Description: "Incoming call notifications", FilterSubjects: callNotificationSubjects(),
+		AckWait: notificationWorkerAckWait, MaxAckPending: 1, DeliverPolicy: jetstream.DeliverNewPolicy,
+	})
+	if err != nil {
+		return err
+	}
 	invitationConsumer, err := m.createInvitationConsumer(ctx)
 	if err != nil {
 		return err
@@ -121,6 +130,13 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 		return fmt.Errorf("configure notification worker: %w", err)
 	}
 
+	callWorker, err := evtstream.NewEffectWorker(m.callConsumer, m.processCallDelivery, evtstream.EffectWorkerOptions{
+		MaxConcurrent: 1, RetryDelay: notificationWorkerRetryDelay, AckTimeout: notificationWorkerAckTimeout,
+		HeartbeatInterval: notificationWorkerHeartbeat, Logger: m.core.logger.WithPrefix("CallNotificationWorker"),
+	})
+	if err != nil {
+		return err
+	}
 	invitationWorker, err := evtstream.NewEffectWorker(m.invitationConsumer, m.processInvitationDelivery, evtstream.EffectWorkerOptions{
 		MaxConcurrent: 1, RetryDelay: notificationWorkerRetryDelay, AckTimeout: notificationWorkerAckTimeout,
 		HeartbeatInterval: notificationWorkerHeartbeat, Logger: m.core.logger.WithPrefix("InvitationNotificationWorker"),
@@ -141,6 +157,7 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 		return err
 	}
 	group, workerCtx := errgroup.WithContext(ctx)
+	group.Go(func() error { return callWorker.Run(workerCtx) })
 	group.Go(func() error { return identityWorker.Run(workerCtx) })
 	group.Go(func() error { return protectionWorker.Run(workerCtx) })
 	group.Go(func() error { return worker.Run(workerCtx) })
@@ -222,6 +239,9 @@ func (m *NotificationMaterializer) WaitCurrent(ctx context.Context) error {
 		return err
 	}
 	if err := m.waitEffectCurrent(ctx, []string{roleProtectionSubject()}, m.protectionConsumer, &m.protectionConsumerInfoMu); err != nil {
+		return err
+	}
+	if err := m.waitEffectCurrent(ctx, callNotificationSubjects(), m.callConsumer, &m.callConsumerInfoMu); err != nil {
 		return err
 	}
 	if err := m.waitEffectCurrent(ctx, invitationNotificationSubjects(), m.invitationConsumer, &m.invitationConsumerInfoMu); err != nil {
@@ -554,11 +574,10 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 		return candidates
 	}
 	for _, occurrence := range entries {
-		message := notificationSignalMessage(occurrence.GetSignal())
-		if message == nil {
+		if notificationSignalMessage(occurrence.GetSignal()) == nil && occurrence.GetSignal().GetIncomingCall() == nil {
 			continue
 		}
-		targetRoomID := message.GetRoomId()
+		targetRoomID := NotificationOccurrenceRoomID(occurrence)
 		if (userID != "" && occurrence.GetRecipientId() != userID) || targetRoomID == "" || (roomID != "" && targetRoomID != roomID) ||
 			(streamSequence != 0 && occurrence.GetSourceStreamSequence() >= streamSequence) {
 			continue
@@ -572,6 +591,7 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 		return nil
 	}
 	type currentVisibility struct {
+		call        bool
 		broad       bool
 		interaction bool
 	}
@@ -579,6 +599,7 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 	if err := m.decisions.Projection().withCurrent(visibilityAt, func(snapshot *notificationDecisionSnapshot) error {
 		for pair := range candidatesByPair {
 			visibilityByPair[pair] = currentVisibility{
+				call:        snapshot.membershipExists(pair.recipientID, pair.roomID) && snapshot.roomPermissionAllowed(pair.recipientID, pair.roomID, snapshot.groups.Groups.GroupForRoom(pair.roomID), PermCallJoin),
 				broad:       snapshot.notificationVisibilityExists(pair.recipientID, pair.roomID),
 				interaction: snapshot.notificationInteractionVisibilityExists(pair.recipientID, pair.roomID),
 			}
@@ -593,12 +614,20 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 		visibility := visibilityByPair[pair]
 		broadVisibility := visibility.broad
 		interactionVisibility := visibility.interaction
-		if !broadVisibility && !interactionVisibility {
+		if !broadVisibility && !interactionVisibility && slices.ContainsFunc(candidates.occurrences, func(o *notificationv1.NotificationOccurrence) bool {
+			return notificationSignalMessage(o.GetSignal()) != nil
+		}) {
 			if err := m.recordVisibilityBoundary(ctx, pair.recipientID, pair.roomID, streamSequence); err != nil {
 				return err
 			}
 		}
 		for _, occurrence := range candidates.occurrences {
+			if occurrence.GetSignal().GetIncomingCall() != nil {
+				if !visibility.call {
+					toRemove = append(toRemove, occurrence)
+				}
+				continue
+			}
 			if broadVisibility || (interactionVisibility && m.notificationTargetHasInteraction(pair.recipientID, pair.roomID, occurrence.GetSignal())) {
 				continue
 			}

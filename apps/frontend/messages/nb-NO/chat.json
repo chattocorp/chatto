@@ -36,6 +36,7 @@
         "followed_thread": "{actor} svarte i en tråd du følger",
         "new_message": "{actor} la ut en ny melding",
         "activity": "{actor} sendte deg et varsel",
+        "incoming_call": "{actor} startet et anrop",
         "room_invitation": "{actor} inviterte deg til et rom"
       }
     },

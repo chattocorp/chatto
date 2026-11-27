@@ -559,18 +559,75 @@ func (x *CallParticipant) GetCallId() string {
 	return ""
 }
 
+// Identifies one call, even after another call starts in the same room.
+type CallReference struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room that hosts the call.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Session ID from the incoming-call notification.
+	CallId        string `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CallReference) Reset() {
+	*x = CallReference{}
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CallReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CallReference) ProtoMessage() {}
+
+func (x *CallReference) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CallReference.ProtoReflect.Descriptor instead.
+func (*CallReference) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *CallReference) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *CallReference) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
 // Request to record joining a room call.
 type JoinCallRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required. Room whose call is being joined.
-	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Target for an ordinary room action. Omit when you set call.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Join only this call. An ended call returns NOT_FOUND.
+	Call          *CallReference `protobuf:"bytes,2,opt,name=call,proto3" json:"call,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *JoinCallRequest) Reset() {
 	*x = JoinCallRequest{}
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -582,7 +639,7 @@ func (x *JoinCallRequest) String() string {
 func (*JoinCallRequest) ProtoMessage() {}
 
 func (x *JoinCallRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -595,7 +652,7 @@ func (x *JoinCallRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JoinCallRequest.ProtoReflect.Descriptor instead.
 func (*JoinCallRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{10}
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *JoinCallRequest) GetRoomId() string {
@@ -603,6 +660,13 @@ func (x *JoinCallRequest) GetRoomId() string {
 		return x.RoomId
 	}
 	return ""
+}
+
+func (x *JoinCallRequest) GetCall() *CallReference {
+	if x != nil {
+		return x.Call
+	}
+	return nil
 }
 
 // Response from recording a join intent.
@@ -616,7 +680,7 @@ type JoinCallResponse struct {
 
 func (x *JoinCallResponse) Reset() {
 	*x = JoinCallResponse{}
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -628,7 +692,7 @@ func (x *JoinCallResponse) String() string {
 func (*JoinCallResponse) ProtoMessage() {}
 
 func (x *JoinCallResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -641,7 +705,7 @@ func (x *JoinCallResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JoinCallResponse.ProtoReflect.Descriptor instead.
 func (*JoinCallResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{11}
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *JoinCallResponse) GetJoined() bool {
@@ -654,15 +718,17 @@ func (x *JoinCallResponse) GetJoined() bool {
 // Request for a LiveKit token for a room call.
 type CreateCallTokenRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required. Room whose active call should be joined.
-	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Target for an ordinary room action. Omit when you set call.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Issue a token only for this call. An ended call returns NOT_FOUND.
+	Call          *CallReference `protobuf:"bytes,2,opt,name=call,proto3" json:"call,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateCallTokenRequest) Reset() {
 	*x = CreateCallTokenRequest{}
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -674,7 +740,7 @@ func (x *CreateCallTokenRequest) String() string {
 func (*CreateCallTokenRequest) ProtoMessage() {}
 
 func (x *CreateCallTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -687,7 +753,7 @@ func (x *CreateCallTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCallTokenRequest.ProtoReflect.Descriptor instead.
 func (*CreateCallTokenRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{12}
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CreateCallTokenRequest) GetRoomId() string {
@@ -695,6 +761,13 @@ func (x *CreateCallTokenRequest) GetRoomId() string {
 		return x.RoomId
 	}
 	return ""
+}
+
+func (x *CreateCallTokenRequest) GetCall() *CallReference {
+	if x != nil {
+		return x.Call
+	}
+	return nil
 }
 
 // LiveKit token details for joining a room call.
@@ -712,7 +785,7 @@ type CreateCallTokenResponse struct {
 
 func (x *CreateCallTokenResponse) Reset() {
 	*x = CreateCallTokenResponse{}
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -724,7 +797,7 @@ func (x *CreateCallTokenResponse) String() string {
 func (*CreateCallTokenResponse) ProtoMessage() {}
 
 func (x *CreateCallTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -737,7 +810,7 @@ func (x *CreateCallTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCallTokenResponse.ProtoReflect.Descriptor instead.
 func (*CreateCallTokenResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{13}
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CreateCallTokenResponse) GetToken() string {
@@ -774,7 +847,7 @@ type CreateCallMediaPublisherTokenRequest struct {
 
 func (x *CreateCallMediaPublisherTokenRequest) Reset() {
 	*x = CreateCallMediaPublisherTokenRequest{}
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -786,7 +859,7 @@ func (x *CreateCallMediaPublisherTokenRequest) String() string {
 func (*CreateCallMediaPublisherTokenRequest) ProtoMessage() {}
 
 func (x *CreateCallMediaPublisherTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -799,7 +872,7 @@ func (x *CreateCallMediaPublisherTokenRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use CreateCallMediaPublisherTokenRequest.ProtoReflect.Descriptor instead.
 func (*CreateCallMediaPublisherTokenRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{14}
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CreateCallMediaPublisherTokenRequest) GetRoomId() string {
@@ -831,7 +904,7 @@ type CreateCallMediaPublisherTokenResponse struct {
 
 func (x *CreateCallMediaPublisherTokenResponse) Reset() {
 	*x = CreateCallMediaPublisherTokenResponse{}
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -843,7 +916,7 @@ func (x *CreateCallMediaPublisherTokenResponse) String() string {
 func (*CreateCallMediaPublisherTokenResponse) ProtoMessage() {}
 
 func (x *CreateCallMediaPublisherTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -856,7 +929,7 @@ func (x *CreateCallMediaPublisherTokenResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use CreateCallMediaPublisherTokenResponse.ProtoReflect.Descriptor instead.
 func (*CreateCallMediaPublisherTokenResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{15}
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreateCallMediaPublisherTokenResponse) GetToken() string {
@@ -883,15 +956,17 @@ func (x *CreateCallMediaPublisherTokenResponse) GetCallId() string {
 // Request to record leaving a room call.
 type LeaveCallRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required. Room whose call is being left.
-	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Target for an ordinary room action. Omit when you set call.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Leave only this call. An ended call requires no cleanup.
+	Call          *CallReference `protobuf:"bytes,2,opt,name=call,proto3" json:"call,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LeaveCallRequest) Reset() {
 	*x = LeaveCallRequest{}
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[16]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -903,7 +978,7 @@ func (x *LeaveCallRequest) String() string {
 func (*LeaveCallRequest) ProtoMessage() {}
 
 func (x *LeaveCallRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[16]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -916,7 +991,7 @@ func (x *LeaveCallRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveCallRequest.ProtoReflect.Descriptor instead.
 func (*LeaveCallRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{16}
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *LeaveCallRequest) GetRoomId() string {
@@ -924,6 +999,13 @@ func (x *LeaveCallRequest) GetRoomId() string {
 		return x.RoomId
 	}
 	return ""
+}
+
+func (x *LeaveCallRequest) GetCall() *CallReference {
+	if x != nil {
+		return x.Call
+	}
+	return nil
 }
 
 // Response from recording a leave intent.
@@ -937,7 +1019,7 @@ type LeaveCallResponse struct {
 
 func (x *LeaveCallResponse) Reset() {
 	*x = LeaveCallResponse{}
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[17]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -949,7 +1031,7 @@ func (x *LeaveCallResponse) String() string {
 func (*LeaveCallResponse) ProtoMessage() {}
 
 func (x *LeaveCallResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[17]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -962,7 +1044,7 @@ func (x *LeaveCallResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveCallResponse.ProtoReflect.Descriptor instead.
 func (*LeaveCallResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{17}
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *LeaveCallResponse) GetLeft() bool {
@@ -1001,13 +1083,20 @@ const file_chatto_api_v1_voice_calls_proto_rawDesc = "" +
 	"\x0fCallParticipant\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x127\n" +
 	"\tjoined_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bjoinedAt\x12\x17\n" +
-	"\acall_id\x18\x03 \x01(\tR\x06callId\"3\n" +
-	"\x0fJoinCallRequest\x12 \n" +
-	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"*\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callId\"S\n" +
+	"\rCallReference\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12 \n" +
+	"\acall_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06callId\"\xb9\x01\n" +
+	"\x0fJoinCallRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x120\n" +
+	"\x04call\x18\x02 \x01(\v2\x1c.chatto.api.v1.CallReferenceR\x04call:[\xbaHX\x1aV\n" +
+	"\x10join_call.target\x12\x1aset either room_id or call\x1a&(this.room_id != '') != has(this.call)\"*\n" +
 	"\x10JoinCallResponse\x12\x16\n" +
-	"\x06joined\x18\x01 \x01(\bR\x06joined\":\n" +
-	"\x16CreateCallTokenRequest\x12 \n" +
-	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"c\n" +
+	"\x06joined\x18\x01 \x01(\bR\x06joined\"\xc8\x01\n" +
+	"\x16CreateCallTokenRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x120\n" +
+	"\x04call\x18\x02 \x01(\v2\x1c.chatto.api.v1.CallReferenceR\x04call:c\xbaH`\x1a^\n" +
+	"\x18create_call_token.target\x12\x1aset either room_id or call\x1a&(this.room_id != '') != has(this.call)\"c\n" +
 	"\x17CreateCallTokenResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x19\n" +
 	"\be2ee_key\x18\x02 \x01(\tR\ae2eeKey\x12\x17\n" +
@@ -1019,9 +1108,11 @@ const file_chatto_api_v1_voice_calls_proto_rawDesc = "" +
 	"%CreateCallMediaPublisherTokenResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x19\n" +
 	"\be2ee_key\x18\x02 \x01(\tR\ae2eeKey\x12\x17\n" +
-	"\acall_id\x18\x03 \x01(\tR\x06callIdJ\x04\b\x04\x10\x05R\x12publisher_identity\"4\n" +
-	"\x10LeaveCallRequest\x12 \n" +
-	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"'\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callIdJ\x04\b\x04\x10\x05R\x12publisher_identity\"\xbb\x01\n" +
+	"\x10LeaveCallRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x120\n" +
+	"\x04call\x18\x02 \x01(\v2\x1c.chatto.api.v1.CallReferenceR\x04call:\\\xbaHY\x1aW\n" +
+	"\x11leave_call.target\x12\x1aset either room_id or call\x1a&(this.room_id != '') != has(this.call)\"'\n" +
 	"\x11LeaveCallResponse\x12\x12\n" +
 	"\x04left\x18\x01 \x01(\bR\x04left*m\n" +
 	"\x16CallMediaPublisherKind\x12)\n" +
@@ -1051,7 +1142,7 @@ func file_chatto_api_v1_voice_calls_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_voice_calls_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_voice_calls_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_chatto_api_v1_voice_calls_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_chatto_api_v1_voice_calls_proto_goTypes = []any{
 	(CallMediaPublisherKind)(0),                   // 0: chatto.api.v1.CallMediaPublisherKind
 	(*ListActiveCallsRequest)(nil),                // 1: chatto.api.v1.ListActiveCallsRequest
@@ -1064,49 +1155,53 @@ var file_chatto_api_v1_voice_calls_proto_goTypes = []any{
 	(*ListCallParticipantsRequest)(nil),           // 8: chatto.api.v1.ListCallParticipantsRequest
 	(*ListCallParticipantsResponse)(nil),          // 9: chatto.api.v1.ListCallParticipantsResponse
 	(*CallParticipant)(nil),                       // 10: chatto.api.v1.CallParticipant
-	(*JoinCallRequest)(nil),                       // 11: chatto.api.v1.JoinCallRequest
-	(*JoinCallResponse)(nil),                      // 12: chatto.api.v1.JoinCallResponse
-	(*CreateCallTokenRequest)(nil),                // 13: chatto.api.v1.CreateCallTokenRequest
-	(*CreateCallTokenResponse)(nil),               // 14: chatto.api.v1.CreateCallTokenResponse
-	(*CreateCallMediaPublisherTokenRequest)(nil),  // 15: chatto.api.v1.CreateCallMediaPublisherTokenRequest
-	(*CreateCallMediaPublisherTokenResponse)(nil), // 16: chatto.api.v1.CreateCallMediaPublisherTokenResponse
-	(*LeaveCallRequest)(nil),                      // 17: chatto.api.v1.LeaveCallRequest
-	(*LeaveCallResponse)(nil),                     // 18: chatto.api.v1.LeaveCallResponse
-	(*RoomSummary)(nil),                           // 19: chatto.api.v1.RoomSummary
-	(*User)(nil),                                  // 20: chatto.api.v1.User
-	(*timestamppb.Timestamp)(nil),                 // 21: google.protobuf.Timestamp
+	(*CallReference)(nil),                         // 11: chatto.api.v1.CallReference
+	(*JoinCallRequest)(nil),                       // 12: chatto.api.v1.JoinCallRequest
+	(*JoinCallResponse)(nil),                      // 13: chatto.api.v1.JoinCallResponse
+	(*CreateCallTokenRequest)(nil),                // 14: chatto.api.v1.CreateCallTokenRequest
+	(*CreateCallTokenResponse)(nil),               // 15: chatto.api.v1.CreateCallTokenResponse
+	(*CreateCallMediaPublisherTokenRequest)(nil),  // 16: chatto.api.v1.CreateCallMediaPublisherTokenRequest
+	(*CreateCallMediaPublisherTokenResponse)(nil), // 17: chatto.api.v1.CreateCallMediaPublisherTokenResponse
+	(*LeaveCallRequest)(nil),                      // 18: chatto.api.v1.LeaveCallRequest
+	(*LeaveCallResponse)(nil),                     // 19: chatto.api.v1.LeaveCallResponse
+	(*RoomSummary)(nil),                           // 20: chatto.api.v1.RoomSummary
+	(*User)(nil),                                  // 21: chatto.api.v1.User
+	(*timestamppb.Timestamp)(nil),                 // 22: google.protobuf.Timestamp
 }
 var file_chatto_api_v1_voice_calls_proto_depIdxs = []int32{
 	3,  // 0: chatto.api.v1.ListActiveCallsResponse.calls:type_name -> chatto.api.v1.ActiveCall
-	19, // 1: chatto.api.v1.ActiveCall.room:type_name -> chatto.api.v1.RoomSummary
+	20, // 1: chatto.api.v1.ActiveCall.room:type_name -> chatto.api.v1.RoomSummary
 	10, // 2: chatto.api.v1.ActiveCall.participants:type_name -> chatto.api.v1.CallParticipant
 	3,  // 3: chatto.api.v1.GetActiveCallResponse.call:type_name -> chatto.api.v1.ActiveCall
 	3,  // 4: chatto.api.v1.BatchGetActiveCallsResponse.calls:type_name -> chatto.api.v1.ActiveCall
 	10, // 5: chatto.api.v1.ListCallParticipantsResponse.participants:type_name -> chatto.api.v1.CallParticipant
-	20, // 6: chatto.api.v1.CallParticipant.user:type_name -> chatto.api.v1.User
-	21, // 7: chatto.api.v1.CallParticipant.joined_at:type_name -> google.protobuf.Timestamp
-	0,  // 8: chatto.api.v1.CreateCallMediaPublisherTokenRequest.kind:type_name -> chatto.api.v1.CallMediaPublisherKind
-	1,  // 9: chatto.api.v1.VoiceCallService.ListActiveCalls:input_type -> chatto.api.v1.ListActiveCallsRequest
-	4,  // 10: chatto.api.v1.VoiceCallService.GetActiveCall:input_type -> chatto.api.v1.GetActiveCallRequest
-	6,  // 11: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:input_type -> chatto.api.v1.BatchGetActiveCallsRequest
-	8,  // 12: chatto.api.v1.VoiceCallService.ListCallParticipants:input_type -> chatto.api.v1.ListCallParticipantsRequest
-	11, // 13: chatto.api.v1.VoiceCallService.JoinCall:input_type -> chatto.api.v1.JoinCallRequest
-	13, // 14: chatto.api.v1.VoiceCallService.CreateCallToken:input_type -> chatto.api.v1.CreateCallTokenRequest
-	15, // 15: chatto.api.v1.VoiceCallService.CreateCallMediaPublisherToken:input_type -> chatto.api.v1.CreateCallMediaPublisherTokenRequest
-	17, // 16: chatto.api.v1.VoiceCallService.LeaveCall:input_type -> chatto.api.v1.LeaveCallRequest
-	2,  // 17: chatto.api.v1.VoiceCallService.ListActiveCalls:output_type -> chatto.api.v1.ListActiveCallsResponse
-	5,  // 18: chatto.api.v1.VoiceCallService.GetActiveCall:output_type -> chatto.api.v1.GetActiveCallResponse
-	7,  // 19: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:output_type -> chatto.api.v1.BatchGetActiveCallsResponse
-	9,  // 20: chatto.api.v1.VoiceCallService.ListCallParticipants:output_type -> chatto.api.v1.ListCallParticipantsResponse
-	12, // 21: chatto.api.v1.VoiceCallService.JoinCall:output_type -> chatto.api.v1.JoinCallResponse
-	14, // 22: chatto.api.v1.VoiceCallService.CreateCallToken:output_type -> chatto.api.v1.CreateCallTokenResponse
-	16, // 23: chatto.api.v1.VoiceCallService.CreateCallMediaPublisherToken:output_type -> chatto.api.v1.CreateCallMediaPublisherTokenResponse
-	18, // 24: chatto.api.v1.VoiceCallService.LeaveCall:output_type -> chatto.api.v1.LeaveCallResponse
-	17, // [17:25] is the sub-list for method output_type
-	9,  // [9:17] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	21, // 6: chatto.api.v1.CallParticipant.user:type_name -> chatto.api.v1.User
+	22, // 7: chatto.api.v1.CallParticipant.joined_at:type_name -> google.protobuf.Timestamp
+	11, // 8: chatto.api.v1.JoinCallRequest.call:type_name -> chatto.api.v1.CallReference
+	11, // 9: chatto.api.v1.CreateCallTokenRequest.call:type_name -> chatto.api.v1.CallReference
+	0,  // 10: chatto.api.v1.CreateCallMediaPublisherTokenRequest.kind:type_name -> chatto.api.v1.CallMediaPublisherKind
+	11, // 11: chatto.api.v1.LeaveCallRequest.call:type_name -> chatto.api.v1.CallReference
+	1,  // 12: chatto.api.v1.VoiceCallService.ListActiveCalls:input_type -> chatto.api.v1.ListActiveCallsRequest
+	4,  // 13: chatto.api.v1.VoiceCallService.GetActiveCall:input_type -> chatto.api.v1.GetActiveCallRequest
+	6,  // 14: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:input_type -> chatto.api.v1.BatchGetActiveCallsRequest
+	8,  // 15: chatto.api.v1.VoiceCallService.ListCallParticipants:input_type -> chatto.api.v1.ListCallParticipantsRequest
+	12, // 16: chatto.api.v1.VoiceCallService.JoinCall:input_type -> chatto.api.v1.JoinCallRequest
+	14, // 17: chatto.api.v1.VoiceCallService.CreateCallToken:input_type -> chatto.api.v1.CreateCallTokenRequest
+	16, // 18: chatto.api.v1.VoiceCallService.CreateCallMediaPublisherToken:input_type -> chatto.api.v1.CreateCallMediaPublisherTokenRequest
+	18, // 19: chatto.api.v1.VoiceCallService.LeaveCall:input_type -> chatto.api.v1.LeaveCallRequest
+	2,  // 20: chatto.api.v1.VoiceCallService.ListActiveCalls:output_type -> chatto.api.v1.ListActiveCallsResponse
+	5,  // 21: chatto.api.v1.VoiceCallService.GetActiveCall:output_type -> chatto.api.v1.GetActiveCallResponse
+	7,  // 22: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:output_type -> chatto.api.v1.BatchGetActiveCallsResponse
+	9,  // 23: chatto.api.v1.VoiceCallService.ListCallParticipants:output_type -> chatto.api.v1.ListCallParticipantsResponse
+	13, // 24: chatto.api.v1.VoiceCallService.JoinCall:output_type -> chatto.api.v1.JoinCallResponse
+	15, // 25: chatto.api.v1.VoiceCallService.CreateCallToken:output_type -> chatto.api.v1.CreateCallTokenResponse
+	17, // 26: chatto.api.v1.VoiceCallService.CreateCallMediaPublisherToken:output_type -> chatto.api.v1.CreateCallMediaPublisherTokenResponse
+	19, // 27: chatto.api.v1.VoiceCallService.LeaveCall:output_type -> chatto.api.v1.LeaveCallResponse
+	20, // [20:28] is the sub-list for method output_type
+	12, // [12:20] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_voice_calls_proto_init() }
@@ -1122,7 +1217,7 @@ func file_chatto_api_v1_voice_calls_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_voice_calls_proto_rawDesc), len(file_chatto_api_v1_voice_calls_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   18,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

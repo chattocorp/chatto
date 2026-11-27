@@ -19,6 +19,10 @@
     "shieldPermissionPreview": {
       "name": "Schildmodus in den Einstellungen",
       "description": "Sieh, welche Einstellungsseiten du durch Aktivieren geschützter Rollen öffnen kannst."
+    },
+    "incomingCallAlerts": {
+      "name": "Benachrichtigungen für eingehende Anrufe",
+      "description": "Wähle, wie du über Direktanrufe und Raumanrufe benachrichtigt wirst."
     }
   },
   "fr": {
@@ -41,6 +45,10 @@
     "shieldPermissionPreview": {
       "name": "Mode Bouclier dans les paramètres",
       "description": "Consultez les pages de paramètres que vous pouvez ouvrir en activant des rôles protégés."
+    },
+    "incomingCallAlerts": {
+      "name": "Alertes d’appel entrant",
+      "description": "Choisissez comment recevoir les alertes pour les appels directs et les appels de salon."
     }
   },
   "es": {
@@ -63,6 +71,10 @@
     "shieldPermissionPreview": {
       "name": "Modo Escudo en los ajustes",
       "description": "Consulta qué páginas de ajustes puedes abrir al activar roles protegidos."
+    },
+    "incomingCallAlerts": {
+      "name": "Avisos de llamadas entrantes",
+      "description": "Elige cómo recibir avisos de llamadas directas y de sala."
     }
   },
   "nl": {
@@ -85,6 +97,10 @@
     "shieldPermissionPreview": {
       "name": "Schildmodus in Instellingen",
       "description": "Bekijk welke instellingen je kunt openen door beschermde rollen te activeren."
+    },
+    "incomingCallAlerts": {
+      "name": "Meldingen voor inkomende oproepen",
+      "description": "Kies hoe je meldingen ontvangt voor directe oproepen en oproepen in kamers."
     }
   },
   "sv": {
@@ -107,6 +123,10 @@
     "shieldPermissionPreview": {
       "name": "Sköldläge i inställningarna",
       "description": "Se vilka inställningssidor du kan öppna genom att aktivera skyddade roller."
+    },
+    "incomingCallAlerts": {
+      "name": "Aviseringar för inkommande samtal",
+      "description": "Välj hur du vill bli aviserad om direktsamtal och samtal i rum."
     }
   },
   "pt": {
@@ -129,6 +149,10 @@
     "shieldPermissionPreview": {
       "name": "Modo de escudo nas definições",
       "description": "Veja que páginas das definições pode abrir ao ativar funções protegidas."
+    },
+    "incomingCallAlerts": {
+      "name": "Alertas de chamadas recebidas",
+      "description": "Escolha como receber alertas de chamadas diretas e de chamadas em salas."
     }
   },
   "pt-BR": {
@@ -151,6 +175,10 @@
     "shieldPermissionPreview": {
       "name": "Modo escudo nas configurações",
       "description": "Veja quais páginas de configurações você pode abrir ao ativar funções protegidas."
+    },
+    "incomingCallAlerts": {
+      "name": "Alertas de chamadas recebidas",
+      "description": "Escolha como receber alertas de chamadas diretas e de chamadas em salas."
     }
   },
   "nb": {
@@ -173,6 +201,10 @@
     "shieldPermissionPreview": {
       "name": "Skjoldmodus i innstillingene",
       "description": "Se hvilke innstillingssider du kan åpne ved å aktivere beskyttede roller."
+    },
+    "incomingCallAlerts": {
+      "name": "Varsler om innkommende anrop",
+      "description": "Velg hvordan du varsles om direkteanrop og anrop i rom."
     }
   },
   "pl": {
@@ -195,6 +227,10 @@
     "shieldPermissionPreview": {
       "name": "Tryb tarczy w ustawieniach",
       "description": "Sprawdź, które strony ustawień możesz otworzyć po aktywowaniu chronionych ról."
+    },
+    "incomingCallAlerts": {
+      "name": "Powiadomienia o połączeniach przychodzących",
+      "description": "Wybierz sposób powiadamiania o połączeniach bezpośrednich i połączeniach w pokojach."
     }
   },
   "uk": {
@@ -217,6 +253,10 @@
     "shieldPermissionPreview": {
       "name": "Режим щита в налаштуваннях",
       "description": "Перегляньте, які сторінки налаштувань можна відкрити після активації захищених ролей."
+    },
+    "incomingCallAlerts": {
+      "name": "Сповіщення про вхідні виклики",
+      "description": "Виберіть, як отримувати сповіщення про особисті виклики та виклики в кімнатах."
     }
   },
   "it": {
@@ -239,6 +279,10 @@
     "shieldPermissionPreview": {
       "name": "Modalità scudo nelle impostazioni",
       "description": "Scopri quali pagine delle impostazioni puoi aprire attivando i ruoli protetti."
+    },
+    "incomingCallAlerts": {
+      "name": "Avvisi per le chiamate in arrivo",
+      "description": "Scegli come ricevere gli avvisi per le chiamate dirette e quelle nelle stanze."
     }
   },
   "lv": {
@@ -261,6 +305,10 @@
     "shieldPermissionPreview": {
       "name": "Vairoga režīms iestatījumos",
       "description": "Skatiet, kuras iestatījumu lapas varat atvērt, aktivizējot aizsargātās lomas."
+    },
+    "incomingCallAlerts": {
+      "name": "Paziņojumi par ienākošajiem zvaniem",
+      "description": "Izvēlieties, kā saņemt paziņojumus par tiešajiem zvaniem un zvaniem istabās."
     }
   },
   "et": {
@@ -283,6 +331,10 @@
     "shieldPermissionPreview": {
       "name": "Kilbirežiim seadetes",
       "description": "Vaadake, milliseid seadete lehti saate kaitstud rollide aktiveerimisel avada."
+    },
+    "incomingCallAlerts": {
+      "name": "Saabuvate kõnede teavitused",
+      "description": "Valige, kuidas teid otsekõnedest ja ruumide kõnedest teavitatakse."
     }
   },
   "tr": {
@@ -305,6 +357,10 @@
     "shieldPermissionPreview": {
       "name": "Ayarlarda Kalkan Modu",
       "description": "Korumalı rolleri etkinleştirerek hangi ayar sayfalarını açabileceğinizi görün."
+    },
+    "incomingCallAlerts": {
+      "name": "Gelen arama bildirimleri",
+      "description": "Doğrudan aramalar ve oda aramaları için nasıl bildirim alacağınızı seçin."
     }
   },
   "cs": {
@@ -327,6 +383,10 @@
     "shieldPermissionPreview": {
       "name": "Režim štítu v nastavení",
       "description": "Zjistěte, které stránky nastavení můžete otevřít aktivací chráněných rolí."
+    },
+    "incomingCallAlerts": {
+      "name": "Upozornění na příchozí hovory",
+      "description": "Vyberte způsob upozornění na přímé hovory a hovory v místnostech."
     }
   },
   "ru": {
@@ -349,6 +409,10 @@
     "shieldPermissionPreview": {
       "name": "Режим щита в настройках",
       "description": "Посмотрите, какие страницы настроек можно открыть после активации защищённых ролей."
+    },
+    "incomingCallAlerts": {
+      "name": "Уведомления о входящих вызовах",
+      "description": "Выберите способ получения уведомлений о личных вызовах и вызовах в комнатах."
     }
   },
   "el": {
@@ -371,6 +435,10 @@
     "shieldPermissionPreview": {
       "name": "Λειτουργία ασπίδας στις ρυθμίσεις",
       "description": "Δείτε ποιες σελίδες ρυθμίσεων μπορείτε να ανοίξετε ενεργοποιώντας προστατευμένους ρόλους."
+    },
+    "incomingCallAlerts": {
+      "name": "Ειδοποιήσεις εισερχόμενων κλήσεων",
+      "description": "Επίλεξε πώς θα ειδοποιείσαι για απευθείας κλήσεις και κλήσεις σε δωμάτια."
     }
   },
   "ar": {
@@ -393,6 +461,10 @@
     "shieldPermissionPreview": {
       "name": "وضع الدرع في الإعدادات",
       "description": "اطّلع على صفحات الإعدادات التي يمكنك فتحها بتفعيل الأدوار المحمية."
+    },
+    "incomingCallAlerts": {
+      "name": "تنبيهات المكالمات الواردة",
+      "description": "اختر كيف تتلقى تنبيهات المكالمات المباشرة ومكالمات الغرف."
     }
   },
   "he": {
@@ -415,6 +487,10 @@
     "shieldPermissionPreview": {
       "name": "מצב מגן בהגדרות",
       "description": "בדוק אילו דפי הגדרות תוכל לפתוח כשתפעיל תפקידים מוגנים."
+    },
+    "incomingCallAlerts": {
+      "name": "התראות על שיחות נכנסות",
+      "description": "בחר איך לקבל התראות על שיחות ישירות ועל שיחות בחדרים."
     }
   },
   "ja": {
@@ -437,6 +513,10 @@
     "shieldPermissionPreview": {
       "name": "設定のシールドモード",
       "description": "保護されたロールを有効にすると開ける設定ページを確認できます。"
+    },
+    "incomingCallAlerts": {
+      "name": "着信通知",
+      "description": "ダイレクト通話とルーム通話の通知方法を選べます。"
     }
   },
   "zh": {
@@ -459,6 +539,10 @@
     "shieldPermissionPreview": {
       "name": "设置中的护盾模式",
       "description": "查看激活受保护角色后可以打开哪些设置页面。"
+    },
+    "incomingCallAlerts": {
+      "name": "来电通知",
+      "description": "选择如何接收私聊通话和房间通话的通知。"
     }
   },
   "zh-Hant": {
@@ -481,6 +565,10 @@
     "shieldPermissionPreview": {
       "name": "設定中的護盾模式",
       "description": "查看啟用受保護角色後可以開啟哪些設定頁面。"
+    },
+    "incomingCallAlerts": {
+      "name": "來電通知",
+      "description": "選擇如何接收私聊通話和聊天室通話的通知。"
     }
   },
   "eo": {
@@ -503,6 +591,10 @@
     "shieldPermissionPreview": {
       "name": "Ŝildreĝimo en la agordoj",
       "description": "Vidu kiujn agordajn paĝojn vi povas malfermi per aktivigo de protektitaj roloj."
+    },
+    "incomingCallAlerts": {
+      "name": "Sciigoj pri alvenantaj vokoj",
+      "description": "Elektu kiel ricevi sciigojn pri rektaj vokoj kaj vokoj en ĉambroj."
     }
   },
   "zh-TW": {
@@ -525,6 +617,10 @@
     "shieldPermissionPreview": {
       "name": "設定中的護盾模式",
       "description": "查看啟用受保護角色後可以開啟哪些設定頁面。"
+    },
+    "incomingCallAlerts": {
+      "name": "來電通知",
+      "description": "選擇如何接收私訊通話和聊天室通話的通知。"
     }
   }
 }

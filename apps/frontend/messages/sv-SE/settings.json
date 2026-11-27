@@ -444,6 +444,8 @@
           "followed_thread": "Följda trådar",
           "reaction": "Reaktioner på dina meddelanden",
           "activity": "Aktivitet",
+          "direct_call": "Direktsamtal",
+          "room_call": "Rumssamtal",
           "room_invitation": "Inbjudningar till rum"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Meddelanden som använder @all i ett rum som du är medlem i.",
           "followed_thread": "Nya svar i trådar som du följer.",
           "reaction": "Reaktioner som andra medlemmar lägger till i dina meddelanden.",
+          "direct_call": "Samtal som startas i en direktkonversation.",
+          "room_call": "Samtal som startas i ett kanalrum.",
           "room_invitation": "Inbjudningar att gå med i rum."
         }
       }

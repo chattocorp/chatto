@@ -24,7 +24,11 @@
     reconcileDesktopNotifications
   } from '$lib/desktop/notifications.svelte';
 
-  const { store }: { store: ServerStateStore } = $props();
+  const {
+    store,
+    liveCallOccurrenceIds = []
+  }: { store: ServerStateStore; liveCallOccurrenceIds?: string[] } = $props();
+  let previousCallIds = new Set<string>();
   const appUi = getAppUiState();
   const arrivals = new NotificationArrivals();
   const owner = {};
@@ -40,6 +44,7 @@
     const reset = () => {
       clear();
       arrivals.reset();
+      previousCallIds.clear();
     };
     const stops = [
       store.onReset((event) => {
@@ -103,7 +108,14 @@
     )
       return;
     const rows = notifications.occurrences;
-    const fresh = arrivals.read(rows);
+    // Polls and reconnect snapshots recover the bell, but only a live call-start
+    // notification should ring. The live owner has checked its current call ID.
+    const currentCallIds = new Set(liveCallOccurrenceIds);
+    const freshCalls = rows.filter(
+      (row) => row.call && currentCallIds.has(row.id) && !previousCallIds.has(row.id)
+    );
+    previousCallIds = currentCallIds;
+    const fresh = [...arrivals.read(rows).filter((row) => !row.call), ...freshCalls];
     void notifications.pushRevision;
     reconcileDesktopNotifications(owner, notifications);
     if (!desktopNotifications.enabled) return;

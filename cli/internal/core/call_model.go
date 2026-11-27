@@ -374,34 +374,45 @@ type CallAccessMaterial struct {
 }
 
 func (s *CallModel) GetAccessMaterial(ctx context.Context, roomID string) (CallAccessMaterial, error) {
-	return s.getAccessMaterial(ctx, roomID, "")
+	return s.getAccessMaterial(ctx, roomID, "", "")
 }
 
 // GetParticipantAccessMaterial resolves access for the active call only when
 // userID participates in that same generation before and after the key read.
 func (s *CallModel) GetParticipantAccessMaterial(ctx context.Context, roomID, userID string) (CallAccessMaterial, error) {
-	return s.getAccessMaterial(ctx, roomID, userID)
+	return s.getAccessMaterial(ctx, roomID, userID, "")
 }
 
-func (s *CallModel) getAccessMaterial(ctx context.Context, roomID, requiredParticipantID string) (CallAccessMaterial, error) {
+func (s *CallModel) getAccessMaterial(ctx context.Context, roomID, requiredParticipantID, expectedCallID string) (CallAccessMaterial, error) {
 	if s.callKeys == nil {
 		return CallAccessMaterial{}, fmt.Errorf("call key store is not initialized")
 	}
+	if expectedCallID != "" {
+		if err := s.waitForLatestRoomTransition(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter()); err != nil {
+			return CallAccessMaterial{}, err
+		}
+	}
 	snapshot := s.callState.Projection().RoomSnapshot(roomID)
 	call := snapshot.Call
-	if call.CallID == "" || call.E2EEKeyRef == "" {
+	if call.CallID == "" || call.E2EEKeyRef == "" || (expectedCallID != "" && call.CallID != expectedCallID) {
 		return CallAccessMaterial{}, fmt.Errorf("no active voice call for room %s: %w", roomID, ErrNotFound)
 	}
 	if requiredParticipantID != "" && !callSnapshotHasParticipant(snapshot, requiredParticipantID) {
 		return CallAccessMaterial{}, fmt.Errorf("user does not participate in active voice call for room %s: %w", roomID, ErrCallParticipationRequired)
 	}
-	key, err := s.callKeys.GetCallKey(ctx, call.E2EEKeyRef)
-	if err != nil {
-		return CallAccessMaterial{}, fmt.Errorf("read call E2EE key: %w", err)
+	key, keyErr := s.callKeys.GetCallKey(ctx, call.E2EEKeyRef)
+	// Another replica can end the call and shred its key during the read.
+	if keyErr != nil && expectedCallID != "" {
+		if err := s.waitForLatestRoomTransition(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter()); err != nil {
+			return CallAccessMaterial{}, err
+		}
 	}
 	current := s.callState.Projection().RoomSnapshot(roomID)
 	if current.Call.CallID != call.CallID || current.Call.E2EEKeyRef != call.E2EEKeyRef {
 		return CallAccessMaterial{}, fmt.Errorf("active voice call changed while resolving access for room %s: %w", roomID, ErrNotFound)
+	}
+	if keyErr != nil {
+		return CallAccessMaterial{}, fmt.Errorf("read call E2EE key: %w", keyErr)
 	}
 	if requiredParticipantID != "" && !callSnapshotHasParticipant(current, requiredParticipantID) {
 		return CallAccessMaterial{}, fmt.Errorf("user left active voice call while resolving access for room %s: %w", roomID, ErrCallParticipationRequired)
@@ -522,7 +533,8 @@ func (s *CallModel) appendParticipantTransitionAuthorized(ctx context.Context, r
 			admissionTail = tail
 			snapshot, participantCount = s.callState.Projection().admissionSnapshot(roomID)
 		} else {
-			if authorize != nil {
+			// A guarded leave can reach a different replica immediately after admission.
+			if authorize != nil || (expectedCallID != "" && source == evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER) {
 				if err := s.waitForLatestRoomTransition(ctx, filter); err != nil {
 					return err
 				}

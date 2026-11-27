@@ -444,6 +444,8 @@
           "followed_thread": "Sledovaná vlákna",
           "reaction": "Reakce na vaše zprávy",
           "activity": "Aktivita",
+          "direct_call": "Přímá volání",
+          "room_call": "Volání v místnostech",
           "room_invitation": "Pozvánky do místností"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Zprávy, které používají @all v místnosti, jejímž jste členem.",
           "followed_thread": "Nové odpovědi ve vláknech, která sledujete.",
           "reaction": "Reakce, které ostatní členové přidají k vašim zprávám.",
+          "direct_call": "Hovory zahájené v soukromé konverzaci.",
+          "room_call": "Hovory zahájené v místnosti kanálu.",
           "room_invitation": "Pozvánky ke vstupu do místností."
         }
       }

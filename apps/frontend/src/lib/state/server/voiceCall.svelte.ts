@@ -142,6 +142,10 @@ export class VoiceCallJoinError extends Error {
   }
 }
 
+function endedCallError(cause?: unknown): VoiceCallJoinError {
+  return new VoiceCallJoinError('Call ended', m('room.system_events.call_ended'), cause);
+}
+
 export function getVoiceCallJoinErrorMessage(err: unknown): string {
   if (err instanceof VoiceCallJoinError) return err.userMessage;
   if (isConnectCode(err, Code.ResourceExhausted)) return m('voice.participant_limit');
@@ -290,6 +294,8 @@ export class VoiceCallState implements CallConnection {
   private room: Room | null = null;
   private liveKitURL: string | null = null;
   private activeCallId: string | null = null;
+  /** Set from a notification before admission and retained until local teardown. */
+  private guardedCall?: { id: string; cancelled: boolean };
   private pendingOwnJoinSound: {
     roomId: string;
     callId: string;
@@ -301,8 +307,8 @@ export class VoiceCallState implements CallConnection {
     callId: string;
     disconnectedAt: number;
   } | null = null;
-  private joinInFlight: Promise<void> | null = null;
-  private joinInFlightRoomId: string | null = null;
+  private joinInFlight: { roomId: string; expectedCallId?: string; promise: Promise<void> } | null =
+    null;
   private leaveInFlight: Promise<void> | null = null;
   private microphoneToggleInFlight: Promise<void> | null = null;
   private cameraToggleInFlight: Promise<void> | null = null;
@@ -578,33 +584,37 @@ export class VoiceCallState implements CallConnection {
   }
 
   /**
-   * Join a voice call in a room.
+   * Join a room call. A notification supplies its call ID to guard admission,
+   * token creation, and leave against a replacement call.
    */
-  async join(livekitUrl: string, roomId: string): Promise<void> {
-    // Already in this call
-    if (this.isInCall(roomId)) return;
-
-    if (this.joinInFlight && this.joinInFlightRoomId === roomId) return this.joinInFlight;
+  async join(livekitUrl: string, roomId: string, expectedCallId?: string): Promise<void> {
+    if (this.joinInFlight?.roomId === roomId && this.joinInFlight.expectedCallId === expectedCallId)
+      return this.joinInFlight.promise;
 
     const joinPromise = callCoordinator.pending.then(async () => {
-      if (this.#disposed || this.isInCall(roomId)) return;
-      await this.performJoin(livekitUrl, roomId);
+      if (this.#disposed) return;
+      if (this.isInCall(roomId)) {
+        if (expectedCallId !== undefined && !this.matchesActiveCall(roomId, expectedCallId))
+          throw endedCallError();
+        return;
+      }
+      await this.performJoin(livekitUrl, roomId, expectedCallId);
     });
     // A failed join must not block later attempts, including on another server.
     callCoordinator.pending = joinPromise.catch(() => undefined);
-    this.joinInFlight = joinPromise;
-    this.joinInFlightRoomId = roomId;
+    this.joinInFlight = { roomId, expectedCallId, promise: joinPromise };
     try {
       await joinPromise;
     } finally {
-      if (this.joinInFlight === joinPromise) {
-        this.joinInFlight = null;
-        this.joinInFlightRoomId = null;
-      }
+      if (this.joinInFlight?.promise === joinPromise) this.joinInFlight = null;
     }
   }
 
-  private async performJoin(livekitUrl: string, roomId: string): Promise<void> {
+  private async performJoin(
+    livekitUrl: string,
+    roomId: string,
+    expectedCallId?: string
+  ): Promise<void> {
     if (!this.permissionsFor(roomId).join)
       throw new VoiceCallJoinError('Call join denied', m('voice.permission_denied'));
     assertLiveKitE2EESupported();
@@ -616,21 +626,33 @@ export class VoiceCallState implements CallConnection {
 
     this.connecting = true;
     this.roomId = roomId;
+    const guard =
+      expectedCallId === undefined ? undefined : { id: expectedCallId, cancelled: false };
+    this.guardedCall = guard;
     let joinIntentRecorded = false;
     let ownedRoom: Room | null = null;
 
     try {
       const { AudioPresets, ExternalE2EEKeyProvider, Room, VideoPresets } = await loadLiveKit();
 
-      await this.#api.joinCall(roomId);
+      if (this.#disposed || this.roomId !== roomId) return;
+      await this.#api.joinCall(roomId, expectedCallId);
       joinIntentRecorded = true;
+      // The store may have signed out, or the alert may have ended while
+      // admission was in flight. Token creation can also reserve a place.
+      if (this.#disposed) return;
+      if (expectedCallId !== undefined && this.roomId !== roomId) throw endedCallError();
 
       // Request a credential for the active call.
-      const tokenResponse = await this.#api.createCallToken(roomId);
+      const tokenResponse = await this.#api.createCallToken(roomId, expectedCallId);
       if (!tokenResponse) {
         throw new Error('Failed to get voice call token');
       }
       const { token, e2eeKey, callId } = tokenResponse;
+      if (expectedCallId !== undefined && callId !== expectedCallId) {
+        throw endedCallError();
+      }
+
       this.activeCallId = callId;
 
       const keyProvider = new ExternalE2EEKeyProvider();
@@ -647,8 +669,11 @@ export class VoiceCallState implements CallConnection {
         typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype;
       if (!this.outputSelectionAvailable) outputDevice = '';
 
-      // A store disposed during the join must not connect or capture media.
-      if (this.#disposed) {
+      // Admission and device setup can finish after a hangup or call-end event.
+      // Never connect a cancelled attempt or issue a room-wide leave for it.
+      if (this.#disposed || this.roomId !== roomId) {
+        if (!this.#disposed && expectedCallId !== undefined)
+          await this.recordLeaveIntent(roomId, expectedCallId);
         this.cleanup();
         return;
       }
@@ -755,11 +780,18 @@ export class VoiceCallState implements CallConnection {
         ownedRoom.disconnect();
         return;
       }
-      console.error('Failed to join voice call:', summarizeJoinError(err));
-      if (joinIntentRecorded) {
-        await this.recordLeaveIntent(roomId);
+      if (joinIntentRecorded && !this.#disposed) {
+        await this.recordLeaveIntent(roomId, expectedCallId);
       }
       this.cleanup();
+      // A local hangup can finish before admission does. Keep the guarded
+      // leave above, then finish the cancelled action without an error toast.
+      if (guard?.cancelled) return;
+      console.error('Failed to join voice call:', summarizeJoinError(err));
+      // NOT_FOUND can refer to the room or the call. If the room is gone,
+      // the exact call identified by the notification is also unavailable.
+      if (expectedCallId !== undefined && isConnectCode(err, Code.NotFound))
+        throw endedCallError(err);
       throw err;
     } finally {
       if (!ownedRoom || this.room === ownedRoom) this.connecting = false;
@@ -784,7 +816,13 @@ export class VoiceCallState implements CallConnection {
    */
   async leave(): Promise<void> {
     if (this.leaveInFlight) return this.leaveInFlight;
-    if (!this.room) return;
+    if (!this.room) {
+      if (this.connecting && this.guardedCall) {
+        this.guardedCall.cancelled = true;
+        this.disconnectNow();
+      }
+      return;
+    }
 
     const leavePromise = this.performLeave();
     this.leaveInFlight = leavePromise;
@@ -801,7 +839,7 @@ export class VoiceCallState implements CallConnection {
     const room = this.room;
     const roomId = this.roomId;
     if (roomId) {
-      await this.recordLeaveIntent(roomId);
+      await this.recordLeaveIntent(roomId, this.guardedCall?.id);
     }
 
     try {
@@ -856,13 +894,13 @@ export class VoiceCallState implements CallConnection {
 
   private disconnectFromServerEvent(roomId: string, callId: string | null): void {
     if (this.roomId !== roomId) return;
-    if (!callId || this.activeCallId !== callId) return;
+    if (!callId || (this.activeCallId ?? this.guardedCall?.id) !== callId) return;
     this.disconnectNow();
   }
 
-  private async recordLeaveIntent(roomId: string): Promise<void> {
+  private async recordLeaveIntent(roomId: string, expectedCallId?: string): Promise<void> {
     try {
-      await this.#api.leaveCall(roomId);
+      await this.#api.leaveCall(roomId, expectedCallId);
     } catch {
       // LiveKit disconnect/cleanup should still proceed if the intent write fails.
     }
@@ -1368,6 +1406,7 @@ export class VoiceCallState implements CallConnection {
     });
 
     this.room.on(RoomEvent.Disconnected, () => {
+      if (this.room !== room) return;
       // Only show toast if we were in an active call (not a failed join attempt)
       if (this.connected && !this.suppressDisconnectToast) {
         toast.error(m('voice.disconnected'));
@@ -1804,6 +1843,7 @@ export class VoiceCallState implements CallConnection {
       };
     }
     this.activeCallId = null;
+    this.guardedCall = undefined;
     this.liveKitURL = null;
     this.pendingOwnJoinSound = null;
     this.microphoneToggleInFlight = null;

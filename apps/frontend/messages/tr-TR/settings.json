@@ -444,6 +444,8 @@
           "followed_thread": "Takip edilen ileti dizileri",
           "reaction": "Mesajlarınıza verilen tepkiler",
           "activity": "Etkinlik",
+          "direct_call": "Doğrudan aramalar",
+          "room_call": "Oda aramaları",
           "room_invitation": "Oda davetleri"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Üyesi olduğunuz bir odada @all kullanan mesajlar.",
           "followed_thread": "Takip ettiğiniz ileti dizilerindeki yeni yanıtlar.",
           "reaction": "Diğer üyelerin mesajlarınıza eklediği tepkiler.",
+          "direct_call": "Özel mesaj görüşmesinde başlatılan aramalar.",
+          "room_call": "Kanal odasında başlatılan aramalar.",
           "room_invitation": "Odalara katılma davetleri."
         }
       }

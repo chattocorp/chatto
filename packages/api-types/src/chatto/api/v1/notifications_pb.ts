@@ -183,6 +183,20 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
    */
   roomInvitations?: NotificationDeliveryMode;
 
+  /**
+   * Delivery mode when a call starts in a direct message.
+   *
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode direct_calls = 12;
+   */
+  directCalls?: NotificationDeliveryMode;
+
+  /**
+   * Delivery mode when a call starts in a channel room.
+   *
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode room_calls = 13;
+   */
+  roomCalls?: NotificationDeliveryMode;
+
   constructor(data?: PartialMessage<NotificationDeliveryModes>) {
     super();
     proto3.util.initPartial(data, this);
@@ -202,6 +216,8 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
     { no: 9, name: "reactions", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
     { no: 10, name: "room_messages", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
     { no: 11, name: "room_invitations", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 12, name: "direct_calls", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 13, name: "room_calls", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationDeliveryModes {
@@ -736,6 +752,64 @@ export class RoomInvitationReceived extends Message<RoomInvitationReceived> {
 }
 
 /**
+ * Dismiss marks this occurrence as read. Joining on any device or ending the
+ * call removes the occurrence. Use the call reference for JoinCall and token requests.
+ *
+ * @generated from message chatto.api.v1.IncomingCall
+ */
+export class IncomingCall extends Message<IncomingCall> {
+  /**
+   * Room that hosts the call.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Session ID of the call that triggered this occurrence.
+   *
+   * @generated from field: string call_id = 2;
+   */
+  callId = "";
+
+  /**
+   * True for a direct call. Selects the direct_calls notification policy.
+   *
+   * @generated from field: bool direct = 3;
+   */
+  direct = false;
+
+  constructor(data?: PartialMessage<IncomingCall>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.IncomingCall";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "direct", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): IncomingCall {
+    return new IncomingCall().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): IncomingCall {
+    return new IncomingCall().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): IncomingCall {
+    return new IncomingCall().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: IncomingCall | PlainMessage<IncomingCall> | undefined, b: IncomingCall | PlainMessage<IncomingCall> | undefined): boolean {
+    return proto3.util.equals(IncomingCall, a, b);
+  }
+}
+
+/**
  * Immutable, typed cause and destination of one notification. Clients must
  * preserve unknown variants as generic dismissible rows and must not infer
  * navigation semantics for them.
@@ -813,6 +887,12 @@ export class NotificationSignal extends Message<NotificationSignal> {
      */
     value: RoomInvitationReceived;
     case: "roomInvitationReceived";
+  } | {
+    /**
+     * @generated from field: chatto.api.v1.IncomingCall incoming_call = 12;
+     */
+    value: IncomingCall;
+    case: "incomingCall";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<NotificationSignal>) {
@@ -834,6 +914,7 @@ export class NotificationSignal extends Message<NotificationSignal> {
     { no: 9, name: "reaction_received", kind: "message", T: ReactionReceived, oneof: "kind" },
     { no: 10, name: "room_message_received", kind: "message", T: RoomMessageReceived, oneof: "kind" },
     { no: 11, name: "room_invitation_received", kind: "message", T: RoomInvitationReceived, oneof: "kind" },
+    { no: 12, name: "incoming_call", kind: "message", T: IncomingCall, oneof: "kind" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationSignal {

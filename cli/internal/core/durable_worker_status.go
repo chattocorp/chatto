@@ -57,6 +57,7 @@ func durableWorkerDiagnosticSpecs(videoUploadsEnabled bool) []durableWorkerDiagn
 		{key: "notification_materializer", streamName: natsresources.EVT, consumerName: notificationWorkerConsumerName, required: true},
 		{key: "configured_did_owners", streamName: natsresources.EVT, consumerName: configuredDIDConsumerName, required: true},
 		{key: "notification_role_protection", streamName: natsresources.EVT, consumerName: roleProtectionConsumerName, required: true},
+		{key: "notification_calls", streamName: natsresources.EVT, consumerName: callNotificationConsumerName, required: true},
 		{key: "notification_invitations", streamName: natsresources.EVT, consumerName: invitationNotificationConsumerName, required: true},
 		{key: "notification_alert_delivery", streamName: notificationstream.StreamName, consumerName: notificationAlertConsumerName, required: true},
 		{key: "bot_webhook_source", streamName: natsresources.EVT, consumerName: botWebhookSourceConsumer, required: true},
