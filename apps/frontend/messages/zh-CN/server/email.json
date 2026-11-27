@@ -1,0 +1,40 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "此验证码将在 {duration}后失效。",
+      "link_expiry": "此链接将在 {duration}后失效。",
+      "button_fallback": "如果按钮无法使用，请打开以下地址：",
+      "duration": {
+        "hours": {
+          "other": "{count} 小时"
+        },
+        "minutes": {
+          "other": "{count} 分钟"
+        },
+        "seconds": {
+          "other": "{count} 秒"
+        }
+      }
+    },
+    "registration": {
+      "subject": "你的 {server} 验证码是 {code}",
+      "heading": "欢迎加入 {server}",
+      "intro": "输入此验证码以完成账号创建。",
+      "footer": "有人使用此地址在 {host} 上注册。如果不是你本人操作，请忽略此邮件，不会创建任何账号。"
+    },
+    "verification": {
+      "subject": "你的 {server} 验证码是 {code}",
+      "heading": "验证你的电子邮件地址",
+      "intro": "输入此验证码，将此地址添加到你的 {server} 账号。",
+      "footer": "有人请求将此地址添加到 {host} 上的某个账号。如果不是你本人操作，请忽略此邮件。"
+    },
+    "password_reset": {
+      "subject": "重置你的 {server} 密码",
+      "preheader": "为你的账号设置新密码。",
+      "heading": "重置密码",
+      "intro": "我们收到了重置你的 {server} 账号密码的请求。请通过下方链接设置新密码。",
+      "button": "设置新密码",
+      "footer": "由 {host} 发送。如果不是你本人请求，请忽略此邮件，你的密码不会改变。"
+    }
+  }
+}

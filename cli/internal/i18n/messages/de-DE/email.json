@@ -1,0 +1,43 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "Dieser Code läuft in {duration} ab.",
+      "link_expiry": "Dieser Link läuft in {duration} ab.",
+      "button_fallback": "Wenn der Button nicht funktioniert, öffne diese Adresse:",
+      "duration": {
+        "hours": {
+          "one": "{count} Stunde",
+          "other": "{count} Stunden"
+        },
+        "minutes": {
+          "one": "{count} Minute",
+          "other": "{count} Minuten"
+        },
+        "seconds": {
+          "one": "{count} Sekunde",
+          "other": "{count} Sekunden"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{code} ist dein Code für {server}",
+      "heading": "Willkommen bei {server}",
+      "intro": "Gib diesen Code ein, um dein Konto fertig zu erstellen.",
+      "footer": "Jemand hat sich mit dieser Adresse bei {host} registriert. Wenn du das nicht warst, ignoriere diese E-Mail. Es wird kein Konto erstellt."
+    },
+    "verification": {
+      "subject": "{code} ist dein Code für {server}",
+      "heading": "Bestätige deine E-Mail-Adresse",
+      "intro": "Gib diesen Code ein, um diese Adresse zu deinem {server}-Konto hinzuzufügen.",
+      "footer": "Jemand möchte diese Adresse zu einem Konto bei {host} hinzufügen. Wenn du das nicht warst, ignoriere diese E-Mail."
+    },
+    "password_reset": {
+      "subject": "Setze dein Passwort für {server} zurück",
+      "preheader": "Wähle ein neues Passwort für dein Konto.",
+      "heading": "Passwort zurücksetzen",
+      "intro": "Wir haben eine Anfrage erhalten, das Passwort für dein {server}-Konto zurückzusetzen. Wähle über den Link unten ein neues.",
+      "button": "Neues Passwort festlegen",
+      "footer": "Gesendet von {host}. Wenn du das nicht angefordert hast, ignoriere diese E-Mail. Dein Passwort bleibt unverändert."
+    }
+  }
+}

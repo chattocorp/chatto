@@ -1,0 +1,43 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "See kood aegub {duration} pärast.",
+      "link_expiry": "See link aegub {duration} pärast.",
+      "button_fallback": "Kui nupp ei tööta, avage see aadress:",
+      "duration": {
+        "hours": {
+          "one": "{count} tunni",
+          "other": "{count} tunni"
+        },
+        "minutes": {
+          "one": "{count} minuti",
+          "other": "{count} minuti"
+        },
+        "seconds": {
+          "one": "{count} sekundi",
+          "other": "{count} sekundi"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{code} on teie kood serveris {server}",
+      "heading": "Tere tulemast serverisse {server}",
+      "intro": "Sisestage see kood, et konto loomine lõpule viia.",
+      "footer": "Keegi kasutas seda aadressi, et registreeruda serveris {host}. Kui see polnud teie, eirake seda e-kirja. Kontot ei looda."
+    },
+    "verification": {
+      "subject": "{code} on teie kood serveris {server}",
+      "heading": "Kinnitage oma e-posti aadress",
+      "intro": "Sisestage see kood, et lisada see aadress oma {server} kontole.",
+      "footer": "Keegi palus lisada selle aadressi kontole serveris {host}. Kui see polnud teie, eirake seda e-kirja."
+    },
+    "password_reset": {
+      "subject": "Lähtestage oma {server} parool",
+      "preheader": "Valige oma kontole uus parool.",
+      "heading": "Parooli lähtestamine",
+      "intro": "Saime taotluse teie {server} konto parooli lähtestamiseks. Valige allpool oleva lingi kaudu uus parool.",
+      "button": "Määra uus parool",
+      "footer": "Saatja: {host}. Kui te seda ei taotlenud, eirake seda e-kirja. Teie parool jääb samaks."
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "このコードの有効期限は{duration}後に切れます。",
+      "link_expiry": "このリンクの有効期限は{duration}後に切れます。",
+      "button_fallback": "ボタンが機能しない場合は、次のアドレスを開いてください:",
+      "duration": {
+        "hours": {
+          "other": "{count}時間"
+        },
+        "minutes": {
+          "other": "{count}分"
+        },
+        "seconds": {
+          "other": "{count}秒"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{server} のコードは {code} です",
+      "heading": "{server} へようこそ",
+      "intro": "アカウントの作成を完了するには、このコードを入力してください。",
+      "footer": "このアドレスを使って {host} に登録しようとした人がいます。心当たりがない場合は、このメールを無視してください。アカウントは作成されません。"
+    },
+    "verification": {
+      "subject": "{server} のコードは {code} です",
+      "heading": "メールアドレスの確認",
+      "intro": "このアドレスを {server} アカウントに追加するには、このコードを入力してください。",
+      "footer": "このアドレスを {host} のアカウントに追加するよう依頼がありました。心当たりがない場合は、このメールを無視してください。"
+    },
+    "password_reset": {
+      "subject": "{server} のパスワードをリセット",
+      "preheader": "アカウントの新しいパスワードを設定してください。",
+      "heading": "パスワードのリセット",
+      "intro": "{server} アカウントのパスワードをリセットするリクエストを受け付けました。下のリンクから新しいパスワードを設定してください。",
+      "button": "新しいパスワードを設定",
+      "footer": "{host} から送信されました。心当たりがない場合は、このメールを無視してください。パスワードは変更されません。"
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "Ce code expire dans {duration}.",
+      "link_expiry": "Ce lien expire dans {duration}.",
+      "button_fallback": "Si le bouton ne fonctionne pas, ouvrez cette adresse :",
+      "duration": {
+        "hours": {
+          "one": "{count} heure",
+          "many": "{count} d’heures",
+          "other": "{count} heures"
+        },
+        "minutes": {
+          "one": "{count} minute",
+          "many": "{count} de minutes",
+          "other": "{count} minutes"
+        },
+        "seconds": {
+          "one": "{count} seconde",
+          "many": "{count} de secondes",
+          "other": "{count} secondes"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{code} est votre code pour {server}",
+      "heading": "Bienvenue sur {server}",
+      "intro": "Saisissez ce code pour terminer la création de votre compte.",
+      "footer": "Quelqu’un a utilisé cette adresse pour s’inscrire sur {host}. Si ce n’était pas vous, ignorez ce courriel. Aucun compte ne sera créé."
+    },
+    "verification": {
+      "subject": "{code} est votre code pour {server}",
+      "heading": "Vérifiez votre adresse courriel",
+      "intro": "Saisissez ce code pour ajouter cette adresse à votre compte {server}.",
+      "footer": "Quelqu’un a demandé à ajouter cette adresse à un compte sur {host}. Si ce n’était pas vous, ignorez ce courriel."
+    },
+    "password_reset": {
+      "subject": "Réinitialisez votre mot de passe {server}",
+      "preheader": "Choisissez un nouveau mot de passe pour votre compte.",
+      "heading": "Réinitialiser votre mot de passe",
+      "intro": "Nous avons reçu une demande de réinitialisation du mot de passe de votre compte {server}. Choisissez-en un nouveau avec le lien ci-dessous.",
+      "button": "Choisir un nouveau mot de passe",
+      "footer": "Envoyé par {host}. Si vous n’avez rien demandé, ignorez ce courriel. Votre mot de passe reste inchangé."
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "Bu kodun süresi {duration} sonra dolar.",
+      "link_expiry": "Bu bağlantının süresi {duration} sonra dolar.",
+      "button_fallback": "Düğme çalışmazsa şu adresi açın:",
+      "duration": {
+        "hours": {
+          "one": "{count} saat",
+          "other": "{count} saat"
+        },
+        "minutes": {
+          "one": "{count} dakika",
+          "other": "{count} dakika"
+        },
+        "seconds": {
+          "one": "{count} saniye",
+          "other": "{count} saniye"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{server} için kodunuz: {code}",
+      "heading": "{server} sunucusuna hoş geldiniz",
+      "intro": "Hesabınızı oluşturmayı tamamlamak için bu kodu girin.",
+      "footer": "Biri bu adresi {host} üzerinde kayıt olmak için kullandı. Bu siz değilseniz bu e-postayı yok sayın. Hesap oluşturulmayacak."
+    },
+    "verification": {
+      "subject": "{server} için kodunuz: {code}",
+      "heading": "E-posta adresinizi doğrulayın",
+      "intro": "Bu adresi {server} hesabınıza eklemek için bu kodu girin.",
+      "footer": "Biri bu adresi {host} üzerindeki bir hesaba eklemek istedi. Bu siz değilseniz bu e-postayı yok sayın."
+    },
+    "password_reset": {
+      "subject": "{server} parolanızı sıfırlayın",
+      "preheader": "Hesabınız için yeni bir parola seçin.",
+      "heading": "Parolanızı sıfırlayın",
+      "intro": "{server} hesabınızın parolasını sıfırlama isteği aldık. Aşağıdaki bağlantıyla yeni bir parola seçin.",
+      "button": "Yeni parola belirle",
+      "footer": "{host} tarafından gönderildi. Bunu siz istemediyseniz bu e-postayı yok sayın. Parolanız değişmeyecek."
+    }
+  }
+}

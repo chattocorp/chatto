@@ -1,0 +1,43 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "Koden slutar gälla om {duration}.",
+      "link_expiry": "Länken slutar gälla om {duration}.",
+      "button_fallback": "Om knappen inte fungerar kan du öppna den här adressen:",
+      "duration": {
+        "hours": {
+          "one": "{count} timme",
+          "other": "{count} timmar"
+        },
+        "minutes": {
+          "one": "{count} minut",
+          "other": "{count} minuter"
+        },
+        "seconds": {
+          "one": "{count} sekund",
+          "other": "{count} sekunder"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{code} är din kod för {server}",
+      "heading": "Välkommen till {server}",
+      "intro": "Ange den här koden för att slutföra ditt konto.",
+      "footer": "Någon använde den här adressen för att registrera sig på {host}. Om det inte var du kan du ignorera det här mejlet. Inget konto skapas."
+    },
+    "verification": {
+      "subject": "{code} är din kod för {server}",
+      "heading": "Bekräfta din e-postadress",
+      "intro": "Ange den här koden för att lägga till adressen i ditt {server}-konto.",
+      "footer": "Någon bad om att lägga till den här adressen i ett konto på {host}. Om det inte var du kan du ignorera det här mejlet."
+    },
+    "password_reset": {
+      "subject": "Återställ ditt lösenord för {server}",
+      "preheader": "Välj ett nytt lösenord för ditt konto.",
+      "heading": "Återställ ditt lösenord",
+      "intro": "Vi har fått en begäran om att återställa lösenordet för ditt {server}-konto. Välj ett nytt via länken nedan.",
+      "button": "Välj ett nytt lösenord",
+      "footer": "Skickat av {host}. Om du inte bad om detta kan du ignorera det här mejlet. Ditt lösenord förblir oförändrat."
+    }
+  }
+}

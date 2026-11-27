@@ -1,0 +1,34 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "This code expires in {duration}.",
+      "link_expiry": "This link expires in {duration}.",
+      "button_fallback": "If the button doesn't work, open this address:",
+      "duration": {
+        "hours": { "one": "{count} hour", "other": "{count} hours" },
+        "minutes": { "one": "{count} minute", "other": "{count} minutes" },
+        "seconds": { "one": "{count} second", "other": "{count} seconds" }
+      }
+    },
+    "registration": {
+      "subject": "{code} is your code for {server}",
+      "heading": "Welcome to {server}",
+      "intro": "Enter this code to finish creating your account.",
+      "footer": "Someone used this address to sign up on {host}. If that wasn't you, ignore this email. No account will be created."
+    },
+    "verification": {
+      "subject": "{code} is your code for {server}",
+      "heading": "Verify your email address",
+      "intro": "Enter this code to add this address to your {server} account.",
+      "footer": "Someone asked to add this address to an account on {host}. If that wasn't you, ignore this email."
+    },
+    "password_reset": {
+      "subject": "Reset your {server} password",
+      "preheader": "Choose a new password for your account.",
+      "heading": "Reset your password",
+      "intro": "We received a request to reset the password for your {server} account. Choose a new one with the link below.",
+      "button": "Set a new password",
+      "footer": "Sent by {host}. If you didn't ask for this, ignore this email. Your password stays the same."
+    }
+  }
+}
