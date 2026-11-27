@@ -115,7 +115,7 @@ parallel mise tasks. Restart it to see a change in Chatto, its frontend, or
 Authling. Both commands use the same Chatto configuration and data.
 
 In Geordi, the **Full stack** tasks of `.geordi.yml` run the services of
-`mise dev-full` as separate tasks. Start **Full stack / Chatto** to start
+`mise dev-full` as separate tasks. Start **Chatto (Full)** to start
 Mailpit, LiveKit, Authling, and Chatto. Start **Full stack / Runling bot** to
 also start the Runling bot. You can stop or restart each service alone. The
 tasks use the named ports of the workspace, not the port offsets below.

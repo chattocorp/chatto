@@ -6,7 +6,8 @@ setup: mise setup
 # and the spare workspace ports from GEORDI_PORT, with the offsets of the
 # `[env]` section of mise.toml.
 #
-# The "Full stack" tasks run the services of `mise dev-full` one by one.
+# The "Chatto (Full)" and "Full stack" tasks run the services of
+# `mise dev-full` one by one.
 # tools/geordi-dev-stack.sh gives every one of them the named ports of all the
 # others, so each service can be started, stopped, and restarted alone.
 # The chatto and full-stack Chatto tasks use the same NATS port and data
@@ -19,7 +20,7 @@ tasks:
     url: http://localhost:{chatto}/
     default: true
   chatto-full:
-    label: Full stack / Chatto
+    label: Chatto (Full)
     command: tools/geordi-dev-stack.sh dev-stack-chatto
     ports: [chatto-full]
     needs: [mailpit, livekit, authling]
