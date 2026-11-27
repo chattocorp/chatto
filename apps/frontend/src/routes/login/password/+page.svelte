@@ -2,7 +2,7 @@
 @component
 Password login page. The origin login page links here when the server offers
 SSO providers and direct login. Holds the password form, the password-reset
-link, and the Create Account action.
+link, and the email registration link when enabled.
 -->
 <script lang="ts">
   import { isIdentityLinkPath } from '$lib/auth/identityLink';
