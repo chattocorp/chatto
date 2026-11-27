@@ -1,13 +1,14 @@
 <!--
 @component
 Origin sign-in page. Without SSO providers, it shows the password form. With
-SSO providers, it shows only the provider choices, plus a link to the password
+SSO providers, it shows the provider choices, plus a link to the password
 login page when the server allows direct login.
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { withReturnPath } from '$lib/auth/loginRoutes';
+  import { returnPathQuery } from '$lib/auth/loginRoutes';
   import OriginProviderButtons from '$lib/components/auth/OriginProviderButtons.svelte';
+  import RegistrationLink from '$lib/components/auth/RegistrationLink.svelte';
   import PasswordSignInSection from '$lib/components/auth/PasswordSignInSection.svelte';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
@@ -29,12 +30,11 @@ login page when the server allows direct login.
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
   const directLoginEnabled = $derived(data.serverInfo?.directLoginEnabled ?? true);
   const pageError = $derived(loginErrorMessage(data.loginErrorCode || ''));
-  /** This page offers account creation through direct registration or provider auto-provisioning. */
+  const canCreateAccount = $derived(
+    directRegistrationEnabled || authProviders.some((provider) => provider.autoProvision === true)
+  );
   const inviteOnlyNotice = $derived(
-    data.serverInfo?.accountCreationPolicy === 'invite_only' &&
-      (authProviders.length === 0
-        ? directRegistrationEnabled && directLoginEnabled
-        : authProviders.some((provider) => provider.autoProvision === true))
+    data.serverInfo?.accountCreationPolicy === 'invite_only' && canCreateAccount
   );
 
   function providerLoginHref(provider: PublicAuthProvider): string {
@@ -67,7 +67,14 @@ login page when the server allows direct login.
 
 <PageTitle title={m('auth.login.title')} />
 
-<AuthLayout {compact} title={m('auth.login.title')}>
+<AuthLayout
+  {compact}
+  title={authProviders.length
+    ? canCreateAccount
+      ? m('auth.login.sign_in_or_create')
+      : m('auth.login.choose_method')
+    : m('auth.login.title')}
+>
   {#if data.passwordResetSuccess}
     <div class="mb-4">
       <Hint tone="success">
@@ -82,18 +89,14 @@ login page when the server allows direct login.
 
   {#if authProviders.length === 0}
     {#if directLoginEnabled}
-      <PasswordSignInSection
-        redirectUrl={data.redirectUrl}
-        {directRegistrationEnabled}
-        {compact}
-        {pageError}
-      />
+      <PasswordSignInSection redirectUrl={data.redirectUrl} {compact} {pageError} />
     {:else if pageError}
       <Hint tone="danger">{pageError}</Hint>
     {/if}
   {:else}
     <OriginProviderButtons
       providers={authProviders}
+      showRestrictions={canCreateAccount}
       bind:selectedProviderId
       {compact}
       href={providerLoginHref}
@@ -107,15 +110,16 @@ login page when the server allows direct login.
       <Divider label={m('common.or')} />
 
       <Button
-        href={withReturnPath(resolve('/login/password'), data.redirectUrl)}
+        href={resolve(`/login/password${returnPathQuery(data.redirectUrl)}`)}
         variant="secondary"
         size={compact ? 'md' : 'lg'}
         fullWidth
         disabled={selectedProviderId !== null}
       >
         <span aria-hidden="true" class="iconify icon-[uil--lock] text-lg"></span>
-        {m('auth.login.continue_with_password')}
+        {m('common.password')}
       </Button>
     {/if}
   {/if}
+  <RegistrationLink serverInfo={data.serverInfo} redirectUrl={data.redirectUrl} />
 </AuthLayout>

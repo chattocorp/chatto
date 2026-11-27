@@ -1,5 +1,6 @@
 <script lang="ts">
   import { MAX_LOGIN_LENGTH } from '$lib/validation/login';
+  import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { passwordValidationError as validateNewPassword } from '$lib/passwordValidation';
   import { errorMessage } from '$lib/utils/errorMessage';
@@ -7,6 +8,7 @@
   import { onDestroy } from 'svelte';
   import type { PublicAuthProvider } from '@chatto/client/api/server';
   import { browserCookieAuthenticationHeaders } from '@chatto/client/auth/authenticationMode';
+  import { returnPathQuery } from '$lib/auth/loginRoutes';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import { acceptRegistrationInvitation } from '$lib/auth/registrationAdmission';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
@@ -25,7 +27,9 @@
   const invitationRequired = $derived(data.invitationRequired);
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
   const registrationProviders = $derived(
-    authProviders.filter((provider) => provider.autoProvision !== false)
+    page.url.searchParams.get('method') === 'email' && registrationEnabled
+      ? []
+      : authProviders.filter((provider) => provider.autoProvision !== false)
   );
   const selfServiceAvailable = $derived(
     !!data.externalIdentityToken || registrationEnabled || registrationProviders.length > 0
@@ -306,6 +310,18 @@
       <div class="text-center">
         <p class="text-muted">{m('auth.register.code.sent_to')}</p>
         <p class="mt-1 font-semibold break-words">{normalizedEmail}</p>
+        <button
+          type="button"
+          class="cursor-pointer link disabled:cursor-default disabled:opacity-60"
+          disabled={isLoading || isResending}
+          onclick={() => {
+            code = '';
+            error = '';
+            step = 'email';
+          }}
+        >
+          {m('auth.register.change_email')}
+        </button>
       </div>
 
       <VerificationCodeInput
@@ -333,7 +349,7 @@
       <Button
         type="submit"
         size="lg"
-        disabled={!codeComplete}
+        disabled={!codeComplete || isResending}
         loading={isLoading}
         loadingText={m('auth.register.code.checking')}
       >
@@ -394,20 +410,21 @@
 
   {#if data.externalIdentityToken}
     <p class="mt-6 mb-2 text-center text-muted">{m('auth.sso.existing_help')}</p>
-  {:else}
-    <Divider label={m('common.or')} />
-  {/if}
 
-  <Button
-    href={data.externalIdentityToken
-      ? resolve('/sso/confirm') +
-        `?${new URLSearchParams({ token: data.externalIdentityToken, existing: '1' })}`
-      : resolve('/login') +
-        (data.redirectUrl === '/' ? '' : `?${new URLSearchParams({ redirect: data.redirectUrl })}`)}
-    variant="secondary"
-    size="lg"
-    fullWidth
-  >
-    {m(data.externalIdentityToken ? 'auth.sso.sign_in_existing' : 'common.sign_in')}
-  </Button>
+    <Button
+      href={resolve('/sso/confirm') +
+        `?${new URLSearchParams({ token: data.externalIdentityToken, existing: '1' })}`}
+      variant="secondary"
+      size="lg"
+      fullWidth
+    >
+      {m('auth.sso.sign_in_existing')}
+    </Button>
+  {:else}
+    <p class="mt-6 text-center">
+      <a class="link" href={resolve(`/login${returnPathQuery(data.redirectUrl)}`)}>
+        {m('auth.register.sign_in_link')}
+      </a>
+    </p>
+  {/if}
 </AuthLayout>

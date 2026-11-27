@@ -56,6 +56,10 @@ window; an optional native host capability enables inline password submission.
   const showRegistration = $derived(
     inlinePasswordLogin && !store.serverInfo.loading && store.serverInfo.directRegistrationEnabled
   );
+  const canCreateInline = $derived(
+    inlinePasswordLogin &&
+      (showRegistration || providers.some((provider) => provider.autoProvision === true))
+  );
   const branding = $derived({
     name: serverDisplayName(store.serverInfo, registration.name),
     iconUrl: store.serverInfo.iconUrl ?? registration.iconUrl,
@@ -100,7 +104,13 @@ window; an optional native host capability enables inline password submission.
   class="pane-page"
   data-testid={inlinePasswordLogin ? 'desktop-server-login' : 'server-signed-out'}
 >
-  <AuthLayout serverInfo={branding} title={m('auth.login.title')} titleOnlyWithSideBranding>
+  <AuthLayout
+    serverInfo={branding}
+    title={canCreateInline && providers.length
+      ? m('auth.login.sign_in_or_create')
+      : m('auth.login.title')}
+    titleOnlyWithSideBranding={!canCreateInline || !providers.length}
+  >
     <div class="w-full text-start">
       {#if atprotoProvider && knownAtprotoHandle}
         <Button
@@ -138,6 +148,7 @@ window; an optional native host capability enables inline password submission.
       {#if inlinePasswordLogin && providers.length > 0}
         <AuthProviderButtons
           {providers}
+          showRestrictions={canCreateInline}
           {selectedProviderId}
           disabled={busy}
           onclick={(_event, provider) => void signInOnServer(provider.id)}

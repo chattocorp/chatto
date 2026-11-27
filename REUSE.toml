@@ -80,3 +80,23 @@ path = [
 ]
 SPDX-FileCopyrightText = "2004 Apache Software Foundation"
 SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
+  "apps/frontend/src/lib/assets/atmosphere/blacksky.svg",
+  "apps/frontend/src/lib/assets/atmosphere/bluesky.svg",
+  "apps/frontend/src/lib/assets/atmosphere/graze.svg",
+  "apps/frontend/src/lib/assets/atmosphere/leaflet.svg",
+  "apps/frontend/src/lib/assets/atmosphere/pckt.svg",
+  "apps/frontend/src/lib/assets/atmosphere/surf.svg",
+  "apps/frontend/src/lib/assets/atmosphere/tangled.svg",
+]
+precedence = "override"
+SPDX-FileCopyrightText = ["2026 flo-bit", "Respective brand owners"]
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "apps/frontend/src/lib/assets/atmosphere/mu-social.svg"
+precedence = "override"
+SPDX-FileCopyrightText = "Stichting Modal and its licensors"
+SPDX-License-Identifier = "LicenseRef-Eurosky-Mu-Brand"

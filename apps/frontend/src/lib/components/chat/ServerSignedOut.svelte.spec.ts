@@ -103,7 +103,7 @@ describe('ServerSignedOut', () => {
         await expect
           .element(page.getByLabelText('Password', { exact: true }))
           .not.toBeInTheDocument();
-      await page.getByRole('button', { name: 'Continue with Chatto ID' }).click();
+      await page.getByRole('button', { name: 'Chatto ID', exact: true }).click();
       expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(registration, 'chatto-id');
       expect(mocks.passwordLogin).not.toHaveBeenCalled();
     }
@@ -194,7 +194,7 @@ describe('ServerSignedOut', () => {
       .toBeVisible();
     await expect.element(page.getByLabelText('Password', { exact: true })).not.toBeInTheDocument();
     await expect
-      .element(page.getByRole('button', { name: 'Continue with Chatto ID' }))
+      .element(page.getByRole('button', { name: 'Chatto ID', exact: true }))
       .not.toBeInTheDocument();
     await expect
       .element(page.getByRole('button', { name: 'Remove server' }))
