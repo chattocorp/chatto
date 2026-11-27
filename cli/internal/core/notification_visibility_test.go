@@ -162,8 +162,21 @@ func TestNotificationVisibleOccurrencesBatchMatchesSingleChecks(t *testing.T) {
 		})
 	}
 	require.NoError(t, chattoCore.NotificationOccurrences().CreateMany(ctx, inputs))
-	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, reader.Id)
+	listed, err := chattoCore.NotificationOccurrences().List(ctx, reader.Id)
 	require.NoError(t, err)
+	// The running notification worker can also create occurrences for the
+	// posted mention and its thread reply, at any time. Check only the
+	// occurrences that this test created.
+	created := make(map[string]bool, len(inputs))
+	for _, input := range inputs {
+		created[input.SourceEventID] = true
+	}
+	occurrences := make([]*notificationv1.NotificationOccurrence, 0, len(inputs))
+	for _, occurrence := range listed {
+		if created[occurrence.GetSourceEventId()] {
+			occurrences = append(occurrences, occurrence)
+		}
+	}
 	require.Len(t, occurrences, len(targets))
 
 	visibleIDs := func(batch []*notificationv1.NotificationOccurrence) []string {

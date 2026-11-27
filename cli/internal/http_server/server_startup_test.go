@@ -114,8 +114,8 @@ func TestHTTPServerBindFailureDoesNotLogReady(t *testing.T) {
 func TestHTTPServerRunsAndStopsMailJobs(t *testing.T) {
 	_, _, core := setupTestHTTPServer(t)
 	transport := email.NewMockSender(true)
-	sender := core.NewEmailJobs(transport)
-	require.NoError(t, sender.SendContext(t.Context(), email.Message{To: "queued@example.invalid", Subject: "verification", Body: "123456", ExpiresAt: time.Now().Add(time.Minute)}))
+	sender := core.NewEmailJobs(transport, emailBranding(core, "http://localhost:4000"))
+	require.NoError(t, sender.Enqueue(t.Context(), email.Delivery{To: "queued@example.invalid", Content: email.EmailVerificationCode{Code: "123456", TTL: time.Minute}, ExpiresAt: time.Now().Add(time.Minute)}))
 	require.Empty(t, transport.Messages())
 	s := &HTTPServer{addr: "127.0.0.1:0", router: gin.New(), logger: log.New(io.Discard), mailJobs: sender}
 	ctx, cancel := context.WithCancel(t.Context())

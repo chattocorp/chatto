@@ -502,6 +502,7 @@ func setupTestHTTPServerWithMailerAuthConfig(t *testing.T, authConfig config.Aut
 
 	// Create MockSender for email capture
 	mockMailer := email.NewMockSender(true)
+	mockMailer.Branding = emailBranding(chattoCore, "http://localhost:4000")
 
 	// Create HTTPServer with mailer enabled
 	s := &HTTPServer{
@@ -2630,6 +2631,7 @@ func setupTestHTTPServerWithRegistrationDisabled(t *testing.T) (*httptest.Server
 	router.Use(sessions.Sessions("chatto_session", sessionStore))
 
 	mockMailer := email.NewMockSender(true)
+	mockMailer.Branding = emailBranding(chattoCore, "http://localhost:4000")
 	directRegistrationDisabled := false
 
 	s := &HTTPServer{

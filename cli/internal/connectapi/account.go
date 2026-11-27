@@ -78,7 +78,7 @@ func (s *accountService) RequestEmailVerification(ctx context.Context, req *conn
 	if err := requireExpectedUser(caller, req.Msg.GetExpectedUserId()); err != nil {
 		return nil, err
 	}
-	if s.api.emailSender == nil || !s.api.emailSender.IsEnabled() {
+	if s.api.emailQueue == nil || !s.api.emailQueue.IsEnabled() {
 		return nil, connect.NewError(connect.CodeUnavailable, email.ErrEmailDisabled)
 	}
 	address := strings.ToLower(strings.TrimSpace(req.Msg.GetEmail()))
@@ -99,17 +99,11 @@ func (s *accountService) RequestEmailVerification(ctx context.Context, req *conn
 		}
 		return nil, err
 	}
-	serverName := "Chatto"
-	if model := s.api.core.ConfigModel(); model != nil {
-		if name := strings.TrimSpace(model.GetEffectiveServerName()); name != "" {
-			serverName = name
-		}
-	}
-	branding := email.Branding{ServerName: serverName, ServerURL: s.api.config.Webserver.URL}
-	msg, err := email.EmailVerificationCode(branding, address, code, s.api.config.Auth.EmailOTP.TTLOrDefault(), expiresAt)
-	if err == nil {
-		err = s.api.emailSender.SendContext(ctx, msg)
-	}
+	err = s.api.emailQueue.Enqueue(ctx, email.Delivery{
+		To:        address,
+		Content:   email.EmailVerificationCode{Code: code, TTL: s.api.config.Auth.EmailOTP.TTLOrDefault()},
+		ExpiresAt: expiresAt,
+	})
 	if err != nil {
 		_ = s.api.core.CancelEmailVerificationCode(ctx, caller.UserID, address, code)
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("email delivery failed"))

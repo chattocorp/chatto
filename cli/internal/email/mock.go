@@ -2,11 +2,19 @@ package email
 
 import (
 	"context"
+	"errors"
 	"sync"
+	"time"
 )
 
 // MockSender is a test implementation of Sender that captures sent messages.
+// It is also a Queue that renders each delivery at once with Branding, so
+// tests can check rendered email without running the queue worker.
 type MockSender struct {
+	// Branding supplies the branding for Enqueue. When it is nil, Enqueue uses
+	// the server name "Chatto" and no server URL.
+	Branding func() Branding
+
 	enabled  bool
 	messages []Message
 	mu       sync.Mutex
@@ -38,6 +46,27 @@ func (m *MockSender) SendContext(_ context.Context, msg Message) error {
 	defer m.mu.Unlock()
 	m.messages = append(m.messages, msg)
 	return nil
+}
+
+// Enqueue renders the delivery and captures it as a sent message. Like the
+// real queue, it rejects a delivery when it is disabled or when the delivery
+// has no future deadline.
+func (m *MockSender) Enqueue(ctx context.Context, delivery Delivery) error {
+	if !m.enabled {
+		return ErrEmailDisabled
+	}
+	if !delivery.ExpiresAt.After(time.Now()) {
+		return errors.New("email delivery deadline required")
+	}
+	branding := Branding{ServerName: "Chatto"}
+	if m.Branding != nil {
+		branding = m.Branding()
+	}
+	msg, err := Render(branding, delivery.To, delivery.Content)
+	if err != nil {
+		return err
+	}
+	return m.SendContext(ctx, msg)
 }
 
 // IsEnabled returns whether the mock is configured as enabled.
@@ -73,5 +102,8 @@ func (m *MockSender) Reset() {
 	m.messages = nil
 }
 
-// Verify MockSender implements Sender at compile time.
-var _ Sender = (*MockSender)(nil)
+// Verify MockSender implements Sender and Queue at compile time.
+var (
+	_ Sender = (*MockSender)(nil)
+	_ Queue  = (*MockSender)(nil)
+)

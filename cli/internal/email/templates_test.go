@@ -7,13 +7,14 @@ import (
 )
 
 func TestTemplates(t *testing.T) {
-	branding := Branding{ServerName: "Acme <Community>", ServerURL: "https://chat.acme.example"}
-	expiresAt := time.Now().Add(time.Hour)
-	resetURL := "https://chat.acme.example/reset-password?token=abc&x=1"
+	// The trailing slash must not double the slash in the reset link.
+	branding := Branding{ServerName: "Acme <Community>", ServerURL: "https://chat.acme.example/"}
+	// The token is escaped in the reset link.
+	resetURL := "https://chat.acme.example/reset-password?token=abc%26x%3D1"
 
 	tests := []struct {
 		name        string
-		build       func() (Message, error)
+		content     Content
 		subject     string
 		textHas     []string
 		htmlHas     []string
@@ -21,10 +22,8 @@ func TestTemplates(t *testing.T) {
 		accentColor string
 	}{
 		{
-			name: "registration code",
-			build: func() (Message, error) {
-				return RegistrationCode(branding, "a@example.test", "482913", 15*time.Minute, expiresAt)
-			},
+			name:    "registration code",
+			content: RegistrationCode{Code: "482913", TTL: 15 * time.Minute},
 			subject: "482913 is your code for Acme <Community>",
 			textHas: []string{"Welcome to Acme <Community>", "    482913\n", "expires in 15 minutes", "sign up on chat.acme.example"},
 			htmlHas: []string{"Welcome to Acme &lt;Community&gt;", "482913", "background-color:#f0f9ff", "color:#0369a1"},
@@ -32,35 +31,31 @@ func TestTemplates(t *testing.T) {
 			htmlLacks: []string{"<Community>"},
 		},
 		{
-			name: "email verification code",
-			build: func() (Message, error) {
-				return EmailVerificationCode(branding, "a@example.test", "731058", time.Hour, expiresAt)
-			},
+			name:    "email verification code",
+			content: EmailVerificationCode{Code: "731058", TTL: time.Hour},
 			subject: "731058 is your code for Acme <Community>",
 			textHas: []string{"Verify your email address", "731058", "expires in 1 hour"},
 			htmlHas: []string{"Verify your email address", "731058"},
 		},
 		{
-			name: "password reset",
-			build: func() (Message, error) {
-				return PasswordReset(branding, "a@example.test", resetURL, time.Hour, expiresAt)
-			},
+			name:    "password reset",
+			content: PasswordReset{Token: "abc&x=1", TTL: time.Hour},
 			subject: "Reset your Acme <Community> password",
 			textHas: []string{"Set a new password:\n" + resetURL + "\n", "expires in 1 hour"},
-			htmlHas: []string{`href="https://chat.acme.example/reset-password?token=abc&amp;x=1"`, "background-color:#0369a1", "Set a new password"},
+			htmlHas: []string{`href="https://chat.acme.example/reset-password?token=abc%26x%3D1"`, "background-color:#0369a1", "Set a new password"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msg, err := tt.build()
+			msg, err := Render(branding, "a@example.test", tt.content)
 			if err != nil {
-				t.Fatalf("build: %v", err)
+				t.Fatalf("Render: %v", err)
 			}
 			if msg.Subject != tt.subject {
 				t.Errorf("subject = %q, want %q", msg.Subject, tt.subject)
 			}
-			if msg.To != "a@example.test" || msg.FromName != branding.ServerName || !msg.ExpiresAt.Equal(expiresAt) {
-				t.Errorf("envelope = %q/%q/%v", msg.To, msg.FromName, msg.ExpiresAt)
+			if msg.To != "a@example.test" || msg.FromName != branding.ServerName {
+				t.Errorf("envelope = %q/%q", msg.To, msg.FromName)
 			}
 			for _, want := range tt.textHas {
 				if !strings.Contains(msg.Body, want) {
@@ -91,7 +86,7 @@ func TestTemplates(t *testing.T) {
 
 func TestTemplatesUseCustomAccent(t *testing.T) {
 	branding := Branding{ServerName: "Acme", Accent: Accent{Strong: "#115e59", Tint: "#f0fdfa"}}
-	msg, err := RegistrationCode(branding, "a@example.test", "123456", time.Minute, time.Now().Add(time.Minute))
+	msg, err := Render(branding, "a@example.test", RegistrationCode{Code: "123456", TTL: time.Minute})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,6 +96,12 @@ func TestTemplatesUseCustomAccent(t *testing.T) {
 	// Without a usable URL, the footer names the server.
 	if !strings.Contains(msg.Body, "sign up on Acme.") {
 		t.Errorf("text footer does not fall back to the server name:\n%s", msg.Body)
+	}
+}
+
+func TestRenderRequiresContent(t *testing.T) {
+	if _, err := Render(Branding{ServerName: "Acme"}, "a@example.test", nil); err == nil {
+		t.Error("Render(nil) succeeded")
 	}
 }
 

@@ -46,6 +46,11 @@ authorization, live events, backup and restore, and backend tests.
   with architectural changes.
 - Use the `chatto-jobs-implementation` skill before you add, change, or
   remove a background job type.
+- Store what queued work must do, not its result. A queued record holds IDs,
+  codes, tokens, and their lifetimes. The worker renders or derives all other
+  data, such as email text and HTML, when it runs. This keeps records with
+  secrets small and lets template and translation changes apply to waiting
+  work.
 
 ## Public APIs
 

@@ -54,7 +54,7 @@ type API struct {
 	config         config.ChattoConfig
 	version        string
 	searchProvider MessageSearchProviderClient
-	emailSender    email.Sender
+	emailQueue     email.Queue
 	// atprotoDirectory shares cached handle lookups across profile reads on this replica.
 	atprotoDirectory func() identity.Directory
 }
@@ -75,9 +75,9 @@ func WithMessageSearchProviderClient(client MessageSearchProviderClient) APIOpti
 	return func(api *API) { api.searchProvider = client }
 }
 
-// WithEmailSender supplies transactional email delivery to account methods.
-func WithEmailSender(sender email.Sender) APIOption {
-	return func(api *API) { api.emailSender = sender }
+// WithEmailQueue supplies the transactional email queue to account methods.
+func WithEmailQueue(queue email.Queue) APIOption {
+	return func(api *API) { api.emailQueue = queue }
 }
 
 func New(core *core.ChattoCore, config config.ChattoConfig, version string, options ...APIOption) *API {

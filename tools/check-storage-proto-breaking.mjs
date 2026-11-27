@@ -7,9 +7,18 @@ import { fileURLToPath } from 'node:url';
 // pass first; they check the stored fields even when Buf sees a deleted file.
 const oldEventValuesPath = 'chatto/core/evt/v1/models.proto';
 
+// Fields that no release contains, removed after review. A server that runs
+// `main` can store them only in records that expire within an hour.
+const reviewedEmailDeliveryRemovals = new Set([
+  'Previously present field "4" with name "html_body" on message "EmailDelivery" was deleted.',
+  'Previously present field "5" with name "from_name" on message "EmailDelivery" was deleted.'
+]);
+
 /**
  * Accept only reviewed storage changes, including the removed beta invitation
- * use limit (FDR-036). Unrelated field removals must still fail.
+ * use limit (FDR-036) and the unreleased rendered-email fields of queued
+ * email. Unrelated field removals must still fail. To add an exception, add
+ * its exact Buf diagnostic here and a test, and give the reason in a comment.
  * @param {{path?: string, type: string, message: string}} diagnostic Buf diagnostic.
  */
 export function isReviewedStorageChange(diagnostic) {
@@ -24,7 +33,10 @@ export function isReviewedStorageChange(diagnostic) {
     (diagnostic.path === 'chatto/core/evt/v1/invitation_events.proto' &&
       diagnostic.type === 'FIELD_NO_DELETE' &&
       diagnostic.message ===
-        'Previously present field "2" with name "max_uses" on message "InvitationCreatedEvent" was deleted.')
+        'Previously present field "2" with name "max_uses" on message "InvitationCreatedEvent" was deleted.') ||
+    (diagnostic.path === 'chatto/core/runtime_state/v1/email_delivery.proto' &&
+      diagnostic.type === 'FIELD_NO_DELETE' &&
+      reviewedEmailDeliveryRemovals.has(diagnostic.message))
   );
 }
 

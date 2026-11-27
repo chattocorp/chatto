@@ -40,10 +40,12 @@ select one record with KV Create and read it through the stream leader.
 ## Queued email content
 
 `email_delivery.{opaqueId}` in `RUNTIME_STATE` holds a `SealedEmailDelivery`
-protobuf. Its encrypted `EmailDelivery` contains the address, sender display
-name, subject, plain-text body, and optional HTML body. Records from older
-servers have no HTML body or sender display name and are sent as plain text.
-An older replica ignores both fields and sends the plain-text body.
+protobuf. Its encrypted `EmailDelivery` contains the address and what the email
+says: a registration or verification code, or a password reset token, with its
+lifetime. It does not contain a rendered message. The worker renders the email
+with the current templates, server name, and web server URL when it sends it.
+A record from an older version holds a rendered subject and plain-text body,
+which the worker sends as plain text.
 XChaCha20-Poly1305 binds each record to its key. A purpose-specific HMAC
 of the server secret supplies the encryption key. The record expires no later
 than the code or reset-link lifetime and is deleted after transport acceptance.
