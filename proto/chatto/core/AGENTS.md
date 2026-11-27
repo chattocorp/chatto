@@ -40,6 +40,16 @@ field numbers, wire types, cardinality, oneof structure, and enum numbers are
 storage contracts. Keep stored changes additive unless an approved migration
 or compatibility plan says otherwise.
 
+Do not delete a field from a stored message, also when you reserve its number
+and name, and also when no release contains the field. Merged fields can be in
+stored data, for example on a server that runs `main`. Keep an unused field and
+document it as a legacy field. Before you push a change to a stored message,
+run the storage compatibility check from the repository root:
+
+```sh
+mise x -- node tools/check-storage-proto-breaking.mjs "../.git#branch=origin/main,subdir=proto"
+```
+
 Do not move a stored symbol only to reorganize code. A move needs explicit
 compatibility review and executable tests against all supported stored schemas.
 Do not store these messages in `google.protobuf.Any` or store their protobuf full
