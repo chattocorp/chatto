@@ -126,10 +126,7 @@ the directory hides itself when it has nothing to show.
         ]}
       >
         <div class="min-w-0 empty:hidden @4xl:col-start-1 @4xl:row-start-1">
-          <ServerOverviewWelcome
-            serverId={serverScope.serverId}
-            welcomeMessage={profile?.welcomeMessage}
-          />
+          <ServerOverviewWelcome welcomeMessage={profile?.welcomeMessage} />
         </div>
 
         {#if hasAside}

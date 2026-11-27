@@ -19,8 +19,7 @@ their frames.
     actions,
     noPadding = false,
     fillHeight = false,
-    titleHiddenOnNarrow = false,
-    collapsed = false
+    titleHiddenOnNarrow = false
   }: {
     title?: string;
     /** Optional rich title content, with title kept as a plain-text fallback. */
@@ -36,11 +35,6 @@ their frames.
     fillHeight?: boolean;
     /** Visually hide the title below 768px while retaining its accessible heading. */
     titleHiddenOnNarrow?: boolean;
-    /**
-     * Show only the title band. The owner provides the disclosure control,
-     * for example a button in `titleContent` with `aria-expanded`.
-     */
-    collapsed?: boolean;
   } = $props();
 </script>
 
@@ -91,23 +85,18 @@ their frames.
       {/if}
     </div>
   {/if}
-  {#if !collapsed}
+  <div
+    data-panel-frame
+    class={[title || noPadding ? 'px-1 pb-1' : 'p-1', fillHeight && 'flex min-h-0 flex-1 flex-col']}
+  >
     <div
-      data-panel-frame
       class={[
-        title || noPadding ? 'px-1 pb-1' : 'p-1',
+        'panel-inset',
+        noPadding ? 'panel-inset-flush' : 'p-5',
         fillHeight && 'flex min-h-0 flex-1 flex-col'
       ]}
     >
-      <div
-        class={[
-          'panel-inset',
-          noPadding ? 'panel-inset-flush' : 'p-5',
-          fillHeight && 'flex min-h-0 flex-1 flex-col'
-        ]}
-      >
-        {@render children()}
-      </div>
+      {@render children()}
     </div>
-  {/if}
+  </div>
 </div>

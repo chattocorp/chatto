@@ -2,7 +2,7 @@ import '../../../app.css';
 import { afterEach, describe, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
-import { isOverviewCardDismissed, isWelcomeCollapsed } from '$lib/storage/overviewDismissals';
+import { isOverviewCardDismissed } from '$lib/storage/overviewDismissals';
 import ServerOverviewWelcome from './ServerOverviewWelcome.svelte';
 import ServerOverviewSetup from './ServerOverviewSetup.svelte';
 
@@ -11,36 +11,30 @@ afterEach(() => localStorage.clear());
 describe('ServerOverviewWelcome', () => {
   it('renders the welcome message as Markdown', async () => {
     render(ServerOverviewWelcome, {
-      serverId: 'origin',
       welcomeMessage: 'Say hi in **introductions**'
     });
 
     await expect.element(page.getByText('introductions', { exact: true })).toBeVisible();
   });
 
-  it('collapses to its title and expands again, remembered per server', async () => {
-    const first = render(ServerOverviewWelcome, { serverId: 'origin', welcomeMessage: 'Hello' });
-    const toggle = page.getByRole('button', { name: 'Welcome' });
+  it('keeps a long welcome message in a limited scroll area', async () => {
+    render(ServerOverviewWelcome, { welcomeMessage: 'Line\n\n'.repeat(60) + 'Last line' });
 
-    await expect.element(toggle).toHaveAttribute('aria-expanded', 'true');
-    await toggle.click();
-    await expect.element(page.getByText('Hello')).not.toBeInTheDocument();
-    await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(isWelcomeCollapsed('origin')).toBe(true);
-    expect(isWelcomeCollapsed('other')).toBe(false);
-
-    // A new visit keeps the choice, and the title brings the message back.
-    await first.unmount();
-    render(ServerOverviewWelcome, { serverId: 'origin', welcomeMessage: 'Hello' });
-    await expect.element(page.getByText('Hello')).not.toBeInTheDocument();
-    await page.getByRole('button', { name: 'Welcome' }).click();
-    await expect.element(page.getByText('Hello')).toBeVisible();
-    expect(isWelcomeCollapsed('origin')).toBe(false);
+    const scroll = page.getByTestId('server-overview-welcome-scroll');
+    await expect.element(scroll).toBeInTheDocument();
+    // ScrollFader puts the size class on its viewport, which may carry the test ID itself.
+    const root = scroll.element() as HTMLElement;
+    const viewport =
+      root.closest('.max-h-64') ??
+      root.querySelector('.max-h-64') ??
+      document.querySelector('.max-h-64');
+    if (!(viewport instanceof HTMLElement)) throw new Error('no scroll viewport');
+    await expect.poll(() => viewport.scrollHeight > viewport.clientHeight).toBe(true);
+    expect(page.getByRole('button', { name: /hide/i }).elements()).toHaveLength(0);
   });
 
   it('renders nothing without a welcome message', () => {
     const { container } = render(ServerOverviewWelcome, {
-      serverId: 'origin',
       welcomeMessage: '  '
     });
     expect(container.querySelector('[data-testid="server-overview-welcome"]')).toBeNull();

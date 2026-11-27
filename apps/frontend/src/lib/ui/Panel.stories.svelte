@@ -47,14 +47,6 @@
   </div>
 </Story>
 
-<Story name="Collapsed" asChild>
-  <div class="max-w-3xl">
-    <Panel title="Welcome" collapsed>
-      <p>Hidden while collapsed.</p>
-    </Panel>
-  </div>
-</Story>
-
 <Story name="Account title" asChild>
   <Panel title="Assistant (BOT)">
     {#snippet titleContent()}<AccountName name="Assistant" identity={{ isBot: true }} />{/snippet}
