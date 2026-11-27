@@ -43,7 +43,22 @@ test.describe('Notification policy', () => {
     await expect(page.locator('[data-notification-field="followedRooms"]')).toHaveCount(0);
     await expect(
       page.locator('td[data-notification-scope="server"] [data-notification-field]')
-    ).toHaveCount(10);
+    ).toHaveCount(12);
+    for (const [field, defaultMode] of [
+      ['directCalls', 'Push notification'],
+      ['roomCalls', 'Off']
+    ]) {
+      await expect(
+        page.locator(
+          `td[data-notification-scope="server"][data-notification-field="${field}"] button`
+        )
+      ).toHaveAttribute('aria-label', new RegExp(`Default: ${defaultMode}`));
+    }
+    const roomCalls = page.locator(
+      'td[data-notification-scope="server"][data-notification-field="roomCalls"] button'
+    );
+    await roomCalls.click();
+    await expect(roomCalls).toHaveAttribute('aria-label', /Override: In-app notification/);
     await expect(directMessages).toHaveAttribute('aria-label', /Default: Push notification/);
     await expect(
       page.locator(

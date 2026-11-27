@@ -42,6 +42,7 @@
         "followed_thread": "{actor} ha risposto in una discussione che segui",
         "new_message": "{actor} ha pubblicato un nuovo messaggio",
         "activity": "{actor} ti ha inviato una notifica",
+        "incoming_call": "{actor} ha avviato una chiamata",
         "room_invitation": "{actor} ti ha invitato in una stanza"
       }
     },

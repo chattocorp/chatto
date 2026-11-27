@@ -444,6 +444,8 @@
           "followed_thread": "Tópicos seguidos",
           "reaction": "Reações às suas mensagens",
           "activity": "Atividade",
+          "direct_call": "Chamadas diretas",
+          "room_call": "Chamadas de sala",
           "room_invitation": "Convites para salas"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Mensagens que usam @all em uma sala da qual você participa.",
           "followed_thread": "Novas respostas nos tópicos que você segue.",
           "reaction": "Reações que outros membros adicionam às suas mensagens.",
+          "direct_call": "Chamadas iniciadas numa conversa privada.",
+          "room_call": "Chamadas iniciadas numa sala de canal.",
           "room_invitation": "Convites para entrar em salas."
         }
       }

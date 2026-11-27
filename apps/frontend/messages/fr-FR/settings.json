@@ -444,6 +444,8 @@
           "followed_thread": "Fils suivis",
           "reaction": "Réactions à vos messages",
           "activity": "Activité",
+          "direct_call": "Appels directs",
+          "room_call": "Appels de salon",
           "room_invitation": "Invitations à des salons"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Messages qui utilisent @all dans un salon dont vous êtes membre.",
           "followed_thread": "Nouvelles réponses dans les fils que vous suivez.",
           "reaction": "Réactions ajoutées à vos messages par d’autres membres.",
+          "direct_call": "Appels lancés dans une conversation privée.",
+          "room_call": "Appels lancés dans un salon de discussion.",
           "room_invitation": "Invitations à rejoindre des salons."
         }
       }

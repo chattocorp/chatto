@@ -17,10 +17,12 @@ type CallParticipant struct {
 }
 
 type CallSession struct {
-	CallID     string
-	E2EEKeyRef string
-	StartedAt  int64
-	Source     evtv1.CallParticipantEventSource
+	// StartSequence identifies the call start for membership and notification checks.
+	StartSequence uint64
+	CallID        string
+	E2EEKeyRef    string
+	StartedAt     int64
+	Source        evtv1.CallParticipantEventSource
 }
 
 // CallStateProjection derives the active-call snapshot from durable room
@@ -75,10 +77,11 @@ func (p *CallStateProjection) Apply(event *evtv1.Event, seq uint64) error {
 		}
 		source := normalizeCallParticipantSource(e.VoiceCallStarted.GetSource())
 		session := CallSession{
-			CallID:     e.VoiceCallStarted.GetCallId(),
-			E2EEKeyRef: e.VoiceCallStarted.GetE2EeKeyRef(),
-			StartedAt:  startedAt,
-			Source:     source,
+			StartSequence: seq,
+			CallID:        e.VoiceCallStarted.GetCallId(),
+			E2EEKeyRef:    e.VoiceCallStarted.GetE2EeKeyRef(),
+			StartedAt:     startedAt,
+			Source:        source,
 		}
 		p.activeCalls[roomID] = session
 		delete(p.rooms, roomID)

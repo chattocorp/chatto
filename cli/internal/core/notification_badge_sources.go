@@ -734,7 +734,7 @@ func (s *notificationDecisionSnapshot) hasBadgeAttention(q badgeQuery) bool {
 	expired := expiredBefore(q.now.UnixNano())
 	var modes badgeModeCache
 	badge := func(cause badgeCause) bool {
-		return modes.badge(s, q.userID, q.roomID, cause)
+		return modes.badge(s, q.userID, q.roomID, kind, cause)
 	}
 	readBoundary := func(thread eventHandle) (notificationReadBoundary, bool) {
 		if q.readBoundary == nil {
@@ -844,10 +844,10 @@ type badgeModeCache struct {
 	value [badgeCauseCount]bool
 }
 
-func (c *badgeModeCache) badge(s *notificationDecisionSnapshot, userID, roomID string, cause badgeCause) bool {
+func (c *badgeModeCache) badge(s *notificationDecisionSnapshot, userID, roomID string, kind RoomKind, cause badgeCause) bool {
 	if !c.known[cause] {
 		c.known[cause] = true
-		c.value[cause] = s.effectiveNotificationMode(userID, roomID, badgeCauseSignals[cause]) == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE
+		c.value[cause] = s.effectiveNotificationMode(userID, roomID, kind, badgeCauseSignals[cause]) == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE
 	}
 	return c.value[cause]
 }

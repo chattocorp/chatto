@@ -112,8 +112,14 @@ type NotificationDeliveryModes struct {
 	RoomMessages *NotificationDeliveryMode `protobuf:"varint,10,opt,name=room_messages,json=roomMessages,proto3,enum=chatto.core.evt.v1.NotificationDeliveryMode,oneof" json:"room_messages,omitempty"`
 	// Delivery mode for invitations to join a channel room.
 	RoomInvitations *NotificationDeliveryMode `protobuf:"varint,11,opt,name=room_invitations,json=roomInvitations,proto3,enum=chatto.core.evt.v1.NotificationDeliveryMode,oneof" json:"room_invitations,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Delivery mode when a call starts in a direct message.
+	// Supported modes are Off, In-app notification, and Push notification.
+	DirectCalls *NotificationDeliveryMode `protobuf:"varint,12,opt,name=direct_calls,json=directCalls,proto3,enum=chatto.core.evt.v1.NotificationDeliveryMode,oneof" json:"direct_calls,omitempty"`
+	// Delivery mode when a call starts in a channel room.
+	// Supported modes are Off, In-app notification, and Push notification.
+	RoomCalls     *NotificationDeliveryMode `protobuf:"varint,13,opt,name=room_calls,json=roomCalls,proto3,enum=chatto.core.evt.v1.NotificationDeliveryMode,oneof" json:"room_calls,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NotificationDeliveryModes) Reset() {
@@ -224,11 +230,26 @@ func (x *NotificationDeliveryModes) GetRoomInvitations() NotificationDeliveryMod
 	return NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 }
 
+func (x *NotificationDeliveryModes) GetDirectCalls() NotificationDeliveryMode {
+	if x != nil && x.DirectCalls != nil {
+		return *x.DirectCalls
+	}
+	return NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
+}
+
+func (x *NotificationDeliveryModes) GetRoomCalls() NotificationDeliveryMode {
+	if x != nil && x.RoomCalls != nil {
+		return *x.RoomCalls
+	}
+	return NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
+}
+
 var File_chatto_core_evt_v1_notification_policy_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_notification_policy_proto_rawDesc = "" +
 	"\n" +
-	",chatto/core/evt/v1/notification_policy.proto\x12\x12chatto.core.evt.v1\"\xaf\t\n" +
+	",chatto/core/evt/v1/notification_policy.proto\x12\x12chatto.core.evt.v1\"\xf7\n" +
+	"\n" +
 	"\x19NotificationDeliveryModes\x12Z\n" +
 	"\x0fdirect_messages\x18\x01 \x01(\x0e2,.chatto.core.evt.v1.NotificationDeliveryModeH\x00R\x0edirectMessages\x88\x01\x01\x12Z\n" +
 	"\x0fdirect_mentions\x18\x02 \x01(\x0e2,.chatto.core.evt.v1.NotificationDeliveryModeH\x01R\x0edirectMentions\x88\x01\x01\x12K\n" +
@@ -242,7 +263,10 @@ const file_chatto_core_evt_v1_notification_policy_proto_rawDesc = "" +
 	"\rroom_messages\x18\n" +
 	" \x01(\x0e2,.chatto.core.evt.v1.NotificationDeliveryModeH\tR\froomMessages\x88\x01\x01\x12\\\n" +
 	"\x10room_invitations\x18\v \x01(\x0e2,.chatto.core.evt.v1.NotificationDeliveryModeH\n" +
-	"R\x0froomInvitations\x88\x01\x01B\x12\n" +
+	"R\x0froomInvitations\x88\x01\x01\x12T\n" +
+	"\fdirect_calls\x18\f \x01(\x0e2,.chatto.core.evt.v1.NotificationDeliveryModeH\vR\vdirectCalls\x88\x01\x01\x12P\n" +
+	"\n" +
+	"room_calls\x18\r \x01(\x0e2,.chatto.core.evt.v1.NotificationDeliveryModeH\fR\troomCalls\x88\x01\x01B\x12\n" +
 	"\x10_direct_messagesB\x12\n" +
 	"\x10_direct_mentionsB\n" +
 	"\n" +
@@ -255,7 +279,9 @@ const file_chatto_core_evt_v1_notification_policy_proto_rawDesc = "" +
 	"\n" +
 	"_reactionsB\x10\n" +
 	"\x0e_room_messagesB\x13\n" +
-	"\x11_room_invitations*\xd6\x02\n" +
+	"\x11_room_invitationsB\x0f\n" +
+	"\r_direct_callsB\r\n" +
+	"\v_room_calls*\xd6\x02\n" +
 	"\x18NotificationDeliveryMode\x12*\n" +
 	"&NOTIFICATION_DELIVERY_MODE_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eNOTIFICATION_DELIVERY_MODE_OFF\x10\x01\x12)\n" +
@@ -296,11 +322,13 @@ var file_chatto_core_evt_v1_notification_policy_proto_depIdxs = []int32{
 	0,  // 8: chatto.core.evt.v1.NotificationDeliveryModes.reactions:type_name -> chatto.core.evt.v1.NotificationDeliveryMode
 	0,  // 9: chatto.core.evt.v1.NotificationDeliveryModes.room_messages:type_name -> chatto.core.evt.v1.NotificationDeliveryMode
 	0,  // 10: chatto.core.evt.v1.NotificationDeliveryModes.room_invitations:type_name -> chatto.core.evt.v1.NotificationDeliveryMode
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	0,  // 11: chatto.core.evt.v1.NotificationDeliveryModes.direct_calls:type_name -> chatto.core.evt.v1.NotificationDeliveryMode
+	0,  // 12: chatto.core.evt.v1.NotificationDeliveryModes.room_calls:type_name -> chatto.core.evt.v1.NotificationDeliveryMode
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_evt_v1_notification_policy_proto_init() }

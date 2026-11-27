@@ -12,6 +12,7 @@
     "join_call": "Bli med i samtalen",
     "start_call": "Start samtalen",
     "leave": "Forlat samtalen",
+    "open_room": "Åpne rom",
     "open_call_room": "Åpne {room}",
     "open_call_room_on_server": "Åpne {room} på {server}",
     "share_screen": "Del skjermen",

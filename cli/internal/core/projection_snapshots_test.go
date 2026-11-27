@@ -495,3 +495,36 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		})
 	}
 }
+
+func TestCallSnapshotRestoresNotificationEligibility(t *testing.T) {
+	p := NewCallStateProjection()
+	for i, event := range []*evtv1.Event{
+		callStartedTimelineEvent("start", "room", "host", "call", 1),
+		callParticipantJoinedTimelineEvent("host-join", "room", "host", "call", 2),
+		callParticipantJoinedTimelineEvent("guest-join", "room", "guest", "call", 3),
+		callParticipantLeftTimelineEvent("guest-leave", "room", "guest", "call", 4),
+	} {
+		if err := p.Apply(event, uint64(41+i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data, err := p.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := NewCallStateProjection()
+	if err := restored.Restore(data); err != nil {
+		t.Fatal(err)
+	}
+	call := restored.RoomSnapshot("room").Call
+	if call.StartSequence != 41 {
+		t.Fatalf("restored call started at sequence %d", call.StartSequence)
+	}
+	if bytes.Contains(data, []byte("guest")) {
+		t.Fatal("snapshot retained the departed participant")
+	}
+	participants := restored.Participants("room")
+	if len(participants) != 1 || participants[0].UserID != "host" {
+		t.Fatalf("restored participants = %v", participants)
+	}
+}

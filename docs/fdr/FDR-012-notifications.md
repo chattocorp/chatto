@@ -227,6 +227,8 @@ server value.
 
 | Cause                          | Default             |
 | ------------------------------ | ------------------- |
+| Direct calls                   | Push notification   |
+| Room calls                     | Off                 |
 | Root direct message            | Push notification   |
 | Root message in a channel room | Unread dot          |
 | Direct username mention        | Push notification   |
@@ -236,6 +238,21 @@ server value.
 | `@all`                         | Push notification   |
 | Followed thread activity       | In-app notification |
 | Reaction to the user's message | In-app notification |
+
+Both call rows support Off, In-app notification, and Push notification.
+Direct calls use the server setting and an optional override for the individual DM.
+Room calls also support a room-group override. These settings apply when a member
+starts a call. The Direct messages row still controls root messages in a DM.
+The alert offers **Open room** and **Dismiss**. Open room takes the member to the
+conversation, where they can see the current call and choose whether to join.
+
+During a rolling upgrade, an older replica cannot read an incoming-call signal.
+If the member's stored occurrences include that signal, a notification-list request
+to that replica returns `UNIMPLEMENTED` for the whole list, even when the call
+would fall outside the requested page. An upgraded replica can return the list.
+Dismiss marks the occurrence as read. Joining the call or ending it removes the
+occurrence. To restore list access for all members on every replica, finish the
+server rollout.
 
 Attention level controls presentation separately: reactions are Ambient and all
 other current causes are Important. Bell, server, and app indicators use
@@ -253,7 +270,7 @@ modes when the notification has Important attention.
 **Tradeoff:** More than one policy dimension exists conceptually, although the
 current product exposes only delivery-mode preferences.
 
-The notification settings page shows the ten supported causes as matrix rows.
+The notification settings page shows the supported causes as matrix rows.
 It shows the server, visible room groups, joined or invited channel rooms, and
 current-member direct-message rooms as columns. Each group column is followed
 by its room columns. A server cell always shows a concrete value. When no user
@@ -262,7 +279,7 @@ inheritance marker. Server cells cycle through Off, Unread dot, In-app notificat
 Push notification.
 
 Room-group and room cells cycle through Inherit, Off, Unread dot, In-app notification,
-Push notification, and back to Inherit. Off uses a neutral crossed-out bell,
+Push notification, and back to Inherit. Direct calls and Room calls skip Unread dot at every scope. Off uses a neutral crossed-out bell,
 and Unread dot uses a neutral small filled dot. In-app notification uses an
 orange bell, and Push notification uses an orange phone. These icons show
 delivery mode; their colour does not show the activity's attention level.

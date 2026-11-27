@@ -28,7 +28,7 @@ func (p *CallStateProjection) Snapshot() ([]byte, error) {
 	for _, roomID := range sortedMapKeys(roomSet) {
 		row := &projectionv1.CallRoomStateSnapshot{RoomId: roomID, Sequence: p.roomSeq[roomID]}
 		if call, ok := p.activeCalls[roomID]; ok {
-			row.Call = &projectionv1.CallSessionSnapshot{CallId: call.CallID, E2EeKeyRef: call.E2EEKeyRef, StartedAt: call.StartedAt, Source: call.Source}
+			row.Call = &projectionv1.CallSessionSnapshot{StartSequence: call.StartSequence, CallId: call.CallID, E2EeKeyRef: call.E2EEKeyRef, StartedAt: call.StartedAt, Source: call.Source}
 		}
 		for _, userID := range sortedMapKeys(p.rooms[roomID]) {
 			participant := p.rooms[roomID][userID]
@@ -59,7 +59,7 @@ func (p *CallStateProjection) Restore(data []byte) error {
 		}
 		sequences[roomID] = row.GetSequence()
 		if call := row.GetCall(); call != nil {
-			calls[roomID] = CallSession{CallID: call.GetCallId(), E2EEKeyRef: call.GetE2EeKeyRef(), StartedAt: call.GetStartedAt(), Source: call.GetSource()}
+			calls[roomID] = CallSession{StartSequence: call.GetStartSequence(), CallID: call.GetCallId(), E2EEKeyRef: call.GetE2EeKeyRef(), StartedAt: call.GetStartedAt(), Source: call.GetSource()}
 		}
 		participants := make(map[string]CallParticipant)
 		for _, participant := range row.GetParticipants() {

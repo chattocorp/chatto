@@ -12,6 +12,7 @@
     "join_call": "Unirse a la llamada",
     "start_call": "Iniciar llamada",
     "leave": "Dejar llamada",
+    "open_room": "Abrir sala",
     "open_call_room": "Abrir {room}",
     "open_call_room_on_server": "Abrir {room} en {server}",
     "share_screen": "Compartir pantalla",

@@ -67,6 +67,16 @@ Rows are notification causes. Columns follow the current navigation layout.
       hint: m('settings.notifications.policy.reason_hint.direct_message')
     },
     {
+      field: 'directCalls',
+      label: m('settings.notifications.policy.reason.direct_call'),
+      hint: m('settings.notifications.policy.reason_hint.direct_call')
+    },
+    {
+      field: 'roomCalls',
+      label: m('settings.notifications.policy.reason.room_call'),
+      hint: m('settings.notifications.policy.reason_hint.room_call')
+    },
+    {
       field: 'roomInvitations',
       label: m('settings.notifications.policy.reason.room_invitation'),
       hint: m('settings.notifications.policy.reason_hint.room_invitation')
@@ -142,6 +152,11 @@ Rows are notification causes. Columns follow the current navigation layout.
       gcTime: 0
     };
   });
+  const visibleRows = $derived(
+    policiesQuery.data?.server?.supportsCallPolicy === false
+      ? rows.filter((row) => row.field !== 'directCalls' && row.field !== 'roomCalls')
+      : rows
+  );
   const loadError = $derived(policiesQuery.error ? errorMessage(policiesQuery.error) : null);
 
   function policy(scope: NotificationPolicyScope): ScopedNotificationPolicy | undefined {
@@ -267,7 +282,7 @@ Rows are notification causes. Columns follow the current navigation layout.
   {/if}
 
   <MatrixTable
-    {rows}
+    rows={visibleRows}
     {columns}
     getRowKey={(row) => row.field}
     getColumnKey={(column) => column.key}

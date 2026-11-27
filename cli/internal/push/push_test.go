@@ -1327,3 +1327,11 @@ func TestRoomInvitationPayloadUsesRoomOnlyURL(t *testing.T) {
 		t.Fatalf("tag = %q", payload.Tag)
 	}
 }
+
+func TestIncomingCallPayloadOpensRoom(t *testing.T) {
+	occurrence := &notificationv1.NotificationOccurrence{Signal: &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_IncomingCall{IncomingCall: &notificationv1.IncomingCall{RoomId: "room", CallId: "first"}}}}
+	payload := BuildPayloadFromOccurrence(occurrence, "Alice", "https://chat.example", nil)
+	if payload.URL != "https://chat.example/chat/-/room" || payload.Tag != "call-first" || payload.Title != "Incoming call" {
+		t.Fatalf("unexpected call push: %+v", payload)
+	}
+}

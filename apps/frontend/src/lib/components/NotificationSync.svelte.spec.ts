@@ -137,7 +137,8 @@ vi.mock('$lib/state/serverNotificationPreferences.svelte', () => ({
     mocks.soundPreferences[serverId]
 }));
 
-vi.mock('$lib/audio/notificationSounds', () => ({
+vi.mock('$lib/audio/notificationSounds', async (original) => ({
+  ...(await original<typeof import('$lib/audio/notificationSounds')>()),
   playNotificationSound: mocks.playNotificationSound
 }));
 

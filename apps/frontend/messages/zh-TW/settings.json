@@ -444,6 +444,8 @@
           "followed_thread": "已關注的討論串",
           "reaction": "對你訊息的回應",
           "activity": "動態",
+          "direct_call": "私訊通話",
+          "room_call": "房間通話",
           "room_invitation": "房間邀請"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "在你已加入的房間中使用 @all 的訊息。",
           "followed_thread": "你所關注討論串中的新回覆。",
           "reaction": "其他成員新增到你訊息上的回應。",
+          "direct_call": "在私訊對話中發起的通話。",
+          "room_call": "在頻道房間中發起的通話。",
           "room_invitation": "加入房間的邀請。"
         }
       }

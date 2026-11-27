@@ -444,6 +444,8 @@
           "followed_thread": "Sekvataj fadenoj",
           "reaction": "Reagoj al viaj mesaĝoj",
           "activity": "Aktiveco",
+          "direct_call": "Rektaj vokoj",
+          "room_call": "Ĉambraj vokoj",
           "room_invitation": "Invitoj al ĉambroj"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Mesaĝoj, kiuj uzas @all en ĉambro, al kiu vi apartenas.",
           "followed_thread": "Novaj respondoj en fadenoj, kiujn vi sekvas.",
           "reaction": "Reagoj, kiujn aliaj membroj aldonas al viaj mesaĝoj.",
+          "direct_call": "Vokoj komencitaj en rekta konversacio.",
+          "room_call": "Vokoj komencitaj en kanala ĉambro.",
           "room_invitation": "Invitoj por aliĝi al ĉambroj."
         }
       }

@@ -74,6 +74,13 @@ func (a *notificationAssembler) signal(ctx context.Context, signal *notification
 	if signal == nil {
 		return nil, nil
 	}
+	if call := signal.GetIncomingCall(); call != nil {
+		room, err := a.room(ctx, call.GetRoomId())
+		if err != nil {
+			return nil, err
+		}
+		return &apiv1.NotificationSignal{Kind: &apiv1.NotificationSignal_IncomingCall{IncomingCall: &apiv1.IncomingCall{Room: room, CallId: call.GetCallId()}}}, nil
+	}
 	if invitation := signal.GetRoomInvitationReceived(); invitation != nil {
 		room, err := a.room(ctx, invitation.GetRoomId())
 		if err != nil {

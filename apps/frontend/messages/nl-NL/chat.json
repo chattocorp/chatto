@@ -42,6 +42,7 @@
         "followed_thread": "{actor} heeft geantwoord in een gesprek dat je volgt",
         "new_message": "{actor} heeft een nieuw bericht geplaatst",
         "activity": "{actor} heeft je een melding gestuurd",
+        "incoming_call": "{actor} is een oproep gestart",
         "room_invitation": "{actor} heeft je uitgenodigd voor een ruimte"
       }
     },

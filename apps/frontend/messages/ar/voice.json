@@ -12,6 +12,7 @@
     "join_call": "انضم للمكالمة",
     "start_call": "ابدأ المكالمة",
     "leave": "مغادرة المكالمة",
+    "open_room": "فتح الغرفة",
     "open_call_room": "فتح {room}",
     "open_call_room_on_server": "فتح {room} على {server}",
     "share_screen": "مشاركة الشاشة",

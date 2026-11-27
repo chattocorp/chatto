@@ -42,6 +42,7 @@
         "followed_thread": "{actor} vastas lõimes, mida jälgid",
         "new_message": "{actor} postitas uue sõnumi",
         "activity": "{actor} saatis sulle teavituse",
+        "incoming_call": "{actor} alustas kõnet",
         "room_invitation": "{actor} kutsus sind ruumi"
       }
     },

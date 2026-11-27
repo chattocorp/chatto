@@ -444,6 +444,8 @@
           "followed_thread": "Obserwowane wątki",
           "reaction": "Reakcje na Twoje wiadomości",
           "activity": "Aktywność",
+          "direct_call": "Połączenia bezpośrednie",
+          "room_call": "Połączenia w pokojach",
           "room_invitation": "Zaproszenia do pokoi"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "Wiadomości z @all w pokoju, do którego należysz.",
           "followed_thread": "Nowe odpowiedzi w obserwowanych przez Ciebie wątkach.",
           "reaction": "Reakcje dodane do Twoich wiadomości przez innych członków.",
+          "direct_call": "Połączenia rozpoczęte w rozmowie prywatnej.",
+          "room_call": "Połączenia rozpoczęte w pokoju kanału.",
           "room_invitation": "Zaproszenia do dołączenia do pokoi."
         }
       }

@@ -258,6 +258,8 @@ message CallSessionSnapshot {
   string e2ee_key_ref = 2;
   int64 started_at = 3;
   chatto.core.evt.v1.CallParticipantEventSource source = 4;
+  // Stream position used to check membership when the call started.
+  uint64 start_sequence = 6;
 }
 
 message CallParticipantSnapshot {

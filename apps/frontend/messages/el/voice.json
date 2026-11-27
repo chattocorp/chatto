@@ -12,6 +12,7 @@
     "join_call": "Συμμετοχή στην κλήση",
     "start_call": "Έναρξη κλήσης",
     "leave": "Αποχώρηση από την κλήση",
+    "open_room": "Άνοιγμα δωματίου",
     "open_call_room": "Άνοιγμα του {room}",
     "open_call_room_on_server": "Άνοιγμα του {room} στο {server}",
     "share_screen": "Κοινοποίηση οθόνης",

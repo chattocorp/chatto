@@ -42,6 +42,7 @@
         "followed_thread": "{actor} hat in einem Thread geantwortet, dem du folgst",
         "new_message": "{actor} hat eine neue Nachricht gepostet",
         "activity": "{actor} hat dir eine Benachrichtigung gesendet",
+        "incoming_call": "{actor} hat einen Anruf gestartet",
         "room_invitation": "{actor} hat dich in einen Raum eingeladen"
       }
     },

@@ -90,6 +90,8 @@ type notificationScopeKey struct {
 // notificationRows holds the occurrences of the Notifications projection and
 // their indexes. The projection lock guards it.
 type notificationRows struct {
+	// byCall indexes active call alerts for join and end cleanup.
+	byCall  map[string][]*notificationRow
 	byID    map[string]*notificationRow
 	byUser  map[notificationIDHandle][]*notificationRow
 	byScope map[notificationScopeKey][]*notificationRow
@@ -107,6 +109,7 @@ func newNotificationRows(eventIDs *eventIDTable) *notificationRows {
 		eventIDs = newEventIDTable()
 	}
 	return &notificationRows{
+		byCall:         make(map[string][]*notificationRow),
 		byID:           make(map[string]*notificationRow),
 		byUser:         make(map[notificationIDHandle][]*notificationRow),
 		byScope:        make(map[notificationScopeKey][]*notificationRow),
@@ -166,6 +169,9 @@ func (s *notificationRows) add(occurrence *notificationv1.NotificationOccurrence
 		row.full = proto.Clone(occurrence).(*notificationv1.NotificationOccurrence)
 	}
 
+	if call := occurrence.GetSignal().GetIncomingCall(); call != nil {
+		s.byCall[call.GetCallId()] = append(s.byCall[call.GetCallId()], row)
+	}
 	s.byID[row.id] = row
 	s.byUser[row.recipient] = append(s.byUser[row.recipient], row)
 	if row.has(notificationRowHasScope) {
@@ -179,6 +185,9 @@ func (r *notificationRow) scopeKey() notificationScopeKey {
 }
 
 func (s *notificationRows) remove(row *notificationRow) {
+	if call := row.full.GetSignal().GetIncomingCall(); call != nil {
+		removeNotificationRow(s.byCall, call.GetCallId(), row)
+	}
 	delete(s.byID, row.id)
 	removeNotificationRow(s.byUser, row.recipient, row)
 	if row.has(notificationRowHasScope) {
@@ -362,6 +371,6 @@ func (s *notificationRows) estimatedBytes() int64 {
 			bytes += 3 * int64(proto.Size(row.full))
 		}
 	}
-	bytes += int64(len(s.byUser)+len(s.byScope)) * (projectionCompactMapEntryOverhead + projectionSliceEntryOverhead)
+	bytes += int64(len(s.byUser)+len(s.byScope)+len(s.byCall)) * (projectionCompactMapEntryOverhead + projectionSliceEntryOverhead)
 	return bytes
 }

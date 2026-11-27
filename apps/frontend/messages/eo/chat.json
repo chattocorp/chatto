@@ -42,6 +42,7 @@
         "followed_thread": "{actor} respondis en fadeno, kiun vi sekvas",
         "new_message": "{actor} afiŝis novan mesaĝon",
         "activity": "{actor} sendis al vi sciigon",
+        "incoming_call": "{actor} komencis vokon",
         "room_invitation": "{actor} invitis vin al ĉambro"
       }
     },

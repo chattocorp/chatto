@@ -12,6 +12,7 @@
     "join_call": "Připojte se k hovoru",
     "start_call": "Zahájit hovor",
     "leave": "Opustit hovor",
+    "open_room": "Otevřít místnost",
     "open_call_room": "Otevřít {room}",
     "open_call_room_on_server": "Otevřít {room} na serveru {server}",
     "share_screen": "Sdílet obrazovku",

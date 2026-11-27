@@ -287,6 +287,9 @@ func NotificationOccurrenceRoomID(occurrence *notificationv1.NotificationOccurre
 	if occurrence == nil {
 		return ""
 	}
+	if call := occurrence.GetSignal().GetIncomingCall(); call != nil {
+		return call.GetRoomId()
+	}
 	if invitation := occurrence.GetSignal().GetRoomInvitationReceived(); invitation != nil {
 		return invitation.GetRoomId()
 	}
@@ -318,6 +321,8 @@ func notificationSignalIdentity(signal *notificationv1.NotificationSignal) strin
 		return "reaction_received"
 	case *notificationv1.NotificationSignal_RoomMessageReceived:
 		return "room_message_received"
+	case *notificationv1.NotificationSignal_IncomingCall:
+		return "incoming_call"
 	case *notificationv1.NotificationSignal_RoomInvitationReceived:
 		return "room_invitation_received"
 	default:
@@ -593,8 +598,10 @@ func validateNotificationCreateInput(input CreateNotificationOccurrenceInput) er
 	message := notificationSignalMessage(input.Signal)
 	invitation := input.Signal.GetRoomInvitationReceived()
 	validInvitation := invitation != nil && invitation.GetRoomId() != "" && invitation.GetInvitationId() != "" && invitation.GetExpiresAt() != nil && invitation.GetExpiresAt().IsValid() && invitation.GetExpiresAt().AsTime().After(input.SourceCreated)
-	if !validInvitation && (message == nil || message.GetRoomId() == "" || message.GetEventId() == "" || notificationSignalIdentity(input.Signal) == "") {
-		return invalidArgument("a supported notification signal with a message or invitation target is required")
+	call := input.Signal.GetIncomingCall()
+	validCall := call.GetRoomId() != "" && call.GetCallId() != ""
+	if !validCall && !validInvitation && (message == nil || message.GetRoomId() == "" || message.GetEventId() == "" || notificationSignalIdentity(input.Signal) == "") {
+		return invalidArgument("a supported notification signal with a message, invitation, or call target is required")
 	}
 	if !notificationModeProducesOccurrence(input.Mode) {
 		return nil
@@ -891,6 +898,7 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 	if !roomPosition.IsZero() {
 		if err := waitForPositionAll(ctx, roomPosition,
 			waitForProjection("notification room directory", m.core.roomModel.directory.Projector()),
+			waitForProjection("notification calls", m.core.callModel.callState.Projector()),
 			waitForProjection("notification invitations", m.core.roomInvitations.projection.Projector()),
 			waitForProjection("notification room timeline", m.core.roomModel.timeline.Projector()),
 			waitForProjection("notification reactions", m.core.roomModel.reactions.Projector()),
@@ -933,7 +941,22 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 			return nil, err
 		}
 	}
-	return visible, nil
+	// Read durable joins outside the content-view barrier. A queued push
+	// uses this same visibility check immediately before provider delivery.
+	unanswered := visible[:0]
+	for _, occurrence := range visible {
+		if call := occurrence.GetSignal().GetIncomingCall(); call != nil {
+			candidates := map[string]bool{recipientID: true}
+			if err := m.core.excludeAnsweredCallRecipients(ctx, call.GetRoomId(), call.GetCallId(), candidates); err != nil {
+				return nil, err
+			}
+			if !candidates[recipientID] {
+				continue
+			}
+		}
+		unanswered = append(unanswered, occurrence)
+	}
+	return unanswered, nil
 }
 
 // notificationRoomVisibility is the part of a message-target check that
@@ -984,6 +1007,9 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 	}
 	if invitation := occurrence.GetSignal().GetRoomInvitationReceived(); invitation != nil {
 		return m.invitationVisible(ctx, recipientID, invitation)
+	}
+	if call := occurrence.GetSignal().GetIncomingCall(); call != nil {
+		return m.callVisible(ctx, recipientID, call)
 	}
 	message := notificationSignalMessage(occurrence.GetSignal())
 	if message == nil || message.GetRoomId() == "" {

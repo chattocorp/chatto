@@ -42,6 +42,7 @@
         "followed_thread": "{actor} svarade i en tråd som du följer",
         "new_message": "{actor} publicerade ett nytt meddelande",
         "activity": "{actor} skickade en avisering till dig",
+        "incoming_call": "{actor} startade ett samtal",
         "room_invitation": "{actor} bjöd in dig till ett rum"
       }
     },

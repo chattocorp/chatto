@@ -42,6 +42,7 @@
         "followed_thread": "{actor}さんがフォロー中のスレッドに返信しました",
         "new_message": "{actor}さんが新しいメッセージを投稿しました",
         "activity": "{actor}さんから通知が届きました",
+        "incoming_call": "{actor} さんが通話を開始しました",
         "room_invitation": "{actor} があなたをルームに招待しました"
       }
     },

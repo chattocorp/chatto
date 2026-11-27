@@ -9,6 +9,8 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Behavior
 
+Incoming calls use the Direct calls or Room calls notification preference. A new direct call defaults to Push notification. A new channel-room call defaults to Off. An eligible member can open the room or dismiss the alert. The room shows the current call and provides the usual controls to join it. See [FDR-012](FDR-012-notifications.md).
+
 Operators can limit concurrent call participants with `livekit.max_global_participants`. The default is unlimited. Each user or bot takes one place per room, including listen-only and pending joins. A native companion publisher shares its owner's place. At capacity, Chatto returns `RESOURCE_EXHAUSTED` for a new join or primary token request. A participant can request another token for the same call. Lowering the limit preserves existing calls. Leave events and LiveKit reconciliation release places, including abandoned joins. LiveKit can still reconnect a participant with a valid token.
 
 - Supported browsers expose microphone, camera, and hang-up actions through

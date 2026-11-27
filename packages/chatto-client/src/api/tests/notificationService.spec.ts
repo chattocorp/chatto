@@ -1,3 +1,5 @@
+import { notificationTarget } from '../../server/notifications.js';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -43,6 +45,61 @@ const effective = {
 };
 
 describe('createNotificationAPI', () => {
+  it.each([
+    { kind: RoomKind.DM, name: '', isDM: true },
+    { kind: RoomKind.CHANNEL, name: 'general', isDM: false }
+  ])('uses the room summary for incoming calls in room kind $kind', ({ kind, name, isDM }) => {
+    const room = { id: 'room', kind, name };
+    const row = notificationOccurrence(
+      new NotificationOccurrence({
+        signal: { kind: { case: 'incomingCall', value: { room, callId: 'original' } } }
+      })
+    );
+    expect(row).toMatchObject({
+      signalKind: NotificationSignalKind.INCOMING_CALL,
+      targetSupported: true,
+      room,
+      eventId: '',
+      call: { id: 'original' }
+    });
+    expect(notificationTarget(row)).toMatchObject({ roomId: room.id, roomName: name, isDM });
+  });
+
+  it('updates the call fields independently of an existing direct message policy', async () => {
+    const updatedPolicy = {
+      ...effective,
+      directMessages: NotificationDeliveryMode.OFF,
+      directCalls: PUSH,
+      roomCalls: NotificationDeliveryMode.OFF
+    };
+    policies.getNotificationPolicy.mockReturnValue({ policy: { policy: { effective } } });
+    policies.updateNotificationPolicy.mockReturnValue({
+      policy: { policy: { effective: updatedPolicy } }
+    });
+    const api = notificationAPI();
+    expect((await api.getNotificationPolicy()).supportsCallPolicy).toBe(false);
+    const updated = await api.updateNotificationPolicy({ directCalls: null }, 'dm');
+    expect(updated.supportsCallPolicy).toBe(true);
+    expect(updated.effective).toMatchObject(updatedPolicy);
+    expect(receivedRequest(policies.updateNotificationPolicy)).toMatchObject({
+      scope: { scope: { case: 'roomId', value: 'dm' } },
+      updateMask: { paths: ['direct_calls'] }
+    });
+  });
+
+  it.each(['directCalls', 'roomCalls'] as const)(
+    'rejects unread badge delivery for %s before sending an update',
+    async (field) => {
+      await expect(
+        notificationAPI().updateScopedNotificationPolicy(
+          { kind: 'server' },
+          { [field]: NotificationDeliveryMode.UNREAD_BADGE }
+        )
+      ).rejects.toThrow(`Unread badge delivery is not supported for ${field}`);
+      expect(policies.updateNotificationPolicy).not.toHaveBeenCalled();
+    }
+  );
+
   it('maps an invitation to a room-only target with no fabricated message', () => {
     const item = notificationOccurrence(
       new NotificationOccurrence({

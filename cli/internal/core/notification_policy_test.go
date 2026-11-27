@@ -442,8 +442,8 @@ func assertNotificationPolicyIntensity(
 	if policy.RoomID != "" {
 		wantOverride = room
 	}
-	actualOverride := notificationModeForSignal(policy.Overrides, testNotificationSignal(category, "room", "event"))
-	actualEffective := notificationModeForSignal(policy.Effective, testNotificationSignal(category, "room", "event"))
+	actualOverride := notificationModeForSignal(policy.Overrides, KindChannel, testNotificationSignal(category, "room", "event"))
+	actualEffective := notificationModeForSignal(policy.Effective, KindChannel, testNotificationSignal(category, "room", "event"))
 	if actualOverride != wantOverride || actualEffective != effective {
 		t.Fatalf("preference %v = (%v, %v), want (%v, %v)", category, actualOverride, actualEffective, wantOverride, effective)
 	}

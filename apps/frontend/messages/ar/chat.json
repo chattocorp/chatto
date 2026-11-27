@@ -42,6 +42,7 @@
         "followed_thread": "ردّ {actor} في سلسلة تتابعها",
         "new_message": "نشر {actor} رسالة جديدة",
         "activity": "أرسل إليك {actor} إشعارًا",
+        "incoming_call": "بدأ {actor} مكالمة",
         "room_invitation": "دعاك {actor} إلى غرفة"
       }
     },

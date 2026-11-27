@@ -49,6 +49,12 @@ message NotificationDeliveryModes {
   optional NotificationDeliveryMode room_messages = 10;
   // Delivery mode for invitations to join a channel room.
   optional NotificationDeliveryMode room_invitations = 11;
+  // Delivery mode when a call starts in a direct message.
+  // Supported modes are Off, In-app notification, and Push notification.
+  optional NotificationDeliveryMode direct_calls = 12 [(buf.validate.field).enum.not_in = 4];
+  // Delivery mode when a call starts in a channel room.
+  // Supported modes are Off, In-app notification, and Push notification.
+  optional NotificationDeliveryMode room_calls = 13 [(buf.validate.field).enum.not_in = 4];
 }
 
 // Visual importance of an unread notification. This is independent from
@@ -138,6 +144,15 @@ message RoomInvitationReceived {
   string invitation_id = 2;
 }
 
+// Dismiss marks this occurrence as read. Joining on any device or ending the
+// call removes the occurrence. Open the room to see its current call status.
+message IncomingCall {
+  // Room that hosts the call. Its kind selects the call notification policy.
+  RoomSummary room = 1;
+  // Session ID of the call that triggered this occurrence.
+  string call_id = 2;
+}
+
 // Immutable, typed cause and destination of one notification. Clients must
 // preserve unknown variants as generic dismissible rows and must not infer
 // navigation semantics for them.
@@ -154,6 +169,7 @@ message NotificationSignal {
     ReactionReceived reaction_received = 9;
     RoomMessageReceived room_message_received = 10;
     RoomInvitationReceived room_invitation_received = 11;
+    IncomingCall incoming_call = 12;
   }
 }
 

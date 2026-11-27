@@ -51,6 +51,8 @@
   /** Icon that identifies the notification cause on the avatar badge. */
   function signalIcon(kind: NotificationSignalKind | undefined): string {
     switch (kind) {
+      case NotificationSignalKind.INCOMING_CALL:
+        return 'icon-[uil--phone]';
       case NotificationSignalKind.ROOM_INVITATION:
         return 'icon-[uil--envelope-alt]';
       case NotificationSignalKind.DIRECT_MESSAGE:

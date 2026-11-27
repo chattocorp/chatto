@@ -1,10 +1,13 @@
 import { beforeAll } from 'vitest';
+import { getLocale } from '$lib/i18n/runtime';
+import { setReactiveLocale } from '$lib/i18n/state.svelte';
+import { formatDayLabel, timeFormatSettingsFor } from '$lib/utils/formatTime';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 
 // Standalone management components do not run the route catalog loader.
 beforeAll(() => loadLocaleMessages('en-GB'));
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, onTestFinished } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import EventLogPage from './+page.svelte';
@@ -284,20 +287,40 @@ describe('server admin event log filters', () => {
     );
   });
 
-  it('groups event rows by creation date', async () => {
-    mocks.listEvents.mockResolvedValue(
-      pageResult([
-        entry('103', 'LoginSucceededEvent', '2026-01-02T12:00:00Z'),
-        entry('102', 'UserJoinedRoomEvent', '2026-01-02T11:00:00Z'),
-        entry('101', 'LoginSucceededEvent', '2026-01-01T12:00:00Z')
-      ])
-    );
+  it.each(['en-GB', 'en-US'] as const)(
+    'groups event rows by creation date in %s',
+    async (locale) => {
+      const previousLocale = getLocale();
+      onTestFinished(() => setReactiveLocale(previousLocale));
+      setReactiveLocale(locale);
+      // These are calendar days in the viewer's timezone, including for CI
+      // browsers whose local midnight would split the same two UTC timestamps.
+      const jan2 = new Date(2026, 0, 2, 12).toISOString();
+      const jan1 = new Date(2026, 0, 1, 12).toISOString();
+      mocks.listEvents.mockResolvedValue(
+        pageResult([
+          entry('103', 'LoginSucceededEvent', jan2),
+          entry('102', 'UserJoinedRoomEvent', new Date(2026, 0, 2, 11).toISOString()),
+          entry('101', 'LoginSucceededEvent', jan1)
+        ])
+      );
 
-    const { container } = render(EventLogPage);
-    // Wait for the rows: the page resolves the query over several microtasks.
-    await vi.waitFor(() =>
-      expect(container.textContent?.match(/Friday, January 2/g)).toHaveLength(1)
-    );
-    expect(container.textContent?.match(/Thursday, January 1/g)).toHaveLength(1);
-  });
+      const { container } = render(EventLogPage);
+      const settings = timeFormatSettingsFor(null);
+      // Each separator must precede the events from that day, in the
+      // viewer's date format. The page resolves its query asynchronously.
+      await vi.waitFor(() => {
+        const rows = Array.from(container.querySelectorAll('tbody tr'), (row) =>
+          row.querySelector('td')?.textContent?.trim()
+        );
+        expect(rows).toEqual([
+          formatDayLabel(jan2, settings, locale),
+          '103',
+          '102',
+          formatDayLabel(jan1, settings, locale),
+          '101'
+        ]);
+      });
+    }
+  );
 });

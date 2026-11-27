@@ -444,6 +444,8 @@
           "followed_thread": "フォロー中のスレッド",
           "reaction": "自分のメッセージへのリアクション",
           "activity": "アクティビティ",
+          "direct_call": "ダイレクト通話",
+          "room_call": "ルーム通話",
           "room_invitation": "ルームへの招待"
         },
         "reason_hint": {
@@ -456,6 +458,8 @@
           "all": "あなたが参加しているルームで @all を使ったメッセージです。",
           "followed_thread": "フォロー中のスレッドへの新しい返信です。",
           "reaction": "他のメンバーがあなたのメッセージに追加したリアクションです。",
+          "direct_call": "ダイレクトメッセージで開始された通話です。",
+          "room_call": "チャンネルルームで開始された通話です。",
           "room_invitation": "ルームへの参加の招待。"
         }
       }

@@ -12,6 +12,7 @@
     "join_call": "Присоединиться к звонку",
     "start_call": "Начать звонок",
     "leave": "Оставить вызов",
+    "open_room": "Открыть комнату",
     "open_call_room": "Открыть {room}",
     "open_call_room_on_server": "Открыть {room} на {server}",
     "share_screen": "Поделиться экраном",

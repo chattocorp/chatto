@@ -42,6 +42,7 @@
         "followed_thread": "Uživatel {actor} odpověděl ve vlákně, které sledujete",
         "new_message": "Uživatel {actor} zveřejnil novou zprávu",
         "activity": "Uživatel {actor} vám poslal oznámení",
+        "incoming_call": "{actor} zahajuje hovor",
         "room_invitation": "{actor} vás pozval do místnosti"
       }
     },

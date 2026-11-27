@@ -100,6 +100,14 @@ server versions. Follow its upgrade recommendation if one appears.
 
 </Steps>
 
+## Incoming calls during a rolling upgrade
+
+When a member has an incoming-call occurrence, a replica running Chatto 0.6.0
+returns `UNIMPLEMENTED` for the entire notification list. This includes pages
+that would only contain older notifications. An upgraded replica can serve the
+list. Keep the last successful result until a list request succeeds. Operators
+can restore consistent list access by completing the rollout.
+
 ## Browser cookie upgrades in 0.6
 
 Chatto 0.6 removes `POST /auth/browser/session/migrate`. Browsers that still
