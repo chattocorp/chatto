@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { formatArtifactFence, parseArtifactFence } from './artifactFence';
 
 describe('artifact fence presentation', () => {
-  it.each(['svg', 'mermaid', 'ansi'] as const)(
+  it.each(['svg', 'mermaid', 'ansi', 'glsl'] as const)(
     'round trips %s presentation and normalises case',
     (language) => {
       for (const visual of [false, true]) {

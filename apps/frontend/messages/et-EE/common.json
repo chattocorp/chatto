@@ -3,6 +3,7 @@
     "code_source": "Lähtekood",
     "code_render": "Vaade",
     "code_render_failed": "Eelvaade pole saadaval. Lähtekood on endiselt saadaval.",
+    "code_shader": "GLSL-varjur",
     "keyboard_shortcuts": {
       "title": "Klaviatuuri otseteed",
       "app": "Rakendus",

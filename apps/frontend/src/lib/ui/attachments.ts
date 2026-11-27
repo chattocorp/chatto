@@ -6,4 +6,5 @@ export { default as AttachmentModal } from './AttachmentModal.svelte';
 export { default as AttachmentPreview } from './AttachmentPreview.svelte';
 export { default as ZoomableImage } from './ZoomableImage.svelte';
 export { default as RenderedImage } from './RenderedImage.svelte';
+export { default as ShaderPreview } from './ShaderPreview.svelte';
 export { default as HtmlAttachmentModal } from './HtmlAttachmentModal.svelte';

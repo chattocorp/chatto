@@ -3,6 +3,7 @@
     "code_source": "Fonto",
     "code_render": "Prezento",
     "code_render_failed": "Antaŭvido ne disponeblas. La fonto plu disponeblas.",
+    "code_shader": "GLSL-ombrigilo",
     "keyboard_shortcuts": {
       "title": "Klavkombinoj",
       "app": "Aplikaĵo",

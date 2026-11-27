@@ -3,6 +3,7 @@
     "code_source": "Джерело",
     "code_render": "Перегляд",
     "code_render_failed": "Попередній перегляд недоступний. Джерело залишається доступним.",
+    "code_shader": "Шейдер GLSL",
     "keyboard_shortcuts": {
       "title": "Клавіатурні скорочення",
       "app": "Застосунок",

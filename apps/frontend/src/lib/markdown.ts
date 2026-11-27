@@ -47,6 +47,11 @@ const MAX_ANSI_BLOCKS = 4;
 const svgPreviewCountKey = Symbol('svgPreviewCount');
 const MAX_SVG_PREVIEWS = 4;
 const mermaidPreviewCountKey = Symbol('mermaidPreviewCount');
+const shadersKey = Symbol('shaders');
+const shaderPreviewCountKey = Symbol('shaderPreviewCount');
+const MAX_SHADER_PREVIEWS = 4;
+// Matches the server limit for a complete message body.
+const MAX_SHADER_SOURCE_LENGTH = 10_000;
 
 type MarkdownBlockRule = (
   state: StateBlock,
@@ -568,6 +573,15 @@ function initialize(): void {
       if (available) env[mermaidPreviewCountKey] = count + 1;
       return renderCodeFrame(token.content, language, { available, presentation });
     }
+    // GLSL previews are an experiment. Without it, they stay ordinary code.
+    if (language === 'glsl') {
+      if (!env[shadersKey]) return renderCodeFrame(token.content, language);
+      const count = (env[shaderPreviewCountKey] as number | undefined) ?? 0;
+      const available =
+        count < MAX_SHADER_PREVIEWS && token.content.length <= MAX_SHADER_SOURCE_LENGTH;
+      if (available) env[shaderPreviewCountKey] = count + 1;
+      return renderCodeFrame(token.content, language, { available, presentation });
+    }
     // SVG stays an image resource, never inline HTML, an object, or an iframe.
     if (language === 'svg') {
       const count = (env[svgPreviewCountKey] as number | undefined) ?? 0;
@@ -656,6 +670,11 @@ export type RenderMarkdownOptions = {
    * mentions; the default leaves `@handle` as plain text.
    */
   mentions?: boolean;
+  /**
+   * Offers Render for `glsl` code blocks, from the GLSL shader experiment.
+   * The default shows them as ordinary code.
+   */
+  shaders?: boolean;
 };
 
 /**
@@ -663,7 +682,7 @@ export type RenderMarkdownOptions = {
  */
 export async function renderMarkdown(
   body: string,
-  { mentions = false }: RenderMarkdownOptions = {}
+  { mentions = false, shaders = false }: RenderMarkdownOptions = {}
 ): Promise<string> {
   try {
     await ensureFenceLanguagesLoaded(
@@ -671,7 +690,11 @@ export async function renderMarkdown(
     );
     initialize();
 
-    const env = { [MENTIONS_ENV_KEY]: mentions, [ansiArtKey]: new Map<Token, string>() };
+    const env = {
+      [MENTIONS_ENV_KEY]: mentions,
+      [shadersKey]: shaders,
+      [ansiArtKey]: new Map<Token, string>()
+    };
     const tokens = md!.parse(body, env);
     // Work from parsed fences so quoted/list blocks work and inline examples do
     // not load the terminal parser. Keep the results local to this render call.

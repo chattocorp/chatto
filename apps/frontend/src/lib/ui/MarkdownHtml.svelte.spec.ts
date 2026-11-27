@@ -151,6 +151,115 @@ describe('Sanitized SVG previews', () => {
   });
 });
 
+describe('GLSL shader previews', () => {
+  const webgl2 = !!document.createElement('canvas').getContext('webgl2');
+  const shader = (body: string) =>
+    renderMarkdown(
+      '```glsl rendered\nvoid mainImage(out vec4 c, in vec2 p) { ' + body + ' }\n```',
+      {
+        shaders: true
+      }
+    );
+
+  it.skipIf(!webgl2)('draws a valid shader and pauses it on request', async () => {
+    const { container } = render(MarkdownHtml, {
+      html: await shader('c = vec4(1.0, 0.0, 0.0, 1.0);')
+    });
+    await expect.poll(() => container.querySelector('canvas.shader-preview')).not.toBeNull();
+    const canvas = container.querySelector<HTMLCanvasElement>('canvas.shader-preview')!;
+    expect([...canvas.getContext('2d')!.getImageData(0, 0, 1, 1).data]).toEqual([255, 0, 0, 255]);
+    const pause = container.querySelector<HTMLButtonElement>('[aria-pressed]')!;
+    pause.click();
+    await expect.poll(() => pause.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it.skipIf(!webgl2)('sets iMouse from a click on the preview', async () => {
+    // Red: a pointer position exists. Blue: the button was released.
+    const { container } = render(MarkdownHtml, {
+      html: await shader(
+        'c = vec4(iMouse.x > 0.0 ? 1.0 : 0.0, 0.0, iMouse.z < 0.0 ? 1.0 : 0.0, 1.0);'
+      )
+    });
+    await expect.poll(() => container.querySelector('canvas.shader-preview')).not.toBeNull();
+    const canvas = container.querySelector<HTMLCanvasElement>('canvas.shader-preview')!;
+    const pixel = () => [...canvas.getContext('2d')!.getImageData(0, 0, 1, 1).data];
+    expect(pixel()).toEqual([0, 0, 0, 255]);
+    await userEvent.click(canvas);
+    await expect.poll(pixel).toEqual([255, 0, 255, 255]);
+  });
+
+  it.skipIf(!webgl2)('steers iMouse with a touch drag instead of app gestures', async () => {
+    // Red: the touch is down in the right half. Blue: the touch ended.
+    const { container } = render(MarkdownHtml, {
+      html: await shader(
+        'c = vec4(iMouse.z > 0.0 && iMouse.x > 320.0 ? 1.0 : 0.0, 0.0, iMouse.z < 0.0 ? 1.0 : 0.0, 1.0);'
+      )
+    });
+    await expect.poll(() => container.querySelector('canvas.shader-preview')).not.toBeNull();
+    const canvas = container.querySelector<HTMLCanvasElement>('canvas.shader-preview')!;
+    expect(getComputedStyle(canvas).touchAction).toBe('none');
+    expect(canvas.closest('[data-sidebar-swipe-ignore]')).toBe(canvas);
+    const pixel = () => [...canvas.getContext('2d')!.getImageData(0, 0, 1, 1).data];
+    const bounds = canvas.getBoundingClientRect();
+    const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', u?: number) =>
+      cdp().send('Input.dispatchTouchEvent', {
+        type,
+        touchPoints:
+          u === undefined
+            ? []
+            : [{ x: bounds.left + bounds.width * u, y: bounds.top + bounds.height / 2 }]
+      });
+    await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true });
+    try {
+      await touch('touchStart', 0.2);
+      for (const u of [0.4, 0.6, 0.8]) await touch('touchMove', u);
+      await expect.poll(pixel).toEqual([255, 0, 0, 255]);
+      await touch('touchEnd');
+      await expect.poll(pixel).toEqual([0, 0, 255, 255]);
+    } finally {
+      await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+    }
+  });
+
+  it.skipIf(!webgl2)('provides the Shadertoy font layout in iChannel0', async () => {
+    // Red: the "M" cell has ink. Green: the channel size. Blue: the space cell is empty.
+    const { container } = render(MarkdownHtml, {
+      html: await renderMarkdown(
+        [
+          '```glsl rendered',
+          'float ink(int code) {',
+          '  vec2 cell = vec2(float(code % 16), float(15 - code / 16));',
+          '  float most = 0.0;',
+          '  for (int i = 0; i < 16; i++)',
+          '    for (int j = 0; j < 16; j++)',
+          '      most = max(most, textureLod(iChannel0, (cell + (vec2(i, j) + 0.5) / 16.0) / 16.0, 0.0).r);',
+          '  return most;',
+          '}',
+          'void mainImage(out vec4 c, in vec2 p) {',
+          '  c = vec4(ink(77) > 0.5 ? 1.0 : 0.0, iChannelResolution[0].x == 1024.0 ? 1.0 : 0.0, ink(32) < 0.01 ? 1.0 : 0.0, 1.0);',
+          '}',
+          '```'
+        ].join('\n'),
+        { shaders: true }
+      )
+    });
+    await expect.poll(() => container.querySelector('canvas.shader-preview')).not.toBeNull();
+    const canvas = container.querySelector<HTMLCanvasElement>('canvas.shader-preview')!;
+    expect([...canvas.getContext('2d')!.getImageData(0, 0, 1, 1).data]).toEqual([
+      255, 255, 255, 255
+    ]);
+  });
+
+  it.skipIf(!webgl2)('reveals source when the shader does not compile', async () => {
+    const { container } = render(MarkdownHtml, { html: await shader('c = missing;') });
+    await expect
+      .poll(() => container.querySelector<HTMLButtonElement>('[data-code-tab="render"]')?.disabled)
+      .toBe(true);
+    expect(container.querySelector('canvas')).toBeNull();
+    expect(container.querySelector<HTMLElement>('.markdown-code-error')?.hidden).toBe(false);
+  });
+});
+
 describe('Mermaid previews', () => {
   it.each(['svg', 'mermaid'])(
     'reuses the loaded %s image when wheel scrolling remounts a row',

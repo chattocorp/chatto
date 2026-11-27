@@ -104,6 +104,10 @@ export function attachCodeFrames(
         started = true;
         if (frame.dataset.artifact === 'ansi') return;
         renderPanel.setAttribute('aria-busy', 'true');
+        if (frame.dataset.artifact === 'glsl') {
+          await startShader();
+          return;
+        }
         try {
           const cachedImage = artifactOwner && takeRenderedImage(artifactOwner, imageKey);
           const image =
@@ -163,6 +167,38 @@ export function attachCodeFrames(
             renderPanel.removeAttribute('aria-busy');
             if (!image.naturalWidth) fail();
           }
+        } catch {
+          fail();
+        }
+      }
+
+      /** Shaders draw on a canvas, outside the image cache and its size reservations. */
+      async function startShader() {
+        try {
+          const [{ isShaderUsable, loadShaderInputs }, { ShaderPreview }] = await Promise.all([
+            import('./glsl/renderer'),
+            import('$lib/ui/attachments')
+          ]);
+          await loadShaderInputs(source);
+          if (signal.aborted || failed) return;
+          if (!isShaderUsable(source)) {
+            fail();
+            return;
+          }
+          const preview = mount(ShaderPreview, {
+            target: renderPanel,
+            props: { source, onerror: fail }
+          });
+          if (failed) {
+            void unmount(preview);
+            return;
+          }
+          renderPanel.removeAttribute('aria-busy');
+          disposeCanvas = () => {
+            void unmount(preview);
+            disposeCanvas = undefined;
+          };
+          canvases.push(() => disposeCanvas?.());
         } catch {
           fail();
         }

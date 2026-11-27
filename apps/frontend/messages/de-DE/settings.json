@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Experimente",
       "title": "Experimentelle Funktionen",
-      "new_message_header": "Neue Nachrichtenkopfzeile"
+      "new_message_header": "Neue Nachrichtenkopfzeile",
+      "glsl_shaders": "GLSL-Shader-Vorschauen"
     },
     "desktop": {
       "title": "Updates",

@@ -3,6 +3,7 @@
     "code_source": "Código",
     "code_render": "Visualização",
     "code_render_failed": "Pré-visualização indisponível. O código continua disponível.",
+    "code_shader": "Shader GLSL",
     "keyboard_shortcuts": {
       "title": "Atalhos de teclado",
       "app": "Aplicação",

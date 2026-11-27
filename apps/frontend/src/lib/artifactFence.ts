@@ -1,12 +1,12 @@
 /** Presentation hints supported by the bundled Markdown renderer and composers. */
 export type ArtifactFence = {
-  language: 'svg' | 'mermaid' | 'ansi';
+  language: 'svg' | 'mermaid' | 'ansi' | 'glsl';
   presentation: 'code' | 'visual';
 };
 
 /** Accept only a complete artifact language with the optional `rendered` hint. */
 export function parseArtifactFence(info: string | null | undefined): ArtifactFence | null {
-  const match = /^(svg|mermaid|ansi)(\s+rendered)?$/i.exec(info?.trim() ?? '');
+  const match = /^(svg|mermaid|ansi|glsl)(\s+rendered)?$/i.exec(info?.trim() ?? '');
   if (!match) return null;
   return {
     language: match[1].toLowerCase() as ArtifactFence['language'],

@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Katsed",
       "title": "Katsefunktsioonid",
-      "new_message_header": "Uus sõnumipäis"
+      "new_message_header": "Uus sõnumipäis",
+      "glsl_shaders": "GLSL-varjurite eelvaated"
     },
     "desktop": {
       "title": "Uuendused",

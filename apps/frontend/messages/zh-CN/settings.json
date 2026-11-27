@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "实验",
       "title": "实验性功能",
-      "new_message_header": "新版消息标头"
+      "new_message_header": "新版消息标头",
+      "glsl_shaders": "GLSL 着色器预览"
     },
     "desktop": {
       "title": "更新",

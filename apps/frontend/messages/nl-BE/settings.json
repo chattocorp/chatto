@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Experimenten",
       "title": "Experimentele functies",
-      "new_message_header": "Nieuwe berichtkop"
+      "new_message_header": "Nieuwe berichtkop",
+      "glsl_shaders": "Voorbeelden van GLSL-shaders"
     },
     "desktop": {
       "title": "Updates",

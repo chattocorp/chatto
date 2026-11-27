@@ -3,6 +3,7 @@
     "code_source": "Source",
     "code_render": "Rendu",
     "code_render_failed": "Aperçu indisponible. La source reste disponible.",
+    "code_shader": "Nuanceur GLSL",
     "keyboard_shortcuts": {
       "title": "Raccourcis clavier",
       "app": "Application",

@@ -3,6 +3,7 @@
     "code_source": "Sorgente",
     "code_render": "Vista",
     "code_render_failed": "Anteprima non disponibile. Il sorgente resta disponibile.",
+    "code_shader": "Shader GLSL",
     "keyboard_shortcuts": {
       "title": "Scorciatoie da tastiera",
       "app": "App",

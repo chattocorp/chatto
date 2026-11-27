@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "ניסויים",
       "title": "תכונות ניסיוניות",
-      "new_message_header": "כותרת הודעה חדשה"
+      "new_message_header": "כותרת הודעה חדשה",
+      "glsl_shaders": "תצוגות מקדימות של הצללות GLSL"
     },
     "desktop": {
       "title": "עדכונים",

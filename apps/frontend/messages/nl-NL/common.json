@@ -3,6 +3,7 @@
     "code_source": "Bron",
     "code_render": "Weergave",
     "code_render_failed": "Voorbeeld niet beschikbaar. De bron blijft beschikbaar.",
+    "code_shader": "GLSL-shader",
     "keyboard_shortcuts": {
       "title": "Sneltoetsen",
       "app": "App",

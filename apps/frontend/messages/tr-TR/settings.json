@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Deneyler",
       "title": "Deneysel özellikler",
-      "new_message_header": "Yeni ileti başlığı"
+      "new_message_header": "Yeni ileti başlığı",
+      "glsl_shaders": "GLSL gölgelendirici önizlemeleri"
     },
     "desktop": {
       "title": "Güncellemeler",

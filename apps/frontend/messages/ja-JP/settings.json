@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "実験",
       "title": "試験的な機能",
-      "new_message_header": "新しいメッセージヘッダー"
+      "new_message_header": "新しいメッセージヘッダー",
+      "glsl_shaders": "GLSL シェーダーのプレビュー"
     },
     "desktop": {
       "title": "更新",

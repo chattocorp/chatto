@@ -3,6 +3,7 @@
     "code_source": "Исходник",
     "code_render": "Просмотр",
     "code_render_failed": "Предпросмотр недоступен. Исходник по-прежнему доступен.",
+    "code_shader": "Шейдер GLSL",
     "keyboard_shortcuts": {
       "title": "Сочетания клавиш",
       "app": "Приложение",

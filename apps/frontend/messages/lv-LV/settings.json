@@ -3,7 +3,8 @@
     "experiments": {
       "nav": "Eksperimenti",
       "title": "Eksperimentālās funkcijas",
-      "new_message_header": "Jauna ziņojuma galvene"
+      "new_message_header": "Jauna ziņojuma galvene",
+      "glsl_shaders": "GLSL ēnotāju priekšskatījumi"
     },
     "desktop": {
       "title": "Atjauninājumi",
