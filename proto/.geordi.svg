@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!--
+    SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
+    SPDX-License-Identifier: AGPL-3.0-or-later
+    Geordi section icon for proto/: a hazard sign, because these files are
+    storage and API contracts.
+  -->
+  <path d="M32 3 62 58H2Z" fill="#f59e0b" stroke="#111827" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M28.5 22h7l-1.5 20h-4Z" fill="#111827"/>
+  <circle cx="32" cy="49" r="3.8" fill="#111827"/>
+</svg>
