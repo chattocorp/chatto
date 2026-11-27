@@ -23,10 +23,16 @@ const (
 
 // EmailDelivery is encrypted before storage in the expiring runtime record.
 type EmailDelivery struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	To            string                 `protobuf:"bytes,1,opt,name=to,proto3" json:"to,omitempty"`
-	Subject       string                 `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
-	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	To      string                 `protobuf:"bytes,1,opt,name=to,proto3" json:"to,omitempty"`
+	Subject string                 `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
+	// Plain-text body.
+	Body string `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	// Optional HTML alternative to body. Records from older servers omit it and
+	// are sent as plain text.
+	HtmlBody string `protobuf:"bytes,4,opt,name=html_body,json=htmlBody,proto3" json:"html_body,omitempty"`
+	// Optional sender display name, used when the configured sender has none.
+	FromName      string `protobuf:"bytes,5,opt,name=from_name,json=fromName,proto3" json:"from_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -78,6 +84,20 @@ func (x *EmailDelivery) GetSubject() string {
 func (x *EmailDelivery) GetBody() string {
 	if x != nil {
 		return x.Body
+	}
+	return ""
+}
+
+func (x *EmailDelivery) GetHtmlBody() string {
+	if x != nil {
+		return x.HtmlBody
+	}
+	return ""
+}
+
+func (x *EmailDelivery) GetFromName() string {
+	if x != nil {
+		return x.FromName
 	}
 	return ""
 }
@@ -139,11 +159,13 @@ var File_chatto_core_runtime_state_v1_email_delivery_proto protoreflect.FileDesc
 
 const file_chatto_core_runtime_state_v1_email_delivery_proto_rawDesc = "" +
 	"\n" +
-	"1chatto/core/runtime_state/v1/email_delivery.proto\x12\x1cchatto.core.runtime_state.v1\"M\n" +
+	"1chatto/core/runtime_state/v1/email_delivery.proto\x12\x1cchatto.core.runtime_state.v1\"\x87\x01\n" +
 	"\rEmailDelivery\x12\x0e\n" +
 	"\x02to\x18\x01 \x01(\tR\x02to\x12\x18\n" +
 	"\asubject\x18\x02 \x01(\tR\asubject\x12\x12\n" +
-	"\x04body\x18\x03 \x01(\tR\x04body\"K\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x12\x1b\n" +
+	"\thtml_body\x18\x04 \x01(\tR\bhtmlBody\x12\x1b\n" +
+	"\tfrom_name\x18\x05 \x01(\tR\bfromName\"K\n" +
 	"\x13SealedEmailDelivery\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\fR\x05nonce\x12\x1e\n" +
 	"\n" +

@@ -60,7 +60,7 @@ func (m *EmailJobs) SendContext(ctx context.Context, msg email.Message) error {
 	}
 	id := hex.EncodeToString(idBytes)
 	key := emailDeliveryKey(id)
-	plain, err := proto.Marshal(&runtimestatev1.EmailDelivery{To: msg.To, Subject: msg.Subject, Body: msg.Body})
+	plain, err := proto.Marshal(&runtimestatev1.EmailDelivery{To: msg.To, FromName: msg.FromName, Subject: msg.Subject, Body: msg.Body, HtmlBody: msg.HTMLBody})
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (m *EmailJobs) deliver(ctx context.Context, job jobs.Job) error {
 	defer cancelAttempt()
 	attemptCtx, cancel := context.WithDeadline(ctx, job.ExpiresAt)
 	defer cancel()
-	if err := m.sender.SendContext(attemptCtx, email.Message{To: message.To, Subject: message.Subject, Body: message.Body}); err != nil {
+	if err := m.sender.SendContext(attemptCtx, email.Message{To: message.To, FromName: message.FromName, Subject: message.Subject, Body: message.Body, HTMLBody: message.HtmlBody}); err != nil {
 		return &jobs.Failure{Category: "delivery_failed"}
 	}
 	// Transport acceptance must survive normal shutdown or an attempt timeout.

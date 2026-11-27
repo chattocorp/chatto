@@ -31,7 +31,7 @@ func TestEmailJobsPersistPrivateContentAndRetry(t *testing.T) {
 	ctx := testContext(t)
 	transport := &retryMailSender{MockSender: email.NewMockSender(true)}
 	sender := c.NewEmailJobs(transport)
-	msg := email.Message{To: "secret@example.invalid", Subject: "Private subject", Body: "code 123456", ExpiresAt: time.Now().Add(time.Minute)}
+	msg := email.Message{To: "secret@example.invalid", FromName: "Private server", Subject: "Private subject", Body: "code 123456", HTMLBody: "<p>html 123456</p>", ExpiresAt: time.Now().Add(time.Minute)}
 	require.NoError(t, sender.SendContext(ctx, msg))
 	require.Zero(t, transport.calls.Load(), "request must not call transport")
 	info, err := c.storage.jobsStream.Info(ctx)
@@ -39,12 +39,12 @@ func TestEmailJobsPersistPrivateContentAndRetry(t *testing.T) {
 	raw, err := c.storage.jobsStream.GetMsg(ctx, info.State.LastSeq)
 	require.NoError(t, err)
 	id := strings.Split(raw.Subject, ".")[2]
-	for _, secret := range []string{msg.To, msg.Subject, msg.Body} {
+	for _, secret := range []string{msg.To, msg.FromName, msg.Subject, msg.Body, msg.HTMLBody} {
 		require.NotContains(t, string(raw.Data), secret)
 	}
 	entry, err := c.storage.runtimeStateKV.Get(ctx, emailDeliveryKey(id))
 	require.NoError(t, err)
-	for _, secret := range []string{msg.To, msg.Subject, msg.Body} {
+	for _, secret := range []string{msg.To, msg.FromName, msg.Subject, msg.Body, msg.HTMLBody} {
 		require.NotContains(t, string(entry.Value()), secret)
 	}
 	// A fresh core and sender can recover the accepted job without request memory.
@@ -57,6 +57,9 @@ func TestEmailJobsPersistPrivateContentAndRetry(t *testing.T) {
 	defer func() { cancel(); <-done }()
 	require.Eventually(t, func() bool { return len(transport.Messages()) == 1 }, 10*time.Second, 10*time.Millisecond)
 	require.Equal(t, int32(2), transport.calls.Load())
+	delivered := transport.Messages()[0]
+	require.Equal(t, msg.FromName, delivered.FromName)
+	require.Equal(t, msg.HTMLBody, delivered.HTMLBody)
 	require.Eventually(t, func() bool {
 		_, err := c.storage.runtimeStateKV.Get(ctx, emailDeliveryKey(id))
 		return errors.Is(err, jetstream.ErrKeyNotFound)

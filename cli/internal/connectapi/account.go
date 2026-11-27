@@ -3,7 +3,6 @@ package connectapi
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -106,13 +105,11 @@ func (s *accountService) RequestEmailVerification(ctx context.Context, req *conn
 			serverName = name
 		}
 	}
-	expiration := emailOTPExpirationText(s.api.config.Auth.EmailOTP.TTLOrDefault())
-	err = s.api.emailSender.SendContext(ctx, email.Message{
-		ExpiresAt: expiresAt,
-		To:        address,
-		Subject:   fmt.Sprintf("Verify your email for %s", serverName),
-		Body:      fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code expires %s after the request.\n\nIf you didn't request this, you can ignore this email.", serverName, code, expiration),
-	})
+	branding := email.Branding{ServerName: serverName, ServerURL: s.api.config.Webserver.URL}
+	msg, err := email.EmailVerificationCode(branding, address, code, s.api.config.Auth.EmailOTP.TTLOrDefault(), expiresAt)
+	if err == nil {
+		err = s.api.emailSender.SendContext(ctx, msg)
+	}
 	if err != nil {
 		_ = s.api.core.CancelEmailVerificationCode(ctx, caller.UserID, address, code)
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("email delivery failed"))
@@ -178,24 +175,6 @@ func verifiedEmailsToAPI(emails []core.VerifiedEmail) []*apiv1.VerifiedEmail {
 		})
 	}
 	return out
-}
-
-func emailOTPExpirationText(ttl time.Duration) string {
-	switch {
-	case ttl%time.Hour == 0:
-		return pluralDuration(int(ttl/time.Hour), "hour")
-	case ttl%time.Minute == 0:
-		return pluralDuration(int(ttl/time.Minute), "minute")
-	default:
-		return pluralDuration(int(ttl/time.Second), "second")
-	}
-}
-
-func pluralDuration(value int, unit string) string {
-	if value == 1 {
-		return fmt.Sprintf("1 %s", unit)
-	}
-	return fmt.Sprintf("%d %ss", value, unit)
 }
 
 func (s *accountService) GetSettings(ctx context.Context, _ *connect.Request[apiv1.GetSettingsRequest]) (*connect.Response[apiv1.GetSettingsResponse], error) {
