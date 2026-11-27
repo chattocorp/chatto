@@ -12,6 +12,7 @@
  * menu camera section can only be tested manually with `mise dev-full`.
  */
 
+import { roomHeaderAction } from './pages/RoomPage';
 import type { Page } from '@playwright/test';
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
@@ -125,10 +126,7 @@ async function listCallParticipantsViaConnect(
 }
 
 async function openCallTab(page: Page) {
-  await page
-    .locator('[data-testid="room-sidebar-toggle"]:visible')
-    .getByLabel('Call', { exact: true })
-    .click();
+  await (await roomHeaderAction(page, 'Call')).click();
 }
 
 test.describe('Voice calls', () => {
@@ -137,9 +135,7 @@ test.describe('Voice calls', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const callTab = page
-      .locator('[data-testid="room-sidebar-toggle"]:visible')
-      .getByLabel('Call', { exact: true });
+    const callTab = await roomHeaderAction(page, 'Call');
     await expect(callTab).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
@@ -153,9 +149,7 @@ test.describe('Voice calls', () => {
       await dmPage.startConversation(userB.login);
 
       // Call tab should be visible in the DM room sidebar toggle
-      const callTab = page
-        .locator('[data-testid="room-sidebar-toggle"]:visible')
-        .getByLabel('Call', { exact: true });
+      const callTab = await roomHeaderAction(page, 'Call');
       await expect(callTab).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
     });
   });
@@ -559,9 +553,7 @@ test.describe('Voice calls', () => {
       await expect(callIcon.getByTestId('active-call-pulse-icon')).toBeVisible();
 
       await chatPage2.enterRoom(roomName);
-      const callTab = page2
-        .locator('[data-testid="room-sidebar-toggle"]:visible')
-        .getByLabel('Call', { exact: true });
+      const callTab = await roomHeaderAction(page2, 'Call');
       await expect(callTab.getByTestId('active-call-pulse-icon')).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });

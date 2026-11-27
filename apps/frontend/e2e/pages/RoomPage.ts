@@ -3,6 +3,19 @@ import { TIMEOUTS } from '../constants';
 import * as routes from '../routes';
 import { MessageComponent } from './MessageComponent';
 
+/** Reveal a room header action, using the three-dot button when needed. */
+export async function roomHeaderAction(page: Page, name: string): Promise<Locator> {
+  const header = page.getByTestId('room-main-pane').locator('[data-page-reveal]').first();
+  const action = header.getByRole('button', { name, exact: true });
+  const disclosure = header.getByRole('button', { name: /^Actions for #/ });
+  await expect(action.or(disclosure).first()).toBeVisible();
+  if (!(await action.isVisible()) && (await disclosure.getAttribute('aria-expanded')) === 'false') {
+    await disclosure.click();
+  }
+  await expect(action).toBeVisible();
+  return action;
+}
+
 /**
  * Page object for room interactions (message sending, attachments).
  */
@@ -118,18 +131,9 @@ export class RoomPage {
   /** Open the room's Members panel when it is currently closed. */
   async openMembersPanel(): Promise<void> {
     if (await this.memberList.isVisible()) return;
-
-    const actions = this.page.getByRole('button', { name: /^Actions for #/ });
-    const membersToggle = this.page
-      .locator('[data-testid="room-sidebar-toggle"]:visible')
-      .getByRole('button', { name: 'Members', exact: true });
-    await expect(membersToggle.or(actions).first()).toBeVisible();
-    if ((await actions.isVisible()) && (await actions.getAttribute('aria-expanded')) === 'false') {
-      await actions.click();
-    }
+    const membersToggle = await roomHeaderAction(this.page, 'Members');
 
     // The persisted panel can open before its member list has finished loading.
-    await expect(membersToggle).toBeVisible();
     if ((await membersToggle.getAttribute('aria-pressed')) !== 'true') {
       await membersToggle.click();
     }

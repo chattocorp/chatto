@@ -1,3 +1,4 @@
+import { roomHeaderAction } from './pages/RoomPage';
 import { expect, type Page } from '@playwright/test';
 import { TIMEOUTS } from './constants';
 import { test } from './setup';
@@ -53,10 +54,7 @@ test('room Files sidebar previews files and separately jumps to their messages',
     timeout: TIMEOUTS.REALTIME_EVENT
   });
 
-  await page
-    .locator('[data-testid="room-sidebar-toggle"]:visible')
-    .getByLabel('Files', { exact: true })
-    .click();
+  await (await roomHeaderAction(page, 'Files')).click();
   await expect(page.getByRole('heading', { name: 'Files' })).toBeVisible();
 
   const filesPanel = page.locator('aside[aria-label="Room extras"] nav[aria-label="Files"]');
@@ -140,10 +138,7 @@ test('Files keeps its rows and scroll position during room and closed-thread pos
   const root = await roomPage.sendMessage('Files regression root');
   const rootId = await root.getEventId();
   if (!rootId) throw new Error('Missing root message ID');
-  await page
-    .locator('[data-testid="room-sidebar-toggle"]:visible')
-    .getByLabel('Files', { exact: true })
-    .click();
+  await (await roomHeaderAction(page, 'Files')).click();
   const panel = page.locator('aside[aria-label="Room extras"] nav[aria-label="Files"]');
   await expect(panel.getByTestId('room-file-row')).toHaveCount(10);
   await panel.hover();

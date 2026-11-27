@@ -1,3 +1,4 @@
+import { roomHeaderAction } from './pages/RoomPage';
 import { expect, type Locator, type Page } from '@playwright/test';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import { createAndLoginTestUser } from './fixtures/testUser';
@@ -70,7 +71,7 @@ test.describe('message search', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
     await roomPage.sendMessage('Sidebar timestamp example');
-    await page.getByRole('button', { name: 'Search in this room', exact: true }).click();
+    await (await roomHeaderAction(page, 'Search in this room')).click();
 
     const input = page.getByTestId('room-search-query');
     const result = page.locator('[data-room-search-result-id]', {
@@ -103,8 +104,7 @@ test.describe('message search', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const toggle = page.getByRole('button', { name: 'Search in this room', exact: true });
-    await expect(toggle).toBeVisible();
+    const searchToggle = () => roomHeaderAction(page, 'Search in this room');
     // Chrome already loaded server availability. Opening another search session
     // must reuse it rather than show a second loading state.
     const statusRequests: string[] = [];
@@ -113,13 +113,13 @@ test.describe('message search', () => {
         statusRequests.push(request.url());
       }
     });
-    await toggle.click();
+    await (await searchToggle()).click();
     const input = page.getByTestId('room-search-query');
     await expect(input).toBeFocused();
 
-    await page
-      .getByRole('button', { name: 'Search in this room', exact: true, pressed: true })
-      .click();
+    const activeToggle = await searchToggle();
+    await expect(activeToggle).toHaveAttribute('aria-pressed', 'true');
+    await activeToggle.click();
     await expect(input).toHaveCount(0);
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+/' : 'Control+/');
     await expect(input).toBeFocused();
@@ -143,9 +143,9 @@ test.describe('message search', () => {
     // and require a retry. Once startup settles, all search views must reuse it.
     expect(statusRequests.length).toBeGreaterThan(0);
     const requestsAfterReload = statusRequests.length;
-    await toggle.click();
+    await (await searchToggle()).click();
     await expect(input).toHaveCount(0);
-    await toggle.click();
+    await (await searchToggle()).click();
     await expect(input).toBeFocused();
     await expect(input).toBeEnabled();
     await openSearch(page);
@@ -243,7 +243,7 @@ test.describe('message search', () => {
       await chatPage.expectRoomHeaderVisible(roomName);
 
       const roomURL = page.url();
-      await page.getByTitle('Leave room').click();
+      await (await roomHeaderAction(page, 'Leave room')).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Leave room' }).click();
       await page.waitForURL((url) => url.href !== roomURL, {
         timeout: TIMEOUTS.REALTIME_EVENT
