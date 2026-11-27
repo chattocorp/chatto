@@ -45,7 +45,7 @@ actions, so this component does not depend on app-shell state.
   <div data-testid="server-overview-direct-messages">
     <Panel
       title={m('room_list.direct_messages')}
-      icon="iconify icon-[uil--comment-alt-message]"
+      icon="iconify icon-[uil--comment-alt-message] size-5"
       noPadding
     >
       <ul class="selectable-list">
@@ -64,7 +64,7 @@ actions, so this component does not depend on app-shell state.
           <!-- The link opens the conversation; each badge opens its newest notification. -->
           <li class="flex min-w-0 items-center gap-1 selectable-list-item pe-2">
             <a
-              class="flex min-w-0 flex-1 items-center gap-2 py-1.5 ps-3"
+              class="flex min-w-0 flex-1 items-center gap-2 py-1.5 ps-4"
               href={conversationPath(serverId, conversation.id)}
             >
               <span class="flex shrink-0 -space-x-1" aria-hidden="true">

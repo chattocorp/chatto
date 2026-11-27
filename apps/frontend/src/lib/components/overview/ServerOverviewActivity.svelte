@@ -54,7 +54,7 @@ action, so this component does not depend on app-shell state.
 </script>
 
 {#if calls.length > 0 || catchUp.length > 0}
-  <Panel title={m('chat.overview.happening_now')} icon="iconify icon-[uil--bolt]" noPadding>
+  <Panel title={m('chat.overview.happening_now')} icon="iconify icon-[uil--bolt] size-5" noPadding>
     {#if calls.length > 0}
       <ul class="selectable-list" data-testid="server-overview-calls">
         {#each calls as call (call.roomId)}
@@ -65,7 +65,7 @@ action, so this component does not depend on app-shell state.
             data-testid="server-overview-call"
           >
             <a
-              class="flex min-w-0 flex-1 items-center gap-2 py-1.5 ps-3"
+              class="flex min-w-0 flex-1 items-center gap-2 py-1.5 ps-4"
               href={roomHref(call.roomId)}
             >
               <span class="sidebar-icon text-action"><PulseIcon icon="icon-[uil--phone]" /></span>
@@ -113,7 +113,7 @@ action, so this component does not depend on app-shell state.
     {#if catchUp.length > 0}
       <div data-testid="server-overview-catch-up">
         {#if calls.length > 0}
-          <h3 class="px-3 pt-3 pb-1 section-label text-muted">
+          <h3 class="px-4 pt-3 pb-1 section-label text-muted">
             {m('chat.overview.catch_up')}
           </h3>
         {/if}
@@ -122,10 +122,10 @@ action, so this component does not depend on app-shell state.
             <!-- The link opens the room; each badge opens its newest notification, as in the sidebar. -->
             <li class="flex min-w-0 items-center gap-1 selectable-list-item pe-2">
               <a
-                class="flex min-w-0 flex-1 items-center gap-2 py-1.5 ps-3"
+                class="flex min-w-0 flex-1 items-center gap-2 py-1.5 ps-4"
                 href={roomHref(room.id)}
               >
-                <span aria-hidden="true" class="shrink-0 text-muted/60">#</span>
+                <span aria-hidden="true" class="w-5 shrink-0 text-center text-muted/60">#</span>
                 <bdi class="min-w-0 flex-1 truncate font-medium">{room.name}</bdi>
                 {#if room.importantCount === 0 && room.otherCount === 0}
                   <!-- The badge buttons' 24 px slot, so dots and badges share a centre line. -->
