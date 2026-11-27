@@ -1,3 +1,4 @@
+import { roomHeaderAction } from './pages/RoomPage';
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
@@ -106,7 +107,7 @@ test('can leave room immediately after creating it', async ({ page, chatPage }) 
   const roomUrl = page.url();
 
   // Click the leave room button - should show confirmation modal
-  await page.getByTitle('Leave room').click();
+  await (await roomHeaderAction(page, 'Leave room')).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByText(`Are you sure you want to leave`)).toBeVisible();
 
@@ -137,7 +138,7 @@ test('can cancel leaving a room', async ({ page, chatPage }) => {
   const roomUrl = page.url();
 
   // Click the leave room button - should show confirmation modal
-  await page.getByTitle('Leave room').click();
+  await (await roomHeaderAction(page, 'Leave room')).click();
   await expect(page.getByRole('dialog')).toBeVisible();
 
   // Cancel leave

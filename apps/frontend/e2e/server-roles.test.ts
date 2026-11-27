@@ -1,3 +1,4 @@
+import { roomHeaderAction } from './pages/RoomPage';
 import { expect, type Page } from '@playwright/test';
 import { RealtimeServerFrame } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { test } from './setup';
@@ -1324,7 +1325,7 @@ test.describe('Server Permission Enforcement', () => {
 
       // Navigate to the room
       await page.goto(routes.room(roomId));
-      await expect(page.getByTitle('Leave room')).toBeVisible();
+      await expect(await roomHeaderAction(page, 'Leave room')).toBeVisible();
 
       // Bots stays available to every signed-in human for owned bots, so the
       // administration entry remains while room management stays hidden.
@@ -1358,7 +1359,7 @@ test.describe('Server Permission Enforcement', () => {
 
       // Navigate to the room
       await page.goto(routes.room(roomId));
-      await expect(page.getByTitle('Leave room')).toBeVisible();
+      await expect(await roomHeaderAction(page, 'Leave room')).toBeVisible();
 
       await serverAdminPage.settingsLink.click();
       await expect(serverAdminPage.roomsNavItem).toBeVisible();

@@ -1353,7 +1353,7 @@ colour source for Safari's bottom toolbar. It does not receive pointer input
 or take layout space, so it cannot block controls or reduce the composer area.
 
 Set `collapseActions` on `PaneHeader` to collapse its `actions` snippet behind
-a three-dot button when the pane is narrower than 32 rem. Header icon buttons,
+a three-dot button when the pane is narrower than 32 rem. Room headers use `collapseActions="wide"` to give the title more space and collapse actions below 48 rem. Header icon buttons,
 back links, and labelled panel controls have targets at least 44 px wide and
 44 px high in comfortable density. Compact controls stay 40 px high.
 Icon sizes do not change.

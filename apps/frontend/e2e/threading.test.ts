@@ -1,3 +1,4 @@
+import { roomHeaderAction } from './pages/RoomPage';
 import { expect, type Locator, type Page } from '@playwright/test';
 import { createAndLoginTestUser, loginAsAdmin, openServer } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
@@ -1036,7 +1037,9 @@ test.describe('Message Threading', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
-    await page.getByRole('button', { name: 'Members', exact: true, pressed: true }).click();
+    const members = await roomHeaderAction(page, 'Members');
+    await expect(members).toHaveAttribute('aria-pressed', 'true');
+    await members.click();
     await expect(roomPage.memberList).not.toBeVisible();
     await page.evaluate(() => {
       const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
