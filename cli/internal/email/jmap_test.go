@@ -380,3 +380,23 @@ func assertJMAPSubmissionRequest(t *testing.T, calls [][]json.RawMessage) {
 		t.Errorf("onSuccessDestroyEmail = %#v, want [#submission]", submit.OnSuccessDestroyEmail)
 	}
 }
+
+func TestJMAPBodyStructure(t *testing.T) {
+	plain := Message{Body: "text"}
+	if got := jmapBodyStructure(plain); got.Type != "text/plain" || got.PartID != "text" || len(got.SubParts) != 0 {
+		t.Errorf("plain structure = %#v", got)
+	}
+	if values := jmapBodyValues(plain); len(values) != 1 || values["text"].Value != "text" {
+		t.Errorf("plain values = %#v", values)
+	}
+
+	withHTML := Message{Body: "text", HTMLBody: "<p>html</p>"}
+	got := jmapBodyStructure(withHTML)
+	if got.Type != "multipart/alternative" || got.PartID != "" || len(got.SubParts) != 2 ||
+		got.SubParts[0].Type != "text/plain" || got.SubParts[1].Type != "text/html" || got.SubParts[1].PartID != "html" {
+		t.Errorf("HTML structure = %#v", got)
+	}
+	if values := jmapBodyValues(withHTML); values["html"].Value != "<p>html</p>" || values["text"].Value != "text" {
+		t.Errorf("HTML values = %#v", values)
+	}
+}

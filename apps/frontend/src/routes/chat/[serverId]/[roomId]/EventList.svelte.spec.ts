@@ -644,6 +644,31 @@ describe('EventList jump completion', () => {
     }
   });
 
+  it('cancels a pending in-window jump when the reader returns to present', async () => {
+    let jumpState!: JumpToMessageState;
+    const onPresentRequested = vi.fn();
+    const loadLatest = vi.fn(async () => true);
+    render(EventListTestHarness, {
+      props: {
+        eventIds: ['msg-visible'],
+        scrollToEventId: 'msg-awaiting-mount',
+        onPresentRequested,
+        onJumpToPresent: loadLatest,
+        onComposerReady: (context) => {
+          jumpState = context.jumpState;
+        }
+      }
+    });
+
+    const button = page.getByTestId('jump-to-present');
+    await expect.element(button).toBeVisible();
+    (button.element() as HTMLButtonElement).click();
+
+    expect(jumpState.scrollToEventId).toBeNull();
+    expect(onPresentRequested).toHaveBeenCalledOnce();
+    expect(loadLatest).not.toHaveBeenCalled();
+  });
+
   it('scrolls to present after the latest window finishes loading', async () => {
     let finishLoading: ((loaded: boolean) => void) | undefined;
     const latestLoaded = new Promise<boolean>((resolve) => {
