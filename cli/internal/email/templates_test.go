@@ -27,7 +27,7 @@ func TestTemplates(t *testing.T) {
 			},
 			subject: "482913 is your code for Acme <Community>",
 			textHas: []string{"Welcome to Acme <Community>", "    482913\n", "expires in 15 minutes", "sign up on chat.acme.example"},
-			htmlHas: []string{"Welcome to Acme &lt;Community&gt;", "482913", "background:#f0f9ff", "color:#0369a1"},
+			htmlHas: []string{"Welcome to Acme &lt;Community&gt;", "482913", "background-color:#f0f9ff", "color:#0369a1"},
 			// The server name is escaped everywhere in the HTML part.
 			htmlLacks: []string{"<Community>"},
 		},
@@ -47,7 +47,7 @@ func TestTemplates(t *testing.T) {
 			},
 			subject: "Reset your Acme <Community> password",
 			textHas: []string{"Set a new password:\n" + resetURL + "\n", "expires in 1 hour"},
-			htmlHas: []string{`href="https://chat.acme.example/reset-password?token=abc&amp;x=1"`, "background:#0369a1", "Set a new password"},
+			htmlHas: []string{`href="https://chat.acme.example/reset-password?token=abc&amp;x=1"`, "background-color:#0369a1", "Set a new password"},
 		},
 	}
 	for _, tt := range tests {
@@ -77,6 +77,11 @@ func TestTemplates(t *testing.T) {
 					t.Errorf("HTML body contains %q", unwanted)
 				}
 			}
+			for _, want := range []string{"mso-hide:all", "<!--[if mso]><table", "<![endif]-->"} {
+				if !strings.Contains(strings.ReplaceAll(msg.HTMLBody, ": ", ":"), want) {
+					t.Errorf("HTML body lacks Outlook handling %q", want)
+				}
+			}
 			if strings.Contains(msg.HTMLBody, "ZgotmplZ") {
 				t.Error("HTML template rejected a value")
 			}
@@ -90,7 +95,7 @@ func TestTemplatesUseCustomAccent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(msg.HTMLBody, "color:#115e59") || !strings.Contains(msg.HTMLBody, "background:#f0fdfa") {
+	if !strings.Contains(msg.HTMLBody, "color:#115e59") || !strings.Contains(msg.HTMLBody, "background-color:#f0fdfa") {
 		t.Error("HTML body does not use the custom accent")
 	}
 	// Without a usable URL, the footer names the server.

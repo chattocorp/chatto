@@ -6,14 +6,28 @@
     <meta name="color-scheme" content="light" />
     <title>{{.Subject}}</title>
   </head>
-  <body style="margin: 0; padding: 0; background: #f4f4f5">
-    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0">{{.Preheader}}</div>
+  <body style="margin: 0; padding: 0; background-color: #f4f4f5">
+    <div
+      style="
+        display: none;
+        mso-hide: all;
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        font-size: 1px;
+        line-height: 1px;
+        color: #f4f4f5;
+      "
+    >
+      {{.Preheader}}
+    </div>
     <table
       role="presentation"
       width="100%"
       cellpadding="0"
       cellspacing="0"
-      style="background: #f4f4f5"
+      bgcolor="#f4f4f5"
+      style="background-color: #f4f4f5"
     >
       <tr>
         <td
@@ -24,6 +38,7 @@
               -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
           "
         >
+          {{msoOpen}}
           <table
             role="presentation"
             width="100%"
@@ -32,12 +47,15 @@
             style="max-width: 520px"
           >
             <tr>
-              <td style="padding: 0 8px 16px; font-size: 15px; font-weight: 700; color: #18181b">
+              <td style="padding: 0 8px 16px; font-size: 15px; font-weight: bold; color: #18181b">
                 {{.ServerName}}
               </td>
             </tr>
             <tr>
-              <td style="background: #ffffff; border-radius: 12px; padding: 32px">
+              <td
+                bgcolor="#ffffff"
+                style="background-color: #ffffff; border-radius: 12px; padding: 32px"
+              >
                 <h1 style="margin: 0 0 12px; font-size: 22px; line-height: 1.3; color: #18181b">
                   {{.Heading}}
                 </h1>
@@ -49,7 +67,8 @@
                   <tr>
                     <td
                       align="center"
-                      style="background:{{.Accent.Tint}};border-radius:8px;padding:20px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:.25em;color:{{.Accent.Strong}};"
+                      bgcolor="{{.Accent.Tint}}"
+                      style="background-color:{{.Accent.Tint}};border-radius:8px;padding:20px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:32px;font-weight:bold;letter-spacing:8px;color:{{.Accent.Strong}};"
                     >
                       {{.Code}}
                     </td>
@@ -69,14 +88,15 @@
                 {{- end}} {{- if .ButtonURL}}
                 <table role="presentation" cellpadding="0" cellspacing="0">
                   <tr>
-                    <td style="background:{{.Accent.Strong}};border-radius:8px;">
+                    <td
+                      bgcolor="{{.Accent.Strong}}"
+                      style="background-color:{{.Accent.Strong}};border-radius:8px;padding:12px 24px;"
+                    >
                       <a
                         href="{{.ButtonURL}}"
                         style="
-                          display: inline-block;
-                          padding: 12px 24px;
                           font-size: 15px;
-                          font-weight: 600;
+                          font-weight: bold;
                           color: #ffffff;
                           text-decoration: none;
                         "
@@ -100,6 +120,7 @@
               </td>
             </tr>
           </table>
+          {{msoClose}}
         </td>
       </tr>
     </table>

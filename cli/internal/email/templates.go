@@ -16,8 +16,21 @@ var templateFS embed.FS
 // The layouts parse at package initialization, so a broken template stops the
 // process at startup instead of failing a delivery.
 var (
-	htmlLayout = htmltemplate.Must(htmltemplate.ParseFS(templateFS, "templates/layout.html"))
+	htmlLayout = htmltemplate.Must(htmltemplate.New("layout.html").Funcs(htmltemplate.FuncMap{
+		// html/template removes comments, so the layout emits Outlook
+		// conditional comments through these functions. Outlook for Windows
+		// ignores max-width; the fixed-width table keeps the card at 520px.
+		"msoOpen":  func() htmltemplate.HTML { return msoOpen },
+		"msoClose": func() htmltemplate.HTML { return msoClose },
+	}).ParseFS(templateFS, "templates/layout.html"))
 	textLayout = texttemplate.Must(texttemplate.ParseFS(templateFS, "templates/layout.txt"))
+)
+
+// Outlook-only wrapper around the card. Only Outlook for Windows reads
+// conditional comments.
+const (
+	msoOpen  htmltemplate.HTML = `<!--[if mso]><table role="presentation" width="520" align="center" cellpadding="0" cellspacing="0"><tr><td><![endif]-->`
+	msoClose htmltemplate.HTML = `<!--[if mso]></td></tr></table><![endif]-->`
 )
 
 // Accent holds the two accent shades of the HTML layout. Values must be CSS
