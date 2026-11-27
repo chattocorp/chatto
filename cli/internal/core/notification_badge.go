@@ -46,7 +46,7 @@ func (m *NotificationOccurrenceModel) HasNotificationUnread(ctx context.Context,
 	}
 	var unread bool
 	if err := m.core.notificationMaterializer.decisions.Projection().withCurrent(query.now, func(snapshot *notificationDecisionSnapshot) error {
-		unread = snapshot.hasBadgeAttention(query) || m.callBadge(snapshot, query)
+		unread = snapshot.hasBadgeAttention(query)
 		return nil
 	}); err != nil {
 		return false, err
@@ -130,7 +130,7 @@ func (c *ChattoCore) badgeRoomStates(ctx context.Context, userID string, scope N
 	states := make(map[string]bool, len(queries))
 	if err := decisions.withCurrent(time.Now().UTC(), func(snapshot *notificationDecisionSnapshot) error {
 		for _, query := range queries {
-			states[query.roomID] = snapshot.hasBadgeAttention(query) || c.notificationOccurrences.callBadge(snapshot, query)
+			states[query.roomID] = snapshot.hasBadgeAttention(query)
 		}
 		return nil
 	}); err != nil {

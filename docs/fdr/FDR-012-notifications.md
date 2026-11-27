@@ -239,6 +239,7 @@ server value.
 | Followed thread activity       | In-app notification |
 | Reaction to the user's message | In-app notification |
 
+Both call rows support Off, In-app notification, and Push notification.
 Direct calls use the server setting and an optional override for the individual DM.
 Room calls also support a room-group override. These settings apply when a member
 starts a call. The Direct messages row still controls root messages in a DM.
@@ -278,7 +279,7 @@ inheritance marker. Server cells cycle through Off, Unread dot, In-app notificat
 Push notification.
 
 Room-group and room cells cycle through Inherit, Off, Unread dot, In-app notification,
-Push notification, and back to Inherit. Off uses a neutral crossed-out bell,
+Push notification, and back to Inherit. Direct calls and Room calls skip Unread dot at every scope. Off uses a neutral crossed-out bell,
 and Unread dot uses a neutral small filled dot. In-app notification uses an
 orange bell, and Push notification uses an orange phone. These icons show
 delivery mode; their colour does not show the activity's attention level.

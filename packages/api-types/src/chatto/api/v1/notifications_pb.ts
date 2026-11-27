@@ -185,6 +185,7 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
 
   /**
    * Delivery mode when a call starts in a direct message.
+   * Supported modes are Off, In-app notification, and Push notification.
    *
    * @generated from field: optional chatto.api.v1.NotificationDeliveryMode direct_calls = 12;
    */
@@ -192,6 +193,7 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
 
   /**
    * Delivery mode when a call starts in a channel room.
+   * Supported modes are Off, In-app notification, and Push notification.
    *
    * @generated from field: optional chatto.api.v1.NotificationDeliveryMode room_calls = 13;
    */

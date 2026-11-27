@@ -238,6 +238,12 @@ func TestResourceUpdatesThroughJSON(t *testing.T) {
 	overrides := result["policy"].(map[string]any)["policy"].(map[string]any)["overrides"].(map[string]any)
 	require.NotContains(t, overrides, "directMessages")
 	require.Contains(t, overrides, "replies")
+	result = call(policy, "UpdateNotificationPolicy", `{"scope":{"server":{}},"overrides":{"directCalls":"NOTIFICATION_DELIVERY_MODE_OFF","roomCalls":"NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION"},"updateMask":"directCalls,roomCalls"}`, 200)
+	overrides = result["policy"].(map[string]any)["policy"].(map[string]any)["overrides"].(map[string]any)
+	require.Equal(t, "NOTIFICATION_DELIVERY_MODE_OFF", overrides["directCalls"])
+	require.Contains(t, overrides, "roomCalls")
+	call(policy, "UpdateNotificationPolicy", `{"scope":{"server":{}},"overrides":{"roomCalls":"NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE"},"updateMask":"roomCalls"}`, 400)
+	call(policy, "UpdateNotificationPolicy", `{"scope":{"server":{}},"overrides":{"directCalls":"NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE"},"updateMask":"directCalls"}`, 400)
 }
 
 func TestMyAccountProfileMaskBatch(t *testing.T) {

@@ -113,8 +113,10 @@ type NotificationDeliveryModes struct {
 	// Delivery mode for invitations to join a channel room.
 	RoomInvitations *NotificationDeliveryMode `protobuf:"varint,11,opt,name=room_invitations,json=roomInvitations,proto3,enum=chatto.core.evt.v1.NotificationDeliveryMode,oneof" json:"room_invitations,omitempty"`
 	// Delivery mode when a call starts in a direct message.
+	// Supported modes are Off, In-app notification, and Push notification.
 	DirectCalls *NotificationDeliveryMode `protobuf:"varint,12,opt,name=direct_calls,json=directCalls,proto3,enum=chatto.core.evt.v1.NotificationDeliveryMode,oneof" json:"direct_calls,omitempty"`
 	// Delivery mode when a call starts in a channel room.
+	// Supported modes are Off, In-app notification, and Push notification.
 	RoomCalls     *NotificationDeliveryMode `protobuf:"varint,13,opt,name=room_calls,json=roomCalls,proto3,enum=chatto.core.evt.v1.NotificationDeliveryMode,oneof" json:"room_calls,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

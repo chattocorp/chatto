@@ -87,6 +87,19 @@ describe('createNotificationAPI', () => {
     });
   });
 
+  it.each(['directCalls', 'roomCalls'] as const)(
+    'rejects unread badge delivery for %s before sending an update',
+    async (field) => {
+      await expect(
+        notificationAPI().updateScopedNotificationPolicy(
+          { kind: 'server' },
+          { [field]: NotificationDeliveryMode.UNREAD_BADGE }
+        )
+      ).rejects.toThrow(`Unread badge delivery is not supported for ${field}`);
+      expect(policies.updateNotificationPolicy).not.toHaveBeenCalled();
+    }
+  );
+
   it('maps an invitation to a room-only target with no fabricated message', () => {
     const item = notificationOccurrence(
       new NotificationOccurrence({

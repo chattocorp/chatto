@@ -175,8 +175,10 @@ type NotificationDeliveryModes struct {
 	// Delivery mode for invitations to join a channel room.
 	RoomInvitations *NotificationDeliveryMode `protobuf:"varint,11,opt,name=room_invitations,json=roomInvitations,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"room_invitations,omitempty"`
 	// Delivery mode when a call starts in a direct message.
+	// Supported modes are Off, In-app notification, and Push notification.
 	DirectCalls *NotificationDeliveryMode `protobuf:"varint,12,opt,name=direct_calls,json=directCalls,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"direct_calls,omitempty"`
 	// Delivery mode when a call starts in a channel room.
+	// Supported modes are Off, In-app notification, and Push notification.
 	RoomCalls     *NotificationDeliveryMode `protobuf:"varint,13,opt,name=room_calls,json=roomCalls,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"room_calls,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2564,7 +2566,7 @@ var File_chatto_api_v1_notifications_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/api/v1/notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb6\n" +
+	"!chatto/api/v1/notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xca\n" +
 	"\n" +
 	"\x19NotificationDeliveryModes\x12U\n" +
 	"\x0fdirect_messages\x18\x01 \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\x00R\x0edirectMessages\x88\x01\x01\x12U\n" +
@@ -2579,10 +2581,10 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\rroom_messages\x18\n" +
 	" \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\tR\froomMessages\x88\x01\x01\x12W\n" +
 	"\x10room_invitations\x18\v \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\n" +
-	"R\x0froomInvitations\x88\x01\x01\x12O\n" +
-	"\fdirect_calls\x18\f \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\vR\vdirectCalls\x88\x01\x01\x12K\n" +
+	"R\x0froomInvitations\x88\x01\x01\x12Y\n" +
+	"\fdirect_calls\x18\f \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeB\b\xbaH\x05\x82\x01\x02 \x04H\vR\vdirectCalls\x88\x01\x01\x12U\n" +
 	"\n" +
-	"room_calls\x18\r \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\fR\troomCalls\x88\x01\x01B\x12\n" +
+	"room_calls\x18\r \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeB\b\xbaH\x05\x82\x01\x02 \x04H\fR\troomCalls\x88\x01\x01B\x12\n" +
 	"\x10_direct_messagesB\x12\n" +
 	"\x10_direct_mentionsB\n" +
 	"\n" +

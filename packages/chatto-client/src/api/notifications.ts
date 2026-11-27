@@ -116,6 +116,11 @@ export type NotificationPolicyOverrides = NotificationPolicyShape<NotificationDe
 export type NotificationPolicyField = keyof NotificationPolicyOverrides;
 export type NotificationPolicyPatch = Partial<NotificationPolicyOverrides>;
 
+/** Calls have no message to mark unread. All other policy fields support badge-only delivery. */
+export function notificationPolicySupportsUnreadBadge(field: NotificationPolicyField): boolean {
+  return field !== 'directCalls' && field !== 'roomCalls';
+}
+
 export type NotificationPolicy = {
   /** False when connected to a server that predates call notification policies. */
   supportsCallPolicy?: boolean;
@@ -386,6 +391,12 @@ function addNotificationPolicyUpdate(
   if (!Object.hasOwn(patch, field)) return;
   paths.push(path);
   const mode = patch[field];
+  if (
+    mode === NotificationDeliveryMode.UNREAD_BADGE &&
+    !notificationPolicySupportsUnreadBadge(field)
+  ) {
+    throw new Error(`Unread badge delivery is not supported for ${field}`);
+  }
   if (mode !== null && mode !== undefined) overrides[field] = mode;
 }
 

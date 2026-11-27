@@ -42,7 +42,9 @@ message NotificationDeliveryModes {
   // Delivery mode for invitations to join a channel room.
   optional NotificationDeliveryMode room_invitations = 11;
   // Delivery mode when a call starts in a direct message.
+  // Supported modes are Off, In-app notification, and Push notification.
   optional NotificationDeliveryMode direct_calls = 12;
   // Delivery mode when a call starts in a channel room.
+  // Supported modes are Off, In-app notification, and Push notification.
   optional NotificationDeliveryMode room_calls = 13;
 }

@@ -75,11 +75,8 @@ func (m *NotificationMaterializer) processCallDelivery(ctx context.Context, deli
 		return err
 	}
 	rows := occurrences.projection.Projection().callOccurrences(roomID, callID, recipientID, occurrences.now())
-	if _, err := occurrences.deleteOccurrences(ctx, rows); err != nil {
-		return err
-	}
-	m.hintCallBadges(ctx, roomID, recipientID)
-	return nil
+	_, err := occurrences.deleteOccurrences(ctx, rows)
+	return err
 }
 
 // callOccurrences reads only the active generation. An empty recipient selects
@@ -101,7 +98,6 @@ func (p *NotificationProjection) callOccurrences(roomID, callID, recipientID str
 
 func (m *NotificationMaterializer) materializeCall(ctx context.Context, source *evtv1.Event, roomID string, call CallSession) error {
 	var decisions []notificationRecipientDecision
-	var hints []notificationUnreadInvalidation
 	err := m.decisions.Projection().withCurrent(time.Now(), func(s *notificationDecisionSnapshot) error {
 		kind, ok := s.roomKind(roomID)
 		if !ok {
@@ -110,17 +106,13 @@ func (m *NotificationMaterializer) materializeCall(ctx context.Context, source *
 		signal := incomingCallSignal(roomID, call.CallID)
 		for _, id := range s.roomMemberIDs(roomID) {
 			mode := s.effectiveNotificationMode(id, roomID, kind, signal)
-			if id == source.GetActorId() || !notificationModeProducesAttention(mode) || !s.callAudienceMember(id, roomID, call.StartSequence) {
+			if id == source.GetActorId() || !notificationModeProducesOccurrence(mode) || !s.callAudienceMember(id, roomID, call.StartSequence) {
 				continue
 			}
 			if !m.core.callModel.callState.Projection().awaitingJoin(roomID, call.CallID, id) {
 				continue
 			}
-			if notificationModeProducesOccurrence(mode) {
-				decisions = append(decisions, notificationRecipientDecision{recipientID: id, signal: signal, mode: mode})
-			} else {
-				hints = append(hints, notificationUnreadInvalidation{userID: id, roomID: roomID})
-			}
+			decisions = append(decisions, notificationRecipientDecision{recipientID: id, signal: signal, mode: mode})
 		}
 		return nil
 	})
@@ -131,34 +123,7 @@ func (m *NotificationMaterializer) materializeCall(ctx context.Context, source *
 	for i := range inputs {
 		inputs[i].SourceStreamSequence = call.StartSequence
 	}
-	if err := m.core.notificationOccurrences.CreateMany(ctx, inputs); err != nil {
-		return err
-	}
-	m.core.publishNotificationUnreadInvalidations(ctx, hints)
-	return nil
-}
-
-// hintCallBadges clears quiet call indicators when a member joins or a call ends.
-func (m *NotificationMaterializer) hintCallBadges(ctx context.Context, roomID, recipientID string) {
-	var hints []notificationUnreadInvalidation
-	_ = m.decisions.Projection().withCurrent(time.Now(), func(s *notificationDecisionSnapshot) error {
-		kind, exists := s.roomKind(roomID)
-		if !exists {
-			return nil
-		}
-		ids := []string{recipientID}
-		if recipientID == "" {
-			ids = s.roomMemberIDs(roomID)
-		}
-		signal := incomingCallSignal(roomID, "")
-		for _, id := range ids {
-			if s.membershipExists(id, roomID) && s.effectiveNotificationMode(id, roomID, kind, signal) == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
-				hints = append(hints, notificationUnreadInvalidation{userID: id, roomID: roomID})
-			}
-		}
-		return nil
-	})
-	m.core.publishNotificationUnreadInvalidations(ctx, hints)
+	return m.core.notificationOccurrences.CreateMany(ctx, inputs)
 }
 
 // callVisible rechecks call generation, membership and admission on reads and
@@ -184,22 +149,4 @@ func (p *CallStateProjection) awaitingJoin(roomID, callID, recipientID string) b
 	active, exists := p.activeCalls[roomID]
 	_, joined := p.rooms[roomID][recipientID]
 	return exists && active.CallID == callID && !joined && !p.departed[roomID][recipientID]
-}
-
-func (m *NotificationOccurrenceModel) callBadge(s *notificationDecisionSnapshot, q badgeQuery) bool {
-	if q.threadRootEventID != "" {
-		return false
-	}
-	call, ok := m.core.callModel.activeCall(q.roomID)
-	if !ok || call.StartedBy == q.userID || call.Source != evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER {
-		return false
-	}
-	kind, ok := s.roomKind(q.roomID)
-	if !ok || s.effectiveNotificationMode(q.userID, q.roomID, kind, incomingCallSignal(q.roomID, call.CallID)) != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
-		return false
-	}
-	if boundary, exists := q.readBoundary(""); exists && boundary.observedSequence >= call.StartSequence {
-		return false
-	}
-	return s.callAudienceMember(q.userID, q.roomID, call.StartSequence) && m.core.callModel.callState.Projection().awaitingJoin(q.roomID, call.CallID, q.userID)
 }

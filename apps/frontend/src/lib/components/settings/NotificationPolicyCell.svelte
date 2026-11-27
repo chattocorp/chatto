@@ -11,6 +11,7 @@ intensity.
   import { MatrixCellButton } from '$lib/ui/matrix';
   import {
     NotificationDeliveryMode,
+    notificationPolicySupportsUnreadBadge,
     type NotificationPolicyField,
     type NotificationPolicyScope
   } from '@chatto/client/api/notifications';
@@ -76,7 +77,9 @@ intensity.
     if (current === null && inheritanceAvailable) return NotificationDeliveryMode.OFF;
     const displayed = current ?? currentEffective;
     if (displayed === NotificationDeliveryMode.OFF) {
-      return NotificationDeliveryMode.UNREAD_BADGE;
+      return notificationPolicySupportsUnreadBadge(field)
+        ? NotificationDeliveryMode.UNREAD_BADGE
+        : NotificationDeliveryMode.IN_APP_NOTIFICATION;
     }
     if (displayed === NotificationDeliveryMode.UNREAD_BADGE) {
       return NotificationDeliveryMode.IN_APP_NOTIFICATION;

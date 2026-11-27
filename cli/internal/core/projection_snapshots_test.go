@@ -517,8 +517,8 @@ func TestCallSnapshotRestoresNotificationEligibility(t *testing.T) {
 		t.Fatal(err)
 	}
 	call := restored.RoomSnapshot("room").Call
-	if call.StartedBy != "host" || call.StartSequence != 41 {
-		t.Fatalf("restored call started by %q at sequence %d", call.StartedBy, call.StartSequence)
+	if call.StartSequence != 41 {
+		t.Fatalf("restored call started at sequence %d", call.StartSequence)
 	}
 	for user, want := range map[string]bool{"host": false, "guest": false, "unanswered": true} {
 		if got := restored.awaitingJoin("room", "call", user); got != want {

@@ -78,7 +78,10 @@ func notificationDeliveryModesEmpty(modes *evtv1.NotificationDeliveryModes) bool
 	return empty
 }
 
-func validNotificationMode(mode evtv1.NotificationDeliveryMode) bool {
+func validNotificationMode(field protoreflect.Name, mode evtv1.NotificationDeliveryMode) bool {
+	if mode == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE && (field == "direct_calls" || field == "room_calls") {
+		return false
+	}
 	switch mode {
 	case evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
 		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
@@ -117,7 +120,7 @@ func validateNotificationDeliveryModes(modes *evtv1.NotificationDeliveryModes) e
 	}
 	var validationErr error
 	modes.ProtoReflect().Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
-		if field.Kind() != protoreflect.EnumKind || !validNotificationMode(evtv1.NotificationDeliveryMode(value.Enum())) {
+		if field.Kind() != protoreflect.EnumKind || !validNotificationMode(field.Name(), evtv1.NotificationDeliveryMode(value.Enum())) {
 			validationErr = invalidArgument(fmt.Sprintf("invalid notification delivery mode for %s", field.Name()))
 			return false
 		}
@@ -149,7 +152,7 @@ func applyNotificationDeliveryModesPatch(current, patch *evtv1.NotificationDeliv
 		}
 		if patchMessage.Has(field) {
 			mode := evtv1.NotificationDeliveryMode(patchMessage.Get(field).Enum())
-			if !validNotificationMode(mode) {
+			if !validNotificationMode(field.Name(), mode) {
 				return nil, invalidArgument(fmt.Sprintf("invalid notification delivery mode for %s", path))
 			}
 			resultMessage.Set(field, patchMessage.Get(field))

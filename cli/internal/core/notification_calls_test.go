@@ -5,9 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chattocorp/chatto/cli/internal/evtstream"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	notificationv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/notification/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
+	"github.com/chattocorp/chatto/pkg/events"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -33,6 +35,58 @@ func TestCallPolicyUpgradePreservesDirectMessages(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, proto.Equal(&dm, cleared))
 	require.Equal(t, push, effectiveNotificationDeliveryModes(&server, cleared).GetDirectCalls())
+}
+
+func TestCallPolicyRejectsUnreadBadge(t *testing.T) {
+	badge := evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE
+	for field, patch := range map[string]*evtv1.NotificationDeliveryModes{
+		"direct_calls": {DirectCalls: badge.Enum()},
+		"room_calls":   {RoomCalls: badge.Enum()},
+	} {
+		require.ErrorIs(t, validateNotificationDeliveryModes(patch), ErrInvalidArgument)
+		_, err := applyNotificationDeliveryModesPatch(nil, patch, &fieldmaskpb.FieldMask{Paths: []string{field}})
+		require.ErrorIs(t, err, ErrInvalidArgument)
+	}
+	require.NoError(t, validateNotificationDeliveryModes(&evtv1.NotificationDeliveryModes{DirectMessages: badge.Enum()}))
+}
+
+func TestDelayedCallStartSkipsDepartedMember(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "delayed-call", "")
+	require.NoError(t, err)
+	addMember := func(name string) string {
+		user, err := c.CreateUser(ctx, SystemActorID, name, name, "password")
+		require.NoError(t, err)
+		_, err = c.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+		require.NoError(t, err)
+		return user.Id
+	}
+	caller, departed, waiting := addMember("caller"), addMember("departed"), addMember("waiting")
+	require.NoError(t, c.JoinVoiceCall(ctx, caller, room.Id))
+	require.NoError(t, c.JoinVoiceCall(ctx, departed, room.Id))
+	require.NoError(t, c.RecordCallParticipantLeft(ctx, room.Id, departed, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
+	waitForNotificationMaterializer(t, c)
+
+	// Room calls default to Off, so neither member has an occurrence or a
+	// deletion to suppress a repeated delivery of the original start event.
+	mode := evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION
+	for _, id := range []string{departed, waiting} {
+		_, err = c.NotificationPolicy().UpdateNotificationPolicy(ctx, id, room.Id, &evtv1.NotificationDeliveryModes{RoomCalls: mode.Enum()}, &fieldmaskpb.FieldMask{Paths: []string{"room_calls"}})
+		require.NoError(t, err)
+	}
+	subject := evtstream.RoomAggregate(room.Id).Subject(evtstream.EventCallStarted)
+	page, err := c.EventPublisher.SubjectRecordsAfterPage(ctx, subject, 0, 10, 1<<20)
+	require.NoError(t, err)
+	require.Len(t, page.Records, 1)
+	require.NoError(t, c.notificationMaterializer.processCallDelivery(ctx, events.DurableDelivery{Data: page.Records[0].Data}))
+	occurrences := c.notificationOccurrences
+	require.NoError(t, occurrences.projection.Projector().WaitForCurrent(ctx))
+	call, ok := c.callModel.activeCall(room.Id)
+	require.True(t, ok)
+	rows := occurrences.projection.Projection().callOccurrences(room.Id, call.CallID, "", occurrences.now())
+	require.Len(t, rows, 1)
+	require.Equal(t, waiting, rows[0].GetRecipientId())
 }
 
 func TestDirectCallNotificationLifecycle(t *testing.T) {
@@ -86,7 +140,7 @@ func TestRoomCallNotificationOverridesAndCleanup(t *testing.T) {
 	for _, mode := range []evtv1.NotificationDeliveryMode{
 		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
 		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
-		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+		evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
 	} {
 		if mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
 			_, err = c.NotificationPolicy().UpdateNotificationPolicy(ctx, recipient.Id, room.Id, &evtv1.NotificationDeliveryModes{RoomCalls: mode.Enum()}, &fieldmaskpb.FieldMask{Paths: []string{"room_calls"}})
@@ -94,24 +148,16 @@ func TestRoomCallNotificationOverridesAndCleanup(t *testing.T) {
 		}
 		require.NoError(t, c.JoinVoiceCall(ctx, caller.Id, room.Id))
 		rows := testNotificationOccurrences(t, c, recipient.Id)
-		if mode == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
+		if mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
 			require.Len(t, rows, 1)
 			require.Equal(t, room.Id, rows[0].GetSignal().GetIncomingCall().GetRoomId())
-			require.Nil(t, rows[0].GetAlertExpiresAt())
+			require.Equal(t, mode == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION, rows[0].GetAlertExpiresAt() != nil)
 		} else {
 			require.Empty(t, rows)
 		}
 		badge, err := c.NotificationOccurrences().HasNotificationUnread(ctx, recipient.Id, room.Id, "")
 		require.NoError(t, err)
-		require.Equal(t, mode == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE, badge)
-		if mode == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
-			require.NoError(t, c.JoinVoiceCall(ctx, recipient.Id, room.Id))
-			require.NoError(t, c.RecordCallParticipantLeft(ctx, room.Id, recipient.Id, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
-			waitForNotificationMaterializer(t, c)
-			badge, err = c.NotificationOccurrences().HasNotificationUnread(ctx, recipient.Id, room.Id, "")
-			require.NoError(t, err)
-			require.False(t, badge, "leaving a call does not make its start unread again")
-		}
+		require.False(t, badge)
 		require.NoError(t, c.RecordCallParticipantLeft(ctx, room.Id, caller.Id, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
 		require.Empty(t, testNotificationOccurrences(t, c, recipient.Id))
 		badge, err = c.NotificationOccurrences().HasNotificationUnread(ctx, recipient.Id, room.Id, "")

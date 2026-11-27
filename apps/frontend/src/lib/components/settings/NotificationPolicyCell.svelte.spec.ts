@@ -106,6 +106,39 @@ describe('NotificationPolicyCell', () => {
     clickAndExpect(null);
   });
 
+  it.each([
+    { field: 'directCalls', effective: NotificationDeliveryMode.PUSH_NOTIFICATION },
+    { field: 'roomCalls', effective: NotificationDeliveryMode.OFF }
+  ] as const)(
+    'cycles $field through supported modes at server and room scopes',
+    async ({ field, effective }) => {
+      const onChange = vi.fn();
+      const props = { ...baseProps, field, effective, onChange };
+      const rendered = render(NotificationPolicyCell, { props: { ...props, override: null } });
+      const button = rendered.container.querySelector('button')!;
+      button.click();
+      expect(onChange).toHaveBeenLastCalledWith(
+        field === 'directCalls'
+          ? NotificationDeliveryMode.OFF
+          : NotificationDeliveryMode.IN_APP_NOTIFICATION
+      );
+
+      for (const scope of [baseProps.scope, { kind: 'room', id: 'room-1' }] as const) {
+        const modes = [
+          NotificationDeliveryMode.OFF,
+          NotificationDeliveryMode.IN_APP_NOTIFICATION,
+          NotificationDeliveryMode.PUSH_NOTIFICATION,
+          ...(scope.kind === 'room' ? [null] : [])
+        ];
+        for (const [index, override] of modes.entries()) {
+          await rendered.rerender({ ...props, scope, override });
+          button.click();
+          expect(onChange).toHaveBeenLastCalledWith(modes[(index + 1) % modes.length]);
+        }
+      }
+    }
+  );
+
   it('supports keyboard activation and describes the current and next states', async () => {
     const onChange = vi.fn();
     const { container } = render(NotificationPolicyCell, {
