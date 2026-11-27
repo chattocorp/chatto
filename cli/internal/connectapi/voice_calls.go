@@ -121,33 +121,18 @@ func (s *voiceCallService) ListCallParticipants(ctx context.Context, req *connec
 	return connect.NewResponse(&apiv1.ListCallParticipantsResponse{Participants: responseParticipants}), nil
 }
 
-// callTarget keeps room actions separate from actions on a specific session.
-func callTarget(roomID string, call *apiv1.CallReference) (string, string, error) {
-	if call == nil && roomID != "" {
-		return roomID, "", nil
-	}
-	if roomID == "" && call.GetRoomId() != "" && call.GetCallId() != "" {
-		return call.GetRoomId(), call.GetCallId(), nil
-	}
-	return "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("specify either a room ID or a complete call reference"))
-}
-
 func (s *voiceCallService) JoinCall(ctx context.Context, req *connect.Request[apiv1.JoinCallRequest]) (*connect.Response[apiv1.JoinCallResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	roomID, callID, err := callTarget(req.Msg.GetRoomId(), req.Msg.GetCall())
-	if err != nil {
-		return nil, err
-	}
-	if _, _, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, roomID); err != nil {
+	if _, _, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, req.Msg.GetRoomId()); err != nil {
 		return nil, err
 	}
 	if !s.api.config.LiveKit.IsConfigured() {
 		return connect.NewResponse(&apiv1.JoinCallResponse{}), nil
 	}
-	if err := s.api.core.JoinVoiceCallForID(ctx, caller.UserID, roomID, callID); err != nil {
+	if err := s.api.core.JoinVoiceCall(ctx, caller.UserID, req.Msg.GetRoomId()); err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.JoinCallResponse{Joined: true}), nil
@@ -158,11 +143,7 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 	if err != nil {
 		return nil, err
 	}
-	roomID, callID, err := callTarget(req.Msg.GetRoomId(), req.Msg.GetCall())
-	if err != nil {
-		return nil, err
-	}
-	_, kind, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, roomID)
+	_, kind, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
 		return nil, err
 	}
@@ -170,10 +151,10 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("voice calls are not configured"))
 	}
 
-	permissions, access, err := s.api.core.CallTokenAccess(ctx, caller.UserID, roomID, callID)
+	permissions, access, err := s.api.core.CallTokenAccess(ctx, caller.UserID, req.Msg.GetRoomId())
 	if err != nil {
-		if callID == "" && errors.Is(err, core.ErrNotFound) {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", roomID))
+		if errors.Is(err, core.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", req.Msg.GetRoomId()))
 		}
 		return nil, err
 	}
@@ -186,7 +167,7 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 	// Other call participants read this metadata, so it uses the canonical
 	// origin, not the hostname alias of this request.
 	avatarURL = s.api.canonicalServerURL(avatarURL)
-	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, kind, roomID, access.CallID)
+	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, kind, req.Msg.GetRoomId(), access.CallID)
 	selectionRef, err := s.api.core.StoreCallRoleSelection(ctx, roomName, caller.UserID, caller.UserID, s.now())
 	if err != nil {
 		return nil, err
@@ -292,17 +273,13 @@ func (s *voiceCallService) LeaveCall(ctx context.Context, req *connect.Request[a
 	if err != nil {
 		return nil, err
 	}
-	roomID, callID, err := callTarget(req.Msg.GetRoomId(), req.Msg.GetCall())
-	if err != nil {
-		return nil, err
-	}
-	if _, _, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, roomID); err != nil {
+	if _, _, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, req.Msg.GetRoomId()); err != nil {
 		return nil, err
 	}
 	if !s.api.config.LiveKit.IsConfigured() {
 		return connect.NewResponse(&apiv1.LeaveCallResponse{}), nil
 	}
-	if err := s.api.core.RecordCallParticipantLeft(ctx, roomID, caller.UserID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER, callID); err != nil {
+	if err := s.api.core.RecordCallParticipantLeft(ctx, req.Msg.GetRoomId(), caller.UserID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.LeaveCallResponse{Left: true}), nil

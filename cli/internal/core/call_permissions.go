@@ -75,28 +75,19 @@ func (c *ChattoCore) AuthorizeCall(ctx context.Context, actorID, roomID string, 
 // JoinVoiceCall records authorized user intent. The authorization callback runs
 // on every OCC attempt, including a retry that changes a join into a start.
 func (c *ChattoCore) JoinVoiceCall(ctx context.Context, actorID, roomID string) error {
-	return c.JoinVoiceCallForID(ctx, actorID, roomID, "")
-}
-
-// JoinVoiceCallForID constrains a notification action to its original call.
-// The ordinary join operation passes an empty ID and can start a new call.
-func (c *ChattoCore) JoinVoiceCallForID(ctx context.Context, actorID, roomID, expectedCallID string) error {
 	if _, _, err := c.requireRoomMember(ctx, actorID, roomID); err != nil {
 		return err
 	}
-	_, err := c.admitCall(ctx, actorID, roomID, true, expectedCallID)
+	_, err := c.admitCall(ctx, actorID, roomID, true)
 	return err
 }
 
 // admitCall checks permissions on each append attempt. Only an explicit join
 // can start a new call. Direct token requests can reserve an existing place.
-func (c *ChattoCore) admitCall(ctx context.Context, actorID, roomID string, allowStart bool, expectedCallID string) (CallPermissions, error) {
+func (c *ChattoCore) admitCall(ctx context.Context, actorID, roomID string, allowStart bool) (CallPermissions, error) {
 	var permissions CallPermissions
 	err := c.callModel.appendParticipantTransitionAuthorized(ctx, roomID, actorID, true, "", evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER, c.callModel.maxGlobalParticipants,
 		func(snapshot CallRoomSnapshot) error {
-			if expectedCallID != "" && snapshot.Call.CallID != expectedCallID {
-				return ErrNotFound
-			}
 			starting := snapshot.Call.CallID == ""
 			var err error
 			permissions, err = c.AuthorizeCall(ctx, actorID, roomID, allowStart && starting)
@@ -110,20 +101,19 @@ func (c *ChattoCore) admitCall(ctx context.Context, actorID, roomID string, allo
 
 // CallTokenAccess authorizes primary media access and resolves the key for
 // the active generation. A capped server first records the participant's place.
-func (c *ChattoCore) CallTokenAccess(ctx context.Context, actorID, roomID string, callID ...string) (CallPermissions, CallAccessMaterial, error) {
+func (c *ChattoCore) CallTokenAccess(ctx context.Context, actorID, roomID string) (CallPermissions, CallAccessMaterial, error) {
 	var permissions CallPermissions
-	expectedCallID := optionalCallID(callID)
 	var access CallAccessMaterial
 	var err error
 	if c.callModel.maxGlobalParticipants >= 0 {
-		permissions, err = c.admitCall(ctx, actorID, roomID, false, expectedCallID)
+		permissions, err = c.admitCall(ctx, actorID, roomID, false)
 		if err == nil {
-			access, err = c.callModel.getAccessMaterial(ctx, roomID, actorID, expectedCallID)
+			access, err = c.callModel.GetParticipantAccessMaterial(ctx, roomID, actorID)
 		}
 	} else {
 		permissions, err = c.AuthorizeCall(ctx, actorID, roomID, false)
 		if err == nil {
-			access, err = c.callModel.getAccessMaterial(ctx, roomID, "", expectedCallID)
+			access, err = c.GetVoiceCallAccessMaterial(ctx, roomID)
 		}
 	}
 	return permissions, access, err

@@ -12,6 +12,7 @@
     "join_call": "Join call",
     "start_call": "Start call",
     "leave": "Leave call",
+    "open_room": "Open room",
     "open_call_room": "Open {room}",
     "open_call_room_on_server": "Open {room} on {server}",
     "share_screen": "Share screen",

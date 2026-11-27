@@ -242,8 +242,8 @@ server value.
 Direct calls use the server setting and an optional override for the individual DM.
 Room calls also support a room-group override. These settings apply when a member
 starts a call. The Direct messages row still controls root messages in a DM.
-Members can join or dismiss an incoming-call alert. Joining on another device
-or ending the call clears the alert.
+The alert offers **Open room** and **Dismiss**. Open room takes the member to the
+conversation, where they can see the current call and choose whether to join.
 
 During a rolling upgrade, an older replica cannot read an incoming-call signal.
 If the member's stored occurrences include that signal, a notification-list request
@@ -252,11 +252,6 @@ would fall outside the requested page. An upgraded replica can return the list.
 Dismiss marks the occurrence as read. Joining the call or ending it removes the
 occurrence. To restore list access for all members on every replica, finish the
 server rollout.
-
-When a client joins from an alert, it sends the room and session IDs together in
-the call reference for join, token, and leave requests. Earlier replicas require
-the top-level room ID and reject these requests before changing call membership.
-Clients must keep the call reference on retry.
 
 Attention level controls presentation separately: reactions are Ambient and all
 other current causes are Important. Bell, server, and app indicators use

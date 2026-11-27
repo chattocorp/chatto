@@ -1076,7 +1076,7 @@ func (x *RoomInvitationReceived) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// A call started in this room. A join action applies only to this call ID.
+// A call started in this room. The call ID ties the occurrence to its lifecycle.
 type IncomingCall struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	RoomId string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`

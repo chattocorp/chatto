@@ -5073,8 +5073,7 @@ Request to record joining a room call.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Target for an ordinary room action. Omit when you set call. |
-| `call` | [`CallReference`](#chatto-api-v1-CallReference) | Join only this call. An ended call returns NOT_FOUND. |
+| `room_id` | `string` | Required. Room whose call is being joined. |
 
 
 <a id="chatto-api-v1-JoinCallResponse"></a>
@@ -5120,8 +5119,7 @@ Request for a LiveKit token for a room call.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Target for an ordinary room action. Omit when you set call. |
-| `call` | [`CallReference`](#chatto-api-v1-CallReference) | Issue a token only for this call. An ended call returns NOT_FOUND. |
+| `room_id` | `string` | Required. Room whose active call should be joined. |
 
 
 <a id="chatto-api-v1-CreateCallTokenResponse"></a>
@@ -5204,8 +5202,7 @@ Request to record leaving a room call.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Target for an ordinary room action. Omit when you set call. |
-| `call` | [`CallReference`](#chatto-api-v1-CallReference) | Leave only this call. An ended call requires no cleanup. |
+| `room_id` | `string` | Required. Room whose call is being left. |
 
 
 <a id="chatto-api-v1-LeaveCallResponse"></a>
@@ -6641,7 +6638,7 @@ An `@here` message that included the viewer.
 ### IncomingCall
 
 Dismiss marks this occurrence as read. Joining on any device or ending the
-call removes the occurrence. Use the call reference for JoinCall and token requests.
+call removes the occurrence. Open the room to see its current call status.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -6897,19 +6894,6 @@ User currently participating in a room call.
 | `user` | [`User`](#chatto-api-v1-User) | Participant user. |
 | `joined_at` | `google.protobuf.Timestamp` | When the user joined this call. |
 | `call_id` | `string` | Active call session ID. |
-
-
-
-<a id="chatto-api-v1-CallReference"></a>
-
-### CallReference
-
-Identifies one call, even after another call starts in the same room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room that hosts the call. |
-| `call_id` | `string` | Session ID from the incoming-call notification. |
 
 
 

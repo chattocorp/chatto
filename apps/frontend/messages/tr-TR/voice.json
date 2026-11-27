@@ -12,6 +12,7 @@
     "join_call": "Görüşmeye katıl",
     "start_call": "Aramayı başlat",
     "leave": "Aramayı bırak",
+    "open_room": "Odayı aç",
     "open_call_room": "{room} aç",
     "open_call_room_on_server": "{server} üzerinde {room} aç",
     "share_screen": "Ekranı paylaş",

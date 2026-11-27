@@ -12,6 +12,7 @@
     "join_call": "הצטרף לשיחה",
     "start_call": "התחל שיחה",
     "leave": "יציאה מהשיחה",
+    "open_room": "פתח חדר",
     "open_call_room": "פתח את {room}",
     "open_call_room_on_server": "פתח את {room} ב-{server}",
     "share_screen": "שיתוף מסך",

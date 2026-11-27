@@ -108,11 +108,6 @@ that would only contain older notifications. An upgraded replica can serve the
 list. Keep the last successful result until a list request succeeds. Operators
 can restore consistent list access by completing the rollout.
 
-For actions from a call notification, send `call.roomId` and `call.callId`
-together and omit the top-level `roomId`. A 0.6.0 replica rejects that request.
-Keep the call reference on retry. An upgraded replica returns `NOT_FOUND` for
-join or token requests after that call ends.
-
 ## Browser cookie upgrades in 0.6
 
 Chatto 0.6 removes `POST /auth/browser/session/migrate`. Browsers that still

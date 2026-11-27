@@ -39,44 +39,17 @@ Include this component once in the application root so signed-out pages also cle
 
   $effect(() => listenForDesktopNotificationClicks());
 
-  type CallLink = { serverId: string; roomId: string; callId: string };
-  type CallAlert = CallLink & { occurrenceId?: string; accountId: string; fromLink: boolean };
-  let {
-    callLink = null,
-    onCloseCallLink
-  }: { callLink?: CallLink | null; onCloseCallLink?: () => void } = $props();
-  let liveCalls = $state.raw<(CallAlert & { occurrenceId: string })[]>([]);
-  const callAlerts = $derived.by(() => {
-    if (!callLink) return liveCalls;
-    const link = callLink;
-    const store = serverRegistry.tryGetStore(link.serverId);
-    if (!store?.isAuthenticated || !store.accountId) return liveCalls;
-    const same = (alert: CallAlert) =>
-      alert.serverId === link.serverId &&
-      alert.accountId === store.accountId &&
-      alert.callId === link.callId;
-    return [
-      ...liveCalls.filter((alert) => !same(alert)),
-      { ...liveCalls.find(same), ...link, accountId: store.accountId, fromLink: true }
-    ];
-  });
+  type CallAlert = {
+    serverId: string;
+    roomId: string;
+    callId: string;
+    accountId: string;
+    occurrenceId: string;
+  };
+  let liveCalls = $state.raw<CallAlert[]>([]);
 
   function closeCall(alert: CallAlert) {
-    if (
-      liveCalls.some(
-        (item) =>
-          item.serverId === alert.serverId &&
-          item.accountId === alert.accountId &&
-          item.callId === alert.callId
-      )
-    )
-      liveCalls = liveCalls.filter(
-        (item) =>
-          item.serverId !== alert.serverId ||
-          item.accountId !== alert.accountId ||
-          item.callId !== alert.callId
-      );
-    if (alert.fromLink) onCloseCallLink?.();
+    liveCalls = liveCalls.filter((item) => item !== alert);
   }
 
   const rememberedNotificationIds = 256;
@@ -132,8 +105,7 @@ Include this component once in the application root so signed-out pages also cle
                   accountId,
                   roomId: row.room.id,
                   callId: row.call.id,
-                  occurrenceId: row.id,
-                  fromLink: false
+                  occurrenceId: row.id
                 }
               ]
             : []
@@ -274,12 +246,12 @@ Include this component once in the application root so signed-out pages also cle
   {/if}
 {/each}
 
-{#if callAlerts.length}
+{#if liveCalls.length}
   <div
     class="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+1rem)] z-50 flex flex-col items-end gap-2"
     role="status"
   >
-    {#each callAlerts as alert ([alert.serverId, alert.accountId, alert.callId].join('/'))}
+    {#each liveCalls as alert ([alert.serverId, alert.accountId, alert.callId].join('/'))}
       {@const store = serverRegistry.getStore(alert.serverId)}
       {#if store.isAuthenticated && store.accountId === alert.accountId}
         <IncomingCallAlert
@@ -287,7 +259,6 @@ Include this component once in the application root so signed-out pages also cle
           roomId={alert.roomId}
           callId={alert.callId}
           occurrenceId={alert.occurrenceId}
-          fromLink={alert.fromLink}
           onclose={() => closeCall(alert)}
         />
       {/if}

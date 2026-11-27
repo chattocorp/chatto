@@ -154,7 +154,7 @@ test.describe('Voice calls', () => {
     });
   });
 
-  test('an incoming DM call can be dismissed and its old link cannot join a later call', async ({
+  test('an incoming DM call alert opens the room without joining', async ({
     page,
     chatPage,
     browser,
@@ -165,28 +165,27 @@ test.describe('Voice calls', () => {
     await chatPage.enterRoom('general');
     await waitForRoomReady(page);
 
-    await withServerUser(browser!, serverURL, async ({ page: caller }) => {
+    const admissions: string[] = [];
+    page.on('request', (request) => {
+      if (/VoiceCallService\/(JoinCall|CreateCallToken)$/.test(request.url())) {
+        admissions.push(request.url());
+      }
+    });
+
+    await withServerUser(browser!, serverURL, async ({ page: caller, user: callerUser }) => {
       await new DMPage(caller).startConversation(recipient.login);
       const { roomId } = await getIdsFromUrlViaConnect(caller);
       await joinCallViaConnect(caller, roomId);
-      const { callId } = await createCallTokenViaConnect(caller, roomId);
-      expect(callId).toBeTruthy();
 
       const banner = page
         .getByRole('status')
-        .filter({ has: page.getByRole('button', { name: 'Join call', exact: true }) });
+        .filter({ has: page.getByRole('button', { name: 'Open room', exact: true }) });
       await expect(banner).toBeVisible();
-      await banner.getByRole('button', { name: /dismiss/i }).click();
-      await expect(banner).toBeHidden();
-      await leaveCallViaConnect(caller, roomId);
-
-      await joinCallViaConnect(caller, roomId);
-      await page.goto(`/chat/-/${roomId}?callId=${callId}`);
-      await expect(
-        page.getByText('The active call has ended', { exact: true }).first()
-      ).toBeVisible();
+      await banner.getByRole('button', { name: 'Open room' }).click();
+      await expect(page).toHaveURL(new RegExp(`/chat/-/user/${callerUser.id}$`));
       await expect(banner).toBeHidden();
       expect(await listCallParticipantsViaConnect(caller, roomId)).toHaveLength(1);
+      expect(admissions).toEqual([]);
       await leaveCallViaConnect(caller, roomId);
     });
   });

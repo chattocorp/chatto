@@ -12,6 +12,7 @@
     "join_call": "加入通話",
     "start_call": "開始通話",
     "leave": "離開通話",
+    "open_room": "開啟房間",
     "open_call_room": "開啟 {room}",
     "open_call_room_on_server": "開啟 {server} 上的 {room}",
     "share_screen": "分享螢幕",

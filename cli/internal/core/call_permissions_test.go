@@ -13,7 +13,6 @@ import (
 	"github.com/chattocorp/chatto/cli/internal/authctx"
 	"github.com/chattocorp/chatto/cli/internal/config"
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
-	"github.com/chattocorp/chatto/cli/internal/kms"
 	evtv1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/evt/v1"
 	runtimestatev1 "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1"
 	"github.com/chattocorp/chatto/cli/internal/testutil"
@@ -116,13 +115,6 @@ func TestCallAdmissionAcrossReplicas(t *testing.T) {
 	require.ErrorIs(t, closed.JoinVoiceCall(ctx, other.Id, active), ErrCallParticipantLimit)
 	// A direct token request reserves a place as well.
 	expanded := start(2)
-	// A late alert must not reserve the remaining place in another call.
-	_, _, err = expanded.CallTokenAccess(ctx, other.Id, empty, "ended-call")
-	require.ErrorIs(t, err, ErrNotFound)
-	snapshot, err := expanded.GetCallSnapshot(empty)
-	require.NoError(t, err)
-	require.Len(t, snapshot.Participants, 1)
-	require.Equal(t, user.Id, snapshot.Participants[0].UserID)
 	_, _, err = expanded.CallTokenAccess(ctx, other.Id, empty)
 	require.NoError(t, err)
 	require.ErrorIs(t, expanded.JoinVoiceCall(ctx, other.Id, active), ErrCallParticipantLimit)
@@ -537,65 +529,4 @@ func tokenMetadata(t *testing.T, token *VoiceCallToken) string {
 	parsed, _, err := jwt.NewParser().ParseUnverified(token.Token, jwt.MapClaims{})
 	require.NoError(t, err)
 	return parsed.Claims.(jwt.MapClaims)["metadata"].(string)
-}
-
-// callKeyReadHook lets a second replica finish a call between the token
-// request's initial generation check and its read from the real key store.
-type callKeyReadHook struct {
-	kms.CallKeyStore
-	beforeRead func() error
-}
-
-func (s *callKeyReadHook) GetCallKey(ctx context.Context, keyRef string) (string, error) {
-	if err := s.beforeRead(); err != nil {
-		return "", err
-	}
-	return s.CallKeyStore.GetCallKey(ctx, keyRef)
-}
-
-func TestGuardedVoiceActionsAcrossReplicas(t *testing.T) {
-	ns, _ := testutil.StartNATS(t)
-	ctx := testContext(t)
-	first, err := NewChattoCore(ctx, newReplicaConn(t, ns), testCoreConfig())
-	require.NoError(t, err)
-	startCoreServices(t, first)
-	host, err := first.CreateUser(ctx, SystemActorID, "host", "Host", "password")
-	require.NoError(t, err)
-	guest, err := first.CreateUser(ctx, SystemActorID, "guest", "Guest", "password")
-	require.NoError(t, err)
-	room, err := first.CreateRoom(ctx, SystemActorID, KindChannel, "", "cross-replica-call", "")
-	require.NoError(t, err)
-	for _, userID := range []string{host.Id, guest.Id} {
-		_, err := first.JoinRoom(ctx, userID, KindChannel, userID, room.Id)
-		require.NoError(t, err)
-	}
-	require.NoError(t, first.JoinVoiceCall(ctx, host.Id, room.Id))
-	call, active, err := first.GetActiveCall(room.Id)
-	require.NoError(t, err)
-	require.True(t, active)
-	second, err := NewChattoCore(ctx, newReplicaConn(t, ns), testCoreConfig())
-	require.NoError(t, err)
-	source := evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER
-	second.callModel.callKeys = &callKeyReadHook{
-		CallKeyStore: second.callModel.callKeys,
-		beforeRead: func() error {
-			return first.RecordCallParticipantLeft(ctx, room.Id, host.Id, source, call.CallID)
-		},
-	}
-	startCoreServices(t, second)
-
-	require.NoError(t, first.JoinVoiceCallForID(ctx, guest.Id, room.Id, call.CallID))
-	require.NoError(t, second.RecordCallParticipantLeft(ctx, room.Id, guest.Id, source, call.CallID))
-	snapshot, err := second.GetCallSnapshot(room.Id)
-	require.NoError(t, err)
-	require.Equal(t, call.CallID, snapshot.Call.CallID)
-	require.Len(t, snapshot.Participants, 1)
-	require.Equal(t, host.Id, snapshot.Participants[0].UserID)
-
-	// The final participant leaves on the first replica during the key read.
-	_, _, err = second.CallTokenAccess(ctx, host.Id, room.Id, call.CallID)
-	require.ErrorIs(t, err, ErrNotFound)
-	keyExists, err := first.callModel.callKeys.CallKeyExists(ctx, call.E2EEKeyRef)
-	require.NoError(t, err)
-	require.False(t, keyExists)
 }

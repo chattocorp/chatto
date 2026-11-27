@@ -11,7 +11,7 @@
   import { stopViewTransition } from '$lib/dom/viewTransitions';
   import { fadePageContent } from '$lib/dom/pageFade';
   import { navigationVisits } from '$lib/navigation/mutationCompletion';
-  import { base, resolve } from '$app/paths';
+  import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { getAllContexts, onDestroy, onMount } from 'svelte';
   import { enhanceEntityLinks } from '$lib/components/messages/enhanceEntityLinks';
@@ -128,23 +128,6 @@
     );
   });
 
-  const callLink = $derived.by(() => {
-    const callId = page.url.searchParams.get('callId');
-    return callId && activeRoomId && activeServerId
-      ? { callId, roomId: activeRoomId, serverId: activeServerId }
-      : null;
-  });
-
-  function closeCallLink() {
-    const url = new URL(page.url);
-    url.searchParams.delete('callId');
-    void goto(resolve((url.pathname.slice(base.length) + url.search + url.hash) as '/'), {
-      replaceState: true,
-      keepFocus: true,
-      noScroll: true
-    });
-  }
-
   $effect(() => {
     if (typeof activeRoomId === 'string' && activeRoomId) {
       appUi.setActiveRoomScope(activeServerId, activeRoomId);
@@ -202,7 +185,7 @@
 <InputModalityTracker />
 <TouchPressFeedback />
 <ServerRuntimeCoordinator />
-<NotificationSync {callLink} onCloseCallLink={closeCallLink} />
+<NotificationSync />
 <UpdateNotifier />
 
 {#if standaloneOAuth}

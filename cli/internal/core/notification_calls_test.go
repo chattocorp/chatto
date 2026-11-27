@@ -59,13 +59,11 @@ func TestDirectCallNotificationLifecycle(t *testing.T) {
 	visible, err := c.NotificationOccurrences().VisibleOccurrences(ctx, recipient.Id, rows)
 	require.NoError(t, err)
 	require.Len(t, visible, 1)
-	require.ErrorIs(t, c.JoinVoiceCallForID(ctx, recipient.Id, dm.Id, "expired"), ErrNotFound)
-	require.NoError(t, c.JoinVoiceCallForID(ctx, recipient.Id, dm.Id, call.GetCallId()))
+	require.NoError(t, c.JoinVoiceCall(ctx, recipient.Id, dm.Id))
 	require.Empty(t, testNotificationOccurrences(t, c, recipient.Id))
 	for _, id := range []string{recipient.Id, caller.Id} {
 		require.NoError(t, c.RecordCallParticipantLeft(ctx, dm.Id, id, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
 	}
-	require.ErrorIs(t, c.JoinVoiceCallForID(ctx, recipient.Id, dm.Id, call.GetCallId()), ErrNotFound)
 	policy, err := c.NotificationPolicy().UpdateNotificationPolicy(ctx, recipient.Id, dm.Id, &evtv1.NotificationDeliveryModes{DirectCalls: off.Enum()}, &fieldmaskpb.FieldMask{Paths: []string{"direct_calls"}})
 	require.NoError(t, err)
 	require.Equal(t, off, policy.Effective.GetDirectMessages())

@@ -315,11 +315,11 @@ func (c *ChattoCore) RecordCallParticipantJoined(ctx context.Context, roomID, us
 	return c.callModel.AppendJoined(ctx, roomID, userID, source)
 }
 
-func (c *ChattoCore) RecordCallParticipantLeft(ctx context.Context, roomID, userID string, source evtv1.CallParticipantEventSource, callID ...string) error {
+func (c *ChattoCore) RecordCallParticipantLeft(ctx context.Context, roomID, userID string, source evtv1.CallParticipantEventSource) error {
 	if c.callModel == nil {
 		return fmt.Errorf("call model is not initialized")
 	}
-	return c.callModel.AppendLeftForCall(ctx, roomID, userID, optionalCallID(callID), source)
+	return c.callModel.AppendLeft(ctx, roomID, userID, source)
 }
 
 func (c *ChattoCore) VoiceCallRoomForMember(ctx context.Context, actorID, roomID string) (*readmodel.Room, RoomKind, error) {

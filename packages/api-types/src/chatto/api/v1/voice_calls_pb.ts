@@ -469,73 +469,17 @@ export class CallParticipant extends Message<CallParticipant> {
 }
 
 /**
- * Identifies one call, even after another call starts in the same room.
- *
- * @generated from message chatto.api.v1.CallReference
- */
-export class CallReference extends Message<CallReference> {
-  /**
-   * Room that hosts the call.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Session ID from the incoming-call notification.
-   *
-   * @generated from field: string call_id = 2;
-   */
-  callId = "";
-
-  constructor(data?: PartialMessage<CallReference>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.CallReference";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CallReference {
-    return new CallReference().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CallReference {
-    return new CallReference().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CallReference {
-    return new CallReference().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: CallReference | PlainMessage<CallReference> | undefined, b: CallReference | PlainMessage<CallReference> | undefined): boolean {
-    return proto3.util.equals(CallReference, a, b);
-  }
-}
-
-/**
  * Request to record joining a room call.
  *
  * @generated from message chatto.api.v1.JoinCallRequest
  */
 export class JoinCallRequest extends Message<JoinCallRequest> {
   /**
-   * Target for an ordinary room action. Omit when you set call.
+   * Required. Room whose call is being joined.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
-
-  /**
-   * Join only this call. An ended call returns NOT_FOUND.
-   *
-   * @generated from field: chatto.api.v1.CallReference call = 2;
-   */
-  call?: CallReference;
 
   constructor(data?: PartialMessage<JoinCallRequest>) {
     super();
@@ -546,7 +490,6 @@ export class JoinCallRequest extends Message<JoinCallRequest> {
   static readonly typeName = "chatto.api.v1.JoinCallRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "call", kind: "message", T: CallReference },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): JoinCallRequest {
@@ -614,18 +557,11 @@ export class JoinCallResponse extends Message<JoinCallResponse> {
  */
 export class CreateCallTokenRequest extends Message<CreateCallTokenRequest> {
   /**
-   * Target for an ordinary room action. Omit when you set call.
+   * Required. Room whose active call should be joined.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
-
-  /**
-   * Issue a token only for this call. An ended call returns NOT_FOUND.
-   *
-   * @generated from field: chatto.api.v1.CallReference call = 2;
-   */
-  call?: CallReference;
 
   constructor(data?: PartialMessage<CreateCallTokenRequest>) {
     super();
@@ -636,7 +572,6 @@ export class CreateCallTokenRequest extends Message<CreateCallTokenRequest> {
   static readonly typeName = "chatto.api.v1.CreateCallTokenRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "call", kind: "message", T: CallReference },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateCallTokenRequest {
@@ -826,18 +761,11 @@ export class CreateCallMediaPublisherTokenResponse extends Message<CreateCallMed
  */
 export class LeaveCallRequest extends Message<LeaveCallRequest> {
   /**
-   * Target for an ordinary room action. Omit when you set call.
+   * Required. Room whose call is being left.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
-
-  /**
-   * Leave only this call. An ended call requires no cleanup.
-   *
-   * @generated from field: chatto.api.v1.CallReference call = 2;
-   */
-  call?: CallReference;
 
   constructor(data?: PartialMessage<LeaveCallRequest>) {
     super();
@@ -848,7 +776,6 @@ export class LeaveCallRequest extends Message<LeaveCallRequest> {
   static readonly typeName = "chatto.api.v1.LeaveCallRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "call", kind: "message", T: CallReference },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LeaveCallRequest {

@@ -753,7 +753,7 @@ export class RoomInvitationReceived extends Message<RoomInvitationReceived> {
 
 /**
  * Dismiss marks this occurrence as read. Joining on any device or ending the
- * call removes the occurrence. Use the call reference for JoinCall and token requests.
+ * call removes the occurrence. Open the room to see its current call status.
  *
  * @generated from message chatto.api.v1.IncomingCall
  */

@@ -159,25 +159,10 @@ message CallParticipant {
   string call_id = 3;
 }
 
-// Identifies one call, even after another call starts in the same room.
-message CallReference {
-  // Room that hosts the call.
-  string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Session ID from the incoming-call notification.
-  string call_id = 2 [(buf.validate.field).string.min_len = 1];
-}
-
 // Request to record joining a room call.
 message JoinCallRequest {
-  option (buf.validate.message).cel = {
-    id: "join_call.target"
-    message: "set either room_id or call"
-    expression: "(this.room_id != '') != has(this.call)"
-  };
-  // Target for an ordinary room action. Omit when you set call.
-  string room_id = 1;
-  // Join only this call. An ended call returns NOT_FOUND.
-  CallReference call = 2;
+  // Required. Room whose call is being joined.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
 // Response from recording a join intent.
@@ -188,15 +173,8 @@ message JoinCallResponse {
 
 // Request for a LiveKit token for a room call.
 message CreateCallTokenRequest {
-  option (buf.validate.message).cel = {
-    id: "create_call_token.target"
-    message: "set either room_id or call"
-    expression: "(this.room_id != '') != has(this.call)"
-  };
-  // Target for an ordinary room action. Omit when you set call.
-  string room_id = 1;
-  // Issue a token only for this call. An ended call returns NOT_FOUND.
-  CallReference call = 2;
+  // Required. Room whose active call should be joined.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
 // LiveKit token details for joining a room call.
@@ -240,15 +218,8 @@ message CreateCallMediaPublisherTokenResponse {
 
 // Request to record leaving a room call.
 message LeaveCallRequest {
-  option (buf.validate.message).cel = {
-    id: "leave_call.target"
-    message: "set either room_id or call"
-    expression: "(this.room_id != '') != has(this.call)"
-  };
-  // Target for an ordinary room action. Omit when you set call.
-  string room_id = 1;
-  // Leave only this call. An ended call requires no cleanup.
-  CallReference call = 2;
+  // Required. Room whose call is being left.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
 // Response from recording a leave intent.

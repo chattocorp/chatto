@@ -12,6 +12,7 @@
     "join_call": "Liitu kõnega",
     "start_call": "Alustage kõnet",
     "leave": "Jäta kõne",
+    "open_room": "Ava ruum",
     "open_call_room": "Ava {room}",
     "open_call_room_on_server": "Ava {room} serveris {server}",
     "share_screen": "Ekraani jagamine",

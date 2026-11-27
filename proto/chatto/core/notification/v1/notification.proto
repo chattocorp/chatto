@@ -172,7 +172,7 @@ message RoomInvitationReceived {
   google.protobuf.Timestamp expires_at = 3;
 }
 
-// A call started in this room. A join action applies only to this call ID.
+// A call started in this room. The call ID ties the occurrence to its lifecycle.
 message IncomingCall {
   string room_id = 1;
   string call_id = 2;

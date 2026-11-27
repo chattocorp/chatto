@@ -620,7 +620,7 @@ func buildPayloadFromOccurrence(
 		payload.Title = "Incoming call"
 		payload.Body = fmt.Sprintf("%s started a call.", actorDisplayName)
 		payload.Tag = OccurrenceTag(occurrence)
-		payload.URL = buildAppURL(navigationBaseURL, []string{call.GetRoomId()}, "callId", call.GetCallId())
+		payload.URL = buildNotificationURL(navigationBaseURL, call.GetRoomId(), "", "")
 		return payload
 	}
 	if invitation := occurrence.GetSignal().GetRoomInvitationReceived(); invitation != nil {

@@ -12,6 +12,7 @@
     "join_call": "Aliĝu al voko",
     "start_call": "Komencu vokon",
     "leave": "Forlasu vokon",
+    "open_room": "Malfermi ĉambron",
     "open_call_room": "Malfermi {room}",
     "open_call_room_on_server": "Malfermi {room} ĉe {server}",
     "share_screen": "Kunhavigi ekranon",

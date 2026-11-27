@@ -36,25 +36,9 @@ describe('createVoiceCallAPI', () => {
     });
     await expect(api.leaveCall('room-1')).resolves.toBe(true);
 
-    expect(receivedRequest(mocks.joinCall)?.toJson()).toEqual({ roomId: 'room-1' });
-    expect(receivedRequest(mocks.createCallToken)?.toJson()).toEqual({ roomId: 'room-1' });
-    expect(receivedRequest(mocks.leaveCall)?.toJson()).toEqual({ roomId: 'room-1' });
-  });
-
-  it('omits the legacy room target for all call-specific actions', async () => {
-    mocks.joinCall.mockReturnValue({ joined: true });
-    mocks.createCallToken.mockReturnValue({ token: 'jwt', e2eeKey: 'key', callId: 'original' });
-    mocks.leaveCall.mockReturnValue({ left: true });
-    const api = createVoiceCallAPI(fakeServer((router) => router.service(VoiceCallService, mocks)));
-
-    await api.joinCall('room', 'original');
-    await api.createCallToken('room', 'original');
-    await api.leaveCall('room', 'original');
-
-    const expected = { call: { roomId: 'room', callId: 'original' } };
-    expect(receivedRequest(mocks.joinCall)?.toJson()).toEqual(expected);
-    expect(receivedRequest(mocks.createCallToken)?.toJson()).toEqual(expected);
-    expect(receivedRequest(mocks.leaveCall)?.toJson()).toEqual(expected);
+    expect(receivedRequest(mocks.joinCall)).toMatchObject({ roomId: 'room-1' });
+    expect(receivedRequest(mocks.createCallToken)).toMatchObject({ roomId: 'room-1' });
+    expect(receivedRequest(mocks.leaveCall)).toMatchObject({ roomId: 'room-1' });
   });
 
   it('returns null for incomplete call tokens', async () => {

@@ -20,10 +20,7 @@ export function notificationPath(
   if (!target.roomId) {
     return resolve('/chat/[serverId]', { serverId: serverSegment });
   }
-  const path = conversationPath(serverId, target.roomId, {
+  return conversationPath(serverId, target.roomId, {
     threadId: target.isDM ? null : target.threadRootId
   });
-  return notification.call
-    ? (`${path}?callId=${encodeURIComponent(notification.call.id)}` as ResolvedPathname)
-    : path;
 }
