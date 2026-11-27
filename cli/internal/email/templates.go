@@ -146,15 +146,15 @@ func (c PasswordReset) layout(b Branding) layoutData {
 		Heading:     "Reset your password",
 		Intro:       fmt.Sprintf("We received a request to reset the password for your %s account. Choose a new one with the link below.", b.ServerName),
 		ButtonLabel: "Set a new password",
-		ButtonURL:   PasswordResetURL(b.ServerURL, c.Token),
+		ButtonURL:   passwordResetURL(b.ServerURL, c.Token),
 		Expiry:      fmt.Sprintf("This link expires in %s.", ExpirationText(c.TTL)),
 		Footer:      fmt.Sprintf("Sent by %s. If you didn't ask for this, ignore this email. Your password stays the same.", b.host()),
 	}
 }
 
-// PasswordResetURL returns the frontend page that accepts a password reset
+// passwordResetURL returns the frontend page that accepts a password reset
 // token.
-func PasswordResetURL(serverURL, token string) string {
+func passwordResetURL(serverURL, token string) string {
 	return strings.TrimRight(serverURL, "/") + "/reset-password?token=" + url.QueryEscape(token)
 }
 
