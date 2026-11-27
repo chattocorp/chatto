@@ -7,15 +7,15 @@
   let { serverInfo, redirectUrl }: { serverInfo: PublicServerInfo | null; redirectUrl: string } =
     $props();
 
-  const returnQuery = $derived(
-    redirectUrl === '/' ? '' : `&${new URLSearchParams({ redirect: redirectUrl })}`
+  const query = $derived(
+    new URLSearchParams(
+      redirectUrl === '/' ? { method: 'email' } : { method: 'email', redirect: redirectUrl }
+    )
   );
 </script>
 
 {#if serverInfo?.directRegistrationEnabled ?? true}
   <p class="mt-6 text-center">
-    <a class="link" href={resolve(`/register?method=email${returnQuery}`)}
-      >{m('auth.login.registration_link')}</a
-    >
+    <a class="link" href={resolve(`/register?${query}`)}>{m('auth.login.registration_link')}</a>
   </p>
 {/if}
