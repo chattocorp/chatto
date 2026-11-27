@@ -28,7 +28,7 @@
     store,
     liveCallOccurrenceIds = []
   }: { store: ServerStateStore; liveCallOccurrenceIds?: string[] } = $props();
-  let previousCallIds = new Set<string>();
+  let previousCallIds: ReadonlySet<string> = new Set();
   const appUi = getAppUiState();
   const arrivals = new NotificationArrivals();
   const owner = {};
@@ -44,7 +44,7 @@
     const reset = () => {
       clear();
       arrivals.reset();
-      previousCallIds.clear();
+      previousCallIds = new Set();
     };
     const stops = [
       store.onReset((event) => {

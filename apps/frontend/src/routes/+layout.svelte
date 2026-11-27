@@ -11,7 +11,7 @@
   import { stopViewTransition } from '$lib/dom/viewTransitions';
   import { fadePageContent } from '$lib/dom/pageFade';
   import { navigationVisits } from '$lib/navigation/mutationCompletion';
-  import { resolve } from '$app/paths';
+  import { base, resolve } from '$app/paths';
   import { page } from '$app/state';
   import { getAllContexts, onDestroy, onMount } from 'svelte';
   import { enhanceEntityLinks } from '$lib/components/messages/enhanceEntityLinks';
@@ -138,7 +138,11 @@
   function closeCallLink() {
     const url = new URL(page.url);
     url.searchParams.delete('callId');
-    void goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+    void goto(resolve((url.pathname.slice(base.length) + url.search + url.hash) as '/'), {
+      replaceState: true,
+      keepFocus: true,
+      noScroll: true
+    });
   }
 
   $effect(() => {
