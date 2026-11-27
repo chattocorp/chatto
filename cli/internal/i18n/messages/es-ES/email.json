@@ -25,13 +25,13 @@
     "registration": {
       "subject": "{code} es tu código para {server}",
       "heading": "Te damos la bienvenida a {server}",
-      "intro": "Ingresa este código para terminar de crear tu cuenta.",
+      "intro": "Introduce este código para terminar de crear tu cuenta.",
       "footer": "Alguien usó esta dirección para registrarse en {host}. Si no fuiste tú, ignora este correo. No se creará ninguna cuenta."
     },
     "verification": {
       "subject": "{code} es tu código para {server}",
       "heading": "Verifica tu dirección de correo electrónico",
-      "intro": "Ingresa este código para añadir esta dirección a tu cuenta de {server}.",
+      "intro": "Introduce este código para añadir esta dirección a tu cuenta de {server}.",
       "footer": "Alguien pidió añadir esta dirección a una cuenta en {host}. Si no fuiste tú, ignora este correo."
     },
     "password_reset": {

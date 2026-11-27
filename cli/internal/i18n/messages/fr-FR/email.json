@@ -26,13 +26,13 @@
       "subject": "{code} est votre code pour {server}",
       "heading": "Bienvenue sur {server}",
       "intro": "Saisissez ce code pour terminer la création de votre compte.",
-      "footer": "Quelqu’un a utilisé cette adresse pour s’inscrire sur {host}. Si ce n’était pas vous, ignorez ce e-mail. Aucun compte ne sera créé."
+      "footer": "Quelqu’un a utilisé cette adresse pour s’inscrire sur {host}. Si ce n’était pas vous, ignorez cet e-mail. Aucun compte ne sera créé."
     },
     "verification": {
       "subject": "{code} est votre code pour {server}",
       "heading": "Vérifiez votre adresse e-mail",
       "intro": "Saisissez ce code pour ajouter cette adresse à votre compte {server}.",
-      "footer": "Quelqu’un a demandé à ajouter cette adresse à un compte sur {host}. Si ce n’était pas vous, ignorez ce e-mail."
+      "footer": "Quelqu’un a demandé à ajouter cette adresse à un compte sur {host}. Si ce n’était pas vous, ignorez cet e-mail."
     },
     "password_reset": {
       "subject": "Réinitialisez votre mot de passe {server}",
@@ -40,7 +40,7 @@
       "heading": "Réinitialiser votre mot de passe",
       "intro": "Nous avons reçu une demande de réinitialisation du mot de passe de votre compte {server}. Choisissez-en un nouveau avec le lien ci-dessous.",
       "button": "Choisir un nouveau mot de passe",
-      "footer": "Envoyé par {host}. Si vous n’avez rien demandé, ignorez ce e-mail. Votre mot de passe reste inchangé."
+      "footer": "Envoyé par {host}. Si vous n’avez rien demandé, ignorez cet e-mail. Votre mot de passe reste inchangé."
     }
   }
 }
