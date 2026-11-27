@@ -20,8 +20,17 @@ func launch(trigger: String = "F8") throws -> (Process, Pipe, Pipe) {
 func checkRegistration(trigger: String = "F8", checkConflict: Bool) throws {
     let (listener, input, output) = try launch(trigger: trigger)
     defer { if listener.isRunning { listener.terminate() } }
-    let ready = output.fileHandleForReading.availableData
-    precondition(String(decoding: ready, as: UTF8.self) == "ready\n")
+    // A pipe read may return only part of a line.
+    var ready = Data()
+    while ready.last != 10 {
+        let part = output.fileHandleForReading.availableData
+        if part.isEmpty {
+            listener.waitUntilExit()
+            fatalError("Registration of \(trigger) exited with status \(listener.terminationStatus)")
+        }
+        ready.append(part)
+    }
+    precondition(String(decoding: ready, as: UTF8.self) == "ready\n", "Unexpected response for \(trigger)")
     if trigger == "@," {
         // The packaged helper must reserve the physical Comma key for this binding.
         var other: EventHotKeyRef?

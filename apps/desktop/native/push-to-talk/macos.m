@@ -21,6 +21,9 @@ static int key_code(const char *name, int mask) {
         if (!strcmp(name, names[i]))
             return codes[i];
 
+    // A physical DOM position does not depend on the active input source.
+    if (name[0] == '@')
+        return printable_key_code(NULL, mask, name);
     // Resolve printable triggers on the current keyboard layout.
     TISInputSourceRef source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource();
     if (!source)
@@ -34,13 +37,13 @@ int main(int argc, char **argv) {
     if (argc != 3)
         return 1;
     setbuf(stdout, NULL);
+    NSApplication *app = NSApplication.sharedApplication;
+    [app setActivationPolicy:NSApplicationActivationPolicyProhibited];
     int mask = atoi(argv[1]), key = key_code(argv[2], mask);
     UInt32 mods = ((mask & 1) ? controlKey : 0) | ((mask & 2) ? cmdKey : 0) |
                   ((mask & 4) ? optionKey : 0) | ((mask & 8) ? shiftKey : 0);
     EventTypeSpec events[] = {{kEventClassKeyboard, kEventHotKeyPressed},
                               {kEventClassKeyboard, kEventHotKeyReleased}};
-    NSApplication *app = NSApplication.sharedApplication;
-    [app setActivationPolicy:NSApplicationActivationPolicyProhibited];
     EventHotKeyRef ref;
     EventHotKeyID id = {'CPTT', 1};
     if (key < 0 || InstallApplicationEventHandler(edge, 2, events, NULL, NULL) ||
