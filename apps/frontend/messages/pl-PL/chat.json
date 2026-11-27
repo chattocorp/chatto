@@ -42,7 +42,6 @@
     "overview": {
       "title": "Przegląd",
       "welcome_title": "Witaj",
-      "hide_welcome": "Ukryj wiadomość powitalną",
       "happening_now": "Teraz się dzieje",
       "call_participants_count": {
         "one": "{count} osoba w rozmowie",

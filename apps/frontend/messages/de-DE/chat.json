@@ -42,7 +42,6 @@
     "overview": {
       "title": "Übersicht",
       "welcome_title": "Willkommen",
-      "hide_welcome": "Willkommensnachricht ausblenden",
       "happening_now": "Gerade aktiv",
       "call_participants_count": {
         "one": "{count} Person im Anruf",

@@ -42,7 +42,6 @@
     "overview": {
       "title": "Přehled",
       "welcome_title": "Vítejte",
-      "hide_welcome": "Skrýt uvítací zprávu",
       "happening_now": "Právě probíhá",
       "call_participants_count": {
         "one": "{count} osoba v hovoru",

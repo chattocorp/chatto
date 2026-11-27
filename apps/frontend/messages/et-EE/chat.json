@@ -42,7 +42,6 @@
     "overview": {
       "title": "Ülevaade",
       "welcome_title": "Tere tulemast",
-      "hide_welcome": "Peida tervitussõnum",
       "happening_now": "Praegu toimub",
       "call_participants_count": {
         "one": "{count} inimene kõnes",

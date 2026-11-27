@@ -42,7 +42,6 @@
     "overview": {
       "title": "Pārskats",
       "welcome_title": "Laipni lūdzam",
-      "hide_welcome": "Paslēpt sveiciena ziņu",
       "happening_now": "Notiek tagad",
       "call_participants_count": {
         "zero": "{count} cilvēku zvanā",

@@ -42,7 +42,6 @@
     "overview": {
       "title": "Oversikt",
       "welcome_title": "Velkommen",
-      "hide_welcome": "Skjul velkomstmeldingen",
       "happening_now": "Skjer nå",
       "call_participants_count": {
         "one": "{count} person i samtalen",

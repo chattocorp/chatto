@@ -42,7 +42,6 @@
     "overview": {
       "title": "نظرة عامة",
       "welcome_title": "مرحبًا",
-      "hide_welcome": "أخفِ رسالة الترحيب",
       "happening_now": "يحدث الآن",
       "call_participants_count": {
         "zero": "{count} شخص في المكالمة",

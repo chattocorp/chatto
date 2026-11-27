@@ -42,7 +42,6 @@
     "overview": {
       "title": "Genel Bakış",
       "welcome_title": "Hoş geldiniz",
-      "hide_welcome": "Karşılama mesajını gizleyin",
       "happening_now": "Şu anda olanlar",
       "call_participants_count": {
         "one": "Görüşmede {count} kişi",

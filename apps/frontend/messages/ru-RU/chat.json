@@ -42,7 +42,6 @@
     "overview": {
       "title": "Обзор",
       "welcome_title": "Добро пожаловать",
-      "hide_welcome": "Скрыть приветствие",
       "happening_now": "Сейчас происходит",
       "call_participants_count": {
         "one": "{count} человек в звонке",

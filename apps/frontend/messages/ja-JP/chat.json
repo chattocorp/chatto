@@ -42,7 +42,6 @@
     "overview": {
       "title": "概要",
       "welcome_title": "ようこそ",
-      "hide_welcome": "ウェルカムメッセージを非表示",
       "happening_now": "いま起きていること",
       "call_participants_count": {
         "one": "通話中 {count} 人",

@@ -42,7 +42,6 @@
     "overview": {
       "title": "סקירה כללית",
       "welcome_title": "ברוכים הבאים",
-      "hide_welcome": "הסתר את הודעת הפתיחה",
       "happening_now": "קורה עכשיו",
       "call_participants_count": {
         "one": "{count} אדם בשיחה",

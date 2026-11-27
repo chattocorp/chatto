@@ -42,7 +42,6 @@
     "overview": {
       "title": "Огляд",
       "welcome_title": "Ласкаво просимо",
-      "hide_welcome": "Сховати привітання",
       "happening_now": "Зараз відбувається",
       "call_participants_count": {
         "one": "{count} людина у дзвінку",

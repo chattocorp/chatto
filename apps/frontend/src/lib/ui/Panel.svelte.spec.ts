@@ -74,6 +74,19 @@ describe('Panel inset structure', () => {
     }
   });
 
+  it('shows only the title band when collapsed', async () => {
+    const view = render(Panel, {
+      props: {
+        title: 'Welcome',
+        collapsed: true,
+        children: testSnippet('<p>Body</p>')
+      }
+    });
+    await expect.element(view.getByRole('heading', { name: 'Welcome' })).toBeVisible();
+    expect(view.container.querySelector('[data-panel-frame]')).toBeNull();
+    expect(view.container.textContent).not.toContain('Body');
+  });
+
   it('flattens page panels on narrow touch and mouse screens while standalone panels keep their frames', async () => {
     const flat = render(Panel, {
       props: {

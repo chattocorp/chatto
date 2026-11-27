@@ -42,7 +42,6 @@
     "overview": {
       "title": "Présentation",
       "welcome_title": "Bienvenue",
-      "hide_welcome": "Masquer le message de bienvenue",
       "happening_now": "En ce moment",
       "call_participants_count": {
         "one": "{count} personne dans l’appel",

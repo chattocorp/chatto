@@ -42,7 +42,6 @@
     "overview": {
       "title": "概览",
       "welcome_title": "欢迎",
-      "hide_welcome": "隐藏欢迎消息",
       "happening_now": "正在进行",
       "call_participants_count": {
         "other": "通话中有 {count} 人"

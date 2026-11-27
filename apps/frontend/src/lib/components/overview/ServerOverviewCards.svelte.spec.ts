@@ -2,7 +2,7 @@ import '../../../app.css';
 import { afterEach, describe, expect, it } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
-import { isOverviewCardDismissed } from '$lib/storage/overviewDismissals';
+import { isOverviewCardDismissed, isWelcomeCollapsed } from '$lib/storage/overviewDismissals';
 import ServerOverviewWelcome from './ServerOverviewWelcome.svelte';
 import ServerOverviewSetup from './ServerOverviewSetup.svelte';
 
@@ -18,14 +18,24 @@ describe('ServerOverviewWelcome', () => {
     await expect.element(page.getByText('introductions', { exact: true })).toBeVisible();
   });
 
-  it('hides the welcome message on this device', async () => {
-    render(ServerOverviewWelcome, { serverId: 'origin', welcomeMessage: 'Hello' });
+  it('collapses to its title and expands again, remembered per server', async () => {
+    const first = render(ServerOverviewWelcome, { serverId: 'origin', welcomeMessage: 'Hello' });
+    const toggle = page.getByRole('button', { name: 'Welcome' });
 
-    await page.getByRole('button', { name: 'Hide welcome message' }).click();
-
+    await expect.element(toggle).toHaveAttribute('aria-expanded', 'true');
+    await toggle.click();
     await expect.element(page.getByText('Hello')).not.toBeInTheDocument();
-    expect(isOverviewCardDismissed('origin', 'welcome')).toBe(true);
-    expect(isOverviewCardDismissed('other', 'welcome')).toBe(false);
+    await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(isWelcomeCollapsed('origin')).toBe(true);
+    expect(isWelcomeCollapsed('other')).toBe(false);
+
+    // A new visit keeps the choice, and the title brings the message back.
+    await first.unmount();
+    render(ServerOverviewWelcome, { serverId: 'origin', welcomeMessage: 'Hello' });
+    await expect.element(page.getByText('Hello')).not.toBeInTheDocument();
+    await page.getByRole('button', { name: 'Welcome' }).click();
+    await expect.element(page.getByText('Hello')).toBeVisible();
+    expect(isWelcomeCollapsed('origin')).toBe(false);
   });
 
   it('renders nothing without a welcome message', () => {

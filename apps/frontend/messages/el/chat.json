@@ -42,7 +42,6 @@
     "overview": {
       "title": "Επισκόπηση",
       "welcome_title": "Καλώς ήρθατε",
-      "hide_welcome": "Απόκρυψη μηνύματος καλωσορίσματος",
       "happening_now": "Συμβαίνει τώρα",
       "call_participants_count": {
         "one": "{count} άτομο στην κλήση",

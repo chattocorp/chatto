@@ -42,7 +42,6 @@
     "overview": {
       "title": "Overzicht",
       "welcome_title": "Welkom",
-      "hide_welcome": "Welkomstbericht verbergen",
       "happening_now": "Nu bezig",
       "call_participants_count": {
         "one": "{count} persoon in het gesprek",

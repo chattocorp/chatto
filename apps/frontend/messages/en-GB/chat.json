@@ -42,7 +42,6 @@
     "overview": {
       "title": "Overview",
       "welcome_title": "Welcome",
-      "hide_welcome": "Hide welcome message",
       "happening_now": "Happening now",
       "call_participants_count": {
         "one": "{count} person in the call",
