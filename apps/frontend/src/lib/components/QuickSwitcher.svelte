@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { bindingText, shortcutPreferences } from '$lib/state/shortcutPreferences.svelte';
   import AccountName from '$lib/components/users/AccountName.svelte';
   import AccountNameTokens from '$lib/components/users/AccountNameTokens.svelte';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
@@ -191,8 +192,8 @@
               </span>
             {/if}
 
-            {#if item.id === 'next-unread'}
-              <kbd class="keycap">Alt ⇧ ↓</kbd>
+            {#if item.id === 'next-unread' && shortcutPreferences.bindings.unread}
+              <kbd class="keycap">{bindingText(shortcutPreferences.bindings.unread)}</kbd>
             {:else if index === model.selectedIndex}
               <span class="shrink-0 text-muted" aria-hidden="true">↵</span>
             {/if}

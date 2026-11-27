@@ -7,6 +7,7 @@ bindings. Set `capture={false}` for a fallback that local handlers can cancel.
 Matched repeats are consumed without running the action again.
 -->
 <script lang="ts">
+  import { shortcutEventKey, shortcutPreferences } from '$lib/state/shortcutPreferences.svelte';
   import { onMount } from 'svelte';
   import { getKeyboardShortcuts } from '$lib/keyboardShortcuts';
 
@@ -39,7 +40,7 @@ Matched repeats are consumed without running the action again.
   // The registration is a component-lifetime resource; its getter reads current props.
   onMount(() =>
     registry?.register(() =>
-      description && eligible()
+      description && key && eligible()
         ? [{ label: description, key, command, alt, shift, group: 'app' }]
         : []
     )
@@ -50,7 +51,14 @@ Matched repeats are consumed without running the action again.
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.defaultPrevented || event.isComposing) return;
+    if (
+      !key ||
+      shortcutPreferences.recording ||
+      event.defaultPrevented ||
+      event.isComposing ||
+      event.getModifierState('AltGraph')
+    )
+      return;
     const commandMatches = command
       ? event.metaKey !== event.ctrlKey
       : !event.metaKey && !event.ctrlKey;
@@ -58,7 +66,7 @@ Matched repeats are consumed without running the action again.
       !commandMatches ||
       event.altKey !== alt ||
       event.shiftKey !== shift ||
-      event.key.toLowerCase() !== key.toLowerCase()
+      shortcutEventKey(event).toLowerCase() !== key.toLowerCase()
     )
       return;
     if (!eligible()) return;

@@ -16,6 +16,12 @@ export interface ChattoDesktopBridge {
     start(origin: string, url: string): Promise<string | { error: CallbackRegistrationFailure }>;
     cancel(state: string): void;
   };
+  /** The token identifies one call and binding lifetime across queued IPC messages. */
+  muteShortcut?: {
+    available(chord: string): Promise<boolean>;
+    set(chord: string, token: string): Promise<boolean>;
+    onPress(callback: (token: string) => void): () => void;
+  };
   updates?: DesktopUpdatesBridge;
   /** Native alerts carry opaque click IDs, never host-provided navigation URLs. */
   notifications?: {

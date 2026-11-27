@@ -4,6 +4,12 @@
     "code_render": "Weergave",
     "code_render_failed": "Voorbeeld niet beschikbaar. De bron blijft beschikbaar.",
     "keyboard_shortcuts": {
+      "description": "Kies toetsen voor veelgebruikte acties",
+      "system": "Systeembrede sneltoetsen",
+      "toggle_mute": "Microfoon dempen of inschakelen",
+      "record": "Druk op {modifier} of {alternative} met een toets",
+      "unavailable": "Sneltoets niet beschikbaar. Kies een andere combinatie.",
+      "reset": "Herstellen",
       "title": "Sneltoetsen",
       "app": "App",
       "undo": "Ongedaan maken",

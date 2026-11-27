@@ -117,6 +117,15 @@ export function getAppPreferenceNavItems(serverSegment?: string): SettingsNavIte
     }
   ];
 
+  appPreferenceNavItems.push({
+    href: serverSegment
+      ? resolve('/chat/[serverId]/settings/shortcuts', { serverId: serverSegment })
+      : resolve('/chat/preferences/shortcuts'),
+    label: m('common.keyboard_shortcuts.title'),
+    description: m('common.keyboard_shortcuts.description'),
+    icon: 'iconify icon-[uil--keyboard]'
+  });
+
   // Voice preferences use the server's call state and require a session.
   if (serverSegment) {
     appPreferenceNavItems.push({

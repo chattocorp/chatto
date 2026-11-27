@@ -53,6 +53,15 @@ ipcRenderer.on(gameCapturePublisherChannel, (event, message) => {
 contextBridge.exposeInMainWorld(
   'chattoDesktop',
   Object.freeze({
+    muteShortcut: Object.freeze({
+      available: (chord) => ipcRenderer.invoke('chatto:mute-shortcut:available', chord),
+      set: (chord, token) => ipcRenderer.invoke('chatto:mute-shortcut:set', chord, token),
+      onPress: (callback) => {
+        const listener = (_event, token) => callback(token);
+        ipcRenderer.on('chatto:mute-shortcut:pressed', listener);
+        return () => ipcRenderer.removeListener('chatto:mute-shortcut:pressed', listener);
+      }
+    }),
     updates: Object.freeze({
       getStatus: () => ipcRenderer.invoke('chatto:updates:status'),
       check: () => ipcRenderer.invoke('chatto:updates:check'),

@@ -4,6 +4,12 @@
     "code_render": "Visualização",
     "code_render_failed": "Pré-visualização indisponível. O código continua disponível.",
     "keyboard_shortcuts": {
+      "description": "Escolha teclas para ações frequentes",
+      "system": "Atalhos do sistema",
+      "toggle_mute": "Silenciar ou ativar o microfone",
+      "record": "Prima {modifier} ou {alternative} com uma tecla",
+      "unavailable": "Atalho indisponível. Escolha outra combinação.",
+      "reset": "Repor",
       "title": "Atalhos de teclado",
       "app": "Aplicação",
       "undo": "Anular",

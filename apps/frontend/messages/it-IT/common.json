@@ -4,6 +4,12 @@
     "code_render": "Vista",
     "code_render_failed": "Anteprima non disponibile. Il sorgente resta disponibile.",
     "keyboard_shortcuts": {
+      "description": "Scegli i tasti per le azioni frequenti",
+      "system": "Scorciatoie di sistema",
+      "toggle_mute": "Disattiva o attiva il microfono",
+      "record": "Premi {modifier} o {alternative} insieme a un tasto",
+      "unavailable": "Scorciatoia non disponibile. Scegli un’altra combinazione.",
+      "reset": "Ripristina",
       "title": "Scorciatoie da tastiera",
       "app": "App",
       "undo": "Annulla",

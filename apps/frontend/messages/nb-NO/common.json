@@ -4,6 +4,12 @@
     "code_render": "Visning",
     "code_render_failed": "Forhåndsvisningen er utilgjengelig. Kilden er fortsatt tilgjengelig.",
     "keyboard_shortcuts": {
+      "description": "Velg taster for vanlige handlinger",
+      "system": "Systemomfattende hurtigtaster",
+      "toggle_mute": "Slå mikrofonen av eller på",
+      "record": "Trykk på {modifier} eller {alternative} sammen med en tast",
+      "unavailable": "Hurtigtasten er utilgjengelig. Velg en annen kombinasjon.",
+      "reset": "Tilbakestill",
       "title": "Hurtigtaster",
       "app": "App",
       "undo": "Angre",

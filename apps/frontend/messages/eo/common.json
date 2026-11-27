@@ -4,6 +4,12 @@
     "code_render": "Prezento",
     "code_render_failed": "Antaŭvido ne disponeblas. La fonto plu disponeblas.",
     "keyboard_shortcuts": {
+      "description": "Elektu klavojn por oftaj agoj",
+      "system": "Tutsistemaj klavkombinoj",
+      "toggle_mute": "Silentigi aŭ malsilentigi mikrofonon",
+      "record": "Premu {modifier} aŭ {alternative} kun klavo",
+      "unavailable": "Klavkombino ne disponeblas. Elektu alian kombinaĵon.",
+      "reset": "Restarigi",
       "title": "Klavkombinoj",
       "app": "Aplikaĵo",
       "undo": "Malfari",

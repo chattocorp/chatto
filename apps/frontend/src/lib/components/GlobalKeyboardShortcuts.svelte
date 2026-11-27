@@ -4,13 +4,9 @@
 Registers global keyboard shortcuts for the application. Include this component
 once at the root layout level.
 
-**Shortcuts:**
-- `Cmd+Enter` (Mac) / `Ctrl+Enter` (Windows/Linux): Submit the form containing
-  the currently focused element
-- `Cmd+K` (Mac) / `Ctrl+K` (Windows/Linux): Open the quick switcher palette
-- `Alt+Shift+ArrowDown`: Open the next unread notification source
 -->
 <script lang="ts">
+  import { shortcutPreferences, shortcutProps } from '$lib/state/shortcutPreferences.svelte';
   import QuickSwitcher from './QuickSwitcher.svelte';
   import KeyboardShortcut from './KeyboardShortcut.svelte';
   import KeyboardShortcutHelp from './KeyboardShortcutHelp.svelte';
@@ -37,29 +33,23 @@ once at the root layout level.
 </script>
 
 <KeyboardShortcut
-  key="k"
-  command
+  {...shortcutProps(shortcutPreferences.bindings.switcher)}
   description={m('ui.open_quick_switcher')}
   ontrigger={() => quickSwitcher.open()}
 />
 <KeyboardShortcut
-  key="k"
-  command
-  shift
+  {...shortcutProps(shortcutPreferences.bindings.help)}
   description={m('common.keyboard_shortcuts.title')}
   ontrigger={openHelp}
 />
 <KeyboardShortcut
-  key="ArrowDown"
-  alt
-  shift
+  {...shortcutProps(shortcutPreferences.bindings.unread)}
   allowInModal={false}
   description={m('chat.notifications.next_unread_source')}
   ontrigger={() => void nextUnread()}
 />
 <KeyboardShortcut
-  key="Enter"
-  command
+  {...shortcutProps(shortcutPreferences.bindings.submit)}
   capture={false}
   description={m('common.submit')}
   when={() => !!focusedForm()}

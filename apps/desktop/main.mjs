@@ -10,6 +10,7 @@ import {
   clipboard,
   desktopCapturer,
   dialog,
+  globalShortcut,
   ipcMain,
   MessageChannelMain,
   Menu,
@@ -23,7 +24,7 @@ import {
 } from 'electron';
 import { createFrontendProtocolHandler } from './frontend_protocol.mjs';
 import { configureYouTubeEmbeds } from './youtube.mjs';
-import { protectReloadShortcuts } from './keyboard_shortcuts.mjs';
+import { configureMuteShortcut, protectReloadShortcuts } from './keyboard_shortcuts.mjs';
 import { configureNativeNavigation } from './native_navigation.mjs';
 import { configureMediaContextMenu } from './media_context_menu.mjs';
 import { configureLastServer } from './last_server.mjs';
@@ -56,8 +57,15 @@ import { configureScreenSharing } from './screen_sharing.mjs';
 const buildProfile = desktopBuildProfile(packageJson.chattoBuildVariant);
 app.setName(buildProfile.productName);
 // Match the Linux launcher on Wayland and X11, including direct tarball launches.
-if (process.platform === 'linux') app.setDesktopName(`${buildProfile.packageName}.desktop`);
-app.setPath('userData', path.join(app.getPath('appData'), buildProfile.userDataName));
+if (process.platform === 'linux') app.setDesktopName(packageJson.desktopName);
+// Source launches can isolate their sessions and single-instance lock per worktree.
+const devProfile = !app.isPackaged && process.env.CHATTO_DESKTOP_DEV_PROFILE;
+app.setPath(
+  'userData',
+  devProfile
+    ? path.resolve(devProfile)
+    : path.join(app.getPath('appData'), buildProfile.userDataName)
+);
 const streamDiagnostics = new StreamDiagnostics();
 let screenShareMode = defaultScreenShareMode;
 
@@ -167,6 +175,15 @@ async function start() {
     return passwordLogin(request);
   });
   mainWindow = createMainWindow();
+  configureMuteShortcut({
+    ipcMain,
+    globalShortcut,
+    contents: mainWindow.webContents,
+    isTrusted: isTrustedMainRenderer,
+    wayland:
+      process.platform === 'linux' &&
+      (process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY)
+  });
   const background = configureBackgroundWindow({
     app,
     autoUpdater,
