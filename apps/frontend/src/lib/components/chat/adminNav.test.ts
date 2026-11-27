@@ -7,6 +7,23 @@ function permissions(overrides: Partial<ServerPermissions> = {}): ServerPermissi
 }
 
 describe('getAdminNavItems', () => {
+  it('uses the preview only for inaccessible pages supported by the server', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      permissions: permissions({ canManageInvites: true }),
+      preview: {
+        active: false,
+        permissions: permissions({ canManageServer: true }),
+        requestAccess: () => {}
+      },
+      limitedFeatures: ['backgroundJobs']
+    });
+    expect(items.find((item) => item.label === 'General')?.requestAccess).toBeTypeOf('function');
+    expect(items.find((item) => item.label === 'Invites')).toBeDefined();
+    expect(items.find((item) => item.label === 'Invites')?.requestAccess).toBeUndefined();
+    expect(items.some((item) => ['Jobs', 'System'].includes(item.label))).toBe(false);
+  });
+
   it('describes Registration separately from invitation code management', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',

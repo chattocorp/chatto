@@ -15,7 +15,7 @@
   import SettingsSidebar from '$lib/components/settings/SettingsSidebar.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { getSettingsNavGroups } from '$lib/navigation/settingsNav';
-  import { getAdminNavItems } from './adminNav';
+  import { useSettingsManagementNav } from '$lib/navigation/settingsManagementNav';
   import { m } from '$lib/i18n/messages';
   import {
     DEFAULT_SERVER_SETTINGS_ROUTE,
@@ -25,6 +25,7 @@
   let { children }: { children?: Snippet } = $props();
 
   const serverScope = useServerScope();
+  const managementItems = useSettingsManagementNav();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
   const activeStore = serverScope.store;
 
@@ -81,13 +82,7 @@
   let bannerUrl = $derived(serverData?.bannerUrl ?? null);
 
   // Admin navigation items - filtered based on permissions
-  const adminNavItems = $derived(
-    getAdminNavItems({
-      serverSegment,
-      permissions: activeStore.permissions,
-      limitedFeatures: activeStore.serverInfo.limitedFeatures
-    })
-  );
+  const adminNavItems = $derived(managementItems());
   const managedRoom = $derived(
     page.params.roomId
       ? (serverUi(activeStore).navigation.rooms.find((room) => room.id === page.params.roomId) ??

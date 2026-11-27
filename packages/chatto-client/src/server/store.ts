@@ -54,13 +54,17 @@ import { RoomKind } from '../api/roomDirectory.js';
 import { mapDirectoryMember } from '../api/memberDirectory.js';
 import {
   createPrivilegedModeAPI,
+  viewerAuthorizationFromAPI,
   viewerResponseToState,
   type PrivilegedModeAPI
 } from '../api/viewer.js';
 import { directMessageParticipant } from './rooms.js';
 import { mapNotificationOccurrencePage } from '../api/notifications.js';
 import { RealtimeProjectionSyncState } from './realtimeSync.js';
-import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
+import {
+  PrivilegedModeState,
+  PrivilegedPermissionPreview_Basis
+} from '@chatto/api-types/api/v1/viewer_pb';
 import { MentionRolesStore } from './mentionRoles.js';
 import { TimelineEventKind } from '../timeline/timelineEvents.js';
 
@@ -261,6 +265,27 @@ export class ServerStateStore {
   });
   get permissions(): ServerPermissions {
     return this.#permissionsComputed.get();
+  }
+
+  readonly #privilegedPermissionPreview = computed(() => {
+    const mode = this.projection.viewer?.privilegedMode;
+    const preview = mode?.roleSelection?.permissionPreview;
+    if (!this.permissions.loaded || !mode?.available || !preview) return undefined;
+    const expectedBasis = mode.active
+      ? PrivilegedPermissionPreview_Basis.NO_PROTECTED_ROLES_ACTIVE
+      : PrivilegedPermissionPreview_Basis.ALL_PROTECTED_ROLES_ACTIVE;
+    if (preview.basis !== expectedBasis) return undefined;
+    return {
+      active: mode.active,
+      permissions: serverPermissionsFromViewer(
+        viewerAuthorizationFromAPI(preview.grants, preview.viewerPermissions)
+      )
+    };
+  });
+  /** Server decisions for Settings discovery. The preview describes all protected roles while inactive, or ordinary access while active. */
+  get privilegedPermissionPreview():
+    { active: boolean; permissions: ServerPermissions } | undefined {
+    return this.#privilegedPermissionPreview.get();
   }
 
   /**

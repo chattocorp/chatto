@@ -139,11 +139,11 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 }
 
 // Larger fixtures can select a bounded lifecycle that also fits race-enabled runs.
-func newConnectAPITestEnvWithTimeout(t *testing.T, timeout time.Duration) *connectAPITestEnv {
+func newConnectAPITestEnvWithTimeout(t testing.TB, timeout time.Duration) *connectAPITestEnv {
 	return newConnectAPITestEnvWithAuth(t, timeout, config.AuthConfig{})
 }
 
-func newConnectAPITestEnvWithAuth(t *testing.T, timeout time.Duration, auth config.AuthConfig) *connectAPITestEnv {
+func newConnectAPITestEnvWithAuth(t testing.TB, timeout time.Duration, auth config.AuthConfig) *connectAPITestEnv {
 	t.Helper()
 
 	// Each environment owns its broker and event log. A shared broker reset
@@ -207,7 +207,7 @@ func newConnectAPITestEnvWithAuth(t *testing.T, timeout time.Duration, auth conf
 	}
 }
 
-func startConnectAPITestCore(t *testing.T, c *core.ChattoCore) {
+func startConnectAPITestCore(t testing.TB, c *core.ChattoCore) {
 	t.Helper()
 	testutil.StartService(t, "ChattoCore", c.Run, c.WaitForBoot)
 }

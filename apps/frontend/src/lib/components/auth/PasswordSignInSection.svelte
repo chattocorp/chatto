@@ -1,8 +1,7 @@
 <!--
 @component
 Direct sign-in with a username or email address and password, with the
-password-reset link and, when the server allows direct registration, the
-Create Account action. Owns the credentials and the submission. The login page
+password-reset link. Owns the credentials and the submission. The login page
 and the password login page both render it.
 -->
 <script lang="ts">
@@ -10,23 +9,17 @@ and the password login page both render it.
   import { signInWithPassword } from '$lib/auth/passwordSignIn';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import { isProviderContinuation } from '$lib/auth/providerContinuation';
-  import { withReturnPath } from '$lib/auth/loginRoutes';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { m } from '$lib/i18n/messages';
-  import { Divider } from '$lib/ui';
-  import { Button } from '$lib/ui/form';
   import PasswordSignInForm from './PasswordSignInForm.svelte';
 
   let {
     redirectUrl,
-    directRegistrationEnabled,
     compact = false,
     pageError = ''
   }: {
     /** Same-origin path to open after sign-in. */
     redirectUrl: string;
-    /** Shows the Create Account action. */
-    directRegistrationEnabled: boolean;
     compact?: boolean;
     /** Error from the page URL. Shown until the first submission. */
     pageError?: string;
@@ -76,16 +69,3 @@ and the password login page both render it.
 <div class="mt-4 text-center">
   <a href={resolve('/forgot-password')} class="link">{m('auth.login.forgot_password')}</a>
 </div>
-
-{#if directRegistrationEnabled}
-  <Divider label={m('common.or')} />
-
-  <Button
-    href={withReturnPath(resolve('/register'), redirectUrl)}
-    variant="secondary"
-    size={compact ? 'md' : 'lg'}
-    fullWidth
-  >
-    {m('common.create_account')}
-  </Button>
-{/if}

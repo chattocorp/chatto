@@ -78,8 +78,12 @@ func (s *viewerService) activatePrivilegedRoles(ctx context.Context, requested [
 	if err != nil {
 		return nil, err
 	}
+	state := privilegedModeState(activation.ExpiresAt, s.api.core.ProtectedRoles(caller.UserID)...)
+	if err := s.api.addPrivilegedPreview(ctx, caller.UserID, state); err != nil {
+		return nil, err
+	}
 	return &apiv1.ActivatePrivilegedRolesResponse{
-		PrivilegedMode:    privilegedModeState(activation.ExpiresAt, s.api.core.ProtectedRoles(caller.UserID)...),
+		PrivilegedMode:    state,
 		Capabilities:      capabilities,
 		ViewerPermissions: permissions,
 	}, nil
@@ -99,8 +103,12 @@ func (s *viewerService) DeactivatePrivilegedMode(ctx context.Context, _ *connect
 	if err != nil {
 		return nil, err
 	}
+	state := privilegedModeState(time.Time{}, roles...)
+	if err := s.api.addPrivilegedPreview(ctx, caller.UserID, state); err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&apiv1.DeactivatePrivilegedModeResponse{
-		PrivilegedMode:    privilegedModeState(time.Time{}, roles...),
+		PrivilegedMode:    state,
 		Capabilities:      capabilities,
 		ViewerPermissions: permissions,
 	}), nil
@@ -141,6 +149,34 @@ func privilegedModeState(deadline time.Time, roles ...string) *apiv1.PrivilegedM
 		state.ExpiresAt = timestamppb.New(deadline)
 	}
 	return state
+}
+
+// addPrivilegedPreview evaluates only decisions, with a request-local role
+// selection. It never changes the credential stored for this session.
+func (a *API) addPrivilegedPreview(ctx context.Context, userID string, state *apiv1.PrivilegedModeState) error {
+	if !state.Available {
+		return nil
+	}
+	basis := apiv1.PrivilegedPermissionPreview_BASIS_NO_PROTECTED_ROLES_ACTIVE
+	previewCtx := privilegedModeContext(ctx, time.Time{})
+	if !state.Active {
+		basis = apiv1.PrivilegedPermissionPreview_BASIS_ALL_PROTECTED_ROLES_ACTIVE
+		previewCtx = privilegedModeContext(ctx, time.Now().Add(core.PrivilegedModeWindow), state.RoleSelection.AvailableRoles...)
+	}
+	permissions, err := a.serverViewerPermissions(previewCtx, userID)
+	if err != nil {
+		return err
+	}
+	grants, err := viewerCapabilityGrants(previewCtx, a, userID)
+	if err != nil {
+		return err
+	}
+	state.RoleSelection.PermissionPreview = &apiv1.PrivilegedPermissionPreview{
+		Basis:             basis,
+		ViewerPermissions: permissions,
+		Grants:            grants,
+	}
+	return nil
 }
 
 // buildViewerAuthorization assembles the fields returned by privilege mutations.
@@ -208,7 +244,7 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 			deadline = credential.PrivilegedModeExpiresAt
 		}
 		privilegedMode = privilegedModeState(deadline, roles...)
-		return nil
+		return a.addPrivilegedPreview(groupCtx, userID, privilegedMode)
 	})
 	if err := group.Wait(); err != nil {
 		return nil, err
@@ -296,6 +332,30 @@ func viewerUser(ctx context.Context, api *API, user *readmodel.User) (*apiv1.Vie
 }
 
 func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.ViewerCapabilities, error) {
+	var grants []*apiv1.CapabilityGrant
+	var hasUnreadFollowedThreads bool
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		var err error
+		grants, err = viewerCapabilityGrants(groupCtx, api, userID)
+		return err
+	})
+	group.Go(func() error {
+		var err error
+		hasUnreadFollowedThreads, err = api.core.HasUnreadFollowedThreads(groupCtx, userID, []string{
+			core.LegacySpaceIDForRoomKind(core.KindChannel),
+			core.LegacySpaceIDForRoomKind(core.KindDM),
+		})
+		return err
+	})
+	if err := group.Wait(); err != nil {
+		return nil, err
+	}
+	return &apiv1.ViewerCapabilities{Grants: grants, HasUnreadFollowedThreads: hasUnreadFollowedThreads}, nil
+}
+
+// viewerCapabilityGrants resolves capability decisions without reading resource state.
+func viewerCapabilityGrants(ctx context.Context, api *API, userID string) ([]*apiv1.CapabilityGrant, error) {
 	var (
 		canViewAdmin             bool
 		canStartDMs              bool
@@ -307,7 +367,6 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 		canAdminViewSystem       bool
 		canAdminViewAudit        bool
 		canManageInvites         bool
-		hasUnreadFollowedThreads bool
 	)
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error {
@@ -360,34 +419,24 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 		canAdminViewAudit, err = api.core.CanAdminAuditView(groupCtx, userID)
 		return err
 	})
-	group.Go(func() error {
-		var err error
-		hasUnreadFollowedThreads, err = api.core.HasUnreadFollowedThreads(groupCtx, userID, []string{
-			core.LegacySpaceIDForRoomKind(core.KindChannel),
-			core.LegacySpaceIDForRoomKind(core.KindDM),
-		})
-		return err
-	})
+
 	if err := group.Wait(); err != nil {
 		return nil, err
 	}
 	canAdminViewRoles := canAdminManageRoles || canAssignRoles || canManageUserPermissions
 
-	return &apiv1.ViewerCapabilities{
-		Grants: []*apiv1.CapabilityGrant{
-			{Capability: viewerCapabilityAdminView, Granted: canViewAdmin},
-			{Capability: viewerCapabilityDMStart, Granted: canStartDMs},
-			{Capability: viewerCapabilityAdminViewUsers, Granted: canAdminViewUsers},
-			{Capability: viewerCapabilityAdminManageUsers, Granted: canAdminManageAccounts},
-			{Capability: viewerCapabilityAssignRoles, Granted: canAssignRoles},
-			{Capability: viewerCapabilityAdminViewRoles, Granted: canAdminViewRoles},
-			{Capability: viewerCapabilityAdminManageRoles, Granted: canAdminManageRoles},
-			{Capability: viewerCapabilityAdminViewSystem, Granted: canAdminViewSystem},
-			{Capability: viewerCapabilityAdminViewAudit, Granted: canAdminViewAudit},
-			{Capability: viewerCapabilityManageUserPerms, Granted: canManageUserPermissions},
-			{Capability: viewerCapabilityManageInvites, Granted: canManageInvites},
-		},
-		HasUnreadFollowedThreads: hasUnreadFollowedThreads,
+	return []*apiv1.CapabilityGrant{
+		{Capability: viewerCapabilityAdminView, Granted: canViewAdmin},
+		{Capability: viewerCapabilityDMStart, Granted: canStartDMs},
+		{Capability: viewerCapabilityAdminViewUsers, Granted: canAdminViewUsers},
+		{Capability: viewerCapabilityAdminManageUsers, Granted: canAdminManageAccounts},
+		{Capability: viewerCapabilityAssignRoles, Granted: canAssignRoles},
+		{Capability: viewerCapabilityAdminViewRoles, Granted: canAdminViewRoles},
+		{Capability: viewerCapabilityAdminManageRoles, Granted: canAdminManageRoles},
+		{Capability: viewerCapabilityAdminViewSystem, Granted: canAdminViewSystem},
+		{Capability: viewerCapabilityAdminViewAudit, Granted: canAdminViewAudit},
+		{Capability: viewerCapabilityManageUserPerms, Granted: canManageUserPermissions},
+		{Capability: viewerCapabilityManageInvites, Granted: canManageInvites},
 	}, nil
 }
 

@@ -61,11 +61,16 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
     await expect(popup.getByTestId('sign-in-window-header')).toBeVisible();
 
     // Switching auth screens must keep the same authorization request.
-    const signupURL = popup.url();
-    await popup.getByRole('link', { name: 'Sign In', exact: true }).click();
+    const signupRedirect = new URL(popup.url()).searchParams.get('redirect');
+    await popup.getByRole('link', { name: 'Already a member? Sign in', exact: true }).click();
     await expect(popup).toHaveURL(/\/login\?redirect=/);
-    await popup.getByRole('link', { name: 'Create Account', exact: true }).click();
-    await expect(popup).toHaveURL(signupURL);
+    await popup.getByRole('link', { name: 'Create an account with email', exact: true }).click();
+    await expect(popup).toHaveURL(
+      (url) =>
+        url.pathname === '/register' &&
+        url.searchParams.get('method') === 'email' &&
+        url.searchParams.get('redirect') === signupRedirect
+    );
 
     const auth = new AuthPage(popup);
     await auth.emailInput.fill('desktop-signup@example.test');

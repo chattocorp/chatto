@@ -9,7 +9,11 @@ typing should immediately replace the current query.
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { HTMLInputAttributes } from 'svelte/elements';
-  import { usesAppleShortcutModifier } from '$lib/utils/platformShortcuts';
+  import {
+    bindingText,
+    shortcutProps,
+    shortcutPreferences
+  } from '$lib/state/shortcutPreferences.svelte';
   import TextInput from './TextInput.svelte';
   import KeyboardShortcut from '$lib/components/KeyboardShortcut.svelte';
 
@@ -54,14 +58,19 @@ typing should immediately replace the current query.
     oninput?: (event: Event) => void;
   } = $props();
 
-  let shortcutModifier = $state<string | null>(null);
-  const shortcutHint = $derived(shortcutModifier ? `${shortcutModifier}${shortcutKey}` : null);
+  let mounted = $state(false);
+  const chord = $derived(
+    shortcutKey === '/' ? shortcutPreferences.bindings.search : `CommandOrControl+${shortcutKey}`
+  );
+  const shortcutHint = $derived(
+    mounted && bindingText(chord).replace('Ctrl+', 'Ctrl-').replace('⌘+', '⌘')
+  );
   const placeholderWithShortcut = $derived(
     `${placeholder ?? ''}${shortcutHint ? `${placeholder ? ' ' : ''}(${shortcutHint})` : ''}`
   );
 
   onMount(() => {
-    shortcutModifier = usesAppleShortcutModifier() ? '⌘' : 'Ctrl-';
+    mounted = true;
   });
 
   function inputForShortcut(): HTMLInputElement | null {
@@ -77,8 +86,7 @@ typing should immediately replace the current query.
 </script>
 
 <KeyboardShortcut
-  key={shortcutKey}
-  command
+  {...shortcutProps(chord)}
   capture={false}
   description={label}
   when={() => !!inputForShortcut() && !inputForShortcut()?.disabled}

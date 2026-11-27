@@ -59,6 +59,7 @@
         "jobs": "Prohlížejte úlohy na pozadí a opakujte neúspěšné úlohy."
       },
       "title": "Přehled",
+      "shield_active": "Privilegovaný režim je aktivní",
       "shield_notice": "Chcete-li na tomto serveru používat další oprávnění, aktivujte privilegovaný režim tlačítkem štítu vedle svého jména."
     },
     "nav": {

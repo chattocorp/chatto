@@ -4,6 +4,12 @@
     "code_render": "Podgląd",
     "code_render_failed": "Podgląd jest niedostępny. Źródło jest nadal dostępne.",
     "keyboard_shortcuts": {
+      "description": "Wybierz klawisze dla częstych czynności",
+      "system": "Systemowe skróty klawiszowe",
+      "toggle_mute": "Wycisz lub włącz mikrofon",
+      "record": "Naciśnij {modifier} lub {alternative} wraz z klawiszem",
+      "unavailable": "Skrót niedostępny. Wybierz inną kombinację.",
+      "reset": "Przywróć",
       "title": "Skróty klawiszowe",
       "app": "Aplikacja",
       "undo": "Cofnij",

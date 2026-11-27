@@ -16,6 +16,7 @@
     form,
     onclick,
     label,
+    describedBy,
     title,
     children
   }: {
@@ -52,6 +53,8 @@
     onclick?: (e: MouseEvent) => void;
     /** Accessible name for icon-only buttons. */
     label?: string;
+    /** IDs of elements that describe this action. */
+    describedBy?: string;
     /** Optional native hover hint. */
     title?: string;
     children: Snippet;
@@ -118,6 +121,7 @@
     aria-busy={loading || undefined}
     aria-disabled={disabled || loading || undefined}
     aria-label={label}
+    aria-describedby={describedBy}
     {title}
     data-dialog-default={defaultAction || undefined}
     tabindex={disabled || loading ? -1 : undefined}
@@ -143,6 +147,7 @@
     disabled={disabled || loading}
     aria-busy={loading || undefined}
     aria-label={label}
+    aria-describedby={describedBy}
     {title}
     data-dialog-default={defaultAction || undefined}
     class={[

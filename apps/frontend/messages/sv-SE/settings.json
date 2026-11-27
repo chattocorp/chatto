@@ -59,6 +59,7 @@
         "jobs": "Visa bakgrundsjobb och försök igen med misslyckade jobb."
       },
       "title": "Översikt",
+      "shield_active": "Privilegierat läge aktivt",
       "shield_notice": "Aktivera privilegierat läge med sköldknappen bredvid ditt namn för att använda dina extra behörigheter på den här servern."
     },
     "nav": {

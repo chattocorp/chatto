@@ -26,7 +26,12 @@ describe('AT Protocol handle page', () => {
   it('suggests the remembered handle and lets the user forget it', async () => {
     localStorage.setItem(HANDLE_KEY, 'alice.example');
     const screen = open({ next: '/auth/providers/bsky?redirect=%2Fchat' });
-    const field = screen.getByLabelText('Internet Handle');
+    await expect
+      .element(screen.getByRole('heading', { name: 'Sign in with your Atmosphere account' }))
+      .toBeVisible();
+    const label = screen.getByText('Handle', { exact: true });
+    await expect.element(label).not.toHaveClass('sr-only');
+    const field = screen.getByLabelText('Handle', { exact: true });
     await expect.element(field).toHaveValue('alice.example');
     await screen.getByRole('button', { name: 'Use another handle' }).click();
     await expect.element(field).toHaveValue('');
@@ -42,7 +47,9 @@ describe('AT Protocol handle page', () => {
     await expect
       .element(screen.getByText('That handle could not be found.', { exact: false }))
       .toBeVisible();
-    await expect.element(screen.getByLabelText('Internet Handle')).toHaveValue('nobody.example');
+    await expect
+      .element(screen.getByLabelText('Handle', { exact: true }))
+      .toHaveValue('nobody.example');
   });
 
   it('refuses a continuation outside provider sign-in', async () => {
@@ -50,6 +57,6 @@ describe('AT Protocol handle page', () => {
     await expect
       .element(screen.getByText('This sign-in link is invalid', { exact: false }))
       .toBeVisible();
-    expect(screen.getByLabelText('Internet Handle').query()).toBeNull();
+    expect(screen.getByLabelText('Handle', { exact: true }).query()).toBeNull();
   });
 });

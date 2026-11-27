@@ -44,13 +44,13 @@ describe('password login page', () => {
     await expect.element(getByLabelText('Username or Email')).toBeVisible();
     await expect.element(getByRole('link', { name: 'Forgot password?' })).toBeVisible();
     await expect
-      .element(getByRole('link', { name: 'Create Account', exact: true }))
-      .toHaveAttribute('href', '/register?redirect=%2Fchat%2Fabc');
+      .element(getByRole('link', { name: 'Create an account with email', exact: true }))
+      .toHaveAttribute('href', '/register?method=email&redirect=%2Fchat%2Fabc');
     await expect
       .element(getByRole('link', { name: 'Other sign-in options' }))
       .toHaveAttribute('href', '/login?redirect=%2Fchat%2Fabc');
     await expect
-      .element(getByRole('link', { name: 'Continue with Company SSO' }))
+      .element(getByRole('link', { name: 'Company SSO', exact: true }))
       .not.toBeInTheDocument();
   });
 
@@ -66,7 +66,7 @@ describe('password login page', () => {
 
     await expect.element(getByRole('button', { name: 'Sign In' })).toBeVisible();
     await expect
-      .element(getByRole('link', { name: 'Create Account', exact: true }))
+      .element(getByRole('link', { name: 'Create an account with email', exact: true }))
       .not.toBeInTheDocument();
     await expect
       .element(getByRole('link', { name: 'Other sign-in options' }))

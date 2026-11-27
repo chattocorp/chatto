@@ -13,7 +13,9 @@ server session when they need them.
 
 - The control appears in the current-user area of the selected server when the
   user has an assigned protected role or an active session deadline.
-- Settings Overview shows a notice inside Server configuration when the mode is available but inactive. It directs the user to the shield button beside their name to activate additional permissions. The notice disappears while the mode is active.
+- While Shield Mode is inactive, the server previews the server permissions and capabilities the user would have with all assigned protected roles active. Settings shows the additional pages as muted buttons with a shield in the sidebar and on Overview. Selecting a button opens the role picker. After activation, Settings opens the requested page if the effective permissions allow it. Canceling keeps the current page. Older servers omit the preview, so Settings shows only accessible pages.
+- During activation, the server also reports the permissions the viewer would have with Shield Mode off. The sidebar and Overview show a gold checked shield on links that need the selected roles. Pages available during ordinary use keep their usual appearance.
+- If Shield Mode is available but inactive and there are no shield-marked pages, Settings Overview directs the user to the shield button beside their name.
 - Activating the mode requires a confirmation. One exception: after first-run
   setup, the client activates the mode for the new owner without a
   confirmation and explains it in a welcome dialog (FDR-047).
@@ -68,8 +70,8 @@ server session when they need them.
   of human session activation. A bot manager can grant permissions from the owner's protected roles even while Shield Mode is off.
 - The admin entry point remains visible to entitled users while the mode is
   inactive. Protected capabilities and actions remain unavailable.
-- The Moderation link and page require effective server-wide
-  `room.remove-member`. Deactivation or permission loss hides the link and removes
+- The Moderation page and its direct navigation link require effective server-wide
+  `room.remove-member`. Deactivation or permission loss removes the direct link and closes
   an open Moderation page. Direct access shows an access-denied screen.
 - A user can edit or delete their own message without privileged mode. Editing
   or deleting another user's message requires active `message.manage`.

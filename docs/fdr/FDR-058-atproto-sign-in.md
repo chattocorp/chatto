@@ -13,7 +13,7 @@ Independent verification by the viewer requires an issuer (ADR-124).
 
 - An operator enables sign-in with the `atproto` provider type. No client
   registration or client secret is necessary. The default button label is
-  "Internet Handle", because AT Protocol handles are not limited to Bluesky.
+  "Atmosphere account". The handle field shows an example handle.
 - The login page shows the provider like other providers. The sign-in window
   first asks for the handle, on Chatto's handle page. The server then resolves
   the handle and sends the user to the authorization page of the user's PDS.

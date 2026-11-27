@@ -83,7 +83,7 @@ test('Desktop registration through SSO stays in one window and returns to the cl
     const nestedPopups: unknown[] = [];
     popup.on('popup', (nested) => nestedPopups.push(nested));
     await expect(popup).toHaveURL(/\/register\?redirect=/);
-    await popup.getByRole('link', { name: 'Continue with Authling' }).click();
+    await popup.getByRole('link', { name: 'Authling', exact: true }).click();
     await popup.getByRole('button', { name: 'Authorize' }).click();
     await expect(popup.getByRole('heading', { name: /^Join / })).toBeVisible();
     await popup.getByLabel('Username').fill('desktop-sso-user');
@@ -188,7 +188,7 @@ test('links a remote identity in one popup and refreshes the original client', a
     await clientPage.getByLabel('Server URL').fill(server.baseURL);
     await clientPage.getByRole('button', { name: 'Find server' }).click();
     const authPopup = await startServerSignIn(clientPage);
-    await authPopup.getByRole('link', { name: 'Continue with password' }).click();
+    await authPopup.getByRole('link', { name: 'Password', exact: true }).click();
     await authPopup.getByLabel('Username or Email').fill('remote-link-user');
     await authPopup.getByLabel('Password', { exact: true }).fill(password);
     await authPopup.getByRole('button', { name: 'Sign In', exact: true }).click();
@@ -209,7 +209,7 @@ test('links a remote identity in one popup and refreshes the original client', a
     linkPopup.on('pageerror', (error) => errors.push(error.message));
     await expect(linkPopup).toHaveURL(new RegExp(`${new URL(server.baseURL).host}/login`));
     expect(await linkPopup.evaluate(() => window.opener === null)).toBe(true);
-    await linkPopup.getByRole('link', { name: 'Continue with password' }).click();
+    await linkPopup.getByRole('link', { name: 'Password', exact: true }).click();
     await linkPopup.getByLabel('Username or Email').fill('remote-link-user');
     await linkPopup.getByLabel('Password', { exact: true }).fill(password);
     await linkPopup.getByRole('button', { name: 'Sign In', exact: true }).click();

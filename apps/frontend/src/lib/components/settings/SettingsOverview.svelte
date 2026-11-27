@@ -24,7 +24,7 @@
         {#if group.items.length > 0}
           <section class="flex flex-col gap-4" aria-label={group.label}>
             <h2 class="text-xl font-bold tracking-tight text-text-top">{group.label}</h2>
-            {#if group.id === 'server-configuration' && showShieldNotice}
+            {#if group.id === 'server-configuration' && showShieldNotice && !group.items.some((item) => item.requestAccess)}
               <Hint tone="warning" icon="icon-[uil--shield]"
                 >{m('settings.overview.shield_notice')}</Hint
               >

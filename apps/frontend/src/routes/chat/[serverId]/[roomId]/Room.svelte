@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { eventChord, shortcutPreferences } from '$lib/state/shortcutPreferences.svelte';
   import RoomNoticeBanner from './RoomNoticeBanner.svelte';
   import type { MarkdownMentionOptions } from '$lib/components/composer/mentionOptions';
   import { timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -457,10 +458,8 @@
   function handleWindowKeydown(event: KeyboardEvent): void {
     if (
       event.defaultPrevented ||
-      event.altKey ||
-      event.shiftKey ||
-      (!event.metaKey && !event.ctrlKey) ||
-      event.key !== '/' ||
+      shortcutPreferences.recording ||
+      eventChord(event) !== shortcutPreferences.bindings.search ||
       !messageSearchAvailable
     ) {
       return;

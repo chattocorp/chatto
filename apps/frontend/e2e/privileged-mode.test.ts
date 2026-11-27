@@ -189,7 +189,12 @@ test('a protected role can be selected without the owner override', async ({
       });
     }
   });
-  await page.getByRole('button', { name: 'Enable privileged mode' }).click();
+  // Selecting only room-helper cannot open the owner's System page.
+  await page.goto(routes.settingsOverview);
+  await page
+    .getByTestId('server-sidebar')
+    .getByRole('button', { name: 'System', exact: true })
+    .click();
   const dialog = page.getByRole('dialog', { name: 'Enable privileged mode' });
   await expect(
     dialog.getByRole('checkbox', { name: 'Room helper room-helper', exact: true })
@@ -199,6 +204,14 @@ test('a protected role can be selected without the owner override', async ({
   ).not.toBeChecked();
   await dialog.getByText('room-helper', { exact: true }).click();
   await dialog.getByRole('button', { name: 'Enable privileged mode' }).click();
+  await expect(
+    page.getByText('You do not have permission to do that.', { exact: true })
+  ).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(routes.settingsOverview + '$'));
+  await page
+    .getByTestId('server-sidebar')
+    .getByRole('link', { name: 'Moderation', exact: true })
+    .click();
   await expect(page.getByText('No active room suspensions', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Roles', exact: true })).not.toBeVisible();
 });

@@ -70,8 +70,14 @@ describe('invite-only registration', () => {
     await userEvent.fill(page.getByLabelText('Email'), 'invited@example.test');
     await userEvent.click(page.getByRole('button', { name: 'Continue' }));
     await userEvent.click(page.getByRole('button', { name: 'Resend', exact: true }));
+    await userEvent.click(page.getByRole('button', { name: 'Change email address' }));
+    await expect.element(page.getByLabelText('Email')).toHaveValue('invited@example.test');
+    await userEvent.fill(page.getByLabelText('Email'), 'corrected@example.test');
+    await userEvent.click(page.getByRole('button', { name: 'Continue' }));
+    await expect.element(page.getByText('corrected@example.test')).toBeVisible();
     const submissions = fetcher.mock.calls.filter(([path]) => path === '/auth/register');
-    expect(submissions).toHaveLength(2);
+    expect(submissions).toHaveLength(3);
+    expect(JSON.parse(submissions[2][1]?.body as string).email).toBe('corrected@example.test');
     for (const submission of submissions) {
       expect(JSON.parse(submission[1]?.body as string)).toMatchObject({ admissionId: 'tab-a' });
     }
@@ -155,7 +161,7 @@ describe('invite-only registration', () => {
     });
 
     await expect.element(getByLabelText('Email')).not.toBeInTheDocument();
-    await expect.element(getByRole('link', { name: 'Continue with Company SSO' })).toBeVisible();
+    await expect.element(getByRole('link', { name: 'Company SSO', exact: true })).toBeVisible();
   });
 
   it('does not offer sign-in-only providers as registration options', async () => {
@@ -235,7 +241,7 @@ describe('invite-only registration', () => {
     const page = render(RegisterPage, { props: { data: { ...parentData, ...loaded } } });
     await expect.element(page.getByLabelText('Invitation code')).toBeVisible();
     await expect
-      .element(page.getByRole('link', { name: 'Sign In', exact: true }))
+      .element(page.getByRole('link', { name: 'Already a member? Sign in', exact: true }))
       .toHaveAttribute('href', '/login?redirect=%2Foauth%2Fauthorize');
   });
 });
