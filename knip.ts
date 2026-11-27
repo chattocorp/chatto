@@ -71,6 +71,8 @@ export default {
       }
     },
     'apps/docs-website': {
+      // mise and the docs image supply the Sweet release planner.
+      ignoreBinaries: ['sweet'],
       entry: ['src/custom.css', 'src/routeData.ts', 'src/generated/connectrpc-api/*.raw.mdx']
     },
     'apps/desktop': {

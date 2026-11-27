@@ -11,6 +11,6 @@ const manual = (await getCollection('docs', ({ id, data }) => id.startsWith('rel
 
 <ul>
     {[...generated, ...manual].map(({ title, link, released }) => (
-      <li><a href={link}>{title}</a>{!released && ' (prerelease)'}</li>
+      <li><a href={link}>{title}</a>{!released && ' (unreleased)'}</li>
     ))}
 </ul>

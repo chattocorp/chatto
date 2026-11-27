@@ -6,6 +6,8 @@ on:
     paths:
       - 'apps/docs-website/**'
       - 'CHANGELOG.md'
+      - 'mise.toml'
+      - '.sweet.yml'
       - '.sweet.config.yml'
       - '.sweet/*.md'
       - 'tools/changelog.mjs'

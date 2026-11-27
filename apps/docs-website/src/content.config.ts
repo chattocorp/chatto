@@ -8,7 +8,7 @@ import { docsSchema } from '@astrojs/starlight/schema';
 import { readReleasePages } from './releases.mjs';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const changelogFiles = ['CHANGELOG.md', '.sweet.config.yml', '.sweet'].map((file) =>
+const changelogFiles = ['CHANGELOG.md', '.sweet.yml', '.sweet.config.yml', '.sweet'].map((file) =>
   join(root, file)
 );
 
