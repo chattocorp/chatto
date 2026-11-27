@@ -54,7 +54,7 @@ type API struct {
 	config         config.ChattoConfig
 	version        string
 	searchProvider MessageSearchProviderClient
-	emailQueue    email.Queue
+	emailQueue     email.Queue
 	// atprotoDirectory shares cached handle lookups across profile reads on this replica.
 	atprotoDirectory func() identity.Directory
 }
