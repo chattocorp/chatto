@@ -5,7 +5,7 @@ import starlight from '@astrojs/starlight';
 import { readReleasePages } from './src/releases.mjs';
 import { docsSiteUrl } from './src/docsMetadata.ts';
 
-const changelogPath = fileURLToPath(new URL('../../CHANGELOG.md', import.meta.url));
+const releaseInputs = ['CHANGELOG.md', '.sweet.yml', '.sweet.config.yml', '.sweet'];
 const releases = readReleasePages(fileURLToPath(new URL('../../', import.meta.url)));
 
 // https://astro.build/config
@@ -56,7 +56,12 @@ export default defineConfig({
   integrations: [
     {
       name: 'release-sidebar',
-      hooks: { 'astro:config:setup': ({ addWatchFile }) => addWatchFile(changelogPath) }
+      hooks: {
+        'astro:config:setup': ({ addWatchFile }) => {
+          for (const input of releaseInputs)
+            addWatchFile(new URL(`../../${input}`, import.meta.url));
+        }
+      }
     },
     starlight({
       title: 'Chatto',

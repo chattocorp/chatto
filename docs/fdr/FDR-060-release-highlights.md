@@ -9,7 +9,7 @@ Each Chatto release can have highlights: short notes about the changes that most
 
 Sweet Release writes the highlights to `CHANGELOG.md` in a **Highlights** section. This section comes first in each release, before **Upgrade notes**, **Breaking changes**, **Features**, **Fixes**, **Performance**, and **Polish**. Notes of type `polish` go to **Polish**.
 
-The **Changelog** page links to all release pages, newest first. The pages through 0.5.0 keep their published content. Each numbered Sweet release gets a page when its first changelog entry appears. Prereleases share the stable version’s URL. The index labels open prerelease cycles. The sidebar lists the versions, and the homepage links to the highest version.
+The **Changelog** page links to all release pages, newest first. The pages through 0.5.0 keep their published content. Each numbered Sweet release gets a page when Sweet plans it and there are pending notes to show, or when its first changelog entry appears. Prereleases share the stable version’s URL. The index labels previews as unreleased. The sidebar lists the versions, and the homepage links to the highest version.
 
 A prerelease page groups notes from its cycle by section. If it is the newest version, it also includes pending notes. After release, the page uses Sweet’s combined stable entry. Highlights and upgrade notes come first.
 

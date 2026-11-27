@@ -171,3 +171,15 @@ test('only the newest open release page includes pending notes', () => {
   );
   assert.deepEqual(patch.sections, [{ title: 'Fixes', notes: ['Patch.'] }]);
 });
+
+test('pending notes get a preview before the first numbered entry', () => {
+  const entries = parseChangelog(
+    '## Unreleased\n### Features\n- Android sharing.\n## 0.6.0\n### Fixes\n- Earlier fix.\n'
+  );
+  const [preview, stable] = releasePages(entries, ['Features'], '0.6.1');
+  assert.equal(preview.link, '/releases/0-6-1/');
+  assert.equal(preview.released, false);
+  assert.deepEqual(preview.sections, entries[0].sections);
+  assert.deepEqual(stable.sections, entries[1].sections);
+  assert.equal(releasePages(entries.slice(1), [], '0.6.1').length, 1);
+});
