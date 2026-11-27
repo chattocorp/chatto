@@ -51,7 +51,9 @@ func TestCallPolicyRejectsUnreadBadge(t *testing.T) {
 }
 
 func TestDelayedCallStartSkipsDepartedMember(t *testing.T) {
-	c, _ := setupTestCore(t)
+	c, _ := newTestCore(t)
+	c.SetNotificationAlertHandler(func(context.Context, *notificationv1.NotificationOccurrence) error { return nil })
+	startCoreServices(t, c)
 	ctx := testContext(t)
 	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "delayed-call", "")
 	require.NoError(t, err)
@@ -63,6 +65,11 @@ func TestDelayedCallStartSkipsDepartedMember(t *testing.T) {
 		return user.Id
 	}
 	caller, departed, waiting := addMember("caller"), addMember("departed"), addMember("waiting")
+	// An answer to an earlier call in this room must not suppress the next one.
+	require.NoError(t, c.JoinVoiceCall(ctx, waiting, room.Id))
+	previous, ok := c.callModel.activeCall(room.Id)
+	require.True(t, ok)
+	require.NoError(t, c.RecordCallParticipantLeft(ctx, room.Id, waiting, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
 	require.NoError(t, c.JoinVoiceCall(ctx, caller, room.Id))
 	require.NoError(t, c.JoinVoiceCall(ctx, departed, room.Id))
 	require.NoError(t, c.RecordCallParticipantLeft(ctx, room.Id, departed, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
@@ -70,13 +77,13 @@ func TestDelayedCallStartSkipsDepartedMember(t *testing.T) {
 
 	// Room calls default to Off, so neither member has an occurrence or a
 	// deletion to suppress a repeated delivery of the original start event.
-	mode := evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION
+	mode := evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
 	for _, id := range []string{departed, waiting} {
 		_, err = c.NotificationPolicy().UpdateNotificationPolicy(ctx, id, room.Id, &evtv1.NotificationDeliveryModes{RoomCalls: mode.Enum()}, &fieldmaskpb.FieldMask{Paths: []string{"room_calls"}})
 		require.NoError(t, err)
 	}
 	subject := evtstream.RoomAggregate(room.Id).Subject(evtstream.EventCallStarted)
-	page, err := c.EventPublisher.SubjectRecordsAfterPage(ctx, subject, 0, 10, 1<<20)
+	page, err := c.EventPublisher.SubjectRecordsAfterPage(ctx, subject, previous.StartSequence, 10, 1<<20)
 	require.NoError(t, err)
 	require.Len(t, page.Records, 1)
 	require.NoError(t, c.notificationMaterializer.processCallDelivery(ctx, events.DurableDelivery{Data: page.Records[0].Data}))
@@ -87,6 +94,23 @@ func TestDelayedCallStartSkipsDepartedMember(t *testing.T) {
 	rows := occurrences.projection.Projection().callOccurrences(room.Id, call.CallID, "", occurrences.now())
 	require.Len(t, rows, 1)
 	require.Equal(t, waiting, rows[0].GetRecipientId())
+
+	// Inject a still-pending push after join cleanup to exercise the final
+	// delivery check independently of occurrence deletion.
+	source := rows[0]
+	queued, created, err := occurrences.Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID: departed, ActorID: caller, Mode: mode, Signal: source.GetSignal(),
+		SourceEventID: source.GetSourceEventId(), SourceCreated: source.GetSourceCreatedAt().AsTime(),
+		SourceStreamSequence: call.StartSequence, AttentionLevel: source.GetAttentionLevel(),
+	})
+	require.NoError(t, err)
+	require.True(t, created)
+	for _, row := range []*notificationv1.NotificationOccurrence{source, queued} {
+		require.Eventually(t, func() bool {
+			current, err := occurrences.Get(ctx, row.GetRecipientId(), row.GetId())
+			return err == nil && current.AlertDelivered != nil && current.GetAlertDelivered() == (row.GetRecipientId() == waiting)
+		}, 5*time.Second, 10*time.Millisecond)
+	}
 }
 
 func TestDirectCallNotificationLifecycle(t *testing.T) {

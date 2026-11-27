@@ -941,7 +941,22 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 			return nil, err
 		}
 	}
-	return visible, nil
+	// Read durable joins outside the content-view barrier. A queued push
+	// uses this same visibility check immediately before provider delivery.
+	unanswered := visible[:0]
+	for _, occurrence := range visible {
+		if call := occurrence.GetSignal().GetIncomingCall(); call != nil {
+			candidates := map[string]bool{recipientID: true}
+			if err := m.core.excludeAnsweredCallRecipients(ctx, call.GetRoomId(), call.GetCallId(), candidates); err != nil {
+				return nil, err
+			}
+			if !candidates[recipientID] {
+				continue
+			}
+		}
+		unanswered = append(unanswered, occurrence)
+	}
+	return unanswered, nil
 }
 
 // notificationRoomVisibility is the part of a message-target check that

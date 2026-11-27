@@ -26,7 +26,7 @@ func (p *CallStateProjection) Snapshot() ([]byte, error) {
 	}
 	snapshot := &projectionv1.CallStateProjectionSnapshot{}
 	for _, roomID := range sortedMapKeys(roomSet) {
-		row := &projectionv1.CallRoomStateSnapshot{RoomId: roomID, Sequence: p.roomSeq[roomID], DepartedUserIds: sortedMapKeys(p.departed[roomID])}
+		row := &projectionv1.CallRoomStateSnapshot{RoomId: roomID, Sequence: p.roomSeq[roomID]}
 		if call, ok := p.activeCalls[roomID]; ok {
 			row.Call = &projectionv1.CallSessionSnapshot{StartSequence: call.StartSequence, CallId: call.CallID, E2EeKeyRef: call.E2EEKeyRef, StartedAt: call.StartedAt, Source: call.Source}
 		}
@@ -49,7 +49,6 @@ func (p *CallStateProjection) Restore(data []byte) error {
 	rooms := make(map[string]map[string]CallParticipant)
 	calls := make(map[string]CallSession)
 	sequences := make(map[string]uint64)
-	departed := make(map[string]map[string]bool)
 	for _, row := range snapshot.GetRooms() {
 		roomID := row.GetRoomId()
 		if roomID == "" {
@@ -59,12 +58,6 @@ func (p *CallStateProjection) Restore(data []byte) error {
 			return fmt.Errorf("call state snapshot repeats room %q", roomID)
 		}
 		sequences[roomID] = row.GetSequence()
-		if len(row.GetDepartedUserIds()) > 0 {
-			departed[roomID] = make(map[string]bool, len(row.GetDepartedUserIds()))
-			for _, id := range row.GetDepartedUserIds() {
-				departed[roomID][id] = true
-			}
-		}
 		if call := row.GetCall(); call != nil {
 			calls[roomID] = CallSession{StartSequence: call.GetStartSequence(), CallID: call.GetCallId(), E2EEKeyRef: call.GetE2EeKeyRef(), StartedAt: call.GetStartedAt(), Source: call.GetSource()}
 		}
@@ -83,7 +76,7 @@ func (p *CallStateProjection) Restore(data []byte) error {
 		}
 	}
 	p.Lock()
-	p.rooms, p.activeCalls, p.roomSeq, p.departed = rooms, calls, sequences, departed
+	p.rooms, p.activeCalls, p.roomSeq = rooms, calls, sequences
 	p.Unlock()
 	return nil
 }

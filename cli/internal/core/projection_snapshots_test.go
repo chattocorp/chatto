@@ -520,9 +520,11 @@ func TestCallSnapshotRestoresNotificationEligibility(t *testing.T) {
 	if call.StartSequence != 41 {
 		t.Fatalf("restored call started at sequence %d", call.StartSequence)
 	}
-	for user, want := range map[string]bool{"host": false, "guest": false, "unanswered": true} {
-		if got := restored.awaitingJoin("room", "call", user); got != want {
-			t.Errorf("awaitingJoin(%s) = %v, want %v", user, got, want)
-		}
+	if bytes.Contains(data, []byte("guest")) {
+		t.Fatal("snapshot retained the departed participant")
+	}
+	participants := restored.Participants("room")
+	if len(participants) != 1 || participants[0].UserID != "host" {
+		t.Fatalf("restored participants = %v", participants)
 	}
 }

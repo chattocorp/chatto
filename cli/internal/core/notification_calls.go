@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/evtstream"
@@ -98,6 +99,7 @@ func (p *NotificationProjection) callOccurrences(roomID, callID, recipientID str
 
 func (m *NotificationMaterializer) materializeCall(ctx context.Context, source *evtv1.Event, roomID string, call CallSession) error {
 	var decisions []notificationRecipientDecision
+	candidates := make(map[string]bool)
 	err := m.decisions.Projection().withCurrent(time.Now(), func(s *notificationDecisionSnapshot) error {
 		kind, ok := s.roomKind(roomID)
 		if !ok {
@@ -109,9 +111,7 @@ func (m *NotificationMaterializer) materializeCall(ctx context.Context, source *
 			if id == source.GetActorId() || !notificationModeProducesOccurrence(mode) || !s.callAudienceMember(id, roomID, call.StartSequence) {
 				continue
 			}
-			if !m.core.callModel.callState.Projection().awaitingJoin(roomID, call.CallID, id) {
-				continue
-			}
+			candidates[id] = true
 			decisions = append(decisions, notificationRecipientDecision{recipientID: id, signal: signal, mode: mode})
 		}
 		return nil
@@ -119,6 +119,10 @@ func (m *NotificationMaterializer) materializeCall(ctx context.Context, source *
 	if err != nil {
 		return err
 	}
+	if err := m.core.excludeAnsweredCallRecipients(ctx, roomID, call.CallID, candidates); err != nil {
+		return err
+	}
+	decisions = slices.DeleteFunc(decisions, func(d notificationRecipientDecision) bool { return !candidates[d.recipientID] })
 	inputs := newNotificationOccurrenceInputs(source, decisions)
 	for i := range inputs {
 		inputs[i].SourceStreamSequence = call.StartSequence
@@ -129,7 +133,7 @@ func (m *NotificationMaterializer) materializeCall(ctx context.Context, source *
 // callVisible rechecks call generation, membership and admission on reads and
 // immediately before push. The caller holds the content-view read boundary.
 func (m *NotificationOccurrenceModel) callVisible(ctx context.Context, recipientID string, call *notificationv1.IncomingCall) (bool, error) {
-	if !m.core.callModel.callState.Projection().awaitingJoin(call.GetRoomId(), call.GetCallId(), recipientID) {
+	if active, ok := m.core.callModel.activeCall(call.GetRoomId()); !ok || active.CallID != call.GetCallId() {
 		return false, nil
 	}
 	_, kind, err := m.core.authorization.requireRoomMemberInView(ctx, recipientID, call.GetRoomId())
@@ -142,11 +146,42 @@ func (m *NotificationOccurrenceModel) callVisible(ctx context.Context, recipient
 	return m.core.authorization.resolver.HasRoomPermission(ctx, recipientID, kind, call.GetRoomId(), PermCallJoin)
 }
 
-// awaitingJoin checks a single participant without copying the room roster.
-func (p *CallStateProjection) awaitingJoin(roomID, callID, recipientID string) bool {
-	p.RLock()
-	defer p.RUnlock()
-	active, exists := p.activeCalls[roomID]
-	_, joined := p.rooms[roomID][recipientID]
-	return exists && active.CallID == callID && !joined && !p.departed[roomID][recipientID]
+// excludeAnsweredCallRecipients checks the existing room join events once per
+// fanout. A single-recipient push can stop at that recipient's first join.
+// Only pending recipients are held in memory, for the duration of this read.
+func (c *ChattoCore) excludeAnsweredCallRecipients(ctx context.Context, roomID, callID string, candidates map[string]bool) error {
+	active, ok := c.callModel.activeCall(roomID)
+	if !ok || active.CallID != callID || active.StartSequence == 0 {
+		clear(candidates)
+		return nil
+	}
+	subject := evtstream.RoomAggregate(roomID).Subject(evtstream.EventCallParticipantJoined)
+	after := active.StartSequence
+	for len(candidates) > 0 {
+		page, err := c.EventPublisher.SubjectRecordsAfterPage(ctx, subject, after, 128, 1<<20)
+		if err != nil {
+			return err
+		}
+		for _, record := range page.Records {
+			var event evtv1.Event
+			if err := proto.Unmarshal(record.Data, &event); err != nil {
+				return err
+			}
+			// Older join events without a call ID apply to the active call.
+			if join := event.GetVoiceCallParticipantJoined(); join != nil && (join.GetCallId() == callID || join.GetCallId() == "") {
+				delete(candidates, event.GetActorId())
+				if len(candidates) == 0 {
+					return nil
+				}
+			}
+		}
+		if !page.More {
+			break
+		}
+		if page.LastSequence <= after {
+			return errors.New("call join history did not advance")
+		}
+		after = page.LastSequence
+	}
+	return nil
 }

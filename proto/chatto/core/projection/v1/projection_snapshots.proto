@@ -251,8 +251,6 @@ message CallRoomStateSnapshot {
   uint64 sequence = 2;
   CallSessionSnapshot call = 3;
   repeated CallParticipantSnapshot participants = 4;
-  // A delayed call-start delivery must skip members who already joined and left.
-  repeated string departed_user_ids = 5;
 }
 
 message CallSessionSnapshot {

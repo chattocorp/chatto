@@ -299,7 +299,7 @@ stable machine-readable keys such as `config_model`, `message_model`, and
   direct durable push consumption from `notifications.signalled` with an
   immutable deadline and current policy, visibility, DND, and subscription
   revalidation.
-  Call alerts use the active call ID and current call admission. The call projection retains the start sequence, caller, and members who have already answered until the call ends.
+  Call alerts use the active call ID and current call admission. The call projection retains the start sequence. Before creating an alert or sending a queued push, the server checks the room’s join events since that sequence and skips members who already joined the call.
   A separate role-protection consumer removes stored attention that a member loses permission to read.
 - **`MessageModel`**
   ([`message_model.go`](../../cli/internal/core/message_model.go),

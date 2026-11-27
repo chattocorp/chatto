@@ -1939,15 +1939,13 @@ func (x *CallStateProjectionSnapshot) GetRooms() []*CallRoomStateSnapshot {
 }
 
 type CallRoomStateSnapshot struct {
-	state        protoimpl.MessageState     `protogen:"open.v1"`
-	RoomId       string                     `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	Sequence     uint64                     `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
-	Call         *CallSessionSnapshot       `protobuf:"bytes,3,opt,name=call,proto3" json:"call,omitempty"`
-	Participants []*CallParticipantSnapshot `protobuf:"bytes,4,rep,name=participants,proto3" json:"participants,omitempty"`
-	// A delayed call-start delivery must skip members who already joined and left.
-	DepartedUserIds []string `protobuf:"bytes,5,rep,name=departed_user_ids,json=departedUserIds,proto3" json:"departed_user_ids,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	RoomId        string                     `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Sequence      uint64                     `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Call          *CallSessionSnapshot       `protobuf:"bytes,3,opt,name=call,proto3" json:"call,omitempty"`
+	Participants  []*CallParticipantSnapshot `protobuf:"bytes,4,rep,name=participants,proto3" json:"participants,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CallRoomStateSnapshot) Reset() {
@@ -2004,13 +2002,6 @@ func (x *CallRoomStateSnapshot) GetCall() *CallSessionSnapshot {
 func (x *CallRoomStateSnapshot) GetParticipants() []*CallParticipantSnapshot {
 	if x != nil {
 		return x.Participants
-	}
-	return nil
-}
-
-func (x *CallRoomStateSnapshot) GetDepartedUserIds() []string {
-	if x != nil {
-		return x.DepartedUserIds
 	}
 	return nil
 }
@@ -5326,13 +5317,12 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\vreply_count\x18\x02 \x01(\x04R\n" +
 	"replyCount\"e\n" +
 	"\x1bCallStateProjectionSnapshot\x12F\n" +
-	"\x05rooms\x18\x01 \x03(\v20.chatto.core.projection.v1.CallRoomStateSnapshotR\x05rooms\"\x94\x02\n" +
+	"\x05rooms\x18\x01 \x03(\v20.chatto.core.projection.v1.CallRoomStateSnapshotR\x05rooms\"\xe8\x01\n" +
 	"\x15CallRoomStateSnapshot\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1a\n" +
 	"\bsequence\x18\x02 \x01(\x04R\bsequence\x12B\n" +
 	"\x04call\x18\x03 \x01(\v2..chatto.core.projection.v1.CallSessionSnapshotR\x04call\x12V\n" +
-	"\fparticipants\x18\x04 \x03(\v22.chatto.core.projection.v1.CallParticipantSnapshotR\fparticipants\x12*\n" +
-	"\x11departed_user_ids\x18\x05 \x03(\tR\x0fdepartedUserIds\"\xde\x01\n" +
+	"\fparticipants\x18\x04 \x03(\v22.chatto.core.projection.v1.CallParticipantSnapshotR\fparticipants\"\xde\x01\n" +
 	"\x13CallSessionSnapshot\x12\x17\n" +
 	"\acall_id\x18\x01 \x01(\tR\x06callId\x12 \n" +
 	"\fe2ee_key_ref\x18\x02 \x01(\tR\n" +
