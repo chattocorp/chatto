@@ -45,6 +45,7 @@ import {
 import {
   GetViewerResponse,
   PrivilegedModeState,
+  PrivilegedPermissionPreview_Basis,
   ServerViewerPermissions,
   ViewerCapabilities,
   ViewerUser
@@ -984,7 +985,12 @@ describe('ServerStateStore permissions', () => {
     const viewer = adminViewer('U1');
     viewer.privilegedMode = new PrivilegedModeState({
       available: true,
-      roleSelection: { preview: { viewerPermissions: viewer.viewerPermissions } }
+      roleSelection: {
+        permissionPreview: {
+          basis: PrivilegedPermissionPreview_Basis.ALL_PROTECTED_ROLES_ACTIVE,
+          viewerPermissions: viewer.viewerPermissions
+        }
+      }
     });
     store.projection.viewer = viewer;
     const preview = store.privilegedPermissionPreview;
@@ -994,13 +1000,32 @@ describe('ServerStateStore permissions', () => {
     active.privilegedMode = new PrivilegedModeState({
       active: true,
       available: true,
-      roleSelection: { withoutActivation: {} }
+      roleSelection: {
+        permissionPreview: { basis: PrivilegedPermissionPreview_Basis.NO_PROTECTED_ROLES_ACTIVE }
+      }
     });
     store.projection.viewer = active;
     expect(store.privilegedPermissionPreview?.active).toBe(true);
     expect(store.privilegedPermissionPreview?.permissions.canManageServer).toBe(false);
     store.currentUser.user = { id: 'U2' } as typeof store.currentUser.user;
     expect(store.privilegedPermissionPreview).toBeUndefined();
+  });
+
+  it.each([
+    PrivilegedPermissionPreview_Basis.UNSPECIFIED,
+    999 as PrivilegedPermissionPreview_Basis,
+    PrivilegedPermissionPreview_Basis.NO_PROTECTED_ROLES_ACTIVE
+  ])('ignores preview basis %i while Shield Mode is off', (basis) => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+    const viewer = adminViewer('U1');
+    viewer.privilegedMode = new PrivilegedModeState({
+      available: true,
+      roleSelection: { permissionPreview: { basis, viewerPermissions: viewer.viewerPermissions } }
+    });
+    store.projection.viewer = viewer;
+    expect(store.privilegedPermissionPreview).toBeUndefined();
+    expect(store.permissions.canManageServer).toBe(true);
   });
 
   it('resets to unloaded when a privacy reset clears the viewer projection', () => {

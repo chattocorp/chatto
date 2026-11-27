@@ -61,7 +61,10 @@ import {
 import { directMessageParticipant } from './rooms.js';
 import { mapNotificationOccurrencePage } from '../api/notifications.js';
 import { RealtimeProjectionSyncState } from './realtimeSync.js';
-import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
+import {
+  PrivilegedModeState,
+  PrivilegedPermissionPreview_Basis
+} from '@chatto/api-types/api/v1/viewer_pb';
 import { MentionRolesStore } from './mentionRoles.js';
 import { TimelineEventKind } from '../timeline/timelineEvents.js';
 
@@ -266,10 +269,12 @@ export class ServerStateStore {
 
   readonly #privilegedPermissionPreview = computed(() => {
     const mode = this.projection.viewer?.privilegedMode;
-    const preview = mode?.active
-      ? mode.roleSelection?.withoutActivation
-      : mode?.roleSelection?.preview;
+    const preview = mode?.roleSelection?.permissionPreview;
     if (!this.permissions.loaded || !mode?.available || !preview) return undefined;
+    const expectedBasis = mode.active
+      ? PrivilegedPermissionPreview_Basis.NO_PROTECTED_ROLES_ACTIVE
+      : PrivilegedPermissionPreview_Basis.ALL_PROTECTED_ROLES_ACTIVE;
+    if (preview.basis !== expectedBasis) return undefined;
     return {
       active: mode.active,
       permissions: serverPermissionsFromViewer(

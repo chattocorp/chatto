@@ -92,20 +92,28 @@ message PrivilegedModeState {
 message PrivilegedRoleSelection {
   // Assigned protected roles. An empty list means there are no roles to activate.
   repeated string available_roles = 1;
-  // Decisions with all assigned protected roles active. Present while inactive if the viewer has protected roles.
-  // Older servers omit the preview.
-  PrivilegedPermissionPreview preview = 2;
-  // Decisions with Shield Mode off. Present during activation if the viewer has protected roles.
-  PrivilegedPermissionPreview without_activation = 3;
+  // Alternative grants for Settings discovery. Absent for users without protected roles and on older servers.
+  PrivilegedPermissionPreview permission_preview = 2;
 }
 
-// Permission and capability decisions for the role state specified by the containing field.
-// Use the effective viewer decisions for access to resources and actions.
+// Permission and capability decisions for the role configuration identified by basis.
+// Use effective viewer decisions for access to resources and actions.
 message PrivilegedPermissionPreview {
+  // Protected roles used to evaluate this preview.
+  enum Basis {
+    // The role configuration is unknown. Clients must ignore this preview.
+    BASIS_UNSPECIFIED = 0;
+    // All assigned protected roles are active. Sent while Shield Mode is off.
+    BASIS_ALL_PROTECTED_ROLES_ACTIVE = 1;
+    // No protected roles are active. Sent while Shield Mode is on.
+    BASIS_NO_PROTECTED_ROLES_ACTIVE = 2;
+  }
   // Server-level permission decisions for that role state.
   ServerViewerPermissions viewer_permissions = 1;
   // Capability decisions for that role state.
   repeated CapabilityGrant grants = 2;
+  // Ignore the preview if the basis is unknown or does not match the current Shield Mode state.
+  Basis basis = 3;
 }
 
 // Request for the authenticated viewer snapshot.

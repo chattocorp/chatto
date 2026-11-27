@@ -102,7 +102,8 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 		t.Fatal("unarmed owner has effective system capability")
 	}
 
-	preview := unarmed.Msg.PrivilegedMode.GetRoleSelection().GetPreview()
+	preview := unarmed.Msg.PrivilegedMode.GetRoleSelection().GetPermissionPreview()
+	require.Equal(t, apiv1.PrivilegedPermissionPreview_BASIS_ALL_PROTECTED_ROLES_ACTIVE, preview.GetBasis())
 	require.True(t, apiCapabilityGranted(preview.GetGrants(), viewerCapabilityAdminViewSystem))
 	if roles := unarmed.Msg.PrivilegedMode.GetRoleSelection().GetAvailableRoles(); !slices.Equal(roles, []string{core.RoleModerator, core.RoleOwner}) {
 		t.Fatalf("selectable roles = %v", roles)
@@ -137,9 +138,8 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 		t.Fatalf("ActivatePrivilegedMode: %v", err)
 	}
 	require.True(t, proto.Equal(preview.GetViewerPermissions(), activated.Msg.ViewerPermissions))
-	require.Nil(t, activated.Msg.PrivilegedMode.RoleSelection.Preview)
-	ordinary := activated.Msg.PrivilegedMode.RoleSelection.WithoutActivation
-	require.NotNil(t, ordinary)
+	ordinary := activated.Msg.PrivilegedMode.RoleSelection.PermissionPreview
+	require.Equal(t, apiv1.PrivilegedPermissionPreview_BASIS_NO_PROTECTED_ROLES_ACTIVE, ordinary.GetBasis())
 	require.True(t, proto.Equal(ordinary.ViewerPermissions, unarmed.Msg.ViewerPermissions))
 	require.False(t, apiCapabilityGranted(ordinary.Grants, viewerCapabilityAdminViewSystem))
 	if !activated.Msg.GetPrivilegedMode().GetActive() || activated.Msg.GetPrivilegedMode().GetExpiresAt() == nil {
@@ -204,7 +204,7 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetViewer disarmed: %v", err)
 	}
-	require.True(t, proto.Equal(preview, deactivated.Msg.PrivilegedMode.RoleSelection.Preview))
+	require.True(t, proto.Equal(preview, deactivated.Msg.PrivilegedMode.RoleSelection.PermissionPreview))
 	if disarmed.Msg.GetPrivilegedMode().GetActive() {
 		t.Fatal("deactivated privileged mode remains active")
 	}
@@ -371,7 +371,8 @@ func TestViewerPreviewsCustomProtectedRole(t *testing.T) {
 	})
 	viewer, err := env.viewerService.GetViewer(ctx, connect.NewRequest(&apiv1.GetViewerRequest{}))
 	require.NoError(t, err)
-	preview := viewer.Msg.PrivilegedMode.GetRoleSelection().GetPreview()
+	preview := viewer.Msg.PrivilegedMode.GetRoleSelection().GetPermissionPreview()
+	require.Equal(t, apiv1.PrivilegedPermissionPreview_BASIS_ALL_PROTECTED_ROLES_ACTIVE, preview.GetBasis())
 	require.True(t, apiCapabilityGranted(preview.GetGrants(), viewerCapabilityAssignRoles))
 	require.False(t, apiCapabilityGranted(viewer.Msg.Capabilities.Grants, viewerCapabilityAssignRoles))
 	require.False(t, apiCapabilityGranted(preview.GetGrants(), viewerCapabilityAdminViewSystem))

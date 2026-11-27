@@ -157,8 +157,10 @@ func (a *API) addPrivilegedPreview(ctx context.Context, userID string, state *ap
 	if !state.Available {
 		return nil
 	}
+	basis := apiv1.PrivilegedPermissionPreview_BASIS_NO_PROTECTED_ROLES_ACTIVE
 	previewCtx := privilegedModeContext(ctx, time.Time{})
 	if !state.Active {
+		basis = apiv1.PrivilegedPermissionPreview_BASIS_ALL_PROTECTED_ROLES_ACTIVE
 		previewCtx = privilegedModeContext(ctx, time.Now().Add(core.PrivilegedModeWindow), state.RoleSelection.AvailableRoles...)
 	}
 	permissions, err := a.serverViewerPermissions(previewCtx, userID)
@@ -169,11 +171,10 @@ func (a *API) addPrivilegedPreview(ctx context.Context, userID string, state *ap
 	if err != nil {
 		return err
 	}
-	preview := &apiv1.PrivilegedPermissionPreview{ViewerPermissions: permissions, Grants: grants}
-	if state.Active {
-		state.RoleSelection.WithoutActivation = preview
-	} else {
-		state.RoleSelection.Preview = preview
+	state.RoleSelection.PermissionPreview = &apiv1.PrivilegedPermissionPreview{
+		Basis:             basis,
+		ViewerPermissions: permissions,
+		Grants:            grants,
 	}
 	return nil
 }
