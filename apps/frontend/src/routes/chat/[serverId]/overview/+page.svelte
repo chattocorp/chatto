@@ -26,7 +26,7 @@ the directory hides itself when it has nothing to show.
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { serverUi } from '$lib/state/server/serverUi';
-  import { Hint, PaneContent, PaneHeader, PageTitle, Panel } from '$lib/ui';
+  import { PaneContent, PaneHeader, PageTitle, Panel } from '$lib/ui';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { RoomKind } from '@chatto/client/api/roomDirectory';
   import type { NotificationAttentionLevel } from '@chatto/client/api/notifications';
@@ -64,12 +64,6 @@ the directory hides itself when it has nothing to show.
   });
 
   const directMessages = $derived(recentDirectMessages(ui.navigation.rooms));
-
-  /** The viewer holds protected roles whose permissions Shield Mode would activate. */
-  const shieldAvailable = $derived.by(() => {
-    const privilegedMode = stores.projection.viewer?.privilegedMode;
-    return !!privilegedMode?.available && !privilegedMode.active;
-  });
 
   const motd = $derived(stores.projection.serverState?.motd?.trim() || null);
   /** The side column shows only when it has content; otherwise the main column takes the width. */
@@ -118,15 +112,6 @@ the directory hides itself when it has nothing to show.
         {serverSegment}
         missing={missingProfile}
       />
-
-      {#if shieldAvailable}
-        <!-- Same notice as the Settings Overview: the shield button sits beside the user's name. -->
-        <div data-testid="server-overview-shield">
-          <Hint tone="warning" icon="icon-[uil--shield]"
-            >{m('settings.overview.shield_notice')}</Hint
-          >
-        </div>
-      {/if}
 
       <!--
         Wide containers: the welcome message and rooms on the left, the side column
