@@ -2,7 +2,9 @@ package email
 
 import (
 	"context"
+	"errors"
 	"sync"
+	"time"
 )
 
 // MockSender is a test implementation of Sender that captures sent messages.
@@ -46,8 +48,16 @@ func (m *MockSender) SendContext(_ context.Context, msg Message) error {
 	return nil
 }
 
-// Enqueue renders the delivery and captures it as a sent message.
+// Enqueue renders the delivery and captures it as a sent message. Like the
+// real queue, it rejects a delivery when it is disabled or when the delivery
+// has no future deadline.
 func (m *MockSender) Enqueue(ctx context.Context, delivery Delivery) error {
+	if !m.enabled {
+		return ErrEmailDisabled
+	}
+	if !delivery.ExpiresAt.After(time.Now()) {
+		return errors.New("email delivery deadline required")
+	}
 	branding := Branding{ServerName: "Chatto"}
 	if m.Branding != nil {
 		branding = m.Branding()
