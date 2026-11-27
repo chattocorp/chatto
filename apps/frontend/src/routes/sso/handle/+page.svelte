@@ -71,7 +71,10 @@ then continues the same sign-in (FDR-058). It runs in the sign-in window.
       class="mx-auto mb-4 flex max-w-xs flex-wrap items-center justify-center gap-3 text-muted sm:gap-4"
     >
       {#each services as service (service.name)}
-        <li title={service.name} class={{ 'mu-mark': service.mark === musocialMark }}>
+        <li
+          title={service.name}
+          class={{ 'text-[color:light-dark(#62615f,#abaaa6)]': service.mark === musocialMark }}
+        >
           <span class="sr-only">{service.name}</span>
           <span
             aria-hidden="true"
@@ -122,10 +125,3 @@ then continues the same sign-in (FDR-058). It runs in the sign-in window.
     </form>
   {/if}
 </AuthLayout>
-
-<style>
-  /* Use the wordmark's neutral palette with the colour scheme selected in Chatto. */
-  .mu-mark {
-    color: light-dark(#62615f, #abaaa6);
-  }
-</style>
