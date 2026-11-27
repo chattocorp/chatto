@@ -51,10 +51,12 @@ Go can embed only files in its own module (`cli/`). The frontend loads every
   reports a forgotten sync.
 - The frontend's catalog tests do not check the `server/` sections. The Go
   tests check them instead: every key of the base catalog in every complete
-  locale, and the same placeholders.
+  locale, the same placeholders, and every plural category that each language
+  uses for whole numbers.
 - Browser defaults that do not exactly match a supported locale use the
   closest match of `golang.org/x/text/language`. For example, `fr-BE` selects
-  `fr-CA`. Clients that know the user's choice send it explicitly.
+  `fr-CA`, and a bare `en` selects `en-US`, which falls back to `en-GB` text.
+  Clients that know the user's choice send it explicitly.
 - No API or protobuf field selects the language. A client that cannot set
   request headers gets the language of its platform's default header.
 
