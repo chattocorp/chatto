@@ -25,8 +25,8 @@ Sweet manifests. Dependency updates and consumer release notes remain explicit.
 
 ## Prepare and tag releases
 
-Add notes with `mise x -- sweet change <package-path>`. `fix` and `feature` select a
-patch release. `breaking` selects a minor release while versions are below 1.0. Review
+Add notes with `mise x -- sweet change <package-path>`. `fix` selects a patch,
+`feature` and `breaking` select a minor while versions are below 1.0. Review
 this policy before any package reaches 1.0. `chore` alone does not release.
 
 If a change amends an existing unreleased note in the same release unit, you

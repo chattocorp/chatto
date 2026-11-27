@@ -15,7 +15,7 @@ types:
     bump: minor
     section: Breaking changes
   feature:
-    bump: patch
+    bump: minor
     section: Features
   fix:
     bump: patch
