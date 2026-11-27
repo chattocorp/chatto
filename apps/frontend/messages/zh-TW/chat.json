@@ -219,7 +219,8 @@
       "actions": {
         "mention": "提及",
         "search_messages": "搜尋訊息"
-      }
+      },
+      "recent_messages": "最近的訊息"
     },
     "management_nav": {
       "general": "一般",

@@ -1,21 +1,21 @@
 <!--
 @component
-Lists the self-verification identities available for this profile. Sidebar
-callers supply a storage key for the disclosure. Popups show the list directly.
+Lists the self-verification identities available for this profile. Popups show
+the list in a menu section. The plain variant renders only the list, for a host
+that frames it, such as the Profile View's details card.
 -->
 <script lang="ts">
   import type { VerifiedIdentity } from '@chatto/client/api/users';
   import { providerIcon } from '$lib/auth/providerIcon';
-  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import { m } from '$lib/i18n/messages';
   import { SelfVerificationItem } from '$lib/ui';
 
   let {
     identities,
-    sidebarKey
+    plain = false
   }: {
     identities: VerifiedIdentity[];
-    sidebarKey?: string;
+    plain?: boolean;
   } = $props();
 
   const label = $derived(m('chat.profile.verified_identities'));
@@ -36,14 +36,8 @@ callers supply a storage key for the disclosure. Popups show the list directly.
 {/snippet}
 
 {#if identities.length}
-  {#if sidebarKey}
-    <div class="-mx-4 mt-6">
-      <RoomGroupSection {label} persistKey={sidebarKey} items={[]} separated>
-        {#snippet content()}
-          <div class="px-1 py-2">{@render identityList()}</div>
-        {/snippet}
-      </RoomGroupSection>
-    </div>
+  {#if plain}
+    {@render identityList()}
   {:else}
     <section class="menu-section px-3 py-2 text-start">
       {@render identityList()}

@@ -220,7 +220,8 @@
       "actions": {
         "mention": "Αναφορά",
         "search_messages": "Αναζήτηση μηνυμάτων"
-      }
+      },
+      "recent_messages": "Πρόσφατα μηνύματα"
     },
     "management_nav": {
       "general": "Γενικά",

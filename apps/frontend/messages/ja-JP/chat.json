@@ -220,7 +220,8 @@
       "actions": {
         "mention": "メンション",
         "search_messages": "メッセージを検索"
-      }
+      },
+      "recent_messages": "最近のメッセージ"
     },
     "management_nav": {
       "general": "一般",

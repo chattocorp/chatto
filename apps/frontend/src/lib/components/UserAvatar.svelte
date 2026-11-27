@@ -8,7 +8,7 @@
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
 
   type AvatarUser = Omit<UserAvatarUserView, 'deleted'> & { deleted?: boolean };
-  type Size = 'xs' | 'sm' | 'md' | 'message' | 'lg' | 'xl';
+  type Size = 'xs' | 'sm' | 'md' | 'message' | 'lg' | 'xl' | '2xl';
 
   const sizeClasses: Record<Size, string> = {
     xs: 'h-5 w-5',
@@ -16,7 +16,8 @@
     md: 'h-10 w-10',
     message: 'h-11 w-11',
     lg: 'h-12 w-12',
-    xl: 'h-16 w-16'
+    xl: 'h-16 w-16',
+    '2xl': 'h-24 w-24'
   };
 
   const textSizeClasses: Record<Size, string> = {
@@ -25,7 +26,8 @@
     md: 'text-base',
     message: 'text-base',
     lg: 'text-lg',
-    xl: 'text-xl'
+    xl: 'text-xl',
+    '2xl': 'text-3xl'
   };
 
   const presenceDotColorClasses: Record<PresenceStatus, string> = {
@@ -42,7 +44,8 @@
     md: 'h-2.5 w-2.5',
     message: 'h-2.5 w-2.5',
     lg: 'h-3 w-3',
-    xl: 'h-3.5 w-3.5'
+    xl: 'h-3.5 w-3.5',
+    '2xl': 'h-5 w-5'
   };
 
   const presenceDotShellSizeClasses: Record<Size, string> = {
@@ -51,7 +54,8 @@
     md: 'h-4 w-4',
     message: 'h-4 w-4',
     lg: 'h-[18px] w-[18px]',
-    xl: 'h-5 w-5'
+    xl: 'h-5 w-5',
+    '2xl': 'h-7 w-7'
   };
 
   const customStatusTextSizeClasses: Record<Size, string> = {
@@ -60,7 +64,8 @@
     md: 'text-sm',
     message: 'text-sm',
     lg: 'text-base',
-    xl: 'text-lg'
+    xl: 'text-lg',
+    '2xl': 'text-xl'
   };
   let {
     user,

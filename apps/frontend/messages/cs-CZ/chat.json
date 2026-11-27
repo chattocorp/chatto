@@ -222,7 +222,8 @@
       "actions": {
         "mention": "Zmínit",
         "search_messages": "Hledat zprávy"
-      }
+      },
+      "recent_messages": "Nedávné zprávy"
     },
     "management_nav": {
       "general": "Generál",

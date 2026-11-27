@@ -224,7 +224,8 @@
       "actions": {
         "mention": "Pieminēt",
         "search_messages": "Meklēt ziņojumus"
-      }
+      },
+      "recent_messages": "Nesenās ziņas"
     },
     "management_nav": {
       "general": "Ģenerālis",

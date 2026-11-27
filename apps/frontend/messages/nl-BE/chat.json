@@ -220,7 +220,8 @@
       "actions": {
         "mention": "Vermelden",
         "search_messages": "Berichten zoeken"
-      }
+      },
+      "recent_messages": "Recente berichten"
     },
     "management_nav": {
       "general": "Algemeen",

@@ -220,7 +220,8 @@
       "actions": {
         "mention": "Nämn",
         "search_messages": "Sök efter meddelanden"
-      }
+      },
+      "recent_messages": "Senaste meddelanden"
     },
     "management_nav": {
       "general": "Allmänt",

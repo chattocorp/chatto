@@ -41,33 +41,44 @@ avatar row, for example the Profile View's menu button.
     actions?: Snippet;
     class?: string;
   } = $props();
+
+  const view = $derived(size === 'view');
 </script>
 
 <div class={['min-w-0 text-start', className]} data-testid="profile-header">
   <div
-    class={['w-full', size === 'view' ? 'h-24' : 'h-14 rounded-t-md']}
+    class={['w-full', view ? 'h-28' : 'h-14 rounded-t-md']}
     style:background-color={profileBandColor(user.id)}
     aria-hidden="true"
     data-testid="profile-band"
   ></div>
-  <div class={size === 'view' ? 'px-4' : 'px-3 pb-3'}>
-    <div class="-mt-9 flex items-end justify-between gap-2">
+  <div class={view ? 'px-4' : 'px-3 pb-3'}>
+    <div class={['flex items-end justify-between gap-2', view ? '-mt-12' : '-mt-9']}>
       <div class="rounded-full bg-background p-1">
-        <UserAvatar {user} {presence} size="xl" showPresence={presence !== undefined} />
+        <UserAvatar
+          {user}
+          {presence}
+          size={view ? '2xl' : 'xl'}
+          showPresence={presence !== undefined}
+        />
       </div>
       {@render actions?.()}
     </div>
-    <div class="mt-1.5 min-w-0">
+    <div class={['min-w-0', view ? 'mt-2' : 'mt-1.5']}>
       <svelte:element this={heading ? 'h2' : 'div'} class="min-w-0" data-testid="profile-name">
-        <AccountName
-          {name}
-          identity={user}
-          class={['font-semibold', size === 'view' && 'text-xl']}
-        />
+        <AccountName {name} identity={user} class={['font-semibold', view && 'text-2xl']} />
       </svelte:element>
       <!-- Popovers keep one text size; hierarchy comes from weight and colour. -->
-      <div class={['truncate text-muted', size === 'view' && 'text-sm']} dir="auto">@{login}</div>
+      <div class="truncate text-muted" dir="auto">@{login}</div>
     </div>
-    <UserCustomStatusBadge status={customStatus} showText class="mt-2 max-w-full" />
+    {#if view}
+      {#if customStatus}
+        <div class="mt-4 flex min-w-0 items-center tile px-3 py-2">
+          <UserCustomStatusBadge status={customStatus} showText class="max-w-full" />
+        </div>
+      {/if}
+    {:else}
+      <UserCustomStatusBadge status={customStatus} showText class="mt-2 max-w-full" />
+    {/if}
   </div>
 </div>

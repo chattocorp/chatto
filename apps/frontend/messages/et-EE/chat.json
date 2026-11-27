@@ -220,7 +220,8 @@
       "actions": {
         "mention": "Maini",
         "search_messages": "Otsi sõnumeid"
-      }
+      },
+      "recent_messages": "Viimased sõnumid"
     },
     "management_nav": {
       "general": "Kindral",

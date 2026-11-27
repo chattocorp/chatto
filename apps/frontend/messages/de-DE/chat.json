@@ -220,7 +220,8 @@
       "actions": {
         "mention": "Erwähnen",
         "search_messages": "Nachrichten durchsuchen"
-      }
+      },
+      "recent_messages": "Letzte Nachrichten"
     },
     "management_nav": {
       "general": "Allgemein",

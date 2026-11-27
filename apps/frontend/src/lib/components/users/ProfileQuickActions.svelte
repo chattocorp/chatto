@@ -59,7 +59,7 @@ The first available action uses the primary style.
       <button
         type="button"
         class={[
-          'flex min-h-10 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-center leading-tight transition-[background-color,scale] feedback-quick active:scale-[0.96]',
+          'flex min-h-14 min-w-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-md px-2 py-2 text-center text-sm leading-tight transition-[background-color,scale] feedback-quick active:scale-[0.96]',
           index === 0 && actions.length % 2 === 1 && 'col-span-2',
           index === 0
             ? 'bg-action text-on-action hover:bg-action-hover'

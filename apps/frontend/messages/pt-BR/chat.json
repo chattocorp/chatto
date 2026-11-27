@@ -220,7 +220,8 @@
       "actions": {
         "mention": "Mencionar",
         "search_messages": "Pesquisar mensagens"
-      }
+      },
+      "recent_messages": "Mensagens recentes"
     },
     "management_nav": {
       "general": "Geral",

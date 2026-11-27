@@ -228,7 +228,8 @@
       "actions": {
         "mention": "Згадати",
         "search_messages": "Шукати повідомлення"
-      }
+      },
+      "recent_messages": "Останні повідомлення"
     },
     "management_nav": {
       "general": "Загальне",

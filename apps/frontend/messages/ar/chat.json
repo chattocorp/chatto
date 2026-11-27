@@ -236,7 +236,8 @@
       "actions": {
         "mention": "إشارة",
         "search_messages": "البحث في الرسائل"
-      }
+      },
+      "recent_messages": "الرسائل الأخيرة"
     },
     "management_nav": {
       "general": "عام",

@@ -220,7 +220,8 @@
       "actions": {
         "mention": "Menziona",
         "search_messages": "Cerca messaggi"
-      }
+      },
+      "recent_messages": "Messaggi recenti"
     },
     "management_nav": {
       "general": "Generale",

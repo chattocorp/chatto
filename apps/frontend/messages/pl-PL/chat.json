@@ -228,7 +228,8 @@
       "actions": {
         "mention": "Wspomnij",
         "search_messages": "Szukaj wiadomości"
-      }
+      },
+      "recent_messages": "Ostatnie wiadomości"
     },
     "management_nav": {
       "general": "Ogólne",

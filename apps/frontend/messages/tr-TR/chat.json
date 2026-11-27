@@ -220,7 +220,8 @@
       "actions": {
         "mention": "Bahset",
         "search_messages": "Mesajlarda ara"
-      }
+      },
+      "recent_messages": "Son mesajlar"
     },
     "management_nav": {
       "general": "Genel",

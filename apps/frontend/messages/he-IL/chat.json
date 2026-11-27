@@ -224,7 +224,8 @@
       "actions": {
         "mention": "הזכר",
         "search_messages": "חפש הודעות"
-      }
+      },
+      "recent_messages": "הודעות אחרונות"
     },
     "management_nav": {
       "general": "כללי",

@@ -220,7 +220,8 @@
       "actions": {
         "mention": "Mencii",
         "search_messages": "Serĉi mesaĝojn"
-      }
+      },
+      "recent_messages": "Lastatempaj mesaĝoj"
     },
     "management_nav": {
       "general": "Generalo",

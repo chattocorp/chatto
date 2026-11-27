@@ -10,7 +10,10 @@ fields as realtime changes arrive.
 -->
 <script lang="ts">
   import ProfileVerifiedIdentities from '$lib/components/users/ProfileVerifiedIdentities.svelte';
+  import type { Snippet } from 'svelte';
   import ProfileDetails from '$lib/components/users/ProfileDetails.svelte';
+  import ProfileRoles from '$lib/components/users/ProfileRoles.svelte';
+  import ProfileRecentMessages from './ProfileRecentMessages.svelte';
   import { useProfileDetails } from '$lib/components/users/profileDetailsQuery.svelte';
   import ProfileHeader from '$lib/components/users/ProfileHeader.svelte';
   import ProfileQuickActions from '$lib/components/users/ProfileQuickActions.svelte';
@@ -20,8 +23,6 @@ fields as realtime changes arrive.
   import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
   import UserMenu from '$lib/components/users/UserMenu.svelte';
   import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
-  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
-  import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import UserBio from '$lib/components/users/UserBio.svelte';
   import { m } from '$lib/i18n/messages';
   import { createQuery } from '$lib/query/client';
@@ -96,9 +97,32 @@ fields as realtime changes arrive.
   // Shares the cache entry that ProfileDetails reads, so the section appears with its rows.
   const details = useProfileDetails(() => userId);
   const hasDetails = $derived(
-    !!timezone || !!details.data?.createdAt || !!details.data?.roles.length
+    !!timezone ||
+      !!details.data?.createdAt ||
+      (!baseUser?.isBot && !!details.data?.verifiedIdentities.length)
   );
+  const hasRoles = $derived(!baseUser?.deleted && !!details.data?.roles.length);
 </script>
+
+{#snippet section(label: string, testid: string, content: Snippet)}
+  <section class="flex flex-col gap-2" data-testid={testid}>
+    <h3 class="section-label text-muted">{label}</h3>
+    <div class="tile p-3">{@render content()}</div>
+  </section>
+{/snippet}
+
+{#snippet bioContent()}
+  <UserBio bio={bio ?? ''} timestampSettings={viewerTimeSettings} />
+{/snippet}
+
+{#snippet detailsContent()}
+  <div class="flex flex-col gap-3">
+    <ProfileDetails {userId} {timezone} {viewerSettings} showRoles={false} />
+    {#if !baseUser?.isBot}
+      <ProfileVerifiedIdentities {userId} plain />
+    {/if}
+  </div>
+{/snippet}
 
 <div class="flex min-h-0 flex-1 flex-col overflow-y-auto" data-testid="room-sidebar-profile">
   {#if loading}
@@ -141,7 +165,7 @@ fields as realtime changes arrive.
         : undefined}
     />
 
-    <div class="px-4 pt-4 pb-6">
+    <div class="flex flex-col gap-6 px-4 pt-4 pb-6">
       {#if !baseUser.deleted}
         <ProfileQuickActions
           onSendMessage={onSendMessage ? () => onSendMessage(userId) : undefined}
@@ -169,54 +193,27 @@ fields as realtime changes arrive.
       {/if}
 
       {#if bio}
-        <div class="-mx-4 mt-6">
-          <RoomGroupSection
-            label={m('settings.profile.bio.label')}
-            persistKey={serverStorageKey(serverScope.serverId, 'profile-bio-collapsed')}
-            items={[]}
-            testid="profile-bio-heading"
-            separated
-          >
-            {#snippet content()}
-              <UserBio {bio} timestampSettings={viewerTimeSettings} class="px-1 pt-2 pb-2" />
-            {/snippet}
-          </RoomGroupSection>
-        </div>
+        {@render section(m('settings.profile.bio.label'), 'profile-bio', bioContent)}
       {/if}
 
       {#if hasDetails && !baseUser.deleted}
-        <div class="-mx-4 mt-6">
-          <RoomGroupSection
-            label={m('chat.profile.details')}
-            persistKey={serverStorageKey(serverScope.serverId, 'profile-details-collapsed')}
-            items={[]}
-            testid="profile-details-heading"
-            separated
-          >
-            {#snippet content()}
-              <ProfileDetails userId={baseUser.id} {timezone} {viewerSettings} class="px-1 py-2" />
-            {/snippet}
-          </RoomGroupSection>
-        </div>
+        {@render section(m('chat.profile.details'), 'profile-details-section', detailsContent)}
       {/if}
 
-      {#if !baseUser.isBot && !baseUser.deleted}
-        <ProfileVerifiedIdentities
-          {userId}
-          sidebarKey={serverStorageKey(
-            serverScope.serverId,
-            'profile-verified-identities-collapsed'
-          )}
-        />
+      {#if hasRoles}
+        <section class="flex flex-col gap-2">
+          <h3 class="section-label text-muted">{m('chat.profile.roles')}</h3>
+          <ProfileRoles {userId} />
+        </section>
+      {/if}
+
+      {#if !baseUser.deleted}
+        <ProfileRecentMessages {userId} {login} />
       {/if}
 
       {#if baseUser.isBot}
         {#key baseUser.id}
-          <BotPermissionSummary
-            botId={baseUser.id}
-            botOwnerId={baseUser.bot?.ownerUserId}
-            class="mt-6"
-          />
+          <BotPermissionSummary botId={baseUser.id} botOwnerId={baseUser.bot?.ownerUserId} />
         {/key}
       {/if}
     </div>

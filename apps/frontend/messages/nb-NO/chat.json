@@ -220,7 +220,8 @@
       "actions": {
         "mention": "Nevn",
         "search_messages": "Søk i meldinger"
-      }
+      },
+      "recent_messages": "Nylige meldinger"
     },
     "management_nav": {
       "general": "Generelt",

@@ -219,7 +219,8 @@
       "actions": {
         "mention": "提及",
         "search_messages": "搜索消息"
-      }
+      },
+      "recent_messages": "最近的消息"
     },
     "management_nav": {
       "general": "常规",

@@ -7,9 +7,9 @@ so the popup and sidebar share one request per server session and profile.
   import { useProfileDetails } from './profileDetailsQuery.svelte';
   import VerifiedIdentitiesSection from './VerifiedIdentitiesSection.svelte';
 
-  let { userId, sidebarKey }: { userId: string; sidebarKey?: string } = $props();
+  let { userId, plain = false }: { userId: string; plain?: boolean } = $props();
 
   const details = useProfileDetails(() => userId);
 </script>
 
-<VerifiedIdentitiesSection identities={details.data?.verifiedIdentities ?? []} {sidebarKey} />
+<VerifiedIdentitiesSection identities={details.data?.verifiedIdentities ?? []} {plain} />

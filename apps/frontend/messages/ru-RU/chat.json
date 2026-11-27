@@ -228,7 +228,8 @@
       "actions": {
         "mention": "Упомянуть",
         "search_messages": "Искать сообщения"
-      }
+      },
+      "recent_messages": "Последние сообщения"
     },
     "management_nav": {
       "general": "Общий",
