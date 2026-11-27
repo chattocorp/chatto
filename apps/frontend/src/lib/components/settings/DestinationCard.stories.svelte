@@ -1,8 +1,14 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
-  import { expect, within } from 'storybook/test';
+  import { expect, fn, within } from 'storybook/test';
   import HelpArtwork from '$lib/help/HelpArtwork.svelte';
   import DestinationCard from './DestinationCard.svelte';
+  const general = {
+    href: '/chat/example/manage/server/general',
+    label: 'General',
+    description: 'Manage server settings.',
+    icon: 'iconify icon-[uil--setting]'
+  };
   const { Story } = defineMeta({ title: 'Settings/Destination card', component: DestinationCard });
 </script>
 
@@ -37,3 +43,27 @@
     />
   </div>
 </Story>
+
+<Story
+  name="Muted shield"
+  args={{ ...general, requestAccess: fn() }}
+  play={async ({ canvasElement, args, userEvent }) => {
+    const button = within(canvasElement).getByRole('button', { name: general.label });
+    await expect(button).toHaveAttribute('aria-haspopup', 'dialog');
+    await expect(button).toHaveAccessibleDescription(
+      'Enable privileged mode Manage server settings.'
+    );
+    await userEvent.click(button);
+    await expect(args.requestAccess).toHaveBeenCalledOnce();
+  }}
+/>
+
+<Story
+  name="Active shield"
+  args={{ ...general, shieldActive: true }}
+  play={async ({ canvasElement }) => {
+    const link = within(canvasElement).getByRole('link', { name: general.label });
+    await expect(link).toHaveAttribute('href', general.href);
+    await expect(link).toHaveAccessibleDescription('Shield Mode active Manage server settings.');
+  }}
+/>

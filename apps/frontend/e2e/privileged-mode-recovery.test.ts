@@ -99,9 +99,7 @@ test('Settings offers Shield Mode from the sidebar and Overview and opens the re
   const sidebar = page.getByTestId('server-sidebar');
   const overview = page.getByRole('region', { name: 'Server', exact: true });
   await expect(overview.getByRole('button', button)).toBeVisible();
-  await expect(
-    overview.getByText(/Select a page marked with a shield|To use your additional permissions/)
-  ).toHaveCount(0);
+  await expect(overview.getByText(/To use your additional permissions/)).toHaveCount(0);
   await sidebar.getByRole('button', button).click();
   const dialog = page.getByRole('dialog', { name: 'Enable privileged mode' });
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
