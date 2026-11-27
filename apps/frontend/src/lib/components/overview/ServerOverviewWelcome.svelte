@@ -15,7 +15,7 @@ rooms far down. Renders nothing when there is no welcome message.
 
 {#if welcomeMessage?.trim()}
   <div data-testid="server-overview-welcome">
-    <Panel title={m('chat.overview.welcome_title')} icon="iconify icon-[uil--smile] size-5">
+    <Panel title={m('chat.overview.welcome_title')}>
       <ScrollFader
         top
         bottom

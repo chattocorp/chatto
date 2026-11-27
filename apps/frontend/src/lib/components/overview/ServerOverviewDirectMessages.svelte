@@ -43,11 +43,7 @@ actions, so this component does not depend on app-shell state.
 
 {#if conversations.length > 0}
   <div data-testid="server-overview-direct-messages">
-    <Panel
-      title={m('room_list.direct_messages')}
-      icon="iconify icon-[uil--comment-alt-message] size-5"
-      noPadding
-    >
+    <Panel title={m('room_list.direct_messages')} noPadding>
       <ul class="selectable-list">
         {#each conversations as conversation (conversation.id)}
           {@const presentation = buildDirectMessagePresentation(
