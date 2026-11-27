@@ -54,7 +54,7 @@ action, so this component does not depend on app-shell state.
 </script>
 
 {#if calls.length > 0 || catchUp.length > 0}
-  <Panel title={m('chat.overview.happening_now')} noPadding>
+  <Panel title={m('chat.overview.happening_now')} icon="iconify icon-[uil--bolt]" noPadding>
     {#if calls.length > 0}
       <ul class="selectable-list" data-testid="server-overview-calls">
         {#each calls as call (call.roomId)}
