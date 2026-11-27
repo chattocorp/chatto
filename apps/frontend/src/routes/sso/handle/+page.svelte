@@ -67,8 +67,9 @@ then continues the same sign-in (FDR-058). It runs in the sign-in window.
   {#if !atprotoHandleContinuationUrl(next, 'x', page.url.origin)}
     <Hint tone="danger">{m('auth.sso.invalid')}</Hint>
   {:else}
+    <!-- Neutral tones from the mu brand palette keep the service marks monochrome. -->
     <ul
-      class="mx-auto mb-4 flex max-w-xs flex-wrap items-center justify-center gap-3 text-muted sm:gap-4"
+      class="mx-auto mb-4 flex max-w-xs flex-wrap items-center justify-center gap-3 text-[#797876] sm:gap-4 dark:text-[#abaaa6]"
     >
       {#each services as service (service.name)}
         <li title={service.name}>

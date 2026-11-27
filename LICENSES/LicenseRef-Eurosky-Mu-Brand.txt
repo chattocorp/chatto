@@ -1,0 +1,9 @@
+The mu.social wordmark is distributed in the Eurosky mu brand book.
+Stichting Modal or its licensors own the mark. Chatto displays it to identify
+mu.social among the services that use Atmosphere accounts.
+
+Source artwork and brand guidelines:
+https://github.com/eurosky-social/mu-brand-book/tree/322475edfe3af0ae4e952caa24f91ae9139da333
+
+Terms for use of the mark:
+https://hello.mu.social/terms/#12-intellectual-property
