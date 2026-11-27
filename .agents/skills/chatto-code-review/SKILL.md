@@ -22,6 +22,10 @@ Rules for reviews of Chatto changes in the backend and the frontend.
   messages only when the change needs them.
 - Follow the established patterns. Use submessages and enums where possible.
   Make sure that the change will not cause problems one year from now.
+- For new sibling fields of the same message type, identify a valid response
+  in which both fields are populated. If the contract rules that out, check
+  whether one field with an enum expresses the distinction. See the
+  [protobuf design rules](../../../proto/AGENTS.md#presence-and-api-shape).
 - Removed protobuf fields or messages are breaking changes. Discuss each
   removal with the user.
 
