@@ -9,15 +9,20 @@ option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/ru
 // It holds what the email says, not its wording or layout. The worker renders
 // the email with the current templates and server branding when it sends it.
 message EmailDelivery {
-  reserved 4, 5;
-  reserved "html_body", "from_name";
-
   string to = 1;
-  // Rendered subject of a record from a version before `content`. Current
-  // versions do not write it. The worker sends such a record as plain text.
+
+  // Fields 2 to 5 hold a rendered email from a version before `content`.
+  // Current versions do not write them. The worker sends such a record as it
+  // is.
+
+  // Rendered subject.
   string subject = 2;
-  // Rendered plain-text body of a record from a version before `content`.
+  // Rendered plain-text body.
   string body = 3;
+  // Rendered HTML alternative, if any.
+  string html_body = 4;
+  // Sender display name, if any.
+  string from_name = 5;
 
   oneof content {
     EmailCode registration_code = 6;

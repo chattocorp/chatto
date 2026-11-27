@@ -161,8 +161,8 @@ func emailDeliveryRecord(delivery email.Delivery) (*runtimestatev1.EmailDelivery
 }
 
 // render builds the message for a stored record with the current branding.
-// A record from a version before content holds a rendered plain-text email,
-// which is sent as it is.
+// A record from a version before content holds a rendered email, which is
+// sent as it is.
 func (m *EmailJobs) render(record *runtimestatev1.EmailDelivery) (email.Message, error) {
 	var content email.Content
 	switch stored := record.Content.(type) {
@@ -176,7 +176,7 @@ func (m *EmailJobs) render(record *runtimestatev1.EmailDelivery) (email.Message,
 		if record.GetBody() == "" {
 			return email.Message{}, errors.New("email record has no content")
 		}
-		return email.Message{To: record.GetTo(), Subject: record.GetSubject(), Body: record.GetBody()}, nil
+		return email.Message{To: record.GetTo(), FromName: record.GetFromName(), Subject: record.GetSubject(), Body: record.GetBody(), HTMLBody: record.GetHtmlBody()}, nil
 	}
 	return email.Render(m.branding(), record.GetTo(), content)
 }

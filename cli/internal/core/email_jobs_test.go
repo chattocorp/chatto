@@ -155,7 +155,7 @@ func TestEmailJobsStoreEachContentKind(t *testing.T) {
 	}
 }
 
-func TestEmailJobsSendRecordsFromOlderVersionsAsPlainText(t *testing.T) {
+func TestEmailJobsSendRenderedRecordsFromOlderVersions(t *testing.T) {
 	c, _ := newTestCore(t)
 	ctx := testContext(t)
 	transport := email.NewMockSender(true)
@@ -163,9 +163,9 @@ func TestEmailJobsSendRecordsFromOlderVersionsAsPlainText(t *testing.T) {
 	expiresAt := time.Now().Add(time.Minute)
 	require.NoError(t, sender.Enqueue(ctx, email.Delivery{To: "old@example.invalid", Content: email.RegistrationCode{Code: "333333", TTL: time.Minute}, ExpiresAt: expiresAt}))
 	id := lastEmailJobID(t, ctx, c)
-	sealEmailDelivery(t, ctx, sender, id, &runtimestatev1.EmailDelivery{To: "old@example.invalid", Subject: "Old subject", Body: "Old body 333333"})
+	sealEmailDelivery(t, ctx, sender, id, &runtimestatev1.EmailDelivery{To: "old@example.invalid", FromName: "Old name", Subject: "Old subject", Body: "Old body 333333", HtmlBody: "<p>Old 333333</p>"})
 	require.NoError(t, sender.deliver(ctx, jobs.Job{ID: id, ExpiresAt: expiresAt}))
-	require.Equal(t, []email.Message{{To: "old@example.invalid", Subject: "Old subject", Body: "Old body 333333"}}, transport.Messages())
+	require.Equal(t, []email.Message{{To: "old@example.invalid", FromName: "Old name", Subject: "Old subject", Body: "Old body 333333", HTMLBody: "<p>Old 333333</p>"}}, transport.Messages())
 }
 
 func TestEmailJobsRejectExpiredMessages(t *testing.T) {
