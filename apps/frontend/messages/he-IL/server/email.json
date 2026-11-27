@@ -8,16 +8,19 @@
         "hours": {
           "one": "שעה אחת",
           "two": "שעתיים",
+          "many": "{count} שעות",
           "other": "{count} שעות"
         },
         "minutes": {
           "one": "דקה אחת",
           "two": "שתי דקות",
+          "many": "{count} דקות",
           "other": "{count} דקות"
         },
         "seconds": {
           "one": "שנייה אחת",
           "two": "שתי שניות",
+          "many": "{count} שניות",
           "other": "{count} שניות"
         }
       }
