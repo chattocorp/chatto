@@ -24,9 +24,9 @@ func callNotificationSubjects() []string {
 	}
 }
 
-func incomingCallSignal(roomID, callID string, kind RoomKind) *notificationv1.NotificationSignal {
+func incomingCallSignal(roomID, callID string) *notificationv1.NotificationSignal {
 	return &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_IncomingCall{
-		IncomingCall: &notificationv1.IncomingCall{RoomId: roomID, CallId: callID, Direct: kind == KindDM},
+		IncomingCall: &notificationv1.IncomingCall{RoomId: roomID, CallId: callID},
 	}}
 }
 
@@ -107,9 +107,9 @@ func (m *NotificationMaterializer) materializeCall(ctx context.Context, source *
 		if !ok {
 			return nil
 		}
-		signal := incomingCallSignal(roomID, call.CallID, kind)
+		signal := incomingCallSignal(roomID, call.CallID)
 		for _, id := range s.roomMemberIDs(roomID) {
-			mode := s.effectiveNotificationMode(id, roomID, signal)
+			mode := s.effectiveNotificationMode(id, roomID, kind, signal)
 			if id == source.GetActorId() || !notificationModeProducesAttention(mode) || !s.callAudienceMember(id, roomID, call.StartSequence) {
 				continue
 			}
@@ -150,9 +150,9 @@ func (m *NotificationMaterializer) hintCallBadges(ctx context.Context, roomID, r
 		if recipientID == "" {
 			ids = s.roomMemberIDs(roomID)
 		}
-		signal := incomingCallSignal(roomID, "", kind)
+		signal := incomingCallSignal(roomID, "")
 		for _, id := range ids {
-			if s.membershipExists(id, roomID) && s.effectiveNotificationMode(id, roomID, signal) == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+			if s.membershipExists(id, roomID) && s.effectiveNotificationMode(id, roomID, kind, signal) == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
 				hints = append(hints, notificationUnreadInvalidation{userID: id, roomID: roomID})
 			}
 		}
@@ -195,7 +195,7 @@ func (m *NotificationOccurrenceModel) callBadge(s *notificationDecisionSnapshot,
 		return false
 	}
 	kind, ok := s.roomKind(q.roomID)
-	if !ok || s.effectiveNotificationMode(q.userID, q.roomID, incomingCallSignal(q.roomID, call.CallID, kind)) != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+	if !ok || s.effectiveNotificationMode(q.userID, q.roomID, kind, incomingCallSignal(q.roomID, call.CallID)) != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
 		return false
 	}
 	if boundary, exists := q.readBoundary(""); exists && boundary.observedSequence >= call.StartSequence {

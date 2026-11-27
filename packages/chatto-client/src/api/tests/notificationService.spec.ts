@@ -1,3 +1,5 @@
+import { notificationTarget } from '../../server/notifications.js';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -43,25 +45,24 @@ const effective = {
 };
 
 describe('createNotificationAPI', () => {
-  it('maps an incoming call to the original call in its room', () => {
-    expect(
-      notificationOccurrence(
-        new NotificationOccurrence({
-          signal: {
-            kind: {
-              case: 'incomingCall',
-              value: { roomId: 'dm', callId: 'original', direct: true }
-            }
-          }
-        })
-      )
-    ).toMatchObject({
+  it.each([
+    { kind: RoomKind.DM, name: '', isDM: true },
+    { kind: RoomKind.CHANNEL, name: 'general', isDM: false }
+  ])('uses the room summary for incoming calls in room kind $kind', ({ kind, name, isDM }) => {
+    const room = { id: 'room', kind, name };
+    const row = notificationOccurrence(
+      new NotificationOccurrence({
+        signal: { kind: { case: 'incomingCall', value: { room, callId: 'original' } } }
+      })
+    );
+    expect(row).toMatchObject({
       signalKind: NotificationSignalKind.INCOMING_CALL,
       targetSupported: true,
-      room: { id: 'dm' },
+      room,
       eventId: '',
-      call: { id: 'original', direct: true }
+      call: { id: 'original' }
     });
+    expect(notificationTarget(row)).toMatchObject({ roomId: room.id, roomName: name, isDM });
   });
 
   it('updates the call fields independently of an existing direct message policy', async () => {

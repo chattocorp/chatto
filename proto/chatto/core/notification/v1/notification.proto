@@ -176,8 +176,6 @@ message RoomInvitationReceived {
 message IncomingCall {
   string room_id = 1;
   string call_id = 2;
-  // True for a direct call. Selects the direct_calls notification policy.
-  bool direct = 3;
 }
 
 // NotificationSignal is the immutable, event-shaped cause and target of one

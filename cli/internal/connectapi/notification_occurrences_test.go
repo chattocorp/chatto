@@ -30,6 +30,26 @@ const (
 	notificationTestSignalRoomMessage    notificationTestSignalKind = "room_message"
 )
 
+func TestIncomingCallRoomSummary(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	channel := env.createJoinedRoom("call-room")
+	dm, err := env.rooms.StartDM(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.StartDMRequest{}))
+	require.NoError(t, err)
+	for _, want := range []*apiv1.RoomSummary{
+		{Id: channel.GetId(), Kind: apiv1.RoomKind_ROOM_KIND_CHANNEL, Name: channel.GetName()},
+		{Id: dm.Msg.GetRoom().GetId(), Kind: apiv1.RoomKind_ROOM_KIND_DM, Name: dm.Msg.GetRoom().GetName()},
+	} {
+		stored := &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_IncomingCall{
+			IncomingCall: &notificationv1.IncomingCall{RoomId: want.Id, CallId: "session"},
+		}}
+		signal, err := newNotificationAssembler(env.api).signal(env.ctx, stored)
+		require.NoError(t, err)
+		call := signal.GetIncomingCall()
+		require.Equal(t, "session", call.GetCallId())
+		require.True(t, proto.Equal(want, call.GetRoom()), "room summary = %v, want %v", call.GetRoom(), want)
+	}
+}
+
 func TestNotificationAssemblerIgnoresUnsupportedSignal(t *testing.T) {
 	got, err := (&notificationAssembler{}).occurrenceWithPresentation(
 		context.Background(),

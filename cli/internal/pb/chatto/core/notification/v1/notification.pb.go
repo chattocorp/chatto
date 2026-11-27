@@ -1078,11 +1078,9 @@ func (x *RoomInvitationReceived) GetExpiresAt() *timestamppb.Timestamp {
 
 // A call started in this room. The call ID ties the occurrence to its lifecycle.
 type IncomingCall struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	RoomId string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	CallId string                 `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
-	// True for a direct call. Selects the direct_calls notification policy.
-	Direct        bool `protobuf:"varint,3,opt,name=direct,proto3" json:"direct,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	CallId        string                 `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1129,13 +1127,6 @@ func (x *IncomingCall) GetCallId() string {
 		return x.CallId
 	}
 	return ""
-}
-
-func (x *IncomingCall) GetDirect() bool {
-	if x != nil {
-		return x.Direct
-	}
-	return false
 }
 
 // NotificationSignal is the immutable, event-shaped cause and target of one
@@ -1990,11 +1981,10 @@ const file_chatto_core_notification_v1_notification_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12#\n" +
 	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId\x129\n" +
 	"\n" +
-	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"X\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"@\n" +
 	"\fIncomingCall\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
-	"\acall_id\x18\x02 \x01(\tR\x06callId\x12\x16\n" +
-	"\x06direct\x18\x03 \x01(\bR\x06direct\"\xeb\t\n" +
+	"\acall_id\x18\x02 \x01(\tR\x06callId\"\xeb\t\n" +
 	"\x12NotificationSignal\x12l\n" +
 	"\x17direct_message_received\x18\x01 \x01(\v22.chatto.core.notification.v1.DirectMessageReceivedH\x00R\x15directMessageReceived\x12l\n" +
 	"\x17direct_mention_received\x18\x02 \x01(\v22.chatto.core.notification.v1.DirectMentionReceivedH\x00R\x15directMentionReceived\x12S\n" +

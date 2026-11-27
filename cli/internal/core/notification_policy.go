@@ -237,7 +237,7 @@ func effectiveNotificationDeliveryModes(server, room *evtv1.NotificationDelivery
 	return effectiveNotificationDeliveryModesAtScope(server, nil, room)
 }
 
-func notificationModeForSignal(modes *evtv1.NotificationDeliveryModes, signal *notificationv1.NotificationSignal) evtv1.NotificationDeliveryMode {
+func notificationModeForSignal(modes *evtv1.NotificationDeliveryModes, roomKind RoomKind, signal *notificationv1.NotificationSignal) evtv1.NotificationDeliveryMode {
 	if modes == nil || signal == nil {
 		return evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 	}
@@ -263,7 +263,7 @@ func notificationModeForSignal(modes *evtv1.NotificationDeliveryModes, signal *n
 	case *notificationv1.NotificationSignal_RoomMessageReceived:
 		return modes.GetRoomMessages()
 	case *notificationv1.NotificationSignal_IncomingCall:
-		if signal.GetIncomingCall().GetDirect() {
+		if roomKind == KindDM {
 			return modes.GetDirectCalls()
 		}
 		return modes.GetRoomCalls()
@@ -277,12 +277,20 @@ func notificationModeForSignal(modes *evtv1.NotificationDeliveryModes, signal *n
 // GetEffectiveNotificationModeForSignal resolves room, current room-group,
 // server, and product-default policy for the rich signal variant.
 func (c *ChattoCore) GetEffectiveNotificationModeForSignal(userID, roomID string, signal *notificationv1.NotificationSignal) evtv1.NotificationDeliveryMode {
+	var kind RoomKind
+	if signal.GetIncomingCall() != nil {
+		room, ok := c.roomModel.room(roomID)
+		if !ok {
+			return evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF
+		}
+		kind = KindOfRoom(room)
+	}
 	groupID := c.roomModel.roomGroupForRoom(roomID)
 	return notificationModeForSignal(effectiveNotificationDeliveryModesAtScope(
 		c.configModel.notificationServerModes(userID),
 		c.configModel.notificationRoomGroupModes(userID, groupID),
 		c.configModel.notificationRoomModes(userID, roomID),
-	), signal)
+	), kind, signal)
 }
 
 // waitForCurrentNotificationPolicy makes policy reads observe every fact

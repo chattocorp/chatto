@@ -1,3 +1,4 @@
+import type { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { Empty } from '@bufbuild/protobuf';
 import { createChattoClient, type ConnectAPIConfig } from './connect.js';
 import {
@@ -36,7 +37,7 @@ export type NotificationOccurrenceItem = {
   signalKind: NotificationSignalKind;
   /** Whether this client understands the signal well enough to navigate it. */
   targetSupported: boolean;
-  room: { id: string; name: string } | null;
+  room: { id: string; name: string; kind?: RoomKind } | null;
   /** Empty for room-only signals such as invitations. */
   eventId: string;
   threadRootId: string | null;
@@ -46,7 +47,7 @@ export type NotificationOccurrenceItem = {
   /** Invitation identity for the invitation-only room access boundary. */
   invitationId?: string;
   /** Exact active call identified by a call-start notification. */
-  call?: { id: string; direct: boolean };
+  call?: { id: string };
   expiresAt?: string;
 };
 
@@ -445,7 +446,7 @@ function notificationSignal(item: APINotificationOccurrence): {
   kind: NotificationSignalKind;
   message: NotificationMessageReference | null;
   /** Room-only signals never fabricate a message reference. */
-  room?: { id: string; name: string } | null;
+  room?: NotificationOccurrenceItem['room'];
   invitationId?: string;
   call?: NotificationOccurrenceItem['call'];
   reactionEmoji: string | null;
@@ -454,11 +455,13 @@ function notificationSignal(item: APINotificationOccurrence): {
   switch (kind?.case) {
     case 'incomingCall':
       return {
-        supported: !!kind.value.roomId && !!kind.value.callId,
+        supported: !!kind.value.room?.id && !!kind.value.callId,
         kind: NotificationSignalKind.INCOMING_CALL,
-        call: { id: kind.value.callId, direct: kind.value.direct },
+        call: { id: kind.value.callId },
         message: null,
-        room: { id: kind.value.roomId, name: '' },
+        room: kind.value.room
+          ? { id: kind.value.room.id, name: kind.value.room.name, kind: kind.value.room.kind }
+          : null,
         reactionEmoji: null
       };
     case 'roomInvitationReceived':

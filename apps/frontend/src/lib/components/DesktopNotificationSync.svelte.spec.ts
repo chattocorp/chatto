@@ -12,6 +12,7 @@ import {
   type NotificationAPI,
   type NotificationOccurrenceItem
 } from '@chatto/client/api/notifications';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import DesktopNotificationSync from './DesktopNotificationSync.svelte';
 import type { TimelineEventView } from '@chatto/client/timeline/timelineEvents';
@@ -184,7 +185,8 @@ describe('DesktopNotificationSync', () => {
     f.rows.set([
       row('call', 101, {
         signalKind: NotificationSignalKind.INCOMING_CALL,
-        call: { id: 'original', direct: true }
+        room: { id: 'dm', name: '', kind: RoomKind.DM },
+        call: { id: 'original' }
       })
     ]);
     await new Promise<void>((resolve) =>

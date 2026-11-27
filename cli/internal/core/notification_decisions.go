@@ -165,7 +165,7 @@ func buildMessageNotificationDecisions(
 		sort.Strings(identities)
 		for _, identity := range identities {
 			signal := signalsByRecipient[userID][identity]
-			mode := snapshot.effectiveNotificationMode(userID, roomID, signal)
+			mode := snapshot.effectiveNotificationMode(userID, roomID, roomKind, signal)
 			if notificationModeProducesAttention(mode) {
 				decisions = append(decisions, notificationRecipientDecision{recipientID: userID, signal: signal, mode: mode})
 			}

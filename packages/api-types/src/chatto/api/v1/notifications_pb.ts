@@ -759,11 +759,11 @@ export class RoomInvitationReceived extends Message<RoomInvitationReceived> {
  */
 export class IncomingCall extends Message<IncomingCall> {
   /**
-   * Room that hosts the call.
+   * Room that hosts the call. Its kind selects the call notification policy.
    *
-   * @generated from field: string room_id = 1;
+   * @generated from field: chatto.api.v1.RoomSummary room = 1;
    */
-  roomId = "";
+  room?: RoomSummary;
 
   /**
    * Session ID of the call that triggered this occurrence.
@@ -771,13 +771,6 @@ export class IncomingCall extends Message<IncomingCall> {
    * @generated from field: string call_id = 2;
    */
   callId = "";
-
-  /**
-   * True for a direct call. Selects the direct_calls notification policy.
-   *
-   * @generated from field: bool direct = 3;
-   */
-  direct = false;
 
   constructor(data?: PartialMessage<IncomingCall>) {
     super();
@@ -787,9 +780,8 @@ export class IncomingCall extends Message<IncomingCall> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.IncomingCall";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "room", kind: "message", T: RoomSummary },
     { no: 2, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "direct", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): IncomingCall {

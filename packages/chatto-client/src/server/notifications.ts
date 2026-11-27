@@ -1,3 +1,4 @@
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { ReactiveMap, ReactiveSet, signal } from '../reactivity/index.js';
 import {
   NotificationAttentionLevel,
@@ -83,7 +84,7 @@ export function isNewMessageNotification(notification: NotificationOccurrenceIte
 export function isDMNotification(notification: NotificationOccurrenceItem): boolean {
   return (
     notification.signalKind === NotificationSignalKind.DIRECT_MESSAGE ||
-    notification.call?.direct === true
+    notification.room?.kind === RoomKind.DM
   );
 }
 

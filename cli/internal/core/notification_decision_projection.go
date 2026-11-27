@@ -396,23 +396,23 @@ func (s *notificationDecisionSnapshot) followedThreadRecipientIDs(messageEventID
 	return s.badges.followedThreadRecipientIDs(messageEventID)
 }
 
-func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID string, signal *notificationv1.NotificationSignal) evtv1.NotificationDeliveryMode {
+func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID string, roomKind RoomKind, signal *notificationv1.NotificationSignal) evtv1.NotificationDeliveryMode {
 	s.config.RLock()
 	defer s.config.RUnlock()
 	if user := s.config.users[userID]; user != nil {
-		if mode := notificationModeForSignal(user.roomModesByRoom[roomID], signal); mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+		if mode := notificationModeForSignal(user.roomModesByRoom[roomID], roomKind, signal); mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 			return mode
 		}
 		if groupID := s.groups.Groups.GroupForRoom(roomID); groupID != "" {
-			if mode := notificationModeForSignal(user.roomGroupModesByGroup[groupID], signal); mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+			if mode := notificationModeForSignal(user.roomGroupModesByGroup[groupID], roomKind, signal); mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 				return mode
 			}
 		}
-		if mode := notificationModeForSignal(user.serverModes, signal); mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+		if mode := notificationModeForSignal(user.serverModes, roomKind, signal); mode != evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 			return mode
 		}
 	}
-	return notificationModeForSignal(defaultNotificationDeliveryModes, signal)
+	return notificationModeForSignal(defaultNotificationDeliveryModes, roomKind, signal)
 }
 
 // defaultNotificationDeliveryModes holds the product defaults. It is read-only;

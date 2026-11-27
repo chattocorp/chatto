@@ -6642,9 +6642,8 @@ call removes the occurrence. Open the room to see its current call status.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room that hosts the call. |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room that hosts the call. Its kind selects the call notification policy. |
 | `call_id` | `string` | Session ID of the call that triggered this occurrence. |
-| `direct` | `bool` | True for a direct call. Selects the direct_calls notification policy. |
 
 
 

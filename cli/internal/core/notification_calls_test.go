@@ -51,7 +51,6 @@ func TestDirectCallNotificationLifecycle(t *testing.T) {
 	rows := testNotificationOccurrences(t, c, recipient.Id)
 	require.Len(t, rows, 1)
 	call := rows[0].GetSignal().GetIncomingCall()
-	require.True(t, call.GetDirect())
 	require.Equal(t, dm.Id, call.GetRoomId())
 	require.NotEmpty(t, call.GetCallId())
 	require.NotNil(t, rows[0].GetAlertExpiresAt())
@@ -97,7 +96,7 @@ func TestRoomCallNotificationOverridesAndCleanup(t *testing.T) {
 		rows := testNotificationOccurrences(t, c, recipient.Id)
 		if mode == evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
 			require.Len(t, rows, 1)
-			require.False(t, rows[0].GetSignal().GetIncomingCall().GetDirect())
+			require.Equal(t, room.Id, rows[0].GetSignal().GetIncomingCall().GetRoomId())
 			require.Nil(t, rows[0].GetAlertExpiresAt())
 		} else {
 			require.Empty(t, rows)
