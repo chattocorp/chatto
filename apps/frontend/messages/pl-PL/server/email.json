@@ -1,0 +1,49 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "Ten kod wygaśnie za {duration}.",
+      "link_expiry": "Ten link wygaśnie za {duration}.",
+      "button_fallback": "Jeśli przycisk nie działa, otwórz ten adres:",
+      "duration": {
+        "hours": {
+          "one": "{count} godzinę",
+          "few": "{count} godziny",
+          "many": "{count} godzin",
+          "other": "{count} godziny"
+        },
+        "minutes": {
+          "one": "{count} minutę",
+          "few": "{count} minuty",
+          "many": "{count} minut",
+          "other": "{count} minuty"
+        },
+        "seconds": {
+          "one": "{count} sekundę",
+          "few": "{count} sekundy",
+          "many": "{count} sekund",
+          "other": "{count} sekundy"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{code} to Twój kod do {server}",
+      "heading": "Witamy w {server}",
+      "intro": "Wpisz ten kod, aby dokończyć tworzenie konta.",
+      "footer": "Ktoś użył tego adresu, aby zarejestrować się na {host}. Jeśli to nie Ty, zignoruj tę wiadomość. Konto nie zostanie utworzone."
+    },
+    "verification": {
+      "subject": "{code} to Twój kod do {server}",
+      "heading": "Potwierdź swój adres e-mail",
+      "intro": "Wpisz ten kod, aby dodać ten adres do swojego konta {server}.",
+      "footer": "Ktoś poprosił o dodanie tego adresu do konta na {host}. Jeśli to nie Ty, zignoruj tę wiadomość."
+    },
+    "password_reset": {
+      "subject": "Zresetuj hasło do {server}",
+      "preheader": "Wybierz nowe hasło do swojego konta.",
+      "heading": "Zresetuj hasło",
+      "intro": "Otrzymaliśmy prośbę o zresetowanie hasła do Twojego konta {server}. Ustaw nowe za pomocą poniższego linku.",
+      "button": "Ustaw nowe hasło",
+      "footer": "Wysłane przez {host}. Jeśli to nie Ty, zignoruj tę wiadomość. Twoje hasło pozostanie bez zmian."
+    }
+  }
+}

@@ -146,7 +146,7 @@ func (m *EmailJobs) deliver(ctx context.Context, job jobs.Job) error {
 
 // emailDeliveryRecord converts accepted content to its stored form.
 func emailDeliveryRecord(delivery email.Delivery) (*runtimestatev1.EmailDelivery, error) {
-	record := &runtimestatev1.EmailDelivery{To: delivery.To}
+	record := &runtimestatev1.EmailDelivery{To: delivery.To, Locale: delivery.Locale}
 	switch content := delivery.Content.(type) {
 	case email.RegistrationCode:
 		record.Content = &runtimestatev1.EmailDelivery_RegistrationCode{RegistrationCode: &runtimestatev1.EmailCode{Code: content.Code, Ttl: durationpb.New(content.TTL)}}
@@ -178,5 +178,5 @@ func (m *EmailJobs) render(record *runtimestatev1.EmailDelivery) (email.Message,
 		}
 		return email.Message{To: record.GetTo(), Subject: record.GetSubject(), Body: record.GetBody()}, nil
 	}
-	return email.Render(m.branding(), record.GetTo(), content)
+	return email.Render(m.branding(), record.GetLocale(), record.GetTo(), content)
 }

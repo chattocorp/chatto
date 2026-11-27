@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/chattocorp/chatto/cli/internal/i18n"
 )
 
 func TestTemplates(t *testing.T) {
@@ -47,7 +49,7 @@ func TestTemplates(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msg, err := Render(branding, "a@example.test", tt.content)
+			msg, err := Render(branding, "", "a@example.test", tt.content)
 			if err != nil {
 				t.Fatalf("Render: %v", err)
 			}
@@ -86,7 +88,7 @@ func TestTemplates(t *testing.T) {
 
 func TestTemplatesUseCustomAccent(t *testing.T) {
 	branding := Branding{ServerName: "Acme", Accent: Accent{Strong: "#115e59", Tint: "#f0fdfa"}}
-	msg, err := Render(branding, "a@example.test", RegistrationCode{Code: "123456", TTL: time.Minute})
+	msg, err := Render(branding, "", "a@example.test", RegistrationCode{Code: "123456", TTL: time.Minute})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,13 +101,80 @@ func TestTemplatesUseCustomAccent(t *testing.T) {
 	}
 }
 
+func TestRenderTranslates(t *testing.T) {
+	branding := Branding{ServerName: "Acme", ServerURL: "https://chat.acme.example"}
+	tests := []struct {
+		locale  string
+		content Content
+		subject string
+		has     []string
+		dir     string
+	}{
+		{
+			locale: "de-DE", content: RegistrationCode{Code: "482913", TTL: time.Hour},
+			subject: "482913 ist dein Code für Acme",
+			has:     []string{"Willkommen bei Acme", "Dieser Code läuft in 1 Stunde ab.", "bei chat.acme.example registriert"},
+			dir:     "ltr",
+		},
+		{
+			// Russian needs the "many" form for 30 minutes.
+			locale: "ru-RU", content: EmailVerificationCode{Code: "731058", TTL: 30 * time.Minute},
+			subject: "731058 — ваш код для Acme",
+			has:     []string{"через 30 минут."},
+			dir:     "ltr",
+		},
+		{
+			locale: "ar", content: PasswordReset{Token: "PRtoken", TTL: 2 * time.Hour},
+			subject: "إعادة تعيين كلمة المرور في Acme",
+			has:     []string{"خلال ساعتين.", "https://chat.acme.example/reset-password?token=PRtoken"},
+			dir:     "rtl",
+		},
+		{
+			// A regional locale without its own catalog uses its fallback.
+			locale: "de-AT", content: RegistrationCode{Code: "111111", TTL: time.Minute},
+			subject: "111111 ist dein Code für Acme",
+			has:     []string{"in 1 Minute ab."},
+			dir:     "ltr",
+		},
+		{
+			locale: "xx-YY", content: RegistrationCode{Code: "222222", TTL: time.Minute},
+			subject: "222222 is your code for Acme",
+			has:     []string{"This code expires in 1 minute."},
+			dir:     "ltr",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.locale, func(t *testing.T) {
+			msg, err := Render(branding, tt.locale, "a@example.test", tt.content)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if msg.Subject != tt.subject {
+				t.Errorf("subject = %q, want %q", msg.Subject, tt.subject)
+			}
+			for _, want := range tt.has {
+				if !strings.Contains(msg.Body, want) || !strings.Contains(msg.HTMLBody, strings.ReplaceAll(want, "&", "&amp;")) {
+					t.Errorf("text or HTML body lacks %q:\n%s", want, msg.Body)
+				}
+			}
+			if !strings.Contains(msg.HTMLBody, `dir="`+tt.dir+`"`) {
+				t.Errorf("HTML body lacks dir=%q", tt.dir)
+			}
+			if tt.dir == "rtl" && !strings.Contains(msg.HTMLBody, `align="right"`) {
+				t.Error("right-to-left HTML body is not aligned right")
+			}
+		})
+	}
+}
+
 func TestRenderRequiresContent(t *testing.T) {
-	if _, err := Render(Branding{ServerName: "Acme"}, "a@example.test", nil); err == nil {
+	if _, err := Render(Branding{ServerName: "Acme"}, "", "a@example.test", nil); err == nil {
 		t.Error("Render(nil) succeeded")
 	}
 }
 
-func TestExpirationText(t *testing.T) {
+func TestDurationText(t *testing.T) {
+	en := i18n.Default().Translator(i18n.BaseLocale)
 	tests := map[time.Duration]string{
 		time.Hour:               "1 hour",
 		2 * time.Hour:           "2 hours",
@@ -115,8 +184,8 @@ func TestExpirationText(t *testing.T) {
 		1500 * time.Millisecond: "1.5s",
 	}
 	for ttl, want := range tests {
-		if got := ExpirationText(ttl); got != want {
-			t.Errorf("ExpirationText(%v) = %q, want %q", ttl, got, want)
+		if got := durationText(en, ttl); got != want {
+			t.Errorf("durationText(%v) = %q, want %q", ttl, got, want)
 		}
 	}
 }

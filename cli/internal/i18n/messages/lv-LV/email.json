@@ -1,0 +1,46 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "Koda derīguma termiņš: {duration}.",
+      "link_expiry": "Saites derīguma termiņš: {duration}.",
+      "button_fallback": "Ja poga nedarbojas, atveriet šo adresi:",
+      "duration": {
+        "hours": {
+          "zero": "{count} stundu",
+          "one": "{count} stunda",
+          "other": "{count} stundas"
+        },
+        "minutes": {
+          "zero": "{count} minūšu",
+          "one": "{count} minūte",
+          "other": "{count} minūtes"
+        },
+        "seconds": {
+          "zero": "{count} sekunžu",
+          "one": "{count} sekunde",
+          "other": "{count} sekundes"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{code} ir jūsu kods serverim {server}",
+      "heading": "Laipni lūdzam serverī {server}",
+      "intro": "Ievadiet šo kodu, lai pabeigtu konta izveidi.",
+      "footer": "Kāds izmantoja šo adresi, lai reģistrētos {host}. Ja tas nebijāt jūs, ignorējiet šo e-pastu. Konts netiks izveidots."
+    },
+    "verification": {
+      "subject": "{code} ir jūsu kods serverim {server}",
+      "heading": "Apstipriniet savu e-pasta adresi",
+      "intro": "Ievadiet šo kodu, lai pievienotu šo adresi savam {server} kontam.",
+      "footer": "Kāds lūdza pievienot šo adresi kontam {host}. Ja tas nebijāt jūs, ignorējiet šo e-pastu."
+    },
+    "password_reset": {
+      "subject": "Atiestatiet savu {server} paroli",
+      "preheader": "Izvēlieties jaunu paroli savam kontam.",
+      "heading": "Paroles atiestatīšana",
+      "intro": "Mēs saņēmām pieprasījumu atiestatīt jūsu {server} konta paroli. Izvēlieties jaunu paroli, izmantojot tālāk norādīto saiti.",
+      "button": "Iestatīt jaunu paroli",
+      "footer": "Nosūtīja {host}. Ja jūs to nepieprasījāt, ignorējiet šo e-pastu. Jūsu parole paliek nemainīga."
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "此驗證碼將在 {duration}後失效。",
+      "link_expiry": "此連結將在 {duration}後失效。",
+      "button_fallback": "如果按鈕無法使用，請開啟以下網址：",
+      "duration": {
+        "hours": {
+          "other": "{count} 小時"
+        },
+        "minutes": {
+          "other": "{count} 分鐘"
+        },
+        "seconds": {
+          "other": "{count} 秒"
+        }
+      }
+    },
+    "registration": {
+      "subject": "你的 {server} 驗證碼是 {code}",
+      "heading": "歡迎加入 {server}",
+      "intro": "輸入此驗證碼以完成帳號建立。",
+      "footer": "有人使用此地址在 {host} 上註冊。如果不是你本人操作，請忽略此郵件，不會建立任何帳號。"
+    },
+    "verification": {
+      "subject": "你的 {server} 驗證碼是 {code}",
+      "heading": "驗證你的電子郵件地址",
+      "intro": "輸入此驗證碼，將此地址新增至你的 {server} 帳號。",
+      "footer": "有人要求將此地址新增至 {host} 上的某個帳號。如果不是你本人操作，請忽略此郵件。"
+    },
+    "password_reset": {
+      "subject": "重設你的 {server} 密碼",
+      "preheader": "為你的帳號設定新密碼。",
+      "heading": "重設密碼",
+      "intro": "我們收到了重設你的 {server} 帳號密碼的請求。請透過下方連結設定新密碼。",
+      "button": "設定新密碼",
+      "footer": "由 {host} 寄出。如果不是你本人請求，請忽略此郵件，你的密碼不會變更。"
+    }
+  }
+}

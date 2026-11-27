@@ -284,6 +284,12 @@ run = { task = "codegen-*" }
 # Chatto does not expose Gin's MessagePack binding. Keep the nomsgpack tag on
 # every Chatto binary build so the large, unused ugorji codec is not linked.
 
+[tasks.sync-server-messages]
+description = "Copy the server translation catalogs into the CLI module for go:embed"
+run = "node tools/sync-server-messages.mjs"
+sources = ["apps/frontend/messages/*/server/*.json"]
+outputs = ["cli/internal/i18n/messages/**/*.json"]
+
 [tasks.sync-cli-legal]
 description = "Copy root legal files into the CLI module for go:embed"
 run = [

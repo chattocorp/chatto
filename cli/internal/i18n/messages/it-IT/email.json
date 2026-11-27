@@ -1,0 +1,46 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "Questo codice scade tra {duration}.",
+      "link_expiry": "Questo link scade tra {duration}.",
+      "button_fallback": "Se il pulsante non funziona, apri questo indirizzo:",
+      "duration": {
+        "hours": {
+          "one": "{count} ora",
+          "many": "{count} di ore",
+          "other": "{count} ore"
+        },
+        "minutes": {
+          "one": "{count} minuto",
+          "many": "{count} di minuti",
+          "other": "{count} minuti"
+        },
+        "seconds": {
+          "one": "{count} secondo",
+          "many": "{count} di secondi",
+          "other": "{count} secondi"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{code} è il tuo codice per {server}",
+      "heading": "Benvenuto su {server}",
+      "intro": "Inserisci questo codice per completare la creazione del tuo account.",
+      "footer": "Qualcuno ha usato questo indirizzo per registrarsi su {host}. Se non sei stato tu, ignora questa email. Nessun account verrà creato."
+    },
+    "verification": {
+      "subject": "{code} è il tuo codice per {server}",
+      "heading": "Verifica il tuo indirizzo email",
+      "intro": "Inserisci questo codice per aggiungere questo indirizzo al tuo account {server}.",
+      "footer": "Qualcuno ha chiesto di aggiungere questo indirizzo a un account su {host}. Se non sei stato tu, ignora questa email."
+    },
+    "password_reset": {
+      "subject": "Reimposta la password di {server}",
+      "preheader": "Scegli una nuova password per il tuo account.",
+      "heading": "Reimposta la password",
+      "intro": "Abbiamo ricevuto una richiesta di reimpostare la password del tuo account {server}. Scegline una nuova con il link qui sotto.",
+      "button": "Imposta una nuova password",
+      "footer": "Inviato da {host}. Se non l’hai richiesto tu, ignora questa email. La tua password resta invariata."
+    }
+  }
+}

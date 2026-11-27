@@ -1,0 +1,46 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "Este código expira em {duration}.",
+      "link_expiry": "Este link expira em {duration}.",
+      "button_fallback": "Se o botão não funcionar, abra este endereço:",
+      "duration": {
+        "hours": {
+          "one": "{count} hora",
+          "many": "{count} de horas",
+          "other": "{count} horas"
+        },
+        "minutes": {
+          "one": "{count} minuto",
+          "many": "{count} de minutos",
+          "other": "{count} minutos"
+        },
+        "seconds": {
+          "one": "{count} segundo",
+          "many": "{count} de segundos",
+          "other": "{count} segundos"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{code} é o seu código para {server}",
+      "heading": "Boas-vindas ao {server}",
+      "intro": "Digite este código para concluir a criação da sua conta.",
+      "footer": "Alguém usou este endereço para se cadastrar em {host}. Se não foi você, ignore este e-mail. Nenhuma conta será criada."
+    },
+    "verification": {
+      "subject": "{code} é o seu código para {server}",
+      "heading": "Confirme seu endereço de e-mail",
+      "intro": "Digite este código para adicionar este endereço à sua conta do {server}.",
+      "footer": "Alguém pediu para adicionar este endereço a uma conta em {host}. Se não foi você, ignore este e-mail."
+    },
+    "password_reset": {
+      "subject": "Redefina sua senha do {server}",
+      "preheader": "Escolha uma nova senha para sua conta.",
+      "heading": "Redefinir sua senha",
+      "intro": "Recebemos um pedido para redefinir a senha da sua conta do {server}. Escolha uma nova pelo link abaixo.",
+      "button": "Definir uma nova senha",
+      "footer": "Enviado por {host}. Se você não fez esse pedido, ignore este e-mail. Sua senha continua a mesma."
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "Deze code verloopt over {duration}.",
+      "link_expiry": "Deze link verloopt over {duration}.",
+      "button_fallback": "Werkt de knop niet? Open dan dit adres:",
+      "duration": {
+        "hours": {
+          "one": "{count} uur",
+          "other": "{count} uur"
+        },
+        "minutes": {
+          "one": "{count} minuut",
+          "other": "{count} minuten"
+        },
+        "seconds": {
+          "one": "{count} seconde",
+          "other": "{count} seconden"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{code} is je code voor {server}",
+      "heading": "Welkom bij {server}",
+      "intro": "Voer deze code in om het aanmaken van je account af te ronden.",
+      "footer": "Iemand heeft dit adres gebruikt om zich aan te melden bij {host}. Was jij dit niet? Negeer dan deze e-mail. Er wordt geen account aangemaakt."
+    },
+    "verification": {
+      "subject": "{code} is je code voor {server}",
+      "heading": "Bevestig je e-mailadres",
+      "intro": "Voer deze code in om dit adres aan je {server}-account toe te voegen.",
+      "footer": "Iemand heeft gevraagd dit adres toe te voegen aan een account bij {host}. Was jij dit niet? Negeer dan deze e-mail."
+    },
+    "password_reset": {
+      "subject": "Stel je wachtwoord voor {server} opnieuw in",
+      "preheader": "Kies een nieuw wachtwoord voor je account.",
+      "heading": "Wachtwoord opnieuw instellen",
+      "intro": "We hebben een verzoek ontvangen om het wachtwoord van je {server}-account opnieuw in te stellen. Kies een nieuw wachtwoord via de link hieronder.",
+      "button": "Nieuw wachtwoord instellen",
+      "footer": "Verzonden door {host}. Heb je dit niet aangevraagd? Negeer dan deze e-mail. Je wachtwoord blijft hetzelfde."
+    }
+  }
+}

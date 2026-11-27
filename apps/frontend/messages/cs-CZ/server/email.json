@@ -1,0 +1,49 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "Platnost kódu vyprší za {duration}.",
+      "link_expiry": "Platnost odkazu vyprší za {duration}.",
+      "button_fallback": "Pokud tlačítko nefunguje, otevřete tuto adresu:",
+      "duration": {
+        "hours": {
+          "one": "{count} hodinu",
+          "few": "{count} hodiny",
+          "many": "{count} hodiny",
+          "other": "{count} hodin"
+        },
+        "minutes": {
+          "one": "{count} minutu",
+          "few": "{count} minuty",
+          "many": "{count} minuty",
+          "other": "{count} minut"
+        },
+        "seconds": {
+          "one": "{count} sekundu",
+          "few": "{count} sekundy",
+          "many": "{count} sekundy",
+          "other": "{count} sekund"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{code} je váš kód pro {server}",
+      "heading": "Vítejte v {server}",
+      "intro": "Zadáním tohoto kódu dokončíte vytvoření účtu.",
+      "footer": "Někdo použil tuto adresu k registraci na {host}. Pokud jste to nebyli vy, tento e-mail ignorujte. Žádný účet nebude vytvořen."
+    },
+    "verification": {
+      "subject": "{code} je váš kód pro {server}",
+      "heading": "Ověřte svou e-mailovou adresu",
+      "intro": "Zadáním tohoto kódu přidáte tuto adresu ke svému účtu {server}.",
+      "footer": "Někdo požádal o přidání této adresy k účtu na {host}. Pokud jste to nebyli vy, tento e-mail ignorujte."
+    },
+    "password_reset": {
+      "subject": "Obnovení hesla k {server}",
+      "preheader": "Zvolte si nové heslo ke svému účtu.",
+      "heading": "Obnovení hesla",
+      "intro": "Obdrželi jsme žádost o obnovení hesla k vašemu účtu {server}. Nové heslo si zvolte pomocí odkazu níže.",
+      "button": "Nastavit nové heslo",
+      "footer": "Odesláno z {host}. Pokud jste o to nežádali, tento e-mail ignorujte. Vaše heslo zůstane beze změny."
+    }
+  }
+}

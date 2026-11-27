@@ -40,6 +40,9 @@ type Message struct {
 type Delivery struct {
 	To      string
 	Content Content
+	// Locale is the language of the email, as a supported locale such as
+	// "de-DE" (see i18n.Catalog.Match). Empty selects the base language.
+	Locale string
 	// ExpiresAt is the last time the email may be sent, normally the expiry of
 	// the code or link that it carries.
 	ExpiresAt time.Time

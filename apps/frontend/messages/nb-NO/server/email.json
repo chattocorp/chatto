@@ -1,0 +1,43 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "Koden utløper om {duration}.",
+      "link_expiry": "Lenken utløper om {duration}.",
+      "button_fallback": "Hvis knappen ikke virker, kan du åpne denne adressen:",
+      "duration": {
+        "hours": {
+          "one": "{count} time",
+          "other": "{count} timer"
+        },
+        "minutes": {
+          "one": "{count} minutt",
+          "other": "{count} minutter"
+        },
+        "seconds": {
+          "one": "{count} sekund",
+          "other": "{count} sekunder"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{code} er koden din for {server}",
+      "heading": "Velkommen til {server}",
+      "intro": "Skriv inn denne koden for å fullføre kontoen din.",
+      "footer": "Noen brukte denne adressen til å registrere seg på {host}. Hvis det ikke var deg, kan du se bort fra denne e-posten. Ingen konto blir opprettet."
+    },
+    "verification": {
+      "subject": "{code} er koden din for {server}",
+      "heading": "Bekreft e-postadressen din",
+      "intro": "Skriv inn denne koden for å legge til adressen i {server}-kontoen din.",
+      "footer": "Noen ba om å legge til denne adressen i en konto på {host}. Hvis det ikke var deg, kan du se bort fra denne e-posten."
+    },
+    "password_reset": {
+      "subject": "Tilbakestill passordet ditt for {server}",
+      "preheader": "Velg et nytt passord for kontoen din.",
+      "heading": "Tilbakestill passordet",
+      "intro": "Vi har mottatt en forespørsel om å tilbakestille passordet for {server}-kontoen din. Velg et nytt med lenken nedenfor.",
+      "button": "Velg et nytt passord",
+      "footer": "Sendt av {host}. Hvis du ikke ba om dette, kan du se bort fra denne e-posten. Passordet ditt forblir uendret."
+    }
+  }
+}

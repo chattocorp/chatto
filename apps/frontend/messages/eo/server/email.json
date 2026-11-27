@@ -1,0 +1,43 @@
+{
+  "email": {
+    "common": {
+      "code_expiry": "Ĉi tiu kodo eksvalidiĝos post {duration}.",
+      "link_expiry": "Ĉi tiu ligilo eksvalidiĝos post {duration}.",
+      "button_fallback": "Se la butono ne funkcias, malfermu ĉi tiun adreson:",
+      "duration": {
+        "hours": {
+          "one": "{count} horo",
+          "other": "{count} horoj"
+        },
+        "minutes": {
+          "one": "{count} minuto",
+          "other": "{count} minutoj"
+        },
+        "seconds": {
+          "one": "{count} sekundo",
+          "other": "{count} sekundoj"
+        }
+      }
+    },
+    "registration": {
+      "subject": "{code} estas via kodo por {server}",
+      "heading": "Bonvenon al {server}",
+      "intro": "Enigu ĉi tiun kodon por fini la kreadon de via konto.",
+      "footer": "Iu uzis ĉi tiun adreson por registriĝi ĉe {host}. Se tio ne estis vi, ignoru ĉi tiun retleteron. Neniu konto estos kreita."
+    },
+    "verification": {
+      "subject": "{code} estas via kodo por {server}",
+      "heading": "Konfirmu vian retpoŝtadreson",
+      "intro": "Enigu ĉi tiun kodon por aldoni ĉi tiun adreson al via {server}-konto.",
+      "footer": "Iu petis aldoni ĉi tiun adreson al konto ĉe {host}. Se tio ne estis vi, ignoru ĉi tiun retleteron."
+    },
+    "password_reset": {
+      "subject": "Restarigu vian pasvorton de {server}",
+      "preheader": "Elektu novan pasvorton por via konto.",
+      "heading": "Restarigi la pasvorton",
+      "intro": "Ni ricevis peton restarigi la pasvorton de via {server}-konto. Elektu novan per la suba ligilo.",
+      "button": "Agordi novan pasvorton",
+      "footer": "Sendita de {host}. Se vi ne petis tion, ignoru ĉi tiun retleteron. Via pasvorto restas sama."
+    }
+  }
+}

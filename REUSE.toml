@@ -14,6 +14,8 @@ path = [
   "apps/desktop/**",
   "apps/mobile/**",
   "apps/frontend/**",
+  # Copies of the server sections of apps/frontend/messages (mise sync-server-messages).
+  "cli/internal/i18n/messages/**",
   "CHANGELOG.md",
   "CONTRIBUTING.md",
   "docs/**",

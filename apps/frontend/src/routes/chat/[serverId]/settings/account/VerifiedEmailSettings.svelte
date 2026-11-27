@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getLocale } from '$lib/i18n/runtime';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { beforeNavigate, goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -145,7 +146,7 @@
     try {
       await scope.connection
         .getAPI(createAccountAPI)
-        .requestEmailVerification(scope.userId, address);
+        .requestEmailVerification(scope.userId, address, { locale: getLocale() });
       if (!isCurrentEmailAction(scope)) return;
       addEmailVisible = false;
       await goto(verificationPath);

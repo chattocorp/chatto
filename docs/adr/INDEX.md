@@ -142,3 +142,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-125](ADR-125-store-user-data-in-the-users-own-pds.md)               | Store User Data in the User's Own AT Protocol PDS                | Proposed             | 2026-11-19 |
 | [ADR-127](ADR-127-bounded-staleness-for-credential-validation.md)        | Bounded Staleness for Runtime Credential Validation              | Accepted             | 2026-11-22 |
 | [ADR-128](ADR-128-remote-image-proxy.md)                                 | Serve Remote Images Through a Signed Server Proxy                | Accepted             | 2026-11-23 |
+| [ADR-129](ADR-129-server-texts-use-the-frontend-catalogs.md)             | Server Texts Use the Frontend Translation Catalogs               | Accepted             | 2026-11-27 |

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getLocale } from '$lib/i18n/runtime';
   import { errorMessage } from '$lib/utils/errorMessage';
   import { resolve } from '$app/paths';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
@@ -29,7 +30,8 @@
     try {
       const response = await fetch('/auth/forgot-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // The server writes the reset email in this language.
+        headers: { 'Content-Type': 'application/json', 'Accept-Language': getLocale() },
         body: JSON.stringify({ email })
       });
 

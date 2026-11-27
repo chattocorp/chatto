@@ -2109,6 +2109,55 @@ func TestAuthRoutes_Register_EmailUsesConfiguredOTPExpiration(t *testing.T) {
 	}
 }
 
+// The email uses the language of the request's Accept-Language header,
+// which the bundled frontend sets to the language chosen in the app.
+func TestAuthRoutes_EmailsFollowAcceptLanguage(t *testing.T) {
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailer(t)
+	post := func(path, address, acceptLanguage string) *email.Message {
+		t.Helper()
+		body, _ := json.Marshal(map[string]string{"email": address})
+		req, err := http.NewRequest(http.MethodPost, ts.URL+path, bytes.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if acceptLanguage != "" {
+			req.Header.Set("Accept-Language", acceptLanguage)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("%s status = %d", path, resp.StatusCode)
+		}
+		return mockMailer.LastMessage()
+	}
+
+	if msg := post("/auth/register", "deutsch@example.com", "de-DE,de;q=0.9,en;q=0.5"); msg == nil || !strings.Contains(msg.Subject, "ist dein Code für") {
+		t.Errorf("German registration email = %+v", msg)
+	}
+	if msg := post("/auth/register", "arabic@example.com", "ar"); msg == nil || !strings.Contains(msg.HTMLBody, `dir="rtl"`) {
+		t.Errorf("Arabic registration email is not right to left")
+	}
+	if msg := post("/auth/register", "default@example.com", ""); msg == nil || !strings.Contains(msg.Subject, "is your code for") {
+		t.Errorf("registration email without Accept-Language = %+v", msg)
+	}
+	// The password reset route needs a registered, verified address.
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, "system", "resetfr", "Reset FR", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := chattoCore.AddVerifiedEmailDirect(ctx, user.Id, "reset-fr@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if msg := post("/auth/forgot-password", "reset-fr@example.com", "fr-FR"); msg == nil || !strings.Contains(msg.Subject, "Réinitialisez votre mot de passe") {
+		t.Errorf("French password reset email = %+v", msg)
+	}
+}
+
 func TestAuthRoutes_Register_RequiresMailer(t *testing.T) {
 	ts, client, _ := setupTestHTTPServer(t) // No mailer
 

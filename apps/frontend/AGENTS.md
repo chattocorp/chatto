@@ -307,6 +307,11 @@ Use [chatto-experiments](../../.agents/skills/chatto-experiments/SKILL.md) when 
   with two or more words. Translate the message. If the identical text is
   correct in that locale, add the key and locale to
   `src/lib/i18n/identicalTranslations.ts`.
+- Server texts, such as transactional email, use the same catalogs in a
+  `server/` subdirectory of each locale (ADR-129). The web app does not load
+  them. Translate them for every complete locale with the same form of
+  address, then run `mise sync-server-messages`. Requests that cause server
+  text send the app locale as `Accept-Language`.
 - Import product messages from `$lib/i18n/messages`; keep the framework-neutral
   JSON runtime in `packages/translatto` free of Chatto-specific catalogs and policy.
 - Catalogs are ordinary nested JSON and require no compilation. The British

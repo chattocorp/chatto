@@ -37,7 +37,10 @@ type EmailDelivery struct {
 	//	*EmailDelivery_RegistrationCode
 	//	*EmailDelivery_EmailVerificationCode
 	//	*EmailDelivery_PasswordReset
-	Content       isEmailDelivery_Content `protobuf_oneof:"content"`
+	Content isEmailDelivery_Content `protobuf_oneof:"content"`
+	// Language of the email, as a supported locale such as "de-DE". Empty, for
+	// a record from an older version, selects the base language (en-GB).
+	Locale        string `protobuf:"bytes,9,opt,name=locale,proto3" json:"locale,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -125,6 +128,13 @@ func (x *EmailDelivery) GetPasswordReset() *PasswordResetEmail {
 		}
 	}
 	return nil
+}
+
+func (x *EmailDelivery) GetLocale() string {
+	if x != nil {
+		return x.Locale
+	}
+	return ""
 }
 
 type isEmailDelivery_Content interface {
@@ -313,14 +323,15 @@ var File_chatto_core_runtime_state_v1_email_delivery_proto protoreflect.FileDesc
 
 const file_chatto_core_runtime_state_v1_email_delivery_proto_rawDesc = "" +
 	"\n" +
-	"1chatto/core/runtime_state/v1/email_delivery.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1egoogle/protobuf/duration.proto\"\x90\x03\n" +
+	"1chatto/core/runtime_state/v1/email_delivery.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1egoogle/protobuf/duration.proto\"\xa8\x03\n" +
 	"\rEmailDelivery\x12\x0e\n" +
 	"\x02to\x18\x01 \x01(\tR\x02to\x12\x18\n" +
 	"\asubject\x18\x02 \x01(\tR\asubject\x12\x12\n" +
 	"\x04body\x18\x03 \x01(\tR\x04body\x12V\n" +
 	"\x11registration_code\x18\x06 \x01(\v2'.chatto.core.runtime_state.v1.EmailCodeH\x00R\x10registrationCode\x12a\n" +
 	"\x17email_verification_code\x18\a \x01(\v2'.chatto.core.runtime_state.v1.EmailCodeH\x00R\x15emailVerificationCode\x12Y\n" +
-	"\x0epassword_reset\x18\b \x01(\v20.chatto.core.runtime_state.v1.PasswordResetEmailH\x00R\rpasswordResetB\t\n" +
+	"\x0epassword_reset\x18\b \x01(\v20.chatto.core.runtime_state.v1.PasswordResetEmailH\x00R\rpasswordReset\x12\x16\n" +
+	"\x06locale\x18\t \x01(\tR\x06localeB\t\n" +
 	"\acontentJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\thtml_bodyR\tfrom_name\"L\n" +
 	"\tEmailCode\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12+\n" +
