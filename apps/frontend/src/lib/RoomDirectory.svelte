@@ -180,22 +180,29 @@ store owns only optimistic join/leave state.
       {:else}
         <span aria-hidden="true" class="w-4 shrink-0 text-center text-muted/70">#</span>
       {/if}
-      {#if linked}
-        <a
-          href={roomHref}
-          class="min-w-0 flex-1 truncate font-semibold text-text-top after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-action"
-          ><bdi>{room.name}</bdi></a
-        >
-      {:else}
-        <span class="min-w-0 flex-1 truncate font-semibold text-text"><bdi>{room.name}</bdi></span>
-      {/if}
-      {#if !joined && isNewRoom(room.createdAt)}
-        <!-- Only rooms to discover: a joined room is already known. Quiet text; the dot carries the accent. -->
-        <span class="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted">
-          <UnreadDot color="action" />
-          {m('room.directory.new')}
-        </span>
-      {/if}
+      <!-- The name and its New dot share the free width; the dot sits right after the name. -->
+      <div class="flex min-w-0 flex-1 items-center gap-1.5">
+        {#if linked}
+          <a
+            href={roomHref}
+            class="min-w-0 truncate font-semibold text-text-top after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-action"
+            ><bdi>{room.name}</bdi></a
+          >
+        {:else}
+          <span class="min-w-0 truncate font-semibold text-text"><bdi>{room.name}</bdi></span>
+        {/if}
+        {#if !joined && isNewRoom(room.createdAt)}
+          <!-- Only rooms to discover: a joined room is already known. The dot names itself New. -->
+          <span
+            class="flex shrink-0"
+            role="img"
+            aria-label={m('room.directory.new')}
+            title={m('room.directory.new')}
+          >
+            <UnreadDot color="action" />
+          </span>
+        {/if}
+      </div>
       <div class="relative z-10 flex shrink-0 items-center gap-1">
         {#if joined && room.isUniversal}
           <!-- A quiet label like Joined; the leading globe already marks the room. -->

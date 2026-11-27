@@ -420,11 +420,12 @@ describe('RoomDirectory', () => {
     });
     flushSync();
 
-    const rowText = (id: string) =>
-      [...container.querySelectorAll('li')].find((li) => li.textContent?.includes(id))
-        ?.textContent ?? '';
-    expect(rowText('fresh')).toContain('New');
-    expect(rowText('joined-fresh')).not.toContain('New');
-    expect(rowText('old')).not.toContain('New');
+    const hasNewDot = (id: string) =>
+      !![...container.querySelectorAll('li')]
+        .find((li) => li.textContent?.includes(id))
+        ?.querySelector('[role="img"][aria-label="New"]');
+    expect(hasNewDot('fresh')).toBe(true);
+    expect(hasNewDot('joined-fresh')).toBe(false);
+    expect(hasNewDot('old')).toBe(false);
   });
 });
