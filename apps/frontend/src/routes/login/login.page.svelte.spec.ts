@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { preloadPublicLocaleMessages } from '$lib/i18n/messages';
+import { setLocale } from '$lib/i18n/runtime';
 import LoginPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -96,7 +98,8 @@ describe('origin sign-in page', () => {
       }
     });
 
-    await expect.element(getByRole('link', { name: 'Continue with Company SSO' })).toBeVisible();
+    await expect.element(getByRole('heading', { name: 'Please sign in.' })).toBeVisible();
+    await expect.element(getByRole('link', { name: 'Company SSO', exact: true })).toBeVisible();
     await expect
       .element(
         getByText('The sign-in provider could not complete authentication. Please try again.')
@@ -106,20 +109,47 @@ describe('origin sign-in page', () => {
     await expect.element(getByLabelText('Password')).not.toBeInTheDocument();
     await expect.element(getByRole('link', { name: 'Forgot password?' })).not.toBeInTheDocument();
     await expect
-      .element(getByRole('link', { name: 'Continue with password' }))
+      .element(getByRole('link', { name: 'Password', exact: true }))
       .not.toBeInTheDocument();
   });
 
-  it.each([true, false, null])(
-    'hides direct registration with provider auto-provisioning set to %s',
-    async (autoProvision) => {
+  it.each([
+    {
+      autoProvision: true,
+      accountCreationPolicy: 'open',
+      directLoginEnabled: false
+    },
+    {
+      autoProvision: true,
+      accountCreationPolicy: 'invite_only',
+      directLoginEnabled: false
+    },
+    {
+      autoProvision: false,
+      accountCreationPolicy: 'invite_only',
+      directLoginEnabled: false
+    },
+    {
+      autoProvision: null,
+      accountCreationPolicy: 'invite_only',
+      directLoginEnabled: false
+    },
+    {
+      autoProvision: true,
+      accountCreationPolicy: 'invite_only',
+      directLoginEnabled: true
+    }
+  ] as const)(
+    'uses the provider directly without an email link ($autoProvision, $accountCreationPolicy, password login: $directLoginEnabled)',
+    async ({ autoProvision, accountCreationPolicy, directLoginEnabled }) => {
       const { getByRole, getByText } = render(LoginPage, {
         props: {
           data: {
             ...standaloneData,
             serverInfo: {
               ...serverInfo,
-              accountCreationPolicy: 'invite_only',
+              accountCreationPolicy,
+              directLoginEnabled,
               authProviders: [
                 {
                   id: 'company',
@@ -135,20 +165,59 @@ describe('origin sign-in page', () => {
         }
       });
 
+      await expect.element(getByRole('link', { name: 'Company SSO', exact: true })).toBeVisible();
+      const registration = getByRole('link', { name: 'Create an account with email', exact: true });
+      await expect.element(registration).not.toBeInTheDocument();
       await expect
-        .element(getByRole('link', { name: 'Continue with Company SSO', exact: true }))
+        .element(
+          getByRole('heading', {
+            name: autoProvision === true ? 'Sign in or create an account' : 'Please sign in.'
+          })
+        )
         .toBeVisible();
-      await expect
-        .element(getByRole('link', { name: 'Create Account', exact: true }))
-        .not.toBeInTheDocument();
       const inviteNotice = getByText(
         'New accounts need a single-use invitation code. Existing users can still sign in.'
       );
-      if (autoProvision === true) await expect.element(inviteNotice).toBeVisible();
+      if (autoProvision === true && accountCreationPolicy === 'invite_only')
+        await expect.element(inviteNotice).toBeVisible();
       else await expect.element(inviteNotice).not.toBeInTheDocument();
-      await expect.element(getByText('or', { exact: true })).not.toBeInTheDocument();
+      if (!directLoginEnabled)
+        await expect.element(getByText('or', { exact: true })).not.toBeInTheDocument();
     }
   );
+
+  it('describes only the sign-in-only provider when another provider can create accounts', async () => {
+    const { getByRole } = render(LoginPage, {
+      props: {
+        data: {
+          ...standaloneData,
+          serverInfo: {
+            ...serverInfo,
+            authProviders: ['Chatto ID', 'Work SSO', 'Legacy'].map((label, index) => ({
+              id: String(index),
+              type: 'oidc',
+              label,
+              issuerUrl: 'https://id.example',
+              loginUrl: '/auth/providers/' + index,
+              autoProvision: [true, false, null][index]
+            }))
+          }
+        }
+      }
+    });
+    await expect
+      .element(getByRole('link', { name: 'Work SSO', exact: true }))
+      .toHaveAccessibleDescription('Existing accounts only');
+    await expect
+      .element(getByRole('link', { name: 'Chatto ID', exact: true }))
+      .not.toHaveAttribute('aria-describedby');
+    await expect
+      .element(getByRole('link', { name: 'Legacy', exact: true }))
+      .not.toHaveAttribute('aria-describedby');
+    await expect
+      .element(getByRole('link', { name: 'Create an account with email' }))
+      .not.toBeInTheDocument();
+  });
 
   it('offers direct registration and preserves the return URL when enabled', async () => {
     const { getByRole } = render(LoginPage, {
@@ -162,11 +231,13 @@ describe('origin sign-in page', () => {
     });
 
     await expect
-      .element(getByRole('link', { name: 'Create Account', exact: true }))
-      .toHaveAttribute('href', '/register?redirect=%2Foauth%2Fauthorize');
+      .element(getByRole('link', { name: 'Create an account with email', exact: true }))
+      .toHaveAttribute('href', '/register?method=email&redirect=%2Foauth%2Fauthorize');
   });
 
-  it('shows only provider choices and a password login link when SSO and direct login are enabled', async () => {
+  it('offers provider, password, and registration links when SSO and direct login are enabled', async ({
+    onTestFinished
+  }) => {
     const { getByRole, getByLabelText } = render(LoginPage, {
       props: {
         data: {
@@ -191,15 +262,29 @@ describe('origin sign-in page', () => {
       }
     });
 
-    await expect.element(getByRole('link', { name: 'Continue with Company SSO' })).toBeVisible();
+    await expect.element(getByRole('link', { name: 'Company SSO', exact: true })).toBeVisible();
     await expect
-      .element(getByRole('link', { name: 'Continue with password' }))
+      .element(getByRole('link', { name: 'Password', exact: true }))
       .toHaveAttribute('href', '/login/password?redirect=%2Fchat%2Fabc');
     await expect.element(getByLabelText('Username or Email')).not.toBeInTheDocument();
     await expect.element(getByRole('link', { name: 'Forgot password?' })).not.toBeInTheDocument();
     await expect
-      .element(getByRole('link', { name: 'Create Account', exact: true }))
-      .not.toBeInTheDocument();
+      .element(getByRole('link', { name: 'Create an account with email', exact: true }))
+      .toHaveAttribute('href', '/register?method=email&redirect=%2Fchat%2Fabc');
+
+    onTestFinished(() => setLocale('en-GB'));
+    await preloadPublicLocaleMessages();
+    await setLocale('de-DE');
+    await expect
+      .element(getByRole('heading', { name: 'Melde dich an oder erstelle ein Konto' }))
+      .toBeVisible();
+    await expect.element(getByRole('link', { name: 'Company SSO', exact: true })).toBeVisible();
+    await expect
+      .element(getByRole('link', { name: 'Passwort', exact: true }))
+      .toHaveAccessibleDescription('');
+    await expect
+      .element(getByRole('link', { name: 'Company SSO', exact: true }))
+      .toHaveAccessibleDescription('Nur für bestehende Konten');
   });
 
   it('explains provider restriction denials without naming the rule', async () => {

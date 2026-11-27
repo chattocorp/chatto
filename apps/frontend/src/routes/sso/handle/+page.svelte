@@ -17,6 +17,26 @@ then continues the same sign-in (FDR-058). It runs in the sign-in window.
     setPendingAtprotoHandle
   } from '$lib/atproto/rememberedHandle';
 
+  import blueskyMark from '$lib/assets/atmosphere/bluesky.svg?url';
+  import blackskyMark from '$lib/assets/atmosphere/blacksky.svg?url';
+  import grazeMark from '$lib/assets/atmosphere/graze.svg?url';
+  import leafletMark from '$lib/assets/atmosphere/leaflet.svg?url';
+  import tangledMark from '$lib/assets/atmosphere/tangled.svg?url';
+  import musocialMark from '$lib/assets/atmosphere/mu-social.svg?url';
+  import surfMark from '$lib/assets/atmosphere/surf.svg?url';
+  import pcktMark from '$lib/assets/atmosphere/pckt.svg?url';
+
+  const services = [
+    { name: 'Bluesky', mark: blueskyMark },
+    { name: 'Blacksky', mark: blackskyMark },
+    { name: 'Graze', mark: grazeMark },
+    { name: 'Leaflet', mark: leafletMark },
+    { name: 'Tangled', mark: tangledMark },
+    { name: 'mu.social', mark: musocialMark },
+    { name: 'Surf', mark: surfMark },
+    { name: 'Pckt', mark: pcktMark }
+  ];
+
   const getServerInfo = getAuthServerInfo();
   const next = page.url.searchParams.get('next');
   const notFound = page.url.searchParams.get('error') === 'atproto_identity_not_found';
@@ -47,11 +67,20 @@ then continues the same sign-in (FDR-058). It runs in the sign-in window.
   {#if !atprotoHandleContinuationUrl(next, 'x', page.url.origin)}
     <Hint tone="danger">{m('auth.sso.invalid')}</Hint>
   {:else}
-    <!-- The page title names the field, so the label stays for assistive
-         technology only and the help text leads the form as its intro. -->
-    <p class="mb-8 text-center leading-relaxed text-balance text-muted">
-      {m('auth.login.atproto_handle_help')}
-    </p>
+    <ul
+      class="mx-auto mb-4 flex max-w-xs flex-wrap items-center justify-center gap-3 text-muted sm:gap-4"
+    >
+      {#each services as service (service.name)}
+        <li title={service.name}>
+          <span class="sr-only">{service.name}</span>
+          <span
+            aria-hidden="true"
+            class="block size-5 bg-current mask-contain mask-center mask-no-repeat sm:size-6"
+            style:mask-image={`url("${service.mark}")`}
+          ></span>
+        </li>
+      {/each}
+    </ul>
     <form class="flex flex-col gap-5" onsubmit={handleSubmit}>
       {#if notFound}
         <Hint tone="danger">{m('auth.login.error.atproto_identity_not_found')}</Hint>

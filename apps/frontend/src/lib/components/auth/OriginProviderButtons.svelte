@@ -12,11 +12,14 @@ saved return path, or to the login page with an error.
     providers,
     href,
     compact = false,
+    showRestrictions = false,
     selectedProviderId = $bindable(null)
   }: {
     providers: readonly PublicAuthProvider[];
     href: (provider: PublicAuthProvider) => string;
     compact?: boolean;
+    /** Explain sign-in-only methods when account creation is available. */
+    showRestrictions?: boolean;
     /** The provider whose sign-in is starting, or `null`. */
     selectedProviderId?: string | null;
   } = $props();
@@ -33,6 +36,7 @@ saved return path, or to the login page with an error.
   {providers}
   {href}
   {compact}
+  {showRestrictions}
   {selectedProviderId}
   onclick={(_, provider) => {
     selectedProviderId = provider.id;

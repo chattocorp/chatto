@@ -7,8 +7,9 @@ link, and the Create Account action.
 <script lang="ts">
   import { isIdentityLinkPath } from '$lib/auth/identityLink';
   import { resolve } from '$app/paths';
-  import { withReturnPath } from '$lib/auth/loginRoutes';
+  import { returnPathQuery } from '$lib/auth/loginRoutes';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
+  import RegistrationLink from '$lib/components/auth/RegistrationLink.svelte';
   import PasswordSignInSection from '$lib/components/auth/PasswordSignInSection.svelte';
   import { m } from '$lib/i18n/messages';
   import { Hint, PageTitle } from '$lib/ui';
@@ -37,14 +38,14 @@ link, and the Create Account action.
     <p class="mb-4 text-muted">{m('auth.login.invitation_notice')}</p>
   {/if}
 
-  <PasswordSignInSection redirectUrl={data.redirectUrl} {directRegistrationEnabled} {compact} />
+  <PasswordSignInSection redirectUrl={data.redirectUrl} {compact} />
 
   {#if hasProviders}
     <div class="mt-6 text-center">
-      <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the path is resolved; withReturnPath only adds a query string -->
-      <a href={withReturnPath(resolve('/login'), data.redirectUrl)} class="link">
+      <a href={resolve(`/login${returnPathQuery(data.redirectUrl)}`)} class="link">
         {m('auth.login.other_options')}
       </a>
     </div>
   {/if}
+  <RegistrationLink serverInfo={data.serverInfo} redirectUrl={data.redirectUrl} />
 </AuthLayout>

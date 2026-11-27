@@ -103,7 +103,7 @@ account-directed email. The first verified email becomes primary, and adding
 another address does not change the selection. See
 [FDR-018](fdr/FDR-018-account-lifecycle.md).
 
-**Internet Handle** — The UI name for an AT Protocol handle, such as `alice.bsky.social`, and for the default label of `atproto` login providers. AT Protocol handles are not limited to Bluesky. The server can show a linked handle as a verified identity. See [FDR-058](fdr/FDR-058-atproto-sign-in.md) and [ADR-124](adr/ADR-124-atproto-handle-verification-needs-an-issuer.md).
+**Atmosphere account** — An account on an AT Protocol service, such as Bluesky. This is the default label for an `atproto` login provider. Users enter their handle, such as `alice.bsky.social`, to sign in. The server can show a linked handle as a verified identity. See [FDR-058](fdr/FDR-058-atproto-sign-in.md) and [ADR-124](adr/ADR-124-atproto-handle-verification-needs-an-issuer.md).
 
 **Invitation Code** — A code that permits one new account on an invite-only server. Administrators issue and revoke codes, with optional expiry. Validation does not consume the code; successful account creation does. See [FDR-036](fdr/FDR-036-invite-links.md).
 

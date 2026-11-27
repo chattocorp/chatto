@@ -147,6 +147,10 @@ Frontend, Examples, and Documentation Components:
 - highlightjs-lean (https://github.com/leanprover-community/highlightjs-lean) - BSD 3-Clause License
 - highlightjs-odinlang (https://github.com/marianpekar/highlightjs-odinlang) - MIT License
 - hls.js (https://github.com/video-dev/hls.js) - Apache License 2.0
+- Atmosphere service marks on the handle sign-in page, distributed with atmo-kit
+  (https://github.com/flo-bit/atmo-kit/tree/3d773259e9754c56795f3f9b9b1981d910b94d06/src/lib/components/login/brands).
+  The kit uses the MIT License, Copyright (c) 2026 flo-bit. The marks belong to
+  their respective owners. The mu.social mark comes from the Eurosky brand package.
 - Iconify packages (https://iconify.design/) - MIT License
 - js-sha256 (https://github.com/emn178/js-sha256) - MIT License
 - linkify-it (https://github.com/markdown-it/linkify-it) - MIT License

@@ -186,7 +186,7 @@ test.describe('External identity confirmation flows', () => {
       await route.fulfill({ status: 302, headers: { Location: redirect! } });
     });
     await page.goto(`/login?redirect=${encodeURIComponent(destination)}`);
-    await page.getByRole('link', { name: 'Continue with GitHub' }).click();
+    await page.getByRole('link', { name: 'GitHub', exact: true }).click();
     await expect(page).toHaveURL(new URL(destination, serverURL).href);
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
     expect(context.pages()).toHaveLength(1);
@@ -265,7 +265,7 @@ test.describe('External identity confirmation flows', () => {
     await expect(page).toHaveURL(/\/login\?redirect=/);
     await expect(page.getByTestId('sign-in-window-header')).toBeVisible();
 
-    await page.getByRole('link', { name: 'Continue with password' }).click();
+    await page.getByRole('link', { name: 'Password', exact: true }).click();
     await expect(page).toHaveURL(/\/login\/password\?redirect=/);
     await expect(page.getByTestId('sign-in-window-header')).toBeVisible();
     await page.getByLabel('Username or Email').fill(login);
@@ -355,7 +355,7 @@ test.describe('External identity confirmation flows', () => {
       await route.fulfill({ status: 302, headers: { Location: flow.confirmUrl } });
     });
     await page.goto('/register');
-    await page.getByRole('link', { name: 'Continue with GitHub' }).click();
+    await page.getByRole('link', { name: 'GitHub', exact: true }).click();
     await page.getByRole('button', { name: 'Create account', exact: true }).click();
     await expect(page).toHaveURL(routes.patterns.chatRedirect);
     expect(context.pages()).toHaveLength(1);
@@ -554,7 +554,7 @@ test.describe('External identity confirmation flows', () => {
         await route.fulfill({ status: 302, headers: { Location: target.href } });
       });
       await page.goto(`/login?redirect=${encodeURIComponent(destination)}`);
-      await page.getByRole('link', { name: 'Continue with Discord' }).click();
+      await page.getByRole('link', { name: 'Discord', exact: true }).click();
       await page.getByRole('link', { name: 'Sign in to existing account' }).click();
       expect(callback).toBe(destination);
       await page.getByLabel('Username or Email').fill(user.login);
@@ -597,10 +597,10 @@ test.describe('External identity confirmation flows', () => {
       await route.fulfill({ status: 302, headers: { Location: flow.confirmUrl } });
     });
     await page.goto('/login');
-    await page.getByRole('link', { name: 'Continue with Discord' }).click();
+    await page.getByRole('link', { name: 'Discord', exact: true }).click();
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(page).toHaveURL(routes.login);
-    await expect(page.getByRole('link', { name: 'Continue with password' })).toBeEnabled();
+    await expect(page.getByRole('link', { name: 'Password', exact: true })).toBeEnabled();
   });
 
   test('links a pending provider identity to the authenticated account', async ({

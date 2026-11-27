@@ -100,7 +100,7 @@ to that server on that device.
   storage adapter of ADR-112 phase 2 is the seam for the server catalogue.
 - AT Protocol code stays in the AT Protocol adapter. Catalogue and
   preference code does not use AT Protocol types or terms.
-- The UI uses the term "Internet Handle"
+- The UI uses the term "Atmosphere account"
   ([glossary](../GLOSSARY.md)). It does not present Chatto as a Bluesky or
   AT Protocol app.
 - The records use the `run.chatto.*` lexicon namespace. The lexicons are a

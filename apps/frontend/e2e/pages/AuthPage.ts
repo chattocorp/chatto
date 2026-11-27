@@ -80,14 +80,14 @@ export class AuthPage {
 
   // --- Locators: Navigation Links ---
 
-  /** Link to login page from registration */
+  /** Link to sign in from password recovery */
   get signInLink(): Locator {
     return this.page.getByRole('link', { name: 'Sign In', exact: true });
   }
 
   /** Link to registration page from login */
   get createAccountLink(): Locator {
-    return this.page.getByRole('link', { name: 'Create Account' });
+    return this.page.getByRole('link', { name: 'Create an account with email' });
   }
 
   /** Link to forgot password page from login */

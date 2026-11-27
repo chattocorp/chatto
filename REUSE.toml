@@ -80,3 +80,9 @@ path = [
 ]
 SPDX-FileCopyrightText = "2004 Apache Software Foundation"
 SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "apps/frontend/src/lib/assets/atmosphere/*.svg"
+precedence = "override"
+SPDX-FileCopyrightText = ["2026 flo-bit", "Respective brand owners"]
+SPDX-License-Identifier = "MIT"

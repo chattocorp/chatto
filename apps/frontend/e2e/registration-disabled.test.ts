@@ -16,7 +16,7 @@ test.describe('Registration disabled', () => {
   }) => {
     await page.goto(routes.login);
     await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Create account' })).toBeHidden();
+    await expect(page.getByRole('link', { name: 'Create an account with email' })).toBeHidden();
   });
 
   test('register page shows disabled message', async ({ page }) => {

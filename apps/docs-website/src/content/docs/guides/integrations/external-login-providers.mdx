@@ -1,6 +1,6 @@
 ---
 title: Login Providers
-description: Let people sign in to Chatto with OIDC, GitHub, GitLab, Google, Discord, or an internet handle (AT Protocol), with a Pocket ID example.
+description: Let people sign in to Chatto with OIDC, GitHub, GitLab, Google, Discord, or an Atmosphere account (AT Protocol), with a Pocket ID example.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
@@ -19,7 +19,7 @@ to link an account.
 | `gitlab` | GitLab OAuth applications |
 | `google` | Google OAuth clients |
 | `discord` | Discord OAuth2 applications |
-| `atproto` | [Internet handles (AT Protocol accounts)](#internet-handle-at-protocol). Needs no client registration. |
+| `atproto` | [Atmosphere accounts (AT Protocol)](#atmosphere-account-at-protocol). Needs no client registration. |
 
 Self-hosted OIDC providers include [Pocket ID](https://pocket-id.org/),
 [Kanidm](https://kanidm.com/), [VoidAuth](https://github.com/voidauth/voidauth),
@@ -124,15 +124,16 @@ use them together with counted variables.
 </TabItem>
 </Tabs>
 
-## Internet Handle (AT Protocol)
+<span id="internet-handle-at-protocol"></span>
+
+## Atmosphere account (AT Protocol)
 
 To designate an AT Protocol owner, put the account's DID in `owners.dids`. Do not put a handle in this list: handles can change or pass to another person. To find a DID, check the account's identity information or open `https://<handle>/.well-known/atproto-did` when the handle publishes that record. Some handles use a DNS TXT record at `_atproto.<handle>` instead. Confirm the DID before you configure it. A `did:web` owner is only as safe as the domain that controls the DID document.
 
 See [First owner without password login](/guides/operations/identity-login/#first-owner-without-password-login) for an AT Protocol-only setup.
 
 
-The `atproto` type lets people sign in with an internet handle: the handle of
-an AT Protocol account, for example `alice.bsky.social` or `alice.example.com`. You do not register a client. Chatto publishes its own client
+The `atproto` type lets people sign in with an Atmosphere account. They enter their handle, for example `alice.bsky.social` or `alice.example.com`. You do not register a client. Chatto publishes its own client
 metadata, and the user's server reads it during sign-in. If your reverse proxy
 routes by path, forward `/oauth-client-metadata.json` on the public server
 origin to Chatto. If your authorization server has a trusted-client list,
@@ -163,7 +164,7 @@ auto_provision = true
   `127.0.0.1`.
 - Do not set `client_id`, `client_secret`, `scopes`, `request_email`, or the
   group settings. Chatto rejects them for this type.
-- The default button label is "Internet Handle". Set `label` to change it.
+- The default button label is "Atmosphere account". Set `label` to change it.
 - The sign-in page asks for the handle, for example `alice.bsky.social`.
 - Chatto requests only the `atproto` scope. It proves the account and gives
   Chatto no access to the user's posts or other data.

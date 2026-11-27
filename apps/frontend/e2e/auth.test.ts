@@ -514,18 +514,24 @@ test.describe('Authentication', () => {
   });
 
   test.describe('Navigation Links', () => {
-    test('registration page has link to login', async ({ authPage }) => {
+    test('registration page has link to login', async ({ authPage, page }) => {
       await authPage.gotoRegister();
 
-      await expect(authPage.signInLink).toBeVisible();
-      await expect(authPage.signInLink).toHaveAttribute('href', routes.login);
+      await expect(page.getByRole('link', { name: 'Already a member? Sign in' })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Already a member? Sign in' })).toHaveAttribute(
+        'href',
+        routes.login
+      );
     });
 
     test('login page has link to registration', async ({ authPage }) => {
       await authPage.gotoLogin();
 
       await expect(authPage.createAccountLink).toBeVisible();
-      await expect(authPage.createAccountLink).toHaveAttribute('href', routes.register);
+      await expect(authPage.createAccountLink).toHaveAttribute(
+        'href',
+        routes.register + '?method=email'
+      );
     });
   });
 
