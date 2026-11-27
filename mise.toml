@@ -520,11 +520,15 @@ dir = "apps/frontend"
 # `mise dev-full` and `mise dev-frontend` use the complete workspace port block.
 # Storybook therefore uses the first free loopback port from 6006. Storybook's
 # own fallback checks a different address than the loopback listener.
+# Set STORYBOOK_PORT to use a fixed port, as the Geordi task does.
 run = '''
-port=6006
-while lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; do
-  port=$((port + 1))
-done
+port="${STORYBOOK_PORT:-}"
+if [ -z "$port" ]; then
+  port=6006
+  while lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; do
+    port=$((port + 1))
+  done
+fi
 exec pnpm exec storybook dev --host 127.0.0.1 --port "$port" --exact-port --no-open
 '''
 

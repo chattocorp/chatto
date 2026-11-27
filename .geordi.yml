@@ -50,6 +50,11 @@ tasks:
     command: mise dev-docs-website -- --port "$PORT"
     ports: [docs]
     url: http://localhost:{docs}/
+  storybook:
+    label: Storybook
+    command: STORYBOOK_PORT=$PORT mise storybook
+    ports: [storybook]
+    url: http://localhost:{storybook}/
 
 sections:
   - path: cli
