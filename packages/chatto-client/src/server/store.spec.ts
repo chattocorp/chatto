@@ -978,6 +978,31 @@ describe('ServerStateStore permissions', () => {
     expect(store.permissions.canManageRooms).toBe(false);
   });
 
+  it('reuses the preview until the viewer or accepted account changes', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
+    const viewer = adminViewer('U1');
+    viewer.privilegedMode = new PrivilegedModeState({
+      available: true,
+      roleSelection: { preview: { viewerPermissions: viewer.viewerPermissions } }
+    });
+    store.projection.viewer = viewer;
+    const preview = store.privilegedPermissionPreview;
+    expect(preview?.permissions.canManageServer).toBe(true);
+    expect(store.privilegedPermissionPreview).toBe(preview);
+    const active = viewer.clone();
+    active.privilegedMode = new PrivilegedModeState({
+      active: true,
+      available: true,
+      roleSelection: { withoutActivation: {} }
+    });
+    store.projection.viewer = active;
+    expect(store.privilegedPermissionPreview?.active).toBe(true);
+    expect(store.privilegedPermissionPreview?.permissions.canManageServer).toBe(false);
+    store.currentUser.user = { id: 'U2' } as typeof store.currentUser.user;
+    expect(store.privilegedPermissionPreview).toBeUndefined();
+  });
+
   it('resets to unloaded when a privacy reset clears the viewer projection', () => {
     const store = makeStore(new FakeServerConnection([]));
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;

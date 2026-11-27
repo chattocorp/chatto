@@ -264,9 +264,7 @@ export class ServerStateStore {
     return this.#permissionsComputed.get();
   }
 
-  /** Server decisions for Settings discovery. The preview describes all protected roles while inactive, or ordinary access while active. */
-  get privilegedPermissionPreview():
-    { active: boolean; permissions: ServerPermissions } | undefined {
+  readonly #privilegedPermissionPreview = computed(() => {
     const mode = this.projection.viewer?.privilegedMode;
     const preview = mode?.active
       ? mode.roleSelection?.withoutActivation
@@ -278,6 +276,11 @@ export class ServerStateStore {
         viewerAuthorizationFromAPI(preview.grants, preview.viewerPermissions)
       )
     };
+  });
+  /** Server decisions for Settings discovery. The preview describes all protected roles while inactive, or ordinary access while active. */
+  get privilegedPermissionPreview():
+    { active: boolean; permissions: ServerPermissions } | undefined {
+    return this.#privilegedPermissionPreview.get();
   }
 
   /**
