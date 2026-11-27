@@ -829,3 +829,5 @@ variants. Delivery is restricted to the sender and recipient, including before
 room membership. Directory reads expose pending invitations to their recipient
 without granting access to messages or member lists. Replay follows the same
 participant boundary.
+
+Personal room group order changes use the existing user-config delivery filter. Only sessions for the owning user receive the fact. The public mapper sends `RoomLayoutChanged`, which causes a directory refresh. The initial realtime snapshot also carries the personal preference and command-support flag.

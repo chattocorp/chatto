@@ -20,6 +20,7 @@ func (c *ChattoCore) RoomDirectoryReads() *RoomDirectoryReadModel {
 // RoomDirectoryReadModel composes authorized room views from explicit domain
 // dependencies. Construction does not start projectors or background work.
 type RoomDirectoryReadModel struct {
+	config        *ConfigModel
 	invitations   *RoomInvitationModel
 	rooms         *RoomModel
 	permissions   *PermissionResolver
@@ -39,9 +40,10 @@ func newRoomDirectoryReadModel(
 	membership roomDirectoryMembership,
 	unread roomDirectoryUnread,
 	invitations *RoomInvitationModel,
+	config *ConfigModel,
 ) *RoomDirectoryReadModel {
 	return &RoomDirectoryReadModel{
-		rooms: rooms, permissions: permissions, messages: messages,
+		config: config, rooms: rooms, permissions: permissions, messages: messages,
 		authorization: authorization, membership: membership, unread: unread, invitations: invitations,
 	}
 }
@@ -271,7 +273,7 @@ func (s *RoomDirectoryReadModel) ListRoomGroups(ctx context.Context, actorID str
 		}
 		result = append(result, dirGroup)
 	}
-	return result, nil
+	return mergePersonalRoomGroupOrder(result, s.PersonalRoomGroupOrder(actorID)), nil
 }
 
 func (s *RoomDirectoryReadModel) GetRoomGroup(ctx context.Context, actorID, groupID string, opts RoomDirectoryGroupOptions) (*DirectoryRoomGroup, error) {
@@ -738,4 +740,9 @@ type roomDirectoryMembership interface {
 // roomDirectoryUnread supplies unread operations used by the room model.
 type roomDirectoryUnread interface {
 	HasUnread(ctx context.Context, kind RoomKind, userID, roomID string) (bool, error)
+}
+
+// PersonalRoomGroupOrder returns the user's full preference, including inert IDs.
+func (s *RoomDirectoryReadModel) PersonalRoomGroupOrder(actorID string) []string {
+	return s.config.config.Projection().RoomGroupOrder(actorID)
 }

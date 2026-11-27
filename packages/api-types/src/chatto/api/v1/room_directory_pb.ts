@@ -649,6 +649,20 @@ export class ListRoomGroupsResponse extends Message<ListRoomGroupsResponse> {
    */
   groups: RoomGroup[] = [];
 
+  /**
+   * Full personal preference; empty means server order. Unknown IDs are inert.
+   *
+   * @generated from field: repeated string personal_group_order = 2;
+   */
+  personalGroupOrder: string[] = [];
+
+  /**
+   * Present and true when SetPersonalRoomGroupOrder is supported.
+   *
+   * @generated from field: optional bool supports_personal_group_order = 3;
+   */
+  supportsPersonalGroupOrder?: boolean;
+
   constructor(data?: PartialMessage<ListRoomGroupsResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -658,6 +672,8 @@ export class ListRoomGroupsResponse extends Message<ListRoomGroupsResponse> {
   static readonly typeName = "chatto.api.v1.ListRoomGroupsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "groups", kind: "message", T: RoomGroup, repeated: true },
+    { no: 2, name: "personal_group_order", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "supports_personal_group_order", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomGroupsResponse {
@@ -1004,5 +1020,80 @@ export class BatchGetRoomsResponse extends Message<BatchGetRoomsResponse> {
 
   static equals(a: BatchGetRoomsResponse | PlainMessage<BatchGetRoomsResponse> | undefined, b: BatchGetRoomsResponse | PlainMessage<BatchGetRoomsResponse> | undefined): boolean {
     return proto3.util.equals(BatchGetRoomsResponse, a, b);
+  }
+}
+
+/**
+ * Replaces the authenticated user's personal room group order.
+ * Empty restores server order. Unknown IDs are retained but skipped when listing.
+ *
+ * @generated from message chatto.api.v1.SetPersonalRoomGroupOrderRequest
+ */
+export class SetPersonalRoomGroupOrderRequest extends Message<SetPersonalRoomGroupOrderRequest> {
+  /**
+   * At most 1000 distinct IDs, each containing 1 to 128 bytes.
+   *
+   * @generated from field: repeated string group_ids = 1;
+   */
+  groupIds: string[] = [];
+
+  constructor(data?: PartialMessage<SetPersonalRoomGroupOrderRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetPersonalRoomGroupOrderRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "group_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetPersonalRoomGroupOrderRequest {
+    return new SetPersonalRoomGroupOrderRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetPersonalRoomGroupOrderRequest {
+    return new SetPersonalRoomGroupOrderRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetPersonalRoomGroupOrderRequest {
+    return new SetPersonalRoomGroupOrderRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetPersonalRoomGroupOrderRequest | PlainMessage<SetPersonalRoomGroupOrderRequest> | undefined, b: SetPersonalRoomGroupOrderRequest | PlainMessage<SetPersonalRoomGroupOrderRequest> | undefined): boolean {
+    return proto3.util.equals(SetPersonalRoomGroupOrderRequest, a, b);
+  }
+}
+
+/**
+ * Confirms that the personal order was saved. Read ListRoomGroups for current state.
+ *
+ * @generated from message chatto.api.v1.SetPersonalRoomGroupOrderResponse
+ */
+export class SetPersonalRoomGroupOrderResponse extends Message<SetPersonalRoomGroupOrderResponse> {
+  constructor(data?: PartialMessage<SetPersonalRoomGroupOrderResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetPersonalRoomGroupOrderResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetPersonalRoomGroupOrderResponse {
+    return new SetPersonalRoomGroupOrderResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetPersonalRoomGroupOrderResponse {
+    return new SetPersonalRoomGroupOrderResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetPersonalRoomGroupOrderResponse {
+    return new SetPersonalRoomGroupOrderResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetPersonalRoomGroupOrderResponse | PlainMessage<SetPersonalRoomGroupOrderResponse> | undefined, b: SetPersonalRoomGroupOrderResponse | PlainMessage<SetPersonalRoomGroupOrderResponse> | undefined): boolean {
+    return proto3.util.equals(SetPersonalRoomGroupOrderResponse, a, b);
   }
 }

@@ -333,6 +333,7 @@ message UserConfigSnapshot {
   repeated RoomNotificationModesSnapshot room_notification_modes = 5;
   repeated RoomGroupNotificationModesSnapshot room_group_notification_modes = 6;
   bool share_timezone = 7;
+  repeated string room_group_order = 8;
 }
 
 message RoomNotificationModesSnapshot {

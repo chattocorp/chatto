@@ -473,7 +473,11 @@ export class EventBusManager {
                       },
                       {
                         case: 'roomGroups' as const,
-                        value: new ListRoomGroupsResponse({ groups: snapshot.roomGroups })
+                        value: new ListRoomGroupsResponse({
+                          groups: snapshot.roomGroups,
+                          personalGroupOrder: snapshot.personalGroupOrder,
+                          supportsPersonalGroupOrder: snapshot.supportsPersonalGroupOrder
+                        })
                       },
                       { case: 'users' as const, value: { users: snapshot.users } },
                       {

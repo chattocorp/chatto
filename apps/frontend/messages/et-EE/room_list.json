@@ -35,6 +35,7 @@
     "activity_now": "nüüd",
     "older_conversations": "Vanemad vestlused",
     "show_older_conversations": "Kuva vanemad ({count})",
-    "show_fewer_conversations": "Kuva vähem"
+    "show_fewer_conversations": "Kuva vähem",
+    "reset_server_order": "Taasta serveri järjestus"
   }
 }

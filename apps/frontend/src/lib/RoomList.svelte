@@ -105,6 +105,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const activeCallRooms = $derived(serverUi(stores).activeCallRooms);
   const appUi = getAppUiState();
   const roomLayoutAPI = serverScope.connection.getAPI(createAdminRoomLayoutAPI);
+  const personalOrderSupported = $derived(stores.projection.supportsPersonalGroupOrder);
   const touchOnly = new MediaQuery(TOUCH_ONLY_QUERY, false);
   /**
    * Whether sidebar entries and groups can be reordered by drag and drop.
@@ -116,7 +117,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
    */
   const sidebarDragEnabled = $derived(!touchOnly.current);
   /** Whether the viewer can reorder whole room groups by drag and drop. */
-  const groupDragEnabled = $derived(sidebarDragEnabled && canReorderGroups);
+  const groupDragEnabled = $derived(sidebarDragEnabled && personalOrderSupported);
 
   const navigation = $derived(serverUi(stores).navigation);
   const roomUnreadStore = $derived(serverUi(stores).roomUnread);
@@ -235,7 +236,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   }
 
   function groupMenuTrigger(group: RoomsListGroup) {
-    if (!group.viewerCanManageGroup && !group.viewerCanCreateRoom) return undefined;
+    if (!personalOrderSupported && !group.viewerCanManageGroup && !group.viewerCanCreateRoom)
+      return undefined;
     return contextMenuTrigger((details) => {
       closeSidebarMenus();
       groupContextMenu = { ...details, group };
@@ -288,7 +290,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   async function persistGroupPlacement(groupId: string, beforeGroupId?: string): Promise<void> {
     try {
-      await roomLayoutAPI.moveRoomGroup({ groupId, beforeGroupId });
+      const ids = stores.projection.roomGroups
+        .map((group) => group.id)
+        .filter((id) => id !== groupId);
+      const before = beforeGroupId ? ids.indexOf(beforeGroupId) : -1;
+      ids.splice(before < 0 ? ids.length : before, 0, groupId);
+      await stores.setPersonalRoomGroupOrder(ids);
       optimisticGroupSections = null;
     } catch (error) {
       optimisticGroupSections = null;
@@ -297,6 +304,23 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           error: errorMessage(error)
         })
       );
+    }
+  }
+
+  async function movePersonalGroup(groupId: string, direction: number): Promise<void> {
+    const ids = stores.projection.roomGroups.map((group) => group.id);
+    const index = ids.indexOf(groupId);
+    const next = index + direction;
+    if (index < 0 || next < 0 || next >= ids.length) return;
+    const before = direction < 0 ? ids[next] : ids[next + 1];
+    await persistGroupPlacement(groupId, before);
+  }
+
+  async function resetPersonalOrder(): Promise<void> {
+    try {
+      await stores.setPersonalRoomGroupOrder([]);
+    } catch (error) {
+      toast.error(m('room.management.reorder_groups_failed', { error: errorMessage(error) }));
     }
   }
 
@@ -1385,6 +1409,23 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     ariaLabel={m('room_list.group_settings', { group: contextGroup.name })}
     onclose={() => (groupContextMenu = null)}
   >
+    {#if personalOrderSupported}
+      <MenuSection>
+        <MenuItem
+          disabled={stores.projection.roomGroups[0]?.id === contextGroup.id}
+          onclick={() => movePersonalGroup(contextGroup.id, -1)}
+          >{m('chat.server_gutter.move_up')}</MenuItem
+        >
+        <MenuItem
+          disabled={stores.projection.roomGroups.at(-1)?.id === contextGroup.id}
+          onclick={() => movePersonalGroup(contextGroup.id, 1)}
+          >{m('chat.server_gutter.move_down')}</MenuItem
+        >
+        {#if stores.projection.personalGroupOrder.length > 0}
+          <MenuItem onclick={resetPersonalOrder}>{m('room_list.reset_server_order')}</MenuItem>
+        {/if}
+      </MenuSection>
+    {/if}
     {#if contextGroup.viewerCanCreateRoom || contextGroup.viewerCanManageGroup}
       {@render creationActions(contextGroup)}
     {/if}

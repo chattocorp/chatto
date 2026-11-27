@@ -645,3 +645,7 @@ domain events. Source events remain in EVT. Enqueue appends `queued` only when
 the job has no facts. A manual retry appends `retried`, and a delete appends
 `deleted`, only when the viewed `failed` fact is still the latest fact of the
 job. See ADR-123.
+
+### Personal room group order
+
+`UserRoomGroupOrderChangedEvent` (EVT tag 526) replaces the user's complete order on `evt.config.{userId}.user_room_group_order_changed`. `ConfigModel` owns writes and waits for `ConfigProjection`; its snapshot includes the list. Empty means server order. The room directory merges this preference with the visible server-ordered groups. See [FDR-017](../fdr/FDR-017-room-groups-and-sidebar-layout.md).

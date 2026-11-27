@@ -35,6 +35,7 @@
     "activity_now": "עכשיו",
     "older_conversations": "שיחות ישנות יותר",
     "show_older_conversations": "הצג ישנות יותר ({count})",
-    "show_fewer_conversations": "הצג פחות"
+    "show_fewer_conversations": "הצג פחות",
+    "reset_server_order": "איפוס לסדר השרת"
   }
 }

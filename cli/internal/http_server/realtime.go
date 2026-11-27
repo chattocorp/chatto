@@ -1084,6 +1084,13 @@ func (s *HTTPServer) projectViewerRealtimeEvent(ctx context.Context, viewerID st
 	}
 
 	switch payload := event.GetEvent().(type) {
+	case *evtv1.Event_UserRoomGroupOrderChanged:
+		if viewerID != payload.UserRoomGroupOrderChanged.GetUserId() {
+			return nil, nil
+		}
+		result := base()
+		result.Event = &realtimev1.RealtimeEvent_RoomLayoutChanged{RoomLayoutChanged: &realtimev1.RoomLayoutChangedEvent{}}
+		return result, nil
 	case *evtv1.Event_UserTimezoneChanged:
 		userID := payload.UserTimezoneChanged.GetUserId()
 		if viewerID == userID {

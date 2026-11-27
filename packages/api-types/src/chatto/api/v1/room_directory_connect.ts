@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetRoomGroupsRequest, BatchGetRoomGroupsResponse, BatchGetRoomsRequest, BatchGetRoomsResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse } from "./room_directory_pb.js";
+import { BatchGetRoomGroupsRequest, BatchGetRoomGroupsResponse, BatchGetRoomsRequest, BatchGetRoomsResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse, SetPersonalRoomGroupOrderRequest, SetPersonalRoomGroupOrderResponse } from "./room_directory_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -14,6 +14,19 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const RoomDirectoryService = {
   typeName: "chatto.api.v1.RoomDirectoryService",
   methods: {
+    /**
+     * Replaces only the caller's order.
+     * Listed groups come first; unlisted groups retain server order.
+     * Any authenticated user may call this. Empty resets to server order.
+     *
+     * @generated from rpc chatto.api.v1.RoomDirectoryService.SetPersonalRoomGroupOrder
+     */
+    setPersonalRoomGroupOrder: {
+      name: "SetPersonalRoomGroupOrder",
+      I: SetPersonalRoomGroupOrderRequest,
+      O: SetPersonalRoomGroupOrderResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Lists rooms visible to the current user. Defaults to active rooms; use
      * archive_filter to discover archived rooms or include both states. Channel

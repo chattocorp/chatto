@@ -3,6 +3,7 @@ import { RealtimeProjectionUpdate } from '../realtime/eventBus.js';
 import { RealtimeResourceUpdate } from '../api/realtimeResources.js';
 import {
   ListRoomsResponse,
+  ListRoomGroupsResponse,
   RoomWithViewerState,
   RoomViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -257,4 +258,31 @@ describe('ServerProjectionStore', () => {
       expect(projection.activeCalls.map((candidate) => candidate.room?.id)).toEqual(['R2']);
     });
   });
+});
+
+it('tracks personal group order and clears it at reset and older-server boundaries', () => {
+  const store = new ServerProjectionStore();
+  const apply = (value: ListRoomGroupsResponse) =>
+    store.apply(
+      new RealtimeProjectionUpdate({
+        resource: new RealtimeResourceUpdate({
+          resource: { case: 'roomGroups', value },
+          replace: true
+        })
+      })
+    );
+  apply(
+    new ListRoomGroupsResponse({ personalGroupOrder: ['b', 'a'], supportsPersonalGroupOrder: true })
+  );
+  expect(store.personalGroupOrder).toEqual(['b', 'a']);
+  expect(store.supportsPersonalGroupOrder).toBe(true);
+  apply(new ListRoomGroupsResponse());
+  expect(store.personalGroupOrder).toEqual([]);
+  expect(store.supportsPersonalGroupOrder).toBe(false);
+  apply(
+    new ListRoomGroupsResponse({ personalGroupOrder: ['b'], supportsPersonalGroupOrder: true })
+  );
+  store.reset();
+  expect(store.personalGroupOrder).toEqual([]);
+  expect(store.supportsPersonalGroupOrder).toBe(false);
 });

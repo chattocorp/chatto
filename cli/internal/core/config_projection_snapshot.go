@@ -32,6 +32,7 @@ func (p *ConfigProjection) Snapshot() ([]byte, error) {
 		user := p.users[userID]
 		row := &projectionv1.UserConfigSnapshot{UserId: userID}
 		row.ShareTimezone = user.shareTimezone
+		row.RoomGroupOrder = append([]string(nil), user.roomGroupOrder...)
 		if user.timezone != nil {
 			value := *user.timezone
 			row.Timezone = &value
@@ -88,6 +89,7 @@ func (p *ConfigProjection) Restore(data []byte) error {
 			return fmt.Errorf("config snapshot repeats user %q", row.GetUserId())
 		}
 		user := &userConfigState{
+			roomGroupOrder:        append([]string(nil), row.GetRoomGroupOrder()...),
 			roomGroupModesByGroup: make(map[string]*evtv1.NotificationDeliveryModes),
 			roomModesByRoom:       make(map[string]*evtv1.NotificationDeliveryModes),
 		}

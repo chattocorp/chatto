@@ -35,6 +35,7 @@
     "activity_now": "nu",
     "older_conversations": "Oudere gesprekken",
     "show_older_conversations": "Oudere tonen ({count})",
-    "show_fewer_conversations": "Minder tonen"
+    "show_fewer_conversations": "Minder tonen",
+    "reset_server_order": "Servervolgorde herstellen"
   }
 }

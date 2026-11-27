@@ -156,6 +156,10 @@ message ListRoomGroupsRequest {
 message ListRoomGroupsResponse {
   // Channel room groups in sidebar order.
   repeated RoomGroup groups = 1;
+  // Full personal preference; empty means server order. Unknown IDs are inert.
+  repeated string personal_group_order = 2;
+  // Present and true when SetPersonalRoomGroupOrder is supported.
+  optional bool supports_personal_group_order = 3;
 }
 
 // Request for one ordered room group visible to the current user.
@@ -226,8 +230,22 @@ message BatchGetRoomsResponse {
   repeated RoomWithViewerState rooms = 1;
 }
 
+// Replaces the authenticated user's personal room group order.
+// Empty restores server order. Unknown IDs are retained but skipped when listing.
+message SetPersonalRoomGroupOrderRequest {
+  // At most 1000 distinct IDs, each containing 1 to 128 bytes.
+  repeated string group_ids = 1;
+}
+
+// Confirms that the personal order was saved. Read ListRoomGroups for current state.
+message SetPersonalRoomGroupOrderResponse {}
+
 // Reads room directory data.
 service RoomDirectoryService {
+  // Replaces only the caller's order.
+  // Listed groups come first; unlisted groups retain server order.
+  // Any authenticated user may call this. Empty resets to server order.
+  rpc SetPersonalRoomGroupOrder(SetPersonalRoomGroupOrderRequest) returns (SetPersonalRoomGroupOrderResponse);
   // Lists rooms visible to the current user. Defaults to active rooms; use
   // archive_filter to discover archived rooms or include both states. Channel
   // rooms require membership or room.list. DM membership exposes room and

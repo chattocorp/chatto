@@ -35,6 +35,7 @@
     "activity_now": "teraz",
     "older_conversations": "Starsze rozmowy",
     "show_older_conversations": "Pokaż starsze ({count})",
-    "show_fewer_conversations": "Pokaż mniej"
+    "show_fewer_conversations": "Pokaż mniej",
+    "reset_server_order": "Przywróć kolejność serwera"
   }
 }

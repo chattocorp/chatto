@@ -692,7 +692,9 @@ test.describe('Room Layout', () => {
       ).toHaveCount(0);
     });
 
-    test('admin can reorder room groups with a visible landing indicator', async ({ page }) => {
+    test('admin can reorder personal room groups with a visible landing indicator', async ({
+      page
+    }) => {
       await loginAsAdminAndUsePrimaryServer(page);
       const { generalId, announcementsId } = await getDefaultRoomIds(page);
       const alphaId = await createRoomViaAPI(page, 'alpha');
@@ -748,13 +750,14 @@ test.describe('Room Layout', () => {
       await expectInactiveSidebarDropTarget(landingIndicator);
 
       await expect(async () => {
-        const layout = await getAdminRoomLayoutViaAPI(page);
+        const layout = await getRoomLayoutViaAPI(page);
         expect(layout?.groups.map((group) => group.name)).toEqual(['Projects', 'Main']);
       }).toPass({ timeout: TIMEOUTS.SERVER_MUTATION_SYNC, intervals: [100, 250, 500] });
+      const serverLayout = await getAdminRoomLayoutViaAPI(page);
+      expect(serverLayout?.groups.map((group) => group.name)).toEqual(['Main', 'Projects']);
 
       await page.reload();
-      // The saved layout can contain both groups in their previous order.
-      // Wait for the reordered layout to arrive through realtime catch-up.
+      // The personal order must survive a reload without changing the server order.
       await expect(page.locator('.room-list button.uppercase')).toHaveText(['Projects', 'Main'], {
         timeout: TIMEOUTS.SERVER_MUTATION_SYNC
       });

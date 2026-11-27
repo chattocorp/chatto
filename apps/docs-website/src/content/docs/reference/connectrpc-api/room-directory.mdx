@@ -20,6 +20,37 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 Reads room directory data.
 
+<a id="chatto-api-v1-RoomDirectoryService-SetPersonalRoomGroupOrder"></a>
+
+### SetPersonalRoomGroupOrder
+
+Replaces only the caller's order.
+Listed groups come first; unlisted groups retain server order.
+Any authenticated user may call this. Empty resets to server order.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/SetPersonalRoomGroupOrder
+```
+
+<a id="chatto-api-v1-SetPersonalRoomGroupOrderRequest"></a>
+
+#### Input: SetPersonalRoomGroupOrderRequest
+
+Replaces the authenticated user's personal room group order.
+Empty restores server order. Unknown IDs are retained but skipped when listing.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_ids` | `repeated string` | At most 1000 distinct IDs, each containing 1 to 128 bytes. |
+
+
+<a id="chatto-api-v1-SetPersonalRoomGroupOrderResponse"></a>
+
+#### Result: SetPersonalRoomGroupOrderResponse
+
+Confirms that the personal order was saved. Read ListRoomGroups for current state.
+
+
 <a id="chatto-api-v1-RoomDirectoryService-ListRooms"></a>
 
 ### ListRooms
@@ -89,6 +120,8 @@ Finite snapshot of ordered room groups visible to the current user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `groups` | repeated [`RoomGroup`](/reference/connectrpc-api/types/#chatto-api-v1-RoomGroup) | Channel room groups in sidebar order. |
+| `personal_group_order` | `repeated string` | Full personal preference; empty means server order. Unknown IDs are inert. |
+| `supports_personal_group_order` | `optional bool` | Present and true when SetPersonalRoomGroupOrder is supported. |
 
 
 <a id="chatto-api-v1-RoomDirectoryService-GetRoomGroup"></a>

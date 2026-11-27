@@ -35,6 +35,7 @@
     "activity_now": "сейчас",
     "older_conversations": "Старые беседы",
     "show_older_conversations": "Показать старые ({count})",
-    "show_fewer_conversations": "Показать меньше"
+    "show_fewer_conversations": "Показать меньше",
+    "reset_server_order": "Восстановить порядок сервера"
   }
 }

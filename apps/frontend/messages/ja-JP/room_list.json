@@ -35,6 +35,7 @@
     "activity_now": "今",
     "older_conversations": "以前の会話",
     "show_older_conversations": "以前の会話を表示（{count}）",
-    "show_fewer_conversations": "表示を減らす"
+    "show_fewer_conversations": "表示を減らす",
+    "reset_server_order": "サーバーの順序に戻す"
   }
 }

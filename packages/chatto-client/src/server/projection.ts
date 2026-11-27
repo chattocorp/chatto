@@ -42,6 +42,22 @@ export class ServerProjectionStore {
   /** Shared profile owner, also hydrated by room and timeline reads. */
   constructor(readonly users = new UserStore()) {}
   rooms = new ReactiveMap<string, RoomWithViewerState>();
+  readonly #personalGroupOrderSignal = signal<string[]>([]);
+  /** Full server-side preference; empty means the server order. */
+  get personalGroupOrder(): string[] {
+    return this.#personalGroupOrderSignal.get();
+  }
+  set personalGroupOrder(value: string[]) {
+    this.#personalGroupOrderSignal.set(value);
+  }
+  readonly #supportsPersonalGroupOrderSignal = signal(false);
+  /** Explicit server support; older servers do not enable personal controls. */
+  get supportsPersonalGroupOrder(): boolean {
+    return this.#supportsPersonalGroupOrderSignal.get();
+  }
+  set supportsPersonalGroupOrder(value: boolean) {
+    this.#supportsPersonalGroupOrderSignal.set(value);
+  }
   readonly #roomGroupsSignal = signal<RoomGroup[]>([]);
   get roomGroups(): RoomGroup[] {
     return this.#roomGroupsSignal.get();
@@ -104,6 +120,8 @@ export class ServerProjectionStore {
         }
         case 'roomGroups':
           this.roomGroups = [...chunk.value.groups];
+          this.personalGroupOrder = [...chunk.value.personalGroupOrder];
+          this.supportsPersonalGroupOrder = chunk.value.supportsPersonalGroupOrder === true;
           break;
         case 'notifications':
           break;
@@ -133,6 +151,8 @@ export class ServerProjectionStore {
     this.users.clear();
     this.rooms.clear();
     this.roomGroups = [];
+    this.personalGroupOrder = [];
+    this.supportsPersonalGroupOrder = false;
     this.activeCalls = [];
   }
 

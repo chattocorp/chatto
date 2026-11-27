@@ -67,16 +67,23 @@ func (s *roomDirectoryService) ListRoomGroups(ctx context.Context, req *connect.
 		return nil, err
 	}
 
-	groups, err := s.api.core.RoomDirectoryReads().ListRoomGroups(ctx, caller.UserID, core.RoomDirectoryGroupOptions{})
+	var response *apiv1.ListRoomGroupsResponse
+	err = s.api.core.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
+		groups, err := s.api.core.RoomDirectoryReads().ListRoomGroups(readCtx, caller.UserID, core.RoomDirectoryGroupOptions{})
+		if err != nil {
+			return err
+		}
+		apiGroups := make([]*apiv1.RoomGroup, 0, len(groups))
+		for _, group := range groups {
+			apiGroups = append(apiGroups, apiRoomGroup(group))
+		}
+		response = &apiv1.ListRoomGroupsResponse{Groups: apiGroups, PersonalGroupOrder: s.api.core.RoomDirectoryReads().PersonalRoomGroupOrder(caller.UserID), SupportsPersonalGroupOrder: new(true)}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	apiGroups := make([]*apiv1.RoomGroup, 0, len(groups))
-	for _, group := range groups {
-		apiGroups = append(apiGroups, apiRoomGroup(group))
-	}
-	return connect.NewResponse(&apiv1.ListRoomGroupsResponse{Groups: apiGroups}), nil
+	return connect.NewResponse(response), nil
 }
 
 func (s *roomDirectoryService) GetRoomGroup(ctx context.Context, req *connect.Request[apiv1.GetRoomGroupRequest]) (*connect.Response[apiv1.GetRoomGroupResponse], error) {
@@ -286,4 +293,15 @@ func apiSidebarLink(link *readmodel.SidebarLink) *apiv1.SidebarLink {
 		Label: link.GetLabel(),
 		Url:   link.GetUrl(),
 	}
+}
+
+func (s *roomDirectoryService) SetPersonalRoomGroupOrder(ctx context.Context, req *connect.Request[apiv1.SetPersonalRoomGroupOrderRequest]) (*connect.Response[apiv1.SetPersonalRoomGroupOrderResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.api.core.SetPersonalRoomGroupOrder(ctx, caller.UserID, req.Msg.GetGroupIds()); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.SetPersonalRoomGroupOrderResponse{}), nil
 }

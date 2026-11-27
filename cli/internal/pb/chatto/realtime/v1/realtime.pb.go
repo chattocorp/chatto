@@ -444,9 +444,13 @@ type RealtimeSnapshot struct {
 	// The viewer and public users referenced by another snapshot family.
 	Users []*v1.DirectoryMember `protobuf:"bytes,4,rep,name=users,proto3" json:"users,omitempty"`
 	// All active calls visible to the caller at the snapshot boundary.
-	ActiveCalls   []*v1.ActiveCall `protobuf:"bytes,5,rep,name=active_calls,json=activeCalls,proto3" json:"active_calls,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ActiveCalls []*v1.ActiveCall `protobuf:"bytes,5,rep,name=active_calls,json=activeCalls,proto3" json:"active_calls,omitempty"`
+	// Full personal group preference; empty uses server order.
+	PersonalGroupOrder []string `protobuf:"bytes,6,rep,name=personal_group_order,json=personalGroupOrder,proto3" json:"personal_group_order,omitempty"`
+	// True when the personal order command is supported.
+	SupportsPersonalGroupOrder *bool `protobuf:"varint,7,opt,name=supports_personal_group_order,json=supportsPersonalGroupOrder,proto3,oneof" json:"supports_personal_group_order,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *RealtimeSnapshot) Reset() {
@@ -512,6 +516,20 @@ func (x *RealtimeSnapshot) GetActiveCalls() []*v1.ActiveCall {
 		return x.ActiveCalls
 	}
 	return nil
+}
+
+func (x *RealtimeSnapshot) GetPersonalGroupOrder() []string {
+	if x != nil {
+		return x.PersonalGroupOrder
+	}
+	return nil
+}
+
+func (x *RealtimeSnapshot) GetSupportsPersonalGroupOrder() bool {
+	if x != nil && x.SupportsPersonalGroupOrder != nil {
+		return *x.SupportsPersonalGroupOrder
+	}
+	return false
 }
 
 // Confirms that recovery is complete and live delivery has begun.
@@ -1670,14 +1688,17 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x05close\x18\x03 \x01(\v2!.chatto.realtime.v1.RealtimeCloseH\x00R\x05close\x12C\n" +
 	"\tcaught_up\x18\x04 \x01(\v2$.chatto.realtime.v1.RealtimeCaughtUpH\x00R\bcaughtUp\x12B\n" +
 	"\bsnapshot\x18\x05 \x01(\v2$.chatto.realtime.v1.RealtimeSnapshotH\x00R\bsnapshotB\a\n" +
-	"\x05frame\"\xb7\x02\n" +
+	"\x05frame\"\xd3\x03\n" +
 	"\x10RealtimeSnapshot\x12:\n" +
 	"\x06server\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\x06server\x128\n" +
 	"\x05rooms\x18\x02 \x03(\v2\".chatto.api.v1.RoomWithViewerStateR\x05rooms\x129\n" +
 	"\vroom_groups\x18\x03 \x03(\v2\x18.chatto.api.v1.RoomGroupR\n" +
 	"roomGroups\x124\n" +
 	"\x05users\x18\x04 \x03(\v2\x1e.chatto.api.v1.DirectoryMemberR\x05users\x12<\n" +
-	"\factive_calls\x18\x05 \x03(\v2\x19.chatto.api.v1.ActiveCallR\vactiveCalls\"l\n" +
+	"\factive_calls\x18\x05 \x03(\v2\x19.chatto.api.v1.ActiveCallR\vactiveCalls\x120\n" +
+	"\x14personal_group_order\x18\x06 \x03(\tR\x12personalGroupOrder\x12F\n" +
+	"\x1dsupports_personal_group_order\x18\a \x01(\bH\x00R\x1asupportsPersonalGroupOrder\x88\x01\x01B \n" +
+	"\x1e_supports_personal_group_order\"l\n" +
 	"\x10RealtimeCaughtUp\x12\x16\n" +
 	"\x06cursor\x18\x01 \x01(\tR\x06cursor\x12@\n" +
 	"\brecovery\x18\x02 \x01(\x0e2$.chatto.realtime.v1.RealtimeRecoveryR\brecovery\"\xc7,\n" +
@@ -1954,6 +1975,7 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 		(*RealtimeServerFrame_CaughtUp)(nil),
 		(*RealtimeServerFrame_Snapshot)(nil),
 	}
+	file_chatto_realtime_v1_realtime_proto_msgTypes[2].OneofWrappers = []any{}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[4].OneofWrappers = []any{
 		(*RealtimeEvent_RoomCreated)(nil),
 		(*RealtimeEvent_RoomUpdated)(nil),

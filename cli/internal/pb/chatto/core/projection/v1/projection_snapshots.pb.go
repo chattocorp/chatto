@@ -2667,6 +2667,7 @@ type UserConfigSnapshot struct {
 	RoomNotificationModes      []*RoomNotificationModesSnapshot      `protobuf:"bytes,5,rep,name=room_notification_modes,json=roomNotificationModes,proto3" json:"room_notification_modes,omitempty"`
 	RoomGroupNotificationModes []*RoomGroupNotificationModesSnapshot `protobuf:"bytes,6,rep,name=room_group_notification_modes,json=roomGroupNotificationModes,proto3" json:"room_group_notification_modes,omitempty"`
 	ShareTimezone              bool                                  `protobuf:"varint,7,opt,name=share_timezone,json=shareTimezone,proto3" json:"share_timezone,omitempty"`
+	RoomGroupOrder             []string                              `protobuf:"bytes,8,rep,name=room_group_order,json=roomGroupOrder,proto3" json:"room_group_order,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -2748,6 +2749,13 @@ func (x *UserConfigSnapshot) GetShareTimezone() bool {
 		return x.ShareTimezone
 	}
 	return false
+}
+
+func (x *UserConfigSnapshot) GetRoomGroupOrder() []string {
+	if x != nil {
+		return x.RoomGroupOrder
+	}
+	return nil
 }
 
 type RoomNotificationModesSnapshot struct {
@@ -5370,7 +5378,7 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06origin\x18\x02 \x01(\tR\x06origin\x12\x1a\n" +
 	"\brevision\x18\x03 \x01(\tR\brevision\x12$\n" +
-	"\vtestimonial\x18\x04 \x01(\tB\x02\x18\x01R\vtestimonial\"\xb8\x04\n" +
+	"\vtestimonial\x18\x04 \x01(\tB\x02\x18\x01R\vtestimonial\"\xe2\x04\n" +
 	"\x12UserConfigSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1f\n" +
 	"\btimezone\x18\x02 \x01(\tH\x00R\btimezone\x88\x01\x01\x12D\n" +
@@ -5379,7 +5387,8 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x19server_notification_modes\x18\x04 \x01(\v2-.chatto.core.evt.v1.NotificationDeliveryModesR\x17serverNotificationModes\x12p\n" +
 	"\x17room_notification_modes\x18\x05 \x03(\v28.chatto.core.projection.v1.RoomNotificationModesSnapshotR\x15roomNotificationModes\x12\x80\x01\n" +
 	"\x1droom_group_notification_modes\x18\x06 \x03(\v2=.chatto.core.projection.v1.RoomGroupNotificationModesSnapshotR\x1aroomGroupNotificationModes\x12%\n" +
-	"\x0eshare_timezone\x18\a \x01(\bR\rshareTimezoneB\v\n" +
+	"\x0eshare_timezone\x18\a \x01(\bR\rshareTimezone\x12(\n" +
+	"\x10room_group_order\x18\b \x03(\tR\x0eroomGroupOrderB\v\n" +
 	"\t_timezoneB\x0e\n" +
 	"\f_time_format\"}\n" +
 	"\x1dRoomNotificationModesSnapshot\x12\x17\n" +

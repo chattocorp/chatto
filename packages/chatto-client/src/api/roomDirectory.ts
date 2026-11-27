@@ -118,6 +118,10 @@ export function createRoomDirectoryAPI(config: ConnectAPIConfig) {
   const directory = createChattoClient(RoomDirectoryService, config);
 
   return {
+    /** Replace the viewer's order. An empty list restores the server order. */
+    async setPersonalRoomGroupOrder(groupIds: string[], options: { signal?: AbortSignal } = {}) {
+      return directory.setPersonalRoomGroupOrder({ groupIds }, { signal: options.signal });
+    },
     async listRooms(
       scope: RoomDirectoryScope,
       options: { signal?: AbortSignal } = {}

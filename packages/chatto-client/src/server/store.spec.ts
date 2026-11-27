@@ -100,6 +100,7 @@ const { apiMocks, eventMocks } = vi.hoisted(() => ({
       (userIds: Iterable<string>, cursor?: string) => Promise<RealtimeResourceUpdate[]>
     >(() => Promise.resolve([])),
     listRooms: vi.fn(() => Promise.resolve([])),
+    setPersonalRoomGroupOrder: vi.fn(),
     listRoomGroups: vi.fn(() => Promise.resolve([])),
     listRoomMembers: vi.fn((): Promise<MemberDirectoryPage> =>
       Promise.resolve({
@@ -231,6 +232,7 @@ vi.mock('../api/roomDirectory.js', async (importActual) => {
     mapRoomGroup: actual.mapRoomGroup,
     createRoomDirectoryAPI: vi.fn(() => ({
       listRooms: apiMocks.listRooms,
+      setPersonalRoomGroupOrder: apiMocks.setPersonalRoomGroupOrder,
       listRoomGroups: apiMocks.listRoomGroups
     }))
   };
@@ -5597,4 +5599,24 @@ describe('ServerStateStore loaded thread state', () => {
     expect(store.loadedThreadFollowState('R1', 'missing')).toBeNull();
     expect(store.loadedThreadFollowState('R2', 'followed-read')).toBeNull();
   });
+});
+
+it('does not apply a delayed personal-order mutation response over newer realtime state', async () => {
+  vi.useFakeTimers();
+  let complete!: (value: ListRoomGroupsResponse) => void;
+  apiMocks.setPersonalRoomGroupOrder.mockReturnValue(
+    new Promise<ListRoomGroupsResponse>((resolve) => {
+      complete = resolve;
+    })
+  );
+  const store = makeStore(new FakeServerConnection([]));
+  const saving = store.setPersonalRoomGroupOrder(['old']);
+  store.projection.roomGroups = [new RoomGroup({ id: 'new' })];
+  store.projection.personalGroupOrder = ['new'];
+  complete(new ListRoomGroupsResponse({ groups: [{ id: 'old' }], personalGroupOrder: ['old'] }));
+  await saving;
+  expect(store.projection.roomGroups.map((group) => group.id)).toEqual(['new']);
+  expect(store.projection.personalGroupOrder).toEqual(['new']);
+  store.dispose();
+  vi.useRealTimers();
 });

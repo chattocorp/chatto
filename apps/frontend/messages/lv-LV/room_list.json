@@ -35,6 +35,7 @@
     "activity_now": "tagad",
     "older_conversations": "Vecākas sarunas",
     "show_older_conversations": "Rādīt vecākas ({count})",
-    "show_fewer_conversations": "Rādīt mazāk"
+    "show_fewer_conversations": "Rādīt mazāk",
+    "reset_server_order": "Atjaunot servera secību"
   }
 }

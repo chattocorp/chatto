@@ -102,7 +102,7 @@ func (a *API) BuildRealtimeSnapshot(ctx context.Context, userID string) (*Realti
 		for _, group := range groups {
 			apiGroups = append(apiGroups, apiRoomGroup(group))
 		}
-		capture.roomGroups = &apiv1.ListRoomGroupsResponse{Groups: apiGroups}
+		capture.roomGroups = &apiv1.ListRoomGroupsResponse{Groups: apiGroups, PersonalGroupOrder: a.core.RoomDirectoryReads().PersonalRoomGroupOrder(userID), SupportsPersonalGroupOrder: new(true)}
 
 		calls, err := a.captureRealtimeSnapshotActiveCalls(readCtx, userID)
 		if err != nil {

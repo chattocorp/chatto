@@ -47,6 +47,12 @@ const { mocks } = vi.hoisted(() => ({
       moveRoomGroup: vi.fn().mockResolvedValue([]),
       moveSidebarItem: vi.fn().mockResolvedValue(null)
     },
+    personalOrderAPI: {
+      setPersonalRoomGroupOrder: vi.fn(async (ids: string[]) => ({
+        groups: ids.map((id) => ({ id })),
+        personalGroupOrder: ids
+      }))
+    },
     roomCommandAPI: {
       createRoom: vi.fn().mockResolvedValue(null),
       joinRoom: vi.fn().mockResolvedValue(null),
@@ -57,6 +63,8 @@ const { mocks } = vi.hoisted(() => ({
       requestRoomSidebarPanel: vi.fn()
     },
     store: {
+      setPersonalRoomGroupOrder: (ids: string[]) =>
+        mocks.personalOrderAPI.setPersonalRoomGroupOrder(ids),
       currentUser: { user: { id: 'me' } },
       accountId: 'me',
       permissions: {
@@ -66,7 +74,12 @@ const { mocks } = vi.hoisted(() => ({
         canAdminManageAccounts: false,
         canAdminViewUsers: false
       },
-      projection: { rooms: new Map<string, { memberUserIds: string[] }>() },
+      projection: {
+        rooms: new Map<string, { memberUserIds: string[] }>(),
+        supportsPersonalGroupOrder: true,
+        personalGroupOrder: [] as string[],
+        roomGroups: [] as { id: string }[]
+      },
       notifications: {
         hasDMRoomNotification: vi.fn().mockReturnValue(false),
         hasRoomNotification: vi.fn().mockReturnValue(false),
@@ -191,7 +204,11 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     store: mocks.store,
     connection: {
       getAPI: vi.fn((factory: { name?: string }) =>
-        factory.name === 'createAdminRoomLayoutAPI' ? mocks.layoutAPI : mocks.roomCommandAPI
+        factory.name === 'createAdminRoomLayoutAPI'
+          ? mocks.layoutAPI
+          : factory.name === 'createRoomDirectoryAPI'
+            ? mocks.personalOrderAPI
+            : mocks.roomCommandAPI
       )
     },
     isCurrent: () => true
@@ -2420,7 +2437,7 @@ describe('RoomList', () => {
     const heading = getByRole('button', { name: 'Projects', exact: true });
     const icon = q(container, '[data-testid="room-group-disclosure-icon"]')!;
     const handle = q(container, '[data-testid="room-group-drag-handle"]');
-    const hasOverlay = canReorderGroups;
+    const hasOverlay = true;
 
     expect(Boolean(handle)).toBe(hasOverlay);
     await userEvent.unhover(heading);
@@ -2808,6 +2825,7 @@ describe('RoomList', () => {
       items: []
     };
     mocks.store.navigation.roomGroups = [first, second];
+    mocks.store.projection.roomGroups = [first, second];
     const { container } = render(RoomList, { props: { canReorderGroups: true } });
     const dropzone = q(container, '[data-testid="room-groups-dropzone"]') as HTMLElement;
     const keepVisibleWhenCollapsed = () => false;
@@ -2835,10 +2853,11 @@ describe('RoomList', () => {
     );
 
     await vi.waitFor(() => {
-      expect(mocks.layoutAPI.moveRoomGroup).toHaveBeenCalledWith({
-        groupId: 'second',
-        beforeGroupId: 'first'
-      });
+      expect(mocks.personalOrderAPI.setPersonalRoomGroupOrder).toHaveBeenCalledWith([
+        'second',
+        'first'
+      ]);
+      expect(mocks.layoutAPI.moveRoomGroup).not.toHaveBeenCalled();
     });
   });
 
@@ -3099,4 +3118,61 @@ describe('RoomList', () => {
       expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
     });
   });
+});
+
+it.each([
+  { action: 'Move up', group: 'Second', want: ['second', 'first'] },
+  { action: 'Move down', group: 'First', want: ['second', 'first'] },
+  { action: 'Reset to server order', group: 'First', want: [] }
+])('lets ordinary users select $action', async ({ action, group, want }) => {
+  const groups = ['first', 'second'].map((id) => ({
+    id,
+    name: id === 'first' ? 'First' : 'Second',
+    viewerCanManageGroup: false,
+    roomIds: [],
+    items: [{ id: `link:${id}`, type: 'link' as const, link: { id, label: id, url: '/help' } }]
+  }));
+  mocks.store.navigation.roomGroups = groups;
+  mocks.store.projection.roomGroups = groups;
+  mocks.store.projection.personalGroupOrder = ['first', 'second'];
+  mocks.store.projection.supportsPersonalGroupOrder = true;
+  const { getByRole } = render(RoomList);
+  getByRole('button', { name: group, exact: true })
+    .element()
+    .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  await expect
+    .element(browserPage.getByRole('menuitem', { name: action, exact: true }))
+    .toBeVisible();
+  await browserPage.getByRole('menuitem', { name: action, exact: true }).click();
+  await vi.waitFor(() =>
+    expect(mocks.personalOrderAPI.setPersonalRoomGroupOrder).toHaveBeenCalledWith(want)
+  );
+  expect(mocks.layoutAPI.moveRoomGroup).not.toHaveBeenCalled();
+});
+
+it('hides personal drag controls on older servers even for administrators', async () => {
+  mocks.store.projection.supportsPersonalGroupOrder = false;
+  mocks.store.navigation.roomGroups = [
+    { id: 'first', name: 'First', viewerCanManageGroup: true, roomIds: [], items: [] }
+  ];
+  const { container } = render(RoomList, { props: { canReorderGroups: true } });
+  expect(container.querySelector('[data-testid="room-group-drag-handle"]')).toBeNull();
+});
+
+it('omits reset when the viewer uses server order', async () => {
+  mocks.store.projection.personalGroupOrder = [];
+  mocks.store.projection.supportsPersonalGroupOrder = true;
+  mocks.store.navigation.roomGroups = [
+    { id: 'first', name: 'First', viewerCanManageGroup: true, roomIds: [], items: [] }
+  ];
+  const { getByRole } = render(RoomList);
+  getByRole('button', { name: 'First', exact: true })
+    .element()
+    .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  await expect
+    .element(browserPage.getByRole('menuitem', { name: 'Move up', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(browserPage.getByRole('menuitem', { name: 'Reset to server order', exact: true }))
+    .not.toBeInTheDocument();
 });

@@ -39,6 +39,7 @@ type Neighbor struct {
 }
 
 type userConfigState struct {
+	roomGroupOrder        []string
 	timezone              *string
 	timeFormat            *evtv1.TimeFormat
 	shareTimezone         bool
@@ -155,6 +156,9 @@ func (p *ConfigProjection) Apply(event *evtv1.Event, _ uint64) error {
 		} else {
 			u.roomModesByRoom[roomID] = modes
 		}
+	case *evtv1.Event_UserRoomGroupOrderChanged:
+		order := e.UserRoomGroupOrderChanged
+		p.ensureUserLocked(order.GetUserId()).roomGroupOrder = append([]string(nil), order.GetGroupIds()...)
 	case *evtv1.Event_UserRoomGroupNotificationPolicyChanged:
 		policy := e.UserRoomGroupNotificationPolicyChanged
 		u := p.ensureUserLocked(policy.GetUserId())
@@ -209,4 +213,14 @@ func (p *ConfigProjection) applyLegacyUserPreferencesLocked(e *evtv1.UserServerP
 	tf := prefs.GetTimeFormat()
 	u.timeFormat = &tf
 	u.shareTimezone = prefs.GetShareTimezone()
+}
+
+// RoomGroupOrder returns a detached personal order. Empty means server order.
+func (p *ConfigProjection) RoomGroupOrder(userID string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	if user := p.users[userID]; user != nil {
+		return append([]string(nil), user.roomGroupOrder...)
+	}
+	return nil
 }

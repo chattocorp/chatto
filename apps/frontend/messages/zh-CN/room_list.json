@@ -35,6 +35,7 @@
     "activity_now": "现在",
     "older_conversations": "较早的对话",
     "show_older_conversations": "显示较早的对话（{count}）",
-    "show_fewer_conversations": "收起"
+    "show_fewer_conversations": "收起",
+    "reset_server_order": "重置为服务器顺序"
   }
 }
