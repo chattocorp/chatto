@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "Scegli i tasti per le azioni frequenti",
       "system": "Scorciatoie di sistema",
+      "push_to_talk": "Premi per parlare",
       "toggle_mute": "Disattiva o attiva il microfono",
       "record": "Premi {modifier} o {alternative} insieme a un tasto",
       "unavailable": "Scorciatoia non disponibile. Scegli un’altra combinazione.",

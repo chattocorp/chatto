@@ -5,7 +5,7 @@ connection. With more than one registered server, the server logo comes first.
 It opens the call room.
 -->
 <script lang="ts">
-  import { bindDesktopMuteShortcut } from '$lib/desktop/muteShortcut';
+  import { bindDesktopMuteShortcut, bindDesktopPushToTalk } from '$lib/desktop/muteShortcut';
   import { shortcutPreferences } from '$lib/state/shortcutPreferences.svelte';
   import { toastError } from '$lib/utils/errorMessage';
   import { conversationPath } from '$lib/navigation/conversationPath';
@@ -35,6 +35,14 @@ It opens the call room.
     return bindDesktopMuteShortcut(
       shortcutPreferences.bindings.mute,
       () => void voiceCallState.toggleMute().catch((error) => toastError(error))
+    );
+  });
+  $effect(() => {
+    const call = voiceCallState;
+    if (!call.connected || !call.canUseVoice || shortcutPreferences.recording) return;
+    return bindDesktopPushToTalk(
+      shortcutPreferences.bindings.pushToTalk,
+      (held) => void call.setPushToTalkHeld(held).catch((error) => toastError(error))
     );
   });
   const navigation = $derived(serverUi(activeStore).navigation);

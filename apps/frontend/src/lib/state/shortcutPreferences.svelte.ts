@@ -10,7 +10,8 @@ export const defaultBindings = {
   unread: 'Alt+Shift+Down',
   submit: 'CommandOrControl+Enter',
   search: 'CommandOrControl+/',
-  mute: ''
+  mute: '',
+  pushToTalk: ''
 } as const;
 export type ShortcutAction = keyof typeof defaultBindings;
 export const appShortcutActions = [
@@ -31,7 +32,8 @@ export function shortcutLabel(action: ShortcutAction): string {
     unread: 'chat.notifications.next_unread_source',
     submit: 'common.submit',
     search: 'search.action',
-    mute: 'common.keyboard_shortcuts.toggle_mute'
+    mute: 'common.keyboard_shortcuts.toggle_mute',
+    pushToTalk: 'common.keyboard_shortcuts.push_to_talk'
   } as const;
   return m(labels[action]);
 }
@@ -74,8 +76,12 @@ const validAppChord =
 const validSystemChord =
   /^(?:Control\+(?:Super\+)?|Super\+)(?:Alt\+)?(?:Shift\+)?(?:[A-Z0-9/,]|Space|Enter|Up|Down|Left|Right|F(?:[1-9]|1[0-2]))$/;
 
+export function isSystemShortcut(action: ShortcutAction): boolean {
+  return action === 'mute' || action === 'pushToTalk';
+}
+
 function validBinding(action: ShortcutAction, chord: string) {
-  return (action === 'mute' ? validSystemChord : validAppChord).test(chord);
+  return (isSystemShortcut(action) ? validSystemChord : validAppChord).test(chord);
 }
 
 /** Return a canonical chord only for supported keys. Keep plain typing available. */
@@ -108,7 +114,7 @@ function slot(action: ShortcutAction) {
 
 function loadBindings(): Record<ShortcutAction, string> {
   const bindings: Record<ShortcutAction, string> = { ...defaultBindings };
-  for (const action of [...appShortcutActions, 'mute'] as const) {
+  for (const action of [...appShortcutActions, 'mute', 'pushToTalk'] as const) {
     const saved = slot(action).get();
     if (saved === '' || validBinding(action, saved)) bindings[action] = saved;
   }

@@ -148,6 +148,17 @@ can identify Chatto. The desktop environment can ask you to approve or assign
 the shortcut when you first use it in a call. For an extracted tarball, use the same desktop entry
 filename and point its `Exec` field at the extracted `chatto-desktop` executable.
 
+### Push to talk
+
+Assign a chord under **App Preferences → Keyboard shortcuts → System-wide shortcuts**.
+During a call, hold it to speak and release it to mute. Use the normal microphone
+control to unmute for continuous speech. Clearing the chord disables it.
+
+Desktop starts a local helper for the assigned chord during a call. It uses
+macOS hotkey events, a Windows registered hotkey, or the Linux Global Shortcuts
+portal or X11. Building Desktop from source on Linux requires a C compiler,
+`pkg-config`, and development headers for GLib/GIO and X11.
+
 ### Linux screen sharing
 
 On Wayland, the system screen-sharing portal selects the screen or window.

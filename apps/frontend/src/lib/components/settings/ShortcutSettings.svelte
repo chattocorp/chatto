@@ -18,6 +18,7 @@
     appShortcutActions,
     bindingText,
     defaultBindings,
+    isSystemShortcut,
     eventChord,
     shortcutLabel,
     shortcutPreferences,
@@ -63,7 +64,7 @@
 
   async function save(action: ShortcutAction, chord: string) {
     const current = ++revision;
-    if (action === 'mute' && chord) {
+    if (isSystemShortcut(action) && chord) {
       const available = await desktopMuteShortcut()
         ?.available(chord)
         .catch(() => false);
@@ -81,8 +82,8 @@
   }
 
   function recordingHint(action: ShortcutAction) {
-    const modifier = bindingText(action === 'mute' ? 'Control' : 'CommandOrControl');
-    const alternative = bindingText(action === 'mute' ? 'Super' : 'Alt');
+    const modifier = bindingText(isSystemShortcut(action) ? 'Control' : 'CommandOrControl');
+    const alternative = bindingText(isSystemShortcut(action) ? 'Super' : 'Alt');
     return m('common.keyboard_shortcuts.record', { modifier, alternative });
   }
 
@@ -97,7 +98,9 @@
     if (event.repeat || ['Alt', 'AltGraph', 'Shift', 'Meta', 'Control'].includes(event.key)) return;
     const wrongModifier = usesAppleShortcutModifier() ? event.ctrlKey : event.metaKey;
     const chord =
-      action !== 'mute' && wrongModifier ? undefined : eventChord(event, action === 'mute');
+      !isSystemShortcut(action) && wrongModifier
+        ? undefined
+        : eventChord(event, isSystemShortcut(action));
     if (chord) save(action, chord);
     else error = recordingHint(action);
   }
@@ -193,7 +196,13 @@
       </Panel>
       {#if desktopMuteShortcut()}
         <Panel noPadding title={m('common.keyboard_shortcuts.system')}
-          ><div class="selectable-list">{@render row('mute')}</div></Panel
+          ><div class="selectable-list">
+            {@render row(
+              'mute'
+            )}{#if typeof window !== 'undefined' && window.chattoDesktop?.pushToTalk}{@render row(
+                'pushToTalk'
+              )}{/if}
+          </div></Panel
         >
       {/if}
       {#if error}<p role="alert" class="text-danger">{error}</p>{/if}

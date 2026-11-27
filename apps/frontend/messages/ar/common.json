@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "اختر مفاتيح للإجراءات الشائعة",
       "system": "اختصارات على مستوى النظام",
+      "push_to_talk": "اضغط للتحدث",
       "toggle_mute": "كتم الميكروفون أو إلغاء كتمه",
       "record": "اضغط {modifier} أو {alternative} مع مفتاح آخر",
       "unavailable": "الاختصار غير متاح. اختر تركيبة أخرى.",

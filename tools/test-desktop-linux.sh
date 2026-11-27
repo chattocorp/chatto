@@ -21,6 +21,8 @@ cd "$scratch"
 "${appimages[0]}" --appimage-extract > /dev/null
 entry="$scratch/squashfs-root/run.chatto.desktop.desktop"
 test -f "$entry"
+test -x "$bundle/resources/push-to-talk"
+test -x "$scratch/squashfs-root/resources/push-to-talk"
 grep -Fx 'Name=Chatto' "$entry"
 grep -Fx 'StartupWMClass=run.chatto.desktop' "$entry"
 grep -Fx 'Icon=chatto-desktop' "$entry"

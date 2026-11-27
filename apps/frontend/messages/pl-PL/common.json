@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "Wybierz klawisze dla częstych czynności",
       "system": "Systemowe skróty klawiszowe",
+      "push_to_talk": "Naciśnij, aby mówić",
       "toggle_mute": "Wycisz lub włącz mikrofon",
       "record": "Naciśnij {modifier} lub {alternative} wraz z klawiszem",
       "unavailable": "Skrót niedostępny. Wybierz inną kombinację.",

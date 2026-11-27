@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "Choisissez les touches des actions courantes",
       "system": "Raccourcis système",
+      "push_to_talk": "Appuyer pour parler",
       "toggle_mute": "Couper ou activer le micro",
       "record": "Appuyez sur {modifier} ou {alternative} avec une touche",
       "unavailable": "Raccourci indisponible. Choisissez une autre combinaison.",

@@ -49,6 +49,12 @@ It lets users discover shortcuts without leaving their draft or changing setting
   while another application has focus. Leaving the call releases the shortcut.
   If registration fails, Chatto asks the user to choose another combination.
 
+- Desktop also offers a separate system-wide push-to-talk shortcut. It starts
+  unassigned. During a call, press it to open the microphone and release it to
+  mute, even if the microphone was open before the press. Use the ordinary
+  unmute control or mute shortcut to speak continuously again. Editing or
+  clearing a held shortcut ends the hold.
+
 ## Design Decisions
 
 ### 1. Keep the filter shortcut

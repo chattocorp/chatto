@@ -2227,6 +2227,47 @@ describe('VoiceCallState', () => {
     expect(state.nativeScreenShareSourceName).toBe('Moonring');
   });
 
+  it('mutes on release even when the hold started unmuted and allows normal unmute', async () => {
+    const state = createPermittedCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    const microphone = lastRoom!.localParticipant.setMicrophoneEnabled;
+    microphone.mockClear();
+    await state.setPushToTalkHeld(true);
+    await state.setPushToTalkHeld(true);
+    expect(microphone).not.toHaveBeenCalled();
+    await state.setPushToTalkHeld(false);
+    expect(state.isMuted).toBe(true);
+    await state.toggleMute();
+    await state.setPushToTalkHeld(false);
+    expect(state.isMuted).toBe(false);
+    expect(microphone.mock.calls).toEqual([[false], [true]]);
+  });
+
+  it('applies a release that arrives while the microphone is starting', async () => {
+    const state = createPermittedCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.toggleMute();
+    microphoneGate = deferredVoid();
+    const press = state.setPushToTalkHeld(true);
+    const release = state.setPushToTalkHeld(false);
+    microphoneGate.resolve();
+    await Promise.all([press, release]);
+    expect(state.isMuted).toBe(true);
+    expect(lastRoom!.localParticipant.setMicrophoneEnabled).toHaveBeenLastCalledWith(false);
+  });
+
+  it('honours an ordinary unmute while release is still muting', async () => {
+    const state = createPermittedCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.setPushToTalkHeld(true);
+    microphoneGate = deferredVoid();
+    const release = state.setPushToTalkHeld(false);
+    const continuous = state.toggleMute();
+    microphoneGate.resolve();
+    await Promise.all([release, continuous]);
+    expect(state.isMuted).toBe(false);
+  });
+
   it('keeps microphone pending until LiveKit applies the toggle', async () => {
     const client = createVoiceCallClient();
     const state = createPermittedCallState(client);

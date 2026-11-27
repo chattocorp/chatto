@@ -677,3 +677,22 @@ it('checks a system-wide binding before saving it and can clear it', async () =>
     shortcutPreferences.set('mute', '');
   }
 });
+
+it('offers an unassigned push-to-talk shortcut and rejects a mute shortcut collision', async () => {
+  const set = vi.fn().mockResolvedValue(true);
+  window.chattoDesktop = {
+    muteShortcut: { available: vi.fn().mockResolvedValue(true), set, onPress: vi.fn() },
+    pushToTalk: { set, onEdge: vi.fn() }
+  };
+  try {
+    const settings = render(ShortcutSettings);
+    await settings.getByRole('button', { name: 'Push to talk · Edit' }).click();
+    expect(shortcutPreferences.bindings.pushToTalk).toBe('');
+    press({ key: 'm', ctrlKey: true, shiftKey: false });
+    await expect.poll(() => shortcutPreferences.bindings.pushToTalk).toBe('Control+Alt+M');
+    expect(shortcutPreferences.set('mute', 'Control+Alt+M')).toBe(false);
+  } finally {
+    delete window.chattoDesktop;
+    shortcutPreferences.set('pushToTalk', '');
+  }
+});

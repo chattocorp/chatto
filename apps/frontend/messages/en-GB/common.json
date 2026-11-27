@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "Choose keys for common actions",
       "system": "System-wide shortcuts",
+      "push_to_talk": "Push to talk",
       "toggle_mute": "Mute or unmute microphone",
       "record": "Press {modifier} or {alternative} with a key",
       "unavailable": "Shortcut unavailable. Choose another combination.",

@@ -14,6 +14,7 @@ function Run-Installer {
     $process = Start-Process -FilePath $Installer -ArgumentList "/S /D=$installDir" -Wait -PassThru
     if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode)" }
     if (-not (Test-Path "$installDir/chatto-desktop.exe")) { throw 'Application missing.' }
+    if (-not (Test-Path "$installDir/resources/push-to-talk.exe")) { throw 'Push-to-talk helper missing.' }
     if (-not (Test-Path $shortcut)) { throw 'Start menu shortcut missing.' }
     $registration = @(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' |
         Where-Object { $_.DisplayName -like 'Chatto*' -and

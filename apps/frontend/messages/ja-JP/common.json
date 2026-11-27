@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "よく使う操作にキーを割り当てます",
       "system": "システム全体のショートカット",
+      "push_to_talk": "押して話す",
       "toggle_mute": "マイクのミュートを切り替える",
       "record": "{modifier} または {alternative} と一緒にキーを押してください",
       "unavailable": "このショートカットは使用できません。別の組み合わせを選んでください。",

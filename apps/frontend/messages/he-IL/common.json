@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "בחר מקשים לפעולות נפוצות",
       "system": "קיצורי מקשים כלל־מערכתיים",
+      "push_to_talk": "לחיצה לדיבור",
       "toggle_mute": "השתקת המיקרופון או ביטול ההשתקה",
       "record": "לחץ על {modifier} או {alternative} יחד עם מקש",
       "unavailable": "קיצור המקשים אינו זמין. בחר צירוף אחר.",

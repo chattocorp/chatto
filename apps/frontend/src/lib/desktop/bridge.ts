@@ -17,6 +17,10 @@ export interface ChattoDesktopBridge {
     cancel(state: string): void;
   };
   /** The token identifies one call and binding lifetime across queued IPC messages. */
+  pushToTalk?: {
+    set(chord: string, token: string): Promise<boolean>;
+    onEdge(callback: (token: string, edge: 'down' | 'up' | 'failed') => void): () => void;
+  };
   muteShortcut?: {
     available(chord: string): Promise<boolean>;
     set(chord: string, token: string): Promise<boolean>;
