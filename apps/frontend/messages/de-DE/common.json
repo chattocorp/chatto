@@ -7,7 +7,7 @@
       "description": "Wähle Tasten für häufige Aktionen",
       "system": "Systemweite Tastenkürzel",
       "toggle_mute": "Mikrofon stummschalten oder aktivieren",
-      "record": "Drücke {modifier} oder Alt mit einer Taste",
+      "record": "Drücke {modifier} oder {alternative} mit einer Taste",
       "unavailable": "Tastenkürzel nicht verfügbar. Wähle eine andere Kombination.",
       "reset": "Zurücksetzen",
       "title": "Tastenkürzel",

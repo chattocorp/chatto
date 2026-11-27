@@ -21,9 +21,9 @@ it('delivers only this call’s presses and releases the binding on exit', () =>
   };
   const toggle = vi.fn();
   expect(bindDesktopMuteShortcut('', toggle)).toBeUndefined();
-  const dispose = bindDesktopMuteShortcut('Alt+M', toggle)!;
+  const dispose = bindDesktopMuteShortcut('Super+M', toggle)!;
   const [[chord, token]] = set.mock.calls;
-  expect(chord).toBe('Alt+M');
+  expect(chord).toBe('Super+M');
   press('previous');
   press(token);
   dispose();

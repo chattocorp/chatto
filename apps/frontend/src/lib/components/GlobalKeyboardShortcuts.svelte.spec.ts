@@ -614,6 +614,31 @@ it('records, rejects conflicting keys, and restores an app shortcut from prefere
   }
 });
 
+it('leaves Option characters to text fields and the rich-text editor', () => {
+  render(Harness);
+  const input = document.createElement('input');
+  const editor = document.createElement('div');
+  editor.contentEditable = 'true';
+  document.body.append(input, editor);
+  try {
+    expect(shortcutPreferences.set('switcher', 'Alt+L')).toBe(true);
+    flushSync();
+    for (const field of [input, editor]) {
+      field.focus();
+      for (const key of ['@', 'l', 'Dead']) {
+        expect(press({ key, code: 'KeyL', shiftKey: false }).defaultPrevented).toBe(false);
+      }
+    }
+    expect(quickSwitcher.visible).toBe(false);
+    editor.blur();
+    expect(press({ key: '@', code: 'KeyL', shiftKey: false }).defaultPrevented).toBe(true);
+  } finally {
+    input.remove();
+    editor.remove();
+    shortcutPreferences.set('switcher', defaultBindings.switcher);
+  }
+});
+
 it('checks a system-wide binding before saving it and can clear it', async () => {
   const available = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
   window.chattoDesktop = { muteShortcut: { available, set: vi.fn(), onPress: vi.fn() } };
@@ -624,7 +649,9 @@ it('checks a system-wide binding before saving it and can clear it', async () =>
       .toBeVisible();
     await settings.getByRole('button', { name: /^Mute or unmute microphone ·/ }).click();
     press({ key: 'µ', code: 'KeyM', shiftKey: false });
-    expect(available).toHaveBeenCalledWith('Alt+M');
+    expect(available).not.toHaveBeenCalled();
+    press({ key: 'µ', code: 'KeyM', metaKey: true, shiftKey: false });
+    expect(available).toHaveBeenCalledWith('Super+Alt+M');
     await expect.element(settings.getByRole('alert')).toHaveTextContent('Shortcut unavailable');
     expect(shortcutPreferences.bindings.mute).toBe('');
     press({

@@ -42,6 +42,19 @@ export function shortcutLabel(action: ShortcutAction): string {
  * Recover the trigger from the key position in those cases.
  */
 export function shortcutEventKey(event: KeyboardEvent, systemWide = false): string {
+  // Option can insert text, including ASCII punctuation, or start a dead-key
+  // sequence. Leave those events to the focused editor on every layout.
+  if (
+    !systemWide &&
+    event.altKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    (event.key.length === 1 || event.key === 'Dead') &&
+    event.target instanceof HTMLElement &&
+    (event.target.isContentEditable || event.target.matches('input, textarea'))
+  )
+    return '';
+
   if (
     (systemWide || ((event.altKey || event.shiftKey) && event.key.length === 1)) &&
     !/^[a-z0-9/,]$/i.test(event.key)
@@ -58,9 +71,8 @@ const validAppChord =
   /^(?=CommandOrControl\+|Alt\+)(?:CommandOrControl\+)?(?:Alt\+)?(?:Shift\+)?(?:[A-Z0-9/,]|Space|Enter|Up|Down|Left|Right|F(?:[1-9]|1[0-2]))$/;
 
 // Keep the host validator in apps/desktop/keyboard_shortcuts.mjs in sync.
-// CommandOrControl also accepts saved shortcuts from earlier Desktop builds.
 const validSystemChord =
-  /^(?=CommandOrControl\+|Control\+|Super\+|Alt\+)(?:CommandOrControl\+|(?:Control\+)?(?:Super\+)?)?(?:Alt\+)?(?:Shift\+)?(?:[A-Z0-9/,]|Space|Enter|Up|Down|Left|Right|F(?:[1-9]|1[0-2]))$/;
+  /^(?:Control\+(?:Super\+)?|Super\+)(?:Alt\+)?(?:Shift\+)?(?:[A-Z0-9/,]|Space|Enter|Up|Down|Left|Right|F(?:[1-9]|1[0-2]))$/;
 
 function validBinding(action: ShortcutAction, chord: string) {
   return (action === 'mute' ? validSystemChord : validAppChord).test(chord);

@@ -64,7 +64,7 @@ test('mute binding follows its trusted document and ignores late releases', () =
     },
     globalShortcut: {
       register: (chord, cb) => {
-        if (chord === 'Alt+X') return false;
+        if (chord === 'Control+X') return false;
         callbacks.set(chord, cb);
         return true;
       },
@@ -72,15 +72,17 @@ test('mute binding follows its trusted document and ignores late releases', () =
     }
   });
   assert.equal(set('app', 'M', '1'), false);
-  assert.equal(set('app', 'Alt+X', '1'), false);
-  assert.equal(set('app', 'Alt+M', '1'), true);
-  const previous = callbacks.get('Alt+M');
+  assert.equal(set('app', 'Alt+M', '1'), false);
+  assert.equal(set('app', 'CommandOrControl+M', '1'), false);
+  assert.equal(set('app', 'Control+X', '1'), false);
+  assert.equal(set('app', 'Super+M', '1'), true);
+  const previous = callbacks.get('Super+M');
   assert.equal(set('popup', '', '1'), false);
   previous();
-  assert.equal(set('app', 'Alt+M', '2'), true);
+  assert.equal(set('app', 'Super+M', '2'), true);
   set('app', '', '1');
   previous();
-  callbacks.get('Alt+M')();
+  callbacks.get('Super+M')();
   assert.deepEqual(
     sent.map(([, token]) => token),
     ['1', '2']

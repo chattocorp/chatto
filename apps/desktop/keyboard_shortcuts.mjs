@@ -19,7 +19,7 @@ export function protectReloadShortcuts(webContents, production) {
 /** Hold at most one OS binding. Renderer loss and document navigation release it. */
 export function configureMuteShortcut({ ipcMain, globalShortcut, contents, isTrusted, wayland }) {
   const validChord =
-    /^(?=CommandOrControl\+|Control\+|Super\+|Alt\+)(?:CommandOrControl\+|(?:Control\+)?(?:Super\+)?)?(?:Alt\+)?(?:Shift\+)?(?:[A-Z0-9/,]|Space|Enter|Up|Down|Left|Right|F(?:[1-9]|1[0-2]))$/;
+    /^(?:Control\+(?:Super\+)?|Super\+)(?:Alt\+)?(?:Shift\+)?(?:[A-Z0-9/,]|Space|Enter|Up|Down|Left|Right|F(?:[1-9]|1[0-2]))$/;
   let registered;
   let owner;
   function clear() {

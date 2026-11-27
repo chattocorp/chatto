@@ -7,7 +7,7 @@
       "description": "Elektu klavojn por oftaj agoj",
       "system": "Tutsistemaj klavkombinoj",
       "toggle_mute": "Silentigi aŭ malsilentigi mikrofonon",
-      "record": "Premu {modifier} aŭ Alt kun klavo",
+      "record": "Premu {modifier} aŭ {alternative} kun klavo",
       "unavailable": "Klavkombino ne disponeblas. Elektu alian kombinaĵon.",
       "reset": "Restarigi",
       "title": "Klavkombinoj",

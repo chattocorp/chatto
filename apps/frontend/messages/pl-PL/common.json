@@ -7,7 +7,7 @@
       "description": "Wybierz klawisze dla częstych czynności",
       "system": "Systemowe skróty klawiszowe",
       "toggle_mute": "Wycisz lub włącz mikrofon",
-      "record": "Naciśnij {modifier} lub Alt wraz z klawiszem",
+      "record": "Naciśnij {modifier} lub {alternative} wraz z klawiszem",
       "unavailable": "Skrót niedostępny. Wybierz inną kombinację.",
       "reset": "Przywróć",
       "title": "Skróty klawiszowe",

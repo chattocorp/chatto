@@ -4,7 +4,6 @@
     "toggle_sidebar": "切换侧边栏",
     "notifications": "通知",
     "open_quick_switcher": "打开快速切换器",
-    "quick_switcher_shortcut": "快速切换器 (Cmd+K)",
     "realtime_paused": "实时更新已暂停，正在重新连接...",
     "update_available": "有新版本可用",
     "reload": "重新加载",

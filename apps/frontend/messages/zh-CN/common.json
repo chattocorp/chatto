@@ -7,7 +7,7 @@
       "description": "选择常用操作的按键",
       "system": "系统全局快捷键",
       "toggle_mute": "将麦克风静音或取消静音",
-      "record": "按住 {modifier} 或 Alt，再按一个键",
+      "record": "按住 {modifier} 或 {alternative}，再按一个键",
       "unavailable": "此快捷键不可用。请选择其他组合。",
       "reset": "重置",
       "title": "键盘快捷键",

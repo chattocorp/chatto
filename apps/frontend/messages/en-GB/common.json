@@ -7,7 +7,7 @@
       "description": "Choose keys for common actions",
       "system": "System-wide shortcuts",
       "toggle_mute": "Mute or unmute microphone",
-      "record": "Press {modifier} or Alt with a key",
+      "record": "Press {modifier} or {alternative} with a key",
       "unavailable": "Shortcut unavailable. Choose another combination.",
       "reset": "Reset",
       "title": "Keyboard shortcuts",

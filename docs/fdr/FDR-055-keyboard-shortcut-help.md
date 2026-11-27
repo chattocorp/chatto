@@ -39,9 +39,11 @@ It lets users discover shortcuts without leaving their draft or changing setting
   Settings, form submission, and room search or filters. By default, Cmd+, on
   macOS and Ctrl+, on other platforms open the Settings overview. Changes apply to all servers
   on this device. Select a row to record a shortcut. Use the row menu to clear
-  the shortcut or restore its default. Help shows the current bindings.
+  the shortcut or restore its default. Help shows the current bindings. While typing,
+  Alt or Option with a printable key can enter text in the focused field.
 - Chatto Desktop also offers a system-wide microphone toggle. The user must
-  assign a shortcut first. A system-wide shortcut requires a trigger key. On
+  assign a shortcut first. A system-wide shortcut requires Control or Super
+  (Command on macOS) and a trigger key. On
   macOS it can combine Control, Command, and Option, for example ⌃⌘⌥M.
   During a connected voice call, the shortcut works
   while another application has focus. Leaving the call releases the shortcut.

@@ -7,7 +7,7 @@
       "description": "Sık kullanılan işlemler için tuş seçin",
       "system": "Sistem genelinde kısayollar",
       "toggle_mute": "Mikrofonu kapat veya aç",
-      "record": "Bir tuşla birlikte {modifier} veya Alt tuşuna basın",
+      "record": "Bir tuşla birlikte {modifier} veya {alternative} tuşuna basın",
       "unavailable": "Kısayol kullanılamıyor. Başka bir tuş birleşimi seçin.",
       "reset": "Sıfırla",
       "title": "Klavye kısayolları",

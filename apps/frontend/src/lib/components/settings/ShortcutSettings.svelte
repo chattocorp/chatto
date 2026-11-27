@@ -81,11 +81,9 @@
   }
 
   function recordingHint(action: ShortcutAction) {
-    const modifier =
-      action === 'mute'
-        ? bindingText('Control+Super').replace('+', ' / ')
-        : bindingText('CommandOrControl');
-    return m('common.keyboard_shortcuts.record', { modifier });
+    const modifier = bindingText(action === 'mute' ? 'Control' : 'CommandOrControl');
+    const alternative = bindingText(action === 'mute' ? 'Super' : 'Alt');
+    return m('common.keyboard_shortcuts.record', { modifier, alternative });
   }
 
   function record(event: KeyboardEvent, action: ShortcutAction) {

@@ -7,7 +7,7 @@
       "description": "Vyberte klávesy pro časté akce",
       "system": "Systémové klávesové zkratky",
       "toggle_mute": "Ztlumit nebo zapnout mikrofon",
-      "record": "Stiskněte {modifier} nebo Alt společně s klávesou",
+      "record": "Stiskněte {modifier} nebo {alternative} společně s klávesou",
       "unavailable": "Zkratka není dostupná. Zvolte jinou kombinaci.",
       "reset": "Obnovit",
       "title": "Klávesové zkratky",
