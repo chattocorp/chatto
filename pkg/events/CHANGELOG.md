@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.0
+
+### Features
+
+- Add `TerminationReason`, which reports whether an error came from `TerminateDelivery`. Applications that run a `DurableDeliveryHandler` outside a `DurableWorker` can use it to keep the same non-retryable classification. ([#3598](https://github.com/chattocorp/chatto/pull/3598))
+- Detect stalled projectors. `ProjectorStatus` now reports `ObservedSeq`, `LastCommitAt`, `LastCommitDuration`, `CurrentOperation`, `CurrentOperationDuration`, `PendingFor`, and `Stalled`. A projector is stalled when matching events wait and it commits no progress for `ProjectorOptions.StallAfter` (default five minutes). An idle, caught-up projector and a slow replay that still commits are not stalled. `Run` reads the newest matching stream sequence every 30 seconds, so a consumer that stops delivering also shows pending work. `Status` does not wait for the apply barrier. ([#3668](https://github.com/chattocorp/chatto/pull/3668))
+
+### Fixes
+
+- An idle `DurableWorker` now holds one pull request for up to 30 seconds (or the consumer's shorter `MaxRequestExpires`) instead of one for each `FetchMaxWait`, which reduces idle JetStream API traffic by about 30 times. The worker becomes idle only after a pull expires empty while no delivery is active, so a backlog and the shutdown handoff use `FetchMaxWait` pulls as before. A replica that disappears without closing its connection can hold its idle pull for up to about 29 seconds; work that the server assigns to that pull waits for the consumer's `AckWait`. ([#3782](https://github.com/chattocorp/chatto/pull/3782))
+- `WaitFor` no longer reads the target message from the stream leader when `LastSeq` already covers the position. A wait that has not ended after 100 ms reads the message once, in parallel with the wait, and still fails for a position that the projector cannot reach. A subject filter that cannot match a consumed subject fails at once without a read. A wrong subject and sequence pair is no longer reported when the projector is already past the position. ([#3780](https://github.com/chattocorp/chatto/pull/3780))
+- Atomic batch publish errors preserve the JetStream API error code so callers can identify a temporary rejection. ([#3744](https://github.com/chattocorp/chatto/pull/3744))
+- Projectors now apply events in stream order and exactly once across an ordered consumer reset. Before, after a reconnect, missed heartbeats, or a NATS server change, the next event could be applied while the previous event was still in decode, so the projection applied the two events in the wrong order and `WaitFor` for the previous event could return before that event was applied. A projector now ignores a message whose sequence it already handled, fails when its consumer stops before `Run` ends (for example after the connection closes), and `Run` returns only after the message in progress is handled. Startup reconciliation and `WaitForCurrent` also wait for an event that the projector received but has not applied yet, also when that event was deleted from the stream after delivery. Projectors now pull up to 1,000 messages at a time and have no byte limit for each pull, so a projector that is behind can buffer up to 1,000 events of any size. Before, projectors used a client byte window of 16 MiB. ([#3794](https://github.com/chattocorp/chatto/pull/3794))
+- Update the NATS Go client to v1.56.0. Projector ordered consumers now report missed heartbeats after about 10 seconds instead of 30, and completed durable worker pulls stop their timers. ([#3790](https://github.com/chattocorp/chatto/pull/3790))
+
 ## 0.1.0 (2026-10-15)
 
 
