@@ -45,13 +45,10 @@
         return;
       }
       const id = saved ?? addSignedOutServer(origin, profile);
-      await goto(
-        resolve('/chat/[serverId]', { serverId: serverIdToSegment(id) }) + page.url.search,
-        {
-          replaceState: true,
-          invalidateAll: true
-        }
-      );
+      await goto(resolve(`/chat/${serverIdToSegment(id)}${page.url.search}`), {
+        replaceState: true,
+        invalidateAll: true
+      });
     } catch (cause) {
       if (!lifetime.signal.aborted) {
         error =
