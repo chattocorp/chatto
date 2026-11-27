@@ -42,7 +42,7 @@ select one record with KV Create and read it through the stream leader.
 `email_delivery.{opaqueId}` in `RUNTIME_STATE` holds a `SealedEmailDelivery`
 protobuf. Its encrypted `EmailDelivery` contains the address and what the email
 says: a registration or verification code, or a password reset token, with its
-lifetime. It does not contain a rendered message. The worker renders the email
+lifetime, and the locale of the email. It does not contain a rendered message. The worker renders the email
 with the current templates, server name, and web server URL when it sends it.
 A record from an older version holds a rendered subject and plain-text body,
 which the worker sends as plain text.
