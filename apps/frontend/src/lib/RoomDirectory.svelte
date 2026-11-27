@@ -173,7 +173,7 @@ store owns only optimistic join/leave state.
   <li
     class={['relative flex min-w-0 flex-col gap-1 tile px-3 py-2.5', linked && 'tile-interactive']}
   >
-    <div class="flex min-h-6 min-w-0 items-center gap-2">
+    <div class="flex h-6 min-w-0 items-center gap-2">
       {#if room.isUniversal}
         <span aria-hidden="true" class="iconify icon-[uil--globe] w-4 shrink-0 text-muted/70"
         ></span>
@@ -272,9 +272,10 @@ store owns only optimistic join/leave state.
         {/if}
       </div>
     </div>
-    {#if room.description}
-      <p class="truncate ps-6 text-sm text-muted" title={room.description}>{room.description}</p>
-    {/if}
+    <!-- Always two lines tall, so every tile has the same height: longer text clamps. -->
+    <p class="line-clamp-2 h-10 ps-6 text-sm text-muted" title={room.description || undefined}>
+      {room.description ?? ''}
+    </p>
   </li>
 {/snippet}
 

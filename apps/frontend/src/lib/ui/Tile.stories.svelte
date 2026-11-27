@@ -48,7 +48,7 @@
               <Button variant="secondary" size="compact">Join</Button>
             {/if}
           </div>
-          <p class="truncate ps-6 text-sm text-muted">{room.description}</p>
+          <p class="line-clamp-2 h-10 ps-6 text-sm text-muted">{room.description}</p>
         </li>
       {/each}
     </ul>
