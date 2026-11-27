@@ -47,8 +47,21 @@ export function createAccountAPI(config: ConnectAPIConfig) {
       return response.verifiedEmails.map(verifiedEmail);
     },
 
-    async requestEmailVerification(expectedUserId: string, email: string): Promise<void> {
-      await client.requestEmailVerification({ email, expectedUserId });
+    /**
+     * Sends a verification code to `email`. `options.locale` is a BCP 47 tag
+     * such as `de-DE`. The server writes the email in the closest language it
+     * supports. Without it, the server uses the transport's Accept-Language
+     * header, which a browser sets from its own language settings.
+     */
+    async requestEmailVerification(
+      expectedUserId: string,
+      email: string,
+      options: { locale?: string } = {}
+    ): Promise<void> {
+      await client.requestEmailVerification(
+        { email, expectedUserId },
+        options.locale ? { headers: { 'Accept-Language': options.locale } } : undefined
+      );
     },
 
     async confirmEmailVerification(

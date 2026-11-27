@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getLocale } from '$lib/i18n/runtime';
   import { MAX_LOGIN_LENGTH } from '$lib/validation/login';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
@@ -137,6 +138,8 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          // The server writes the registration email in this language.
+          'Accept-Language': getLocale(),
           ...browserCookieAuthenticationHeaders
         },
         body: JSON.stringify({ email: normalizedEmail, admissionId })

@@ -134,4 +134,21 @@ describe('createAccountAPI', () => {
       email: 'a@example.test'
     });
   });
+
+  it('sends the requested email language as Accept-Language', async () => {
+    const received: (string | null)[] = [];
+    mocks.requestEmailVerification.mockImplementation(
+      (_request: unknown, context: { requestHeader: Headers }) => {
+        received.push(context.requestHeader.get('Accept-Language'));
+        return {};
+      }
+    );
+    const api = accountAPI();
+
+    await api.requestEmailVerification('U1', 'b@example.test', { locale: 'de-DE' });
+    await api.requestEmailVerification('U1', 'b@example.test');
+
+    expect(received[0]).toBe('de-DE');
+    expect(received[1]).not.toBe('de-DE');
+  });
 });
