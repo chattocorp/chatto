@@ -358,23 +358,17 @@ func (a *API) serverViewerState(ctx context.Context, userID string) (*apiv1.Serv
 
 // serverViewerPermissions reads effective server grants without unrelated viewer state.
 func (a *API) serverViewerPermissions(ctx context.Context, userID string) (*apiv1.ServerViewerPermissions, error) {
-	grants, err := parallel.Map(
-		ctx,
-		maxConnectAPIHydrationConcurrency,
-		core.AllPermissions(),
-		func(ctx context.Context, _ int, meta core.PermissionMetadata) (*apiv1.PermissionGrant, error) {
-			granted, err := a.core.HasUserPermissionViaRoles(ctx, userID, meta.Permission)
-			if err != nil {
-				return nil, err
-			}
-			return &apiv1.PermissionGrant{
-				Permission: string(meta.Permission),
-				Granted:    granted,
-			}, nil
-		},
-	)
-	if err != nil {
-		return nil, err
+	permissions := core.AllPermissions()
+	grants := make([]*apiv1.PermissionGrant, 0, len(permissions))
+	for _, meta := range permissions {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		granted, err := a.core.HasUserPermissionViaRoles(ctx, userID, meta.Permission)
+		if err != nil {
+			return nil, err
+		}
+		grants = append(grants, &apiv1.PermissionGrant{Permission: string(meta.Permission), Granted: granted})
 	}
 	return &apiv1.ServerViewerPermissions{Permissions: grants}, nil
 }

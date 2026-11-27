@@ -6266,6 +6266,21 @@ State of explicit privileged-mode activation for this authenticated session.
 
 
 
+<a id="chatto-api-v1-PrivilegedPermissionPreview"></a>
+
+### PrivilegedPermissionPreview
+
+Permission and capability decisions for the role configuration identified by basis.
+Use effective viewer decisions for access to resources and actions.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Server-level permission decisions for that role state. |
+| `grants` | repeated [`CapabilityGrant`](#chatto-api-v1-CapabilityGrant) | Capability decisions for that role state. |
+| `basis` | [`PrivilegedPermissionPreview.Basis`](#chatto-api-v1-PrivilegedPermissionPreview-Basis) | Ignore the preview if the basis is unknown or does not match the current Shield Mode state. |
+
+
+
 <a id="chatto-api-v1-PrivilegedRoleSelection"></a>
 
 ### PrivilegedRoleSelection
@@ -6275,6 +6290,7 @@ Protected roles that the caller can select for this session.
 | Field | Type | Description |
 | --- | --- | --- |
 | `available_roles` | `repeated string` | Assigned protected roles. An empty list means there are no roles to activate. |
+| `permission_preview` | [`PrivilegedPermissionPreview`](#chatto-api-v1-PrivilegedPermissionPreview) | Alternative grants for Settings discovery. Absent for users without protected roles and on older servers. |
 
 
 
@@ -7070,6 +7086,19 @@ State of username self-service, including its primary blocking condition.
 | `STATE_UNSPECIFIED` | `0` | No decision is supplied. This does not grant permission. |
 | `STATE_ALLOWED` | `1` | Policy permits a username change, subject to available_at. |
 | `STATE_PROVIDER_MANAGED` | `2` | A linked provider manages the username. |
+
+
+<a id="chatto-api-v1-PrivilegedPermissionPreview-Basis"></a>
+
+### PrivilegedPermissionPreview.Basis
+
+Protected roles used to evaluate this preview.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `BASIS_UNSPECIFIED` | `0` | The role configuration is unknown. Clients must ignore this preview. |
+| `BASIS_ALL_PROTECTED_ROLES_ACTIVE` | `1` | All assigned protected roles are active. Sent while Shield Mode is off. |
+| `BASIS_NO_PROTECTED_ROLES_ACTIVE` | `2` | No protected roles are active. Sent while Shield Mode is on. |
 
 
 <a id="chatto-api-v1-TimeFormat"></a>

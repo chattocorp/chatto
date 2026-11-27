@@ -59,6 +59,7 @@
         "jobs": "View background jobs and retry failed jobs."
       },
       "title": "Overview",
+      "shield_active": "Shield Mode active",
       "shield_notice": "To use your additional permissions on this server, activate Shield Mode with the shield button beside your name."
     },
     "nav": {

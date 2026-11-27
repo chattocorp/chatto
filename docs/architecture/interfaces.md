@@ -179,6 +179,8 @@ also expose a disconnect hint; it is not mutation authorization. See
 | `chatto.api.v1`       | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PermissionService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
 | `chatto.admin.v1`     | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInvitationCodeService`, `AdminJobService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService`                                                                                                                  | Authenticated user; methods enforce administrative permissions                                             |
 
+`ViewerService` previews server permissions and capabilities with all protected roles active while Shield Mode is off. During activation, it previews ordinary access with Shield Mode off. See [FDR-046](../fdr/FDR-046-privileged-mode.md).
+
 `MyAccountService.GetPresencePreference` and `SetPresencePreference` read and
 change the caller's private availability across devices. `RefreshPresence`
 refreshes liveness without changing this choice. Legacy `SetPresence` cannot

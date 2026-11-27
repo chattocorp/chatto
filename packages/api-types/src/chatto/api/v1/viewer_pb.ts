@@ -413,6 +413,13 @@ export class PrivilegedRoleSelection extends Message<PrivilegedRoleSelection> {
    */
   availableRoles: string[] = [];
 
+  /**
+   * Alternative grants for Settings discovery. Absent for users without protected roles and on older servers.
+   *
+   * @generated from field: chatto.api.v1.PrivilegedPermissionPreview permission_preview = 2;
+   */
+  permissionPreview?: PrivilegedPermissionPreview;
+
   constructor(data?: PartialMessage<PrivilegedRoleSelection>) {
     super();
     proto3.util.initPartial(data, this);
@@ -422,6 +429,7 @@ export class PrivilegedRoleSelection extends Message<PrivilegedRoleSelection> {
   static readonly typeName = "chatto.api.v1.PrivilegedRoleSelection";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "available_roles", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 2, name: "permission_preview", kind: "message", T: PrivilegedPermissionPreview },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PrivilegedRoleSelection {
@@ -440,6 +448,98 @@ export class PrivilegedRoleSelection extends Message<PrivilegedRoleSelection> {
     return proto3.util.equals(PrivilegedRoleSelection, a, b);
   }
 }
+
+/**
+ * Permission and capability decisions for the role configuration identified by basis.
+ * Use effective viewer decisions for access to resources and actions.
+ *
+ * @generated from message chatto.api.v1.PrivilegedPermissionPreview
+ */
+export class PrivilegedPermissionPreview extends Message<PrivilegedPermissionPreview> {
+  /**
+   * Server-level permission decisions for that role state.
+   *
+   * @generated from field: chatto.api.v1.ServerViewerPermissions viewer_permissions = 1;
+   */
+  viewerPermissions?: ServerViewerPermissions;
+
+  /**
+   * Capability decisions for that role state.
+   *
+   * @generated from field: repeated chatto.api.v1.CapabilityGrant grants = 2;
+   */
+  grants: CapabilityGrant[] = [];
+
+  /**
+   * Ignore the preview if the basis is unknown or does not match the current Shield Mode state.
+   *
+   * @generated from field: chatto.api.v1.PrivilegedPermissionPreview.Basis basis = 3;
+   */
+  basis = PrivilegedPermissionPreview_Basis.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<PrivilegedPermissionPreview>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.PrivilegedPermissionPreview";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "viewer_permissions", kind: "message", T: ServerViewerPermissions },
+    { no: 2, name: "grants", kind: "message", T: CapabilityGrant, repeated: true },
+    { no: 3, name: "basis", kind: "enum", T: proto3.getEnumType(PrivilegedPermissionPreview_Basis) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PrivilegedPermissionPreview {
+    return new PrivilegedPermissionPreview().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PrivilegedPermissionPreview {
+    return new PrivilegedPermissionPreview().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PrivilegedPermissionPreview {
+    return new PrivilegedPermissionPreview().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PrivilegedPermissionPreview | PlainMessage<PrivilegedPermissionPreview> | undefined, b: PrivilegedPermissionPreview | PlainMessage<PrivilegedPermissionPreview> | undefined): boolean {
+    return proto3.util.equals(PrivilegedPermissionPreview, a, b);
+  }
+}
+
+/**
+ * Protected roles used to evaluate this preview.
+ *
+ * @generated from enum chatto.api.v1.PrivilegedPermissionPreview.Basis
+ */
+export enum PrivilegedPermissionPreview_Basis {
+  /**
+   * The role configuration is unknown. Clients must ignore this preview.
+   *
+   * @generated from enum value: BASIS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * All assigned protected roles are active. Sent while Shield Mode is off.
+   *
+   * @generated from enum value: BASIS_ALL_PROTECTED_ROLES_ACTIVE = 1;
+   */
+  ALL_PROTECTED_ROLES_ACTIVE = 1,
+
+  /**
+   * No protected roles are active. Sent while Shield Mode is on.
+   *
+   * @generated from enum value: BASIS_NO_PROTECTED_ROLES_ACTIVE = 2;
+   */
+  NO_PROTECTED_ROLES_ACTIVE = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(PrivilegedPermissionPreview_Basis)
+proto3.util.setEnumType(PrivilegedPermissionPreview_Basis, "chatto.api.v1.PrivilegedPermissionPreview.Basis", [
+  { no: 0, name: "BASIS_UNSPECIFIED" },
+  { no: 1, name: "BASIS_ALL_PROTECTED_ROLES_ACTIVE" },
+  { no: 2, name: "BASIS_NO_PROTECTED_ROLES_ACTIVE" },
+]);
 
 /**
  * Request for the authenticated viewer snapshot.

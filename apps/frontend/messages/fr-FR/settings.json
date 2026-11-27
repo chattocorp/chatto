@@ -59,6 +59,7 @@
         "jobs": "Consultez les tâches en arrière-plan et relancez celles qui ont échoué."
       },
       "title": "Vue d’ensemble",
+      "shield_active": "Mode privilégié actif",
       "shield_notice": "Pour utiliser vos autorisations supplémentaires sur ce serveur, activez le mode privilégié avec le bouton en forme de bouclier à côté de votre nom."
     },
     "nav": {

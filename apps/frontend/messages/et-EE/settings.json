@@ -59,6 +59,7 @@
         "jobs": "Vaadake taustatöid ja proovige ebaõnnestunud töid uuesti."
       },
       "title": "Ülevaade",
+      "shield_active": "Privilegeeritud režiim on aktiivne",
       "shield_notice": "Selles serveris oma lisaõiguste kasutamiseks aktiveerige privilegeeritud režiim oma nime kõrval oleva kilbinupuga."
     },
     "nav": {

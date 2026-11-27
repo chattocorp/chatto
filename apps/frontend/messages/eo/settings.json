@@ -59,6 +59,7 @@
         "jobs": "Vidu fonajn taskojn kaj reprovu malsukcesajn taskojn."
       },
       "title": "Superrigardo",
+      "shield_active": "Privilegia reĝimo aktivas",
       "shield_notice": "Por uzi viajn aldonajn permesojn en ĉi tiu servilo, aktivigu la privilegian reĝimon per la ŝilda butono apud via nomo."
     },
     "nav": {

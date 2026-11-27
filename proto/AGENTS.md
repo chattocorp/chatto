@@ -180,8 +180,12 @@ For public API packages:
   keyed rows for intentionally dynamic or externally extensible keyspaces. If
   an enum mirrors the branches of a `oneof`, treat that as a design smell and
   document why the mirrored taxonomy is an independent domain concept.
-- Use enums or oneofs only when modeling multiple meaningful availability states
-  or mutually exclusive request targets.
+- Use enums or oneofs for meaningful availability states, mutually exclusive
+  request targets, or distinct interpretations of a response payload.
+- When a response contains at most one result and each case carries the same
+  payload, prefer one result field with an enum that identifies how to
+  interpret it. Use a `oneof` when the cases need different payloads. Use
+  separate fields when both values can be meaningful in the same response.
 - When one operation targets the same resource by multiple equivalent
   identifiers, use a request `oneof`; do not use parallel optional/string
   identifier fields. Split into separate RPCs only when authorization,

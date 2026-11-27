@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ShieldModeProvider from '$lib/components/ShieldModeProvider.svelte';
   import { page } from '$app/state';
   import { serverRegistry, serverConnectionManager } from '$lib/client';
   import ServerScopeProvider from '$lib/state/server/ServerScopeProvider.svelte';
@@ -64,15 +65,17 @@
       {:else if signedOutRegistration}
         <ServerSignedOut registration={signedOutRegistration} />
       {:else}
-        <Chrome>
-          {#if serverStore.realtimeSync.hasDisplayableView}
-            <div class="contents" aria-busy={serverStore.realtimeSync.isRecoveringSnapshot}>
-              {@render children?.()}
-            </div>
-          {:else}
-            <PageTitle />
-          {/if}
-        </Chrome>
+        <ShieldModeProvider
+          ><Chrome>
+            {#if serverStore.realtimeSync.hasDisplayableView}
+              <div class="contents" aria-busy={serverStore.realtimeSync.isRecoveringSnapshot}>
+                {@render children?.()}
+              </div>
+            {:else}
+              <PageTitle />
+            {/if}
+          </Chrome></ShieldModeProvider
+        >
       {/if}
     </ServerScopeProvider>
   {:else}

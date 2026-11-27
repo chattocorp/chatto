@@ -107,6 +107,12 @@ func serverFeatureCatalog(locale string) []*discoveryv1.ServerFeature {
 			Description:       "Choose which protected roles to activate for 15 minutes.",
 			IntroducedVersion: "0.6.0-beta.0",
 		},
+		{
+			Id:                "shieldPermissionPreview",
+			Name:              "Shield Mode in Settings",
+			Description:       "See which Settings pages you can open by activating protected roles.",
+			IntroducedVersion: "0.6.1",
+		},
 	}
 	for _, feature := range features {
 		if text, ok := featureTranslation(locale, feature.Id); ok {

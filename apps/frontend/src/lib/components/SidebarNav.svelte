@@ -5,7 +5,15 @@
   import { m } from '$lib/i18n/messages';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
 
-  export type NavItem = { href: string; label: string; icon: string };
+  export type NavItem = {
+    href: string;
+    label: string;
+    icon: string;
+    /** Open the Shield Mode picker for this destination. */
+    requestAccess?: () => void;
+    /** The viewer can open this page because Shield Mode is active. */
+    shieldActive?: boolean;
+  };
   /** A command in a navigation group, such as Sign out. It is not a page. */
   export type NavAction = {
     id: string;
@@ -78,13 +86,34 @@
 
 {#snippet groupedNavItem(item: GroupNavItem)}
   {@const active = isActive(item.href, allItems)}
-  <a
-    href={resolve(item.href as '/')}
-    aria-current={active ? 'page' : undefined}
-    class="sidebar-item items-start"
-  >
-    {@render iconLabel(item.icon, item.label)}
-  </a>
+  {#if item.requestAccess}
+    <button
+      type="button"
+      class="sidebar-item items-start text-muted opacity-75 hover:opacity-100 focus-visible:opacity-100"
+      aria-haspopup="dialog"
+      title={m('chat.privileged_mode.enable')}
+      onclick={item.requestAccess}
+    >
+      {@render iconLabel(item.icon, item.label)}
+      <span class="iconify ms-auto icon-[uil--shield] shrink-0 self-center" aria-hidden="true"
+      ></span>
+    </button>
+  {:else}
+    <a
+      href={resolve(item.href as '/')}
+      title={item.shieldActive ? m('settings.overview.shield_active') : undefined}
+      aria-current={active ? 'page' : undefined}
+      class="sidebar-item items-start"
+    >
+      {@render iconLabel(item.icon, item.label)}
+      {#if item.shieldActive}
+        <span
+          class="iconify ms-auto icon-[uil--shield-check] shrink-0 self-center text-warning"
+          aria-hidden="true"
+        ></span>
+      {/if}
+    </a>
+  {/if}
 {/snippet}
 
 <PaneHeader {title} {subtitle} {backHref} {onBack} {backLabel} />

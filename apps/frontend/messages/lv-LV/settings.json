@@ -59,6 +59,7 @@
         "jobs": "Skatiet fona uzdevumus un atkārtojiet neizdevušos uzdevumus."
       },
       "title": "Pārskats",
+      "shield_active": "Privileģētais režīms ir aktīvs",
       "shield_notice": "Lai izmantotu papildu atļaujas šajā serverī, aktivizējiet privileģēto režīmu ar vairoga pogu blakus savam vārdam."
     },
     "nav": {

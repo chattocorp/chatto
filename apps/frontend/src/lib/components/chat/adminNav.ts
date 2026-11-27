@@ -26,6 +26,10 @@ export type AdminNavItem = {
   icon: string;
   /** Short explanation displayed on the Settings Overview card. */
   description: string;
+  /** Opens Shield Mode for a page available only in the preview. */
+  requestAccess?: () => void;
+  /** The selected Shield Mode roles grant access to this destination. */
+  shieldActive?: boolean;
 };
 
 /** Every management destination, so each surface that links to one shows it the same way. */
@@ -102,6 +106,12 @@ const ADMIN_DESTINATIONS = {
     description: m('settings.overview.descriptions.event_log'),
     icon: 'iconify icon-[uil--history]'
   }),
+  jobs: (serverId) => ({
+    href: resolve('/chat/[serverId]/manage/server/jobs', { serverId }),
+    label: m('chat.management_nav.jobs'),
+    description: m('settings.overview.descriptions.jobs'),
+    icon: 'iconify icon-[uil--process]'
+  }),
   system: (serverId) => ({
     href: resolve('/chat/[serverId]/manage/server/system', { serverId }),
     label: m('chat.management_nav.system'),
@@ -121,10 +131,17 @@ export function adminNavItem(destination: AdminDestination, serverSegment: strin
 export function getAdminNavItems({
   serverSegment,
   permissions,
+  preview,
   limitedFeatures = []
 }: {
   serverSegment: string;
   permissions: AdminNavPermissions;
+  /** The server previews ordinary permissions while active and all protected roles while inactive. */
+  preview?: {
+    active: boolean;
+    permissions: AdminNavPermissions;
+    requestAccess: (href: string) => void;
+  };
   /** Features that the server version does not support. Their pages are not listed. */
   limitedFeatures?: readonly ServerFeature[];
 }): AdminNavItem[] {
@@ -132,67 +149,31 @@ export function getAdminNavItems({
 
   const items: AdminNavItem[] = [];
 
-  if (permissions.canManageServer) {
-    items.push(adminNavItem('general', serverSegment));
+  function add(destination: AdminDestination, allowed: (p: AdminNavPermissions) => boolean) {
+    if (allowed(permissions)) {
+      const item = adminNavItem(destination, serverSegment);
+      if (preview?.active && !allowed(preview.permissions)) item.shieldActive = true;
+      items.push(item);
+    } else if (preview && !preview.active && allowed(preview.permissions)) {
+      const item = adminNavItem(destination, serverSegment);
+      items.push({ ...item, requestAccess: () => preview.requestAccess(item.href) });
+    }
   }
 
-  if (permissions.canManageServer) {
-    items.push(adminNavItem('registration', serverSegment));
-  }
-
-  if (permissions.canInviteUsers || permissions.canManageInvites) {
-    items.push(adminNavItem('invites', serverSegment));
-  }
-
-  if (permissions.canManageNeighbors) {
-    items.push(adminNavItem('neighbors', serverSegment));
-  }
-
-  if (permissions.canAdminViewUsers) {
-    items.push(adminNavItem('members', serverSegment));
-  }
-
-  // Bot ownership is itself sufficient to manage an existing bot, even after
-  // bot.create is revoked. Keep this entry available to every signed-in human;
-  // BotService remains authoritative for which bots and actions they may use.
+  add('general', (p) => p.canManageServer);
+  add('registration', (p) => p.canManageServer);
+  add('invites', (p) => p.canInviteUsers || p.canManageInvites);
+  add('neighbors', (p) => p.canManageNeighbors);
+  add('members', (p) => p.canAdminViewUsers);
+  // A signed-in human can manage an existing bot they own after bot.create is revoked.
   items.push(adminNavItem('bots', serverSegment));
-
-  if (permissions.canManageRooms) {
-    items.push(adminNavItem('rooms', serverSegment));
-  }
-
-  if (permissions.canModerateRooms) {
-    items.push(adminNavItem('moderation', serverSegment));
-  }
-
-  if (permissions.canAdminManageRoles || permissions.canAssignRoles) {
-    items.push(adminNavItem('roles', serverSegment));
-  }
-
-  if (permissions.canAdminManageRoles) {
-    items.push(adminNavItem('permissions', serverSegment));
-  }
-
-  if (permissions.canManageServer) {
-    items.push(adminNavItem('security', serverSegment));
-  }
-
-  if (permissions.canAdminViewAudit) {
-    items.push(adminNavItem('event_log', serverSegment));
-  }
-
-  if (permissions.canManageServer && !limitedFeatures.includes('backgroundJobs')) {
-    items.push({
-      href: resolve('/chat/[serverId]/manage/server/jobs', { serverId: serverSegment }),
-      label: m('chat.management_nav.jobs'),
-      description: m('settings.overview.descriptions.jobs'),
-      icon: 'iconify icon-[uil--process]'
-    });
-  }
-
-  if (permissions.canAdminViewSystem) {
-    items.push(adminNavItem('system', serverSegment));
-  }
-
+  add('rooms', (p) => p.canManageRooms);
+  add('moderation', (p) => p.canModerateRooms);
+  add('roles', (p) => p.canAdminManageRoles || p.canAssignRoles);
+  add('permissions', (p) => p.canAdminManageRoles);
+  add('security', (p) => p.canManageServer);
+  add('event_log', (p) => p.canAdminViewAudit);
+  if (!limitedFeatures.includes('backgroundJobs')) add('jobs', (p) => p.canManageServer);
+  add('system', (p) => p.canAdminViewSystem);
   return items;
 }

@@ -51,6 +51,7 @@ const { mocks } = vi.hoisted(() => ({
     routeId: '/chat/[serverId]/[roomId]',
     servers: null as SvelteMap<string, RegisteredState> | null,
     store: {
+      projection: { viewer: null },
       get checkingPermissions(): boolean {
         return mocks.servers?.get('origin')?.checkingPermissions ?? false;
       },
