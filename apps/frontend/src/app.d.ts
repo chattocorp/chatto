@@ -13,6 +13,8 @@ declare global {
       threadOrder?: 'activity' | 'created';
       welcome?: boolean;
       modal?: ChatModal;
+      /** Single-use reference to this window’s in-memory share. */
+      incomingShare?: string;
     }
     // interface Platform {}
   }

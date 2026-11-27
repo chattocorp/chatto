@@ -74,6 +74,8 @@ sections:
     title: Chatto client SDK
   - path: apps/frontend
     title: Chatto web app
+  - path: apps/frontend/messages
+    title: Translations
   - path: apps/desktop
     title: Chatto Desktop
   - path: apps/mobile

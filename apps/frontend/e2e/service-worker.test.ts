@@ -33,10 +33,12 @@ test('fresh visits do not register an offline shell or precache the build', asyn
   await page.waitForTimeout(8_000);
 
   expect(
-    await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length)
-  ).toBe(0);
+    await page.evaluate(async () =>
+      (await navigator.serviceWorker.getRegistrations()).map((r) => new URL(r.scope).pathname)
+    )
+  ).toEqual(['/share-target/']);
   expect(await page.evaluate(() => caches.keys())).toEqual([]);
-  expect(workerRequests).toEqual([]);
+  expect(workerRequests).toEqual(['/share-target/worker.js']);
   expect(pageErrors).toEqual([]);
 });
 
@@ -73,12 +75,12 @@ test('upgrades remove the root shell and retired caches while preserving scoped 
   await expect
     .poll(() =>
       page.evaluate(async () =>
-        (await navigator.serviceWorker.getRegistrations()).map(
-          (entry) => new URL(entry.scope).pathname
-        )
+        (await navigator.serviceWorker.getRegistrations())
+          .map((entry) => new URL(entry.scope).pathname)
+          .sort()
       )
     )
-    .toEqual(['/__chatto/push/fixture/']);
+    .toEqual(['/__chatto/push/fixture/', '/share-target/']);
 
   // An unregistered worker can still control the current document. A new
   // navigation releases that controller while keeping the scoped push worker.

@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Åpne et utkast i …",
+      "title": "Del til Chatto",
+      "unavailable": "Innholdet er utilgjengelig. Del det på nytt fra den andre appen.",
+      "no_rooms": "Ingen tilgjengelige rom. Logg inn på en server med et rom du kan skrive i."
+    },
     "privileged_mode": {
       "enable": "Aktiver privilegert modus",
       "disable": "Deaktiver privilegert modus",

@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Ava mustand ruumis…",
+      "title": "Chatto kaudu jagamine",
+      "unavailable": "Jagatud sisu pole saadaval. Jagage seda teisest rakendusest uuesti.",
+      "no_rooms": "Ühtegi ruumi pole saadaval. Logige sisse serverisse, kus saate mõnda ruumi postitada."
+    },
     "privileged_mode": {
       "enable": "Lülita privilegeeritud režiim sisse",
       "disable": "Lülita privilegeeritud režiim välja",
