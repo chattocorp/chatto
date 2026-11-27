@@ -88,3 +88,27 @@ test('mute binding follows its trusted document and ignores late releases', () =
   contents.emit('did-start-navigation', { isSameDocument: false, isMainFrame: true });
   assert.equal(callbacks.size, 0);
 });
+
+test('checking a Wayland chord leaves portal registration to the call', () => {
+  const handlers = new Map();
+  const registrations = [];
+  configureMuteShortcut({
+    contents: new EventEmitter(),
+    isTrusted: () => true,
+    wayland: true,
+    ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
+    globalShortcut: {
+      register: (chord) => {
+        registrations.push(chord);
+        return true;
+      },
+      unregister: () => {}
+    }
+  });
+  const available = handlers.get('chatto:mute-shortcut:available');
+  assert.equal(available({}, 'M'), false);
+  assert.equal(available({}, 'Control+Alt+M'), true);
+  assert.deepEqual(registrations, []);
+  assert.equal(handlers.get('chatto:mute-shortcut:set')({}, 'Control+Alt+M', 'call'), true);
+  assert.deepEqual(registrations, ['Control+Alt+M']);
+});

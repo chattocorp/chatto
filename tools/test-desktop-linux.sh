@@ -19,12 +19,12 @@ file -b "${appimages[0]}" | grep -E 'static(-pie|ally) linked'
 # --appimage-extract does not need FUSE or a graphical session.
 cd "$scratch"
 "${appimages[0]}" --appimage-extract > /dev/null
-entry="$scratch/squashfs-root/chatto-desktop.desktop"
+entry="$scratch/squashfs-root/run.chatto.desktop.desktop"
 test -f "$entry"
 grep -Fx 'Name=Chatto' "$entry"
-grep -Fx 'StartupWMClass=chatto-desktop' "$entry"
+grep -Fx 'StartupWMClass=run.chatto.desktop' "$entry"
 grep -Fx 'Icon=chatto-desktop' "$entry"
-grep -Fx 'Exec=AppRun --class=chatto-desktop %U' "$entry"
+grep -Fx 'Exec=AppRun --class=run.chatto.desktop %U' "$entry"
 cmp "$icon" "$scratch/squashfs-root/chatto-desktop.png"
 cmp "$icon" "$scratch/squashfs-root/.DirIcon"
 cmp "$icon" "$bundle/resources/build/icons/icon-512.png"
@@ -41,7 +41,7 @@ const packagerRequire = createRequire(require.resolve('@electron/packager'));
 const { extractFile } = packagerRequire('@electron/asar');
 for (const directory of process.argv.slice(2)) {
   const metadata = JSON.parse(extractFile(path.join(directory, 'resources/app.asar'), 'package.json'));
-  assert.equal(metadata.desktopName, 'chatto-desktop.desktop');
+  assert.equal(metadata.desktopName, 'run.chatto.desktop.desktop');
 }
 JS
 echo 'Linux launcher identity and Chatto icons verified.'

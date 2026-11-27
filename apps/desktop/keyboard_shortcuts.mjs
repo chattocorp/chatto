@@ -17,7 +17,7 @@ export function protectReloadShortcuts(webContents, production) {
 }
 
 /** Hold at most one OS binding. Renderer loss and document navigation release it. */
-export function configureMuteShortcut({ ipcMain, globalShortcut, contents, isTrusted }) {
+export function configureMuteShortcut({ ipcMain, globalShortcut, contents, isTrusted, wayland }) {
   const validChord =
     /^(?=CommandOrControl\+|Control\+|Super\+|Alt\+)(?:CommandOrControl\+|(?:Control\+)?(?:Super\+)?)?(?:Alt\+)?(?:Shift\+)?(?:[A-Z0-9/,]|Space|Enter|Up|Down|Left|Right|F(?:[1-9]|1[0-2]))$/;
   let registered;
@@ -31,7 +31,9 @@ export function configureMuteShortcut({ ipcMain, globalShortcut, contents, isTru
   // Check a proposed binding at edit time, even outside a call.
   ipcMain.handle('chatto:mute-shortcut:available', (event, chord) => {
     if (!isTrusted(event) || typeof chord !== 'string' || !validChord.test(chord)) return false;
-    if (registered === chord) return true;
+    // Wayland portal requests finish asynchronously. A temporary registration
+    // can prompt for consent or race the call's real registration.
+    if (wayland || registered === chord) return true;
     try {
       if (!globalShortcut.register(chord, () => {})) return false;
       globalShortcut.unregister(chord);

@@ -142,6 +142,12 @@ The AppImage uses FUSE to mount and runs without the host `libfuse2` library.
 Choose `Linux_X64` for x64 systems or `Linux_ARM64` for 64-bit ARM systems.
 Build the AppImage on a Linux host with the same architecture as the bundle.
 
+On Wayland, the system-wide mute shortcut uses the Global Shortcuts portal.
+Install the AppImage launcher as `run.chatto.desktop.desktop` so the portal
+can identify Chatto. The desktop environment can ask you to approve or assign
+the shortcut when you first use it in a call. For an extracted tarball, use the same desktop entry
+filename and point its `Exec` field at the extracted `chatto-desktop` executable.
+
 ### Linux screen sharing
 
 On Wayland, the system screen-sharing portal selects the screen or window.

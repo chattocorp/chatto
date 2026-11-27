@@ -57,7 +57,7 @@ import { configureScreenSharing } from './screen_sharing.mjs';
 const buildProfile = desktopBuildProfile(packageJson.chattoBuildVariant);
 app.setName(buildProfile.productName);
 // Match the Linux launcher on Wayland and X11, including direct tarball launches.
-if (process.platform === 'linux') app.setDesktopName(`${buildProfile.packageName}.desktop`);
+if (process.platform === 'linux') app.setDesktopName(packageJson.desktopName);
 // Source launches can isolate their sessions and single-instance lock per worktree.
 const devProfile = !app.isPackaged && process.env.CHATTO_DESKTOP_DEV_PROFILE;
 app.setPath(
@@ -179,7 +179,10 @@ async function start() {
     ipcMain,
     globalShortcut,
     contents: mainWindow.webContents,
-    isTrusted: isTrustedMainRenderer
+    isTrusted: isTrustedMainRenderer,
+    wayland:
+      process.platform === 'linux' &&
+      (process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY)
   });
   const background = configureBackgroundWindow({
     app,
