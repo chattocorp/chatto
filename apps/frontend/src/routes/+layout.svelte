@@ -15,6 +15,7 @@
   import { page } from '$app/state';
   import { getAllContexts, onDestroy, onMount } from 'svelte';
   import { enhanceEntityLinks } from '$lib/components/messages/enhanceEntityLinks';
+  import { discardOtherShares } from '$lib/pwa/incomingShare';
   import { retireOfflineShell } from '$lib/pwa/retireOfflineShell';
   import { onNotificationClick } from '$lib/notifications/notificationClick';
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
@@ -53,6 +54,9 @@
   onMount(() => {
     // Best effort: blocked storage or an unavailable update must not stop startup.
     // Each visit retries cleanup; fresh browsers never register a root worker.
+    if ('serviceWorker' in navigator) {
+      void navigator.serviceWorker.register('/share-target/worker.js').catch(() => {});
+    }
     void retireOfflineShell().catch(() => {});
   });
 
@@ -154,6 +158,7 @@
 
   $effect(() => sidebarNav.initViewportTracking());
   afterNavigate(async ({ from, to }) => {
+    discardOtherShares(page.state.incomingShare);
     if (to?.route.id?.startsWith('/chat/[serverId]/user/[userId]') && page.params.userId)
       recentQuickSwitcher.record(userPath(activeServerId, page.params.userId));
     // The room can mount after this event while the server completes its snapshot.
@@ -179,7 +184,7 @@
   onresize={() => appUi.loadVisibleRoomMembers()}
 />
 
-{#if !standaloneOAuth}
+{#if !standaloneOAuth && page.route.id !== '/share'}
   <GlobalKeyboardShortcuts />
 {/if}
 <InputModalityTracker />
@@ -188,7 +193,15 @@
 <NotificationSync />
 <UpdateNotifier />
 
-{#if standaloneOAuth}
+{#if page.route.id === '/share'}
+  <div
+    {@attach initialPageReveal}
+    {@attach watchMotionPreference}
+    class="h-full overflow-y-auto overscroll-contain bg-background pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+  >
+    {@render children?.()}
+  </div>
+{:else if standaloneOAuth}
   <div
     {@attach initialPageReveal}
     {@attach watchMotionPreference}

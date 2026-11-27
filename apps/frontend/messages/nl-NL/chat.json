@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Concept openen in…",
+      "title": "Delen met Chatto",
+      "unavailable": "Deze inhoud is niet beschikbaar. Deel deze opnieuw vanuit de andere app.",
+      "no_rooms": "Geen kamers beschikbaar. Meld je aan bij een server met een kamer waarin je berichten kunt plaatsen."
+    },
     "privileged_mode": {
       "enable": "Bevoorrechte modus inschakelen",
       "disable": "Bevoorrechte modus uitschakelen",
