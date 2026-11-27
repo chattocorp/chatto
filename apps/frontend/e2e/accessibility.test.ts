@@ -1,3 +1,4 @@
+import { roomHeaderAction } from './pages/RoomPage';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { test, expect } from './setup';
@@ -487,10 +488,7 @@ test.describe('Call accessibility', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
-    await page
-      .locator('[data-testid="room-sidebar-toggle"]:visible')
-      .getByLabel('Call', { exact: true })
-      .click();
+    await (await roomHeaderAction(page, 'Call')).click();
     await expect(page.getByTestId('call-join-button')).toBeVisible();
     await settle(page);
     await expectNoAccessibilityViolations(page, 'call panel');

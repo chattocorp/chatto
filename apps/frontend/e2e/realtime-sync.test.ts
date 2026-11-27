@@ -1,3 +1,4 @@
+import { roomHeaderAction } from './pages/RoomPage';
 import { expect } from '@playwright/test';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import { createAndLoginTestUser } from './fixtures/testUser';
@@ -80,7 +81,7 @@ test.describe('Real-time synchronization', () => {
         });
 
         // User 2: Leave the room
-        await page2.getByTitle('Leave room').click();
+        await (await roomHeaderAction(page2, 'Leave room')).click();
         await page2.getByRole('dialog').getByRole('button', { name: 'Leave room' }).click();
 
         // User 1 should see User 2's leave event in the room
@@ -108,7 +109,7 @@ test.describe('Real-time synchronization', () => {
     await expect(chatPage.roomList.getByText(`# ${testRoomName}`)).toBeVisible();
 
     // Leave the room so we can test joining it
-    await page.getByTitle('Leave room').click();
+    await (await roomHeaderAction(page, 'Leave room')).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Leave room' }).click();
 
     // After leaving, room should NOT be in the room list
