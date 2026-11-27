@@ -2,4 +2,4 @@
 type: highlight
 ---
 
-The server Overview now shows the server's welcome message, active calls, and the rooms that you have not read, next to the room directory.
+The server Overview is now a home page for the server, with its welcome message, active calls, the rooms and direct messages that need your attention, and a refreshed room directory.
