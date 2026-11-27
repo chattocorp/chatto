@@ -1,19 +1,42 @@
 syntax = "proto3";
 package chatto.core.runtime_state.v1;
 
+import "google/protobuf/duration.proto";
+
 option go_package = "github.com/chattocorp/chatto/cli/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
 
 // EmailDelivery is encrypted before storage in the expiring runtime record.
+// It holds what the email says, not its wording or layout. The worker renders
+// the email with the current templates and server branding when it sends it.
 message EmailDelivery {
+  reserved 4, 5;
+  reserved "html_body", "from_name";
+
   string to = 1;
+  // Rendered subject of a record from a version before `content`. Current
+  // versions do not write it. The worker sends such a record as plain text.
   string subject = 2;
-  // Plain-text body.
+  // Rendered plain-text body of a record from a version before `content`.
   string body = 3;
-  // Optional HTML alternative to body. Records from older servers omit it and
-  // are sent as plain text.
-  string html_body = 4;
-  // Optional sender display name, used when the configured sender has none.
-  string from_name = 5;
+
+  oneof content {
+    EmailCode registration_code = 6;
+    EmailCode email_verification_code = 7;
+    PasswordResetEmail password_reset = 8;
+  }
+}
+
+// EmailCode is a one-time code and its lifetime, which the email shows.
+message EmailCode {
+  string code = 1;
+  google.protobuf.Duration ttl = 2;
+}
+
+// PasswordResetEmail is a password reset token and its lifetime. The worker
+// builds the reset link from the public web server URL.
+message PasswordResetEmail {
+  string token = 1;
+  google.protobuf.Duration ttl = 2;
 }
 
 // SealedEmailDelivery binds ciphertext to its runtime key through associated data.

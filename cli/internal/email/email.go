@@ -23,11 +23,9 @@ var ErrEmailDisabled = errors.New("email delivery is not enabled")
 // ErrSMTPDisabled is retained for compatibility with SMTP sender callers.
 var ErrSMTPDisabled = ErrEmailDisabled
 
-// Message represents an email message to be sent.
+// Message is a rendered email that a transport sends.
 type Message struct {
-	// ExpiresAt is the last time a queued message may be delivered.
-	ExpiresAt time.Time
-	To        string
+	To string
 	// FromName is the display name for the sender. Transports use it only when
 	// the configured sender address has no display name.
 	FromName string
@@ -36,6 +34,22 @@ type Message struct {
 	Body string
 	// HTMLBody is an optional HTML alternative to Body.
 	HTMLBody string
+}
+
+// Delivery is a transactional email that the queue accepts.
+type Delivery struct {
+	To      string
+	Content Content
+	// ExpiresAt is the last time the email may be sent, normally the expiry of
+	// the code or link that it carries.
+	ExpiresAt time.Time
+}
+
+// Queue accepts transactional email for asynchronous delivery. A nil error
+// means that the queue stored the email, not that a transport sent it.
+type Queue interface {
+	Enqueue(ctx context.Context, delivery Delivery) error
+	IsEnabled() bool
 }
 
 // Sender is the interface for sending emails. Implemented by Mailer.

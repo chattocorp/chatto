@@ -2,7 +2,6 @@ package http_server
 
 import (
 	"errors"
-	"fmt"
 	"mime"
 	"net/http"
 	"regexp"
@@ -85,18 +84,26 @@ func (s *HTTPServer) requireBrowserAuthenticationRequest(c *gin.Context) {
 	}
 }
 
-func (s *HTTPServer) authServerName() string {
-	if s.core != nil && s.core.ConfigModel() != nil {
-		if name := s.core.ConfigModel().GetEffectiveServerName(); strings.TrimSpace(name) != "" {
+func (s *HTTPServer) authServerName() string { return serverDisplayName(s.core) }
+
+// serverDisplayName returns the effective server name, or "Chatto" when the
+// server has none.
+func serverDisplayName(c *core.ChattoCore) string {
+	if c != nil && c.ConfigModel() != nil {
+		if name := c.ConfigModel().GetEffectiveServerName(); strings.TrimSpace(name) != "" {
 			return name
 		}
 	}
 	return "Chatto"
 }
 
-// emailBranding identifies this server in transactional email.
-func (s *HTTPServer) emailBranding() email.Branding {
-	return email.Branding{ServerName: s.authServerName(), ServerURL: s.config.Webserver.URL}
+// emailBranding returns the branding that the email queue uses when it renders
+// an email. It reads the server name at that time, so a renamed server sends
+// queued email with its new name.
+func emailBranding(c *core.ChattoCore, serverURL string) func() email.Branding {
+	return func() email.Branding {
+		return email.Branding{ServerName: serverDisplayName(c), ServerURL: serverURL}
+	}
 }
 
 func (s *HTTPServer) setupAuthRoutes() {
@@ -576,10 +583,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Send registration email
-		msg, err := email.RegistrationCode(s.emailBranding(), req.Email, code, s.config.Auth.EmailOTP.TTLOrDefault(), expiresAt)
-		if err == nil {
-			err = s.mailer.SendContext(c.Request.Context(), msg)
-		}
+		err = s.mailer.Enqueue(c.Request.Context(), email.Delivery{
+			To:        req.Email,
+			Content:   email.RegistrationCode{Code: code, TTL: s.config.Auth.EmailOTP.TTLOrDefault()},
+			ExpiresAt: expiresAt,
+		})
 		if err != nil {
 			log.Error("Failed to send registration email", "error", err)
 			if cancelErr := s.core.CancelRegistrationCode(ctx, req.Email, code); cancelErr != nil {
@@ -819,11 +827,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
 			return
 		}
-		msg, err := email.EmailVerificationCode(s.emailBranding(), body.Email, code, s.config.Auth.EmailOTP.TTLOrDefault(), expiresAt)
-		if err == nil {
-			err = s.mailer.SendContext(c.Request.Context(), msg)
-		}
-		if err != nil {
+		if err := s.mailer.Enqueue(c.Request.Context(), email.Delivery{
+			To:        body.Email,
+			Content:   email.EmailVerificationCode{Code: code, TTL: s.config.Auth.EmailOTP.TTLOrDefault()},
+			ExpiresAt: expiresAt,
+		}); err != nil {
 			log.Error("Failed to send email verification code", "userId", user.Id, "error", err)
 			if cancelErr := s.core.CancelEmailVerificationCode(req.Context(), user.Id, body.Email, code); cancelErr != nil {
 				log.Warn("Failed to cancel undelivered email verification code", "userId", user.Id, "error", cancelErr)
@@ -910,12 +918,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		// Only send email if token was created (email exists and is verified)
 		if token != "" && s.mailer != nil {
-			resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.config.Webserver.URL, token)
-			var msg email.Message
-			msg, err = email.PasswordReset(s.emailBranding(), normalizedEmail, resetURL, core.PasswordResetTokenTTL, expiresAt)
-			if err == nil {
-				err = s.mailer.SendContext(c.Request.Context(), msg)
-			}
+			err = s.mailer.Enqueue(c.Request.Context(), email.Delivery{
+				To:        normalizedEmail,
+				Content:   email.PasswordReset{Token: token, TTL: core.PasswordResetTokenTTL},
+				ExpiresAt: expiresAt,
+			})
 			if err != nil {
 				log.Error("Failed to send password reset email", "error", err)
 				if cancelErr := s.core.CancelPasswordResetToken(ctx, token); cancelErr != nil {

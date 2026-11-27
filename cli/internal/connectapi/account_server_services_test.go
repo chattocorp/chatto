@@ -767,7 +767,7 @@ func TestMyAccountServiceManagesVerifiedEmails(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	mailer := email.NewMockSender(true)
-	env.api.emailSender = mailer
+	env.api.emailQueue = mailer
 
 	// The account requests a code through the authenticated API. The address is
 	// not verified until the code delivered by the configured sender is confirmed.
@@ -836,7 +836,7 @@ func TestMyAccountServiceBindsVerifiedEmailRequestsToExpectedUser(t *testing.T) 
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	mailer := email.NewMockSender(true)
-	env.api.emailSender = mailer
+	env.api.emailQueue = mailer
 	otherUserID := "U-another-account"
 
 	if _, err := env.account.ListVerifiedEmails(ctx, connect.NewRequest(&apiv1.ListVerifiedEmailsRequest{

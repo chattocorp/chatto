@@ -10,6 +10,7 @@ Chatto sends transactional email for account registration, email-address verific
 ## Behavior
 
 - Each message has a plain-text part and an HTML alternative. Both come from one shared layout in `cli/internal/email/templates/`. The HTML uses tables and inline styles only. It loads no images, fonts, or other remote resources, so opening the message does not reveal the recipient's IP address.
+- The queue stores what an email says (the code or reset token and its lifetime), not the rendered message. The worker renders the email when it sends it, with the current templates, server name, and web server URL. A server renamed while an email waits sends it with the new name.
 - A one-time code is in the subject line (`123456 is your code for <server>`), so the recipient can read it in a notification. A password reset email has a button and the full link as text.
 - The footer shows the host of the public web server URL, so the recipient can identify the server that sent the message.
 - When the configured sender address has no display name, Chatto uses the server name as the display name. A configured display name always applies.
@@ -56,6 +57,12 @@ Chatto sends transactional email for account registration, email-address verific
 **Decision:** Every message has a plain-text part. The HTML part is a `multipart/alternative` addition. The HTML uses the default accent of the bundled frontend, which the layout receives as a parameter. Servers do not have their own accent color yet.
 **Why:** Formatted email is easier to read and act on, but some recipients read only plain text, and some tests and tools read the plain-text part. Remote images or fonts would tell a third party, or the server, when and from which IP address a recipient opened the message.
 **Tradeoff:** The layout shows the server name as text, not a logo. Email clients render the same HTML differently, so the layout uses only simple, widely supported markup.
+
+### 6. Render when the email is sent
+
+**Decision:** The queue stores the content of an email (recipient, code or reset token, lifetime) and renders it in the job worker.
+**Why:** The stored record holds a credential. It should contain only that credential and the data needed to send it, not several kilobytes of rendered text and HTML. A small record also keeps wording and layout out of storage, so template changes and later translations apply to every email that is still waiting.
+**Tradeoff:** The worker needs the server branding. The HTTP runtime supplies it when it creates the queue. A record from an older version, which holds a rendered message, is sent as plain text.
 
 ## Related
 

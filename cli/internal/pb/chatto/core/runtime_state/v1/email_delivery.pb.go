@@ -9,6 +9,7 @@ package runtimestatev1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -22,17 +23,22 @@ const (
 )
 
 // EmailDelivery is encrypted before storage in the expiring runtime record.
+// It holds what the email says, not its wording or layout. The worker renders
+// the email with the current templates and server branding when it sends it.
 type EmailDelivery struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	To      string                 `protobuf:"bytes,1,opt,name=to,proto3" json:"to,omitempty"`
-	Subject string                 `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
-	// Plain-text body.
+	state protoimpl.MessageState `protogen:"open.v1"`
+	To    string                 `protobuf:"bytes,1,opt,name=to,proto3" json:"to,omitempty"`
+	// Rendered subject of a record from a version before `content`. Current
+	// versions do not write it. The worker sends such a record as plain text.
+	Subject string `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
+	// Rendered plain-text body of a record from a version before `content`.
 	Body string `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
-	// Optional HTML alternative to body. Records from older servers omit it and
-	// are sent as plain text.
-	HtmlBody string `protobuf:"bytes,4,opt,name=html_body,json=htmlBody,proto3" json:"html_body,omitempty"`
-	// Optional sender display name, used when the configured sender has none.
-	FromName      string `protobuf:"bytes,5,opt,name=from_name,json=fromName,proto3" json:"from_name,omitempty"`
+	// Types that are valid to be assigned to Content:
+	//
+	//	*EmailDelivery_RegistrationCode
+	//	*EmailDelivery_EmailVerificationCode
+	//	*EmailDelivery_PasswordReset
+	Content       isEmailDelivery_Content `protobuf_oneof:"content"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -88,18 +94,167 @@ func (x *EmailDelivery) GetBody() string {
 	return ""
 }
 
-func (x *EmailDelivery) GetHtmlBody() string {
+func (x *EmailDelivery) GetContent() isEmailDelivery_Content {
 	if x != nil {
-		return x.HtmlBody
+		return x.Content
+	}
+	return nil
+}
+
+func (x *EmailDelivery) GetRegistrationCode() *EmailCode {
+	if x != nil {
+		if x, ok := x.Content.(*EmailDelivery_RegistrationCode); ok {
+			return x.RegistrationCode
+		}
+	}
+	return nil
+}
+
+func (x *EmailDelivery) GetEmailVerificationCode() *EmailCode {
+	if x != nil {
+		if x, ok := x.Content.(*EmailDelivery_EmailVerificationCode); ok {
+			return x.EmailVerificationCode
+		}
+	}
+	return nil
+}
+
+func (x *EmailDelivery) GetPasswordReset() *PasswordResetEmail {
+	if x != nil {
+		if x, ok := x.Content.(*EmailDelivery_PasswordReset); ok {
+			return x.PasswordReset
+		}
+	}
+	return nil
+}
+
+type isEmailDelivery_Content interface {
+	isEmailDelivery_Content()
+}
+
+type EmailDelivery_RegistrationCode struct {
+	RegistrationCode *EmailCode `protobuf:"bytes,6,opt,name=registration_code,json=registrationCode,proto3,oneof"`
+}
+
+type EmailDelivery_EmailVerificationCode struct {
+	EmailVerificationCode *EmailCode `protobuf:"bytes,7,opt,name=email_verification_code,json=emailVerificationCode,proto3,oneof"`
+}
+
+type EmailDelivery_PasswordReset struct {
+	PasswordReset *PasswordResetEmail `protobuf:"bytes,8,opt,name=password_reset,json=passwordReset,proto3,oneof"`
+}
+
+func (*EmailDelivery_RegistrationCode) isEmailDelivery_Content() {}
+
+func (*EmailDelivery_EmailVerificationCode) isEmailDelivery_Content() {}
+
+func (*EmailDelivery_PasswordReset) isEmailDelivery_Content() {}
+
+// EmailCode is a one-time code and its lifetime, which the email shows.
+type EmailCode struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Ttl           *durationpb.Duration   `protobuf:"bytes,2,opt,name=ttl,proto3" json:"ttl,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EmailCode) Reset() {
+	*x = EmailCode{}
+	mi := &file_chatto_core_runtime_state_v1_email_delivery_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EmailCode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EmailCode) ProtoMessage() {}
+
+func (x *EmailCode) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_runtime_state_v1_email_delivery_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EmailCode.ProtoReflect.Descriptor instead.
+func (*EmailCode) Descriptor() ([]byte, []int) {
+	return file_chatto_core_runtime_state_v1_email_delivery_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *EmailCode) GetCode() string {
+	if x != nil {
+		return x.Code
 	}
 	return ""
 }
 
-func (x *EmailDelivery) GetFromName() string {
+func (x *EmailCode) GetTtl() *durationpb.Duration {
 	if x != nil {
-		return x.FromName
+		return x.Ttl
+	}
+	return nil
+}
+
+// PasswordResetEmail is a password reset token and its lifetime. The worker
+// builds the reset link from the public web server URL.
+type PasswordResetEmail struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	Ttl           *durationpb.Duration   `protobuf:"bytes,2,opt,name=ttl,proto3" json:"ttl,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PasswordResetEmail) Reset() {
+	*x = PasswordResetEmail{}
+	mi := &file_chatto_core_runtime_state_v1_email_delivery_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PasswordResetEmail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PasswordResetEmail) ProtoMessage() {}
+
+func (x *PasswordResetEmail) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_runtime_state_v1_email_delivery_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PasswordResetEmail.ProtoReflect.Descriptor instead.
+func (*PasswordResetEmail) Descriptor() ([]byte, []int) {
+	return file_chatto_core_runtime_state_v1_email_delivery_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *PasswordResetEmail) GetToken() string {
+	if x != nil {
+		return x.Token
 	}
 	return ""
+}
+
+func (x *PasswordResetEmail) GetTtl() *durationpb.Duration {
+	if x != nil {
+		return x.Ttl
+	}
+	return nil
 }
 
 // SealedEmailDelivery binds ciphertext to its runtime key through associated data.
@@ -113,7 +268,7 @@ type SealedEmailDelivery struct {
 
 func (x *SealedEmailDelivery) Reset() {
 	*x = SealedEmailDelivery{}
-	mi := &file_chatto_core_runtime_state_v1_email_delivery_proto_msgTypes[1]
+	mi := &file_chatto_core_runtime_state_v1_email_delivery_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -125,7 +280,7 @@ func (x *SealedEmailDelivery) String() string {
 func (*SealedEmailDelivery) ProtoMessage() {}
 
 func (x *SealedEmailDelivery) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_runtime_state_v1_email_delivery_proto_msgTypes[1]
+	mi := &file_chatto_core_runtime_state_v1_email_delivery_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -138,7 +293,7 @@ func (x *SealedEmailDelivery) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SealedEmailDelivery.ProtoReflect.Descriptor instead.
 func (*SealedEmailDelivery) Descriptor() ([]byte, []int) {
-	return file_chatto_core_runtime_state_v1_email_delivery_proto_rawDescGZIP(), []int{1}
+	return file_chatto_core_runtime_state_v1_email_delivery_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SealedEmailDelivery) GetNonce() []byte {
@@ -159,13 +314,21 @@ var File_chatto_core_runtime_state_v1_email_delivery_proto protoreflect.FileDesc
 
 const file_chatto_core_runtime_state_v1_email_delivery_proto_rawDesc = "" +
 	"\n" +
-	"1chatto/core/runtime_state/v1/email_delivery.proto\x12\x1cchatto.core.runtime_state.v1\"\x87\x01\n" +
+	"1chatto/core/runtime_state/v1/email_delivery.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1egoogle/protobuf/duration.proto\"\x90\x03\n" +
 	"\rEmailDelivery\x12\x0e\n" +
 	"\x02to\x18\x01 \x01(\tR\x02to\x12\x18\n" +
 	"\asubject\x18\x02 \x01(\tR\asubject\x12\x12\n" +
-	"\x04body\x18\x03 \x01(\tR\x04body\x12\x1b\n" +
-	"\thtml_body\x18\x04 \x01(\tR\bhtmlBody\x12\x1b\n" +
-	"\tfrom_name\x18\x05 \x01(\tR\bfromName\"K\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x12V\n" +
+	"\x11registration_code\x18\x06 \x01(\v2'.chatto.core.runtime_state.v1.EmailCodeH\x00R\x10registrationCode\x12a\n" +
+	"\x17email_verification_code\x18\a \x01(\v2'.chatto.core.runtime_state.v1.EmailCodeH\x00R\x15emailVerificationCode\x12Y\n" +
+	"\x0epassword_reset\x18\b \x01(\v20.chatto.core.runtime_state.v1.PasswordResetEmailH\x00R\rpasswordResetB\t\n" +
+	"\acontentJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\thtml_bodyR\tfrom_name\"L\n" +
+	"\tEmailCode\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12+\n" +
+	"\x03ttl\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x03ttl\"W\n" +
+	"\x12PasswordResetEmail\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12+\n" +
+	"\x03ttl\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x03ttl\"K\n" +
 	"\x13SealedEmailDelivery\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\fR\x05nonce\x12\x1e\n" +
 	"\n" +
@@ -185,17 +348,25 @@ func file_chatto_core_runtime_state_v1_email_delivery_proto_rawDescGZIP() []byte
 	return file_chatto_core_runtime_state_v1_email_delivery_proto_rawDescData
 }
 
-var file_chatto_core_runtime_state_v1_email_delivery_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_core_runtime_state_v1_email_delivery_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_chatto_core_runtime_state_v1_email_delivery_proto_goTypes = []any{
 	(*EmailDelivery)(nil),       // 0: chatto.core.runtime_state.v1.EmailDelivery
-	(*SealedEmailDelivery)(nil), // 1: chatto.core.runtime_state.v1.SealedEmailDelivery
+	(*EmailCode)(nil),           // 1: chatto.core.runtime_state.v1.EmailCode
+	(*PasswordResetEmail)(nil),  // 2: chatto.core.runtime_state.v1.PasswordResetEmail
+	(*SealedEmailDelivery)(nil), // 3: chatto.core.runtime_state.v1.SealedEmailDelivery
+	(*durationpb.Duration)(nil), // 4: google.protobuf.Duration
 }
 var file_chatto_core_runtime_state_v1_email_delivery_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	1, // 0: chatto.core.runtime_state.v1.EmailDelivery.registration_code:type_name -> chatto.core.runtime_state.v1.EmailCode
+	1, // 1: chatto.core.runtime_state.v1.EmailDelivery.email_verification_code:type_name -> chatto.core.runtime_state.v1.EmailCode
+	2, // 2: chatto.core.runtime_state.v1.EmailDelivery.password_reset:type_name -> chatto.core.runtime_state.v1.PasswordResetEmail
+	4, // 3: chatto.core.runtime_state.v1.EmailCode.ttl:type_name -> google.protobuf.Duration
+	4, // 4: chatto.core.runtime_state.v1.PasswordResetEmail.ttl:type_name -> google.protobuf.Duration
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_runtime_state_v1_email_delivery_proto_init() }
@@ -203,13 +374,18 @@ func file_chatto_core_runtime_state_v1_email_delivery_proto_init() {
 	if File_chatto_core_runtime_state_v1_email_delivery_proto != nil {
 		return
 	}
+	file_chatto_core_runtime_state_v1_email_delivery_proto_msgTypes[0].OneofWrappers = []any{
+		(*EmailDelivery_RegistrationCode)(nil),
+		(*EmailDelivery_EmailVerificationCode)(nil),
+		(*EmailDelivery_PasswordReset)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_runtime_state_v1_email_delivery_proto_rawDesc), len(file_chatto_core_runtime_state_v1_email_delivery_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

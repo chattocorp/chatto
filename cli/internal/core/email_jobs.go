@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/chattocorp/chatto/cli/internal/email"
@@ -15,28 +16,33 @@ import (
 	"github.com/chattocorp/chatto/pkg/jobs"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 const jobTypeEmail = "email"
 
-// EmailJobs stores encrypted, expiring messages and runs the email job worker.
-// SendContext confirms durable queue acceptance, not transport delivery. A crash
-// after transport acceptance can cause duplicate delivery.
+// EmailJobs stores encrypted, expiring email content and runs the email job
+// worker. It stores what an email says, not the rendered message: the worker
+// renders it with the branding of the time of sending. Enqueue confirms durable
+// queue acceptance, not transport delivery. A crash after transport acceptance
+// can cause duplicate delivery.
 type EmailJobs struct {
-	core   *ChattoCore
-	sender email.Sender
+	core     *ChattoCore
+	sender   email.Sender
+	branding func() email.Branding
 }
 
-// NewEmailJobs binds the HTTP runtime's transport to the core-owned queue.
-func (c *ChattoCore) NewEmailJobs(sender email.Sender) *EmailJobs {
-	return &EmailJobs{core: c, sender: sender}
+// Verify EmailJobs implements email.Queue at compile time.
+var _ email.Queue = (*EmailJobs)(nil)
+
+// NewEmailJobs binds the HTTP runtime's transport and branding to the
+// core-owned queue. The worker calls branding for each email it renders.
+func (c *ChattoCore) NewEmailJobs(sender email.Sender, branding func() email.Branding) *EmailJobs {
+	return &EmailJobs{core: c, sender: sender, branding: branding}
 }
 
 // IsEnabled reports whether the configured transport can accept mail.
 func (m *EmailJobs) IsEnabled() bool { return m.sender.IsEnabled() }
-
-// Send accepts a message without a request cancellation context.
-func (m *EmailJobs) Send(msg email.Message) error { return m.SendContext(context.Background(), msg) }
 
 func emailDeliveryKey(id string) string { return "email_delivery." + id }
 func (m *EmailJobs) key() []byte {
@@ -45,14 +51,18 @@ func (m *EmailJobs) key() []byte {
 	return mac.Sum(nil)
 }
 
-// SendContext encrypts content before publishing a job with only an opaque ID.
+// Enqueue encrypts content before publishing a job with only an opaque ID.
 // A failed or ambiguous handoff leaves at most an expiring encrypted record.
-func (m *EmailJobs) SendContext(ctx context.Context, msg email.Message) error {
+func (m *EmailJobs) Enqueue(ctx context.Context, delivery email.Delivery) error {
 	if !m.IsEnabled() {
 		return email.ErrEmailDisabled
 	}
-	if !msg.ExpiresAt.After(time.Now()) {
+	if !delivery.ExpiresAt.After(time.Now()) {
 		return errors.New("email delivery deadline required")
+	}
+	record, err := emailDeliveryRecord(delivery)
+	if err != nil {
+		return err
 	}
 	idBytes := make([]byte, 24)
 	if _, err := rand.Read(idBytes); err != nil {
@@ -60,7 +70,7 @@ func (m *EmailJobs) SendContext(ctx context.Context, msg email.Message) error {
 	}
 	id := hex.EncodeToString(idBytes)
 	key := emailDeliveryKey(id)
-	plain, err := proto.Marshal(&runtimestatev1.EmailDelivery{To: msg.To, FromName: msg.FromName, Subject: msg.Subject, Body: msg.Body, HtmlBody: msg.HTMLBody})
+	plain, err := proto.Marshal(record)
 	if err != nil {
 		return err
 	}
@@ -73,10 +83,10 @@ func (m *EmailJobs) SendContext(ctx context.Context, msg email.Message) error {
 	if err != nil {
 		return err
 	}
-	if _, err := m.core.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(time.Until(msg.ExpiresAt))); err != nil {
+	if _, err := m.core.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(time.Until(delivery.ExpiresAt))); err != nil {
 		return err
 	}
-	return m.core.jobs.Enqueue(ctx, jobs.Spec{ID: id, Type: jobTypeEmail, MaxAttempts: jobs.UnlimitedAttempts, RetryDelay: 5 * time.Second, ExpiresAt: msg.ExpiresAt})
+	return m.core.jobs.Enqueue(ctx, jobs.Spec{ID: id, Type: jobTypeEmail, MaxAttempts: jobs.UnlimitedAttempts, RetryDelay: 5 * time.Second, ExpiresAt: delivery.ExpiresAt})
 }
 
 // Run owns a bounded worker pool. Shutdown cancels transport calls and leaves
@@ -111,15 +121,19 @@ func (m *EmailJobs) deliver(ctx context.Context, job jobs.Job) error {
 		return &jobs.Failure{Category: "content_unavailable"}
 	}
 	defer clear(plain)
-	message := new(runtimestatev1.EmailDelivery)
-	if err := proto.Unmarshal(plain, message); err != nil {
+	record := new(runtimestatev1.EmailDelivery)
+	if err := proto.Unmarshal(plain, record); err != nil {
+		return &jobs.Failure{Category: "invalid_content", Permanent: true}
+	}
+	message, err := m.render(record)
+	if err != nil {
 		return &jobs.Failure{Category: "invalid_content", Permanent: true}
 	}
 	ctx, cancelAttempt := context.WithTimeout(ctx, 30*time.Second)
 	defer cancelAttempt()
 	attemptCtx, cancel := context.WithDeadline(ctx, job.ExpiresAt)
 	defer cancel()
-	if err := m.sender.SendContext(attemptCtx, email.Message{To: message.To, FromName: message.FromName, Subject: message.Subject, Body: message.Body, HTMLBody: message.HtmlBody}); err != nil {
+	if err := m.sender.SendContext(attemptCtx, message); err != nil {
 		return &jobs.Failure{Category: "delivery_failed"}
 	}
 	// Transport acceptance must survive normal shutdown or an attempt timeout.
@@ -128,4 +142,41 @@ func (m *EmailJobs) deliver(ctx context.Context, job jobs.Job) error {
 	cleanupCtx, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancelCleanup()
 	return m.core.storage.runtimeStateKV.Delete(cleanupCtx, key, jetstream.LastRevision(entry.Revision()))
+}
+
+// emailDeliveryRecord converts accepted content to its stored form.
+func emailDeliveryRecord(delivery email.Delivery) (*runtimestatev1.EmailDelivery, error) {
+	record := &runtimestatev1.EmailDelivery{To: delivery.To}
+	switch content := delivery.Content.(type) {
+	case email.RegistrationCode:
+		record.Content = &runtimestatev1.EmailDelivery_RegistrationCode{RegistrationCode: &runtimestatev1.EmailCode{Code: content.Code, Ttl: durationpb.New(content.TTL)}}
+	case email.EmailVerificationCode:
+		record.Content = &runtimestatev1.EmailDelivery_EmailVerificationCode{EmailVerificationCode: &runtimestatev1.EmailCode{Code: content.Code, Ttl: durationpb.New(content.TTL)}}
+	case email.PasswordReset:
+		record.Content = &runtimestatev1.EmailDelivery_PasswordReset{PasswordReset: &runtimestatev1.PasswordResetEmail{Token: content.Token, Ttl: durationpb.New(content.TTL)}}
+	default:
+		return nil, fmt.Errorf("unsupported email content %T", delivery.Content)
+	}
+	return record, nil
+}
+
+// render builds the message for a stored record with the current branding.
+// A record from a version before content holds a rendered plain-text email,
+// which is sent as it is.
+func (m *EmailJobs) render(record *runtimestatev1.EmailDelivery) (email.Message, error) {
+	var content email.Content
+	switch stored := record.Content.(type) {
+	case *runtimestatev1.EmailDelivery_RegistrationCode:
+		content = email.RegistrationCode{Code: stored.RegistrationCode.GetCode(), TTL: stored.RegistrationCode.GetTtl().AsDuration()}
+	case *runtimestatev1.EmailDelivery_EmailVerificationCode:
+		content = email.EmailVerificationCode{Code: stored.EmailVerificationCode.GetCode(), TTL: stored.EmailVerificationCode.GetTtl().AsDuration()}
+	case *runtimestatev1.EmailDelivery_PasswordReset:
+		content = email.PasswordReset{Token: stored.PasswordReset.GetToken(), TTL: stored.PasswordReset.GetTtl().AsDuration()}
+	default:
+		if record.GetBody() == "" {
+			return email.Message{}, errors.New("email record has no content")
+		}
+		return email.Message{To: record.GetTo(), Subject: record.GetSubject(), Body: record.GetBody()}, nil
+	}
+	return email.Render(m.branding(), record.GetTo(), content)
 }

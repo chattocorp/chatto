@@ -55,7 +55,7 @@ type HTTPServer struct {
 	router              *gin.Engine
 	core                *core.ChattoCore
 	connectAPI          *connectapi.API
-	mailer              email.Sender
+	mailer              email.Queue
 	mailJobs            *core.EmailJobs
 	mockMailer          *email.MockSender // Non-nil when test email endpoint is enabled
 	addr                string
@@ -137,7 +137,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 
 	// Create the configured email sender (mock if built with -tags test_endpoints).
 	mockMailer, transport := createMailer(cfg.Config.Email, cfg.Config.SMTP)
-	mailer := cfg.Core.NewEmailJobs(transport)
+	mailer := cfg.Core.NewEmailJobs(transport, emailBranding(cfg.Core, cfg.Config.Webserver.URL))
 
 	// Warn at startup if test endpoints are enabled (security-bypassing endpoints)
 	if mockMailer != nil {
@@ -168,7 +168,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 		nc:               cfg.NC,
 		router:           router,
 		core:             cfg.Core,
-		connectAPI:       connectapi.New(cfg.Core, cfg.Config, cfg.Version, connectapi.WithMessageSearchProviderClient(search.NewClient(cfg.NC)), connectapi.WithEmailSender(mailer)),
+		connectAPI:       connectapi.New(cfg.Core, cfg.Config, cfg.Version, connectapi.WithMessageSearchProviderClient(search.NewClient(cfg.NC)), connectapi.WithEmailQueue(mailer)),
 		mailer:           mailer,
 		mailJobs:         mailer,
 		mockMailer:       mockMailer,

@@ -3,9 +3,11 @@ package email
 import (
 	"bytes"
 	"embed"
+	"errors"
 	"fmt"
 	htmltemplate "html/template"
 	"net/url"
+	"strings"
 	texttemplate "text/template"
 	"time"
 )
@@ -82,48 +84,87 @@ type layoutData struct {
 	Accent      Accent
 }
 
-// RegistrationCode builds the email that carries a registration code.
-func RegistrationCode(b Branding, to, code string, ttl time.Duration, expiresAt time.Time) (Message, error) {
-	return render(b, to, expiresAt, layoutData{
-		Subject:   fmt.Sprintf("%s is your code for %s", code, b.ServerName),
+// Content is what a transactional email says, without its wording or layout.
+// The email queue stores Content and renders it when it sends the email, so
+// stored records hold only the recipient, the secret, and its lifetime. The
+// unexported method limits Content to the kinds in this package.
+type Content interface {
+	layout(b Branding) layoutData
+}
+
+// RegistrationCode is the email that carries a registration code.
+type RegistrationCode struct {
+	Code string
+	// TTL is the lifetime of the code, shown in the email.
+	TTL time.Duration
+}
+
+// EmailVerificationCode is the email that verifies an address for an existing
+// account.
+type EmailVerificationCode struct {
+	Code string
+	// TTL is the lifetime of the code, shown in the email.
+	TTL time.Duration
+}
+
+// PasswordReset is the email that carries a password reset link. The link is
+// built from Branding.ServerURL when the email is rendered.
+type PasswordReset struct {
+	Token string
+	// TTL is the lifetime of the link, shown in the email.
+	TTL time.Duration
+}
+
+func (c RegistrationCode) layout(b Branding) layoutData {
+	return layoutData{
+		Subject:   fmt.Sprintf("%s is your code for %s", c.Code, b.ServerName),
 		Preheader: "Enter this code to finish creating your account.",
 		Heading:   fmt.Sprintf("Welcome to %s", b.ServerName),
 		Intro:     "Enter this code to finish creating your account.",
-		Code:      code,
-		Expiry:    fmt.Sprintf("This code expires in %s.", ExpirationText(ttl)),
+		Code:      c.Code,
+		Expiry:    fmt.Sprintf("This code expires in %s.", ExpirationText(c.TTL)),
 		Footer:    fmt.Sprintf("Someone used this address to sign up on %s. If that wasn't you, ignore this email. No account will be created.", b.host()),
-	})
+	}
 }
 
-// EmailVerificationCode builds the email that verifies an address for an
-// existing account.
-func EmailVerificationCode(b Branding, to, code string, ttl time.Duration, expiresAt time.Time) (Message, error) {
-	return render(b, to, expiresAt, layoutData{
-		Subject:   fmt.Sprintf("%s is your code for %s", code, b.ServerName),
+func (c EmailVerificationCode) layout(b Branding) layoutData {
+	return layoutData{
+		Subject:   fmt.Sprintf("%s is your code for %s", c.Code, b.ServerName),
 		Preheader: fmt.Sprintf("Enter this code to add this address to your %s account.", b.ServerName),
 		Heading:   "Verify your email address",
 		Intro:     fmt.Sprintf("Enter this code to add this address to your %s account.", b.ServerName),
-		Code:      code,
-		Expiry:    fmt.Sprintf("This code expires in %s.", ExpirationText(ttl)),
+		Code:      c.Code,
+		Expiry:    fmt.Sprintf("This code expires in %s.", ExpirationText(c.TTL)),
 		Footer:    fmt.Sprintf("Someone asked to add this address to an account on %s. If that wasn't you, ignore this email.", b.host()),
-	})
+	}
 }
 
-// PasswordReset builds the email that carries a password reset link.
-func PasswordReset(b Branding, to, resetURL string, ttl time.Duration, expiresAt time.Time) (Message, error) {
-	return render(b, to, expiresAt, layoutData{
+func (c PasswordReset) layout(b Branding) layoutData {
+	return layoutData{
 		Subject:     fmt.Sprintf("Reset your %s password", b.ServerName),
 		Preheader:   "Choose a new password for your account.",
 		Heading:     "Reset your password",
 		Intro:       fmt.Sprintf("We received a request to reset the password for your %s account. Choose a new one with the link below.", b.ServerName),
 		ButtonLabel: "Set a new password",
-		ButtonURL:   resetURL,
-		Expiry:      fmt.Sprintf("This link expires in %s.", ExpirationText(ttl)),
+		ButtonURL:   PasswordResetURL(b.ServerURL, c.Token),
+		Expiry:      fmt.Sprintf("This link expires in %s.", ExpirationText(c.TTL)),
 		Footer:      fmt.Sprintf("Sent by %s. If you didn't ask for this, ignore this email. Your password stays the same.", b.host()),
-	})
+	}
 }
 
-func render(b Branding, to string, expiresAt time.Time, data layoutData) (Message, error) {
+// PasswordResetURL returns the frontend page that accepts a password reset
+// token.
+func PasswordResetURL(serverURL, token string) string {
+	return strings.TrimRight(serverURL, "/") + "/reset-password?token=" + url.QueryEscape(token)
+}
+
+// Render builds the complete message for content, with the wording and
+// layout of this version and the given branding.
+func Render(b Branding, to string, content Content) (Message, error) {
+	if content == nil {
+		return Message{}, errors.New("email content required")
+	}
+	data := content.layout(b)
 	data.ServerName = b.ServerName
 	data.Accent = b.Accent
 	if data.Accent == (Accent{}) {
@@ -137,12 +178,11 @@ func render(b Branding, to string, expiresAt time.Time, data layoutData) (Messag
 		return Message{}, fmt.Errorf("render text email: %w", err)
 	}
 	return Message{
-		ExpiresAt: expiresAt,
-		To:        to,
-		FromName:  b.ServerName,
-		Subject:   data.Subject,
-		Body:      text.String(),
-		HTMLBody:  html.String(),
+		To:       to,
+		FromName: b.ServerName,
+		Subject:  data.Subject,
+		Body:     text.String(),
+		HTMLBody: html.String(),
 	}, nil
 }
 
