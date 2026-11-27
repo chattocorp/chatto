@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "Välj tangenter för vanliga åtgärder",
       "system": "Systemomfattande kortkommandon",
+      "push_to_talk": "Tryck för att prata",
       "toggle_mute": "Stäng av eller slå på mikrofonen",
       "record": "Tryck på {modifier} eller {alternative} tillsammans med en tangent",
       "unavailable": "Kortkommandot är inte tillgängligt. Välj en annan kombination.",

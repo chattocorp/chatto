@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "Valige klahvid sagedaste toimingute jaoks",
       "system": "Süsteemi kiirklahvid",
+      "push_to_talk": "Rääkimiseks vajuta",
       "toggle_mute": "Vaigista mikrofon või lülita see sisse",
       "record": "Vajutage {modifier} või {alternative} koos klahviga",
       "unavailable": "Kiirklahv pole saadaval. Valige muu kombinatsioon.",

@@ -2,6 +2,7 @@ import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { packager } from '@electron/packager';
+import { buildPushToTalk } from './build-push-to-talk.mjs';
 import { bundleUpdater } from './bundle-updater.mjs';
 import packageJson from '../package.json' with { type: 'json' };
 import { pruneElectronLocales } from './locales.mjs';
@@ -90,6 +91,7 @@ const [bundleRoot] = await packager({
         ? path.join(desktopRoot, 'icons/icon.icns')
         : undefined,
   extraResource: [
+    buildPushToTalk(architecture),
     path.resolve(desktopRoot, '../frontend/build'),
     path.join(desktopRoot, 'node_modules/electron/dist/LICENSE'),
     path.join(desktopRoot, 'node_modules/electron/dist/LICENSES.chromium.html'),
