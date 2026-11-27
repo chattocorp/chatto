@@ -12,6 +12,7 @@ case "$target" in
 esac
 
 test -x "$bundle/Contents/MacOS/Chatto"
+test -x "$bundle/Contents/Resources/push-to-talk"
 test -x "$bundle/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
 while IFS= read -r -d '' binary; do
   if file -b "$binary" | grep -q 'Mach-O'; then
@@ -20,3 +21,5 @@ while IFS= read -r -d '' binary; do
     done
   fi
 done < <(find "$bundle" -type f -print0)
+
+swift -import-objc-header apps/desktop/native/push-to-talk/macos-key.h apps/desktop/native/push-to-talk/test-macos.swift "$bundle/Contents/Resources/push-to-talk"

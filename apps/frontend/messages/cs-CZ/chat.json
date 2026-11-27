@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Otevřít koncept v…",
+      "title": "Sdílet do Chatto",
+      "unavailable": "Sdílený obsah není k dispozici. Sdílejte jej znovu z původní aplikace.",
+      "no_rooms": "Žádné dostupné místnosti. Přihlaste se k serveru s místností, do které můžete přispívat."
+    },
     "privileged_mode": {
       "enable": "Zapnout privilegovaný režim",
       "disable": "Vypnout privilegovaný režim",

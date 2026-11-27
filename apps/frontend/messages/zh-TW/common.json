@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "選擇常用操作的按鍵",
       "system": "全系統快捷鍵",
+      "push_to_talk": "按住說話",
       "toggle_mute": "將麥克風靜音或解除靜音",
       "record": "按住 {modifier} 或 {alternative}，再按一個鍵",
       "unavailable": "無法使用此快捷鍵。請選擇其他組合。",

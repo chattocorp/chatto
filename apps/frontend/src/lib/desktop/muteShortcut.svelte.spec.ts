@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { bindDesktopMuteShortcut } from './muteShortcut';
+import { bindDesktopMuteShortcut, bindDesktopPushToTalk } from './muteShortcut';
 
 afterEach(() => {
   delete window.chattoDesktop;
@@ -30,5 +30,32 @@ it('delivers only this call’s presses and releases the binding on exit', () =>
   press(token);
   expect(toggle).toHaveBeenCalledTimes(1);
   expect(release).toHaveBeenCalledOnce();
+  expect(set).toHaveBeenLastCalledWith('', token);
+});
+
+it('ends a hold on disposal and ignores late edges from an old call', () => {
+  let edge: (token: string, value: 'up' | 'down' | 'failed') => void = () => {};
+  const unsubscribe = vi.fn();
+  const set = vi.fn(async (_chord: string, _token: string) => true);
+  window.chattoDesktop = {
+    pushToTalk: {
+      set,
+      onEdge: (callback) => {
+        edge = callback;
+        return unsubscribe;
+      }
+    }
+  };
+  const setHeld = vi.fn();
+  expect(bindDesktopPushToTalk('', setHeld)).toBeUndefined();
+  expect(set).not.toHaveBeenCalled();
+  const dispose = bindDesktopPushToTalk('Control+Super+M', setHeld)!;
+  const [[, token]] = set.mock.calls;
+  edge('previous call', 'down');
+  edge(token, 'down');
+  dispose();
+  edge(token, 'down');
+  expect(setHeld.mock.calls).toEqual([[true], [false]]);
+  expect(unsubscribe).toHaveBeenCalledOnce();
   expect(set).toHaveBeenLastCalledWith('', token);
 });

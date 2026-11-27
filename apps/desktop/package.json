@@ -15,7 +15,7 @@
     "build:linux-appimage": "node scripts/linux-appimage.mjs",
     "build": "install-electron && node scripts/build.mjs",
     "check": "node --check main.mjs && node --check preload.cjs && node --check frontend_protocol.mjs && node --check game_capture.mjs && node --check update_menu.mjs && node --check updater_vendor.mjs && node --check scripts/linux-appimage.mjs && node --check scripts/build.mjs && node --check scripts/macos-capture-helper.mjs && node --test",
-    "dev": "install-electron && electron ."
+    "dev": "install-electron && node scripts/build-push-to-talk.mjs && electron ."
   },
   "devDependencies": {
     "@electron/packager": "20.2.0",

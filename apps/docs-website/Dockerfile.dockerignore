@@ -12,6 +12,8 @@
 !LICENSES/Apache-2.0.txt
 !NOTICE
 !CHANGELOG.md
+!mise.toml
+!.sweet.yml
 !.sweet.config.yml
 !.sweet/
 !.sweet/*.md

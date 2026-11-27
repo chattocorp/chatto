@@ -3,6 +3,12 @@
 </script>
 
 <script lang="ts">
+  import { page } from '$app/state';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
+  import { prepareFiles } from '$lib/attachments/prepareFiles';
+  import { acknowledgeShare, pendingShare } from '$lib/pwa/incomingShare';
+  import type { ComposerEditorApi } from './editorTypes';
   import { provideLinkPreview } from '$lib/components/messages/linkPreviewContext';
   import ComposerStatusRow from './ComposerStatusRow.svelte';
   import ComposerShortcutHints from './ComposerShortcutHints.svelte';
@@ -179,6 +185,32 @@
     getMessageAPI: () => serverScope.connection.getAPI(createMessageAPI),
     getLinkPreviewAPI: () => serverScope.connection.getAPI(createLinkPreviewAPI)
   });
+
+  async function editorReady(api: ComposerEditorApi) {
+    composer.handleEditorReady(api);
+    const id = page.state?.incomingShare;
+    const delivery = pendingShare(id);
+    if (!delivery || inThread || delivery.store !== stores || delivery.roomId !== roomId) return;
+
+    // Preparation may outlive the editor, account, or navigation that started it.
+    const current = () =>
+      pendingShare(page.state?.incomingShare) === delivery &&
+      serverScope.isCurrent() &&
+      composer.editorApi === api &&
+      roomId === delivery.roomId;
+    try {
+      const files = await prepareFiles(delivery.share.files);
+      if (!current()) return;
+      if (composer.acceptShare(delivery.share.text, files)) {
+        acknowledgeShare(delivery);
+        return;
+      }
+    } catch {
+      if (!current()) return;
+      toast.error(m('common.action_unavailable'));
+    }
+    await goto(resolve('/share'), { replaceState: true, state: { incomingShare: id } });
+  }
 
   let expandedDraft = $state(false);
   const emptyDraft = $derived(composer.message.length === 0);
@@ -382,7 +414,7 @@
               onFormattingStateChange={(formatting) =>
                 (composer.formattingState = { ...formatting })}
               onIndentStateChange={(state) => (composer.indentState = { ...state })}
-              onReady={(api) => composer.handleEditorReady(api)}
+              onReady={editorReady}
               onDestroy={(api) => composer.handleEditorDestroyed(api)}
             />
           {/await}

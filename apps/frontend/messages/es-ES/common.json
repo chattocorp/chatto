@@ -6,6 +6,7 @@
     "keyboard_shortcuts": {
       "description": "Elige teclas para las acciones habituales",
       "system": "Atajos del sistema",
+      "push_to_talk": "Pulsar para hablar",
       "toggle_mute": "Silenciar o activar el micrófono",
       "record": "Pulsa {modifier} o {alternative} con una tecla",
       "unavailable": "Atajo no disponible. Elige otra combinación.",

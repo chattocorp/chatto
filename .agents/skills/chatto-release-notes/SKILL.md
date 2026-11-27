@@ -6,7 +6,7 @@ description: Prepare and verify Chatto release pages from Sweet Release notes.
 # Chatto Release Notes
 
 From 0.6.0 onward, the docs site generates one page per numbered Chatto release.
-The first prerelease creates the page. The stable release uses the same URL.
+Pending notes with a planned version create a preview page. The stable release uses the same URL.
 The changelog index, sidebar, and homepage link update at build time.
 
 ## Review the release

@@ -31,7 +31,7 @@ changing a protected page as part of a routine feature update.
 
 The docs site generates release pages, sidebar entries, and the homepage
 Release Notes link from the root Sweet Release changelog. Each numbered
-version gets a page when its first prerelease or stable entry appears. Add
+version gets a page when Sweet plans it and there are pending notes to show, or when its first changelog entry appears. Add
 highlights and upgrade actions to the root package notes.
 
 ## Page Scope And Navigation

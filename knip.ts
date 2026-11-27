@@ -71,13 +71,16 @@ export default {
       }
     },
     'apps/docs-website': {
+      // mise and the docs image supply the Sweet release planner.
+      ignoreBinaries: ['sweet'],
       entry: ['src/custom.css', 'src/routeData.ts', 'src/generated/connectrpc-api/*.raw.mdx']
     },
     'apps/desktop': {
       // bundle-updater.mjs passes updater_vendor.mjs to esbuild as an entry point.
       entry: ['preload.cjs', 'updater_vendor.mjs', 'scripts/*.mjs'],
       project: ['**/*.{cjs,mjs}'],
-      ignoreBinaries: ['xcrun', 'pwsh']
+      // The Linux push-to-talk helper uses the host C compiler and GLib/X11 build flags.
+      ignoreBinaries: ['xcrun', 'pwsh', 'cc', 'pkg-config']
     },
     'experimental/chatto-gpuix': {
       // GPUix loads root components by URL, outside the standard SvelteKit routes.

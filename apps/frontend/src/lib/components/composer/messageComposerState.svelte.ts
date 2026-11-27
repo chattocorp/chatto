@@ -19,6 +19,7 @@ import type { ComposerSendMode } from '$lib/state/userPreferences.svelte';
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
 import { toast } from '$lib/ui/toast';
 import { m } from '$lib/i18n/messages';
+import { MAX_MESSAGE_ATTACHMENTS } from '@chatto/client/util/attachmentUpload';
 import { AttachmentsState } from './attachments.svelte';
 import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
 import { DraftState, draftKey } from './draft.svelte';
@@ -292,6 +293,40 @@ export class MessageComposerState {
     await this.attachments.stageFiles(files);
   }
 
+  /** Commit the complete text and prepared images together, using the current room limits. */
+  acceptShare(text: string, files: File[]): boolean {
+    if (
+      this.inputDisabled ||
+      this.isEditing ||
+      (files.length && !this.#dependencies.getCanAttach())
+    ) {
+      toast.error(m('common.action_unavailable'));
+      return false;
+    }
+    if (files.length > this.attachments.availableSlots) {
+      toast.error(m('composer.upload.too_many', { max: MAX_MESSAGE_ATTACHMENTS }));
+      return false;
+    }
+    if (this.attachments.validateFiles(files).length !== files.length) return false;
+
+    const items = this.attachments.filesToPreviewItems(files);
+    if (text) {
+      const previous = this.message;
+      const message = previous ? previous + '\n\n' + text : text;
+      try {
+        this.editorApi?.setContent(message);
+        this.#setMessage(message);
+      } catch (error) {
+        for (const item of items) URL.revokeObjectURL(item.url);
+        this.editorApi?.setContent(previous);
+        throw error;
+      }
+    }
+    this.attachments.filesWithUrls = [...this.attachments.filesWithUrls, ...items];
+    this.focus();
+    return true;
+  }
+
   focus(): void {
     if (this.inputDisabled) return;
     const api = this.editorApi;
@@ -491,8 +526,8 @@ export class MessageComposerState {
 
   /** Apply text changes together, including restored drafts and editor commands. */
   #setMessage(text: string): void {
-    this.message = text;
     if (!this.isEditing) this.draft.persistText(text);
+    this.message = text;
     this.#cancelPreviewDetection = this.linkPreviews.scheduleDetection(text, this.isEditing);
   }
 

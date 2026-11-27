@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Malfermi malneton en…",
+      "title": "Kunhavigi al Chatto",
+      "unavailable": "La enhavo ne disponeblas. Kunhavigu ĝin denove el la alia aplikaĵo.",
+      "no_rooms": "Neniu disponebla ĉambro. Ensalutu en servilon kun ĉambro en kiu vi povas afiŝi."
+    },
     "privileged_mode": {
       "enable": "Ŝalti privilegian reĝimon",
       "disable": "Malŝalti privilegian reĝimon",

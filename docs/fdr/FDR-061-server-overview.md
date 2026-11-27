@@ -7,7 +7,7 @@
 
 The server Overview at `/chat/{server}/overview` is the home page of a server. A member opens it from the sidebar **Overview** entry, or lands on it when the app has no last room for the server ([FDR-026](FDR-026-last-room-memory.md)). The page shows these sections from top to bottom:
 
-1. **Identity.** The banner, logo, name, and description of the server. A server without a banner shows the gradient of its name.
+1. **Identity.** The banner, logo, name, and description of the server. The banner shows complete in the center of a full-width band, and the band continues the colors at the left and right edges of the banner. A server without a banner shows the gradient of its name.
 2. **Setup reminder.** Members with the server-management permission see a list of the empty public profile fields: logo, banner, description, and welcome message. The reminder links to the General settings. It goes away when the profile is complete.
 3. **Welcome and message of the day.** The welcome message and the message of the day, rendered with the message renderer, so links to Chatto rooms, servers, and messages show as pills. The message of the day also stays in the application header, with the same pills. The header shows only its first line; the dialog that opens from it shows the complete message. Administrators edit both messages in the General settings with the composer editor that they selected for messages, which shows the same pills.
 4. **Happening now.** One panel with a row for each active call in a joined room, with its participants and a **Join** action. The action opens the room with its call panel. A **Catch up** card lists up to five joined channel rooms with unread messages or notifications. Rooms with important notifications come first. The room name opens the room. Each notification badge opens the newest notification that it counts, as the sidebar badges do. Direct messages have their own card: the five most recent conversations with messages, with the same unread markers and notification badges.
@@ -25,6 +25,8 @@ The membership filter replaces a split into separate "Your rooms" and "Discover"
 The side column keeps short, current items next to the long welcome message and the room directory, so no row is left half empty. The welcome message stays visible because it is the server's own introduction, and a hidden one would have no way back; the height limit keeps a long message from pushing the rooms down. The setup reminder can be hidden because the same information stays available in the General settings. The device stores only a flag for each server, not the content (ADR-107). Members cannot hide the message of the day, because administrators use it for current information.
 
 The Neighbors section reads the cached Neighborhood from the current server. The logos and banners are copies on that server, so the browser does not contact the Neighbors.
+
+The band does not crop the banner. Administrators make banners at 1200×630, and a band of the full pane width is much wider than that ratio. A cropped banner loses most of its height and shows the remaining part enlarged and blurred. The band continues the edge colors of the banner, not a blurred copy of the full banner, so the center of the banner does not show through at the sides.
 
 The page shows no online-member count. The API has no server-wide presence count, and a count from a universal room is not available on every server.
 

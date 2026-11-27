@@ -1,5 +1,11 @@
 {
   "chat": {
+    "share_target": {
+      "open_draft": "Taslağın açılacağı yer",
+      "title": "Chatto’da paylaş",
+      "unavailable": "Bu içerik kullanılamıyor. Diğer uygulamadan tekrar paylaşın.",
+      "no_rooms": "Kullanılabilir oda yok. Gönderi paylaşabileceğiniz bir odası olan bir sunucuda oturum açın."
+    },
     "privileged_mode": {
       "enable": "Ayrıcalıklı modu etkinleştir",
       "disable": "Ayrıcalıklı modu devre dışı bırak",

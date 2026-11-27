@@ -2,7 +2,18 @@ FROM node:24-alpine AS build
 
 WORKDIR /app
 
-RUN corepack enable
+# Use the same Sweet release planner as the local mise build.
+COPY mise.toml .
+ARG TARGETARCH
+RUN version="$(sed -n 's/^"github:chattocorp\/sweet-release" = "sweet@\([^"]*\)"/\1/p' mise.toml)" && \
+    asset="sweet_${version}_linux_${TARGETARCH}.tar.gz" && \
+    url="https://github.com/chattocorp/sweet-release/releases/download/sweet@${version}" && \
+    wget -q "$url/$asset" && wget -q "$url/checksums.txt" && \
+    grep "  $asset$" checksums.txt | sha256sum -c - && \
+    tar -xzf "$asset" -C /usr/local/bin sweet && rm "$asset" checksums.txt
+
+# Sweet discovers the project root through Git in the filtered build context.
+RUN apk add --no-cache git && git init -q && corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY patches patches
