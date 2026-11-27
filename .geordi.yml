@@ -2,11 +2,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 setup: mise setup
-# Each task listens on a named port of its own. Chatto uses that port. The other
-# development services use fixed offsets from GEORDI_PORT, the first of the ten
-# spare workspace ports; see the `[env]` section of mise.toml.
-# The chatto and chatto-full tasks use the same NATS port and data directory,
-# so only one runs at a time. The port check of the second task stops it early.
+# Each task listens on named ports of its own. The `chatto` task uses its port
+# and the spare workspace ports from GEORDI_PORT, with the offsets of the
+# `[env]` section of mise.toml.
+#
+# The "Full stack" tasks run the services of `mise dev-full` one by one.
+# tools/geordi-dev-stack.sh gives every one of them the named ports of all the
+# others, so each service can be started, stopped, and restarted alone.
+# The chatto and full-stack Chatto tasks use the same NATS port and data
+# directory, so only one of them runs at a time.
 tasks:
   chatto:
     label: Chatto
@@ -15,10 +19,31 @@ tasks:
     url: http://localhost:{chatto}/
     default: true
   chatto-full:
-    label: Chatto with Authling, Runling, Mailpit, and LiveKit
-    command: CHATTO_DEV_CHATTO_PORT_OVERRIDE=$PORT CHATTO_DEV_CHATTO_URL_OVERRIDE=http://localhost:$PORT mise dev-full
+    label: Full stack / Chatto
+    command: tools/geordi-dev-stack.sh dev-stack-chatto
     ports: [chatto-full]
+    needs: [mailpit, livekit, authling]
     url: http://localhost:{chatto-full}/
+  mailpit:
+    label: Full stack / Mailpit
+    command: tools/geordi-dev-stack.sh dev-stack-mailpit
+    ports: [mailpit, smtp]
+    url: http://localhost:{mailpit}/
+  livekit:
+    label: Full stack / LiveKit
+    command: tools/geordi-dev-stack.sh dev-stack-livekit
+    ports: [livekit, livekit-rtc]
+  authling:
+    label: Full stack / Authling
+    command: tools/geordi-dev-stack.sh dev-stack-authling
+    ports: [authling]
+    needs: [mailpit]
+  runling-bot:
+    label: Full stack / Runling bot
+    command: tools/geordi-dev-stack.sh dev-stack-runling-bot
+    ports: [runling]
+    needs: [chatto-full]
+    url: http://localhost:{runling}/
   docs:
     label: Docs website
     command: mise dev-docs-website -- --port "$PORT"

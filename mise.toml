@@ -47,16 +47,16 @@ CHATTO_DEV_CHATTO_PORT = "{{env.CHATTO_DEV_CHATTO_PORT_OVERRIDE | default(value=
 CHATTO_DEV_VITE_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}"
 CHATTO_DEV_AUTHLING_PORT = "{{env.CHATTO_DEV_AUTHLING_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 2)}}"
 # Runling bot console.
-CHATTO_DEV_RUNLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 3}}"
+CHATTO_DEV_RUNLING_PORT = "{{env.CHATTO_DEV_RUNLING_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 3)}}"
 # Chatto embedded NATS.
 CHATTO_DEV_NATS_PORT = "{{env.CHATTO_DEV_NATS_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 4)}}"
 # LiveKit HTTP and WebSocket signaling, then RTC over TCP and UDP.
-CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 5}}"
-CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}"
-CHATTO_DEV_LIVEKIT_RTC_UDP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 7}}"
+CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_LIVEKIT_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 5)}}"
+CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_LIVEKIT_RTC_TCP_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 6)}}"
+CHATTO_DEV_LIVEKIT_RTC_UDP_PORT = "{{env.CHATTO_DEV_LIVEKIT_RTC_UDP_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 7)}}"
 # Mailpit SMTP and web UI.
 CHATTO_DEV_SMTP_PORT = "{{env.CHATTO_DEV_SMTP_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 8)}}"
-CHATTO_DEV_MAILPIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 9}}"
+CHATTO_DEV_MAILPIT_PORT = "{{env.CHATTO_DEV_MAILPIT_PORT_OVERRIDE | default(value=env.CHATTO_DEV_PORT_BASE | int + 9)}}"
 # The development stack runs this pinned LiveKit server through `mise x`.
 CHATTO_DEV_LIVEKIT_SERVER = "go:github.com/livekit/livekit-server/cmd/server@v1.13.5"
 # Browser-facing development services use `<service>.<workspace>.localhost`.
@@ -536,7 +536,8 @@ run = "pnpm dev"
 
 [tasks.check-dev-ports]
 description = "Check that the ports of the development stack are free"
-# Pass `full` to also check the ports of the `mise dev-full` services.
+# Pass `full` to also check the ports of the `mise dev-full` services. The
+# Geordi full-stack tasks use named ports and do not run this check.
 run = "tools/check-dev-ports.sh"
 
 [tasks.dev]
@@ -550,25 +551,6 @@ run = ['echo "Chatto: $CHATTO_DEV_CHATTO_URL"', { task = "chatto run" }]
 [tasks.dev-full]
 description = "Build and run Chatto with Authling, Runling, Mailpit, and LiveKit"
 depends = ["check-dev-ports full", "setup", "build-dev-cli", "build-runling-bot"]
-# These settings reach the `chatto run` task. They enable email and LiveKit and
-# add the Authling and AT Protocol login providers. Environment values replace the complete
-# provider list of `cli/chatto.toml`.
-env = {
-  CHATTO_SMTP_ENABLED = "true",
-  CHATTO_LIVEKIT_ENABLED = "true",
-  CHATTO_AUTH_PROVIDERS_0_ID = "authling",
-  CHATTO_AUTH_PROVIDERS_0_TYPE = "oidc",
-  CHATTO_AUTH_PROVIDERS_0_LABEL = "Authling",
-  CHATTO_AUTH_PROVIDERS_0_ISSUER_URL = "{{env.CHATTO_DEV_AUTHLING_URL}}",
-  CHATTO_AUTH_PROVIDERS_0_CLIENT_ID = "{{env.CHATTO_DEV_AUTHLING_CLIENT_ID}}",
-  CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET = "{{env.CHATTO_DEV_AUTHLING_CLIENT_SECRET}}",
-  CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL = "false",
-  CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION = "true",
-  CHATTO_AUTH_PROVIDERS_1_ID = "atproto",
-  CHATTO_AUTH_PROVIDERS_1_TYPE = "atproto",
-  CHATTO_AUTH_PROVIDERS_1_AUTO_PROVISION = "true",
-  CHATTO_AUTH_PROVIDERS_1_MANAGE_USERNAMES = "true",
-}
 # mise runs each service in its own process group. On SIGHUP, SIGINT, or
 # SIGTERM, it signals all of these groups, and when one service fails, it stops
 # the others. The services need five parallel jobs; the mise default is eight.
@@ -578,7 +560,7 @@ run = [
     "dev-stack-mailpit",
     "dev-stack-livekit",
     "dev-stack-authling",
-    "chatto run",
+    "dev-stack-chatto",
     "dev-stack-runling-bot",
   ] },
 ]
@@ -693,6 +675,33 @@ echo "Vite: http://chatto.$CHATTO_DEV_WORKSPACE.localhost:$VITE_PORT (Chatto ser
 exec ./node_modules/.bin/vite dev --host 127.0.0.1
 '''
 
+# Chatto with the settings of the full stack. `mise dev-full` runs it beside the
+# other `dev-stack-*` services; the Geordi tasks in `.geordi.yml` run each one
+# as a task of its own.
+[tasks.dev-stack-chatto]
+hide = true
+depends = ["build-dev-cli"]
+# These settings reach the `chatto run` task. They enable email and LiveKit and
+# add the Authling and AT Protocol login providers. Environment values replace the complete
+# provider list of `cli/chatto.toml`.
+env = {
+  CHATTO_SMTP_ENABLED = "true",
+  CHATTO_LIVEKIT_ENABLED = "true",
+  CHATTO_AUTH_PROVIDERS_0_ID = "authling",
+  CHATTO_AUTH_PROVIDERS_0_TYPE = "oidc",
+  CHATTO_AUTH_PROVIDERS_0_LABEL = "Authling",
+  CHATTO_AUTH_PROVIDERS_0_ISSUER_URL = "{{env.CHATTO_DEV_AUTHLING_URL}}",
+  CHATTO_AUTH_PROVIDERS_0_CLIENT_ID = "{{env.CHATTO_DEV_AUTHLING_CLIENT_ID}}",
+  CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET = "{{env.CHATTO_DEV_AUTHLING_CLIENT_SECRET}}",
+  CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL = "false",
+  CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION = "true",
+  CHATTO_AUTH_PROVIDERS_1_ID = "atproto",
+  CHATTO_AUTH_PROVIDERS_1_TYPE = "atproto",
+  CHATTO_AUTH_PROVIDERS_1_AUTO_PROVISION = "true",
+  CHATTO_AUTH_PROVIDERS_1_MANAGE_USERNAMES = "true",
+}
+run = [{ task = "chatto run" }]
+
 [tasks.dev-stack-mailpit]
 hide = true
 run = '''
@@ -758,6 +767,7 @@ exec bin/authling-dev run --config "$config_path"
 
 [tasks.dev-stack-runling-bot]
 hide = true
+depends = ["build-runling-bot"]
 env = {
   CHATTO_RUNLING_PORT = "{{env.CHATTO_DEV_RUNLING_PORT}}",
   CHATTO_RUNLING_SERVER_URL = "http://127.0.0.1:{{env.CHATTO_DEV_CHATTO_PORT}}",
