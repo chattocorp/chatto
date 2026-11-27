@@ -16,7 +16,8 @@ const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom
   archived: overrides.archived ?? false,
   isUniversal: overrides.isUniversal ?? false,
   viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
-  viewerInvitation: overrides.viewerInvitation
+  viewerInvitation: overrides.viewerInvitation,
+  createdAt: overrides.createdAt
 });
 
 const listedRoom = (id: string, overrides: Partial<RoomsListItem> = {}): RoomsListItem => ({
@@ -84,8 +85,8 @@ describe('RoomDirectory', () => {
     const joinedRow = [...container.querySelectorAll('li')].find((item) =>
       item.textContent?.includes('r1')
     ) as HTMLElement;
-    expect(joinedRow.className).toContain('selectable-list-item');
-    expect(joinedRow.className).not.toContain('hover:bg-surface/70');
+    // A joined tile opens the room, so it shows the interactive surface.
+    expect(joinedRow.className).toContain('tile-interactive');
   });
 
   it('renders universal joined rooms without a leave action', () => {
@@ -100,7 +101,8 @@ describe('RoomDirectory', () => {
 
     expect(container.textContent).toContain('Universal');
     expect(container.textContent?.match(/Universal/g)?.length).toBe(1);
-    expect(container.textContent).not.toContain('Joined');
+    // Scope to the room list: the membership filter also has a "Joined" option.
+    expect(container.querySelector('ul')?.textContent).not.toContain('Joined');
     expect(container.textContent).not.toContain('Leave');
     expect(findButton(container, 'Universal')).toBeUndefined();
   });
@@ -115,7 +117,7 @@ describe('RoomDirectory', () => {
     });
     flushSync();
 
-    expect(container.textContent).not.toContain('Joined');
+    expect(container.querySelector('ul')?.textContent).not.toContain('Joined');
     expect(findButton(container, 'Join')).toBeDefined();
   });
 
@@ -267,16 +269,11 @@ describe('RoomDirectory', () => {
     // The section header is rendered.
     expect(container.textContent).toContain('Important');
 
-    const shell = container.querySelector('.panel-shell') as HTMLElement;
-    const header = shell.querySelector(':scope > .panel-header') as HTMLElement;
-    const inset = shell.querySelector('.panel-inset') as HTMLElement;
-    expect(shell.className).toContain('shrink-0');
-    expect(header.className).toContain('px-6');
-    expect(inset).not.toBeNull();
-
-    // Selectable lists own their standard compact inset inside `Panel noPadding`.
-    const list = shell.querySelector('ul') as HTMLElement;
-    expect(list.className).toBe('selectable-list');
+    // Each group is a labelled section with its own grid of room tiles.
+    const section = container.querySelector('section[aria-label="Important"]') as HTMLElement;
+    expect(section).not.toBeNull();
+    const tiles = [...section.querySelectorAll('li')];
+    expect(tiles.map((tile) => tile.textContent)).toEqual([expect.stringContaining('general')]);
   });
 
   // -- "Join all" group action -----------------------------------------------
@@ -376,5 +373,59 @@ describe('RoomDirectory', () => {
     const items = container.querySelectorAll('li');
     expect(items.length).toBe(1);
     expect(items[0].textContent).toContain('random');
+  });
+
+  it('filters by membership and explains an empty filter', async () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('general'), room('random')],
+        joinedRooms: [joined('general')],
+        roomGroups: null
+      }
+    });
+    flushSync();
+    const rowNames = () => [...container.querySelectorAll('li')].map((li) => li.textContent ?? '');
+
+    await page.getByRole('radio', { name: 'Not joined' }).click();
+    expect(rowNames()).toEqual([expect.stringContaining('random')]);
+
+    await page.getByRole('radio', { name: 'Joined', exact: true }).click();
+    expect(rowNames()).toEqual([expect.stringContaining('general')]);
+
+    await page.getByRole('radio', { name: 'All', exact: true }).click();
+    expect(rowNames()).toHaveLength(2);
+  });
+
+  it('shows a membership empty state instead of the no-results message', async () => {
+    render(Harness, {
+      props: { initialRooms: [room('general')], joinedRooms: [], roomGroups: null }
+    });
+
+    await page.getByRole('radio', { name: 'Joined', exact: true }).click();
+    await expect.element(page.getByText("You haven't joined any rooms yet.")).toBeVisible();
+  });
+
+  it('labels only new rooms that the viewer has not joined', () => {
+    const now = new Date().toISOString();
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [
+          room('fresh', { createdAt: now }),
+          room('joined-fresh', { createdAt: now }),
+          room('old', { createdAt: '2020-01-01T00:00:00Z' })
+        ],
+        joinedRooms: [joined('joined-fresh')],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    const hasNewDot = (id: string) =>
+      !![...container.querySelectorAll('li')]
+        .find((li) => li.textContent?.includes(id))
+        ?.querySelector('[role="img"][aria-label="New"]');
+    expect(hasNewDot('fresh')).toBe(true);
+    expect(hasNewDot('joined-fresh')).toBe(false);
+    expect(hasNewDot('old')).toBe(false);
   });
 });

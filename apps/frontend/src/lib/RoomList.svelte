@@ -12,7 +12,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { serverUi } from '$lib/state/server/serverUi';
   import DirectMessageName from '$lib/components/users/DirectMessageName.svelte';
   import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -38,7 +37,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     MenuItem,
     MenuSection,
     contextMenuTrigger,
-    type ContextMenuTriggerDetails
+    type ContextMenuTriggerDetails,
+    PulseIcon
   } from '$lib/ui';
   import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import {
@@ -49,12 +49,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserMenu from '$lib/components/users/UserMenu.svelte';
   import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
-  import { notificationTarget } from '@chatto/client/server/notifications';
   import { NotificationAttentionLevel } from '@chatto/client/api/notifications';
-  import {
-    prepareUiForNotificationTarget,
-    navigateNotification
-  } from '$lib/notifications/notificationNavigationUi';
+  import { openRoomNotification } from '$lib/notifications/openRoomNotification';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -64,7 +60,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     type RoomsListGroup,
     type RoomsListGroupItem
   } from '$lib/state/server/navigation';
-  import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms';
+  import { callParticipantAvatarUser } from '$lib/state/server/activeCallRooms';
   import RoomContextMenu from '$lib/components/menus/RoomContextMenu.svelte';
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
@@ -78,7 +74,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { fromAction, type Attachment } from 'svelte/attachments';
   import { MediaQuery, SvelteMap } from 'svelte/reactivity';
   import { TOUCH_ONLY_QUERY } from '$lib/utils/inputMediaQueries';
-  import { notificationPath } from '$lib/notificationPath';
   import {
     dragHandle,
     dragHandleZone,
@@ -792,18 +787,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     void goto(conversationPath(activeServerId, dmMenuRoom.id, { store: stores }));
   }
 
-  function callParticipantAvatarUser(participant: CallRoomParticipant): UserAvatarUserView {
-    return {
-      id: participant.userId,
-      login: participant.login,
-      displayName: participant.displayName,
-      deleted: false,
-      isBot: participant.isBot,
-      avatarUrl: participant.avatarUrl,
-      presenceStatus: PresenceStatus.OFFLINE
-    };
-  }
-
   // Keep active rooms and rooms needing attention visible when their group is collapsed.
   function isHighlighted(room: RoomsListItem): boolean {
     return (
@@ -862,33 +845,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     event.preventDefault();
     event.stopPropagation();
 
-    const lookup = await serverUi(stores).attention.resolveRoomNotification(roomId, {
-      isDM,
-      attentionLevel
-    });
-    if (!serverScope.isCurrent()) return;
-    const notification = lookup.notification;
-
-    if (!notification) {
-      if (!lookup.ok || lookup.totalCount !== 0) {
-        await goto(resolve('/chat/notifications'));
-      }
-      return;
-    }
-
-    const target = notificationTarget(notification);
-    prepareUiForNotificationTarget(appUi, activeServerId, target);
-    if (target.eventId && target.roomId) {
-      serverUi(stores).pendingHighlights.set(
-        target.roomId,
-        target.threadRootId,
-        target.eventId,
-        notification.id
-      );
-    }
-
-    const path = notificationPath(activeServerId, notification);
-    await navigateNotification(stores, notification, () => goto(path));
+    await openRoomNotification(serverScope, appUi, roomId, { isDM, attentionLevel });
   }
 </script>
 
@@ -934,15 +891,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     aria-label={m('room_list.active_call')}
     data-testid="room-call-icon"
   >
-    <span class="relative inline-flex">
-      <span
-        class="absolute inset-0 icon-[uil--phone] pane-header-icon-glyph animate-ping opacity-45"
-        aria-hidden="true"
-        data-testid="active-call-pulse-icon"
-      ></span>
-      <span class="relative icon-[uil--phone] pane-header-icon-glyph text-action" aria-hidden="true"
-      ></span>
-    </span>
+    <PulseIcon icon="icon-[uil--phone]" />
   </span>
 {/snippet}
 

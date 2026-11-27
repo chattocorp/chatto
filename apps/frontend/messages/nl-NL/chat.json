@@ -40,7 +40,30 @@
       }
     },
     "overview": {
-      "title": "Overzicht"
+      "title": "Overzicht",
+      "welcome_title": "Welkom",
+      "happening_now": "Nu bezig",
+      "call_participants_count": {
+        "one": "{count} persoon in het gesprek",
+        "other": "{count} personen in het gesprek"
+      },
+      "catch_up": "Bijlezen",
+      "catch_up_unread": "Ongelezen berichten",
+      "neighbors": "Buren",
+      "open_neighbor": "{server} openen",
+      "view_neighbor": "{server} zoeken in de servergids",
+      "setup": {
+        "title": "Rond de inrichting van je server af",
+        "missing": "Nog niet ingesteld: {items}.",
+        "edit_profile": "Serverprofiel bewerken",
+        "hide": "Herinnering voor inrichting verbergen",
+        "items": {
+          "logo": "logo",
+          "banner": "banner",
+          "description": "beschrijving",
+          "welcome_message": "welkomstbericht"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Terug naar de server",

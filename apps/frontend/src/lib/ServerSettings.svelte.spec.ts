@@ -100,14 +100,12 @@ describe('ServerSettings', () => {
     expect(mocks.getAuthenticatedServerState).toHaveBeenCalledTimes(2);
   });
 
-  it('limits each text field to the server length limit', async () => {
+  it('limits the description to the server length limit', async () => {
     const { container } = await renderSettings();
     const maxLength = (selector: string) =>
       container.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector)!.maxLength;
 
     expect(maxLength('#description')).toBe(500);
-    expect(maxLength('#welcome-message')).toBe(10000);
-    expect(maxLength('#motd')).toBe(1000);
   });
 
   it('keeps the draft visible when the server rejects a save', async () => {

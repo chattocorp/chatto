@@ -13,7 +13,7 @@ the pane header is at least 80 rem wide, the toggles also show their labels.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { UnreadDot } from '$lib/ui';
+  import { UnreadDot, PulseIcon } from '$lib/ui';
   import type { RoomSidebarPanel } from './RoomSidebar.svelte';
 
   let {
@@ -93,21 +93,11 @@ the pane header is at least 80 rem wide, the toggles also show their labels.
       aria-pressed={isActive}
     >
       <span class="relative inline-flex">
-        {#if shouldPulseCallIcon}
-          <span
-            class={['absolute inset-0 pane-header-icon-glyph animate-ping opacity-45', panel.icon]}
-            aria-hidden="true"
-            data-testid="active-call-pulse-icon"
-          ></span>
-        {/if}
-        <span
-          class={[
-            'relative pane-header-icon-glyph',
-            panel.icon,
-            isActiveCallPanel && 'text-action'
-          ]}
-          aria-hidden="true"
-        ></span>
+        <PulseIcon
+          icon={panel.icon}
+          pulse={shouldPulseCallIcon}
+          class={isActiveCallPanel ? 'text-action' : undefined}
+        />
         {#if showUnseenPin}
           <UnreadDot class="absolute -end-1 -top-1 ring-2 ring-surface" testid="unseen-pin-dot" />
         {/if}

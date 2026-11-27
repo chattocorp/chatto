@@ -92,7 +92,13 @@
       "left": "Слева #{room}",
       "left_generic": "Левая комната",
       "leave_confirm": "Вы уверены, что хотите покинуть #{room}?",
-      "invited": "Приглашение"
+      "invited": "Приглашение",
+      "filter_label": "Показать комнаты",
+      "filter_all": "Все",
+      "filter_not_joined": "Не вступили",
+      "empty_joined": "Вы ещё не вступили ни в одну комнату.",
+      "empty_not_joined": "Вы вступили во все доступные комнаты.",
+      "new": "Новая"
     },
     "server": {
       "remove_title": "Удалить сервер",

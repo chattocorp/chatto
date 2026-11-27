@@ -24,7 +24,7 @@
     "saving": "Sparar...",
     "save_button": "Spara ändringar",
     "description_help": "Visas i serverkatalogen och på sidan Serverinformation, och används som beskrivning för länkförhandsvisningar.",
-    "motd_help": "Meddelande på en rad som visas i chatthuvudet. Stöder Markdown.",
+    "motd_help": "Chattens sidhuvud visar den första raden. Stöder Markdown.",
     "welcome_message_help": "Visas vid inloggning och på sidan Serverinformation. Stöder Markdown.",
     "logo_description": "Ladda upp en logotyp för din instans. Bilderna kommer att ändras till 512x512 pixlar.",
     "banner_description": "Ladda upp en banner för din instans. Bannern fungerar också som länkförhandsgranskningsbilden - bilderna ändras till 1200x630 pixlar (standardformatet OpenGraph).",

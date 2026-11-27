@@ -24,7 +24,7 @@
     "saving": "Salvestamine...",
     "save_button": "Salvesta muudatused",
     "description_help": "Kuvatakse serverite kataloogis ja serveri teabe lehel ning kasutatakse linkide eelvaate kirjeldusena.",
-    "motd_help": "Vestluse päises kuvatav üherealine sõnum. Toetab Markdowni.",
+    "motd_help": "Vestluse päises kuvatakse esimene rida. Toetab Markdowni.",
     "welcome_message_help": "Kuvatakse sisselogimisel ja serveri teabe lehel. Toetab Markdowni.",
     "logo_description": "Laadige oma eksemplari logo üles. Piltide suurus muudetakse 512x512 pikslile.",
     "banner_description": "Laadige oma eksemplari jaoks üles bänner. Bänner toimib ka lingi eelvaatepildina – piltide suurust muudetakse 1200x630 pikslile (standardne OpenGraphi kuvasuhe).",

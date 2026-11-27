@@ -40,7 +40,34 @@
       }
     },
     "overview": {
-      "title": "نظرة عامة"
+      "title": "نظرة عامة",
+      "welcome_title": "مرحبًا",
+      "happening_now": "يحدث الآن",
+      "call_participants_count": {
+        "zero": "{count} شخص في المكالمة",
+        "one": "{count} شخص في المكالمة",
+        "two": "{count} شخصان في المكالمة",
+        "few": "{count} أشخاص في المكالمة",
+        "many": "{count} شخصًا في المكالمة",
+        "other": "{count} شخص في المكالمة"
+      },
+      "catch_up": "ما فاتك",
+      "catch_up_unread": "رسائل غير مقروءة",
+      "neighbors": "الجيران",
+      "open_neighbor": "افتح {server}",
+      "view_neighbor": "ابحث عن {server} في دليل الخوادم",
+      "setup": {
+        "title": "أكمل إعداد خادمك",
+        "missing": "لا يزال ينقص: {items}.",
+        "edit_profile": "عدّل ملف الخادم",
+        "hide": "أخفِ تذكير الإعداد",
+        "items": {
+          "logo": "الشعار",
+          "banner": "اللافتة",
+          "description": "الوصف",
+          "welcome_message": "رسالة الترحيب"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "العودة إلى الخادم",

@@ -40,7 +40,30 @@
       }
     },
     "overview": {
-      "title": "Présentation"
+      "title": "Présentation",
+      "welcome_title": "Bienvenue",
+      "happening_now": "En ce moment",
+      "call_participants_count": {
+        "one": "{count} personne dans l’appel",
+        "other": "{count} personnes dans l’appel"
+      },
+      "catch_up": "À rattraper",
+      "catch_up_unread": "Messages non lus",
+      "neighbors": "Voisins",
+      "open_neighbor": "Ouvrir {server}",
+      "view_neighbor": "Trouver {server} dans l’annuaire des serveurs",
+      "setup": {
+        "title": "Terminez la configuration de votre serveur",
+        "missing": "Il manque encore : {items}.",
+        "edit_profile": "Modifier le profil du serveur",
+        "hide": "Masquer le rappel de configuration",
+        "items": {
+          "logo": "logo",
+          "banner": "bannière",
+          "description": "description",
+          "welcome_message": "message de bienvenue"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Retour au serveur",

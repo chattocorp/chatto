@@ -582,14 +582,14 @@ export class AdminPage {
     return this.page.getByLabel(/^Name\*?$/);
   }
 
-  /** MOTD input — on /manage/server/general. */
+  /** MOTD composer editor — on /manage/server/general. */
   get motdInput(): Locator {
-    return this.page.getByRole('textbox', { name: 'Message of the Day', exact: true });
+    return this.page.getByTestId('server-motd-editor');
   }
 
-  /** Welcome Message textarea — on /manage/server/general. */
+  /** Welcome Message composer editor — on /manage/server/general. */
   get welcomeMessageInput(): Locator {
-    return this.page.getByLabel('Welcome Message');
+    return this.page.getByTestId('server-welcome-message-editor');
   }
 
   /** Save button — copy varies by page. */
@@ -630,11 +630,11 @@ export class AdminPage {
       dirty = true;
     }
     if (options.motd !== undefined) {
-      await this.motdInput.fill(options.motd);
+      await this.typeMarkdown(this.motdInput, options.motd);
       dirty = true;
     }
     if (options.welcomeMessage !== undefined) {
-      await this.welcomeMessageInput.fill(options.welcomeMessage);
+      await this.typeMarkdown(this.welcomeMessageInput, options.welcomeMessage);
       dirty = true;
     }
     if (dirty) {
@@ -643,6 +643,15 @@ export class AdminPage {
         timeout: TIMEOUTS.UI_STANDARD
       });
     }
+  }
+
+  /**
+   * Replace the text of a composer editor. Typing applies the visual editor's
+   * Markdown input rules, so `**bold**` becomes bold as it does for a person.
+   */
+  private async typeMarkdown(editor: Locator, text: string): Promise<void> {
+    await editor.fill('');
+    if (text) await editor.pressSequentially(text);
   }
 
   /**
@@ -677,15 +686,15 @@ export class AdminPage {
    */
   async expectMotd(value: string): Promise<void> {
     await this.ensureOn(routes.serverAdminGeneral);
-    await expect(this.motdInput).toHaveValue(value);
+    await expect(this.motdInput).toHaveText(value);
   }
 
   /**
-   * Assert that the welcome message input has a specific value. The field
+   * Assert that the welcome message editor shows a specific text. The field
    * lives on /manage/server/general (Messages panel).
    */
   async expectWelcomeMessage(value: string): Promise<void> {
     await this.ensureOn(routes.serverAdminGeneral);
-    await expect(this.welcomeMessageInput).toHaveValue(value);
+    await expect(this.welcomeMessageInput).toHaveText(value);
   }
 }

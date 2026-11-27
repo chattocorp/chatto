@@ -1,15 +1,27 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import type { Attachment } from 'svelte/attachments';
   import MarkdownHtml from './MarkdownHtml.svelte';
 
-  let { motd, onclick }: { motd: string; onclick: () => void } = $props();
+  let {
+    motd,
+    onclick,
+    enhanceLink
+  }: {
+    motd: string;
+    onclick: () => void;
+    /** Optional owner-supplied link enhancement, such as Chatto link pills. */
+    enhanceLink?: Attachment<HTMLAnchorElement>;
+  } = $props();
+  /** The header shows the first line only; the dialog shows the complete message. */
+  const firstLine = $derived(motd.split(/\r?\n/).find((line) => line.trim()) ?? '');
   const html = $derived.by(() => {
-    const body = motd;
+    const body = firstLine;
     return import('$lib/markdown').then(({ renderInlineMarkdown }) => renderInlineMarkdown(body));
   });
 </script>
 
-<!-- @component Single-line MOTD preview. The owner opens the full message. -->
+<!-- @component Single-line MOTD preview: the first line of the message. The owner opens the full message. -->
 <div class="flex min-w-0 flex-1 justify-center">
   <div
     data-testid="motd-content"
@@ -31,11 +43,11 @@
       class="prose prose-compact pointer-events-none max-w-none min-w-0 truncate [&_a]:pointer-events-auto [&_a]:relative"
     >
       {#await html}
-        {motd}
+        {firstLine}
       {:then html}
-        <MarkdownHtml {html} />
+        <MarkdownHtml {html} {enhanceLink} />
       {:catch}
-        {motd}
+        {firstLine}
       {/await}
     </div>
   </div>

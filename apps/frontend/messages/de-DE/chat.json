@@ -40,7 +40,30 @@
       }
     },
     "overview": {
-      "title": "Übersicht"
+      "title": "Übersicht",
+      "welcome_title": "Willkommen",
+      "happening_now": "Gerade aktiv",
+      "call_participants_count": {
+        "one": "{count} Person im Anruf",
+        "other": "{count} Personen im Anruf"
+      },
+      "catch_up": "Verpasst",
+      "catch_up_unread": "Ungelesene Nachrichten",
+      "neighbors": "Nachbarn",
+      "open_neighbor": "{server} öffnen",
+      "view_neighbor": "{server} im Serververzeichnis finden",
+      "setup": {
+        "title": "Richte deinen Server fertig ein",
+        "missing": "Es fehlt noch: {items}.",
+        "edit_profile": "Serverprofil bearbeiten",
+        "hide": "Einrichtungshinweis ausblenden",
+        "items": {
+          "logo": "Logo",
+          "banner": "Banner",
+          "description": "Beschreibung",
+          "welcome_message": "Willkommensnachricht"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Zurück zum Server",

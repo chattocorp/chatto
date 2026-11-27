@@ -14,6 +14,8 @@ export type DirectoryRoom = {
   viewerCanJoinRoom: boolean;
   /** Pending invitation from the canonical room projection; cleared when handled or expired. */
   viewerInvitation?: RoomsListItem['viewerInvitation'];
+  /** When the room was created, as an ISO 8601 timestamp; null when unknown. */
+  createdAt?: string | null;
 };
 
 export type DirectoryRoomJoinPreview = {
@@ -69,7 +71,8 @@ export class RoomDirectoryStore {
         archived: false,
         isUniversal: room.isUniversal,
         viewerCanJoinRoom: room.viewerCanJoinRoom,
-        viewerInvitation: room.viewerInvitation
+        viewerInvitation: room.viewerInvitation,
+        createdAt: room.createdAt
       }));
   }
 

@@ -40,7 +40,31 @@
       }
     },
     "overview": {
-      "title": "סקירה כללית"
+      "title": "סקירה כללית",
+      "welcome_title": "ברוכים הבאים",
+      "happening_now": "קורה עכשיו",
+      "call_participants_count": {
+        "one": "{count} אדם בשיחה",
+        "two": "{count} אנשים בשיחה",
+        "other": "{count} אנשים בשיחה"
+      },
+      "catch_up": "להשלים",
+      "catch_up_unread": "הודעות שלא נקראו",
+      "neighbors": "שכנים",
+      "open_neighbor": "פתח את {server}",
+      "view_neighbor": "מצא את {server} במדריך השרתים",
+      "setup": {
+        "title": "סיים להגדיר את השרת שלך",
+        "missing": "עדיין חסר: {items}.",
+        "edit_profile": "ערוך את פרופיל השרת",
+        "hide": "הסתר את תזכורת ההגדרה",
+        "items": {
+          "logo": "לוגו",
+          "banner": "באנר",
+          "description": "תיאור",
+          "welcome_message": "הודעת פתיחה"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "חזרה לשרת",

@@ -92,7 +92,13 @@
       "left": "A sinistra #{room}",
       "left_generic": "Stanza di sinistra",
       "leave_confirm": "Sei sicuro di voler lasciare #{room}?",
-      "invited": "Invitato"
+      "invited": "Invitato",
+      "filter_label": "Mostra stanze",
+      "filter_all": "Tutte",
+      "filter_not_joined": "Non iscritto",
+      "empty_joined": "Non sei ancora entrato in nessuna stanza.",
+      "empty_not_joined": "Sei entrato in tutte le stanze disponibili.",
+      "new": "Nuova"
     },
     "server": {
       "remove_title": "Rimuovi server",

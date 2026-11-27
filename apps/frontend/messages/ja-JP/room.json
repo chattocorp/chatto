@@ -92,7 +92,13 @@
       "left": "左 #{room}",
       "left_generic": "部屋を出ました",
       "leave_confirm": "#{room} を退会してもよろしいですか?",
-      "invited": "招待済み"
+      "invited": "招待済み",
+      "filter_label": "ルームを表示",
+      "filter_all": "すべて",
+      "filter_not_joined": "未参加",
+      "empty_joined": "まだどのルームにも参加していません。",
+      "empty_not_joined": "参加できるすべてのルームに参加しています。",
+      "new": "新着"
     },
     "server": {
       "remove_title": "サーバーを削除",

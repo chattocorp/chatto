@@ -24,7 +24,7 @@
     "saving": "Enregistrement...",
     "save_button": "Sauvegarder les modifications",
     "description_help": "Affiché dans le répertoire des serveurs et sur la page Informations du serveur, et utilisé comme description pour les aperçus des liens.",
-    "motd_help": "Message d'une seule ligne affiché dans l'en-tête du clavardage. Prend en charge Markdown.",
+    "motd_help": "L'en-tête du clavardage affiche la première ligne. Prend en charge Markdown.",
     "welcome_message_help": "Affiché lors de la connexion et sur la page Informations du serveur. Prend en charge Markdown.",
     "logo_description": "Téléchargez un logo pour votre instance. Les images seront redimensionnées à 512 x 512 pixels.",
     "banner_description": "Téléchargez une bannière pour votre instance. La bannière sert également d'image d'aperçu du lien : les images sont redimensionnées à 1 200 x 630 pixels (le rapport d'aspect standard OpenGraph).",

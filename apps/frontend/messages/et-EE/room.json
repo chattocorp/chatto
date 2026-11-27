@@ -92,7 +92,13 @@
       "left": "Vasak number {room}",
       "left_generic": "Vasak tuba",
       "leave_confirm": "Kas soovite kindlasti #{room} lahkuda?",
-      "invited": "Kutsutud"
+      "invited": "Kutsutud",
+      "filter_label": "Näita ruume",
+      "filter_all": "Kõik",
+      "filter_not_joined": "Liitumata",
+      "empty_joined": "Te pole veel ühegi ruumiga liitunud.",
+      "empty_not_joined": "Olete liitunud kõigi ruumidega, millega saate liituda.",
+      "new": "Uus"
     },
     "server": {
       "remove_title": "Eemalda server",

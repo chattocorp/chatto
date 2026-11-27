@@ -70,3 +70,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-058](FDR-058-atproto-sign-in.md)                       | AT Protocol Sign-In                   | Experimental | 2026-11-12    |
 | [FDR-059](FDR-059-client-experimental-features.md)          | Client Experimental Features          | Active       | 2026-11-19    |
 | [FDR-060](FDR-060-release-highlights.md)                    | Release Highlights and Changelog      | Active       | 2026-11-22    |
+| [FDR-061](FDR-061-server-overview.md)                       | Server Overview                       | Active       | 2026-11-26    |

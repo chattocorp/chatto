@@ -92,7 +92,13 @@
       "left": "Sol #{room}",
       "left_generic": "Sol oda",
       "leave_confirm": "#{room}'den ayrılmak istediğinizden emin misiniz?",
-      "invited": "Davet edildi"
+      "invited": "Davet edildi",
+      "filter_label": "Odaları gösterin",
+      "filter_all": "Tümü",
+      "filter_not_joined": "Katılınmamış",
+      "empty_joined": "Henüz hiçbir odaya katılmadınız.",
+      "empty_not_joined": "Katılabileceğiniz tüm odalara katıldınız.",
+      "new": "Yeni"
     },
     "server": {
       "remove_title": "Sunucuyu Kaldır",

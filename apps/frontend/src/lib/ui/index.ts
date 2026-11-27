@@ -41,6 +41,7 @@ export { default as PaneHeader } from './PaneHeader.svelte';
 export { default as PaneContent } from './PaneContent.svelte';
 export { default as SelfVerificationItem } from './SelfVerificationItem.svelte';
 export { default as Pill } from './Pill.svelte';
+export { default as PulseIcon } from './PulseIcon.svelte';
 export { default as PreviewAction } from './PreviewAction.svelte';
 export { default as PreviewToolbar } from './PreviewToolbar.svelte';
 export { default as ScrollFader } from './ScrollFader.svelte';

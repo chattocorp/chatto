@@ -40,7 +40,30 @@
       }
     },
     "overview": {
-      "title": "Genel Bakış"
+      "title": "Genel Bakış",
+      "welcome_title": "Hoş geldiniz",
+      "happening_now": "Şu anda olanlar",
+      "call_participants_count": {
+        "one": "Görüşmede {count} kişi",
+        "other": "Görüşmede {count} kişi"
+      },
+      "catch_up": "Kaçırdıklarınız",
+      "catch_up_unread": "Okunmamış mesajlar",
+      "neighbors": "Komşular",
+      "open_neighbor": "{server} sunucusunu açın",
+      "view_neighbor": "{server} sunucusunu Sunucu Dizini’nde bulun",
+      "setup": {
+        "title": "Sunucunuzun kurulumunu tamamlayın",
+        "missing": "Hâlâ eksik: {items}.",
+        "edit_profile": "Sunucu profilini düzenleyin",
+        "hide": "Kurulum hatırlatıcısını gizleyin",
+        "items": {
+          "logo": "logo",
+          "banner": "afiş",
+          "description": "açıklama",
+          "welcome_message": "karşılama mesajı"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Sunucuya Geri Dön",

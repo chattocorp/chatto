@@ -40,7 +40,29 @@
       }
     },
     "overview": {
-      "title": "概览"
+      "title": "概览",
+      "welcome_title": "欢迎",
+      "happening_now": "正在进行",
+      "call_participants_count": {
+        "other": "通话中有 {count} 人"
+      },
+      "catch_up": "待查看",
+      "catch_up_unread": "未读消息",
+      "neighbors": "邻居",
+      "open_neighbor": "打开 {server}",
+      "view_neighbor": "在服务器目录中查找 {server}",
+      "setup": {
+        "title": "完成服务器设置",
+        "missing": "仍未设置：{items}。",
+        "edit_profile": "编辑服务器资料",
+        "hide": "隐藏设置提醒",
+        "items": {
+          "logo": "徽标",
+          "banner": "横幅",
+          "description": "描述",
+          "welcome_message": "欢迎消息"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "返回服务器",

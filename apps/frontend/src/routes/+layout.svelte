@@ -13,7 +13,8 @@
   import { navigationVisits } from '$lib/navigation/mutationCompletion';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { onDestroy, onMount } from 'svelte';
+  import { getAllContexts, onDestroy, onMount } from 'svelte';
+  import { enhanceEntityLinks } from '$lib/components/messages/enhanceEntityLinks';
   import { retireOfflineShell } from '$lib/pwa/retireOfflineShell';
   import { onNotificationClick } from '$lib/notifications/notificationClick';
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
@@ -168,6 +169,9 @@
       await deactivateHelpLocaleMessages();
     }
   });
+
+  /** Chatto room, server, and message links in the header MOTD show as pills, as in messages. */
+  const enhanceMotdLink = enhanceEntityLinks(getAllContexts(), getActiveServer);
 </script>
 
 <svelte:window
@@ -204,7 +208,7 @@
     use:sidebarSwipe
     class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] desktop-presentation:px-3 desktop-presentation:pb-3"
   >
-    <AppHeader>
+    <AppHeader {enhanceMotdLink}>
       {#snippet callControls(activeStore)}
         <AppCallControls {activeStore} />
       {/snippet}

@@ -10,16 +10,8 @@ renderer. Plain text remains visible while the component loads or rendering fail
 - `class` - Optional classes for layout constraints on the owning profile surface
 - `timestampSettings` - Viewer preferences for embedded timestamps
 -->
-<script module lang="ts">
-  let contentModule: Promise<typeof import('$lib/components/MessageContent.svelte')> | null = null;
-
-  function loadMessageContent() {
-    contentModule ??= import('$lib/components/MessageContent.svelte');
-    return contentModule;
-  }
-</script>
-
 <script lang="ts">
+  import MarkdownContent from '$lib/components/MarkdownContent.svelte';
   import type { TimeFormatSettings } from '$lib/utils/formatTime';
 
   let {
@@ -34,11 +26,5 @@ renderer. Plain text remains visible while the component loads or rendering fail
 </script>
 
 <div data-testid="user-bio" class={['min-w-0 break-words', className]} dir="auto">
-  {#await loadMessageContent()}
-    <p class="whitespace-pre-line">{bio}</p>
-  {:then { default: MessageContent }}
-    <MessageContent body={bio} {timestampSettings} />
-  {:catch}
-    <p class="whitespace-pre-line">{bio}</p>
-  {/await}
+  <MarkdownContent source={bio} {timestampSettings} />
 </div>

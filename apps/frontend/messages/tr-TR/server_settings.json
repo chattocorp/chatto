@@ -24,7 +24,7 @@
     "saving": "Kaydediliyor...",
     "save_button": "Değişiklikleri Kaydet",
     "description_help": "Sunucu Dizini'nde ve Sunucu bilgileri sayfasında gösterilir ve bağlantı önizlemelerinin açıklaması olarak kullanılır.",
-    "motd_help": "Sohbet başlığında gösterilen tek satırlık mesaj. Markdown'ı destekler.",
+    "motd_help": "Sohbet başlığında ilk satır gösterilir. Markdown desteklenir.",
     "welcome_message_help": "Giriş yaparken ve Sunucu bilgileri sayfasında gösterilir. Markdown'ı destekler.",
     "logo_description": "Örneğiniz için bir logo yükleyin. Resimler 512x512 piksele yeniden boyutlandırılacaktır.",
     "banner_description": "Örneğiniz için bir banner yükleyin. Banner, bağlantı önizleme görüntüsü olarak da kullanılabilir; görüntüler 1200x630 piksele (standart OpenGraph en boy oranı) göre yeniden boyutlandırılır.",

@@ -24,7 +24,7 @@
     "saving": "Guardando...",
     "save_button": "Guardar cambios",
     "description_help": "Se muestra en el directorio de servidores y en la página de información del servidor, y se utiliza como descripción para las vistas previas de enlaces.",
-    "motd_help": "Mensaje de una sola línea que se muestra en el encabezado del chat. Admite Markdown.",
+    "motd_help": "La cabecera del chat muestra la primera línea. Admite Markdown.",
     "welcome_message_help": "Se muestra al iniciar sesión y en la página de información del servidor. Admite Markdown.",
     "logo_description": "Sube un logo para tu instancia. Las imágenes cambiarán de tamaño a 512x512 píxeles.",
     "banner_description": "Sube un banner para tu instancia. El banner también funciona como imagen de vista previa del enlace: las imágenes cambian de tamaño a 1200 x 630 píxeles (la relación de aspecto estándar OpenGraph).",

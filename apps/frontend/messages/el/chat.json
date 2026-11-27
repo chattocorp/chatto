@@ -40,7 +40,30 @@
       }
     },
     "overview": {
-      "title": "Επισκόπηση"
+      "title": "Επισκόπηση",
+      "welcome_title": "Καλώς ήρθατε",
+      "happening_now": "Συμβαίνει τώρα",
+      "call_participants_count": {
+        "one": "{count} άτομο στην κλήση",
+        "other": "{count} άτομα στην κλήση"
+      },
+      "catch_up": "Για ενημέρωση",
+      "catch_up_unread": "Μη αναγνωσμένα μηνύματα",
+      "neighbors": "Γειτονικοί διακομιστές",
+      "open_neighbor": "Άνοιγμα {server}",
+      "view_neighbor": "Εύρεση {server} στον Κατάλογο διακομιστών",
+      "setup": {
+        "title": "Ολοκληρώστε τη ρύθμιση του διακομιστή σας",
+        "missing": "Λείπει ακόμη: {items}.",
+        "edit_profile": "Επεξεργασία προφίλ διακομιστή",
+        "hide": "Απόκρυψη υπενθύμισης ρύθμισης",
+        "items": {
+          "logo": "λογότυπο",
+          "banner": "πανό",
+          "description": "περιγραφή",
+          "welcome_message": "μήνυμα καλωσορίσματος"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Επιστροφή στον διακομιστή",

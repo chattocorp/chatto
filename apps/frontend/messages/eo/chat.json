@@ -40,7 +40,30 @@
       }
     },
     "overview": {
-      "title": "Superrigardo"
+      "title": "Superrigardo",
+      "welcome_title": "Bonvenon",
+      "happening_now": "Okazas nun",
+      "call_participants_count": {
+        "one": "{count} persono en la voko",
+        "other": "{count} personoj en la voko"
+      },
+      "catch_up": "Atingi",
+      "catch_up_unread": "Nelegitaj mesaĝoj",
+      "neighbors": "Najbaroj",
+      "open_neighbor": "Malfermi {server}",
+      "view_neighbor": "Trovi {server} en la servila katalogo",
+      "setup": {
+        "title": "Finu agordi vian servilon",
+        "missing": "Ankoraŭ mankas: {items}.",
+        "edit_profile": "Redakti la servilan profilon",
+        "hide": "Kaŝi la agordan memorigon",
+        "items": {
+          "logo": "emblemo",
+          "banner": "standardo",
+          "description": "priskribo",
+          "welcome_message": "bonvena mesaĝo"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Reen al Servilo",

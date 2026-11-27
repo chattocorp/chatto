@@ -40,7 +40,30 @@
       }
     },
     "overview": {
-      "title": "概要"
+      "title": "概要",
+      "welcome_title": "ようこそ",
+      "happening_now": "いま起きていること",
+      "call_participants_count": {
+        "one": "通話中 {count} 人",
+        "other": "通話中 {count} 人"
+      },
+      "catch_up": "未読をチェック",
+      "catch_up_unread": "未読メッセージ",
+      "neighbors": "ネイバー",
+      "open_neighbor": "{server} を開く",
+      "view_neighbor": "サーバーディレクトリで {server} を探す",
+      "setup": {
+        "title": "サーバーの設定を完了してください",
+        "missing": "未設定: {items}。",
+        "edit_profile": "サーバープロフィールを編集",
+        "hide": "設定のリマインダーを非表示",
+        "items": {
+          "logo": "ロゴ",
+          "banner": "バナー",
+          "description": "説明",
+          "welcome_message": "ウェルカムメッセージ"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "サーバーに戻る",

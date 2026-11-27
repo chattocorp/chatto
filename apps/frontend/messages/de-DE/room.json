@@ -92,7 +92,13 @@
       "left": "#{room} verlassen",
       "left_generic": "Raum verlassen",
       "leave_confirm": "Möchtest du #{room} wirklich verlassen?",
-      "invited": "Eingeladen"
+      "invited": "Eingeladen",
+      "filter_label": "Räume anzeigen",
+      "filter_all": "Alle",
+      "filter_not_joined": "Nicht beigetreten",
+      "empty_joined": "Du bist noch keinem Raum beigetreten.",
+      "empty_not_joined": "Du bist allen Räumen beigetreten, denen du beitreten kannst.",
+      "new": "Neu"
     },
     "server": {
       "remove_title": "Server entfernen",

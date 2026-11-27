@@ -40,7 +40,30 @@
       }
     },
     "overview": {
-      "title": "Visão geral"
+      "title": "Visão geral",
+      "welcome_title": "Boas-vindas",
+      "happening_now": "Acontecendo agora",
+      "call_participants_count": {
+        "one": "{count} pessoa na chamada",
+        "other": "{count} pessoas na chamada"
+      },
+      "catch_up": "Para colocar em dia",
+      "catch_up_unread": "Mensagens não lidas",
+      "neighbors": "Vizinhos",
+      "open_neighbor": "Abrir {server}",
+      "view_neighbor": "Encontrar {server} no diretório de servidores",
+      "setup": {
+        "title": "Conclua a configuração do seu servidor",
+        "missing": "Ainda falta: {items}.",
+        "edit_profile": "Editar perfil do servidor",
+        "hide": "Ocultar lembrete de configuração",
+        "items": {
+          "logo": "logotipo",
+          "banner": "banner",
+          "description": "descrição",
+          "welcome_message": "mensagem de boas-vindas"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Voltar ao servidor",

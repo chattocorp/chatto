@@ -40,7 +40,32 @@
       }
     },
     "overview": {
-      "title": "Обзор"
+      "title": "Обзор",
+      "welcome_title": "Добро пожаловать",
+      "happening_now": "Сейчас происходит",
+      "call_participants_count": {
+        "one": "{count} человек в звонке",
+        "few": "{count} человека в звонке",
+        "many": "{count} человек в звонке",
+        "other": "{count} человека в звонке"
+      },
+      "catch_up": "Непрочитанное",
+      "catch_up_unread": "Непрочитанные сообщения",
+      "neighbors": "Соседи",
+      "open_neighbor": "Открыть {server}",
+      "view_neighbor": "Найти {server} в каталоге серверов",
+      "setup": {
+        "title": "Завершите настройку сервера",
+        "missing": "Ещё не задано: {items}.",
+        "edit_profile": "Изменить профиль сервера",
+        "hide": "Скрыть напоминание о настройке",
+        "items": {
+          "logo": "логотип",
+          "banner": "баннер",
+          "description": "описание",
+          "welcome_message": "приветствие"
+        }
+      }
     },
     "server_nav": {
       "back_to_server": "Вернуться на сервер",

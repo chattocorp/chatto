@@ -173,6 +173,8 @@ The 48 px server frame has a corner radius 2 px larger than the 44 px logo's
 | Global app-header icon                      | `app-header-icon`                                                                      | `icon-action` with compensating margins                       |
 | Durable content container                   | `Panel` or `panel-shell`                                                               | Ad hoc card borders, radius, and elevation                    |
 | Compact nested row                          | `surface-box`                                                                          | A panel nested inside another panel                           |
+| Grid of small item cards                    | `tile`; add `tile-interactive` when the tile opens something                           | A `Panel` for each item; ad hoc borderless cards              |
+| Name for a group of items                   | `section-label` with a text colour                                                     | Repeating `text-xs` uppercase recipes                         |
 | Status or scope label                       | `Pill`; `ToggleChip` when independently interactive                                    | One-off colored badges                                        |
 | Inline contextual notice                    | `Hint`                                                                                 | A panel used as an alert                                      |
 | Short note below a form or action           | `Hint` with `plain`                                                                    | A boxed `Hint` or hand-styled muted paragraph                 |
@@ -229,6 +231,24 @@ the selected header action on the first click. Desktop palettes remain modal.
 Wider windows keep the compact floating frame. Layout changes retain the
 same input, query, and focus. `modalViewport` keeps top-layer content above
 the software keyboard; it is shared with task dialogs and bottom sheets.
+
+### Tiles And Section Labels
+
+Use `tile` for a grid of small, similar items, such as the rooms of a room
+group on the server Overview. A tile has the panel frame's `surface` fill
+and corners, but no border, no title band, and no depth lighting. Bevels
+repeated on many small cards read as texture, so tiles stay flat at every
+depth setting. It sits directly on the `background` plane, one
+surface level up. Do not put tiles inside a `Panel`; group them under a
+`section-label` instead. Add `tile-interactive` when the whole tile opens
+something: it takes the hover fill of selectable rows. Keep actions inside a
+tile compact (`Button size="compact"`), and make a stretched link the tile's
+main target when it has one.
+
+`section-label` is the small uppercase label for a group of items. The room
+groups in the sidebar and the sections of the server Overview use it, so the
+same group reads the same in both places. It sets no colour; use `text-muted`
+for a resting label.
 
 ## Attachment Description Icons
 

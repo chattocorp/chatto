@@ -92,7 +92,13 @@
       "left": "Esquerda #{room}",
       "left_generic": "Esquerda da sala",
       "leave_confirm": "Tem certeza de que deseja sair de #{room}?",
-      "invited": "Convidado"
+      "invited": "Convidado",
+      "filter_label": "Mostrar salas",
+      "filter_all": "Todas",
+      "filter_not_joined": "Não participando",
+      "empty_joined": "Você ainda não entrou em nenhuma sala.",
+      "empty_not_joined": "Você entrou em todas as salas disponíveis.",
+      "new": "Nova"
     },
     "server": {
       "remove_title": "Remover servidor",

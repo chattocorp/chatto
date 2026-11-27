@@ -22,6 +22,8 @@
 
   import { FormSection, Panel, Hint, LoadingDots } from '$lib/ui';
   import { TextInput, TextArea, Button, FormError } from '$lib/ui/form';
+  import MarkdownEditorField from '$lib/components/composer/MarkdownEditorField.svelte';
+  import { userPreferences } from '$lib/state/userPreferences.svelte';
   import { toast } from '$lib/ui/toast';
   import { dropZone } from '$lib/dom/dropZone.svelte';
   import DropZoneOverlay from '$lib/dom/DropZoneOverlay.svelte';
@@ -226,9 +228,14 @@
     return null;
   });
 
+  /** The Markdown editors show the limit but, unlike inputs, cannot enforce it. */
+  const messagesTooLong = $derived(
+    [...welcomeMessage].length > MAX_WELCOME_MESSAGE_LENGTH || [...motd].length > MAX_MOTD_LENGTH
+  );
+
   function handleSave(e: Event) {
     e.preventDefault();
-    if (nameError || !changed || saving) return;
+    if (nameError || messagesTooLong || !changed || saving) return;
     saveMutation.mutate({
       ...mutationScope(),
       input: {
@@ -314,19 +321,21 @@
         <!-- Messages: what people read when they sign in and while they chat. -->
         <FormSection title={m('server_settings.messages_section')} bordered>
           <div class="flex flex-col gap-4">
-            <TextArea
-              id="welcome-message"
+            <!-- The composer editors show Chatto room and server links as pills, as messages do. -->
+            <MarkdownEditorField
+              editorKind={userPreferences.composerEditor}
               label={m('server_settings.welcome_message_label')}
+              testid="server-welcome-message-editor"
               bind:value={() => welcomeMessage, (value) => edit('welcomeMessage', value)}
               maxlength={MAX_WELCOME_MESSAGE_LENGTH}
-              rows={8}
               disabled={saving}
               description={m('server_settings.welcome_message_help')}
             />
 
-            <TextInput
-              id="motd"
+            <MarkdownEditorField
+              editorKind={userPreferences.composerEditor}
               label={m('common.message_of_the_day')}
+              testid="server-motd-editor"
               bind:value={() => motd, (value) => edit('motd', value)}
               maxlength={MAX_MOTD_LENGTH}
               disabled={saving}
@@ -343,7 +352,7 @@
           <Button
             type="submit"
             loading={saving}
-            disabled={!changed || !name.trim() || !!nameError}
+            disabled={!changed || !name.trim() || !!nameError || messagesTooLong}
             loadingText={m('server_settings.saving')}
           >
             <span aria-hidden="true" class="iconify icon-[uil--check]"></span>
