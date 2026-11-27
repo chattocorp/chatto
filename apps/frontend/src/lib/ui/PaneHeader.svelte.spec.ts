@@ -88,16 +88,19 @@ describe('PaneHeader responsive actions', () => {
     await expect.element(toggle).toHaveFocus();
   });
 
-  it('uses pane width and keeps important actions out of the wide toolbar', async () => {
+  it.each([
+    [true, 32],
+    ['wide', 48]
+  ] as const)('uses the pane width for collapseActions=%s', async (collapseActions, cutoff) => {
     const { container, getByRole } = render(PaneHeader, {
-      props: { title: 'General', collapseActions: true, actions, collapsedActions }
+      props: { title: 'General', collapseActions, actions, collapsedActions }
     });
-    container.style.width = '600px';
+    container.style.width = cutoff + 'rem';
     await expect.element(getByRole('button', { name: 'Members' })).toBeVisible();
     await expect.element(q(container, '[aria-controls]')).not.toBeVisible();
     await expect.element(q(container, '[data-testid="active-call"]')).not.toBeVisible();
 
-    container.style.width = '390px';
+    container.style.width = `calc(${cutoff}rem - 1px)`;
     await expect.element(getByRole('button', { name: 'Pane actions' })).toBeVisible();
     await expect.element(q(container, '[data-testid="members"]')).not.toBeVisible();
     await expect.element(getByRole('button', { name: 'Active call' })).toBeVisible();

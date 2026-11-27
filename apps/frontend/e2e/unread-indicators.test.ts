@@ -1,3 +1,4 @@
+import { roomHeaderAction } from './pages/RoomPage';
 import { expect } from '@playwright/test';
 import { createAndLoginTestUser, loginAsAdmin } from './fixtures/testUser';
 import {
@@ -955,7 +956,7 @@ test.describe('Room unread separator', () => {
         // User A leaves general. The "User A left the room" event is a non-
         // message room event — it does NOT advance the server's root-message
         // read cursor.
-        await page.getByTitle('Leave room').click();
+        await (await roomHeaderAction(page, 'Leave room')).click();
         await page.getByRole('dialog').getByRole('button', { name: 'Leave room' }).click();
 
         // User B (still hidden) receives the leave event over the live

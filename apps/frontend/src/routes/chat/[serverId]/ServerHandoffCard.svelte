@@ -45,10 +45,7 @@
         return;
       }
       const id = saved ?? addSignedOutServer(origin, profile);
-      // Keep the shared link's query, such as an invitation code, on the server route.
-      // resolve() adds the base path; the cast follows NotificationsPage.
-      const segment = encodeURIComponent(serverIdToSegment(id));
-      await goto(resolve(`/chat/${segment}${page.url.search}` as '/'), {
+      await goto(resolve(`/chat/${serverIdToSegment(id)}${page.url.search}`), {
         replaceState: true,
         invalidateAll: true
       });
