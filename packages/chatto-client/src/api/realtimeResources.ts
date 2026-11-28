@@ -42,10 +42,17 @@ export class RealtimeResourceUpdate {
   readonly resource: RealtimeResource;
   /** Replace the complete resource family instead of merging returned rows. */
   readonly replace: boolean;
+  /** Requested room IDs omitted by an authoritative targeted read. */
+  readonly removedRoomIds: readonly string[];
 
-  constructor(init: { resource: RealtimeResource; replace?: boolean }) {
+  constructor(init: {
+    resource: RealtimeResource;
+    replace?: boolean;
+    removedRoomIds?: readonly string[];
+  }) {
     this.resource = init.resource;
     this.replace = init.replace ?? true;
+    this.removedRoomIds = init.removedRoomIds ?? [];
   }
 }
 
@@ -137,7 +144,28 @@ export function createRealtimeResourceAPI(config: ConnectAPIConfig) {
     ];
   };
 
-  return { read, readUsers };
+  /** Read only named rooms. Missing IDs are unknown or hidden from the viewer. */
+  const readRooms = async (roomIds: Iterable<string>, minimumCursor?: string) => {
+    const ids = [...new Set(roomIds)].filter(Boolean);
+    const response = new ListRoomsResponse();
+    for (let offset = 0; offset < ids.length; offset += 100) {
+      const page = await rooms.batchGetRooms(
+        { roomIds: ids.slice(offset, offset + 100) },
+        options(minimumCursor)
+      );
+      // Match ListRooms default active-room scope; direct reads can return archives.
+      response.rooms.push(...page.rooms.filter((entry) => !entry.room?.archived));
+    }
+    return [
+      new RealtimeResourceUpdate({
+        resource: { case: 'rooms', value: response },
+        replace: false,
+        removedRoomIds: ids.filter((id) => !response.rooms.some((room) => room.room?.id === id))
+      })
+    ];
+  };
+
+  return { read, readUsers, readRooms };
 }
 
 export type RealtimeResourceAPI = ReturnType<typeof createRealtimeResourceAPI>;

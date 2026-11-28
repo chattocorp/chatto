@@ -331,10 +331,11 @@ export class ServerStateStore {
   }
   /** Deletions stay authoritative until the next exact snapshot resets this projection. */
   readonly #deletedRealtimeUserIds = new ReactiveSet<string>();
+  readonly #deletedRealtimeRoomIds = new Set<string>();
   readonly #resourceRefreshes = new ReactiveMap<RealtimeResourceFamily, Promise<boolean>>();
   readonly #pendingResourceRefreshes = new ReactiveMap<
     RealtimeResourceFamily,
-    { minimumCursor?: string; generation: number }
+    { minimumCursor?: string; generation: number; roomIds?: Set<string> }
   >();
   #currentEventMinimumCursor: string | undefined;
   #userRefresh: Promise<void> | null = null;
@@ -994,7 +995,10 @@ export class ServerStateStore {
       }
       const generation = ++this.#realtimeProjectionGeneration;
       this.#realtimeSnapshotPending = true;
-      if (!update.retainView) this.#deletedRealtimeUserIds.clear();
+      if (!update.retainView) {
+        this.#deletedRealtimeUserIds.clear();
+        this.#deletedRealtimeRoomIds.clear();
+      }
       this.#reconciliationError = null;
       this.#pendingResourceRefreshes.clear();
       this.#pendingUserRefreshIds.clear();
@@ -1016,7 +1020,16 @@ export class ServerStateStore {
     }
 
     if (update.resource?.case === 'rooms') {
-      this.reconcileRoomPermissions(update.resource.value.rooms, update.cursor ?? undefined);
+      for (const id of update.removedRoomIds) {
+        this.projection.removeRoom(id);
+        this.scrubRemovedRoom(id);
+        previousRoomIds.delete(id);
+      }
+      this.reconcileRoomPermissions(
+        update.resource.value.rooms,
+        update.cursor ?? undefined,
+        update.replaceResource
+      );
     }
     this.projection.apply(update);
     const resource = update.resource;
@@ -1182,9 +1195,15 @@ export class ServerStateStore {
   }
 
   /** Read and posting changes require fresh message content and reply capabilities. */
-  private reconcileRoomPermissions(rooms: RoomWithViewerState[], cursor?: string): void {
+  private reconcileRoomPermissions(
+    rooms: RoomWithViewerState[],
+    cursor?: string,
+    replace = true
+  ): void {
     const nextRooms = new Map(rooms.map((room) => [room.room?.id, room]));
-    const ids = new Set([...this.#rooms.roomIds(), ...this.projection.rooms.keys()]);
+    const ids = replace
+      ? new Set([...this.#rooms.roomIds(), ...this.projection.rooms.keys()])
+      : new Set(rooms.flatMap((room) => (room.room?.id ? [room.room.id] : [])));
     for (const roomId of ids) {
       const next = nextRooms.get(roomId);
       if (!next?.viewerState?.isMember) {
@@ -1266,6 +1285,7 @@ export class ServerStateStore {
             this.notifications.clearRoom(roomId);
           }
         }
+        // Expiry can change directory and layout visibility without an event.
         this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');
       },
@@ -1310,14 +1330,27 @@ export class ServerStateStore {
     this.clearRoomAccess(roomId, true);
   }
 
-  private refreshRealtimeResource(family: RealtimeResourceFamily, minimumCursor?: string): void {
+  /** Full reads and targeted room reads share one queue, so responses cannot race.
+   * A full read supersedes pending room IDs; later hints queue a follow-up read.
+   */
+  private refreshRealtimeResource(
+    family: RealtimeResourceFamily,
+    minimumCursor?: string,
+    roomIds?: Set<string>
+  ): void {
     minimumCursor ??= this.#currentEventMinimumCursor;
     const generation = this.#realtimeProjectionGeneration;
     const pending = this.#pendingResourceRefreshes.get(family);
     this.#pendingResourceRefreshes.set(family, {
       minimumCursor:
         minimumCursor ?? (pending?.generation === generation ? pending.minimumCursor : undefined),
-      generation
+      generation,
+      roomIds:
+        pending?.generation === generation
+          ? pending.roomIds && roomIds
+            ? new Set([...pending.roomIds, ...roomIds])
+            : undefined
+          : roomIds
     });
     if (this.#resourceRefreshes.has(family)) return;
     // Collect adjacent event frames before reading. Once a read starts, later
@@ -1325,15 +1358,21 @@ export class ServerStateStore {
     const refresh = new Promise<void>((resolve) => setTimeout(resolve, 10))
       .then(() => {
         this.requireCurrentRealtimeProjection(generation);
-        minimumCursor = this.#pendingResourceRefreshes.get(family)?.minimumCursor;
+        const queued = this.#pendingResourceRefreshes.get(family);
+        minimumCursor = queued?.minimumCursor;
+        roomIds = queued?.roomIds;
         this.#pendingResourceRefreshes.delete(family);
-        return this.#realtimeResources.read(family, minimumCursor);
+        return roomIds
+          ? this.#realtimeResources.readRooms(roomIds, minimumCursor)
+          : this.#realtimeResources.read(family, minimumCursor);
       })
       .then(async (resources) => {
         this.requireCurrentRealtimeProjection(generation);
         batch(() => {
           for (const resource of resources) {
-            this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+            this.publishProjectionUpdate(
+              new RealtimeProjectionUpdate({ resource, cursor: minimumCursor })
+            );
           }
         });
         if (family === 'rooms') {
@@ -1353,9 +1392,13 @@ export class ServerStateStore {
         if (!pending) return;
         this.#pendingResourceRefreshes.delete(family);
         if (pending.generation !== this.#realtimeProjectionGeneration) return;
-        this.refreshRealtimeResource(family, pending.minimumCursor);
+        this.refreshRealtimeResource(family, pending.minimumCursor, pending.roomIds);
       });
     this.#resourceRefreshes.set(family, refresh);
+  }
+
+  private refreshRealtimeRooms(roomId: string): void {
+    if (roomId) this.refreshRealtimeResource('rooms', undefined, new Set([roomId]));
   }
 
   private async hydrateProjectedDMUsers(
@@ -1435,6 +1478,21 @@ export class ServerStateStore {
     update: RealtimeProjectionUpdate,
     presenceReadVersion?: number
   ): void {
+    // A read started before deletion must not restore the room or its access.
+    if (update.resource?.case === 'rooms' && this.#deletedRealtimeRoomIds.size > 0) {
+      const value = update.resource.value.clone();
+      value.rooms = value.rooms.filter(
+        (room) => !this.#deletedRealtimeRoomIds.has(room.room?.id ?? '')
+      );
+      update = new RealtimeProjectionUpdate({
+        resource: new RealtimeResourceUpdate({
+          resource: { case: 'rooms', value },
+          replace: update.replaceResource,
+          removedRoomIds: update.removedRoomIds
+        }),
+        cursor: update.cursor
+      });
+    }
     // Filter before both the local reducer and bus consumers see the response.
     // This covers profile refreshes, DM hydration, and catch-up user batches.
     if (update.resource?.case === 'users' && this.#deletedRealtimeUserIds.size > 0) {
@@ -1508,16 +1566,17 @@ export class ServerStateStore {
         this.projection.users.setDeactivated(payload.value.userId, payload.value.deactivated);
         return;
       case 'roomDeleted':
+        this.#deletedRealtimeRoomIds.add(payload.value.roomId);
         this.projection.removeRoom(payload.value.roomId);
         this.scrubRemovedRoom(payload.value.roomId);
-        this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');
         return;
       case 'userLeftRoom':
         if (roomId && event.actorId) this.updateRoomMembership(roomId, event.actorId, false);
         if (event.actorId === this.realtimeViewerId() && roomId) this.clearRoomAccess(roomId);
         this.#timelines.refreshWindows(roomId, event.id || null);
-        this.refreshRealtimeResource('rooms');
+        // Leaving can retain a visible directory entry with new viewer state.
+        this.refreshRealtimeRooms(roomId);
         this.refreshRealtimeResource('roomGroups');
         return;
       case 'roomNoticeChanged':
@@ -1552,7 +1611,7 @@ export class ServerStateStore {
           // Posts do not establish viewer attention. Its user-scoped hints arrive
           // after the server applies Badge decisions. Views report reads separately.
           // Known DM activity is already applied by the room projection.
-          if (!this.projection.rooms.has(roomId)) this.refreshRealtimeResource('rooms');
+          if (!this.projection.rooms.has(roomId)) this.refreshRealtimeRooms(roomId);
         }
         return;
       }
@@ -1586,7 +1645,7 @@ export class ServerStateStore {
           this.roomAttentionMayChange(payload.value.roomId) ||
           (this.projection.rooms.get(payload.value.roomId)?.room?.slowModeSeconds ?? 0) > 0
         ) {
-          this.refreshRealtimeResource('rooms');
+          this.refreshRealtimeRooms(roomId);
         }
         return;
       case 'roomInvitationCreated':
@@ -1623,8 +1682,25 @@ export class ServerStateStore {
           // A settings event is not an anchor in any thread timeline.
           this.#timelines.refreshWindows(roomId, null);
         }
-        this.refreshRealtimeResource('rooms');
-        this.refreshRealtimeResource('roomGroups');
+        if (payload.case === 'roomCreated' || payload.case === 'roomUniversalChanged') {
+          // Membership and initial layout discovery still use a complete snapshot.
+          this.refreshRealtimeResource('rooms');
+        } else this.refreshRealtimeRooms(roomId);
+        if (
+          [
+            'roomCreated',
+            'roomUniversalChanged',
+            'roomArchived',
+            'roomUnarchived',
+            'roomInvitationCreated',
+            'roomInvitationAccepted',
+            'roomInvitationDeclined',
+            'userJoinedRoom'
+          ].includes(payload.case)
+        ) {
+          // These events can change which entries are visible in the layout.
+          this.refreshRealtimeResource('roomGroups');
+        }
         return;
       case 'roomLayoutChanged':
         this.refreshRealtimeResource('roomGroups');
@@ -1645,12 +1721,12 @@ export class ServerStateStore {
         return;
       case 'viewerPreferencesChanged':
         this.refreshRealtimeResource('viewer');
+        // Viewer preferences can affect every room.
         this.refreshRealtimeResource('rooms');
         if (this.accountId) this.refreshRealtimeUsers([this.accountId]);
         return;
       case 'roomReadStateChanged':
-        if (this.roomAttentionMayChange(payload.value.roomId))
-          this.refreshRealtimeResource('rooms');
+        if (this.roomAttentionMayChange(payload.value.roomId)) this.refreshRealtimeRooms(roomId);
         return;
       case 'threadCreated':
         this.#timelines.reconcile(roomId, payload.value.threadRootEventId);

@@ -701,7 +701,11 @@ populate or clear it. See
 The projection stores canonical public resources. It does not store
 realtime-specific resource copies. Resource invalidation events collect for
 10 milliseconds before a ConnectRPC read starts. Adjacent events for the same
-family share one read at the latest received cursor. If another event reaches
+family share one read at the latest received cursor. Room-scoped hints batch
+the named room IDs through `BatchGetRooms`. Partial results keep unrelated
+rooms. Omitted IDs and archived rooms use the normal room-removal boundary.
+Creation, universal membership, permission checks, catch-up, and invitation
+expiry still read the complete directory where needed. If another event reaches
 the same resource family during a read, the frontend runs one follow-up read
 at the newest event cursor. Both the collection delay and follow-up reads are
 part of cursor reconciliation. Notification invalidations still require an

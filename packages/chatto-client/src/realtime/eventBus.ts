@@ -20,6 +20,8 @@ export class RealtimeProjectionUpdate {
   readonly resource: RealtimeResource | null;
   /** Whether this response replaces the complete resource family. */
   readonly replaceResource: boolean;
+  /** Rooms omitted by an authoritative targeted read. Unrelated rooms stay unchanged. */
+  readonly removedRoomIds: readonly string[];
   /** Opaque minimum cursor for reads caused by this event. */
   readonly cursor: string | null;
   /** Clear the retained projection before applying this update. */
@@ -43,6 +45,7 @@ export class RealtimeProjectionUpdate {
   ) {
     this.resource = init.resource?.resource ?? null;
     this.replaceResource = init.resource?.replace ?? false;
+    this.removedRoomIds = init.resource?.removedRoomIds ?? [];
     this.cursor = init.cursor ?? null;
     this.reset = init.reset ?? false;
     this.privacyReset = init.privacyReset ?? false;

@@ -164,6 +164,12 @@
 
   useProjectionEvent((event) => {
     if (event.resource?.case === 'rooms') {
+      if (
+        !event.replaceResource &&
+        !event.removedRoomIds.includes(roomId) &&
+        !event.resource.value.rooms.some((room) => room.room?.id === roomId)
+      )
+        return;
       if (event.resource.value.rooms.some((room) => room.room?.id === roomId)) {
         void invalidateRoomMemberQueries(serverScope, roomId);
       } else {
