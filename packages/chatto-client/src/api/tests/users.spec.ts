@@ -41,18 +41,42 @@ describe('createUserAPI', () => {
     vi.resetAllMocks();
   });
 
-  it('requests all verified identities and preserves unfamiliar methods', async () => {
+  it('reads profile details and preserves unfamiliar identity methods', async () => {
     const identities = [
       { method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' },
       { method: 'custom-directory', methodLabel: 'Community directory', value: 'Member 123' }
     ];
-    mocks.getUser.mockReturnValue({ verifiedIdentities: identities });
-    await expect(createUserAPI(config()).getVerifiedIdentities('U1')).resolves.toMatchObject(
-      identities
-    );
+    mocks.getUser.mockReturnValue({
+      user: {
+        user: { id: 'U1', login: 'alice' },
+        roles: ['everyone', 'moderator'],
+        createdAt: { seconds: 1_741_910_400n }
+      },
+      verifiedIdentities: identities
+    });
+    await expect(createUserAPI(config()).getProfileDetails('U1')).resolves.toEqual({
+      roles: ['moderator'],
+      createdAt: '2025-03-14T00:00:00.000Z',
+      verifiedIdentities: identities
+    });
     expect(receivedRequest(mocks.getUser)).toMatchObject({
       target: { case: 'userId', value: 'U1' },
       includeVerifiedIdentities: true
+    });
+  });
+
+  it('keeps the verified-identity read for existing clients', async () => {
+    const identities = [{ method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' }];
+    mocks.getUser.mockReturnValue({ verifiedIdentities: identities });
+    await expect(createUserAPI(config()).getVerifiedIdentities('U1')).resolves.toEqual(identities);
+  });
+
+  it('reports no details when the server omits the member row', async () => {
+    mocks.getUser.mockReturnValue({});
+    await expect(createUserAPI(config()).getProfileDetails('U1')).resolves.toEqual({
+      roles: [],
+      createdAt: null,
+      verifiedIdentities: []
     });
   });
 

@@ -183,7 +183,7 @@
       "fallback_title": "Profiil",
       "not_found": "Kasutajat ei leitud",
       "bot": "Bot",
-      "local_time": "{time} kohalik aeg ({zone})",
+      "local_time": "{time} kohalik aeg",
       "permissions": {
         "title": "Mida ta saab teha",
         "empty": "Sulle pole nähtavaid aktiivseid õigusi.",
@@ -208,7 +208,20 @@
         "manage_messages": "Hallata sõnumeid"
       },
       "owned_by": "Omanik",
-      "open_card": "Ava kasutaja {name} profiilikaart"
+      "open_card": "Ava kasutaja {name} profiilikaart",
+      "time_offset": {
+        "ahead": "{offset} teie ees",
+        "behind": "{offset} teie järel",
+        "same": "Sama kellaaeg mis teil"
+      },
+      "member_since": "Liige alates {date}",
+      "roles": "Rollid",
+      "details": "Üksikasjad",
+      "actions": {
+        "mention": "Maini",
+        "search_messages": "Otsi sõnumeid"
+      },
+      "recent_messages": "Viimased sõnumid"
     },
     "management_nav": {
       "general": "Kindral",

@@ -182,7 +182,7 @@
       "fallback_title": "個人資料",
       "not_found": "找不到該使用者",
       "bot": "機器人",
-      "local_time": "當地時間 {time}（{zone}）",
+      "local_time": "當地時間 {time}",
       "permissions": {
         "title": "它能做什麼",
         "empty": "沒有對你可見的有效權限。",
@@ -207,7 +207,20 @@
         "manage_messages": "管理訊息"
       },
       "owned_by": "擁有者",
-      "open_card": "開啟 {name} 的個人資料卡"
+      "open_card": "開啟 {name} 的個人資料卡",
+      "time_offset": {
+        "ahead": "比你快{offset}",
+        "behind": "比你慢{offset}",
+        "same": "與你的時間相同"
+      },
+      "member_since": "加入時間：{date}",
+      "roles": "角色",
+      "details": "詳細資料",
+      "actions": {
+        "mention": "提及",
+        "search_messages": "搜尋訊息"
+      },
+      "recent_messages": "最近的訊息"
     },
     "management_nav": {
       "general": "一般",

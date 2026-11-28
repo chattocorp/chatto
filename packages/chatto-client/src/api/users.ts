@@ -21,6 +21,16 @@ import { mapUserSummary, type UserSummary } from './userSummary.js';
 /** Public profile identity as reported by the server. Method keys are extensible. */
 export type VerifiedIdentity = Pick<APIVerifiedIdentity, 'method' | 'methodLabel' | 'value'>;
 
+/** Public profile facts that the shared user summary does not carry. */
+export type UserProfileDetails = {
+  /** Explicit role names, without the virtual `everyone` role. Empty for bots. */
+  roles: string[];
+  /** Account creation time as an ISO 8601 string, when known. */
+  createdAt: string | null;
+  /** Public identities that this server has verified for the user. */
+  verifiedIdentities: VerifiedIdentity[];
+};
+
 /** Profile fields to change. Omitted fields stay unchanged; an empty bio clears it. */
 export type UpdateUserProfileInput = {
   displayName?: string;
@@ -47,11 +57,23 @@ export function createUserAPI(config: ConnectAPIConfig) {
   return {
     /** Read the public verified identities for a member profile. */
     async getVerifiedIdentities(userId: string, signal?: AbortSignal): Promise<VerifiedIdentity[]> {
+      return (await this.getProfileDetails(userId, signal)).verifiedIdentities;
+    },
+    /** Read the roles, account age, and verified identities for a member profile. */
+    async getProfileDetails(userId: string, signal?: AbortSignal): Promise<UserProfileDetails> {
       const response = await client.getUser(
         { target: { case: 'userId', value: userId }, includeVerifiedIdentities: true },
         { signal }
       );
-      return response.verifiedIdentities;
+      return {
+        roles: (response.user?.roles ?? []).filter((role) => role !== 'everyone'),
+        createdAt: response.user?.createdAt?.toDate().toISOString() ?? null,
+        verifiedIdentities: response.verifiedIdentities.map(({ method, methodLabel, value }) => ({
+          method,
+          methodLabel,
+          value
+        }))
+      };
     },
     async batchGetUsers(userIds: string[], minimumCursor?: string): Promise<UserSummary[]> {
       const read = async (ids: string[]) =>

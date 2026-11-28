@@ -8,6 +8,8 @@ import {
   formatDateTime,
   formatMonthYear,
   formatDayLabel,
+  formatHourDifference,
+  timeZoneDifferenceMinutes,
   groupByActivityDate,
   groupByActivityDay,
   isSameDay,
@@ -413,5 +415,36 @@ describe('formatter cache', () => {
     const a = formatMessageTime('2025-04-27T14:30:00Z', utc12);
     const b = formatMessageTime('2025-04-27T14:30:00Z', utc12);
     expect(a).toBe(b);
+  });
+});
+
+describe('timeZoneDifferenceMinutes', () => {
+  const winter = new Date('2025-01-15T12:00:00Z');
+  const summer = new Date('2025-07-15T12:00:00Z');
+
+  it('reports how far a zone is ahead of the viewer', () => {
+    expect(timeZoneDifferenceMinutes('Europe/Berlin', settings('UTC'), winter)).toBe(60);
+    expect(timeZoneDifferenceMinutes('Asia/Kolkata', settings('Europe/London'), winter)).toBe(330);
+  });
+
+  it('reports zones behind the viewer as negative values', () => {
+    expect(timeZoneDifferenceMinutes('America/New_York', settings('Europe/Berlin'), summer)).toBe(
+      -360
+    );
+  });
+
+  it('follows daylight saving time at the given instant', () => {
+    expect(timeZoneDifferenceMinutes('Europe/Berlin', settings('UTC'), summer)).toBe(120);
+  });
+
+  it('returns null for an unknown zone', () => {
+    expect(timeZoneDifferenceMinutes('Not/AZone', settings('UTC'), winter)).toBeNull();
+  });
+});
+
+describe('formatHourDifference', () => {
+  it('formats whole and fractional hours without a sign', () => {
+    expect(formatHourDifference(-120, 'en-GB')).toBe('2 hrs');
+    expect(formatHourDifference(330, 'en-GB')).toBe('5.5 hrs');
   });
 });

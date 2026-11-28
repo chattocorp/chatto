@@ -67,6 +67,8 @@ const { mocks } = vi.hoisted(() => ({
         canAdminViewUsers: false
       },
       projection: { rooms: new Map<string, { memberUserIds: string[] }>() },
+      presence: new Map(),
+      mentionRoles: { roles: [], load: async () => true },
       notifications: {
         hasDMRoomNotification: vi.fn().mockReturnValue(false),
         hasRoomNotification: vi.fn().mockReturnValue(false),

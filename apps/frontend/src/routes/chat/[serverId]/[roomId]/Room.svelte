@@ -18,6 +18,7 @@
     createMentionRoles,
     setRoomMembersStore,
     createRoomPermissions,
+    MentionInsertionState,
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
   import {
@@ -335,6 +336,13 @@
   const roomSidebarTogglePanels = $derived(
     roomSidebarPanelsForRoom(room.isDM, showVoiceCall, messageSearchAvailable)
   );
+  // The sidebar mentions users in the main composer, which owns `available`.
+  const mentionInsertion = new MentionInsertionState();
+  const mentionInComposer = $derived(
+    mentionInsertion.available
+      ? (login: string) => mentionInsertion.requestMention(login)
+      : undefined
+  );
   const sharedRoomSidebarProps = $derived({
     roomId,
     roomName: room.roomData?.room.name ?? '',
@@ -355,6 +363,7 @@
     currentUserId: stores.viewerId,
     membersStore: roomMembersStore,
     onOpenProfile: (userId: string) => appUi.openMemberProfile(userId),
+    onMention: mentionInComposer,
     onBackToMembers: appUi.isMemberProfileOpen ? () => appUi.backToRoomMembers() : undefined
   });
 
@@ -639,6 +648,7 @@
         onOpenThread={openThread}
         onOpenCall={openRoomCall}
         onOpenProfile={(userId) => appUi.openMemberProfile(userId)}
+        {mentionInsertion}
       >
         {#snippet header()}
           {#snippet roomPanelActions(panels: RoomSidebarPanel[])}
@@ -766,6 +776,13 @@
               focusSearchOnMount: focusSearchOnOpen === 'mobile',
               onSearchFocused: () => searchFocused('mobile'),
               activeProfileUserId: activeMobileRoomSidebarProfileUserId,
+              // The overlay covers the composer, so close it to show the mention.
+              onMention: mentionInComposer
+                ? (login: string) => {
+                    mentionInComposer(login);
+                    closeMobileRoomSidebar();
+                  }
+                : undefined,
               onOpenFileMessage: (messageEventId, threadRootEventId) =>
                 openMessage(messageEventId, threadRootEventId, true),
               onOpenSearchResult: (messageEventId, threadRootEventId) =>

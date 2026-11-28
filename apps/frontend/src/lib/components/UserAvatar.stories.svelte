@@ -107,7 +107,7 @@
 
 <Story name="Emoji fallback sizes" asChild>
   <div class="flex items-center gap-5 rounded-md bg-surface p-6">
-    {#each ['xs', 'sm', 'md', 'message', 'lg', 'xl'] as const as size (size)}
+    {#each ['xs', 'sm', 'md', 'message', 'lg', 'xl', '2xl'] as const as size (size)}
       <UserAvatar
         user={user('emoji-sizes', '👩‍💻', PresenceStatus.OFFLINE)}
         {size}
@@ -119,7 +119,7 @@
 
 <Story name="Bot accounts" asChild>
   <div class="flex flex-wrap items-center gap-6 rounded-md bg-surface p-6">
-    {#each ['xs', 'sm', 'md', 'message', 'lg', 'xl'] as const as size (size)}
+    {#each ['xs', 'sm', 'md', 'message', 'lg', 'xl', '2xl'] as const as size (size)}
       <div class="flex flex-col items-center gap-3">
         <UserAvatar user={{ ...onlineUser, displayName: 'Assistant', isBot: true }} {size} />
         <AccountName name="Assistant" identity={{ isBot: true }} />

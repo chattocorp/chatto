@@ -25,14 +25,18 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: 'server-1',
     connection: {
       queryScope: 'identity-session',
-      getAPI: () => ({ getVerifiedIdentities: async () => [] })
+      getAPI: () => ({
+        getProfileDetails: async () => ({ roles: [], createdAt: null, verifiedIdentities: [] })
+      })
     },
     store: {
       permissions: {
         loaded: true,
         canAdminViewUsers: false,
         canStartDMs: true
-      }
+      },
+      presence: new Map(),
+      mentionRoles: { roles: [], load: async () => true }
     }
   })
 }));

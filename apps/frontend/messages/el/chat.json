@@ -183,7 +183,7 @@
       "fallback_title": "Προφίλ",
       "not_found": "Ο χρήστης δεν βρέθηκε",
       "bot": "Bot",
-      "local_time": "Τοπική ώρα {time} ({zone})",
+      "local_time": "Τοπική ώρα {time}",
       "permissions": {
         "title": "Τι μπορεί να κάνει",
         "empty": "Δεν είναι ορατά σε εσάς ενεργά δικαιώματα.",
@@ -208,7 +208,20 @@
         "manage_messages": "Διαχείριση μηνυμάτων"
       },
       "owned_by": "Ανήκει σε",
-      "open_card": "Άνοιγμα κάρτας προφίλ του χρήστη {name}"
+      "open_card": "Άνοιγμα κάρτας προφίλ του χρήστη {name}",
+      "time_offset": {
+        "ahead": "{offset} μπροστά από εσάς",
+        "behind": "{offset} πίσω από εσάς",
+        "same": "Ίδια ώρα με εσάς"
+      },
+      "member_since": "Μέλος από {date}",
+      "roles": "Ρόλοι",
+      "details": "Λεπτομέρειες",
+      "actions": {
+        "mention": "Αναφορά",
+        "search_messages": "Αναζήτηση μηνυμάτων"
+      },
+      "recent_messages": "Πρόσφατα μηνύματα"
     },
     "management_nav": {
       "general": "Γενικά",

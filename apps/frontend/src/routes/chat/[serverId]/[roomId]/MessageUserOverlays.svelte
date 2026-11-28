@@ -52,6 +52,7 @@
     canBanRoomMembers,
     isUniversal = false,
     onOpenProfile,
+    onMention,
     userContextMenuLoader = importUserContextMenu,
     banRoomMemberModalLoader = importBanRoomMemberModal
   }: {
@@ -63,6 +64,8 @@
     canBanRoomMembers: boolean;
     isUniversal?: boolean;
     onOpenProfile?: (userId: string) => void;
+    /** Mention a user in this pane's composer, while it accepts input. */
+    onMention?: (login: string) => void;
     userContextMenuLoader?: () => Promise<UserContextMenuModule>;
     banRoomMemberModalLoader?: () => Promise<BanRoomMemberModalModule>;
   } = $props();
@@ -150,6 +153,9 @@
       viewerSettings={serverScope.store.currentUser.user?.settings}
       onSendMessage={() => startDMWith(serverId, interactions.user!.id)}
       onBanFromRoom={() => openBanDialog(interactions.user!)}
+      onMention={interactions.user.deleted || interactions.user.id === currentUserId
+        ? undefined
+        : onMention}
       {onOpenProfile}
       onClose={() => interactions.close()}
     />

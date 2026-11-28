@@ -1,29 +1,34 @@
 <!--
 @component
 
-Displays a user's complete public profile in the room sidebar. The header is
-the shared user card; right-click, touch long-press, and its menu button open
+Displays a user's complete public profile in the room sidebar: the shared
+profile header, quick actions, bio, details, verified identities, and bot
+information. Right-click, touch long-press, and the header's menu button open
 the shared user menu, which includes bot management for permitted viewers. The
 component uses cached user data while it refreshes and updates shared profile
 fields as realtime changes arrive.
 -->
 <script lang="ts">
   import ProfileVerifiedIdentities from '$lib/components/users/ProfileVerifiedIdentities.svelte';
+  import type { Snippet } from 'svelte';
+  import ProfileDetails from '$lib/components/users/ProfileDetails.svelte';
+  import ProfileRoles from '$lib/components/users/ProfileRoles.svelte';
+  import ProfileRecentMessages from './ProfileRecentMessages.svelte';
+  import { useProfileDetails } from '$lib/components/users/profileDetailsQuery.svelte';
+  import ProfileHeader from '$lib/components/users/ProfileHeader.svelte';
+  import ProfileQuickActions from '$lib/components/users/ProfileQuickActions.svelte';
+  import { searchUserMessages } from '$lib/components/users/searchUserMessages';
   import { createUserAPI } from '@chatto/client/api/users';
   import BotOwnerRow from '$lib/components/bots/BotOwnerRow.svelte';
   import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
-  import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserMenu from '$lib/components/users/UserMenu.svelte';
   import { UserMenuState } from '$lib/components/users/UserMenuState.svelte';
-  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
-  import { serverStorageKey } from '@chatto/client/storage/serverStorage';
   import UserBio from '$lib/components/users/UserBio.svelte';
   import { m } from '$lib/i18n/messages';
-  import Interval from '$lib/lifecycle/Interval.svelte';
   import { createQuery } from '$lib/query/client';
   import { serverSessionQueryRoot } from '$lib/query/keys';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { serverUi } from '$lib/state/server/serverUi';
   import { mapOptionalUserSummary, mapUserPresenceView } from '@chatto/client/api/userSummary';
   import {
     getLiveBio,
@@ -33,24 +38,25 @@ fields as realtime changes arrive.
     getLiveTimezone
   } from '$lib/state/userProfiles.svelte';
   import { formatAccountName } from '@chatto/client/timeline/accountName';
-  import { Hint, LoadingDots, UserCard } from '$lib/ui';
-  import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { CompactActionButton, Hint, LoadingDots } from '$lib/ui';
+  import { timeFormatSettingsFor } from '$lib/utils/formatTime';
 
   let {
     userId,
     onSendMessage,
+    onMention,
     onOpenProfile
   }: {
     userId: string;
     onSendMessage?: (userId: string) => void;
+    /** Mention the user in the room composer. Hosts pass it only while posting is allowed. */
+    onMention?: (login: string) => void;
     onOpenProfile?: (userId: string) => void;
   } = $props();
 
   const serverScope = useServerScope();
-  const viewerTimeSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
-  let localTimeNow = $state(Date.now());
+  const viewerSettings = $derived(serverScope.store.currentUser.user?.settings);
+  const viewerTimeSettings = $derived(timeFormatSettingsFor(viewerSettings));
 
   const userQuery = createQuery(() => {
     const connection = serverScope.connection;
@@ -88,107 +94,128 @@ fields as realtime changes arrive.
     baseUser ? { ...baseUser, bio, timezone, presenceStatus: presence, customStatus } : null
   );
   const profileMenu = new UserMenuState<string>();
-
-  function formatLocalTime(zone: string): string | null {
-    try {
-      return formatMessageTime(new Date(localTimeNow), {
-        ...viewerTimeSettings,
-        effectiveTimezone: zone
-      });
-    } catch {
-      return null;
-    }
-  }
-
-  const localTime = $derived(timezone ? formatLocalTime(timezone) : null);
+  // Shares the cache entry that ProfileDetails reads, so the section appears with its rows.
+  const details = useProfileDetails(() => userId);
+  const hasDetails = $derived(
+    !!timezone ||
+      !!details.data?.createdAt ||
+      (!baseUser?.isBot && !!details.data?.verifiedIdentities.length)
+  );
+  const hasRoles = $derived(!baseUser?.deleted && !!details.data?.roles.length);
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col overflow-y-auto p-4" data-testid="room-sidebar-profile">
+{#snippet section(label: string, testid: string, content: Snippet)}
+  <section class="flex flex-col gap-2" data-testid={testid}>
+    <h3 class="section-label text-muted">{label}</h3>
+    <div class="tile p-3">{@render content()}</div>
+  </section>
+{/snippet}
+
+{#snippet bioContent()}
+  <UserBio bio={bio ?? ''} timestampSettings={viewerTimeSettings} />
+{/snippet}
+
+{#snippet detailsContent()}
+  <div class="flex flex-col gap-3">
+    <ProfileDetails {userId} {timezone} {viewerSettings} showRoles={false} />
+    {#if !baseUser?.isBot}
+      <ProfileVerifiedIdentities {userId} plain />
+    {/if}
+  </div>
+{/snippet}
+
+<div class="flex min-h-0 flex-1 flex-col overflow-y-auto" data-testid="room-sidebar-profile">
   {#if loading}
-    <LoadingDots class="h-40 w-full" />
+    <LoadingDots class="m-4 h-40" />
   {:else if notFound || !baseUser || !menuUser}
-    <Hint tone="danger">{m('chat.profile.not_found')}</Hint>
+    <div class="p-4"><Hint tone="danger">{m('chat.profile.not_found')}</Hint></div>
   {:else}
-    <h2 class="sr-only">{formatAccountName(displayName, baseUser)}</h2>
-    <div {@attach profileMenu.trigger(() => userId)}>
-      <UserCard
-        variant="card"
+    <div {@attach profileMenu.trigger(() => userId)} data-testid="profile-user-card">
+      <ProfileHeader
+        user={menuUser}
         name={displayName}
-        identity={baseUser}
-        username={login}
-        testId="profile-user-card"
-        menu={{
-          label: m('chat.profile.open_card', { name: formatAccountName(displayName, baseUser) }),
-          onclick: (event) => profileMenu.toggle(userId, event),
-          expanded: profileMenu.target === userId,
-          testId: 'profile-user-menu-button'
-        }}
+        {login}
+        {presence}
+        {customStatus}
+        size="view"
+        heading
       >
-        {#snippet avatar()}
-          <UserAvatar user={menuUser} {presence} size="sm" showPresence />
+        {#snippet actions()}
+          <CompactActionButton
+            label={m('chat.profile.open_card', { name: formatAccountName(displayName, baseUser) })}
+            data-testid="profile-user-menu-button"
+            onclick={(event: MouseEvent) => profileMenu.toggle(userId, event)}
+            aria-haspopup="dialog"
+            aria-expanded={profileMenu.target === userId}
+          >
+            <span class="iconify icon-[uil--ellipsis-v]" aria-hidden="true"></span>
+          </CompactActionButton>
         {/snippet}
-      </UserCard>
+      </ProfileHeader>
     </div>
-    <UserCustomStatusBadge status={customStatus} showText class="mt-3 max-w-full" />
 
     <UserMenu
       state={profileMenu}
       user={menuUser}
-      viewerSettings={serverScope.store.currentUser.user?.settings}
+      {viewerSettings}
       canSendMessage={!!onSendMessage}
       onSendMessage={() => onSendMessage?.(userId)}
+      onMention={onMention && !baseUser.deleted && userId !== serverScope.store.accountId
+        ? onMention
+        : undefined}
     />
 
-    {#if baseUser.isBot && baseUser.bot?.ownerUserId}
-      {#key baseUser.bot?.ownerUserId}
-        <BotOwnerRow
-          ownerId={baseUser.bot?.ownerUserId}
-          {onSendMessage}
-          {onOpenProfile}
-          viewerSettings={serverScope.store.currentUser.user?.settings}
+    <div class="flex flex-col gap-6 px-4 pt-4 pb-6">
+      {#if !baseUser.deleted}
+        <ProfileQuickActions
+          onSendMessage={onSendMessage ? () => onSendMessage(userId) : undefined}
+          onMention={onMention && userId !== serverScope.store.accountId
+            ? () => onMention(login)
+            : undefined}
+          onSearchMessages={() =>
+            searchUserMessages(
+              serverScope.serverId,
+              serverUi(serverScope.store).messageSearch,
+              login
+            )}
         />
-      {/key}
-    {/if}
+      {/if}
 
-    {#if !baseUser.isBot && !baseUser.deleted}
-      <ProfileVerifiedIdentities
-        {userId}
-        sidebarKey={serverStorageKey(serverScope.serverId, 'profile-verified-identities-collapsed')}
-      />
-    {/if}
+      {#if baseUser.isBot && baseUser.bot?.ownerUserId}
+        {#key baseUser.bot?.ownerUserId}
+          <BotOwnerRow
+            ownerId={baseUser.bot?.ownerUserId}
+            {onSendMessage}
+            {onOpenProfile}
+            {viewerSettings}
+          />
+        {/key}
+      {/if}
 
-    {#if bio}
-      <div class="-mx-4 mt-6">
-        <RoomGroupSection
-          label={m('settings.profile.bio.label')}
-          persistKey={serverStorageKey(serverScope.serverId, 'profile-bio-collapsed')}
-          items={[]}
-          testid="profile-bio-heading"
-          separated
-        >
-          {#snippet content()}
-            <UserBio {bio} timestampSettings={viewerTimeSettings} class="px-1 pt-2 pb-2" />
-          {/snippet}
-        </RoomGroupSection>
-      </div>
-    {/if}
+      {#if bio}
+        {@render section(m('settings.profile.bio.label'), 'profile-bio', bioContent)}
+      {/if}
 
-    {#if baseUser.isBot}
-      {#key baseUser.id}
-        <BotPermissionSummary
-          botId={baseUser.id}
-          botOwnerId={baseUser.bot?.ownerUserId}
-          class={bio ? '' : 'mt-6'}
-        />
-      {/key}
-    {/if}
+      {#if hasDetails && !baseUser.deleted}
+        {@render section(m('chat.profile.details'), 'profile-details-section', detailsContent)}
+      {/if}
 
-    {#if timezone && localTime}
-      <p class="mt-3 flex items-center gap-1.5 text-muted">
-        <span class="iconify icon-[uil--clock-three] shrink-0" aria-hidden="true"></span>
-        <span>{m('chat.profile.local_time', { time: localTime, zone: timezone })}</span>
-      </p>
-      <Interval milliseconds={60_000} ontick={() => (localTimeNow = Date.now())} />
-    {/if}
+      {#if hasRoles}
+        <section class="flex flex-col gap-2">
+          <h3 class="section-label text-muted">{m('chat.profile.roles')}</h3>
+          <ProfileRoles {userId} />
+        </section>
+      {/if}
+
+      {#if !baseUser.deleted}
+        <ProfileRecentMessages {userId} {login} />
+      {/if}
+
+      {#if baseUser.isBot}
+        {#key baseUser.id}
+          <BotPermissionSummary botId={baseUser.id} botOwnerId={baseUser.bot?.ownerUserId} />
+        {/key}
+      {/if}
+    </div>
   {/if}
 </div>

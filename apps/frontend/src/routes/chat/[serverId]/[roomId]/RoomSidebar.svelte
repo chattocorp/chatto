@@ -96,6 +96,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     onOpenPin,
     onToggleMaximized,
     onOpenProfile,
+    onMention,
     onBackToMembers,
     onClose
   }: {
@@ -130,6 +131,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
     onOpenPin?: (messageEventId: string, threadRootEventId: string | null) => void;
     onToggleMaximized?: () => void;
     onOpenProfile?: (userId: string) => void;
+    /** Mention a user in the room composer. The room passes it only while posting is allowed. */
+    onMention?: (login: string) => void;
     /** Return from a context-menu profile to this room's member list. */
     onBackToMembers?: () => void;
     onClose?: () => void;
@@ -490,6 +493,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       <RoomSidebarProfile
         userId={activeProfileUserId}
         onSendMessage={canStartDMs ? (userId) => startDMWith(activeServerId, userId) : undefined}
+        {onMention}
         {onOpenProfile}
       />
     {/key}
@@ -546,6 +550,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
           viewerSettings={serverScope.store.currentUser.user?.settings}
           onSendMessage={() => startDMWith(activeServerId, popoverMember!.id)}
           onBanFromRoom={() => openBanDialog(popoverMember!)}
+          onMention={popoverMember.id === currentUserId ? undefined : onMention}
           {onOpenProfile}
         />
       {/if}

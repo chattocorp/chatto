@@ -183,7 +183,7 @@
       "fallback_title": "プロフィール",
       "not_found": "ユーザーが見つかりません",
       "bot": "ボット",
-      "local_time": "現地時間 {time}（{zone}）",
+      "local_time": "現地時間 {time}",
       "permissions": {
         "title": "できること",
         "empty": "表示できる有効な権限はありません。",
@@ -208,7 +208,20 @@
         "manage_messages": "メッセージを管理"
       },
       "owned_by": "所有者",
-      "open_card": "{name} のプロフィールカードを開く"
+      "open_card": "{name} のプロフィールカードを開く",
+      "time_offset": {
+        "ahead": "あなたより{offset}進んでいます",
+        "behind": "あなたより{offset}遅れています",
+        "same": "あなたと同じ時刻"
+      },
+      "member_since": "{date}から参加",
+      "roles": "役割",
+      "details": "詳細",
+      "actions": {
+        "mention": "メンション",
+        "search_messages": "メッセージを検索"
+      },
+      "recent_messages": "最近のメッセージ"
     },
     "management_nav": {
       "general": "一般",

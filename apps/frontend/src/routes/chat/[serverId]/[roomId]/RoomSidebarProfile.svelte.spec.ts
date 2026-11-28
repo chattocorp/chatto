@@ -1,4 +1,5 @@
-import type { VerifiedIdentity } from '@chatto/client/api/users';
+import { RoomKind } from '@chatto/client/api/roomDirectory';
+import type { UserProfileDetails, VerifiedIdentity } from '@chatto/client/api/users';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,7 +14,20 @@ import RoomSidebarProfile from './RoomSidebarProfile.svelte';
 
 const batchGetUsers = vi.fn();
 const getVerifiedIdentities = vi.fn<() => Promise<VerifiedIdentity[]>>();
+/** The shared profile-details read, built from the identity mock. */
+const getProfileDetails = vi.fn(async (): Promise<UserProfileDetails> => ({
+  roles: [],
+  createdAt: null,
+  verifiedIdentities: await getVerifiedIdentities()
+}));
+const searchMessages = vi.fn(async () => ({ results: [] as unknown[], nextCursor: null }));
+const searchAvailability = { available: false };
 let server: TestServerScope;
+const gotoMock = vi.hoisted(() => vi.fn());
+vi.mock('$app/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$app/navigation')>()),
+  goto: gotoMock
+}));
 /** The shared profile store of the fixture's server session. */
 const userStore = () => getUserStore('origin', server.scope.connection.queryScope);
 
@@ -77,7 +91,13 @@ const user = {
 
 let currentRender: ReturnType<typeof render> | null = null;
 
-function renderProfile(props: { userId?: string; onSendMessage?: (userId: string) => void } = {}) {
+function renderProfile(
+  props: {
+    userId?: string;
+    onSendMessage?: (userId: string) => void;
+    onMention?: (login: string) => void;
+  } = {}
+) {
   currentRender = render(RoomSidebarProfile, { props: { userId: 'user-1', ...props } });
   return currentRender;
 }
@@ -95,10 +115,11 @@ async function openProfileMenu(container: HTMLElement): Promise<HTMLElement> {
 describe('RoomSidebarProfile', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    searchAvailability.available = false;
     resetUserStoresForTests();
     server = createTestServerScope({
       serverId: 'origin',
-      api: { batchGetUsers, getVerifiedIdentities },
+      api: { batchGetUsers, getProfileDetails, searchMessages },
       viewer: {
         settings: { timezone: 'Europe/Berlin', timeFormat: TimeFormat.TIME_FORMAT_24_HOUR }
       },
@@ -106,7 +127,15 @@ describe('RoomSidebarProfile', () => {
         get projection() {
           return { users: userStore() };
         },
-        presence: { get: () => undefined }
+        presence: { get: () => undefined },
+        messageSearch: { availability: searchAvailability },
+        mentionRoles: {
+          roles: [
+            { name: 'admin', displayName: 'Admin' },
+            { name: 'moderator', displayName: 'Moderator' }
+          ],
+          load: async () => true
+        }
       }
     });
     getVerifiedIdentities.mockResolvedValue([
@@ -122,6 +151,91 @@ describe('RoomSidebarProfile', () => {
     vi.restoreAllMocks();
   });
 
+  it('shows the member date and roles in catalogue order', async () => {
+    getProfileDetails.mockResolvedValueOnce({
+      roles: ['moderator', 'custom', 'admin'],
+      createdAt: '2025-03-14T12:00:00Z',
+      verifiedIdentities: []
+    });
+    userStore().set(user.id, userProfileFixture(user));
+    const { container } = renderProfile();
+
+    const roles = page.getByRole('list', { name: 'Roles' });
+    await expect.element(roles).toBeVisible();
+    expect(
+      Array.from(roles.element().querySelectorAll('li')).map((role) => role.textContent?.trim())
+    ).toEqual(['Admin', 'Moderator', 'custom']);
+    // The date follows the browser's formatting locale.
+    expect(q(container, '[data-testid="profile-member-since"]')?.textContent).toMatch(
+      /Member since .*2025/
+    );
+    expect(q(container, '[data-testid="profile-local-time"]')?.textContent).toContain(
+      'Same time as you'
+    );
+  });
+
+  it('offers Mention only with a host composer and passes the login', async () => {
+    userStore().set(user.id, userProfileFixture(user));
+    const withoutHost = renderProfile();
+    await expect.element(page.getByTestId('profile-quick-actions')).toBeVisible();
+    expect(q(withoutHost.container, '[data-testid="profile-action-mention"]')).toBeNull();
+    withoutHost.unmount();
+
+    const onMention = vi.fn();
+    renderProfile({ onMention });
+    await page.getByTestId('profile-action-mention').click();
+    expect(onMention).toHaveBeenCalledWith('alice');
+  });
+
+  it('lists the newest visible messages and opens one', async () => {
+    searchAvailability.available = true;
+    searchMessages.mockResolvedValueOnce({
+      results: [
+        {
+          id: 'msg-1',
+          roomId: 'room-1',
+          roomName: 'general',
+          roomKind: RoomKind.CHANNEL,
+          actorId: user.id,
+          actor: null,
+          body: 'Shipping the **profile** redesign',
+          createdAt: '2025-04-27T14:00:00Z',
+          threadRootEventId: null,
+          attachmentCount: 0,
+          relevanceScore: 0
+        }
+      ],
+      nextCursor: null
+    });
+    userStore().set(user.id, userProfileFixture(user));
+    renderProfile();
+
+    const row = page.getByRole('link', { name: /#general/ });
+    await expect.element(row).toBeVisible();
+    await expect.element(row).toHaveTextContent('Shipping the profile redesign');
+    expect(searchMessages).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'from:alice', authorId: 'user-1', pageSize: 3 })
+    );
+    await row.click();
+    expect(gotoMock).toHaveBeenCalledWith(expect.stringContaining('room-1'));
+  });
+
+  it('omits recent messages while search is unavailable or empty', async () => {
+    userStore().set(user.id, userProfileFixture(user));
+    const unavailable = renderProfile();
+    await expect.element(page.getByTestId('profile-user-card')).toBeVisible();
+    expect(q(unavailable.container, '[data-testid="profile-recent-messages"]')).toBeNull();
+    expect(searchMessages).not.toHaveBeenCalled();
+    unavailable.unmount();
+
+    searchAvailability.available = true;
+    const empty = renderProfile();
+    await expect.poll(() => searchMessages.mock.calls.length).toBe(1);
+    await expect
+      .poll(() => q(empty.container, '[data-testid="profile-recent-messages"]'))
+      .toBeNull();
+  });
+
   it('shows known and unfamiliar verified identities in the full profile and its popup', async () => {
     getVerifiedIdentities.mockResolvedValue([
       { method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' },
@@ -131,11 +245,10 @@ describe('RoomSidebarProfile', () => {
     const { container } = renderProfile();
     await expect.element(page.getByText('alice.example', { exact: true })).toBeVisible();
     await expect.element(page.getByTitle('Community directory · Member 123')).toBeVisible();
-    const disclosure = page.getByRole('button', { name: 'Verified identities' });
-    await disclosure.click();
-    await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false');
-    await disclosure.click();
-    await expect.element(disclosure).toHaveAttribute('aria-expanded', 'true');
+    // The full profile lists them in its details card.
+    expect(
+      q(container, '[data-testid="profile-details-section"] ul[aria-label="Verified identities"]')
+    ).not.toBeNull();
     const menu = await openProfileMenu(container);
     await expect.poll(() => menu.textContent).toContain('alice.example');
     const section = menu.querySelector('ul[aria-label="Verified identities"]')!;
@@ -161,10 +274,10 @@ describe('RoomSidebarProfile', () => {
           server.scope.connection.queryScope,
           'user',
           user.id,
-          'verified-identities'
+          'profile-details'
         ])
       )
-      .toEqual([]);
+      .toEqual({ roles: [], createdAt: null, verifiedIdentities: [] });
     expect(container.textContent).not.toContain('Verified identities');
     const menu = await openProfileMenu(container);
     expect(menu.querySelector('ul[aria-label="Verified identities"]')).toBeNull();
@@ -183,27 +296,21 @@ describe('RoomSidebarProfile', () => {
     expect(container.textContent).not.toContain('Loading');
   });
 
-  it('collapses and expands the bio section', async () => {
+  it('shows the bio in its own section', async () => {
     userStore().set(user.id, userProfileFixture(user));
     const { container } = renderProfile();
-    await expect.poll(() => q(container, '[data-testid="profile-bio-heading"]')).not.toBeNull();
-    const heading = q(container, '[data-testid="profile-bio-heading"]');
-
-    await expect.element(heading).toHaveAttribute('aria-expanded', 'true');
-    await expect.poll(() => q(container, '[data-testid="user-bio"]')).not.toBeNull();
-    heading?.click();
-    await expect.element(heading).toHaveAttribute('aria-expanded', 'false');
-    expect(q(container, '[data-testid="user-bio"]')?.closest('[inert]')).not.toBeNull();
-
-    heading?.click();
-    await expect.element(heading).toHaveAttribute('aria-expanded', 'true');
-    await expect.poll(() => q(container, '[data-testid="user-bio"]')).not.toBeNull();
+    await expect.poll(() => q(container, '[data-testid="profile-bio"]')).not.toBeNull();
+    const section = q(container, '[data-testid="profile-bio"]')!;
+    expect(section.querySelector('h3')?.textContent).toBe('About');
+    expect(section.querySelector('[data-testid="user-bio"]')?.textContent).toContain(
+      'I build chat software.'
+    );
   });
 
   it('omits the bio section when no bio is set', () => {
     userStore().set(user.id, userProfileFixture({ ...user, bio: null }));
     const { container } = renderProfile();
-    expect(q(container, '[data-testid="profile-bio-heading"]')).toBeNull();
+    expect(q(container, '[data-testid="profile-bio"]')).toBeNull();
   });
 
   it('shows loading while an uncached profile is loading', () => {

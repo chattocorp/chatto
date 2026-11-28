@@ -38,7 +38,7 @@
   import { Panel, LoadingDots, ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { providerIcon } from '$lib/auth/providerIcon';
-  import { profileVerifiedIdentitiesKey } from '$lib/query/keys';
+  import { profileDetailsKey } from '$lib/query/keys';
   import { createQuery, queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverRegistry } from '$lib/client';
@@ -114,7 +114,7 @@
 
   function resetProfileIdentities(userId: string) {
     void queryClient.resetQueries({
-      queryKey: profileVerifiedIdentitiesKey(serverScope, userId),
+      queryKey: profileDetailsKey(serverScope, userId),
       exact: true
     });
   }

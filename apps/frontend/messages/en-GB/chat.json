@@ -183,7 +183,7 @@
       "fallback_title": "Profile",
       "not_found": "User not found",
       "bot": "Bot",
-      "local_time": "{time} local time ({zone})",
+      "local_time": "{time} local time",
       "permissions": {
         "title": "What it can do",
         "empty": "No active permissions are visible to you.",
@@ -208,7 +208,20 @@
         "manage_messages": "Manage messages"
       },
       "owned_by": "Owned by",
-      "open_card": "Open profile card of {name}"
+      "open_card": "Open profile card of {name}",
+      "time_offset": {
+        "ahead": "{offset} ahead of you",
+        "behind": "{offset} behind you",
+        "same": "Same time as you"
+      },
+      "member_since": "Member since {date}",
+      "roles": "Roles",
+      "details": "Details",
+      "actions": {
+        "mention": "Mention",
+        "search_messages": "Search messages"
+      },
+      "recent_messages": "Recent messages"
     },
     "management_nav": {
       "general": "General",

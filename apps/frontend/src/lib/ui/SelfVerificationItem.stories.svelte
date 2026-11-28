@@ -73,7 +73,7 @@
       {/snippet}
     </UserCard>
     <VerifiedIdentitiesSection
-      sidebarKey="story-profile-identities"
+      plain
       identities={[{ method: 'atproto', methodLabel: 'AT Protocol', value: 'hmans.dev' }]}
     />
   </div>

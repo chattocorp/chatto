@@ -191,7 +191,7 @@
       "fallback_title": "Profil",
       "not_found": "Nie znaleziono użytkownika",
       "bot": "Bot",
-      "local_time": "{time} czasu lokalnego ({zone})",
+      "local_time": "{time} czasu lokalnego",
       "permissions": {
         "title": "Co może robić",
         "empty": "Nie widzisz żadnych aktywnych uprawnień.",
@@ -216,7 +216,20 @@
         "manage_messages": "Zarządzać wiadomościami"
       },
       "owned_by": "Właściciel",
-      "open_card": "Otwórz kartę profilu użytkownika {name}"
+      "open_card": "Otwórz kartę profilu użytkownika {name}",
+      "time_offset": {
+        "ahead": "{offset} przed tobą",
+        "behind": "{offset} za tobą",
+        "same": "Ta sama godzina co u ciebie"
+      },
+      "member_since": "Członek od {date}",
+      "roles": "Role",
+      "details": "Szczegóły",
+      "actions": {
+        "mention": "Wspomnij",
+        "search_messages": "Szukaj wiadomości"
+      },
+      "recent_messages": "Ostatnie wiadomości"
     },
     "management_nav": {
       "general": "Ogólne",

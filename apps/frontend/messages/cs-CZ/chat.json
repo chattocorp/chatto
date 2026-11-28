@@ -185,7 +185,7 @@
       "fallback_title": "Profil",
       "not_found": "Uživatel nenalezen",
       "bot": "Bot",
-      "local_time": "{time} místního času ({zone})",
+      "local_time": "{time} místního času",
       "permissions": {
         "title": "Co může dělat",
         "empty": "Nejsou pro tebe viditelná žádná aktivní oprávnění.",
@@ -210,7 +210,20 @@
         "manage_messages": "Spravovat zprávy"
       },
       "owned_by": "Vlastník",
-      "open_card": "Otevřít profilovou kartu uživatele {name}"
+      "open_card": "Otevřít profilovou kartu uživatele {name}",
+      "time_offset": {
+        "ahead": "{offset} před vámi",
+        "behind": "{offset} za vámi",
+        "same": "Stejný čas jako u vás"
+      },
+      "member_since": "Členem od {date}",
+      "roles": "Role",
+      "details": "Podrobnosti",
+      "actions": {
+        "mention": "Zmínit",
+        "search_messages": "Hledat zprávy"
+      },
+      "recent_messages": "Nedávné zprávy"
     },
     "management_nav": {
       "general": "Generál",

@@ -414,3 +414,43 @@ export function formatRelativeTime(
   if (diffDays < 7) return m('chat.notifications.time_days', { count: diffDays });
   return formatDate(date, settings, locale);
 }
+
+/** UTC offset of a time zone at one instant, in minutes. Undefined is the browser zone. */
+function utcOffsetMinutes(at: Date, timeZone: string | undefined): number | null {
+  const name = getFormatter('en-US', { timeZone, timeZoneName: 'longOffset' })
+    .formatToParts(at)
+    .find((part) => part.type === 'timeZoneName')?.value;
+  if (name === 'GMT') return 0;
+  const match = name?.match(/^GMT([+-])(\d{2}):(\d{2})$/);
+  if (!match) return null;
+  const minutes = Number(match[2]) * 60 + Number(match[3]);
+  return match[1] === '-' ? -minutes : minutes;
+}
+
+/**
+ * Minutes that a shared profile time zone is ahead of the viewer's effective
+ * zone at one instant. Negative values are behind. Returns null for an unknown zone.
+ */
+export function timeZoneDifferenceMinutes(
+  zone: string,
+  settings: TimeFormatSettings,
+  at: Date = new Date()
+): number | null {
+  try {
+    const target = utcOffsetMinutes(at, zone);
+    const viewer = utcOffsetMinutes(at, settings.effectiveTimezone);
+    return target === null || viewer === null ? null : target - viewer;
+  } catch {
+    return null;
+  }
+}
+
+/** Format an absolute number of minutes as hours in the active locale, such as "5.5 hrs". */
+export function formatHourDifference(minutes: number, locale: string = activeLocale()): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit: 'hour',
+    unitDisplay: 'short',
+    maximumFractionDigits: 2
+  }).format(Math.abs(minutes) / 60);
+}

@@ -199,6 +199,7 @@ export class MessageComposerState {
     this.#synchronizeThreadCreationPolicy();
     this.#synchronizeAutoFocus();
     this.#synchronizeQuoteInsertion();
+    this.#connectMentionInsertion();
     this.#synchronizePublicApi();
   }
 
@@ -344,6 +345,19 @@ export class MessageComposerState {
 
   insertQuote(text: QuoteInsertionContent): void {
     tick().then(() => this.editorApi?.insertQuote(text));
+  }
+
+  /** Insert `@login` at the cursor, separated from earlier text, and focus the editor. */
+  insertMention(login: string): void {
+    // Let the profile menu close and restore its old focus before the editor takes it.
+    tick().then(() => {
+      const api = this.editorApi;
+      if (!api || this.inputDisabled || this.isEditing) return;
+      const beforeCursor = api.getTextBeforeCursor();
+      const prefix = beforeCursor.length > 0 && !/\s$/.test(beforeCursor) ? ' ' : '';
+      api.insertText(`${prefix}@${login} `);
+      api.focus();
+    });
   }
 
   handlePaste(event: ClipboardEvent): boolean {
@@ -590,6 +604,15 @@ export class MessageComposerState {
       // Let the message action sheet close before the editor takes focus.
       this.insertQuote(request.text);
     });
+  }
+
+  /** Connect this composer as the pane's mention target for its lifetime. */
+  #connectMentionInsertion(): void {
+    const disconnect = this.#dependencies.context.mentionInsertionState.connect({
+      canInsert: () => !!this.editorApi && !this.inputDisabled && !this.isEditing,
+      insert: (login) => this.insertMention(login)
+    });
+    onDestroy(disconnect);
   }
 
   #synchronizePublicApi(): void {

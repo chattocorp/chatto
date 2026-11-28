@@ -33,7 +33,7 @@ export function serverSessionQueryRoot(scope: QueryKeyScope) {
   return [...serverQueryRoot(scope.serverId), 'session', scope.connection.queryScope] as const;
 }
 
-/** The public profile identities cached for one member and viewer session. */
-export function profileVerifiedIdentitiesKey(scope: QueryKeyScope, userId: string) {
-  return [...serverSessionQueryRoot(scope), 'user', userId, 'verified-identities'] as const;
+/** The roles, account age, and verified identities cached for one profile and viewer session. */
+export function profileDetailsKey(scope: QueryKeyScope, userId: string) {
+  return [...serverSessionQueryRoot(scope), 'user', userId, 'profile-details'] as const;
 }

@@ -199,7 +199,7 @@
       "fallback_title": "الملف الشخصي",
       "not_found": "لم يتم العثور على المستخدم",
       "bot": "روبوت",
-      "local_time": "{time} بالتوقيت المحلي ({zone})",
+      "local_time": "{time} بالتوقيت المحلي",
       "permissions": {
         "title": "ما يمكنه فعله",
         "empty": "لا توجد أذونات نشطة ظاهرة لك.",
@@ -224,7 +224,20 @@
         "manage_messages": "إدارة الرسائل"
       },
       "owned_by": "يملكه",
-      "open_card": "فتح بطاقة الملف الشخصي لـ {name}"
+      "open_card": "فتح بطاقة الملف الشخصي لـ {name}",
+      "time_offset": {
+        "ahead": "{offset} قبلك",
+        "behind": "{offset} بعدك",
+        "same": "نفس توقيتك"
+      },
+      "member_since": "عضو منذ {date}",
+      "roles": "الأدوار",
+      "details": "التفاصيل",
+      "actions": {
+        "mention": "إشارة",
+        "search_messages": "البحث في الرسائل"
+      },
+      "recent_messages": "الرسائل الأخيرة"
     },
     "management_nav": {
       "general": "عام",

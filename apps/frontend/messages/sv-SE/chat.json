@@ -183,7 +183,7 @@
       "fallback_title": "Profil",
       "not_found": "Användaren hittades inte",
       "bot": "Bot",
-      "local_time": "{time} lokal tid ({zone})",
+      "local_time": "{time} lokal tid",
       "permissions": {
         "title": "Vad den kan göra",
         "empty": "Inga aktiva behörigheter är synliga för dig.",
@@ -208,7 +208,20 @@
         "manage_messages": "Hantera meddelanden"
       },
       "owned_by": "Ägs av",
-      "open_card": "Öppna profilkortet för {name}"
+      "open_card": "Öppna profilkortet för {name}",
+      "time_offset": {
+        "ahead": "{offset} före dig",
+        "behind": "{offset} efter dig",
+        "same": "Samma tid som du"
+      },
+      "member_since": "Medlem sedan {date}",
+      "roles": "Roller",
+      "details": "Detaljer",
+      "actions": {
+        "mention": "Nämn",
+        "search_messages": "Sök efter meddelanden"
+      },
+      "recent_messages": "Senaste meddelanden"
     },
     "management_nav": {
       "general": "Allmänt",

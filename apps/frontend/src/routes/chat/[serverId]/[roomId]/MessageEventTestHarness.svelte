@@ -74,6 +74,8 @@
     viewerUser: { id: 'viewer', login: 'viewer', settings: undefined },
     viewerId: 'viewer',
     permissions: { canStartDMs: false },
+    presence: new Map(),
+    mentionRoles: { roles: [], load: async () => true },
     rooms: {
       pins: () => ({
         isPinned: (_messageEventId: string, hydratedStatus = false) => pinStatus ?? hydratedStatus,

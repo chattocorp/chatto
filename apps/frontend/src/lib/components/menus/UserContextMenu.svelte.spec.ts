@@ -1,4 +1,4 @@
-import type { VerifiedIdentity } from '@chatto/client/api/users';
+import type { UserProfileDetails, VerifiedIdentity } from '@chatto/client/api/users';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
@@ -9,6 +9,11 @@ import { q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
 import UserContextMenu from './UserContextMenu.svelte';
 
+/** Profile details without roles or account age, carrying the given identities. */
+function details(verifiedIdentities: VerifiedIdentity[]): UserProfileDetails {
+  return { roles: [], createdAt: null, verifiedIdentities };
+}
+
 const liveProfileState = { bio: null as string | null, timezone: null as string | null };
 const viewerSettingsState = {
   timezone: 'Europe/Berlin',
@@ -16,7 +21,8 @@ const viewerSettingsState = {
 };
 const serverScopeMock = vi.hoisted(() => ({
   serverId: 'server-1',
-  getVerifiedIdentities: vi.fn<() => Promise<VerifiedIdentity[]>>(),
+  getProfileDetails: vi.fn<() => Promise<UserProfileDetails>>(),
+  messageSearch: { search: vi.fn(async () => {}) },
   permissions: {
     loaded: true,
     canAdminViewUsers: false,
@@ -35,6 +41,12 @@ vi.mock(
   async () => (await import('$lib/test-utils/serverUiMock')).serverUiIsStore
 );
 
+const gotoMock = vi.hoisted(() => vi.fn());
+vi.mock('$app/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$app/navigation')>()),
+  goto: gotoMock
+}));
+
 vi.mock('$lib/navigation', () => ({
   segmentToServerId: vi.fn(),
   serverIdToSegment: (serverId: string) => `${serverId}.example.test`
@@ -45,7 +57,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: serverScopeMock.serverId,
     connection: {
       queryScope: 'menu-session',
-      getAPI: () => ({ getVerifiedIdentities: serverScopeMock.getVerifiedIdentities })
+      getAPI: () => ({ getProfileDetails: serverScopeMock.getProfileDetails })
     },
     store: {
       get accountId() {
@@ -53,7 +65,10 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
       },
       permissions: serverScopeMock.permissions,
       currentUser: serverScopeMock.currentUser,
-      projection: serverScopeMock.projection
+      projection: serverScopeMock.projection,
+      presence: new Map(),
+      mentionRoles: { roles: [], load: async () => true },
+      messageSearch: serverScopeMock.messageSearch
     }
   })
 }));
@@ -121,9 +136,11 @@ afterAll(() => {
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  serverScopeMock.getVerifiedIdentities
+  serverScopeMock.getProfileDetails
     .mockReset()
-    .mockResolvedValue([{ method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' }]);
+    .mockResolvedValue(
+      details([{ method: 'atproto', methodLabel: 'AT Protocol', value: 'alice.example' }])
+    );
   serverScopeMock.serverId = 'server-1';
   serverScopeMock.permissions.loaded = true;
   serverScopeMock.permissions.canAdminViewUsers = false;
@@ -155,12 +172,12 @@ describe('UserContextMenu', () => {
 
     // Move past the session cache's freshness window while the popup is closed.
     vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 31_000);
-    const refresh = Promise.withResolvers<VerifiedIdentity[]>();
-    serverScopeMock.getVerifiedIdentities.mockReturnValueOnce(refresh.promise);
+    const refresh = Promise.withResolvers<UserProfileDetails>();
+    serverScopeMock.getProfileDetails.mockReturnValueOnce(refresh.promise);
     const second = renderMenu();
-    await expect.poll(() => serverScopeMock.getVerifiedIdentities.mock.calls.length).toBe(2);
+    await expect.poll(() => serverScopeMock.getProfileDetails.mock.calls.length).toBe(2);
     expect(second.container.textContent).toContain('alice.example');
-    refresh.resolve([]);
+    refresh.resolve(details([]));
     await expect.poll(() => second.container.textContent).not.toContain('alice.example');
   });
 
@@ -304,9 +321,7 @@ describe('UserContextMenu', () => {
     });
 
     await expect.element(q(container, '[role="dialog"]')).toBeInTheDocument();
-    expect(container.querySelector('[role="dialog"] .flex-1 > .font-semibold')?.textContent).toBe(
-      'Alice Example'
-    );
+    expect(q(container, '[data-testid="profile-name"]')?.textContent?.trim()).toBe('Alice Example');
     expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeTruthy();
     expect(container.textContent).toContain('Out for lunch');
   });
@@ -365,35 +380,73 @@ describe('UserContextMenu', () => {
       onOpenProfile: vi.fn()
     });
     const dialog = q(container, '[role="dialog"]')!;
+    const profile = q(dialog, '[data-testid="user-menu-profile"]')!;
     const sections = dialog.querySelectorAll('.menu-section');
-    const actionLabels = Array.from(sections[1]!.querySelectorAll('button, a')).map((action) =>
+    const quickActions = Array.from(
+      profile.querySelectorAll('[data-testid="profile-quick-actions"] button')
+    ).map((action) => action.textContent?.trim());
+    const actionLabels = Array.from(sections[0]!.querySelectorAll('button, a')).map((action) =>
       action.textContent?.trim()
     );
 
-    expect(sections).toHaveLength(3);
-    expect(sections[0]?.textContent).toContain('Alice Example');
-    expect(actionLabels).toEqual([
-      'Open conversation',
-      'View profile',
-      'View in Server Admin',
-      'Remove from room'
-    ]);
+    expect(profile.textContent).toContain('Alice Example');
+    expect(quickActions).toEqual(['Open conversation', 'Search messages']);
+    expect(sections).toHaveLength(2);
+    expect(actionLabels).toEqual(['View profile', 'View in Server Admin', 'Remove from room']);
     const actionIcons = Array.from(dialog.querySelectorAll('.menu-entry > .menu-entry-leading'));
     expect(
       actionIcons.map((icon) =>
         Array.from(icon.classList).find((className) => className.startsWith('icon-[uil--'))
       )
     ).toEqual([
-      'icon-[uil--comment-alt-message]',
       'icon-[uil--user]',
       'icon-[uil--servers]',
       'icon-[uil--user-minus]',
       'icon-[uil--copy]'
     ]);
-    expect(sections[2]?.textContent).toContain('Copy user ID');
+    expect(sections[1]?.textContent).toContain('Copy user ID');
+    expect(profile.parentElement).toBe(sections[0]?.parentElement);
     expect(sections[0]?.parentElement).toBe(sections[1]?.parentElement);
-    expect(sections[1]?.parentElement).toBe(sections[2]?.parentElement);
     expect(dialog.querySelector('[class~="border-t"], [role="separator"]')).toBeNull();
+  });
+
+  it('mentions the user through the host and closes the menu', async () => {
+    const onMention = vi.fn();
+    const onClose = vi.fn();
+    const { container } = renderMenu({ onMention, onClose });
+
+    buttonWithText(container, 'Mention')!.click();
+
+    expect(onMention).toHaveBeenCalledWith('alice');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('hides Mention without a host composer and all quick actions for a deleted user', () => {
+    const withoutHost = renderMenu({ canSendMessage: true });
+    expect(buttonWithText(withoutHost.container, 'Mention')).toBeNull();
+    withoutHost.unmount();
+
+    const deleted = renderMenu({ user: { ...user, deleted: true }, onMention: vi.fn() });
+    expect(q(deleted.container, '[data-testid="profile-quick-actions"]')).toBeNull();
+  });
+
+  it("searches the user's newest messages and opens the search page", () => {
+    const onClose = vi.fn();
+    const { container } = renderMenu({ onClose });
+
+    buttonWithText(container, 'Search messages')!.click();
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(serverScopeMock.messageSearch.search).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'from:alice' })
+    );
+    expect(gotoMock).toHaveBeenCalledWith('/chat/server-1.example.test/search');
+  });
+
+  it('colours the profile band from the user ID', () => {
+    const { container } = renderMenu();
+    const band = q(container, '[data-testid="profile-band"]') as HTMLElement;
+    expect(band.style.backgroundColor).not.toBe('');
   });
 
   it('shows Copy user ID last and copies the exact user ID', async () => {
