@@ -5743,10 +5743,10 @@ describe('targeted room reconciliation with ConnectRPC', () => {
     ).toBe('third');
   });
 
-  it('does not restore a deleted room from an older pending read', async () => {
+  it('removes a deleted room after an older pending read and its follow-up', async () => {
     const { store, handlers } = await setup();
     const first = deferred<{ rooms: RoomWithViewerState[] }>();
-    handlers.batchGetRooms.mockReturnValueOnce(first.promise);
+    handlers.batchGetRooms.mockReturnValueOnce(first.promise).mockResolvedValueOnce({ rooms: [] });
     handlers.listRoomGroups.mockResolvedValue({ groups: [] });
     changed(store, 'one');
     await vi.waitFor(() => expect(handlers.batchGetRooms).toHaveBeenCalledOnce());
@@ -5758,9 +5758,47 @@ describe('targeted room reconciliation with ConnectRPC', () => {
     first.resolve({ rooms: [room('one')] });
     await store.waitForRealtimeReconciliation();
     expect(store.projection.rooms.has('one')).toBe(false);
-    expect(handlers.batchGetRooms).toHaveBeenCalledOnce();
+    expect(handlers.batchGetRooms).toHaveBeenCalledTimes(2);
     expect(handlers.listRooms).not.toHaveBeenCalled();
   });
+
+  it.each([false, true])(
+    'only removes an omitted room when retained stores exist: %s',
+    async (retained) => {
+      const { store, handlers } = await setup();
+      if (retained) store.rooms.members('one');
+      const lost = vi.fn();
+      store.onRoomAccessLost(lost);
+      handlers.batchGetRooms.mockResolvedValue({ rooms: [] });
+      changed(store, 'one');
+      await store.waitForRealtimeReconciliation();
+      expect(lost).toHaveBeenCalledTimes(retained ? 1 : 0);
+    }
+  );
+
+  it.each(['userJoinedRoom', 'userLeftRoom'] as const)(
+    'reads layout only for the viewer membership: %s',
+    async (kind) => {
+      const { store, handlers } = await setup();
+      handlers.listRoomGroups.mockResolvedValue({ groups: [] });
+      // Keep unrelated active-call reads on the existing stub for self joins.
+      const read = apiMocks.readRealtimeResource.getMockImplementation()!;
+      apiMocks.readRealtimeResource.mockImplementation((family, cursor) =>
+        family === 'activeCalls' ? Promise.resolve([]) : read(family, cursor)
+      );
+      for (const actorId of ['U2', 'U1']) {
+        store.realtimeProjectionHandler(
+          new RealtimeProjectionUpdate({
+            event: new RealtimeEvent({ actorId, event: { case: kind, value: { roomId: 'one' } } })
+          })
+        );
+        await store.waitForRealtimeReconciliation();
+        expect(handlers.listRoomGroups).toHaveBeenCalledTimes(actorId === 'U1' ? 1 : 0);
+      }
+      expect(handlers.batchGetRooms).toHaveBeenCalledTimes(2);
+      expect(handlers.listRooms).not.toHaveBeenCalled();
+    }
+  );
 
   it('rejects cursor reconciliation when the targeted read fails', async () => {
     const { store, handlers } = await setup();

@@ -331,7 +331,6 @@ export class ServerStateStore {
   }
   /** Deletions stay authoritative until the next exact snapshot resets this projection. */
   readonly #deletedRealtimeUserIds = new ReactiveSet<string>();
-  readonly #deletedRealtimeRoomIds = new Set<string>();
   readonly #resourceRefreshes = new ReactiveMap<RealtimeResourceFamily, Promise<boolean>>();
   readonly #pendingResourceRefreshes = new ReactiveMap<
     RealtimeResourceFamily,
@@ -995,10 +994,7 @@ export class ServerStateStore {
       }
       const generation = ++this.#realtimeProjectionGeneration;
       this.#realtimeSnapshotPending = true;
-      if (!update.retainView) {
-        this.#deletedRealtimeUserIds.clear();
-        this.#deletedRealtimeRoomIds.clear();
-      }
+      if (!update.retainView) this.#deletedRealtimeUserIds.clear();
       this.#reconciliationError = null;
       this.#pendingResourceRefreshes.clear();
       this.#pendingUserRefreshIds.clear();
@@ -1021,6 +1017,7 @@ export class ServerStateStore {
 
     if (update.resource?.case === 'rooms') {
       for (const id of update.removedRoomIds) {
+        if (!this.projection.rooms.has(id) && !this.#rooms.loaded(id)) continue;
         this.projection.removeRoom(id);
         this.scrubRemovedRoom(id);
         previousRoomIds.delete(id);
@@ -1370,9 +1367,7 @@ export class ServerStateStore {
         this.requireCurrentRealtimeProjection(generation);
         batch(() => {
           for (const resource of resources) {
-            this.publishProjectionUpdate(
-              new RealtimeProjectionUpdate({ resource, cursor: minimumCursor })
-            );
+            this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
           }
         });
         if (family === 'rooms') {
@@ -1478,21 +1473,6 @@ export class ServerStateStore {
     update: RealtimeProjectionUpdate,
     presenceReadVersion?: number
   ): void {
-    // A read started before deletion must not restore the room or its access.
-    if (update.resource?.case === 'rooms' && this.#deletedRealtimeRoomIds.size > 0) {
-      const value = update.resource.value.clone();
-      value.rooms = value.rooms.filter(
-        (room) => !this.#deletedRealtimeRoomIds.has(room.room?.id ?? '')
-      );
-      update = new RealtimeProjectionUpdate({
-        resource: new RealtimeResourceUpdate({
-          resource: { case: 'rooms', value },
-          replace: update.replaceResource,
-          removedRoomIds: update.removedRoomIds
-        }),
-        cursor: update.cursor
-      });
-    }
     // Filter before both the local reducer and bus consumers see the response.
     // This covers profile refreshes, DM hydration, and catch-up user batches.
     if (update.resource?.case === 'users' && this.#deletedRealtimeUserIds.size > 0) {
@@ -1566,9 +1546,10 @@ export class ServerStateStore {
         this.projection.users.setDeactivated(payload.value.userId, payload.value.deactivated);
         return;
       case 'roomDeleted':
-        this.#deletedRealtimeRoomIds.add(payload.value.roomId);
         this.projection.removeRoom(payload.value.roomId);
         this.scrubRemovedRoom(payload.value.roomId);
+        // A queued read reconciles any older response still in flight.
+        this.refreshRealtimeRooms(roomId);
         this.refreshRealtimeResource('roomGroups');
         return;
       case 'userLeftRoom':
@@ -1577,7 +1558,7 @@ export class ServerStateStore {
         this.#timelines.refreshWindows(roomId, event.id || null);
         // Leaving can retain a visible directory entry with new viewer state.
         this.refreshRealtimeRooms(roomId);
-        this.refreshRealtimeResource('roomGroups');
+        if (event.actorId === this.realtimeViewerId()) this.refreshRealtimeResource('roomGroups');
         return;
       case 'roomNoticeChanged':
         this.#rooms.loaded(payload.value.roomId)?.notice?.invalidate(event.cursor);
@@ -1694,9 +1675,9 @@ export class ServerStateStore {
             'roomUnarchived',
             'roomInvitationCreated',
             'roomInvitationAccepted',
-            'roomInvitationDeclined',
-            'userJoinedRoom'
-          ].includes(payload.case)
+            'roomInvitationDeclined'
+          ].includes(payload.case) ||
+          (payload.case === 'userJoinedRoom' && event.actorId === this.realtimeViewerId())
         ) {
           // These events can change which entries are visible in the layout.
           this.refreshRealtimeResource('roomGroups');
