@@ -61,6 +61,10 @@ enum RealtimeInitialState {
 // replace the complete local family.
 // Large and paginated resources, such as message history, are not part of the
 // snapshot and remain available through ConnectRPC.
+// Rooms include the same viewer state as RoomDirectoryService.ListRooms:
+// neutral Badge attention, permissions, root Slow Mode deadline, and invitation.
+// No ListRooms read after caught_up is needed to fill these fields.
+// Last-read message cursors are separate: read them through RoomService.GetRoomReadState.
 message RealtimeSnapshot {
   // Current public server profile.
   chatto.api.v1.ServerPublicProfile server = 1;
@@ -194,7 +198,9 @@ enum RealtimeCloseCode {
   REALTIME_CLOSE_CODE_UNSUPPORTED_PROTOCOL = 2;
   // The server cannot accept or continue a realtime session at present.
   REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE = 3;
-  // The caller is no longer authenticated.
+  // With reconnect=true, the access token expired. Renew the credential, then
+  // reconnect with the same cursor. With reconnect=false, the credential is
+  // revoked or invalid; do not reconnect automatically.
   REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED = 4;
   // The caller must renew its session before reconnecting.
   REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED = 5;
@@ -212,8 +218,12 @@ message RealtimeClose {
   RealtimeCloseCode code = 1;
   // Safe human-readable close message.
   string message = 2;
-  // Whether the client should reconnect automatically.
+  // Whether the client should reconnect automatically. For AUTHENTICATION_REQUIRED,
+  // true requires credential renewal first, then reconnect with the same cursor.
+  // False means the credential is revoked or invalid; do not retry automatically.
   bool reconnect = 3;
-  // Suggested delay before reconnect.
+  // Optional minimum delay before reconnect. When present, wait at least this
+  // long. When absent and reconnect is true, the client chooses its own delay
+  // and can reconnect at once. This field has no meaning when reconnect is false.
   google.protobuf.Duration retry_after = 4;
 }

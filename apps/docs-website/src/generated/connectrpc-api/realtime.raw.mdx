@@ -30,10 +30,12 @@ AllMessageMention identifies a room-wide mention.
 ### AssetDeletedEvent
 
 AssetDeletedEvent reports a deleted asset.
+IDs identify the affected resources; this is not their current state.
+Read the message resource for current content and interactions.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `asset_id` | `string` | No field description provided. |
+| `asset_id` | `string` | ID of the affected asset. |
 | `room_id` | `string` | Room containing the affected message. |
 | `message_event_id` | `string` | Message that owns the asset, including a deleted derivative asset. |
 
@@ -44,12 +46,13 @@ AssetDeletedEvent reports a deleted asset.
 ### AssetProcessingFailedEvent
 
 AssetProcessingFailedEvent reports failed message-asset processing.
+Values describe the source fact. Read the message resource for current state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `asset_id` | `string` | No field description provided. |
-| `failure_code` | [`AssetProcessingFailureCode`](#chatto-realtime-v1-AssetProcessingFailureCode) | No field description provided. |
-| `message_event_id` | `string` | No field description provided. |
+| `asset_id` | `string` | ID of the affected asset. |
+| `failure_code` | [`AssetProcessingFailureCode`](#chatto-realtime-v1-AssetProcessingFailureCode) | Failure class from the source fact. |
+| `message_event_id` | `string` | ID of the affected message. |
 | `room_id` | `string` | Room containing the affected message. |
 
 
@@ -59,11 +62,13 @@ AssetProcessingFailedEvent reports failed message-asset processing.
 ### AssetProcessingStartedEvent
 
 AssetProcessingStartedEvent reports that message-asset processing started.
+IDs identify the affected resources; this is not their current state.
+Read the message resource for current content and interactions.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `asset_id` | `string` | No field description provided. |
-| `message_event_id` | `string` | No field description provided. |
+| `asset_id` | `string` | ID of the affected asset. |
+| `message_event_id` | `string` | ID of the affected message. |
 | `room_id` | `string` | Room containing the affected message. |
 
 
@@ -74,11 +79,13 @@ AssetProcessingStartedEvent reports that message-asset processing started.
 
 AssetProcessingSucceededEvent reports successful message-asset processing.
 Read the message resource for current attachments and processed video data.
+IDs identify the affected resources; this is not their current state.
+Read the message resource for current content and interactions.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `asset_id` | `string` | No field description provided. |
-| `message_event_id` | `string` | No field description provided. |
+| `asset_id` | `string` | ID of the affected asset. |
+| `message_event_id` | `string` | ID of the affected message. |
 | `room_id` | `string` | Room containing the affected message. |
 
 
@@ -91,7 +98,7 @@ DirectUserMention identifies a direct user mention.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user_id` | `string` | No field description provided. |
+| `user_id` | `string` | ID of the affected user. |
 
 
 
@@ -108,11 +115,13 @@ HereMessageMention identifies a presence-scoped mention.
 ### MessageEditedEvent
 
 MessageEditedEvent reports changed message content or metadata.
+IDs identify the affected resources; this is not their current state.
+Read the message resource for current content and interactions.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `message_event_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `message_event_id` | `string` | ID of the affected message. |
 
 
 
@@ -127,10 +136,10 @@ including during replay; clients must not infer them from current membership.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `cause.direct` | [`DirectUserMention`](#chatto-realtime-v1-DirectUserMention) | No field description provided. |
-| `cause.role` | [`RoleMessageMention`](#chatto-realtime-v1-RoleMessageMention) | No field description provided. |
-| `cause.here` | [`HereMessageMention`](#chatto-realtime-v1-HereMessageMention) | No field description provided. |
-| `cause.all` | [`AllMessageMention`](#chatto-realtime-v1-AllMessageMention) | No field description provided. |
+| `cause.direct` | [`DirectUserMention`](#chatto-realtime-v1-DirectUserMention) | Direct user mention. |
+| `cause.role` | [`RoleMessageMention`](#chatto-realtime-v1-RoleMessageMention) | Role mention. |
+| `cause.here` | [`HereMessageMention`](#chatto-realtime-v1-HereMessageMention) | Presence-scoped mention. |
+| `cause.all` | [`AllMessageMention`](#chatto-realtime-v1-AllMessageMention) | Room-wide mention. |
 | `includes_viewer` | `bool` | True if this target included the authenticated caller when the message was posted. |
 
 
@@ -140,11 +149,13 @@ including during replay; clients must not infer them from current membership.
 ### MessagePinnedEvent
 
 MessagePinnedEvent reports a newly pinned message.
+IDs identify the affected resources; this is not their current state.
+Read the message resource for current content and interactions.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `message_event_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `message_event_id` | `string` | ID of the affected message. |
 
 
 
@@ -156,13 +167,13 @@ MessagePostedEvent reports a new room message.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `in_reply_to` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `in_reply_to` | `string` | ID of the message being answered, if any. |
 | `thread_root_event_id` | `string` | Root message ID for a thread reply. Empty for a room-level message. |
-| `echo_of_event_id` | `string` | No field description provided. |
-| `echo_from_thread_root_event_id` | `string` | No field description provided. |
+| `echo_of_event_id` | `string` | ID of the echoed message, if any. |
+| `echo_from_thread_root_event_id` | `string` | Root message ID of the source thread for an echo, if any. |
 | `mentions` | repeated [`MessageMention`](#chatto-realtime-v1-MessageMention) | Distinct mention targets, without expanded role or broadcast recipients. |
-| `body_plaintext` | `optional string` | Plaintext message text. The field is absent after key shredding. |
+| `body_plaintext` | `optional string` | Current message body read during delivery, including edits. This is not necessarily the body at creation. Absent after key shredding. Read the message resource for its current body and other current state. |
 | `room_kind` | `chatto.api.v1.RoomKind` | Immutable room kind. Direct messages do not require a mention to address a bot. |
 
 
@@ -172,11 +183,13 @@ MessagePostedEvent reports a new room message.
 ### MessageRetractedEvent
 
 MessageRetractedEvent reports a retracted message.
+IDs identify the affected resources; this is not their current state.
+Read the message resource for current content and interactions.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `message_event_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `message_event_id` | `string` | ID of the affected message. |
 
 
 
@@ -185,11 +198,13 @@ MessageRetractedEvent reports a retracted message.
 ### MessageUnpinnedEvent
 
 MessageUnpinnedEvent reports a message that is no longer pinned.
+IDs identify the affected resources; this is not their current state.
+Read the message resource for current content and interactions.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `message_event_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `message_event_id` | `string` | ID of the affected message. |
 
 
 
@@ -212,10 +227,14 @@ notification occurrences changed and requests an authoritative resource read.
 
 NotificationUnreadStateChangedEvent reports that the caller's notification
 unread state changed and requests authoritative notification and room reads.
+This is a resource-read hint, not a state value. The server also sends it
+after a message post for the poster, and after thread-follow changes.
+Read room and thread resources for Slow Mode deadlines and follow state,
+and notification resources for current Badge attention.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
 | `thread_root_event_id` | `string` | Event ID of the affected thread root, or empty for room state. |
 
 
@@ -228,7 +247,7 @@ PresenceChangedEvent reports the actor's current presence.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `status` | `chatto.api.v1.PresenceStatus` | No field description provided. |
+| `status` | `chatto.api.v1.PresenceStatus` | Presence status at publication. |
 
 
 
@@ -237,12 +256,13 @@ PresenceChangedEvent reports the actor's current presence.
 ### ReactionAddedEvent
 
 ReactionAddedEvent reports a new message reaction.
+Values describe the source fact. Read the message resource for current state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `message_event_id` | `string` | No field description provided. |
-| `emoji` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `message_event_id` | `string` | ID of the affected message. |
+| `emoji` | `string` | Reaction emoji in the source fact. |
 
 
 
@@ -251,12 +271,13 @@ ReactionAddedEvent reports a new message reaction.
 ### ReactionRemovedEvent
 
 ReactionRemovedEvent reports a removed message reaction.
+Values describe the source fact. Read the message resource for current state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `message_event_id` | `string` | No field description provided. |
-| `emoji` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `message_event_id` | `string` | ID of the affected message. |
+| `emoji` | `string` | Reaction emoji in the source fact. |
 
 
 
@@ -267,6 +288,7 @@ ReactionRemovedEvent reports a removed message reaction.
 A user was assigned a role. The named user's clients must discard private
 cached data and load current authorized state. Other viewers update member
 role lists without a full reload.
+Values describe the source fact. Read UserService for current assignments.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -309,7 +331,7 @@ RoleMessageMention identifies the role that caused a mention.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `role_name` | `string` | No field description provided. |
+| `role_name` | `string` | Stable role name. |
 
 
 
@@ -334,6 +356,7 @@ decisions are not included. Read current decisions through authorized APIs.
 
 A user's role assignment was removed. The named user's clients must discard
 private cached data and load current authorized state.
+Values describe the source fact. Read UserService for current assignments.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -360,6 +383,7 @@ This event does not change permission decisions.
 ### RolesReorderedEvent
 
 Custom roles changed display order. Permission decisions are unchanged.
+Values describe the source fact. Read RoleService for current state.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -372,10 +396,12 @@ Custom roles changed display order. Permission decisions are unchanged.
 ### RoomArchivedEvent
 
 RoomArchivedEvent reports a room that became archived.
+IDs identify the affected resources; this is not their current state.
+Read RoomDirectoryService for current room and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
 
 
 
@@ -384,15 +410,17 @@ RoomArchivedEvent reports a room that became archived.
 ### RoomCreatedEvent
 
 RoomCreatedEvent reports a new room that is visible to the caller.
+Values come from the source fact, not a current room read.
+Read RoomDirectoryService for current room metadata and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `name` | `string` | No field description provided. |
-| `description` | `string` | No field description provided. |
-| `kind` | `chatto.api.v1.RoomKind` | No field description provided. |
-| `universal` | `bool` | No field description provided. |
-| `threading_mode` | `chatto.api.v1.RoomThreadingMode` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `name` | `string` | Room name in the source fact. |
+| `description` | `string` | Room description in the source fact. |
+| `kind` | `chatto.api.v1.RoomKind` | Room kind in the source fact. |
+| `universal` | `bool` | Universal membership setting in the source fact. |
+| `threading_mode` | `chatto.api.v1.RoomThreadingMode` | Threading policy in the source fact. |
 
 
 
@@ -401,10 +429,12 @@ RoomCreatedEvent reports a new room that is visible to the caller.
 ### RoomDeletedEvent
 
 RoomDeletedEvent reports a deleted room.
+IDs identify the affected resources; this is not their current state.
+Read RoomDirectoryService for current room and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
 
 
 
@@ -413,11 +443,13 @@ RoomDeletedEvent reports a deleted room.
 ### RoomInvitationAcceptedEvent
 
 An invitation accepted. Delivered only to its sender and recipient.
+IDs identify the affected resources; this is not their current state.
+Read RoomDirectoryService for current room and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `invitation_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `invitation_id` | `string` | ID of the affected invitation. |
 
 
 
@@ -426,11 +458,13 @@ An invitation accepted. Delivered only to its sender and recipient.
 ### RoomInvitationCreatedEvent
 
 An invitation created. Delivered only to its sender and recipient.
+IDs identify the affected resources; this is not their current state.
+Read RoomDirectoryService for current room and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `invitation_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `invitation_id` | `string` | ID of the affected invitation. |
 
 
 
@@ -439,11 +473,13 @@ An invitation created. Delivered only to its sender and recipient.
 ### RoomInvitationDeclinedEvent
 
 An invitation declined. Delivered only to its sender and recipient.
+IDs identify the affected resources; this is not their current state.
+Read RoomDirectoryService for current room and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `invitation_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `invitation_id` | `string` | ID of the affected invitation. |
 
 
 
@@ -464,11 +500,13 @@ minimum boundary. The event contains no room IDs or other hidden layout data.
 RoomMembershipEventsVisibilityChangedEvent changes how clients display room
 join/leave activity, including history. Clients must still process membership
 events when this setting is false.
+Values come from the source fact, not a current room read.
+Read RoomDirectoryService for current room metadata and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `show_membership_events` | `bool` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `show_membership_events` | `bool` | Whether to show membership activity. |
 
 
 
@@ -478,10 +516,11 @@ events when this setting is false.
 
 RoomNoticeChangedEvent asks current room members to read the latest notice.
 It covers corrections, publication, republishing, and clear operations.
+The ID is a read hint; notice content is not included.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
 
 
 
@@ -489,11 +528,13 @@ It covers corrections, publication, republishing, and clear operations.
 
 ### RoomReadStateChangedEvent
 
-RoomReadStateChangedEvent reports the caller's current room read state.
+RoomReadStateChangedEvent requests a read of the caller's room read state.
+IDs identify the affected resources; this is not their current state.
+Read RoomService.GetRoomReadState for the current read boundary.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
 
 
 
@@ -501,13 +542,15 @@ RoomReadStateChangedEvent reports the caller's current room read state.
 
 ### RoomSlowModeChangedEvent
 
-RoomSlowModeChangedEvent reports the current slow-mode interval.
+RoomSlowModeChangedEvent reports a Slow Mode interval change.
+Values come from the source fact, not a current room read.
+Read RoomDirectoryService for current room metadata and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `slow_mode_seconds` | `uint32` | No field description provided. |
-| `thread_slow_mode_seconds` | `optional uint32` | Independent interval within each thread. Zero disables it. |
+| `room_id` | `string` | ID of the affected room. |
+| `slow_mode_seconds` | `uint32` | Room Slow Mode interval in seconds. Zero disables it. |
+| `thread_slow_mode_seconds` | `optional uint32` | Interval within each thread from the source fact. Zero disables it. For a legacy fact without this value, the room interval is used. |
 
 
 
@@ -515,12 +558,14 @@ RoomSlowModeChangedEvent reports the current slow-mode interval.
 
 ### RoomThreadingModeChangedEvent
 
-RoomThreadingModeChangedEvent reports the current room threading policy.
+RoomThreadingModeChangedEvent reports a room threading policy change.
+Values come from the source fact, not a current room read.
+Read RoomDirectoryService for current room metadata and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `threading_mode` | `chatto.api.v1.RoomThreadingMode` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `threading_mode` | `chatto.api.v1.RoomThreadingMode` | Threading policy in the source fact. |
 
 
 
@@ -529,10 +574,12 @@ RoomThreadingModeChangedEvent reports the current room threading policy.
 ### RoomUnarchivedEvent
 
 RoomUnarchivedEvent reports a room that became active again.
+IDs identify the affected resources; this is not their current state.
+Read RoomDirectoryService for current room and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
 
 
 
@@ -540,12 +587,14 @@ RoomUnarchivedEvent reports a room that became active again.
 
 ### RoomUniversalChangedEvent
 
-RoomUniversalChangedEvent reports the current universal-membership setting.
+RoomUniversalChangedEvent reports a universal-membership setting change.
+Values come from the source fact, not a current room read.
+Read RoomDirectoryService for current room metadata and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `universal` | `bool` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `universal` | `bool` | Universal membership setting in the source fact. |
 
 
 
@@ -554,12 +603,14 @@ RoomUniversalChangedEvent reports the current universal-membership setting.
 ### RoomUpdatedEvent
 
 RoomUpdatedEvent reports changed room metadata.
+Values come from the source fact, not a current room read.
+Read RoomDirectoryService for current room metadata and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `name` | `string` | No field description provided. |
-| `description` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `name` | `string` | Room name in the source fact. |
+| `description` | `string` | Room description in the source fact. |
 
 
 
@@ -567,11 +618,12 @@ RoomUpdatedEvent reports changed room metadata.
 
 ### ServerMotdChangedEvent
 
-ServerMotdChangedEvent reports the current message of the day.
+ServerMotdChangedEvent reports a message of the day change.
+The value comes from the source fact. Read ServerService for current state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `motd` | `string` | No field description provided. |
+| `motd` | `string` | Message of the day in the source fact. |
 
 
 
@@ -589,11 +641,13 @@ Read ServerService with this event's resume cursor as the minimum boundary.
 ### ThreadCreatedEvent
 
 ThreadCreatedEvent reports a new message thread.
+IDs identify the affected resources; this is not their current state.
+Read thread resources for current thread state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `thread_root_event_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `thread_root_event_id` | `string` | Root message ID of the affected thread. |
 
 
 
@@ -601,13 +655,15 @@ ThreadCreatedEvent reports a new message thread.
 
 ### ThreadViewerStateChangedEvent
 
-ThreadViewerStateChangedEvent reports the caller's current thread state.
+ThreadViewerStateChangedEvent reports the caller's thread-follow change.
+The value describes the follow change, not a fresh resource read.
+Read thread resources for current follow state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `thread_root_event_id` | `string` | No field description provided. |
-| `is_following` | `bool` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `thread_root_event_id` | `string` | Root message ID of the affected thread. |
+| `is_following` | `bool` | Follow state reported by this change. |
 
 
 
@@ -616,11 +672,12 @@ ThreadViewerStateChangedEvent reports the caller's current thread state.
 ### UserAccountCreatedEvent
 
 UserAccountCreatedEvent reports a new public user account.
+Values describe the source fact. Read UserService for current state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user_id` | `string` | No field description provided. |
-| `is_bot` | `bool` | No field description provided. |
+| `user_id` | `string` | ID of the affected user. |
+| `is_bot` | `bool` | Whether the created account is a bot. |
 
 
 
@@ -629,11 +686,12 @@ UserAccountCreatedEvent reports a new public user account.
 ### UserAccountDeactivationChangedEvent
 
 Reports a reversible account access change. Administrative details are private.
+Values describe the source fact. Read UserService for current state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user_id` | `string` | No field description provided. |
-| `deactivated` | `bool` | No field description provided. |
+| `user_id` | `string` | ID of the affected user. |
+| `deactivated` | `bool` | Account deactivation value in the source fact. |
 
 
 
@@ -642,10 +700,12 @@ Reports a reversible account access change. Administrative details are private.
 ### UserAccountDeletedEvent
 
 UserAccountDeletedEvent reports a deleted user account.
+IDs identify the affected resources; this is not their current state.
+Read UserService for current account state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user_id` | `string` | No field description provided. |
+| `user_id` | `string` | ID of the affected user. |
 
 
 
@@ -654,10 +714,12 @@ UserAccountDeletedEvent reports a deleted user account.
 ### UserJoinedRoomEvent
 
 UserJoinedRoomEvent reports that the actor joined a room.
+IDs identify the affected resources; this is not their current state.
+Read RoomDirectoryService for current room and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
 
 
 
@@ -666,10 +728,12 @@ UserJoinedRoomEvent reports that the actor joined a room.
 ### UserLeftRoomEvent
 
 UserLeftRoomEvent reports that the actor left a room.
+IDs identify the affected resources; this is not their current state.
+Read RoomDirectoryService for current room and viewer state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
 
 
 
@@ -683,7 +747,7 @@ minimum boundary.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user_id` | `string` | No field description provided. |
+| `user_id` | `string` | ID of the affected user. |
 
 
 
@@ -698,8 +762,8 @@ a message in the same room or thread. No stop-typing event is sent.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `thread_root_event_id` | `optional string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `thread_root_event_id` | `optional string` | Root message ID of the affected thread. |
 
 
 
@@ -738,11 +802,13 @@ Refetch MyAccountService.GetPresencePreference to obtain the current choice.
 ### VoiceCallEndedEvent
 
 VoiceCallEndedEvent reports the end of a call session.
+IDs identify the affected resources; this is not their current state.
+Read call resources for current call state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `call_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `call_id` | `string` | ID of the call session. |
 
 
 
@@ -751,11 +817,13 @@ VoiceCallEndedEvent reports the end of a call session.
 ### VoiceCallParticipantJoinedEvent
 
 VoiceCallParticipantJoinedEvent reports that the actor joined a call session.
+IDs identify the affected resources; this is not their current state.
+Read call resources for current call state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `call_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `call_id` | `string` | ID of the call session. |
 
 
 
@@ -764,11 +832,13 @@ VoiceCallParticipantJoinedEvent reports that the actor joined a call session.
 ### VoiceCallParticipantLeftEvent
 
 VoiceCallParticipantLeftEvent reports that the actor left a call session.
+IDs identify the affected resources; this is not their current state.
+Read call resources for current call state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `call_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `call_id` | `string` | ID of the call session. |
 
 
 
@@ -777,11 +847,13 @@ VoiceCallParticipantLeftEvent reports that the actor left a call session.
 ### VoiceCallStartedEvent
 
 VoiceCallStartedEvent reports a new call session.
+IDs identify the affected resources; this is not their current state.
+Read call resources for current call state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-| `call_id` | `string` | No field description provided. |
+| `room_id` | `string` | ID of the affected room. |
+| `call_id` | `string` | ID of the call session. |
 
 
 
@@ -810,8 +882,8 @@ Close instruction sent before the socket closes when possible.
 | --- | --- | --- |
 | `code` | [`RealtimeCloseCode`](#chatto-realtime-v1-RealtimeCloseCode) | Stable machine-readable close code. |
 | `message` | `string` | Safe human-readable close message. |
-| `reconnect` | `bool` | Whether the client should reconnect automatically. |
-| `retry_after` | `google.protobuf.Duration` | Suggested delay before reconnect. |
+| `reconnect` | `bool` | Whether the client should reconnect automatically. For AUTHENTICATION_REQUIRED, true requires credential renewal first, then reconnect with the same cursor. False means the credential is revoked or invalid; do not retry automatically. |
+| `retry_after` | `google.protobuf.Duration` | Optional minimum delay before reconnect. When present, wait at least this long. When absent and reconnect is true, the client chooses its own delay and can reconnect at once. This field has no meaning when reconnect is false. |
 
 
 
@@ -930,6 +1002,10 @@ discard the snapshot if the socket closes before `caught_up`. List values
 replace the complete local family.
 Large and paginated resources, such as message history, are not part of the
 snapshot and remain available through ConnectRPC.
+Rooms include the same viewer state as RoomDirectoryService.ListRooms:
+neutral Badge attention, permissions, root Slow Mode deadline, and invitation.
+No ListRooms read after caught_up is needed to fill these fields.
+Last-read message cursors are separate: read them through RoomService.GetRoomReadState.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -987,7 +1063,7 @@ Stable server-requested close category.
 | `REALTIME_CLOSE_CODE_INVALID_REQUEST` | `1` | The subscription message is malformed or contains an invalid value. |
 | `REALTIME_CLOSE_CODE_UNSUPPORTED_PROTOCOL` | `2` | The requested behavioral protocol version is not supported. |
 | `REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE` | `3` | The server cannot accept or continue a realtime session at present. |
-| `REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED` | `4` | The caller is no longer authenticated. |
+| `REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED` | `4` | With reconnect=true, the access token expired. Renew the credential, then reconnect with the same cursor. With reconnect=false, the credential is revoked or invalid; do not reconnect automatically. |
 | `REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED` | `5` | The caller must renew its session before reconnecting. |
 | `REALTIME_CLOSE_CODE_RESYNC_REQUIRED` | `6` | The client must discard its cursor and synchronize current state again. |
 | `REALTIME_CLOSE_CODE_SESSION_TERMINATED` | `7` | The user's session ended and the client must return to sign-in. |

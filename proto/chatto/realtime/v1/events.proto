@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package chatto.realtime.v1;
 
+import "chatto/api/v1/common.proto";
+import "chatto/api/v1/presence.proto";
+import "chatto/api/v1/rooms.proto";
+
 // A public role was created. Read its current metadata with RoleService.
 message RoleCreatedEvent {
   // Stable role name.
@@ -24,6 +28,7 @@ message RoleDeletedEvent {
 }
 
 // Custom roles changed display order. Permission decisions are unchanged.
+// Values describe the source fact. Read RoleService for current state.
 message RolesReorderedEvent {
   // Custom role names in ascending display position.
   repeated string role_names = 1;
@@ -32,6 +37,7 @@ message RolesReorderedEvent {
 // A user was assigned a role. The named user's clients must discard private
 // cached data and load current authorized state. Other viewers update member
 // role lists without a full reload.
+// Values describe the source fact. Read UserService for current assignments.
 message RoleAssignedEvent {
   // User whose assignment changed.
   string user_id = 1;
@@ -41,6 +47,7 @@ message RoleAssignedEvent {
 
 // A user's role assignment was removed. The named user's clients must discard
 // private cached data and load current authorized state.
+// Values describe the source fact. Read UserService for current assignments.
 message RoleRevokedEvent {
   // User whose assignment changed.
   string user_id = 1;
@@ -63,123 +70,189 @@ message RolePermissionsChangedEvent {
 // state before displaying it again. The connection itself remains open.
 message ViewerPermissionsChangedEvent {}
 
-import "chatto/api/v1/common.proto";
-import "chatto/api/v1/presence.proto";
-import "chatto/api/v1/rooms.proto";
 
 // RoomCreatedEvent reports a new room that is visible to the caller.
+// Values come from the source fact, not a current room read.
+// Read RoomDirectoryService for current room metadata and viewer state.
 message RoomCreatedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // Room name in the source fact.
   string name = 2;
+  // Room description in the source fact.
   string description = 3;
+  // Room kind in the source fact.
   chatto.api.v1.RoomKind kind = 4;
+  // Universal membership setting in the source fact.
   bool universal = 5;
+  // Threading policy in the source fact.
   chatto.api.v1.RoomThreadingMode threading_mode = 6;
 }
 
 // RoomUpdatedEvent reports changed room metadata.
+// Values come from the source fact, not a current room read.
+// Read RoomDirectoryService for current room metadata and viewer state.
 message RoomUpdatedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // Room name in the source fact.
   string name = 2;
+  // Room description in the source fact.
   string description = 3;
 }
 
 // RoomDeletedEvent reports a deleted room.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 message RoomDeletedEvent {
+  // ID of the affected room.
   string room_id = 1;
 }
 
 // RoomArchivedEvent reports a room that became archived.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 message RoomArchivedEvent {
+  // ID of the affected room.
   string room_id = 1;
 }
 
 // RoomUnarchivedEvent reports a room that became active again.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 message RoomUnarchivedEvent {
+  // ID of the affected room.
   string room_id = 1;
 }
 
-// RoomUniversalChangedEvent reports the current universal-membership setting.
+// RoomUniversalChangedEvent reports a universal-membership setting change.
+// Values come from the source fact, not a current room read.
+// Read RoomDirectoryService for current room metadata and viewer state.
 message RoomUniversalChangedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // Universal membership setting in the source fact.
   bool universal = 2;
 }
 
 // RoomNoticeChangedEvent asks current room members to read the latest notice.
 // It covers corrections, publication, republishing, and clear operations.
+// The ID is a read hint; notice content is not included.
 message RoomNoticeChangedEvent {
+  // ID of the affected room.
   string room_id = 1;
 }
 
-// RoomSlowModeChangedEvent reports the current slow-mode interval.
+// RoomSlowModeChangedEvent reports a Slow Mode interval change.
+// Values come from the source fact, not a current room read.
+// Read RoomDirectoryService for current room metadata and viewer state.
 message RoomSlowModeChangedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // Room Slow Mode interval in seconds. Zero disables it.
   uint32 slow_mode_seconds = 2;
-  // Independent interval within each thread. Zero disables it.
+  // Interval within each thread from the source fact. Zero disables it.
+  // For a legacy fact without this value, the room interval is used.
   optional uint32 thread_slow_mode_seconds = 3;
 }
 
-// RoomThreadingModeChangedEvent reports the current room threading policy.
+// RoomThreadingModeChangedEvent reports a room threading policy change.
+// Values come from the source fact, not a current room read.
+// Read RoomDirectoryService for current room metadata and viewer state.
 message RoomThreadingModeChangedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // Threading policy in the source fact.
   chatto.api.v1.RoomThreadingMode threading_mode = 2;
 }
 
 // RoomMembershipEventsVisibilityChangedEvent changes how clients display room
 // join/leave activity, including history. Clients must still process membership
 // events when this setting is false.
+// Values come from the source fact, not a current room read.
+// Read RoomDirectoryService for current room metadata and viewer state.
 message RoomMembershipEventsVisibilityChangedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // Whether to show membership activity.
   bool show_membership_events = 2;
 }
 
 // UserJoinedRoomEvent reports that the actor joined a room.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 message UserJoinedRoomEvent {
+  // ID of the affected room.
   string room_id = 1;
 }
 
 // UserLeftRoomEvent reports that the actor left a room.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 message UserLeftRoomEvent {
+  // ID of the affected room.
   string room_id = 1;
 }
 
 // VoiceCallParticipantJoinedEvent reports that the actor joined a call session.
+// IDs identify the affected resources; this is not their current state.
+// Read call resources for current call state.
 message VoiceCallParticipantJoinedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // ID of the call session.
   string call_id = 2;
 }
 
 // VoiceCallParticipantLeftEvent reports that the actor left a call session.
+// IDs identify the affected resources; this is not their current state.
+// Read call resources for current call state.
 message VoiceCallParticipantLeftEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // ID of the call session.
   string call_id = 2;
 }
 
 // VoiceCallStartedEvent reports a new call session.
+// IDs identify the affected resources; this is not their current state.
+// Read call resources for current call state.
 message VoiceCallStartedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // ID of the call session.
   string call_id = 2;
 }
 
 // VoiceCallEndedEvent reports the end of a call session.
+// IDs identify the affected resources; this is not their current state.
+// Read call resources for current call state.
 message VoiceCallEndedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // ID of the call session.
   string call_id = 2;
 }
 
 // MessagePostedEvent reports a new room message.
 message MessagePostedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // ID of the message being answered, if any.
   string in_reply_to = 2;
   // Root message ID for a thread reply. Empty for a room-level message.
   string thread_root_event_id = 3;
   reserved 4;
   reserved "mentioned_user_ids";
+  // ID of the echoed message, if any.
   string echo_of_event_id = 5;
+  // Root message ID of the source thread for an echo, if any.
   string echo_from_thread_root_event_id = 6;
   // Distinct mention targets, without expanded role or broadcast recipients.
   repeated MessageMention mentions = 7;
-  // Plaintext message text. The field is absent after key shredding.
+  // Current message body read during delivery, including edits. This is not
+  // necessarily the body at creation. Absent after key shredding.
+  // Read the message resource for its current body and other current state.
   optional string body_plaintext = 8;
   // Immutable room kind. Direct messages do not require a mention to address a bot.
   chatto.api.v1.RoomKind room_kind = 9;
@@ -187,11 +260,13 @@ message MessagePostedEvent {
 
 // DirectUserMention identifies a direct user mention.
 message DirectUserMention {
+  // ID of the affected user.
   string user_id = 1;
 }
 
 // RoleMessageMention identifies the role that caused a mention.
 message RoleMessageMention {
+  // Stable role name.
   string role_name = 1;
 }
 
@@ -209,9 +284,13 @@ message MessageMention {
   reserved 1;
   reserved "user_id";
   oneof cause {
+    // Direct user mention.
     DirectUserMention direct = 2;
+    // Role mention.
     RoleMessageMention role = 3;
+    // Presence-scoped mention.
     HereMessageMention here = 4;
+    // Room-wide mention.
     AllMessageMention all = 5;
   }
   // True if this target included the authenticated caller when the message was posted.
@@ -219,38 +298,62 @@ message MessageMention {
 }
 
 // MessageEditedEvent reports changed message content or metadata.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 message MessageEditedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // ID of the affected message.
   string message_event_id = 2;
 }
 
 // MessageRetractedEvent reports a retracted message.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 message MessageRetractedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // ID of the affected message.
   string message_event_id = 2;
 }
 
 // MessagePinnedEvent reports a newly pinned message.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 message MessagePinnedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // ID of the affected message.
   string message_event_id = 2;
 }
 
 // MessageUnpinnedEvent reports a message that is no longer pinned.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 message MessageUnpinnedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // ID of the affected message.
   string message_event_id = 2;
 }
 
 // ThreadCreatedEvent reports a new message thread.
+// IDs identify the affected resources; this is not their current state.
+// Read thread resources for current thread state.
 message ThreadCreatedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // Root message ID of the affected thread.
   string thread_root_event_id = 2;
 }
 
 // AssetProcessingStartedEvent reports that message-asset processing started.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 message AssetProcessingStartedEvent {
+  // ID of the affected asset.
   string asset_id = 1;
+  // ID of the affected message.
   string message_event_id = 2;
   // Room containing the affected message.
   string room_id = 3;
@@ -258,10 +361,14 @@ message AssetProcessingStartedEvent {
 
 // AssetProcessingSucceededEvent reports successful message-asset processing.
 // Read the message resource for current attachments and processed video data.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 message AssetProcessingSucceededEvent {
+  // ID of the affected asset.
   string asset_id = 1;
   reserved 2;
   reserved "video";
+  // ID of the affected message.
   string message_event_id = 3;
   // Room containing the affected message.
   string room_id = 4;
@@ -278,16 +385,23 @@ enum AssetProcessingFailureCode {
 }
 
 // AssetProcessingFailedEvent reports failed message-asset processing.
+// Values describe the source fact. Read the message resource for current state.
 message AssetProcessingFailedEvent {
+  // ID of the affected asset.
   string asset_id = 1;
+  // Failure class from the source fact.
   AssetProcessingFailureCode failure_code = 2;
+  // ID of the affected message.
   string message_event_id = 3;
   // Room containing the affected message.
   string room_id = 4;
 }
 
 // AssetDeletedEvent reports a deleted asset.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 message AssetDeletedEvent {
+  // ID of the affected asset.
   string asset_id = 1;
   // Room containing the affected message.
   string room_id = 2;
@@ -295,39 +409,58 @@ message AssetDeletedEvent {
   string message_event_id = 3;
 }
 
-// ServerMotdChangedEvent reports the current message of the day.
+// ServerMotdChangedEvent reports a message of the day change.
+// The value comes from the source fact. Read ServerService for current state.
 message ServerMotdChangedEvent {
+  // Message of the day in the source fact.
   string motd = 1;
 }
 
 // UserAccountCreatedEvent reports a new public user account.
+// Values describe the source fact. Read UserService for current state.
 message UserAccountCreatedEvent {
+  // ID of the affected user.
   string user_id = 1;
+  // Whether the created account is a bot.
   bool is_bot = 2;
 }
 
 // Reports a reversible account access change. Administrative details are private.
+// Values describe the source fact. Read UserService for current state.
 message UserAccountDeactivationChangedEvent {
+  // ID of the affected user.
   string user_id = 1;
+  // Account deactivation value in the source fact.
   bool deactivated = 2;
 }
 
 // UserAccountDeletedEvent reports a deleted user account.
+// IDs identify the affected resources; this is not their current state.
+// Read UserService for current account state.
 message UserAccountDeletedEvent {
+  // ID of the affected user.
   string user_id = 1;
 }
 
 // ReactionAddedEvent reports a new message reaction.
+// Values describe the source fact. Read the message resource for current state.
 message ReactionAddedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // ID of the affected message.
   string message_event_id = 2;
+  // Reaction emoji in the source fact.
   string emoji = 3;
 }
 
 // ReactionRemovedEvent reports a removed message reaction.
+// Values describe the source fact. Read the message resource for current state.
 message ReactionRemovedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // ID of the affected message.
   string message_event_id = 2;
+  // Reaction emoji in the source fact.
   string emoji = 3;
 }
 
@@ -340,6 +473,7 @@ message RoomLayoutChangedEvent {}
 // Read the user through UserService with this event's resume cursor as the
 // minimum boundary.
 message UserProfileChangedEvent {
+  // ID of the affected user.
   string user_id = 1;
 }
 
@@ -348,10 +482,15 @@ message UserProfileChangedEvent {
 // the minimum boundary.
 message ViewerPreferencesChangedEvent {}
 
-// ThreadViewerStateChangedEvent reports the caller's current thread state.
+// ThreadViewerStateChangedEvent reports the caller's thread-follow change.
+// The value describes the follow change, not a fresh resource read.
+// Read thread resources for current follow state.
 message ThreadViewerStateChangedEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // Root message ID of the affected thread.
   string thread_root_event_id = 2;
+  // Follow state reported by this change.
   bool is_following = 3;
 }
 
@@ -364,12 +503,15 @@ message ServerProfileChangedEvent {}
 // 6 seconds after the last received typing event, or when that actor posts
 // a message in the same room or thread. No stop-typing event is sent.
 message UserTypingEvent {
+  // ID of the affected room.
   string room_id = 1;
+  // Root message ID of the affected thread.
   optional string thread_root_event_id = 2;
 }
 
 // PresenceChangedEvent reports the actor's current presence.
 message PresenceChangedEvent {
+  // Presence status at publication.
   chatto.api.v1.PresenceStatus status = 1;
 }
 
@@ -389,22 +531,51 @@ message NotificationOccurrencesChangedEvent {
 
 // NotificationUnreadStateChangedEvent reports that the caller's notification
 // unread state changed and requests authoritative notification and room reads.
+// This is a resource-read hint, not a state value. The server also sends it
+// after a message post for the poster, and after thread-follow changes.
+// Read room and thread resources for Slow Mode deadlines and follow state,
+// and notification resources for current Badge attention.
 message NotificationUnreadStateChangedEvent {
+  // ID of the affected room.
   string room_id = 1;
   // Event ID of the affected thread root, or empty for room state.
   string thread_root_event_id = 2;
 }
 
-// RoomReadStateChangedEvent reports the caller's current room read state.
+// RoomReadStateChangedEvent requests a read of the caller's room read state.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomService.GetRoomReadState for the current read boundary.
 message RoomReadStateChangedEvent {
+  // ID of the affected room.
   string room_id = 1;
 }
 
 // An invitation created. Delivered only to its sender and recipient.
-message RoomInvitationCreatedEvent { string room_id = 1; string invitation_id = 2; }
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
+message RoomInvitationCreatedEvent {
+  // ID of the affected room.
+  string room_id = 1;
+  // ID of the affected invitation.
+  string invitation_id = 2;
+}
 
 // An invitation accepted. Delivered only to its sender and recipient.
-message RoomInvitationAcceptedEvent { string room_id = 1; string invitation_id = 2; }
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
+message RoomInvitationAcceptedEvent {
+  // ID of the affected room.
+  string room_id = 1;
+  // ID of the affected invitation.
+  string invitation_id = 2;
+}
 
 // An invitation declined. Delivered only to its sender and recipient.
-message RoomInvitationDeclinedEvent { string room_id = 1; string invitation_id = 2; }
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
+message RoomInvitationDeclinedEvent {
+  // ID of the affected room.
+  string room_id = 1;
+  // ID of the affected invitation.
+  string invitation_id = 2;
+}

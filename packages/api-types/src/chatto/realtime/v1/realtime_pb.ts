@@ -122,7 +122,9 @@ export enum RealtimeCloseCode {
   TEMPORARILY_UNAVAILABLE = 3,
 
   /**
-   * The caller is no longer authenticated.
+   * With reconnect=true, the access token expired. Renew the credential, then
+   * reconnect with the same cursor. With reconnect=false, the credential is
+   * revoked or invalid; do not reconnect automatically.
    *
    * @generated from enum value: REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED = 4;
    */
@@ -331,6 +333,10 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
  * replace the complete local family.
  * Large and paginated resources, such as message history, are not part of the
  * snapshot and remain available through ConnectRPC.
+ * Rooms include the same viewer state as RoomDirectoryService.ListRooms:
+ * neutral Badge attention, permissions, root Slow Mode deadline, and invitation.
+ * No ListRooms read after caught_up is needed to fill these fields.
+ * Last-read message cursors are separate: read them through RoomService.GetRoomReadState.
  *
  * @generated from message chatto.realtime.v1.RealtimeSnapshot
  */
@@ -974,14 +980,18 @@ export class RealtimeClose extends Message<RealtimeClose> {
   message = "";
 
   /**
-   * Whether the client should reconnect automatically.
+   * Whether the client should reconnect automatically. For AUTHENTICATION_REQUIRED,
+   * true requires credential renewal first, then reconnect with the same cursor.
+   * False means the credential is revoked or invalid; do not retry automatically.
    *
    * @generated from field: bool reconnect = 3;
    */
   reconnect = false;
 
   /**
-   * Suggested delay before reconnect.
+   * Optional minimum delay before reconnect. When present, wait at least this
+   * long. When absent and reconnect is true, the client chooses its own delay
+   * and can reconnect at once. This field has no meaning when reconnect is false.
    *
    * @generated from field: google.protobuf.Duration retry_after = 4;
    */

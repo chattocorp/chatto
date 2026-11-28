@@ -146,7 +146,9 @@ const (
 	RealtimeCloseCode_REALTIME_CLOSE_CODE_UNSUPPORTED_PROTOCOL RealtimeCloseCode = 2
 	// The server cannot accept or continue a realtime session at present.
 	RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE RealtimeCloseCode = 3
-	// The caller is no longer authenticated.
+	// With reconnect=true, the access token expired. Renew the credential, then
+	// reconnect with the same cursor. With reconnect=false, the credential is
+	// revoked or invalid; do not reconnect automatically.
 	RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED RealtimeCloseCode = 4
 	// The caller must renew its session before reconnecting.
 	RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED RealtimeCloseCode = 5
@@ -433,6 +435,10 @@ func (*RealtimeServerFrame_Snapshot) isRealtimeServerFrame_Frame() {}
 // replace the complete local family.
 // Large and paginated resources, such as message history, are not part of the
 // snapshot and remain available through ConnectRPC.
+// Rooms include the same viewer state as RoomDirectoryService.ListRooms:
+// neutral Badge attention, permissions, root Slow Mode deadline, and invitation.
+// No ListRooms read after caught_up is needed to fill these fields.
+// Last-read message cursors are separate: read them through RoomService.GetRoomReadState.
 type RealtimeSnapshot struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current public server profile.
@@ -1586,9 +1592,13 @@ type RealtimeClose struct {
 	Code RealtimeCloseCode `protobuf:"varint,1,opt,name=code,proto3,enum=chatto.realtime.v1.RealtimeCloseCode" json:"code,omitempty"`
 	// Safe human-readable close message.
 	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	// Whether the client should reconnect automatically.
+	// Whether the client should reconnect automatically. For AUTHENTICATION_REQUIRED,
+	// true requires credential renewal first, then reconnect with the same cursor.
+	// False means the credential is revoked or invalid; do not retry automatically.
 	Reconnect bool `protobuf:"varint,3,opt,name=reconnect,proto3" json:"reconnect,omitempty"`
-	// Suggested delay before reconnect.
+	// Optional minimum delay before reconnect. When present, wait at least this
+	// long. When absent and reconnect is true, the client chooses its own delay
+	// and can reconnect at once. This field has no meaning when reconnect is false.
 	RetryAfter    *durationpb.Duration `protobuf:"bytes,4,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
