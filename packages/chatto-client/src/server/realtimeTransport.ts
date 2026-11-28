@@ -743,7 +743,8 @@ export class EventBusManager {
     });
 
     const heartbeatWatchdog = setInterval(() => {
-      if (stopped || mode !== 'live' || !projectionSupported || !socket) return;
+      // Preserve a scheduled backoff, but recover a live transport left without a socket.
+      if (stopped || mode !== 'live' || !projectionSupported || reconnectTimer) return;
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       const ageMs = Date.now() - lastEventAt;
       if (ageMs >= heartbeatStallMs) {

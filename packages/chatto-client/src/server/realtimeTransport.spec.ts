@@ -1135,6 +1135,43 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(3);
   });
 
+  it('does not pre-empt a pending retry delay when the heartbeat watchdog fires', async () => {
+    vi.useFakeTimers();
+    const { socket } = await startAndSubscribe();
+    await socket.receive(
+      serverFrame({
+        case: 'close',
+        value: new RealtimeClose({
+          code: RealtimeCloseCode.TEMPORARILY_UNAVAILABLE,
+          reconnect: true,
+          retryAfter: { seconds: 120n, nanos: 0 }
+        })
+      })
+    );
+    await vi.advanceTimersByTimeAsync(119_999);
+    expect(sockets).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sockets).toHaveLength(2);
+  });
+
+  it('recovers a socketless live transport after a non-reconnecting close stalls', async () => {
+    vi.useFakeTimers();
+    const { socket } = await startAndSubscribe();
+    await socket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'ready' }) })
+    );
+    await socket.receive(
+      serverFrame({
+        case: 'close',
+        value: new RealtimeClose({ code: RealtimeCloseCode.INVALID_REQUEST, reconnect: false })
+      })
+    );
+    await vi.advanceTimersByTimeAsync(74_999);
+    expect(sockets).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(2);
+    expect(sockets).toHaveLength(2);
+  });
+
   it('reconnects when heartbeats stall', async () => {
     vi.useFakeTimers();
     await startAndSubscribe();
