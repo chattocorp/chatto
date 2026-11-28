@@ -1019,6 +1019,43 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(2);
   });
 
+  it('jitters the first unexpected retry without reporting a lost connection', async () => {
+    vi.useFakeTimers();
+    setRealtimeReconnectRandomForTests(() => 0.5);
+    const { socket, fake } = await startAndSubscribe();
+    await socket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'ready' }) })
+    );
+    socket.serverClose();
+    expect(fake.status).toBe('connecting');
+    expect(fake.showConnectionLostIcon).toBe(false);
+    await vi.advanceTimersByTimeAsync(499);
+    expect(sockets).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sockets).toHaveLength(2);
+    fake.forceReconnect('network recovered');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(3);
+  });
+
+  it('keeps server-directed retries without retry_after immediate', async () => {
+    vi.useFakeTimers();
+    setRealtimeReconnectRandomForTests(() => 1);
+    const { socket, fake } = await startAndSubscribe();
+    await socket.receive(
+      serverFrame({
+        case: 'close',
+        value: new RealtimeClose({
+          code: RealtimeCloseCode.PRIVILEGED_MODE_EXPIRED,
+          reconnect: true
+        })
+      })
+    );
+    expect(fake.status).toBe('connecting');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(2);
+  });
+
   it('backs off repeated post-subscribe failures and resets after caught-up', async () => {
     vi.useFakeTimers();
     await startAndSubscribe();

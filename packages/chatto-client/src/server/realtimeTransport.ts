@@ -39,6 +39,8 @@ import { debugLog } from '../util/debugLog.js';
 const DEFAULT_HEARTBEAT_STALL_MS = 75_000;
 const HEARTBEAT_WATCHDOG_MS = 15_000;
 // Failed attempts double from five seconds; jitter stays within the one-minute cap.
+// Spread the first unexpected disconnect retry without showing a lost connection.
+const FIRST_RECONNECT_JITTER_MS = 1_000;
 const RECONNECT_WAIT_MS = 5_000;
 const RECONNECT_MAX_WAIT_MS = 60_000;
 const RECONNECT_JITTER_RATIO = 0.25;
@@ -674,14 +676,14 @@ export class EventBusManager {
       reason: string,
       delayMs?: number,
       privilegeRefreshGeneration?: number,
-      minimumDelayMs = 0
+      minimumDelayMs?: number
     ): void {
       if (stopped || mode !== 'live' || !projectionSupported) return;
       clearReconnectTimer();
       reconnectCount++;
       reconnectAttempts++;
       sync.markStale();
-      // One immediate retry follows a healthy connection. Only caught_up resets
+      // One short retry follows a healthy connection. Only caught_up resets
       // failures; receiving a frame does not prove that catch-up can finish.
       const backoff =
         reconnectAttempts <= 1
@@ -690,17 +692,22 @@ export class EventBusManager {
               RECONNECT_MAX_WAIT_MS / (1 + RECONNECT_JITTER_RATIO),
               RECONNECT_WAIT_MS * 2 ** Math.min(reconnectAttempts - 2, 10)
             );
-      const baseDelay = Math.max(minimumDelayMs, backoff);
+      // An explicit server delay of zero keeps server-directed retries immediate.
+      const firstUnexpectedRetry =
+        delayMs === undefined && minimumDelayMs === undefined && reconnectAttempts === 1;
+      const baseDelay = Math.max(minimumDelayMs ?? 0, backoff);
       // Server retry_after is a floor, including when it exceeds our local cap.
       const wait =
         delayMs === 0
           ? 0
-          : Math.max(delayMs ?? 0, baseDelay) +
-            baseDelay * RECONNECT_JITTER_RATIO * reconnectRandom();
-      // An immediate retry is still part of reconnecting. Report a lost
-      // connection only when the client has to wait before the next attempt.
+          : firstUnexpectedRetry
+            ? FIRST_RECONNECT_JITTER_MS * reconnectRandom()
+            : Math.max(delayMs ?? 0, baseDelay) +
+              baseDelay * RECONNECT_JITTER_RATIO * reconnectRandom();
+      // The short first retry is still part of reconnecting. Only longer
+      // failure delays report a lost connection.
       serverConnection.setRealtimeConnectionStatus(
-        wait === 0 ? 'connecting' : 'disconnected',
+        wait === 0 || firstUnexpectedRetry ? 'connecting' : 'disconnected',
         reconnectAttempts
       );
       reconnectTimer = setTimeout(() => connect(reason, privilegeRefreshGeneration), wait);
