@@ -38,7 +38,12 @@ import { debugLog } from '../util/debugLog.js';
 
 const DEFAULT_HEARTBEAT_STALL_MS = 75_000;
 const HEARTBEAT_WATCHDOG_MS = 15_000;
+// Failed attempts double from five seconds; jitter stays within the one-minute cap.
+// Spread the first unexpected disconnect retry without showing a lost connection.
+const FIRST_RECONNECT_JITTER_MS = 1_000;
 const RECONNECT_WAIT_MS = 5_000;
+const RECONNECT_MAX_WAIT_MS = 60_000;
+const RECONNECT_JITTER_RATIO = 0.25;
 const INACTIVE_POLL_INTERVAL_MS = 60_000;
 const INACTIVE_POLL_JITTER_MS = 10_000;
 const INACTIVE_POLL_TIMEOUT_MS = 30_000;
@@ -95,6 +100,7 @@ type TransportController = {
 
 let realtimeSocketFactory: RealtimeSocketFactory = (url) => new WebSocket(url) as RealtimeSocket;
 let pollRandom = Math.random;
+let reconnectRandom = Math.random;
 
 export function setRealtimeSocketFactoryForTests(factory: RealtimeSocketFactory | null): void {
   realtimeSocketFactory = factory ?? ((url) => new WebSocket(url) as RealtimeSocket);
@@ -102,6 +108,11 @@ export function setRealtimeSocketFactoryForTests(factory: RealtimeSocketFactory 
 
 export function setRealtimePollRandomForTests(random: (() => number) | null): void {
   pollRandom = random ?? Math.random;
+}
+
+/** Replace reconnect randomness for deterministic tests; null restores Math.random. */
+export function setRealtimeReconnectRandomForTests(random: (() => number) | null): void {
+  reconnectRandom = random ?? Math.random;
 }
 
 async function messageDataToBytes(data: RealtimeMessageEvent['data']): Promise<Uint8Array> {
@@ -415,6 +426,9 @@ export class EventBusManager {
       };
 
       nextSocket.onmessage = (message) => {
+        if (stopped || socket !== nextSocket) return;
+        // Measure server liveness even while catch-up reads block frame processing.
+        lastEventAt = Date.now();
         frameProcessing = frameProcessing
           .then(async () => {
             if (stopped || socket !== nextSocket) return;
@@ -431,10 +445,8 @@ export class EventBusManager {
               return;
             }
 
-            lastEventAt = Date.now();
             if (!socketSubscribed) {
               socketSubscribed = true;
-              reconnectAttempts = 0;
               debugLog(`[eventBus:${serverId}] realtime stream subscribed`, {
                 generation: socketGeneration,
                 mode
@@ -553,6 +565,7 @@ export class EventBusManager {
                   return;
                 }
                 if (stopped || socket !== nextSocket) return;
+                reconnectAttempts = 0;
                 catchUpComplete = true;
                 caughtUpSocket = nextSocket;
                 sync.markCaughtUp(frame.frame.value.cursor, authorizationRefreshGeneration);
@@ -611,6 +624,8 @@ export class EventBusManager {
                 if (mode === 'live' && frame.frame.value.reconnect) {
                   scheduleReconnect(
                     'server requested close',
+                    undefined,
+                    undefined,
                     durationMilliseconds(frame.frame.value.retryAfter)
                   );
                 } else {
@@ -660,18 +675,39 @@ export class EventBusManager {
     function scheduleReconnect(
       reason: string,
       delayMs?: number,
-      privilegeRefreshGeneration?: number
+      privilegeRefreshGeneration?: number,
+      minimumDelayMs?: number
     ): void {
       if (stopped || mode !== 'live' || !projectionSupported) return;
       clearReconnectTimer();
       reconnectCount++;
       reconnectAttempts++;
       sync.markStale();
-      const wait = delayMs ?? (reconnectAttempts <= 1 ? 0 : RECONNECT_WAIT_MS);
-      // An immediate retry is still part of reconnecting. Report a lost
-      // connection only when the client has to wait before the next attempt.
+      // One short retry follows a healthy connection. Only caught_up resets
+      // failures; receiving a frame does not prove that catch-up can finish.
+      const backoff =
+        reconnectAttempts <= 1
+          ? 0
+          : Math.min(
+              RECONNECT_MAX_WAIT_MS / (1 + RECONNECT_JITTER_RATIO),
+              RECONNECT_WAIT_MS * 2 ** Math.min(reconnectAttempts - 2, 10)
+            );
+      // An explicit server delay of zero keeps server-directed retries immediate.
+      const firstUnexpectedRetry =
+        delayMs === undefined && minimumDelayMs === undefined && reconnectAttempts === 1;
+      const baseDelay = Math.max(minimumDelayMs ?? 0, backoff);
+      // Server retry_after is a floor, including when it exceeds our local cap.
+      const wait =
+        delayMs === 0
+          ? 0
+          : firstUnexpectedRetry
+            ? FIRST_RECONNECT_JITTER_MS * reconnectRandom()
+            : Math.max(delayMs ?? 0, baseDelay) +
+              baseDelay * RECONNECT_JITTER_RATIO * reconnectRandom();
+      // The short first retry is still part of reconnecting. Only longer
+      // failure delays report a lost connection.
       serverConnection.setRealtimeConnectionStatus(
-        wait === 0 ? 'connecting' : 'disconnected',
+        wait === 0 || firstUnexpectedRetry ? 'connecting' : 'disconnected',
         reconnectAttempts
       );
       reconnectTimer = setTimeout(() => connect(reason, privilegeRefreshGeneration), wait);
@@ -707,10 +743,14 @@ export class EventBusManager {
     });
 
     const heartbeatWatchdog = setInterval(() => {
-      if (stopped || mode !== 'live' || !projectionSupported) return;
+      // Preserve a scheduled backoff, but recover a live transport left without a socket.
+      if (stopped || mode !== 'live' || !projectionSupported || reconnectTimer) return;
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       const ageMs = Date.now() - lastEventAt;
-      if (ageMs >= heartbeatStallMs) reconnectNow('heartbeat stalled');
+      if (ageMs >= heartbeatStallMs) {
+        detachSocket(true, 'heartbeat stalled');
+        scheduleReconnect('heartbeat stalled');
+      }
     }, HEARTBEAT_WATCHDOG_MS);
 
     const controller: TransportController = {
