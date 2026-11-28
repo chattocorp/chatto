@@ -1,3 +1,11 @@
+import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
+import {
+  fakeServer,
+  mockService,
+  receivedContext,
+  receivedRequest
+} from '../testing/fakeServer.js';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { Timestamp } from '@bufbuild/protobuf';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { resetUserStoresForTests } from './users.js';
@@ -96,6 +104,9 @@ const { apiMocks, eventMocks } = vi.hoisted(() => ({
     >(() => Promise.resolve([])),
     readRealtimeResource: vi.fn<
       (family: RealtimeResourceFamily, cursor?: string) => Promise<RealtimeResourceUpdate[]>
+    >(() => Promise.resolve([])),
+    readRealtimeRooms: vi.fn<
+      (ids: Iterable<string>, cursor?: string) => Promise<RealtimeResourceUpdate[]>
     >(() => Promise.resolve([])),
     readRealtimeUsers: vi.fn<
       (userIds: Iterable<string>, cursor?: string) => Promise<RealtimeResourceUpdate[]>
@@ -282,6 +293,7 @@ vi.mock('../api/realtimeResources.js', async (importActual) => {
     ...actual,
     createRealtimeResourceAPI: vi.fn(() => ({
       read: apiMocks.readRealtimeResource,
+      readRooms: apiMocks.readRealtimeRooms,
       readUsers: apiMocks.readRealtimeUsers
     }))
   };
@@ -528,6 +540,7 @@ beforeEach(() => {
     totalCount: 0,
     hasMore: false
   });
+  apiMocks.readRealtimeRooms.mockReset().mockResolvedValue([]);
   apiMocks.readRealtimeResource.mockReset();
   apiMocks.readRealtimeResource.mockResolvedValue([]);
   apiMocks.readRealtimeUsers.mockReset();
@@ -2837,8 +2850,8 @@ describe('ServerStateStore unified realtime resources', () => {
   it('drains queued resource reads before replacing their authority', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const releases: Array<() => void> = [];
-    apiMocks.readRealtimeResource.mockImplementation(async (family, cursor) => {
-      if (family === 'rooms' && cursor !== 'permission') {
+    apiMocks.readRealtimeRooms.mockImplementation(async (_ids, cursor) => {
+      if (cursor !== 'permission') {
         await new Promise<void>((resolve) => {
           releases.push(resolve);
         });
@@ -3159,7 +3172,7 @@ describe('ServerStateStore unified realtime resources', () => {
     const store = makeStore(new FakeServerConnection([]));
     store.rooms.messages('R1');
     await flushPromises(20);
-    apiMocks.readRealtimeResource.mockClear();
+    apiMocks.readRealtimeRooms.mockClear();
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'z-post',
@@ -3195,7 +3208,7 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     );
     await store.waitForRealtimeReconciliation();
-    expect(apiMocks.readRealtimeResource.mock.calls).toEqual([['rooms', 'a-read']]);
+    expect(apiMocks.readRealtimeRooms.mock.calls).toEqual([[new Set(['R1']), 'a-read']]);
     expect(apiMocks.readMessages).toHaveBeenCalledExactlyOnceWith('R1', ['POST'], 'z-post');
     expect(apiMocks.readRealtimeUsers.mock.calls.every(([ids]) => [...ids].length === 0)).toBe(
       true
@@ -3261,7 +3274,7 @@ describe('ServerStateStore unified realtime resources', () => {
         })
       );
       await store.waitForRealtimeReconciliation();
-      expect(apiMocks.readRealtimeResource.mock.calls).toEqual([['rooms', undefined]]);
+      expect(apiMocks.readRealtimeRooms.mock.calls).toEqual([[new Set(['R1']), undefined]]);
     }
   );
 
@@ -3293,7 +3306,7 @@ describe('ServerStateStore unified realtime resources', () => {
       });
     store.projection.rooms.set('R1', row(false));
     const stale = deferred<RealtimeResourceUpdate[]>();
-    apiMocks.readRealtimeResource
+    apiMocks.readRealtimeRooms
       .mockReturnValueOnce(stale.promise)
       .mockResolvedValueOnce([roomResource([row(false)])]);
     const hint = (actorId: string) =>
@@ -3307,13 +3320,13 @@ describe('ServerStateStore unified realtime resources', () => {
         })
       });
     store.realtimeProjectionHandler(hint('U2'));
-    await vi.waitFor(() => expect(apiMocks.readRealtimeResource).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(apiMocks.readRealtimeRooms).toHaveBeenCalledOnce());
     store.realtimeProjectionHandler(hint('U1'));
     stale.resolve([roomResource([row(true)])]);
     await store.waitForRealtimeReconciliation();
-    expect(apiMocks.readRealtimeResource.mock.calls).toEqual([
-      ['rooms', undefined],
-      ['rooms', undefined]
+    expect(apiMocks.readRealtimeRooms.mock.calls).toEqual([
+      [new Set(['R1']), undefined],
+      [new Set(['R1']), undefined]
     ]);
     expect(store.projection.rooms.get('R1')?.viewerState?.hasUnread).toBe(false);
   });
@@ -3413,8 +3426,8 @@ describe('ServerStateStore unified realtime resources', () => {
         changed('new');
       } else store.dispose();
       await store.waitForRealtimeReconciliation();
-      expect(apiMocks.readRealtimeResource.mock.calls).toEqual(
-        boundary === 'reset' ? [['rooms', 'new']] : []
+      expect(apiMocks.readRealtimeRooms.mock.calls).toEqual(
+        boundary === 'reset' ? [[new Set(['R1']), 'new']] : []
       );
     }
   );
@@ -3548,7 +3561,7 @@ describe('ServerStateStore unified realtime resources', () => {
         store.projection.users.set('U2', deleted);
         completion = store.completeRealtimeCatchUp('before-deletion');
       } else if (path === 'dm') {
-        apiMocks.readRealtimeResource.mockResolvedValueOnce([
+        apiMocks.readRealtimeRooms.mockResolvedValueOnce([
           roomResource([
             new RoomWithViewerState({ room: new Room({ id: 'DM1' }), memberUserIds: ['U2', 'U3'] })
           ])
@@ -3599,7 +3612,7 @@ describe('ServerStateStore unified realtime resources', () => {
         store.projection.users.set('U2', member('U2', PresenceStatus.ONLINE));
         completion = store.completeRealtimeCatchUp('before-change');
       } else if (path === 'dm') {
-        apiMocks.readRealtimeResource.mockResolvedValueOnce([
+        apiMocks.readRealtimeRooms.mockResolvedValueOnce([
           roomResource([
             new RoomWithViewerState({ room: new Room({ id: 'DM1' }), memberUserIds: ['U2', 'U3'] })
           ])
@@ -3717,8 +3730,7 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     ]);
     let roomReads = 0;
-    apiMocks.readRealtimeResource.mockImplementation((family) => {
-      if (family !== 'rooms') return Promise.resolve([]);
+    apiMocks.readRealtimeRooms.mockImplementation(() => {
       roomReads++;
       return roomReads === 1 ? firstRooms.promise : Promise.resolve([finalRooms]);
     });
@@ -3760,13 +3772,10 @@ describe('ServerStateStore unified realtime resources', () => {
     firstRooms.resolve([]);
     await store.completeRealtimeCatchUp('cursor-final');
 
-    const roomCalls = apiMocks.readRealtimeResource.mock.calls.filter(
-      ([family]) => family === 'rooms'
-    );
+    const roomCalls = apiMocks.readRealtimeRooms.mock.calls;
     expect(roomCalls).toEqual([
-      ['rooms', 'cursor-join-1'],
-      ['rooms', 'cursor-final'],
-      ['rooms', 'cursor-join-2']
+      [new Set(['R1']), 'cursor-join-1'],
+      [new Set(['R1']), 'cursor-join-2']
     ]);
     expect(store.projection.rooms.get('R1')?.memberUserIds).toEqual(['U1', 'U2']);
   });
@@ -4751,7 +4760,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('refreshes room state for membership display changes without treating them as timeline rows', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    const refresh = apiMocks.readRealtimeResource;
+    const refresh = apiMocks.readRealtimeRooms;
     const messages = store.rooms.messages('R1');
     const refreshWindow = vi.spyOn(messages, 'refreshCurrentWindow');
     await flushPromises();
@@ -4769,7 +4778,7 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     );
     await store.waitForRealtimeReconciliation();
-    expect(refresh).toHaveBeenCalledWith('rooms', undefined);
+    expect(refresh).toHaveBeenCalledWith(new Set(['R1']), undefined);
     expect(refreshWindow).not.toHaveBeenCalled();
   });
 
@@ -5265,7 +5274,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
   it('refreshes canonical rooms after a neutral unread invalidation', async () => {
     const store = makeStore(new FakeServerConnection([]));
-    apiMocks.readRealtimeResource.mockClear();
+    apiMocks.readRealtimeRooms.mockClear();
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
@@ -5280,7 +5289,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
     await store.waitForRealtimeReconciliation();
     expect(apiMocks.readRealtimeResource).not.toHaveBeenCalledWith('notifications', undefined);
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', undefined);
+    expect(apiMocks.readRealtimeRooms).toHaveBeenCalledWith(new Set(['R1']), undefined);
   });
 });
 
@@ -5506,11 +5515,11 @@ describe('ServerStateStore realtime resource hints', () => {
     ['voiceCallEnded', { roomId: 'R1' }, ['activeCalls']],
     ['roomCreated', { roomId: 'R1' }, ['rooms', 'roomGroups']],
     ['roomUniversalChanged', { roomId: 'R1' }, ['rooms', 'roomGroups', 'activeCalls']],
-    ['roomInvitationCreated', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
-    ['roomInvitationAccepted', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
-    ['roomInvitationDeclined', { roomId: 'R1', invitationId: 'I1' }, ['rooms', 'roomGroups']],
-    ['roomThreadingModeChanged', { roomId: 'R1' }, ['rooms', 'roomGroups']],
-    ['roomDeleted', { roomId: 'R1' }, ['rooms', 'roomGroups']],
+    ['roomInvitationCreated', { roomId: 'R1', invitationId: 'I1' }, ['roomGroups']],
+    ['roomInvitationAccepted', { roomId: 'R1', invitationId: 'I1' }, ['roomGroups']],
+    ['roomInvitationDeclined', { roomId: 'R1', invitationId: 'I1' }, ['roomGroups']],
+    ['roomThreadingModeChanged', { roomId: 'R1' }, []],
+    ['roomDeleted', { roomId: 'R1' }, ['roomGroups']],
     ['roomLayoutChanged', {}, ['roomGroups']],
     ['serverProfileChanged', {}, ['server']],
     ['serverMotdChanged', {}, ['serverState']],
@@ -5646,5 +5655,156 @@ describe('ServerStateStore loaded thread state', () => {
     expect(store.loadedThreadFollowState('R1', 'unknown')).toBeNull();
     expect(store.loadedThreadFollowState('R1', 'missing')).toBeNull();
     expect(store.loadedThreadFollowState('R2', 'followed-read')).toBeNull();
+  });
+});
+
+describe('targeted room reconciliation with ConnectRPC', () => {
+  const room = (id: string) =>
+    new RoomWithViewerState({ room: { id }, viewerState: { isMember: true } });
+  const changed = (store: ServerStateStore, id: string, cursor = 'room-cursor') =>
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        cursor,
+        event: new RealtimeEvent({ event: { case: 'roomUpdated', value: { roomId: id } } })
+      })
+    );
+
+  async function setup() {
+    const handlers = mockService(RoomDirectoryService);
+    handlers.batchGetRooms.mockImplementation(async (request) => ({
+      rooms: request.roomIds.map(room)
+    }));
+    const actual = await vi.importActual<typeof import('../api/realtimeResources.js')>(
+      '../api/realtimeResources.js'
+    );
+    const api = actual.createRealtimeResourceAPI(
+      fakeServer((router) => router.service(RoomDirectoryService, handlers))
+    );
+    apiMocks.readRealtimeRooms.mockImplementation(api.readRooms);
+    apiMocks.readRealtimeResource.mockImplementation(api.read);
+    const store = makeStore(new FakeServerConnection([]));
+    return { store, handlers };
+  }
+
+  it('batches named rooms at the latest cursor and preserves unrelated rooms and access', async () => {
+    const { store, handlers } = await setup();
+    store.projection.rooms.set('other', room('other'));
+    const lost = vi.fn();
+    store.onRoomAccessLost(lost);
+    changed(store, 'one', 'first');
+    changed(store, 'two', 'last');
+    changed(store, 'one', 'last');
+    await store.waitForRealtimeReconciliation();
+    expect(handlers.batchGetRooms).toHaveBeenCalledOnce();
+    expect(receivedRequest(handlers.batchGetRooms)?.roomIds).toEqual(['one', 'two']);
+    expect(
+      receivedContext(handlers.batchGetRooms)?.requestHeader.get('Chatto-Realtime-Minimum-Cursor')
+    ).toBe('last');
+    expect(handlers.listRooms).not.toHaveBeenCalled();
+    expect([...store.projection.rooms.keys()]).toEqual(['other', 'one', 'two']);
+    expect(lost.mock.calls.some(([loss]) => loss.roomId === 'other')).toBe(false);
+  });
+
+  it.each(['omitted', 'archived'])(
+    'removes an %s room through the access-loss boundary',
+    async (state) => {
+      const { store, handlers } = await setup();
+      store.projection.rooms.set('one', room('one'));
+      store.projection.rooms.set('other', room('other'));
+      const lost = vi.fn();
+      store.onRoomAccessLost(lost);
+      handlers.batchGetRooms.mockResolvedValue({
+        rooms: state === 'omitted' ? [] : [{ room: { id: 'one', archived: true } }]
+      });
+      changed(store, 'one');
+      await store.waitForRealtimeReconciliation();
+      expect(store.projection.rooms.has('one')).toBe(false);
+      expect(store.projection.rooms.has('other')).toBe(true);
+      expect(lost).toHaveBeenCalledWith({ roomId: 'one', messagesOnly: false, removed: true });
+    }
+  );
+
+  it('collects a follow-up batch while the first read is pending', async () => {
+    const { store, handlers } = await setup();
+    const first = deferred<{ rooms: RoomWithViewerState[] }>();
+    handlers.batchGetRooms.mockReturnValueOnce(first.promise);
+    changed(store, 'one', 'first');
+    await vi.waitFor(() => expect(handlers.batchGetRooms).toHaveBeenCalledOnce());
+    changed(store, 'one', 'second');
+    changed(store, 'two', 'third');
+    first.resolve({ rooms: [room('one')] });
+    await store.waitForRealtimeReconciliation();
+    expect(handlers.batchGetRooms).toHaveBeenCalledTimes(2);
+    expect(receivedRequest(handlers.batchGetRooms, 1)?.roomIds).toEqual(['one', 'two']);
+    expect(
+      receivedContext(handlers.batchGetRooms, 1)?.requestHeader.get(
+        'Chatto-Realtime-Minimum-Cursor'
+      )
+    ).toBe('third');
+  });
+
+  it('removes a deleted room after an older pending read and its follow-up', async () => {
+    const { store, handlers } = await setup();
+    const first = deferred<{ rooms: RoomWithViewerState[] }>();
+    handlers.batchGetRooms.mockReturnValueOnce(first.promise).mockResolvedValueOnce({ rooms: [] });
+    handlers.listRoomGroups.mockResolvedValue({ groups: [] });
+    changed(store, 'one');
+    await vi.waitFor(() => expect(handlers.batchGetRooms).toHaveBeenCalledOnce());
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new RealtimeEvent({ event: { case: 'roomDeleted', value: { roomId: 'one' } } })
+      })
+    );
+    first.resolve({ rooms: [room('one')] });
+    await store.waitForRealtimeReconciliation();
+    expect(store.projection.rooms.has('one')).toBe(false);
+    expect(handlers.batchGetRooms).toHaveBeenCalledTimes(2);
+    expect(handlers.listRooms).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    'only removes an omitted room when retained stores exist: %s',
+    async (retained) => {
+      const { store, handlers } = await setup();
+      if (retained) store.rooms.members('one');
+      const lost = vi.fn();
+      store.onRoomAccessLost(lost);
+      handlers.batchGetRooms.mockResolvedValue({ rooms: [] });
+      changed(store, 'one');
+      await store.waitForRealtimeReconciliation();
+      expect(lost).toHaveBeenCalledTimes(retained ? 1 : 0);
+    }
+  );
+
+  it.each(['userJoinedRoom', 'userLeftRoom'] as const)(
+    'reads layout only for the viewer membership: %s',
+    async (kind) => {
+      const { store, handlers } = await setup();
+      handlers.listRoomGroups.mockResolvedValue({ groups: [] });
+      // Keep unrelated active-call reads on the existing stub for self joins.
+      const read = apiMocks.readRealtimeResource.getMockImplementation()!;
+      apiMocks.readRealtimeResource.mockImplementation((family, cursor) =>
+        family === 'activeCalls' ? Promise.resolve([]) : read(family, cursor)
+      );
+      for (const actorId of ['U2', 'U1']) {
+        store.realtimeProjectionHandler(
+          new RealtimeProjectionUpdate({
+            event: new RealtimeEvent({ actorId, event: { case: kind, value: { roomId: 'one' } } })
+          })
+        );
+        await store.waitForRealtimeReconciliation();
+        expect(handlers.listRoomGroups).toHaveBeenCalledTimes(actorId === 'U1' ? 1 : 0);
+      }
+      expect(handlers.batchGetRooms).toHaveBeenCalledTimes(2);
+      expect(handlers.listRooms).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects cursor reconciliation when the targeted read fails', async () => {
+    const { store, handlers } = await setup();
+    handlers.batchGetRooms.mockRejectedValue(new ConnectError('offline', Code.Unavailable));
+    changed(store, 'one');
+    await expect(store.waitForRealtimeReconciliation()).rejects.toThrow('offline');
+    expect(handlers.listRooms).not.toHaveBeenCalled();
   });
 });
