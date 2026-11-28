@@ -347,7 +347,11 @@ vi.mock('../api/attachments.js', async (importActual) => {
 });
 
 import { ServerStateStore } from './store.js';
-import { EventBusManager, setRealtimeSocketFactoryForTests } from './realtimeTransport.js';
+import {
+  EventBusManager,
+  setRealtimeSocketFactoryForTests,
+  setRealtimeReconnectRandomForTests
+} from './realtimeTransport.js';
 
 /** The realtime transports of the stores that {@link makeStore} creates. */
 const eventBusManager = new EventBusManager({ liveServers: 'selected' });
@@ -642,6 +646,7 @@ afterEach(() => {
   }
   eventBusManager.stopBus(registered.id);
   setRealtimeSocketFactoryForTests(null);
+  setRealtimeReconnectRandomForTests(null);
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
@@ -1061,6 +1066,7 @@ describe('ServerStateStore privileged mode', () => {
       vi.spyOn(console, 'debug').mockImplementation(() => {});
       type Socket = ReturnType<NonNullable<Parameters<typeof setRealtimeSocketFactoryForTests>[0]>>;
       const sockets: Socket[] = [];
+      setRealtimeReconnectRandomForTests(() => 0);
       const closes: Array<{ code?: number; reason?: string }> = [];
       setRealtimeSocketFactoryForTests(() => {
         const socket: Socket = {
@@ -4167,6 +4173,7 @@ describe('ServerStateStore unified realtime resources', () => {
       vi.useFakeTimers();
       type Socket = ReturnType<NonNullable<Parameters<typeof setRealtimeSocketFactoryForTests>[0]>>;
       const sockets: Socket[] = [];
+      setRealtimeReconnectRandomForTests(() => 0);
       setRealtimeSocketFactoryForTests(() => {
         const socket: Socket = {
           binaryType: 'arraybuffer',
@@ -4257,7 +4264,7 @@ describe('ServerStateStore unified realtime resources', () => {
       apiMocks.readMessages.mockResolvedValue([
         { message: root, timeline: messageToTimelineEvent(root, {}) }
       ]);
-      await vi.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(5_000);
       sockets[2].onopen?.();
       expect(
         RealtimeSubscribe.fromBinary(vi.mocked(sockets[2].send).mock.calls[0][0]).resumeCursor
