@@ -1596,11 +1596,9 @@ type RealtimeClose struct {
 	// true requires credential renewal first, then reconnect with the same cursor.
 	// False means the credential is revoked or invalid; do not retry automatically.
 	Reconnect bool `protobuf:"varint,3,opt,name=reconnect,proto3" json:"reconnect,omitempty"`
-	// Suggested delay before reconnect. Set for temporary authentication-service
-	// failures, catch-up admission and timeout, snapshot recovery failures,
-	// event-stream start and closure failures, and replay-planning failures.
-	// A delay does not override reconnect=false.
-	// Credential expiry, renewal, revocation, and privilege expiry omit it.
+	// Optional minimum delay before reconnect. When present, wait at least this
+	// long. When absent and reconnect is true, the client chooses its own delay
+	// and can reconnect at once. This field has no meaning when reconnect is false.
 	RetryAfter    *durationpb.Duration `protobuf:"bytes,4,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

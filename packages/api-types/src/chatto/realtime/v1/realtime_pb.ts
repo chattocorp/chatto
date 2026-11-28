@@ -989,11 +989,9 @@ export class RealtimeClose extends Message<RealtimeClose> {
   reconnect = false;
 
   /**
-   * Suggested delay before reconnect. Set for temporary authentication-service
-   * failures, catch-up admission and timeout, snapshot recovery failures,
-   * event-stream start and closure failures, and replay-planning failures.
-   * A delay does not override reconnect=false.
-   * Credential expiry, renewal, revocation, and privilege expiry omit it.
+   * Optional minimum delay before reconnect. When present, wait at least this
+   * long. When absent and reconnect is true, the client chooses its own delay
+   * and can reconnect at once. This field has no meaning when reconnect is false.
    *
    * @generated from field: google.protobuf.Duration retry_after = 4;
    */

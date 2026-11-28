@@ -54,7 +54,7 @@ Close instruction sent before the socket closes when possible.
 | `code` | [`RealtimeCloseCode`](#chatto-realtime-v1-RealtimeCloseCode) | Stable machine-readable close code. |
 | `message` | `string` | Safe human-readable close message. |
 | `reconnect` | `bool` | Whether the client should reconnect automatically. For AUTHENTICATION_REQUIRED, true requires credential renewal first, then reconnect with the same cursor. False means the credential is revoked or invalid; do not retry automatically. |
-| `retry_after` | `google.protobuf.Duration` | Suggested delay before reconnect. Set for temporary authentication-service failures, catch-up admission and timeout, snapshot recovery failures, event-stream start and closure failures, and replay-planning failures. A delay does not override reconnect=false. Credential expiry, renewal, revocation, and privilege expiry omit it. |
+| `retry_after` | `google.protobuf.Duration` | Optional minimum delay before reconnect. When present, wait at least this long. When absent and reconnect is true, the client chooses its own delay and can reconnect at once. This field has no meaning when reconnect is false. |
 
 <a id="chatto-realtime-v1-RealtimeHeartbeat"></a>
 
