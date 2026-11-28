@@ -16,6 +16,7 @@ import { UserTypingEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import {
   EventBusManager,
   setRealtimePollRandomForTests,
+  setRealtimeReconnectRandomForTests,
   setRealtimeSocketFactoryForTests
 } from './realtimeTransport.js';
 import type {
@@ -255,6 +256,7 @@ describe('eventBusManager realtime transport', () => {
   let consoleDebug: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    setRealtimeReconnectRandomForTests(() => 0);
     sockets = [];
     setRealtimeSocketFactoryForTests((url) => {
       const socket = new FakeRealtimeSocket(url);
@@ -267,6 +269,7 @@ describe('eventBusManager realtime transport', () => {
   });
 
   afterEach(() => {
+    setRealtimeReconnectRandomForTests(null);
     eventBusManager.stopAll();
     eventBusManager = new EventBusManager({ liveServers: 'selected' });
     setRealtimeSocketFactoryForTests(null);
@@ -1014,6 +1017,85 @@ describe('eventBusManager realtime transport', () => {
 
     await vi.advanceTimersByTimeAsync(0);
     expect(sockets).toHaveLength(2);
+  });
+
+  it('backs off repeated post-subscribe failures and resets after caught-up', async () => {
+    vi.useFakeTimers();
+    await startAndSubscribe();
+    for (const delay of [0, 5_000, 10_000, 20_000, 40_000, 48_000]) {
+      const socket = sockets.at(-1)!;
+      await socket.receive(heartbeatFrame());
+      socket.serverClose();
+      const count = sockets.length;
+      if (delay) {
+        await vi.advanceTimersByTimeAsync(delay - 1);
+        expect(sockets).toHaveLength(count);
+      }
+      await vi.advanceTimersByTimeAsync(delay ? 1 : 0);
+      expect(sockets).toHaveLength(count + 1);
+    }
+    const socket = sockets.at(-1)!;
+    await socket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'ready' }) })
+    );
+    socket.serverClose();
+    const count = sockets.length;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(count + 1);
+  });
+
+  it('adds jitter above retry_after and exponential backoff', async () => {
+    vi.useFakeTimers();
+    setRealtimeReconnectRandomForTests(() => 1);
+    await startAndSubscribe();
+    for (const delay of [1_250, 6_250]) {
+      await sockets.at(-1)!.receive(
+        serverFrame({
+          case: 'close',
+          value: new RealtimeClose({
+            code: RealtimeCloseCode.TEMPORARILY_UNAVAILABLE,
+            reconnect: true,
+            retryAfter: { seconds: 1n, nanos: 0 }
+          })
+        })
+      );
+      const count = sockets.length;
+      await vi.advanceTimersByTimeAsync(delay - 1);
+      expect(sockets).toHaveLength(count);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(sockets).toHaveLength(count + 1);
+    }
+  });
+
+  it('keeps a slow catch-up alive when heartbeats arrive', async () => {
+    vi.useFakeTimers();
+    const pending = deferred<void>();
+    const fake = new FakeServerConnection();
+    startLiveBus(fake, { completeProjectionCatchUp: () => pending.promise });
+    const socket = sockets.at(-1)!;
+    await socket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'ready' }) })
+    );
+    for (let index = 0; index < 4; index++) {
+      await vi.advanceTimersByTimeAsync(30_000);
+      await socket.receive(heartbeatFrame());
+    }
+    expect(sockets).toHaveLength(1);
+    expect(socket.closeCalls).toEqual([]);
+    pending.resolve();
+    await flushPromises();
+    expect(fake.status).toBe('connected');
+  });
+
+  it('backs off repeated heartbeat stalls before caught-up', async () => {
+    vi.useFakeTimers();
+    await startAndSubscribe();
+    await vi.advanceTimersByTimeAsync(75_001);
+    expect(sockets).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(89_999);
+    expect(sockets).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(sockets).toHaveLength(3);
   });
 
   it('reconnects when heartbeats stall', async () => {
