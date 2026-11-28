@@ -217,6 +217,7 @@ func (x *RoleDeletedEvent) GetRoleName() string {
 }
 
 // Custom roles changed display order. Permission decisions are unchanged.
+// Values describe the source fact. Read RoleService for current state.
 type RolesReorderedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Custom role names in ascending display position.
@@ -265,6 +266,7 @@ func (x *RolesReorderedEvent) GetRoleNames() []string {
 // A user was assigned a role. The named user's clients must discard private
 // cached data and load current authorized state. Other viewers update member
 // role lists without a full reload.
+// Values describe the source fact. Read UserService for current assignments.
 type RoleAssignedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User whose assignment changed.
@@ -321,6 +323,7 @@ func (x *RoleAssignedEvent) GetRoleName() string {
 
 // A user's role assignment was removed. The named user's clients must discard
 // private cached data and load current authorized state.
+// Values describe the source fact. Read UserService for current assignments.
 type RoleRevokedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User whose assignment changed.
@@ -465,14 +468,22 @@ func (*ViewerPermissionsChangedEvent) Descriptor() ([]byte, []int) {
 }
 
 // RoomCreatedEvent reports a new room that is visible to the caller.
+// Values come from the source fact, not a current room read.
+// Read RoomDirectoryService for current room metadata and viewer state.
 type RoomCreatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Kind          v1.RoomKind            `protobuf:"varint,4,opt,name=kind,proto3,enum=chatto.api.v1.RoomKind" json:"kind,omitempty"`
-	Universal     bool                   `protobuf:"varint,5,opt,name=universal,proto3" json:"universal,omitempty"`
-	ThreadingMode v1.RoomThreadingMode   `protobuf:"varint,6,opt,name=threading_mode,json=threadingMode,proto3,enum=chatto.api.v1.RoomThreadingMode" json:"threading_mode,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Room name in the source fact.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Room description in the source fact.
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// Room kind in the source fact.
+	Kind v1.RoomKind `protobuf:"varint,4,opt,name=kind,proto3,enum=chatto.api.v1.RoomKind" json:"kind,omitempty"`
+	// Universal membership setting in the source fact.
+	Universal bool `protobuf:"varint,5,opt,name=universal,proto3" json:"universal,omitempty"`
+	// Threading policy in the source fact.
+	ThreadingMode v1.RoomThreadingMode `protobuf:"varint,6,opt,name=threading_mode,json=threadingMode,proto3,enum=chatto.api.v1.RoomThreadingMode" json:"threading_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -550,11 +561,16 @@ func (x *RoomCreatedEvent) GetThreadingMode() v1.RoomThreadingMode {
 }
 
 // RoomUpdatedEvent reports changed room metadata.
+// Values come from the source fact, not a current room read.
+// Read RoomDirectoryService for current room metadata and viewer state.
 type RoomUpdatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Room name in the source fact.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Room description in the source fact.
+	Description   string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -611,9 +627,12 @@ func (x *RoomUpdatedEvent) GetDescription() string {
 }
 
 // RoomDeletedEvent reports a deleted room.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 type RoomDeletedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -656,9 +675,12 @@ func (x *RoomDeletedEvent) GetRoomId() string {
 }
 
 // RoomArchivedEvent reports a room that became archived.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 type RoomArchivedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -701,9 +723,12 @@ func (x *RoomArchivedEvent) GetRoomId() string {
 }
 
 // RoomUnarchivedEvent reports a room that became active again.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 type RoomUnarchivedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -745,11 +770,15 @@ func (x *RoomUnarchivedEvent) GetRoomId() string {
 	return ""
 }
 
-// RoomUniversalChangedEvent reports the current universal-membership setting.
+// RoomUniversalChangedEvent reports a universal-membership setting change.
+// Values come from the source fact, not a current room read.
+// Read RoomDirectoryService for current room metadata and viewer state.
 type RoomUniversalChangedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	Universal     bool                   `protobuf:"varint,2,opt,name=universal,proto3" json:"universal,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Universal membership setting in the source fact.
+	Universal     bool `protobuf:"varint,2,opt,name=universal,proto3" json:"universal,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -800,9 +829,11 @@ func (x *RoomUniversalChangedEvent) GetUniversal() bool {
 
 // RoomNoticeChangedEvent asks current room members to read the latest notice.
 // It covers corrections, publication, republishing, and clear operations.
+// The ID is a read hint; notice content is not included.
 type RoomNoticeChangedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -844,12 +875,17 @@ func (x *RoomNoticeChangedEvent) GetRoomId() string {
 	return ""
 }
 
-// RoomSlowModeChangedEvent reports the current slow-mode interval.
+// RoomSlowModeChangedEvent reports a Slow Mode interval change.
+// Values come from the source fact, not a current room read.
+// Read RoomDirectoryService for current room metadata and viewer state.
 type RoomSlowModeChangedEvent struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	RoomId          string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	SlowModeSeconds uint32                 `protobuf:"varint,2,opt,name=slow_mode_seconds,json=slowModeSeconds,proto3" json:"slow_mode_seconds,omitempty"`
-	// Independent interval within each thread. Zero disables it.
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Room Slow Mode interval in seconds. Zero disables it.
+	SlowModeSeconds uint32 `protobuf:"varint,2,opt,name=slow_mode_seconds,json=slowModeSeconds,proto3" json:"slow_mode_seconds,omitempty"`
+	// Interval within each thread from the source fact. Zero disables it.
+	// For a legacy fact without this value, the room interval is used.
 	ThreadSlowModeSeconds *uint32 `protobuf:"varint,3,opt,name=thread_slow_mode_seconds,json=threadSlowModeSeconds,proto3,oneof" json:"thread_slow_mode_seconds,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
@@ -906,11 +942,15 @@ func (x *RoomSlowModeChangedEvent) GetThreadSlowModeSeconds() uint32 {
 	return 0
 }
 
-// RoomThreadingModeChangedEvent reports the current room threading policy.
+// RoomThreadingModeChangedEvent reports a room threading policy change.
+// Values come from the source fact, not a current room read.
+// Read RoomDirectoryService for current room metadata and viewer state.
 type RoomThreadingModeChangedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	ThreadingMode v1.RoomThreadingMode   `protobuf:"varint,2,opt,name=threading_mode,json=threadingMode,proto3,enum=chatto.api.v1.RoomThreadingMode" json:"threading_mode,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Threading policy in the source fact.
+	ThreadingMode v1.RoomThreadingMode `protobuf:"varint,2,opt,name=threading_mode,json=threadingMode,proto3,enum=chatto.api.v1.RoomThreadingMode" json:"threading_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -962,10 +1002,14 @@ func (x *RoomThreadingModeChangedEvent) GetThreadingMode() v1.RoomThreadingMode 
 // RoomMembershipEventsVisibilityChangedEvent changes how clients display room
 // join/leave activity, including history. Clients must still process membership
 // events when this setting is false.
+// Values come from the source fact, not a current room read.
+// Read RoomDirectoryService for current room metadata and viewer state.
 type RoomMembershipEventsVisibilityChangedEvent struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	RoomId               string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	ShowMembershipEvents bool                   `protobuf:"varint,2,opt,name=show_membership_events,json=showMembershipEvents,proto3" json:"show_membership_events,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Whether to show membership activity.
+	ShowMembershipEvents bool `protobuf:"varint,2,opt,name=show_membership_events,json=showMembershipEvents,proto3" json:"show_membership_events,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -1015,9 +1059,12 @@ func (x *RoomMembershipEventsVisibilityChangedEvent) GetShowMembershipEvents() b
 }
 
 // UserJoinedRoomEvent reports that the actor joined a room.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 type UserJoinedRoomEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1060,9 +1107,12 @@ func (x *UserJoinedRoomEvent) GetRoomId() string {
 }
 
 // UserLeftRoomEvent reports that the actor left a room.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 type UserLeftRoomEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1105,10 +1155,14 @@ func (x *UserLeftRoomEvent) GetRoomId() string {
 }
 
 // VoiceCallParticipantJoinedEvent reports that the actor joined a call session.
+// IDs identify the affected resources; this is not their current state.
+// Read call resources for current call state.
 type VoiceCallParticipantJoinedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	CallId        string                 `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the call session.
+	CallId        string `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1158,10 +1212,14 @@ func (x *VoiceCallParticipantJoinedEvent) GetCallId() string {
 }
 
 // VoiceCallParticipantLeftEvent reports that the actor left a call session.
+// IDs identify the affected resources; this is not their current state.
+// Read call resources for current call state.
 type VoiceCallParticipantLeftEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	CallId        string                 `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the call session.
+	CallId        string `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1211,10 +1269,14 @@ func (x *VoiceCallParticipantLeftEvent) GetCallId() string {
 }
 
 // VoiceCallStartedEvent reports a new call session.
+// IDs identify the affected resources; this is not their current state.
+// Read call resources for current call state.
 type VoiceCallStartedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	CallId        string                 `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the call session.
+	CallId        string `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1264,10 +1326,14 @@ func (x *VoiceCallStartedEvent) GetCallId() string {
 }
 
 // VoiceCallEndedEvent reports the end of a call session.
+// IDs identify the affected resources; this is not their current state.
+// Read call resources for current call state.
 type VoiceCallEndedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	CallId        string                 `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the call session.
+	CallId        string `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1318,16 +1384,22 @@ func (x *VoiceCallEndedEvent) GetCallId() string {
 
 // MessagePostedEvent reports a new room message.
 type MessagePostedEvent struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	RoomId    string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	InReplyTo string                 `protobuf:"bytes,2,opt,name=in_reply_to,json=inReplyTo,proto3" json:"in_reply_to,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the message being answered, if any.
+	InReplyTo string `protobuf:"bytes,2,opt,name=in_reply_to,json=inReplyTo,proto3" json:"in_reply_to,omitempty"`
 	// Root message ID for a thread reply. Empty for a room-level message.
-	ThreadRootEventId         string `protobuf:"bytes,3,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	EchoOfEventId             string `protobuf:"bytes,5,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`
+	ThreadRootEventId string `protobuf:"bytes,3,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	// ID of the echoed message, if any.
+	EchoOfEventId string `protobuf:"bytes,5,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`
+	// Root message ID of the source thread for an echo, if any.
 	EchoFromThreadRootEventId string `protobuf:"bytes,6,opt,name=echo_from_thread_root_event_id,json=echoFromThreadRootEventId,proto3" json:"echo_from_thread_root_event_id,omitempty"`
 	// Distinct mention targets, without expanded role or broadcast recipients.
 	Mentions []*MessageMention `protobuf:"bytes,7,rep,name=mentions,proto3" json:"mentions,omitempty"`
-	// Plaintext message text. The field is absent after key shredding.
+	// Current message body read during delivery, including edits. This is not
+	// necessarily the body at creation. Absent after key shredding.
+	// Read the message resource for its current body and other current state.
 	BodyPlaintext *string `protobuf:"bytes,8,opt,name=body_plaintext,json=bodyPlaintext,proto3,oneof" json:"body_plaintext,omitempty"`
 	// Immutable room kind. Direct messages do not require a mention to address a bot.
 	RoomKind      v1.RoomKind `protobuf:"varint,9,opt,name=room_kind,json=roomKind,proto3,enum=chatto.api.v1.RoomKind" json:"room_kind,omitempty"`
@@ -1423,8 +1495,9 @@ func (x *MessagePostedEvent) GetRoomKind() v1.RoomKind {
 
 // DirectUserMention identifies a direct user mention.
 type DirectUserMention struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected user.
+	UserId        string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1468,8 +1541,9 @@ func (x *DirectUserMention) GetUserId() string {
 
 // RoleMessageMention identifies the role that caused a mention.
 type RoleMessageMention struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoleName      string                 `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable role name.
+	RoleName      string `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1689,18 +1763,22 @@ type isMessageMention_Cause interface {
 }
 
 type MessageMention_Direct struct {
+	// Direct user mention.
 	Direct *DirectUserMention `protobuf:"bytes,2,opt,name=direct,proto3,oneof"`
 }
 
 type MessageMention_Role struct {
+	// Role mention.
 	Role *RoleMessageMention `protobuf:"bytes,3,opt,name=role,proto3,oneof"`
 }
 
 type MessageMention_Here struct {
+	// Presence-scoped mention.
 	Here *HereMessageMention `protobuf:"bytes,4,opt,name=here,proto3,oneof"`
 }
 
 type MessageMention_All struct {
+	// Room-wide mention.
 	All *AllMessageMention `protobuf:"bytes,5,opt,name=all,proto3,oneof"`
 }
 
@@ -1713,10 +1791,14 @@ func (*MessageMention_Here) isMessageMention_Cause() {}
 func (*MessageMention_All) isMessageMention_Cause() {}
 
 // MessageEditedEvent reports changed message content or metadata.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 type MessageEditedEvent struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the affected message.
+	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1766,10 +1848,14 @@ func (x *MessageEditedEvent) GetMessageEventId() string {
 }
 
 // MessageRetractedEvent reports a retracted message.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 type MessageRetractedEvent struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the affected message.
+	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1819,10 +1905,14 @@ func (x *MessageRetractedEvent) GetMessageEventId() string {
 }
 
 // MessagePinnedEvent reports a newly pinned message.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 type MessagePinnedEvent struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the affected message.
+	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1872,10 +1962,14 @@ func (x *MessagePinnedEvent) GetMessageEventId() string {
 }
 
 // MessageUnpinnedEvent reports a message that is no longer pinned.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 type MessageUnpinnedEvent struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the affected message.
+	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1925,10 +2019,14 @@ func (x *MessageUnpinnedEvent) GetMessageEventId() string {
 }
 
 // ThreadCreatedEvent reports a new message thread.
+// IDs identify the affected resources; this is not their current state.
+// Read thread resources for current thread state.
 type ThreadCreatedEvent struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Root message ID of the affected thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -1978,10 +2076,14 @@ func (x *ThreadCreatedEvent) GetThreadRootEventId() string {
 }
 
 // AssetProcessingStartedEvent reports that message-asset processing started.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 type AssetProcessingStartedEvent struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	AssetId        string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected asset.
+	AssetId string `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// ID of the affected message.
+	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Room containing the affected message.
 	RoomId        string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2041,10 +2143,14 @@ func (x *AssetProcessingStartedEvent) GetRoomId() string {
 
 // AssetProcessingSucceededEvent reports successful message-asset processing.
 // Read the message resource for current attachments and processed video data.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 type AssetProcessingSucceededEvent struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	AssetId        string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	MessageEventId string                 `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected asset.
+	AssetId string `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// ID of the affected message.
+	MessageEventId string `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Room containing the affected message.
 	RoomId        string `protobuf:"bytes,4,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2103,11 +2209,15 @@ func (x *AssetProcessingSucceededEvent) GetRoomId() string {
 }
 
 // AssetProcessingFailedEvent reports failed message-asset processing.
+// Values describe the source fact. Read the message resource for current state.
 type AssetProcessingFailedEvent struct {
-	state          protoimpl.MessageState     `protogen:"open.v1"`
-	AssetId        string                     `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	FailureCode    AssetProcessingFailureCode `protobuf:"varint,2,opt,name=failure_code,json=failureCode,proto3,enum=chatto.realtime.v1.AssetProcessingFailureCode" json:"failure_code,omitempty"`
-	MessageEventId string                     `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected asset.
+	AssetId string `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Failure class from the source fact.
+	FailureCode AssetProcessingFailureCode `protobuf:"varint,2,opt,name=failure_code,json=failureCode,proto3,enum=chatto.realtime.v1.AssetProcessingFailureCode" json:"failure_code,omitempty"`
+	// ID of the affected message.
+	MessageEventId string `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Room containing the affected message.
 	RoomId        string `protobuf:"bytes,4,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2173,9 +2283,12 @@ func (x *AssetProcessingFailedEvent) GetRoomId() string {
 }
 
 // AssetDeletedEvent reports a deleted asset.
+// IDs identify the affected resources; this is not their current state.
+// Read the message resource for current content and interactions.
 type AssetDeletedEvent struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	AssetId string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected asset.
+	AssetId string `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	// Room containing the affected message.
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Message that owns the asset, including a deleted derivative asset.
@@ -2235,10 +2348,12 @@ func (x *AssetDeletedEvent) GetMessageEventId() string {
 	return ""
 }
 
-// ServerMotdChangedEvent reports the current message of the day.
+// ServerMotdChangedEvent reports a message of the day change.
+// The value comes from the source fact. Read ServerService for current state.
 type ServerMotdChangedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Motd          string                 `protobuf:"bytes,1,opt,name=motd,proto3" json:"motd,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Message of the day in the source fact.
+	Motd          string `protobuf:"bytes,1,opt,name=motd,proto3" json:"motd,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2281,10 +2396,13 @@ func (x *ServerMotdChangedEvent) GetMotd() string {
 }
 
 // UserAccountCreatedEvent reports a new public user account.
+// Values describe the source fact. Read UserService for current state.
 type UserAccountCreatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	IsBot         bool                   `protobuf:"varint,2,opt,name=is_bot,json=isBot,proto3" json:"is_bot,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected user.
+	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// Whether the created account is a bot.
+	IsBot         bool `protobuf:"varint,2,opt,name=is_bot,json=isBot,proto3" json:"is_bot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2334,10 +2452,13 @@ func (x *UserAccountCreatedEvent) GetIsBot() bool {
 }
 
 // Reports a reversible account access change. Administrative details are private.
+// Values describe the source fact. Read UserService for current state.
 type UserAccountDeactivationChangedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Deactivated   bool                   `protobuf:"varint,2,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected user.
+	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// Account deactivation value in the source fact.
+	Deactivated   bool `protobuf:"varint,2,opt,name=deactivated,proto3" json:"deactivated,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2387,9 +2508,12 @@ func (x *UserAccountDeactivationChangedEvent) GetDeactivated() bool {
 }
 
 // UserAccountDeletedEvent reports a deleted user account.
+// IDs identify the affected resources; this is not their current state.
+// Read UserService for current account state.
 type UserAccountDeletedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected user.
+	UserId        string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2432,13 +2556,17 @@ func (x *UserAccountDeletedEvent) GetUserId() string {
 }
 
 // ReactionAddedEvent reports a new message reaction.
+// Values describe the source fact. Read the message resource for current state.
 type ReactionAddedEvent struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	Emoji          string                 `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the affected message.
+	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	// Reaction emoji in the source fact.
+	Emoji         string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReactionAddedEvent) Reset() {
@@ -2493,13 +2621,17 @@ func (x *ReactionAddedEvent) GetEmoji() string {
 }
 
 // ReactionRemovedEvent reports a removed message reaction.
+// Values describe the source fact. Read the message resource for current state.
 type ReactionRemovedEvent struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	RoomId         string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	Emoji          string                 `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the affected message.
+	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	// Reaction emoji in the source fact.
+	Emoji         string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReactionRemovedEvent) Reset() {
@@ -2596,8 +2728,9 @@ func (*RoomLayoutChangedEvent) Descriptor() ([]byte, []int) {
 // Read the user through UserService with this event's resume cursor as the
 // minimum boundary.
 type UserProfileChangedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected user.
+	UserId        string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2678,14 +2811,19 @@ func (*ViewerPreferencesChangedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_realtime_v1_events_proto_rawDescGZIP(), []int{47}
 }
 
-// ThreadViewerStateChangedEvent reports the caller's current thread state.
+// ThreadViewerStateChangedEvent reports the caller's thread-follow change.
+// The value describes the follow change, not a fresh resource read.
+// Read thread resources for current follow state.
 type ThreadViewerStateChangedEvent struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	IsFollowing       bool                   `protobuf:"varint,3,opt,name=is_following,json=isFollowing,proto3" json:"is_following,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Root message ID of the affected thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	// Follow state reported by this change.
+	IsFollowing   bool `protobuf:"varint,3,opt,name=is_following,json=isFollowing,proto3" json:"is_following,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ThreadViewerStateChangedEvent) Reset() {
@@ -2782,9 +2920,11 @@ func (*ServerProfileChangedEvent) Descriptor() ([]byte, []int) {
 // 6 seconds after the last received typing event, or when that actor posts
 // a message in the same room or thread. No stop-typing event is sent.
 type UserTypingEvent struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	ThreadRootEventId *string                `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3,oneof" json:"thread_root_event_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Root message ID of the affected thread.
+	ThreadRootEventId *string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3,oneof" json:"thread_root_event_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -2835,8 +2975,9 @@ func (x *UserTypingEvent) GetThreadRootEventId() string {
 
 // PresenceChangedEvent reports the actor's current presence.
 type PresenceChangedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        v1.PresenceStatus      `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Presence status at publication.
+	Status        v1.PresenceStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2968,9 +3109,14 @@ func (x *NotificationOccurrencesChangedEvent) GetCreatedNotificationId() string 
 
 // NotificationUnreadStateChangedEvent reports that the caller's notification
 // unread state changed and requests authoritative notification and room reads.
+// This is a resource-read hint, not a state value. The server also sends it
+// after a message post for the poster, and after thread-follow changes.
+// Read room and thread resources for Slow Mode deadlines and follow state,
+// and notification resources for current Badge attention.
 type NotificationUnreadStateChangedEvent struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	RoomId string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Event ID of the affected thread root, or empty for room state.
 	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
@@ -3021,10 +3167,13 @@ func (x *NotificationUnreadStateChangedEvent) GetThreadRootEventId() string {
 	return ""
 }
 
-// RoomReadStateChangedEvent reports the caller's current room read state.
+// RoomReadStateChangedEvent requests a read of the caller's room read state.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomService.GetRoomReadState for the current read boundary.
 type RoomReadStateChangedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3067,10 +3216,14 @@ func (x *RoomReadStateChangedEvent) GetRoomId() string {
 }
 
 // An invitation created. Delivered only to its sender and recipient.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 type RoomInvitationCreatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	InvitationId  string                 `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the affected invitation.
+	InvitationId  string `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3120,10 +3273,14 @@ func (x *RoomInvitationCreatedEvent) GetInvitationId() string {
 }
 
 // An invitation accepted. Delivered only to its sender and recipient.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 type RoomInvitationAcceptedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	InvitationId  string                 `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the affected invitation.
+	InvitationId  string `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3173,10 +3330,14 @@ func (x *RoomInvitationAcceptedEvent) GetInvitationId() string {
 }
 
 // An invitation declined. Delivered only to its sender and recipient.
+// IDs identify the affected resources; this is not their current state.
+// Read RoomDirectoryService for current room and viewer state.
 type RoomInvitationDeclinedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	InvitationId  string                 `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the affected room.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// ID of the affected invitation.
+	InvitationId  string `protobuf:"bytes,2,opt,name=invitation_id,json=invitationId,proto3" json:"invitation_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

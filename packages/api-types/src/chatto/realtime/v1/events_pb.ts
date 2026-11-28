@@ -171,6 +171,7 @@ export class RoleDeletedEvent extends Message<RoleDeletedEvent> {
 
 /**
  * Custom roles changed display order. Permission decisions are unchanged.
+ * Values describe the source fact. Read RoleService for current state.
  *
  * @generated from message chatto.realtime.v1.RolesReorderedEvent
  */
@@ -214,6 +215,7 @@ export class RolesReorderedEvent extends Message<RolesReorderedEvent> {
  * A user was assigned a role. The named user's clients must discard private
  * cached data and load current authorized state. Other viewers update member
  * role lists without a full reload.
+ * Values describe the source fact. Read UserService for current assignments.
  *
  * @generated from message chatto.realtime.v1.RoleAssignedEvent
  */
@@ -264,6 +266,7 @@ export class RoleAssignedEvent extends Message<RoleAssignedEvent> {
 /**
  * A user's role assignment was removed. The named user's clients must discard
  * private cached data and load current authorized state.
+ * Values describe the source fact. Read UserService for current assignments.
  *
  * @generated from message chatto.realtime.v1.RoleRevokedEvent
  */
@@ -393,36 +396,50 @@ export class ViewerPermissionsChangedEvent extends Message<ViewerPermissionsChan
 
 /**
  * RoomCreatedEvent reports a new room that is visible to the caller.
+ * Values come from the source fact, not a current room read.
+ * Read RoomDirectoryService for current room metadata and viewer state.
  *
  * @generated from message chatto.realtime.v1.RoomCreatedEvent
  */
 export class RoomCreatedEvent extends Message<RoomCreatedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Room name in the source fact.
+   *
    * @generated from field: string name = 2;
    */
   name = "";
 
   /**
+   * Room description in the source fact.
+   *
    * @generated from field: string description = 3;
    */
   description = "";
 
   /**
+   * Room kind in the source fact.
+   *
    * @generated from field: chatto.api.v1.RoomKind kind = 4;
    */
   kind = RoomKind.UNSPECIFIED;
 
   /**
+   * Universal membership setting in the source fact.
+   *
    * @generated from field: bool universal = 5;
    */
   universal = false;
 
   /**
+   * Threading policy in the source fact.
+   *
    * @generated from field: chatto.api.v1.RoomThreadingMode threading_mode = 6;
    */
   threadingMode = RoomThreadingMode.UNSPECIFIED;
@@ -462,21 +479,29 @@ export class RoomCreatedEvent extends Message<RoomCreatedEvent> {
 
 /**
  * RoomUpdatedEvent reports changed room metadata.
+ * Values come from the source fact, not a current room read.
+ * Read RoomDirectoryService for current room metadata and viewer state.
  *
  * @generated from message chatto.realtime.v1.RoomUpdatedEvent
  */
 export class RoomUpdatedEvent extends Message<RoomUpdatedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Room name in the source fact.
+   *
    * @generated from field: string name = 2;
    */
   name = "";
 
   /**
+   * Room description in the source fact.
+   *
    * @generated from field: string description = 3;
    */
   description = "";
@@ -513,11 +538,15 @@ export class RoomUpdatedEvent extends Message<RoomUpdatedEvent> {
 
 /**
  * RoomDeletedEvent reports a deleted room.
+ * IDs identify the affected resources; this is not their current state.
+ * Read RoomDirectoryService for current room and viewer state.
  *
  * @generated from message chatto.realtime.v1.RoomDeletedEvent
  */
 export class RoomDeletedEvent extends Message<RoomDeletedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
@@ -552,11 +581,15 @@ export class RoomDeletedEvent extends Message<RoomDeletedEvent> {
 
 /**
  * RoomArchivedEvent reports a room that became archived.
+ * IDs identify the affected resources; this is not their current state.
+ * Read RoomDirectoryService for current room and viewer state.
  *
  * @generated from message chatto.realtime.v1.RoomArchivedEvent
  */
 export class RoomArchivedEvent extends Message<RoomArchivedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
@@ -591,11 +624,15 @@ export class RoomArchivedEvent extends Message<RoomArchivedEvent> {
 
 /**
  * RoomUnarchivedEvent reports a room that became active again.
+ * IDs identify the affected resources; this is not their current state.
+ * Read RoomDirectoryService for current room and viewer state.
  *
  * @generated from message chatto.realtime.v1.RoomUnarchivedEvent
  */
 export class RoomUnarchivedEvent extends Message<RoomUnarchivedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
@@ -629,17 +666,23 @@ export class RoomUnarchivedEvent extends Message<RoomUnarchivedEvent> {
 }
 
 /**
- * RoomUniversalChangedEvent reports the current universal-membership setting.
+ * RoomUniversalChangedEvent reports a universal-membership setting change.
+ * Values come from the source fact, not a current room read.
+ * Read RoomDirectoryService for current room metadata and viewer state.
  *
  * @generated from message chatto.realtime.v1.RoomUniversalChangedEvent
  */
 export class RoomUniversalChangedEvent extends Message<RoomUniversalChangedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Universal membership setting in the source fact.
+   *
    * @generated from field: bool universal = 2;
    */
   universal = false;
@@ -676,11 +719,14 @@ export class RoomUniversalChangedEvent extends Message<RoomUniversalChangedEvent
 /**
  * RoomNoticeChangedEvent asks current room members to read the latest notice.
  * It covers corrections, publication, republishing, and clear operations.
+ * The ID is a read hint; notice content is not included.
  *
  * @generated from message chatto.realtime.v1.RoomNoticeChangedEvent
  */
 export class RoomNoticeChangedEvent extends Message<RoomNoticeChangedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
@@ -714,23 +760,30 @@ export class RoomNoticeChangedEvent extends Message<RoomNoticeChangedEvent> {
 }
 
 /**
- * RoomSlowModeChangedEvent reports the current slow-mode interval.
+ * RoomSlowModeChangedEvent reports a Slow Mode interval change.
+ * Values come from the source fact, not a current room read.
+ * Read RoomDirectoryService for current room metadata and viewer state.
  *
  * @generated from message chatto.realtime.v1.RoomSlowModeChangedEvent
  */
 export class RoomSlowModeChangedEvent extends Message<RoomSlowModeChangedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Room Slow Mode interval in seconds. Zero disables it.
+   *
    * @generated from field: uint32 slow_mode_seconds = 2;
    */
   slowModeSeconds = 0;
 
   /**
-   * Independent interval within each thread. Zero disables it.
+   * Interval within each thread from the source fact. Zero disables it.
+   * For a legacy fact without this value, the room interval is used.
    *
    * @generated from field: optional uint32 thread_slow_mode_seconds = 3;
    */
@@ -767,17 +820,23 @@ export class RoomSlowModeChangedEvent extends Message<RoomSlowModeChangedEvent> 
 }
 
 /**
- * RoomThreadingModeChangedEvent reports the current room threading policy.
+ * RoomThreadingModeChangedEvent reports a room threading policy change.
+ * Values come from the source fact, not a current room read.
+ * Read RoomDirectoryService for current room metadata and viewer state.
  *
  * @generated from message chatto.realtime.v1.RoomThreadingModeChangedEvent
  */
 export class RoomThreadingModeChangedEvent extends Message<RoomThreadingModeChangedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Threading policy in the source fact.
+   *
    * @generated from field: chatto.api.v1.RoomThreadingMode threading_mode = 2;
    */
   threadingMode = RoomThreadingMode.UNSPECIFIED;
@@ -815,16 +874,22 @@ export class RoomThreadingModeChangedEvent extends Message<RoomThreadingModeChan
  * RoomMembershipEventsVisibilityChangedEvent changes how clients display room
  * join/leave activity, including history. Clients must still process membership
  * events when this setting is false.
+ * Values come from the source fact, not a current room read.
+ * Read RoomDirectoryService for current room metadata and viewer state.
  *
  * @generated from message chatto.realtime.v1.RoomMembershipEventsVisibilityChangedEvent
  */
 export class RoomMembershipEventsVisibilityChangedEvent extends Message<RoomMembershipEventsVisibilityChangedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Whether to show membership activity.
+   *
    * @generated from field: bool show_membership_events = 2;
    */
   showMembershipEvents = false;
@@ -860,11 +925,15 @@ export class RoomMembershipEventsVisibilityChangedEvent extends Message<RoomMemb
 
 /**
  * UserJoinedRoomEvent reports that the actor joined a room.
+ * IDs identify the affected resources; this is not their current state.
+ * Read RoomDirectoryService for current room and viewer state.
  *
  * @generated from message chatto.realtime.v1.UserJoinedRoomEvent
  */
 export class UserJoinedRoomEvent extends Message<UserJoinedRoomEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
@@ -899,11 +968,15 @@ export class UserJoinedRoomEvent extends Message<UserJoinedRoomEvent> {
 
 /**
  * UserLeftRoomEvent reports that the actor left a room.
+ * IDs identify the affected resources; this is not their current state.
+ * Read RoomDirectoryService for current room and viewer state.
  *
  * @generated from message chatto.realtime.v1.UserLeftRoomEvent
  */
 export class UserLeftRoomEvent extends Message<UserLeftRoomEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
@@ -938,16 +1011,22 @@ export class UserLeftRoomEvent extends Message<UserLeftRoomEvent> {
 
 /**
  * VoiceCallParticipantJoinedEvent reports that the actor joined a call session.
+ * IDs identify the affected resources; this is not their current state.
+ * Read call resources for current call state.
  *
  * @generated from message chatto.realtime.v1.VoiceCallParticipantJoinedEvent
  */
 export class VoiceCallParticipantJoinedEvent extends Message<VoiceCallParticipantJoinedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the call session.
+   *
    * @generated from field: string call_id = 2;
    */
   callId = "";
@@ -983,16 +1062,22 @@ export class VoiceCallParticipantJoinedEvent extends Message<VoiceCallParticipan
 
 /**
  * VoiceCallParticipantLeftEvent reports that the actor left a call session.
+ * IDs identify the affected resources; this is not their current state.
+ * Read call resources for current call state.
  *
  * @generated from message chatto.realtime.v1.VoiceCallParticipantLeftEvent
  */
 export class VoiceCallParticipantLeftEvent extends Message<VoiceCallParticipantLeftEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the call session.
+   *
    * @generated from field: string call_id = 2;
    */
   callId = "";
@@ -1028,16 +1113,22 @@ export class VoiceCallParticipantLeftEvent extends Message<VoiceCallParticipantL
 
 /**
  * VoiceCallStartedEvent reports a new call session.
+ * IDs identify the affected resources; this is not their current state.
+ * Read call resources for current call state.
  *
  * @generated from message chatto.realtime.v1.VoiceCallStartedEvent
  */
 export class VoiceCallStartedEvent extends Message<VoiceCallStartedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the call session.
+   *
    * @generated from field: string call_id = 2;
    */
   callId = "";
@@ -1073,16 +1164,22 @@ export class VoiceCallStartedEvent extends Message<VoiceCallStartedEvent> {
 
 /**
  * VoiceCallEndedEvent reports the end of a call session.
+ * IDs identify the affected resources; this is not their current state.
+ * Read call resources for current call state.
  *
  * @generated from message chatto.realtime.v1.VoiceCallEndedEvent
  */
 export class VoiceCallEndedEvent extends Message<VoiceCallEndedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the call session.
+   *
    * @generated from field: string call_id = 2;
    */
   callId = "";
@@ -1123,11 +1220,15 @@ export class VoiceCallEndedEvent extends Message<VoiceCallEndedEvent> {
  */
 export class MessagePostedEvent extends Message<MessagePostedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the message being answered, if any.
+   *
    * @generated from field: string in_reply_to = 2;
    */
   inReplyTo = "";
@@ -1140,11 +1241,15 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
   threadRootEventId = "";
 
   /**
+   * ID of the echoed message, if any.
+   *
    * @generated from field: string echo_of_event_id = 5;
    */
   echoOfEventId = "";
 
   /**
+   * Root message ID of the source thread for an echo, if any.
+   *
    * @generated from field: string echo_from_thread_root_event_id = 6;
    */
   echoFromThreadRootEventId = "";
@@ -1157,7 +1262,9 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
   mentions: MessageMention[] = [];
 
   /**
-   * Plaintext message text. The field is absent after key shredding.
+   * Current message body read during delivery, including edits. This is not
+   * necessarily the body at creation. Absent after key shredding.
+   * Read the message resource for its current body and other current state.
    *
    * @generated from field: optional string body_plaintext = 8;
    */
@@ -1212,6 +1319,8 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
  */
 export class DirectUserMention extends Message<DirectUserMention> {
   /**
+   * ID of the affected user.
+   *
    * @generated from field: string user_id = 1;
    */
   userId = "";
@@ -1251,6 +1360,8 @@ export class DirectUserMention extends Message<DirectUserMention> {
  */
 export class RoleMessageMention extends Message<RoleMessageMention> {
   /**
+   * Stable role name.
+   *
    * @generated from field: string role_name = 1;
    */
   roleName = "";
@@ -1363,24 +1474,32 @@ export class MessageMention extends Message<MessageMention> {
    */
   cause: {
     /**
+     * Direct user mention.
+     *
      * @generated from field: chatto.realtime.v1.DirectUserMention direct = 2;
      */
     value: DirectUserMention;
     case: "direct";
   } | {
     /**
+     * Role mention.
+     *
      * @generated from field: chatto.realtime.v1.RoleMessageMention role = 3;
      */
     value: RoleMessageMention;
     case: "role";
   } | {
     /**
+     * Presence-scoped mention.
+     *
      * @generated from field: chatto.realtime.v1.HereMessageMention here = 4;
      */
     value: HereMessageMention;
     case: "here";
   } | {
     /**
+     * Room-wide mention.
+     *
      * @generated from field: chatto.realtime.v1.AllMessageMention all = 5;
      */
     value: AllMessageMention;
@@ -1428,16 +1547,22 @@ export class MessageMention extends Message<MessageMention> {
 
 /**
  * MessageEditedEvent reports changed message content or metadata.
+ * IDs identify the affected resources; this is not their current state.
+ * Read the message resource for current content and interactions.
  *
  * @generated from message chatto.realtime.v1.MessageEditedEvent
  */
 export class MessageEditedEvent extends Message<MessageEditedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the affected message.
+   *
    * @generated from field: string message_event_id = 2;
    */
   messageEventId = "";
@@ -1473,16 +1598,22 @@ export class MessageEditedEvent extends Message<MessageEditedEvent> {
 
 /**
  * MessageRetractedEvent reports a retracted message.
+ * IDs identify the affected resources; this is not their current state.
+ * Read the message resource for current content and interactions.
  *
  * @generated from message chatto.realtime.v1.MessageRetractedEvent
  */
 export class MessageRetractedEvent extends Message<MessageRetractedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the affected message.
+   *
    * @generated from field: string message_event_id = 2;
    */
   messageEventId = "";
@@ -1518,16 +1649,22 @@ export class MessageRetractedEvent extends Message<MessageRetractedEvent> {
 
 /**
  * MessagePinnedEvent reports a newly pinned message.
+ * IDs identify the affected resources; this is not their current state.
+ * Read the message resource for current content and interactions.
  *
  * @generated from message chatto.realtime.v1.MessagePinnedEvent
  */
 export class MessagePinnedEvent extends Message<MessagePinnedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the affected message.
+   *
    * @generated from field: string message_event_id = 2;
    */
   messageEventId = "";
@@ -1563,16 +1700,22 @@ export class MessagePinnedEvent extends Message<MessagePinnedEvent> {
 
 /**
  * MessageUnpinnedEvent reports a message that is no longer pinned.
+ * IDs identify the affected resources; this is not their current state.
+ * Read the message resource for current content and interactions.
  *
  * @generated from message chatto.realtime.v1.MessageUnpinnedEvent
  */
 export class MessageUnpinnedEvent extends Message<MessageUnpinnedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the affected message.
+   *
    * @generated from field: string message_event_id = 2;
    */
   messageEventId = "";
@@ -1608,16 +1751,22 @@ export class MessageUnpinnedEvent extends Message<MessageUnpinnedEvent> {
 
 /**
  * ThreadCreatedEvent reports a new message thread.
+ * IDs identify the affected resources; this is not their current state.
+ * Read thread resources for current thread state.
  *
  * @generated from message chatto.realtime.v1.ThreadCreatedEvent
  */
 export class ThreadCreatedEvent extends Message<ThreadCreatedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Root message ID of the affected thread.
+   *
    * @generated from field: string thread_root_event_id = 2;
    */
   threadRootEventId = "";
@@ -1653,16 +1802,22 @@ export class ThreadCreatedEvent extends Message<ThreadCreatedEvent> {
 
 /**
  * AssetProcessingStartedEvent reports that message-asset processing started.
+ * IDs identify the affected resources; this is not their current state.
+ * Read the message resource for current content and interactions.
  *
  * @generated from message chatto.realtime.v1.AssetProcessingStartedEvent
  */
 export class AssetProcessingStartedEvent extends Message<AssetProcessingStartedEvent> {
   /**
+   * ID of the affected asset.
+   *
    * @generated from field: string asset_id = 1;
    */
   assetId = "";
 
   /**
+   * ID of the affected message.
+   *
    * @generated from field: string message_event_id = 2;
    */
   messageEventId = "";
@@ -1707,16 +1862,22 @@ export class AssetProcessingStartedEvent extends Message<AssetProcessingStartedE
 /**
  * AssetProcessingSucceededEvent reports successful message-asset processing.
  * Read the message resource for current attachments and processed video data.
+ * IDs identify the affected resources; this is not their current state.
+ * Read the message resource for current content and interactions.
  *
  * @generated from message chatto.realtime.v1.AssetProcessingSucceededEvent
  */
 export class AssetProcessingSucceededEvent extends Message<AssetProcessingSucceededEvent> {
   /**
+   * ID of the affected asset.
+   *
    * @generated from field: string asset_id = 1;
    */
   assetId = "";
 
   /**
+   * ID of the affected message.
+   *
    * @generated from field: string message_event_id = 3;
    */
   messageEventId = "";
@@ -1760,21 +1921,28 @@ export class AssetProcessingSucceededEvent extends Message<AssetProcessingSuccee
 
 /**
  * AssetProcessingFailedEvent reports failed message-asset processing.
+ * Values describe the source fact. Read the message resource for current state.
  *
  * @generated from message chatto.realtime.v1.AssetProcessingFailedEvent
  */
 export class AssetProcessingFailedEvent extends Message<AssetProcessingFailedEvent> {
   /**
+   * ID of the affected asset.
+   *
    * @generated from field: string asset_id = 1;
    */
   assetId = "";
 
   /**
+   * Failure class from the source fact.
+   *
    * @generated from field: chatto.realtime.v1.AssetProcessingFailureCode failure_code = 2;
    */
   failureCode = AssetProcessingFailureCode.UNSPECIFIED;
 
   /**
+   * ID of the affected message.
+   *
    * @generated from field: string message_event_id = 3;
    */
   messageEventId = "";
@@ -1819,11 +1987,15 @@ export class AssetProcessingFailedEvent extends Message<AssetProcessingFailedEve
 
 /**
  * AssetDeletedEvent reports a deleted asset.
+ * IDs identify the affected resources; this is not their current state.
+ * Read the message resource for current content and interactions.
  *
  * @generated from message chatto.realtime.v1.AssetDeletedEvent
  */
 export class AssetDeletedEvent extends Message<AssetDeletedEvent> {
   /**
+   * ID of the affected asset.
+   *
    * @generated from field: string asset_id = 1;
    */
   assetId = "";
@@ -1873,12 +2045,15 @@ export class AssetDeletedEvent extends Message<AssetDeletedEvent> {
 }
 
 /**
- * ServerMotdChangedEvent reports the current message of the day.
+ * ServerMotdChangedEvent reports a message of the day change.
+ * The value comes from the source fact. Read ServerService for current state.
  *
  * @generated from message chatto.realtime.v1.ServerMotdChangedEvent
  */
 export class ServerMotdChangedEvent extends Message<ServerMotdChangedEvent> {
   /**
+   * Message of the day in the source fact.
+   *
    * @generated from field: string motd = 1;
    */
   motd = "";
@@ -1913,16 +2088,21 @@ export class ServerMotdChangedEvent extends Message<ServerMotdChangedEvent> {
 
 /**
  * UserAccountCreatedEvent reports a new public user account.
+ * Values describe the source fact. Read UserService for current state.
  *
  * @generated from message chatto.realtime.v1.UserAccountCreatedEvent
  */
 export class UserAccountCreatedEvent extends Message<UserAccountCreatedEvent> {
   /**
+   * ID of the affected user.
+   *
    * @generated from field: string user_id = 1;
    */
   userId = "";
 
   /**
+   * Whether the created account is a bot.
+   *
    * @generated from field: bool is_bot = 2;
    */
   isBot = false;
@@ -1958,16 +2138,21 @@ export class UserAccountCreatedEvent extends Message<UserAccountCreatedEvent> {
 
 /**
  * Reports a reversible account access change. Administrative details are private.
+ * Values describe the source fact. Read UserService for current state.
  *
  * @generated from message chatto.realtime.v1.UserAccountDeactivationChangedEvent
  */
 export class UserAccountDeactivationChangedEvent extends Message<UserAccountDeactivationChangedEvent> {
   /**
+   * ID of the affected user.
+   *
    * @generated from field: string user_id = 1;
    */
   userId = "";
 
   /**
+   * Account deactivation value in the source fact.
+   *
    * @generated from field: bool deactivated = 2;
    */
   deactivated = false;
@@ -2003,11 +2188,15 @@ export class UserAccountDeactivationChangedEvent extends Message<UserAccountDeac
 
 /**
  * UserAccountDeletedEvent reports a deleted user account.
+ * IDs identify the affected resources; this is not their current state.
+ * Read UserService for current account state.
  *
  * @generated from message chatto.realtime.v1.UserAccountDeletedEvent
  */
 export class UserAccountDeletedEvent extends Message<UserAccountDeletedEvent> {
   /**
+   * ID of the affected user.
+   *
    * @generated from field: string user_id = 1;
    */
   userId = "";
@@ -2042,21 +2231,28 @@ export class UserAccountDeletedEvent extends Message<UserAccountDeletedEvent> {
 
 /**
  * ReactionAddedEvent reports a new message reaction.
+ * Values describe the source fact. Read the message resource for current state.
  *
  * @generated from message chatto.realtime.v1.ReactionAddedEvent
  */
 export class ReactionAddedEvent extends Message<ReactionAddedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the affected message.
+   *
    * @generated from field: string message_event_id = 2;
    */
   messageEventId = "";
 
   /**
+   * Reaction emoji in the source fact.
+   *
    * @generated from field: string emoji = 3;
    */
   emoji = "";
@@ -2093,21 +2289,28 @@ export class ReactionAddedEvent extends Message<ReactionAddedEvent> {
 
 /**
  * ReactionRemovedEvent reports a removed message reaction.
+ * Values describe the source fact. Read the message resource for current state.
  *
  * @generated from message chatto.realtime.v1.ReactionRemovedEvent
  */
 export class ReactionRemovedEvent extends Message<ReactionRemovedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the affected message.
+   *
    * @generated from field: string message_event_id = 2;
    */
   messageEventId = "";
 
   /**
+   * Reaction emoji in the source fact.
+   *
    * @generated from field: string emoji = 3;
    */
   emoji = "";
@@ -2186,6 +2389,8 @@ export class RoomLayoutChangedEvent extends Message<RoomLayoutChangedEvent> {
  */
 export class UserProfileChangedEvent extends Message<UserProfileChangedEvent> {
   /**
+   * ID of the affected user.
+   *
    * @generated from field: string user_id = 1;
    */
   userId = "";
@@ -2254,22 +2459,30 @@ export class ViewerPreferencesChangedEvent extends Message<ViewerPreferencesChan
 }
 
 /**
- * ThreadViewerStateChangedEvent reports the caller's current thread state.
+ * ThreadViewerStateChangedEvent reports the caller's thread-follow change.
+ * The value describes the follow change, not a fresh resource read.
+ * Read thread resources for current follow state.
  *
  * @generated from message chatto.realtime.v1.ThreadViewerStateChangedEvent
  */
 export class ThreadViewerStateChangedEvent extends Message<ThreadViewerStateChangedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Root message ID of the affected thread.
+   *
    * @generated from field: string thread_root_event_id = 2;
    */
   threadRootEventId = "";
 
   /**
+   * Follow state reported by this change.
+   *
    * @generated from field: bool is_following = 3;
    */
   isFollowing = false;
@@ -2348,11 +2561,15 @@ export class ServerProfileChangedEvent extends Message<ServerProfileChangedEvent
  */
 export class UserTypingEvent extends Message<UserTypingEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * Root message ID of the affected thread.
+   *
    * @generated from field: optional string thread_root_event_id = 2;
    */
   threadRootEventId?: string;
@@ -2393,6 +2610,8 @@ export class UserTypingEvent extends Message<UserTypingEvent> {
  */
 export class PresenceChangedEvent extends Message<PresenceChangedEvent> {
   /**
+   * Presence status at publication.
+   *
    * @generated from field: chatto.api.v1.PresenceStatus status = 1;
    */
   status = PresenceStatus.UNSPECIFIED;
@@ -2507,11 +2726,17 @@ export class NotificationOccurrencesChangedEvent extends Message<NotificationOcc
 /**
  * NotificationUnreadStateChangedEvent reports that the caller's notification
  * unread state changed and requests authoritative notification and room reads.
+ * This is a resource-read hint, not a state value. The server also sends it
+ * after a message post for the poster, and after thread-follow changes.
+ * Read room and thread resources for Slow Mode deadlines and follow state,
+ * and notification resources for current Badge attention.
  *
  * @generated from message chatto.realtime.v1.NotificationUnreadStateChangedEvent
  */
 export class NotificationUnreadStateChangedEvent extends Message<NotificationUnreadStateChangedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
@@ -2553,12 +2778,16 @@ export class NotificationUnreadStateChangedEvent extends Message<NotificationUnr
 }
 
 /**
- * RoomReadStateChangedEvent reports the caller's current room read state.
+ * RoomReadStateChangedEvent requests a read of the caller's room read state.
+ * IDs identify the affected resources; this is not their current state.
+ * Read RoomService.GetRoomReadState for the current read boundary.
  *
  * @generated from message chatto.realtime.v1.RoomReadStateChangedEvent
  */
 export class RoomReadStateChangedEvent extends Message<RoomReadStateChangedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
@@ -2593,16 +2822,22 @@ export class RoomReadStateChangedEvent extends Message<RoomReadStateChangedEvent
 
 /**
  * An invitation created. Delivered only to its sender and recipient.
+ * IDs identify the affected resources; this is not their current state.
+ * Read RoomDirectoryService for current room and viewer state.
  *
  * @generated from message chatto.realtime.v1.RoomInvitationCreatedEvent
  */
 export class RoomInvitationCreatedEvent extends Message<RoomInvitationCreatedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the affected invitation.
+   *
    * @generated from field: string invitation_id = 2;
    */
   invitationId = "";
@@ -2638,16 +2873,22 @@ export class RoomInvitationCreatedEvent extends Message<RoomInvitationCreatedEve
 
 /**
  * An invitation accepted. Delivered only to its sender and recipient.
+ * IDs identify the affected resources; this is not their current state.
+ * Read RoomDirectoryService for current room and viewer state.
  *
  * @generated from message chatto.realtime.v1.RoomInvitationAcceptedEvent
  */
 export class RoomInvitationAcceptedEvent extends Message<RoomInvitationAcceptedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the affected invitation.
+   *
    * @generated from field: string invitation_id = 2;
    */
   invitationId = "";
@@ -2683,16 +2924,22 @@ export class RoomInvitationAcceptedEvent extends Message<RoomInvitationAcceptedE
 
 /**
  * An invitation declined. Delivered only to its sender and recipient.
+ * IDs identify the affected resources; this is not their current state.
+ * Read RoomDirectoryService for current room and viewer state.
  *
  * @generated from message chatto.realtime.v1.RoomInvitationDeclinedEvent
  */
 export class RoomInvitationDeclinedEvent extends Message<RoomInvitationDeclinedEvent> {
   /**
+   * ID of the affected room.
+   *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
+   * ID of the affected invitation.
+   *
    * @generated from field: string invitation_id = 2;
    */
   invitationId = "";
